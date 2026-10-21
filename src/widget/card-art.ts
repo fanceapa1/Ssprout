@@ -1,125 +1,63 @@
 import { createRng } from '../core/rng';
-import { brushStroke, PIGMENT, rgba, wobble, type Ctx, type P } from './brush';
+import { brushStroke, PIGMENT, rgba, type Ctx, type P } from './brush';
+import { paintPaper } from './paper';
 import { paintSoil, paintSprout, type PlantPainter } from './sprout';
 import type { WidgetView } from './view';
 
 /**
- * Painting of the widget card (canvas part): washi paper, a pale wash behind the plant, soil and
- * the plant. Text and the button are DOM in the real widget (crisp, accessible); the studio
- * preview paints them too with the same layout constants (`paintCardPreview`).
+ * Painting of the widget card (canvas part): washi paper, a pale wash behind the plant, soil, the
+ * session's plant and the plan progress line. Text and buttons are DOM in the real widget (crisp,
+ * accessible); the studio preview paints them too with the same layout (`paintCardPreview`).
  */
 
-/** Height (CSS px) reserved under the plant for time, state line and button. */
-export const FOOTER_H = 122;
 export const CARD_W = 260;
-export const CARD_H = 300;
+export const CARD_H = 340;
 
 export const CARD_FONTS = {
-  time: '500 40px "Shippori Mincho", "Cormorant Garamond", Georgia, serif',
-  state: 'italic 400 14px "Cormorant Garamond", Georgia, serif',
-  button: '600 14px "Cormorant Garamond", Georgia, serif',
+  task: 'italic 500 15px "Cormorant Garamond", Georgia, serif',
+  time: '500 34px "Shippori Mincho", "Cormorant Garamond", Georgia, serif',
+  state: 'italic 400 13.5px "Cormorant Garamond", Georgia, serif',
+  button: '600 13.5px "Cormorant Garamond", Georgia, serif',
 } as const;
 
-/** Paint washi paper: warm ground, mottling, fibres, grain and a deckled darker edge. */
-export function paintPaper(ctx: Ctx, w: number, h: number, seed: string | number = 'washi'): void {
-  const rng = createRng(`paper:${seed}`);
-  ctx.save();
-  ctx.fillStyle = PIGMENT.paper;
-  ctx.fillRect(0, 0, w, h);
+/**
+ * Card layout (CSS px, measured from the bottom so a taller window gives the plant more room).
+ * The DOM card (card.ts) positions its text and buttons with the same numbers.
+ */
+export const LAYOUT = {
+  /** everything under the plant */
+  footer: 134,
+  taskBaseline: 112,
+  timeBaseline: 74,
+  progressY: 60,
+  progressInset: 34,
+  stateBaseline: 43,
+  buttonsBottom: 10,
+  buttonH: 26,
+} as const;
 
-  // mottling: large soft blotches, barely there
-  const m = rng.fork('mottle');
-  for (let i = 0; i < 16; i++) {
-    const x = m.range(0, w);
-    const y = m.range(0, h);
-    const r = m.range(30, 110);
-    const g = ctx.createRadialGradient(x, y, 0, x, y, r);
-    const tone = m.chance(0.55) ? PIGMENT.paperDeep : '#fbf6ea';
-    g.addColorStop(0, rgba(tone, m.range(0.18, 0.32)));
-    g.addColorStop(1, rgba(tone, 0));
-    ctx.fillStyle = g;
-    ctx.fillRect(x - r, y - r, r * 2, r * 2);
-  }
-
-  // fibres: short curved hairs, light and dark
-  const f = rng.fork('fibres');
-  const fibres = Math.round((w * h) / 380);
-  ctx.lineCap = 'round';
-  for (let i = 0; i < fibres; i++) {
-    const x = f.range(-10, w + 10);
-    const y = f.range(-10, h + 10);
-    const len = f.range(5, 20);
-    const a = f.range(0, Math.PI * 2);
-    const bend = f.range(-4, 4);
-    ctx.strokeStyle = f.chance(0.6) ? `rgba(170,150,110,${f.range(0.05, 0.12)})` : `rgba(255,252,243,${f.range(0.2, 0.4)})`;
-    ctx.lineWidth = f.range(0.35, 0.8);
-    ctx.beginPath();
-    ctx.moveTo(x, y);
-    ctx.quadraticCurveTo(x + Math.cos(a) * len * 0.5 - Math.sin(a) * bend, y + Math.sin(a) * len * 0.5 + Math.cos(a) * bend, x + Math.cos(a) * len, y + Math.sin(a) * len);
-    ctx.stroke();
-  }
-
-  // grain
-  const gr = rng.fork('grain');
-  const dots = Math.round((w * h) / 30);
-  for (let i = 0; i < dots; i++) {
-    ctx.fillStyle = `rgba(120,100,70,${gr.range(0.025, 0.07)})`;
-    const s = gr.range(0.5, 1.1);
-    ctx.fillRect(gr.range(0, w), gr.range(0, h), s, s);
-  }
-
-  // deckled edge: an irregular, darker rim where the slip was torn
-  const e = rng.fork('edge');
-  ctx.globalCompositeOperation = 'multiply';
-  const ring = (inset: number, amp: number): P[] => {
-    const pts: P[] = [];
-    const per = 2 * (w + h);
-    const step = 4;
-    const nz = wobble(e);
-    for (let d = 0; d < per; d += step) {
-      const j = inset + amp * (0.5 + 0.5 * nz(d * 0.03)) * 1.4 + e.range(0, amp * 0.5);
-      if (d < w) pts.push({ x: d, y: j });
-      else if (d < w + h) pts.push({ x: w - j, y: d - w });
-      else if (d < 2 * w + h) pts.push({ x: w - (d - w - h), y: h - j });
-      else pts.push({ x: j, y: h - (d - 2 * w - h) });
-    }
-    return pts;
-  };
-  for (let k = 0; k < 4; k++) {
-    const inner = ring(1 + k * 2.2, 3 + k * 1.5);
-    ctx.fillStyle = `rgba(185,165,125,${0.06 - k * 0.012})`;
-    ctx.beginPath();
-    ctx.rect(-2, -2, w + 4, h + 4);
-    inner.forEach((p, i) => (i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)));
-    ctx.closePath();
-    ctx.fill('evenodd');
-  }
-  // gentle vignette: edges dissolve
-  const v = ctx.createRadialGradient(w / 2, h * 0.45, Math.min(w, h) * 0.3, w / 2, h * 0.45, Math.max(w, h) * 0.75);
-  v.addColorStop(0, 'rgba(255,255,255,0)');
-  v.addColorStop(1, 'rgba(200,180,140,0.16)');
-  ctx.fillStyle = v;
-  ctx.fillRect(0, 0, w, h);
-  ctx.restore();
+/** The plant area (top of the card). */
+export function plantArea(w: number, h: number): { x: number; y: number; w: number; h: number } {
+  return { x: 0, y: 0, w, h: Math.max(80, h - LAYOUT.footer) };
 }
 
-/** Where the plant stands in a card of size w×h. */
+/** Where the generic sprout / soil stand inside the plant area. */
 export function plantBox(w: number, h: number): { x: number; y: number; h: number } {
-  const areaH = Math.max(60, h - FOOTER_H);
-  return { x: w / 2, y: areaH - 4, h: Math.min(areaH * 0.78, w * 0.6) };
+  const a = plantArea(w, h);
+  return { x: w / 2, y: a.h * 0.97, h: Math.min(a.h * 0.86, w * 0.7) };
 }
 
 /**
- * Atmosphere behind the plant: a low ground wash the soil sits in, and a few very faint, large
- * glazes above it that dissolve into the paper (lost edges, no outline).
+ * Atmosphere behind the plant: a few broken dry-brush dabs of ground and very faint large glazes
+ * above that dissolve into the paper (lost edges, no outline). Tone follows the mode.
  */
-export function paintBackdrop(ctx: Ctx, w: number, h: number, seed: string, mode: WidgetView['mode']): void {
+export function paintBackdrop(ctx: Ctx, w: number, h: number, seed: string | number, mode: WidgetView['mode']): void {
   const rng = createRng(`backdrop:${seed}`);
   const box = plantBox(w, h);
-  const tone = mode === 'complete' ? PIGMENT.sakuraPale : mode === 'paused' ? PIGMENT.stone : PIGMENT.celadon;
+  const tone =
+    mode === 'complete' ? PIGMENT.sakuraPale : mode === 'paused' ? PIGMENT.stone : mode === 'break' ? '#8fb0ab' : PIGMENT.celadon;
   ctx.save();
   ctx.globalCompositeOperation = 'multiply';
-  // ground: a few broken horizontal dry-brush dabs, no closed outline
   const g = rng.fork('ground');
   for (let k = 0; k < 7; k++) {
     const len = w * g.range(0.12, 0.3) * (k < 2 ? 1.5 : 1);
@@ -134,7 +72,6 @@ export function paintBackdrop(ctx: Ctx, w: number, h: number, seed: string, mode
       edge: 0.45,
     });
   }
-  // air: soft radial glazes, no edges at all
   const a = rng.fork('air');
   for (let k = 0; k < 4; k++) {
     const cx = box.x + a.range(-0.35, 0.35) * w * 0.5;
@@ -150,85 +87,211 @@ export function paintBackdrop(ctx: Ctx, w: number, h: number, seed: string, mode
   ctx.restore();
 }
 
-export interface CardArtState {
-  growth: number;
-  bloom: number;
+/**
+ * The thin brush progress line with plan segments: focus blocks are sage strokes (olive where
+ * done), breaks are gaps holding a small water drop (filled once reached).
+ */
+export function paintProgressLine(ctx: Ctx, w: number, h: number, view: Pick<WidgetView, 'segments' | 'progress' | 'mode'>): void {
+  if (view.segments.length === 0) return;
+  const x0 = LAYOUT.progressInset;
+  const x1 = w - LAYOUT.progressInset;
+  const y = h - LAYOUT.progressY;
+  const X = (f: number) => x0 + (x1 - x0) * f;
+  const rng = createRng('progress-line');
+  const gap = 4;
+  const done = view.mode === 'paused' ? PIGMENT.stone : PIGMENT.olive;
+  const line = (from: number, to: number): P[] => {
+    const n = Math.max(2, Math.round((to - from) / 6));
+    return Array.from({ length: n + 1 }, (_, i) => {
+      const x = from + ((to - from) * i) / n;
+      return { x, y: y + Math.sin(x * 0.09) * 0.4 };
+    });
+  };
+  ctx.save();
+  ctx.globalCompositeOperation = 'multiply';
+  view.segments.forEach((seg, i) => {
+    const a = X(seg.start);
+    const b = X(seg.end);
+    if (seg.kind === 'focus') {
+      const s0 = seg.start === 0 ? a : a + gap;
+      const s1 = seg.end >= 1 ? b : b - gap;
+      if (s1 - s0 < 1) return;
+      brushStroke(ctx, line(s0, s1), rng.fork(`t${i}`), { width: (t) => 2.2 - Math.abs(t - 0.5), color: PIGMENT.sage, alpha: 0.4, edge: 0.3 });
+      const fillTo = Math.min(s1, X(view.progress));
+      if (fillTo - s0 > 0.5) {
+        brushStroke(ctx, line(s0, fillTo), rng.fork(`f${i}`), {
+          width: (t) => 2.7 - Math.abs(t - 0.5) * 0.8,
+          color: done,
+          alpha: 0.72,
+          edge: 0.25,
+        });
+      }
+    } else {
+      // a drop in the gap
+      const cx = (a + b) / 2;
+      const reached = view.progress >= seg.start;
+      const r = 2.6;
+      ctx.beginPath();
+      ctx.moveTo(cx, y - r * 2.1);
+      ctx.bezierCurveTo(cx + r * 1.1, y - r * 0.6, cx + r, y + r, cx, y + r);
+      ctx.bezierCurveTo(cx - r, y + r, cx - r * 1.1, y - r * 0.6, cx, y - r * 2.1);
+      ctx.fillStyle = rgba('#6f9690', reached ? 0.7 : 0.28);
+      ctx.fill();
+    }
+  });
+  ctx.restore();
 }
 
-/** Everything the canvas shows: paper, backdrop, soil, plant. */
-export function paintCardArt(
-  ctx: Ctx,
-  w: number,
-  h: number,
-  view: WidgetView,
-  art: CardArtState,
-  plant: PlantPainter = paintSprout,
-  paper?: CanvasImageSource,
-): void {
-  if (paper) ctx.drawImage(paper, 0, 0, w, h);
-  else paintPaper(ctx, w, h);
-  paintBackdrop(ctx, w, h, view.seed, view.mode);
-  const box = plantBox(w, h);
-  paintSoil(ctx, box, view.seed);
-  plant(ctx, box, { growth: art.growth, bloom: art.bloom, seed: view.seed, paused: view.mode === 'paused' });
+export interface CardArtState {
+  /** displayed growth 0..1 (eases toward the view's growth) */
+  growth: number;
+  /** watering animation 0..1, or null */
+  watering: number | null;
+}
+
+/** Draws the plant into a layer canvas; returns false when it could not (caller falls back). */
+export type PlantRenderer = (
+  canvas: HTMLCanvasElement,
+  opts: { speciesId: string; seed: number; growth: number; watering: number | null },
+) => boolean;
+
+export interface CardArtOptions {
+  renderPlant?: PlantRenderer;
+  /** scratch canvas for the plant (device px), created by the caller in the target document */
+  plantLayer?: HTMLCanvasElement;
+  /** cached paper image (w×h CSS px) */
+  paper?: CanvasImageSource;
+  pixelRatio?: number;
+  /** plant painter used when the species cannot be rendered (default: the generic sprout) */
+  fallback?: PlantPainter;
 }
 
 /**
- * Studio preview of the whole card: the art plus the DOM parts painted with the same layout
- * (time, state line, washi-slip button with a vermilion seal for the primary action).
+ * Everything the canvas shows: paper, backdrop, soil, the session's plant (via `renderPlant`
+ * into `plantLayer`, else the generic sprout), the progress line. `w`/`h` are CSS px and the
+ * context is already scaled to CSS px.
  */
-export function paintCardPreview(ctx: Ctx, w: number, h: number, view: WidgetView, art: CardArtState, plant?: PlantPainter): void {
-  paintCardArt(ctx, w, h, view, art, plant);
-  const top = h - FOOTER_H;
+export function paintCardArt(ctx: Ctx, w: number, h: number, view: WidgetView, art: CardArtState, opts: CardArtOptions = {}): void {
+  if (opts.paper) ctx.drawImage(opts.paper, 0, 0, w, h);
+  else paintPaper(ctx, w, h);
+  paintBackdrop(ctx, w, h, view.seed, view.mode);
+  const box = plantBox(w, h);
+  paintSoil(ctx, box, String(view.seed));
+
+  if (view.speciesId !== null) {
+    const area = plantArea(w, h);
+    let drawn = false;
+    if (opts.renderPlant && opts.plantLayer) {
+      const pr = opts.pixelRatio ?? 1;
+      const layer = opts.plantLayer;
+      const lw = Math.round(area.w * pr);
+      const lh = Math.round(area.h * pr);
+      if (layer.width !== lw || layer.height !== lh) {
+        layer.width = lw;
+        layer.height = lh;
+      }
+      drawn = opts.renderPlant(layer, { speciesId: view.speciesId, seed: view.seed, growth: art.growth, watering: art.watering });
+      if (drawn) {
+        ctx.save();
+        if (view.mode === 'paused') ctx.globalAlpha = 0.62; // a held breath: paler, not gone
+        ctx.drawImage(layer, area.x, area.y, area.w, area.h);
+        ctx.restore();
+      }
+    }
+    if (!drawn) {
+      (opts.fallback ?? paintSprout)(ctx, box, {
+        growth: art.growth,
+        bloom: view.mode === 'complete' ? 1 : 0,
+        seed: `${view.speciesId}:${view.seed}`,
+        paused: view.mode === 'paused',
+      });
+    }
+  }
+  paintProgressLine(ctx, w, h, view);
+}
+
+/** The state line as shown: state plus the session total when there is one. */
+export const stateLine = (view: Pick<WidgetView, 'state' | 'total'>): string => (view.total ? `${view.state} · ${view.total}` : view.state);
+
+/**
+ * Studio preview of the whole card: the art plus the DOM parts painted with the same layout
+ * (task, block time, state line, washi-slip buttons; vermilion seal on the primary action).
+ */
+export function paintCardPreview(ctx: Ctx, w: number, h: number, view: WidgetView, art: CardArtState, opts: CardArtOptions = {}): void {
+  paintCardArt(ctx, w, h, view, art, opts);
   ctx.save();
   ctx.textAlign = 'center';
   ctx.textBaseline = 'alphabetic';
+  if (view.task) {
+    ctx.font = CARD_FONTS.task;
+    ctx.fillStyle = rgba(PIGMENT.ink, 0.72);
+    ctx.fillText(view.task, w / 2, h - LAYOUT.taskBaseline);
+  }
   if (view.time) {
     ctx.font = CARD_FONTS.time;
     ctx.fillStyle = rgba(PIGMENT.ink, view.mode === 'paused' ? 0.6 : 0.92);
-    ctx.fillText(view.time, w / 2, top + 42);
+    ctx.fillText(view.time, w / 2, h - LAYOUT.timeBaseline);
   }
   ctx.font = CARD_FONTS.state;
   ctx.fillStyle = rgba(PIGMENT.ink, 0.66);
-  ctx.fillText(view.state, w / 2, view.time ? top + 64 : top + 40);
+  if (view.time) ctx.fillText(stateLine(view), w / 2, h - LAYOUT.stateBaseline);
+  else wrapCentered(ctx, stateLine(view), w / 2, h - LAYOUT.timeBaseline - 16, w - 40, 17);
 
-  // button: a washi slip, thin ink border, label (and a seal for the primary action)
   ctx.font = CARD_FONTS.button;
-  const label = view.action.label;
-  const primary = view.action.kind === 'open';
-  const tw = ctx.measureText(label).width;
-  const bw = tw + 30 + (primary ? 14 : 0);
-  const bh = 30;
-  const bx = w / 2 - bw / 2;
-  const by = h - 18 - bh;
-  ctx.fillStyle = 'rgba(250,246,238,0.55)';
-  ctx.fillRect(bx, by, bw, bh);
-  const rng = createRng(`button:${label}`);
+  const pad = 11;
+  const gapX = 7;
+  const widths = view.buttons.map((b) => ctx.measureText(b.label).width + pad * 2 + (b.primary ? 12 : 0));
+  let x = w / 2 - (widths.reduce((a, b) => a + b, 0) + gapX * (widths.length - 1)) / 2;
+  const by = h - LAYOUT.buttonsBottom - LAYOUT.buttonH;
+  view.buttons.forEach((b, i) => {
+    const bw = widths[i]!;
+    paintSlip(ctx, x, by, bw, LAYOUT.buttonH, b.label);
+    let tx = x + bw / 2;
+    if (b.primary) {
+      ctx.save();
+      ctx.translate(x + pad + 3, by + LAYOUT.buttonH / 2);
+      ctx.rotate(-0.06);
+      ctx.fillStyle = rgba(PIGMENT.vermilion, 0.85);
+      ctx.fillRect(-3.5, -3.5, 7, 7);
+      ctx.restore();
+      tx += 6;
+    }
+    ctx.fillStyle = rgba(PIGMENT.ink, 0.9);
+    ctx.textBaseline = 'middle';
+    ctx.fillText(b.label, tx, by + LAYOUT.buttonH / 2 + 1);
+    ctx.textBaseline = 'alphabetic';
+    x += bw + gapX;
+  });
+  ctx.restore();
+}
+
+function paintSlip(ctx: Ctx, x: number, y: number, w: number, h: number, seed: string): void {
+  ctx.fillStyle = 'rgba(250,246,238,0.6)';
+  ctx.fillRect(x, y, w, h);
+  const rng = createRng(`slip:${seed}`);
   const edge = (a: P, b: P) =>
     brushStroke(ctx, [a, { x: (a.x + b.x) / 2 + rng.range(-0.4, 0.4), y: (a.y + b.y) / 2 + rng.range(-0.4, 0.4) }, b], rng, {
       width: () => 0.9,
       color: PIGMENT.ink,
-      alpha: 0.5,
+      alpha: 0.45,
       edge: 0.25,
     });
-  edge({ x: bx, y: by }, { x: bx + bw, y: by + 0.5 });
-  edge({ x: bx + bw, y: by + 0.5 }, { x: bx + bw - 0.5, y: by + bh });
-  edge({ x: bx + bw - 0.5, y: by + bh }, { x: bx + 0.5, y: by + bh - 0.3 });
-  edge({ x: bx + 0.5, y: by + bh - 0.3 }, { x: bx, y: by });
-  let textX = w / 2;
-  if (primary) {
-    const sx = bx + 14;
-    const sy = by + bh / 2;
-    ctx.save();
-    ctx.translate(sx, sy);
-    ctx.rotate(-0.06);
-    ctx.fillStyle = rgba(PIGMENT.vermilion, 0.85);
-    ctx.fillRect(-4, -4, 8, 8);
-    ctx.restore();
-    textX += 7;
+  edge({ x, y }, { x: x + w, y: y + 0.5 });
+  edge({ x: x + w, y: y + 0.5 }, { x: x + w - 0.5, y: y + h });
+  edge({ x: x + w - 0.5, y: y + h }, { x: x + 0.5, y: y + h - 0.3 });
+  edge({ x: x + 0.5, y: y + h - 0.3 }, { x, y });
+}
+
+function wrapCentered(ctx: Ctx, text: string, cx: number, y: number, maxW: number, lineH: number): void {
+  const lines: string[] = [];
+  let line = '';
+  for (const word of text.split(' ')) {
+    const next = line ? `${line} ${word}` : word;
+    if (ctx.measureText(next).width > maxW && line) {
+      lines.push(line);
+      line = word;
+    } else line = next;
   }
-  ctx.fillStyle = rgba(PIGMENT.ink, 0.9);
-  ctx.textBaseline = 'middle';
-  ctx.fillText(label, textX, by + bh / 2 + 1);
-  ctx.restore();
+  if (line) lines.push(line);
+  lines.forEach((l, i) => ctx.fillText(l, cx, y + i * lineH));
 }
