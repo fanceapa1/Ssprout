@@ -1,0 +1,196 @@
+:root {
+  --paper: #f3ecd9;
+  --ink: #4a443c;
+  --muted: #8a8172;
+  --line: rgba(74, 68, 60, 0.18);
+  --accent: #d0694a;
+  --stage: var(--paper);
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: 17px;
+  color: var(--ink);
+}
+
+body {
+  margin: 0;
+  background: var(--paper);
+}
+
+body[data-bg='white'] {
+  --stage: #ffffff;
+}
+
+body[data-bg='dark'] {
+  --stage: #26241f;
+}
+
+.controls {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem 1.2rem;
+  padding: 0.6rem 1.2rem;
+  background: var(--paper);
+  border-bottom: 1px solid var(--line);
+}
+
+.controls h1 {
+  font-size: 1.15rem;
+  font-weight: 600;
+  margin: 0 1rem 0 0;
+  letter-spacing: 0.02em;
+}
+
+.controls label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.controls input[type='number'] {
+  width: 7ch;
+}
+
+input,
+select,
+button {
+  font: inherit;
+  font-size: 0.95rem;
+  color: var(--ink);
+  background: #faf6ee;
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  padding: 0.15rem 0.45rem;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:hover {
+  border-color: var(--accent);
+}
+
+.body {
+  display: grid;
+  grid-template-columns: 14rem 1fr;
+  align-items: start;
+}
+
+nav {
+  position: sticky;
+  top: 3.2rem;
+  padding: 1rem 1.2rem;
+}
+
+nav ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+nav a {
+  display: block;
+  padding: 0.2rem 0;
+  color: var(--ink);
+  text-decoration: none;
+}
+
+nav a.active {
+  color: var(--accent);
+}
+
+nav small {
+  color: var(--muted);
+}
+
+main {
+  padding: 1rem 1.2rem 3rem;
+  min-width: 0;
+}
+
+main h2 {
+  font-weight: 600;
+  font-size: 1.3rem;
+  margin: 1.2rem 0 0.6rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: flex-end;
+}
+
+.card {
+  margin: 0;
+}
+
+.frame {
+  background: var(--stage);
+  border: 1px solid var(--line);
+  line-height: 0;
+  display: inline-block;
+}
+
+.card canvas {
+  display: block;
+}
+
+figcaption {
+  display: flex;
+  gap: 0.5rem;
+  align-items: baseline;
+  font-size: 0.95rem;
+  padding-top: 0.25rem;
+}
+
+figcaption .id {
+  color: var(--muted);
+  font-size: 0.8rem;
+  text-decoration: none;
+}
+
+figcaption .tag {
+  font-size: 0.75rem;
+  color: var(--accent);
+}
+
+.error:empty {
+  display: none;
+}
+
+.error {
+  color: #a33;
+  font-size: 0.85rem;
+  margin: 0.2rem 0 0;
+  max-width: 30ch;
+}
+
+.single {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  background: var(--stage);
+}
+
+.single .frame {
+  border: 0;
+}
+
+.empty {
+  padding: 2rem;
+}
+
+@media (max-width: 700px) {
+  .body {
+    grid-template-columns: 1fr;
+  }
+
+  nav {
+    position: static;
+  }
+}

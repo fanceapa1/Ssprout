@@ -1,4 +1,7 @@
+import { resolve } from 'node:path';
 import { defineConfig } from 'vitest/config';
+
+const root = import.meta.dirname;
 
 // GitHub Pages serves the site from https://<user>.github.io/Ssprout/
 export default defineConfig({
@@ -6,6 +9,13 @@ export default defineConfig({
   build: {
     target: 'es2022',
     sourcemap: true,
+    // multi-page: the garden app and the studio (visual review of every sprite/animation)
+    rolldownOptions: {
+      input: {
+        main: resolve(root, 'index.html'),
+        studio: resolve(root, 'studio.html'),
+      },
+    },
   },
   server: {
     port: 5173,
