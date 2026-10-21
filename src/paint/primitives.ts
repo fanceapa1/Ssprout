@@ -11,11 +11,13 @@ import type { Ctx2D } from './canvas';
 import {
   blob,
   bounds,
+  centroid,
   densify,
   deformPolygon,
   dabOutline,
   extentAlong,
   halfPlane,
+  innerClip,
   padRect,
   organicOutline,
   outlineLayer,
@@ -66,11 +68,17 @@ export function prepareOutline(shape: Shape, rng: Rng, deform: number, detail = 
   return organicOutline(toPolygon(shape, rng), rng, { deform, detail });
 }
 
-/** A soft-fronted half plane whose boundary passes `d` along `angle` (for fades and bleeds). */
-function organicHalfPlane(d: number, angle: number, size: number, ext: number, rng: Rng, variance: number): Polygon {
-  const ux = Math.cos(angle);
-  const uy = Math.sin(angle);
-  const hp = densify(halfPlane({ x: ux * d, y: uy * d }, angle, size), Math.max(2, ext * 0.1));
+/**
+ * A soft-fronted half plane covering the side `side` points to, whose boundary crosses the
+ * `axis` direction at projection `d` (measured from the origin, like `extentAlong`), centred
+ * laterally on `near` (for fades and bleeds).
+ */
+export function organicHalfPlane(d: number, axis: number, side: number, near: Pt, size: number, ext: number, rng: Rng, variance: number): Polygon {
+  const ux = Math.cos(axis);
+  const uy = Math.sin(axis);
+  const k = d - (near.x * ux + near.y * uy);
+  const p = { x: near.x + ux * k, y: near.y + uy * k };
+  const hp = densify(halfPlane(p, side, size), Math.max(2, ext * 0.1));
   return smoothPolygon(deformPolygon(hp, rng, { depth: 3, variance, decay: 0.55, cap: ext * 0.06 }), 1);
 }
 
@@ -156,7 +164,7 @@ function applyFade(L: WetLayer, base: Polygon, fade: number | FadeOptions, rng: 
     const size = ext * 2 + sizeOf(b);
     for (let s = 0; s < steps; s++) {
       const d = d0 + ((hi - d0) * (s + 0.3 + rng.next() * 0.7)) / steps;
-      L.lift(organicHalfPlane(d, f.angle, size, ext, rng, 0.45), ((amount * ragged * 0.5) / steps) * 1.7);
+      L.lift(organicHalfPlane(d, f.angle, f.angle, centroid(base), size, ext, rng, 0.45), ((amount * ragged * 0.5) / steps) * 1.7);
     }
   }
 }
@@ -207,7 +215,7 @@ export function wash(t: PaintTarget, shape: Shape, pigment: Pigment, opts: WashO
         const at = d.at ?? randomPointIn(o.base, rng);
         const r = (d.size ?? 0.3) * s * 0.5;
         L.ctx.save();
-        L.clip(o.base);
+        L.clip(innerClip(o));
         const drop = organicOutline(blob(at.x, at.y, r, r * rng.range(0.6, 1), rng, { irregularity: 0.3, rotation: rng.range(0, 6.3) }), rng, { deform: 0.4 });
         layered(L, drop, d.pigment, rng, 5, 0.9, d.alpha ?? 0.6, 0.02);
         L.ctx.restore();
@@ -287,16 +295,17 @@ export function wetInWet(t: PaintTarget, shape: Shape, a: Pigment, b: Pigment, o
   const spread = opts.spread ?? WASH_DEFAULTS.spread;
   const jit = opts.jitter ?? 0.025;
   const v = 0.2 + fingers * 0.6;
+  const mid = centroid(o.base);
   for (let k = 0; k < n; k++) {
     const d = lo + ext * (split + rng.gaussian(0, soft * 0.35));
     const lp = outlineLayer(o, rng, spread);
     const c = L.ctx;
     c.save();
-    L.clip(organicHalfPlane(d + ext * soft * 0.25, angle + Math.PI, big, ext, rng, v));
+    L.clip(organicHalfPlane(d + ext * soft * 0.25, angle, angle + Math.PI, mid, big, ext, rng, v));
     L.fill(lp, jitter(a, rng, jit), alpha);
     c.restore();
     c.save();
-    L.clip(organicHalfPlane(d - ext * soft * 0.25, angle, big, ext, rng, v));
+    L.clip(organicHalfPlane(d - ext * soft * 0.25, angle, angle, mid, big, ext, rng, v));
     L.fill(lp, jitter(b, rng, jit), alpha);
     c.restore();
   }
@@ -739,7 +748,7 @@ export interface SplatterOptions extends DryOptions {
   radius?: number;
   /** approximate number of drops (default 6) */
   count?: number;
-  /** typical drop radius (default 1.8) */
+  /** typical drop radius (default 2.4) */
   size?: number;
 }
 
@@ -752,7 +761,7 @@ export interface SplatterOptions extends DryOptions {
 export function splatter(t: PaintTarget, center: Pt, opts: SplatterOptions = {}): void {
   const rng = opts.rng ?? t.env.rng;
   const radius = opts.radius ?? 30;
-  const size = opts.size ?? 1.8;
+  const size = opts.size ?? 2.4;
   const count = rng.int(Math.max(1, Math.round((opts.count ?? 6) * 0.6)), Math.round((opts.count ?? 6) * 1.3));
   const pigment = opts.pigment ?? PIGMENTS.sage;
   const L = new WetLayer(t.ctx, padRect({ x: center.x - radius * 1.6, y: center.y - radius * 1.6, w: radius * 3.2, h: radius * 3.2 }, size * 4), t.env);
@@ -764,8 +773,8 @@ export function splatter(t: PaintTarget, center: Pt, opts: SplatterOptions = {})
     const y = center.y + Math.sin(a) * r;
     const drop = deformPolygon(blob(x, y, s, s * rng.range(0.75, 1), rng, { points: 10, irregularity: 0.2 }), rng, { depth: 1, variance: 0.15 });
     L.fill(drop, jitter(pigment, rng, 0.04), 0.85);
-    if (rng.chance(0.2)) {
-      const tail = dabOutline(x, y, { angle: a, length: s * rng.range(2, 4), width: s * 1.1, variant: 'blade' });
+    if (rng.chance(0.12)) {
+      const tail = dabOutline(x, y, { angle: a, length: s * rng.range(1.8, 3), width: s * 0.8, variant: 'blade' });
       L.fill(tail, pigment, 0.6);
     }
   }

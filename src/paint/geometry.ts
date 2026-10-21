@@ -271,6 +271,30 @@ export function smoothPolygon(pts: readonly Pt[], iterations = 1): Polygon {
   return poly;
 }
 
+/**
+ * Move every vertex `d` units inward along its averaged edge normal (a cheap polygon offset,
+ * fine for the gently curved outlines the engine makes). Orientation-independent.
+ */
+export function insetPolygon(pts: readonly Pt[], d: number): Polygon {
+  const n = pts.length;
+  const sign = area(pts) > 0 ? 1 : -1;
+  return pts.map((p, i) => {
+    const a = pts[(i - 1 + n) % n]!;
+    const b = pts[(i + 1) % n]!;
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
+    const len = Math.hypot(dx, dy) || 1;
+    // for clockwise (screen) polygons the inward normal is (-dy, dx)
+    return { x: p.x - (dy / len) * d * sign, y: p.y + (dx / len) * d * sign };
+  });
+}
+
+/** A smooth clip path just inside an outline, so clipped passes never poke past its edge. */
+export function innerClip(o: Outline, inset?: number): Polygon {
+  const minDim = Math.max(1, Math.min(o.bounds.w, o.bounds.h));
+  return insetPolygon(smoothPolygon(o.coarse, 1), inset ?? Math.max(1.5, minDim * 0.03));
+}
+
 /** Resample a closed polygon at `spacing` (keeps the loop closed, drops the duplicate end). */
 export function closedResample(poly: readonly Pt[], spacing: number): Polygon {
   if (poly.length < 3) return poly.slice();
@@ -322,7 +346,7 @@ export function organicOutline(poly: readonly Pt[], rng: Rng, opts: OutlineOptio
 
 /** A fresh fine deformation of an outline's coarse shape (one wash layer). */
 export function outlineLayer(o: Outline, rng: Rng, variance: number): Polygon {
-  return smoothPolygon(deformPolygon(o.coarse, rng, { depth: o.depth, variance, decay: 0.7, cap: o.cap }), 1);
+  return smoothPolygon(deformPolygon(o.coarse, rng, { depth: o.depth, variance, decay: 0.7, cap: o.cap }), 2);
 }
 
 // ---------------------------------------------------------------------------------------------

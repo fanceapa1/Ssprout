@@ -8,6 +8,7 @@ import {
   dabOutline,
   dabProfile,
   deformPolygon,
+  insetPolygon,
   organicOutline,
   outlineLayer,
   pathLength,
@@ -55,6 +56,17 @@ describe('deformPolygon', () => {
     const d = deformPolygon(square, createRng(5), { depth: 4, variance: 0.2 });
     expect(Math.abs(area(d))).toBeGreaterThan(7000);
     expect(Math.abs(area(d))).toBeLessThan(13000);
+  });
+});
+
+describe('insetPolygon', () => {
+  it('moves vertices inward for either orientation', () => {
+    for (const poly of [square, square.slice().reverse()]) {
+      const b = bounds(insetPolygon(poly, 5));
+      expect(b.x).toBeGreaterThan(3); // corners move along the diagonal
+      expect(b.x).toBeLessThan(6);
+      expect(b.w).toBeLessThan(100);
+    }
   });
 });
 

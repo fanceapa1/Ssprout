@@ -9,19 +9,19 @@ import {
   bounds,
   centroid,
   deformPolygon,
+  innerClip,
   isEllipse,
   organicOutline,
   outlineLayer,
   padRect,
   pointInPolygon,
-  scalePolygon,
   stoneShape,
   toPolygon,
   type Polygon,
   type Pt,
   type Shape,
 } from './geometry';
-import { PIGMENTS, darken, jitter, lighten, mix, shade, type Pigment } from './pigments';
+import { PIGMENTS, darken, jitter, lighten, mix, rgba, shade, type Pigment } from './pigments';
 import {
   glaze,
   granulate,
@@ -36,7 +36,7 @@ import {
   wetInWet,
   type PaintTarget,
 } from './primitives';
-import { DRY_DEFAULTS, WetLayer, type ResolvedDry } from './wet';
+import { DRY_DEFAULTS, WetLayer, tracePath, type ResolvedDry } from './wet';
 
 // ---------------------------------------------------------------------------------------------
 // foliage
@@ -214,7 +214,7 @@ export function grassTuft(t: PaintTarget, base: Pt, opts: GrassOptions = {}): vo
   const rng = opts.rng ?? t.env.rng;
   const H = opts.height ?? 40;
   const spread = opts.spread ?? H * 0.5;
-  const n = opts.blades ?? rng.int(7, 12);
+  const n = opts.blades ?? rng.int(9, 15);
   const lean = opts.lean ?? rng.range(-0.15, 0.15);
   const pig = opts.pigments ?? [PIGMENTS.sageLight, PIGMENTS.sap, PIGMENTS.sage, PIGMENTS.olive];
   const opacity = opts.opacity ?? 0.85;
@@ -240,8 +240,8 @@ export function grassTuft(t: PaintTarget, base: Pt, opts: GrassOptions = {}): vo
         variant: 'blade',
         angle: -Math.PI / 2 + lean + fan * 0.55,
         length: len,
-        width: H * rng.range(0.05, 0.085),
-        curve: Math.sign(fan || rng.range(-1, 1)) * rng.range(0.1, 0.4) + lean * 0.5,
+        width: H * rng.range(0.035, 0.06),
+        curve: Math.sign(fan || rng.range(-1, 1)) * rng.range(0.15, 0.55) + lean * 0.5,
         asym: rng.range(-0.4, 0.4),
         pool: 0.4,
         basePool: 0.45,
@@ -272,7 +272,7 @@ export interface StoneOptions {
   light?: number;
   /** moss amount 0..1 (default 0.3; 0 = none) */
   moss?: number;
-  /** granulation strength 0..1 (default 0.5) */
+  /** granulation strength 0..1 (default 0.35) */
   granulation?: number;
   /** ink accent along the shadowed underside, 0..1 opacity (default 0.3; 0 = none) */
   ink?: number;
@@ -312,7 +312,7 @@ export function stone(t: PaintTarget, shape: Shape | StoneBox, opts: StoneOption
   const warm = opts.warm ?? 0.35;
   const body = mix(opts.pigment ?? PIGMENTS.stone, PIGMENTS.stoneWarm, warm);
   const mossK = opts.moss ?? 0.3;
-  const gran = opts.granulation ?? 0.5;
+  const gran = opts.granulation ?? 0.35;
 
   if (opts.groundShadow ?? true) {
     glaze(t, { cx: c.x + b.w * 0.08, cy: b.y + b.h * 0.97, rx: b.w * 0.62, ry: b.h * 0.12 }, mix(PIGMENTS.olive, PIGMENTS.stoneDark, 0.5), {
@@ -341,7 +341,7 @@ export function stone(t: PaintTarget, shape: Shape | StoneBox, opts: StoneOption
   const o = organicOutline(poly, rng, { deform: 0.15 });
   if (opts.reserve ?? true) {
     // reserve the stone's paper: an opaque white under the washes, slightly inset so no halo
-    const r = scalePolygon(o.base, 0.97);
+    const r = innerClip(o, Math.max(1, Math.min(b.w, b.h) * 0.04));
     t.ctx.save();
     t.ctx.beginPath();
     r.forEach((q, i) => (i ? t.ctx.lineTo(q.x, q.y) : t.ctx.moveTo(q.x, q.y)));
@@ -369,7 +369,7 @@ export function stone(t: PaintTarget, shape: Shape | StoneBox, opts: StoneOption
   const patches = opts.patches ?? rng.int(2, 4);
   const L = new WetLayer(t.ctx, padRect(b, size * 0.1 + 4), t.env);
   L.ctx.save();
-  L.clip(o.base);
+  L.clip(innerClip(o));
   for (let i = 0; i < patches; i++) {
     // biased toward the side away from the light and toward the lower half
     const ax = c.x - Math.cos(lightA) * b.w * rng.range(0.05, 0.3) + rng.gaussian(0, b.w * 0.15);
@@ -381,9 +381,24 @@ export function stone(t: PaintTarget, shape: Shape | StoneBox, opts: StoneOption
   }
   // 3. cool underside glaze in the same wet layer (it merges softly with the blotches)
   const S = L;
-  const shadow = organicOutline(blob(c.x - Math.cos(lightA) * b.w * 0.14, b.y + b.h * 1.0, b.w * 0.62, b.h * 0.52, rng, { irregularity: 0.15 }), rng, { deform: 0.3 });
+  const shadow = organicOutline(
+    blob(c.x - Math.cos(lightA) * b.w * 0.14, b.y + b.h * 1.02, b.w * 0.64, b.h * 0.6, rng, { irregularity: 0.28 }),
+    rng,
+    { deform: 0.4 },
+  );
   const sn = layersFor(t.env, 6);
-  for (let k = 0; k < sn; k++) S.fill(outlineLayer(shadow, rng, 0.5), jitter(shade(PIGMENTS.stoneDark, 0.3), rng, 0.02), layerAlpha(sn, 0.6));
+  const sp = shade(PIGMENTS.stoneDark, 0.3);
+  for (let k = 0; k < sn; k++) {
+    // each layer fades out toward the top at a slightly different height: a soft, turning edge
+    const top = b.y + b.h * rng.range(0.3, 0.55);
+    const g = S.ctx.createLinearGradient(0, top, 0, b.y + b.h * rng.range(0.75, 0.9));
+    const pj = jitter(sp, rng, 0.02);
+    g.addColorStop(0, rgba(pj, 0));
+    g.addColorStop(1, rgba(pj, layerAlpha(sn, 0.7)));
+    tracePath(S.ctx, outlineLayer(shadow, rng, 0.5));
+    S.ctx.fillStyle = g;
+    S.ctx.fill();
+  }
   S.ctx.restore();
   S.dry({}, { ...DRY_DEFAULTS, opacity: 0.36, edge: 0.32, edgeWidth: Math.max(1, size * 0.015), sharpness: 0.32, centreLift: 0.1, granulation: 0.3 * gran, flow: 0.45, flowScale: size * 0.28 });
 
@@ -393,12 +408,19 @@ export function stone(t: PaintTarget, shape: Shape | StoneBox, opts: StoneOption
   // 5. a broken ink accent along part of the shadowed underside (lost elsewhere)
   const ink = opts.ink ?? 0.3;
   if (ink > 0) {
-    const lower = poly
-      .filter((p) => p.y > c.y + b.h * 0.12)
-      .sort((a, z) => a.x - z.x);
+    // the longest contiguous run of outline points below the centre, in outline order
+    const below = poly.map((p) => p.y > c.y + b.h * 0.15);
+    let best: Pt[] = [];
+    for (let s = 0; s < poly.length; s++) {
+      if (!below[s] || below[(s - 1 + poly.length) % poly.length]) continue;
+      const run: Pt[] = [];
+      for (let k = 0; k < poly.length && below[(s + k) % poly.length]; k++) run.push(poly[(s + k) % poly.length]!);
+      if (run.length > best.length) best = run;
+    }
+    const lower = best;
     if (lower.length > 3) {
-      const from = Math.floor(lower.length * rng.range(0.25, 0.45));
-      const to = Math.ceil(lower.length * rng.range(0.7, 0.95));
+      const from = Math.floor(lower.length * rng.range(0.15, 0.4));
+      const to = Math.ceil(lower.length * rng.range(0.65, 0.9));
       const seg = lower.slice(from, to).map((p) => ({ x: p.x, y: p.y - size * 0.008 }));
       if (seg.length > 1) inkLine(t, seg, { rng, width: Math.max(0.8, size * 0.011), opacity: ink, breaks: 0.35, pigment: mix(PIGMENTS.sumi, PIGMENTS.stoneDark, 0.35) });
     }
@@ -461,7 +483,7 @@ export function waterBody(t: PaintTarget, shape: Shape, opts: WaterOptions = {})
   // 2. soft bands: a deep band under the far bank and thin horizontal streaks
   const L = new WetLayer(t.ctx, padRect(b, 4), t.env);
   L.ctx.save();
-  L.clip(o.base);
+  L.clip(innerClip(o));
   if (far > 0) {
     const fb = organicOutline(blob(b.x + b.w * 0.5, b.y + b.h * 0.02, b.w * 0.62, b.h * 0.16, rng, { irregularity: 0.1, points: 32 }), rng, { deform: 0.2 });
     const n = layersFor(t.env, 8);
