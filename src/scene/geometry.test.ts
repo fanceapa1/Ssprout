@@ -126,6 +126,21 @@ describe('scene geometry', () => {
     }
   });
 
+  it('never plants on a stepping stone or inside a boulder', () => {
+    for (const s of slots) {
+      // a stone plus a margin (a plant's own width at the base): the plant stands beside it
+      for (const st of PATH) {
+        const d = ((s.x - st.x) / (st.rx + 24)) ** 2 + ((s.y - st.y) / (st.ry + 10)) ** 2;
+        expect(d, `${s.id} on the stone at ${st.x},${st.y}`).toBeGreaterThan(1);
+      }
+      // a boulder's footprint: the lower body of the stone sprite
+      for (const r of ROCKS) {
+        const d = ((s.x - r.x) / (r.w * 0.45)) ** 2 + ((s.y - (r.y - r.h * 0.3)) / (r.h * 0.4)) ** 2;
+        expect(d, `${s.id} inside ${r.id}`).toBeGreaterThan(1);
+      }
+    }
+  });
+
   it('puts rock slots at the foot of a boulder', () => {
     for (const s of byHabitat('rock')) {
       const near = Math.min(...ROCKS.map((r) => Math.hypot(s.x - r.x, s.y - r.y) - r.w / 2));

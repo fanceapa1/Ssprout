@@ -54,7 +54,7 @@ const SPECS: Record<Habitat, SlotSpec[]> = {
     ['shore-6', 1146, 704, 'medium'],
     ['shore-7', 934, 730, 'medium'],
     ['shore-8', 652, 712, 'medium'],
-    ['shore-9', 446, 618, 'large'],
+    ['shore-9', 436, 596, 'large'],
   ],
   // grassy banks left and right of the pond, and the foreground
   meadow: [
@@ -78,13 +78,14 @@ const SPECS: Record<Habitat, SlotSpec[]> = {
   ],
   // beside the stepping stones (small things that soften the path)
   path: [
-    ['path-1', 676, 962, 'small'],
-    ['path-2', 904, 936, 'medium'],
-    ['path-3', 690, 880, 'medium'],
-    ['path-4', 886, 868, 'small'],
-    ['path-5', 722, 818, 'small'],
-    ['path-6', 874, 792, 'small'],
-    ['path-7', 742, 768, 'small'],
+    // on the grass at the path's edges, clear of the broad stones (geometry.test: stone margin)
+    ['path-1', 650, 966, 'small'],
+    ['path-2', 930, 940, 'medium'],
+    ['path-3', 646, 882, 'medium'],
+    ['path-4', 936, 842, 'small'],
+    ['path-5', 688, 812, 'small'],
+    ['path-6', 906, 782, 'small'],
+    ['path-7', 698, 762, 'small'],
   ],
   // the far bank behind the pond: room for tall plants and trees
   back: [
@@ -94,7 +95,7 @@ const SPECS: Record<Habitat, SlotSpec[]> = {
     ['back-4', 650, 426, 'tree'],
     ['back-5', 842, 420, 'medium'],
     ['back-6', 944, 430, 'tree'],
-    ['back-7', 1040, 438, 'large'],
+    ['back-7', 1056, 428, 'large'],
   ],
   // crevices at the feet of boulders (small rock plants, moss flowers)
   rock: [
