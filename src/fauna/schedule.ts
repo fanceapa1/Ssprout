@@ -1,0 +1,120 @@
+/**
+ * Visit scheduling (pure): when does the next dragonfly / bird / heron come by, and may it come
+ * now? Long quiet gaps, a sooner first visit, retries when blocked. Tuning: `tuning.ts`.
+ */
+import type { Rng } from '../core/rng';
+import { inHours, rangeOf } from './math';
+import { FAUNA_TUNING, VISITS, type FaunaKind, type ResidentKind, type VisitorKind } from './tuning';
+
+export interface FaunaMode {
+  /** prefers-reduced-motion */
+  reduced: boolean;
+  /** a study session is running (not paused) */
+  lively: boolean;
+  /** diurnal creatures rest */
+  night: boolean;
+  /** 25 plants: more frequent birds */
+  birdBoost: boolean;
+}
+
+export const CALM_MODE: FaunaMode = { reduced: false, lively: false, night: false, birdBoost: false };
+
+export function isNight(hour: number): boolean {
+  return inHours(hour, FAUNA_TUNING.nightHours);
+}
+
+/** Multiplier applied to a kind's gaps in a mode. */
+export function gapScale(kind: VisitorKind, mode: FaunaMode): number {
+  let k = 1;
+  if (mode.lively) k *= FAUNA_TUNING.livelyGap;
+  if (mode.reduced) k *= FAUNA_TUNING.reducedGap;
+  if (kind === 'bird' && mode.birdBoost) k *= FAUNA_TUNING.birdBoostGap;
+  return k;
+}
+
+/** Seconds until the next visit of `kind` (`first`: the first one after unlock / load). */
+export function visitDelay(kind: VisitorKind, rng: Rng, mode: FaunaMode, first = false): number {
+  const t = VISITS[kind];
+  return rangeOf(rng, first ? t.first : t.gap) * gapScale(kind, mode);
+}
+
+export function maxVisitors(mode: FaunaMode): number {
+  return mode.reduced ? FAUNA_TUNING.reducedMaxVisitors : FAUNA_TUNING.maxVisitors;
+}
+
+/** Fast, sweeping creatures that reduced motion leaves out entirely. */
+export function allowedInMode(kind: FaunaKind, mode: FaunaMode): boolean {
+  return !(mode.reduced && kind === 'swallow');
+}
+
+export interface Census {
+  /** individuals per kind currently present */
+  byKind: Partial<Record<FaunaKind, number>>;
+  /** individuals that count against the visitor cap */
+  visitors: number;
+}
+
+export type Refusal = 'night' | 'cap' | 'kind-max' | 'mode' | null;
+
+/** Why a visit of `kind` can't start now (null = it may). */
+export function refuseVisit(kind: VisitorKind, mode: FaunaMode, census: Census): Refusal {
+  const t = VISITS[kind];
+  if (!allowedInMode(kind, mode)) return 'mode';
+  if (t.diurnal && mode.night) return 'night';
+  if ((census.byKind[kind] ?? 0) >= t.max) return 'kind-max';
+  if (t.visitor && census.visitors >= maxVisitors(mode)) return 'cap';
+  return null;
+}
+
+/** How many individuals a visit brings, never more than the room left. */
+export function groupSize(kind: VisitorKind, rng: Rng, mode: FaunaMode, census: Census): number {
+  const t = VISITS[kind];
+  const want = Math.round(rangeOf(rng, [t.group[0], t.group[1] + 0.49]));
+  const kindRoom = t.max - (census.byKind[kind] ?? 0);
+  const capRoom = t.visitor ? maxVisitors(mode) - census.visitors : Infinity;
+  return Math.max(0, Math.min(want, kindRoom, capRoom, mode.reduced ? 1 : Infinity));
+}
+
+/** Due times per visiting kind (animation seconds). */
+export type Schedule = Map<VisitorKind, number>;
+
+/**
+ * Advance the schedule to time `t`: kinds that became enabled get a (sooner) first visit, kinds
+ * that are no longer enabled are dropped, and every due kind either starts a visit (returned, and
+ * rescheduled after a quiet gap) or is retried a little later when it may not come now.
+ */
+export function dueVisits(
+  schedule: Schedule,
+  t: number,
+  enabled: ReadonlySet<VisitorKind>,
+  mode: FaunaMode,
+  census: Census,
+  rng: Rng,
+): VisitorKind[] {
+  for (const kind of [...schedule.keys()]) if (!enabled.has(kind)) schedule.delete(kind);
+  const out: VisitorKind[] = [];
+  const running: Census = { byKind: { ...census.byKind }, visitors: census.visitors };
+  for (const kind of enabled) {
+    const due = schedule.get(kind);
+    if (due === undefined) {
+      schedule.set(kind, t + visitDelay(kind, rng, mode, true));
+      continue;
+    }
+    if (t < due) continue;
+    if (refuseVisit(kind, mode, running) !== null) {
+      schedule.set(kind, t + rangeOf(rng, FAUNA_TUNING.retry));
+      continue;
+    }
+    out.push(kind);
+    running.byKind[kind] = (running.byKind[kind] ?? 0) + 1;
+    if (VISITS[kind].visitor) running.visitors++;
+    schedule.set(kind, t + visitDelay(kind, rng, mode));
+  }
+  return out;
+}
+
+/** Resident counts wanted for a mode. */
+export function residentTarget(kind: ResidentKind, unlockedCount: number, mode: FaunaMode): number {
+  if (kind === 'strider') return unlockedCount > 0 ? (mode.reduced ? FAUNA_TUNING.reducedStriders : FAUNA_TUNING.striders) : 0;
+  return unlockedCount;
+}
