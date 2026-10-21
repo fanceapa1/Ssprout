@@ -1,4 +1,5 @@
 import './style.css';
+import { createGardenAudio } from './audio';
 import { createSpeedClock, realClock, type Clock } from './core/clock';
 import { createSessionController } from './core/controller';
 import { createEventBus } from './core/events';
@@ -6,10 +7,15 @@ import { createSaver, loadState, type StorageLike } from './core/persistence';
 import { createReducer, createStore } from './core/state';
 import { installCoreDebug } from './dev/core-debug';
 import { installDebug, isDev } from './dev/debug';
-import { allSpecies, getSpecies } from './plants/registry';
+import { withFixtures } from './dev/fixture-species';
+import { createFakeWidget, installUiDebug } from './dev/ui-debug';
+import { allSpecies } from './plants/registry';
 import { createRenderer } from './render/renderer';
 import { placeholderScene } from './scene/geometry';
 import { createPlaceholderBackground } from './scene/placeholder-background';
+import { createUI } from './ui';
+import { createTimerSurfaces } from './widget';
+import { installWidgetDebug } from './widget/dev';
 
 /** localStorage, or null when the browser blocks it (private mode, disabled storage). */
 function browserStorage(): StorageLike | null {
@@ -31,8 +37,11 @@ function boot(): void {
   const clock: Clock = speedClock ?? realClock;
 
   const scene = placeholderScene;
-  const species = allSpecies();
-  const isKnownSpecies = (id: string) => getSpecies(id) !== undefined;
+  // ?dev&fixtures adds the dev-only fx-* species (ADR 0055)
+  const species = dev && params.has('fixtures') ? withFixtures(allSpecies()) : allSpecies();
+  const speciesById = new Map(species.map((s) => [s.id, s]));
+  const getSpecies = (id: string) => speciesById.get(id);
+  const isKnownSpecies = (id: string) => speciesById.has(id);
   const storage = browserStorage();
   const loaded = loadState(storage, clock.now(), { isKnownSpecies });
   if (loaded.status === 'recovered') console.warn('[persistence] unreadable garden backed up as', loaded.backupKey, loaded.error);
@@ -56,9 +65,35 @@ function boot(): void {
   void renderer.add(createPlaceholderBackground());
   renderer.start();
 
+  // Timer surfaces: worker ticker, tab title/favicon, notifications (asked inside session:start),
+  // the floating widget (docs/systems/widget.md).
+  const surfaces = createTimerSurfaces({ controller, store, bus, clock });
+
+  // UI over the canvas (docs/systems/ui.md).
+  const audio = createGardenAudio({ bus, getState: store.get, clock });
+  const fakeWidget = dev && params.get('widget') === 'fake' ? createFakeWidget() : null;
+  const uiTime = Number(params.get('uitime'));
+  const ui = createUI({
+    root: document.querySelector<HTMLElement>('#ui')!,
+    controller,
+    store,
+    bus,
+    clock,
+    getSpecies,
+    slots: scene.slots,
+    viewport: () => renderer.viewport,
+    audio,
+    widget: fakeWidget ?? surfaces.widget,
+    isKnownSpecies,
+    reducedMotion,
+    timeScale: dev && Number.isFinite(uiTime) && params.has('uitime') ? uiTime : 1,
+  });
+
   if (speedClock) {
     installDebug({ store, renderer, clock: speedClock });
     installCoreDebug({ store, controller, clock: speedClock, species, slots: scene.slots, saver: saver ?? undefined, isKnownSpecies });
+    installUiDebug({ ui, clock: speedClock, widget: fakeWidget, viewport: () => renderer.viewport, slots: scene.slots });
+    installWidgetDebug({ surfaces, controller, store, bus });
   }
 }
 
