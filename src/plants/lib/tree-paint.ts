@@ -7,10 +7,10 @@
  */
 import type { Rng } from '../../core/rng';
 import type { Painter } from '../../paint';
-import { blob, bounds, dabOutline, padRect, ribbon, smoothPath, type Pt, type Rect } from '../../paint/geometry';
+import { blob, bounds, dabOutline, deformPolygon, padRect, ribbon, smoothPath, type Pt, type Rect } from '../../paint/geometry';
 import { PIGMENTS, darken, jitter, lighten, mix, shade, type Pigment } from '../../paint/pigments';
 import { dab, dryBrush, glaze, layerAlpha, paintDab, stroke, type PaintTarget } from '../../paint/primitives';
-import { foliageClump, type FoliageOptions, type FoliagePigments } from '../../paint/recipes';
+import { foliageClump, foliageLayout, type FoliageOptions, type FoliagePigments } from '../../paint/recipes';
 import { WetLayer, type DryOptions, type PaintEnv } from '../../paint/wet';
 import { branchProgress, partialPath, ramp, viewPt, widthAt, type Branch, type Tree, type TreeView } from './tree-structure';
 
@@ -323,6 +323,137 @@ export function paintPads(
     const pr = rng.fork(`pad-${pad.id}`);
     foliageClump(stableTarget(p, pr.fork('dry')), at, r, pigments(pad), { ...opts(pad), rng: pr });
   }
+}
+
+export interface PadStyle {
+  /** height / width (default 0.55) */
+  flatness?: number;
+  /** direction light comes from (default -2.3, upper left) */
+  light?: number;
+  /** overall opacity (default 0.85) */
+  opacity?: number;
+  /** paper gaps, 0..1 (default 0.35) */
+  gaps?: number;
+  /** dab radius as a fraction of the pad radius (default 0.22) */
+  dabSize?: number;
+  /** shadow strength 0..1 (default 0.6) */
+  shadow?: number;
+  /** dab density (default 1) */
+  density?: number;
+  /** body passes that dry separately, so overlapping pads keep an edge between them (default 2) */
+  groups?: number;
+  /** scallops per dab (default 5–8): more = frillier edge */
+  scallop?: number;
+}
+
+/**
+ * Foliage pads batched for speed: the same painting order as the engine's `foliageClump`
+ * (merged light body with paper gaps → mid-tone → cool shadow → a few darks) but every pad
+ * shares the same few wet layers. Pads are split into `groups` body passes, so neighbouring
+ * pads still overlap with a visible wet edge. Layout per pad comes from its own rng fork, so a
+ * pad keeps its dabs at every growth step.
+ */
+export function paintPadMass(
+  p: Painter,
+  pads: readonly Pad[],
+  view: TreeView,
+  rng: Rng,
+  size: (pad: Pad) => number,
+  pigments: (pad: Pad) => FoliagePigments,
+  style: PadStyle = {},
+): void {
+  const flat = style.flatness ?? 0.55;
+  const opacity = style.opacity ?? 0.85;
+  const shadowK = style.shadow ?? 0.6;
+  const gaps = style.gaps ?? 0.35;
+  const groups = Math.max(1, style.groups ?? 2);
+  type Live = { pad: Pad; at: Pt; r: number; pig: FoliagePigments; dabs: ReturnType<typeof foliageLayout>; rng: Rng };
+  const live: Live[] = [];
+  const order = pads.slice().sort((a, b) => (a.depth ?? 0) - (b.depth ?? 0) || a.id - b.id);
+  for (const pad of order) {
+    const k = size(pad);
+    if (k <= 0.03) continue;
+    const r = pad.r * k * view.scale;
+    if (r < 1.2) continue;
+    const at = viewPt(view, pad);
+    const pr = rng.fork(`pad-${pad.id}`);
+    const dabs = foliageLayout(at, r, pr, { flatness: flat, light: style.light, dabSize: style.dabSize ?? 0.22, density: style.density });
+    live.push({ pad, at, r, pig: pigments(pad), dabs, rng: pr });
+  }
+  if (!live.length) return;
+  const pts: Pt[] = [];
+  let maxR = 1;
+  for (const l of live)
+    for (const d of l.dabs) {
+      pts.push(d);
+      maxR = Math.max(maxR, d.r);
+    }
+  if (!pts.length) return;
+  const area = padRect(bounds(pts), maxR * 1.5 + 4);
+  const avgR = live.reduce((m, l) => m + l.r, 0) / live.length;
+  const dryBase: DryOptions = { edge: 0.5, edgeWidth: Math.max(0.8, avgR * 0.03), sharpness: 0.7, centreLift: 0.3, granulation: 0.12, flow: 0.45, flowScale: avgR * 0.5 };
+  const blot = (L: WetLayer, r: Rng, d: { x: number; y: number; r: number }, pig: Pigment, scale: number, alpha: number) => {
+    const rad = d.r * scale;
+    const poly = blob(d.x, d.y, rad, rad * r.range(0.7, 0.95), r, { points: 14, irregularity: 0.2, scallop: 0.9, scallops: style.scallop ?? r.int(5, 8), rotation: r.range(-0.5, 0.5) });
+    for (let k = 0; k < 2; k++) L.fill(deformPolygon(poly, r, { depth: 1, variance: 0.1, cap: rad * 0.08 }), pig, alpha);
+  };
+  const a2 = layerAlpha(2, 0.8);
+  // 1. light bodies (one pass per group)
+  for (let gi = 0; gi < groups; gi++) {
+    const L = stableLayer(p, area, rng.fork(`pads-body-${gi}`));
+    let any = false;
+    live.forEach((l, i) => {
+      if (i % groups !== gi) return;
+      any = true;
+      const r = l.rng.fork('body');
+      const mixed = mix(l.pig.light, l.pig.mid, 0.5);
+      for (const d of l.dabs) blot(L, r, d, d.lit > 0.2 ? l.pig.light : mixed, 1, a2);
+      const holes = Math.round(gaps * l.dabs.length * 0.12);
+      for (let h = 0; h < holes; h++) {
+        const d = l.dabs[r.int(0, l.dabs.length - 1)]!;
+        if (d.edge > 0.8) continue;
+        const hr = d.r * r.range(0.25, 0.5);
+        L.lift(blob(d.x + r.gaussian(0, d.r * 0.5), d.y + r.gaussian(0, d.r * 0.4), hr, hr * 0.7, r, { points: 9, irregularity: 0.3 }), r.range(0.6, 0.95));
+      }
+    });
+    if (any) L.dry({ ...dryBase, opacity: opacity * 0.85 });
+    else L.discard();
+  }
+  // 2. mid-tone away from the light
+  const L2 = stableLayer(p, area, rng.fork('pads-mid'));
+  for (const l of live) {
+    const r = l.rng.fork('mid');
+    for (const d of l.dabs) {
+      if (d.lit > 0.15 || !r.chance(0.65)) continue;
+      blot(L2, r, { x: d.x + r.gaussian(0, d.r * 0.2), y: d.y + d.r * 0.2, r: d.r }, l.pig.mid, r.range(0.75, 1.05), layerAlpha(2, 0.7));
+    }
+  }
+  L2.dry({ ...dryBase, opacity: opacity * 0.42, edge: 0.32, sharpness: 0.55 });
+  // 3. cool shadow on the underside
+  const L3 = stableLayer(p, area, rng.fork('pads-shadow'));
+  for (const l of live) {
+    const r = l.rng.fork('shadow');
+    const sh = shade(l.pig.shadow, 0.25);
+    for (const d of l.dabs) {
+      if (d.lit > -0.3 || !r.chance(0.7 * shadowK + 0.2)) continue;
+      blot(L3, r, { x: d.x, y: d.y + d.r * 0.3, r: d.r }, sh, r.range(0.6, 0.9), layerAlpha(2, 0.7));
+    }
+  }
+  L3.dry({ ...dryBase, opacity: opacity * 0.3 * (0.5 + shadowK), edge: 0.3, sharpness: 0.5, centreLift: 0.2 });
+  // 4. a few dark accents tucked under
+  const L4 = stableLayer(p, area, rng.fork('pads-dark'));
+  let accents = 0;
+  for (const l of live) {
+    const r = l.rng.fork('dark');
+    const dark = l.pig.dark ?? darken(l.pig.shadow, 0.25);
+    for (const d of l.dabs) {
+      if (d.lit > -0.6 || !r.chance(0.14)) continue;
+      blot(L4, r, { x: d.x + r.gaussian(0, d.r * 0.3), y: d.y + d.r * 0.45, r: d.r }, dark, r.range(0.3, 0.5), layerAlpha(2, 0.75));
+      accents++;
+    }
+  }
+  if (accents) L4.dry({ ...dryBase, opacity: opacity * 0.3, edge: 0.35 });
+  else L4.discard();
 }
 
 // ---------------------------------------------------------------------------------------------
