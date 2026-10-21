@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createRng, type Rng } from '../../core/rng';
 import { getSpecies } from '../registry';
+import { planBlackPine } from '../species/black-pine';
 import { planJapaneseMaple } from '../species/japanese-maple';
 import { planWeepingCherry } from '../species/weeping-cherry';
 
@@ -8,6 +9,7 @@ import { planWeepingCherry } from '../species/weeping-cherry';
 const PLANS: Record<string, (rng: Rng) => unknown> = {
   'weeping-cherry': planWeepingCherry,
   'japanese-maple': planJapaneseMaple,
+  'black-pine': planBlackPine,
 };
 
 describe('tier-4 tree plans', () => {
