@@ -1,58 +1,111 @@
 import { describe, expect, it } from 'vitest';
-import type { ActiveSession, PendingReward } from '../core/state';
-import { status } from './test-helpers';
-import { widgetView } from './view';
+import { session, status } from './test-helpers';
+import { planSegments, widgetView } from './view';
 
-const session: ActiveSession = {
-  id: 'session-abc',
-  goalMs: 25 * 60_000,
-  startedAt: 0,
-  pausedAt: null,
-  pausedTotalMs: 0,
-  weather: 'sun',
-};
-const reward: PendingReward = { sessionId: 'session-abc', goalMinutes: 25, tier: 2, options: [], chosen: null, completedAt: 1 };
+const speciesName = (id: string) => (id === 'japanese-iris' ? 'Japanese Iris' : undefined);
 
 describe('widgetView', () => {
-  it('idle: no time, "No session running", open-garden action', () => {
+  it('idle: "No session running" and an open-garden action', () => {
     expect(widgetView(status())).toEqual({
       mode: 'idle',
+      task: '',
       time: '',
+      total: '',
       state: 'No session running',
       growth: 0,
-      bloom: false,
-      action: { kind: 'open', label: 'Open garden' },
-      seed: 'idle',
+      progress: 0,
+      segments: [],
+      buttons: [{ kind: 'open', label: 'Open garden', primary: false }],
+      speciesId: null,
+      seed: 0,
     });
   });
 
-  it('running: remaining time, growth = progress, pause action, seeded by session', () => {
-    const v = widgetView(status({ phase: 'running', session, remainingMs: (24 * 60 + 13) * 1000, progress: 0.3 }));
-    expect(v).toMatchObject({ mode: 'running', time: '24:13', growth: 0.3, bloom: false, seed: 'session-abc' });
-    expect(v.action).toEqual({ kind: 'pause', label: 'Pause' });
+  it('focus: block time big, session total small, growth from the timeline, pause action', () => {
+    const v = widgetView(
+      status('focus', { blockRemainingMs: (24 * 60 + 13) * 1000, totalRemainingMs: (59 * 60 + 13) * 1000, growth: 0.02, progress: 0.01 }),
+      { speciesName },
+    );
+    expect(v).toMatchObject({
+      mode: 'focus',
+      task: 'Biology ch. 4',
+      time: '24:13',
+      total: '59:13 in all',
+      state: 'focus 1 of 2',
+      growth: 0.02,
+      progress: 0.01,
+      speciesId: 'placeholder-sprout',
+      seed: 7,
+    });
+    expect(v.buttons.map((b) => b.kind)).toEqual(['pause']);
+  });
+
+  it('an unbroken plan shows no total line', () => {
+    const v = widgetView(status('focus', {}, { plan: { id: 'unbroken', name: 'Unbroken', blocks: [{ kind: 'focus', minutes: 25 }] } }));
+    expect(v.total).toBe('');
+    expect(v.state).toBe('growing quietly');
+  });
+
+  it('break: thirsty plant, water (primary), skip break and pause', () => {
+    const v = widgetView(status('break', { blockIndex: 1, block: { kind: 'break', minutes: 10 }, blockRemainingMs: 252_000 }, { speciesId: 'japanese-iris' }), {
+      speciesName,
+    });
+    expect(v).toMatchObject({ mode: 'break', time: '4:12', state: 'Break — your Japanese Iris is thirsty' });
+    expect(v.buttons.map((b) => [b.kind, b.primary])).toEqual([
+      ['water', true],
+      ['skip', false],
+      ['pause', false],
+    ]);
+  });
+
+  it('break after watering: no water button', () => {
+    const v = widgetView(status('break', { block: { kind: 'break', minutes: 10 }, watered: true }));
+    expect(v.state).toBe('Watered — your plant is resting');
+    expect(v.buttons.map((b) => b.kind)).toEqual(['skip', 'pause']);
   });
 
   it('paused: "paused" and a resume action', () => {
-    const v = widgetView(status({ phase: 'paused', session: { ...session, pausedAt: 5 }, remainingMs: 600_000, progress: 0.6 }));
+    const v = widgetView(status('paused', { blockRemainingMs: 600_000, growth: 0.6 }));
     expect(v).toMatchObject({ mode: 'paused', time: '10:00', state: 'paused', growth: 0.6 });
-    expect(v.action.kind).toBe('resume');
+    expect(v.buttons.map((b) => b.kind)).toEqual(['resume']);
   });
 
-  it('complete: bloom, the return line and an open-garden action', () => {
-    const v = widgetView(status({ phase: 'reward', pendingReward: reward }));
+  it('complete: the finished session in full bloom with an open-garden action', () => {
+    const v = widgetView(status(), { completed: session({ speciesId: 'japanese-iris' }), speciesName });
     expect(v).toMatchObject({
       mode: 'complete',
-      time: '0:00',
-      state: 'complete — return to your garden',
+      task: 'Biology ch. 4',
+      time: '',
+      state: 'Your Japanese Iris has bloomed — return to your garden',
       growth: 1,
-      bloom: true,
-      seed: 'session-abc',
+      progress: 1,
+      speciesId: 'japanese-iris',
     });
-    expect(v.action).toEqual({ kind: 'open', label: 'Open garden' });
+    expect(v.buttons).toEqual([{ kind: 'open', label: 'Open garden', primary: true }]);
   });
 
-  it('clamps progress', () => {
-    expect(widgetView(status({ phase: 'running', session, progress: 3 })).growth).toBe(1);
-    expect(widgetView(status({ phase: 'running', session, progress: Number.NaN })).growth).toBe(0);
+  it('a running session wins over a remembered completion', () => {
+    expect(widgetView(status('focus'), { completed: session() }).mode).toBe('focus');
+  });
+
+  it('clamps growth and progress', () => {
+    expect(widgetView(status('focus', { growth: 3, progress: Number.NaN }))).toMatchObject({ growth: 1, progress: 0 });
+  });
+});
+
+describe('planSegments', () => {
+  it('maps blocks to fractions of the whole session', () => {
+    expect(
+      planSegments([
+        { kind: 'focus', minutes: 25 },
+        { kind: 'break', minutes: 10 },
+        { kind: 'focus', minutes: 25 },
+      ]),
+    ).toEqual([
+      { kind: 'focus', start: 0, end: 25 / 60 },
+      { kind: 'break', start: 25 / 60, end: 35 / 60 },
+      { kind: 'focus', start: 35 / 60, end: 1 },
+    ]);
+    expect(planSegments([])).toEqual([]);
   });
 });
