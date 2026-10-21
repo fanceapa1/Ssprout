@@ -876,6 +876,9 @@ input.duration:focus-visible {
 
 /* ── sheets (dialogs) ───────────────────────────────────────────────────────────────────── */
 dialog.sheet {
+  /* sheets are paper held up to read: the garden's light does not dim them (ambient-light.ts) */
+  --ui-dab: 243, 236, 217;
+  --ui-dim: 1;
   border: 0;
   padding: 0;
   margin: auto;
@@ -1257,6 +1260,8 @@ dialog.planting {
 .specimen-grew {
   font-size: 13.5px;
   color: var(--ui-ink-soft);
+  /* "grew from / 7 October 2026", never a lone year on the last line */
+  text-wrap: balance;
 }
 .specimen-grew {
   color: var(--ui-ink-faint);
