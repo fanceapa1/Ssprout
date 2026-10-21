@@ -99,8 +99,9 @@ store (plants, session) ──sync──▶ records ──requests──▶ spri
 plant. `wateringTimeline(u)`: glide in 0–0.26 · tilt 0.2–0.37 · pour 0.29–0.74 · soil darkens
 0.36–0.6 · leaves lift 0.42–0.62 (+4 % height, a small nudge) · straighten 0.68–0.84 · lift away
 0.8–1. The **rig** is measured from the sprite's content bounds (plant top and width); the can's
-body is `0.42 × visible height` (22–48 world units × slot scale), it comes from the right (left
-for slots at x > 1300) and pours from above the plant on its own side.
+body is `0.5 × visible height` (30–54 world units × slot scale, so it still reads on the far
+bank), it comes from the right unless its path would cross the pavilion (`scene.pavilion.x`) or
+leave the world, then from the left, and pours from above the plant on its own side.
 - The **jōro**: copper drum with a domed shoulder, riveted hoops, a lifted highlight streak, a
   breath of verdigris, a brass filler cap, an arched bail handle and a long tapering spout ending
   in a brass rose — painted once per pixel-size bucket with the engine (`paintCan`, can units:
@@ -151,8 +152,10 @@ outside is clipped). `draw` must not touch `document`/`window` (it runs in worke
 at growths `k / 24` only. Keep each call under ~100 ms at 600 px.
 
 ## Budgets
-- Frame: < 2 ms for the plant system (update + all draws). Measured: 0.42 ms avg / 1.0 ms max in
-  headless Chromium with 12 plants + 1 growing (e2e); the unit benchmark with 50 plants + 1
+- Species: all 26 registered species (incl. the 12 shrubs/trees and 13 tier 1–2 plants) paint in
+  the worker, deterministically, without touching the box's sides or top, in 4–127 ms at 1.6×.
+- Frame: < 2 ms for the plant system (update + all draws). Measured: 0.54 ms avg / 1.8 ms max in
+  headless Chromium on the painted scene with 31 plants + 1 growing (e2e); the unit benchmark with 50 plants + 1
   growing (CPU side) passes the same bound.
 - Painting: off the main thread with workers; the main-thread fallback paints one sprite per
   idle period (a single sprite can still exceed 8 ms there).

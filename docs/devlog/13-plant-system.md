@@ -40,16 +40,17 @@ below each plant; the can on the `air` layer so it is never hidden.
 - Growth smoothness: mid-fade showed double tips → morph between steps (tips travel).
 
 ## Measurements
-Plant system 0.42 ms/frame avg, 1.0 ms max (headless Chromium, 12 plants + 1 growing, e2e log);
+Plant system 0.54 ms/frame avg, 1.8 ms max (headless Chromium, painted scene, 31 plants + 1 growing, e2e log);
 CPU-side benchmark with 50 + 1 plants < 2 ms in node.
 
 ## Coordination / left
 - **Wind**: `src/ambience/wind.ts` was not on main; `wind-adapter.ts` uses a local field with the
   same signature and picks the ambience one up automatically (eager glob) once merged —
   `sprout.plants.ambienceWind()` tells which is live.
-- **Scene**: coded against `SceneGeometry` only (slots, pond). With the painted scene's ~55 slots
-  re-check reflection gaps (`MAX_SHORE_GAP` 70) and the can side rule (`slot.x > 1300` → from the
-  left) against the real composition.
-- **Species**: `draw` must be deterministic, stay in its box and avoid the DOM (workers). The
-  fixture cherry paints outside its box (clipped) — real species should not.
+- **Scene** (checked after rebasing onto `gardenScene`): far-shore iris/susuki and water lilies
+  reflect, front-bank plants correctly don't; the 70-unit shore gap suits the real far bank.
+  The can now avoids the pavilion (side from `scene.pavilion.x`) and is a little larger so it
+  reads on the far bank. Depth sorting with the scene's boulders looks right.
+- **Species**: all 26 real species verified in the sprite worker (deterministic, inside their
+  box, no DOM, ≤ 127 ms per full-grown sprite at 1.6×). No species changes needed.
 - UI could use `sprout.plants`' content bounds for tighter label hit areas later.
