@@ -30,17 +30,42 @@
 ADRs 0030 (reducer validation + world), 0031 (offers), 0032 (controller), 0033 (persistence),
 0034 (validation), 0035 (dev clock jump).
 
+## Revision 2026-10-22 — plant chosen at start (ADR 0003 → ADR 0036)
+- New `core/plans.ts`: `PlanBlock`, `StudyPlan`, `recommendPlans(total)` (unbroken, pomodoro,
+  long-focus, deep-work, two-deep), `planProblem`.
+- `ActiveSession` now carries task name, plan, species, slot, seed, `displacedPlantId`,
+  `skippedMs`, `waterings`; `PlantInstance` gains `taskName`, `completedAt` (id = session id);
+  `PressedFlower` gains `taskName`; `pendingReward`, `reward/*` and offer generation are gone.
+- `sessionTimeline(s, now)` (plan position = session time + skipped breaks; growth = focused ÷
+  total focus), phases `idle | focus | break | paused`.
+- New actions `session/water`, `session/skipBreak`; `session/complete {now}` finalises the plant and
+  presses the displaced one; cancel leaves it in place.
+- Controller: `start({ taskName, goalMinutes, planId, speciesId, slotId })`, `water()`,
+  `skipBreak()`, `recommendPlans`, `selectableSpecies`, `placementOptions(speciesId)`,
+  `status().timeline`; events `session:break | session:focus | session:water`, completion emits
+  `plant:swapped` → `plant:placed` → `session:complete {sessionId, plant}`.
+- Tips: added `task`, `plan`, `water`; start-flow tips retire on `session/start`.
+- Debug: `start(min, opts)`, `toBreak()`, `skipToBlock(i)`, `water()`, `skipBreak()`,
+  `completeSession()` → plant, `addPlants` makes finished named plants.
+- Touched outside core (test data only): `src/audio/garden-audio.test.ts` fixtures follow the new
+  `ActiveSession`/`PlantInstance` shapes and `session:complete` payload.
+- Tests: 411 unit tests total; e2e covers start → break → water → skip → complete with reloads,
+  cancel with a displaced plant, corrupt-save backup, addPlants/setState.
+
 ## Left for others / open questions
 - **UI**: create no actions directly; call the controller (created in `main.ts` `boot()`; pass it
-  into the UI). Ask notification permission on the first `start`, then
-  `controller.updateSettings({ notifications })`. Show "Still with us?" when
-  `status().longPause`. Retire `widget` and `pressed` tips with `controller.retireTip`.
-  Pass `{ swapAvailable, widgetSupported }` to `activeTips`.
-- **Widget**: `controller.setTicker(workerTicker)`; title countdown via `formatClock(status().remainingMs)`.
-- **Fauna**: `unlockedFauna(state, getSpecies)`; on a creature's first appearance call
-  `announceFauna(id)` (or dispatch `fauna/seen` and emit `fauna:arrived`); show `faunaUnlock(id).arrival`.
-- **Plants/render**: plants may reference unknown species (kept on import/load); skip them.
-- Starting a new session while a reward is pending is refused (orchestrator rule). If play-testing
-  finds "plant later" then blocks studying, revisit ADR 0030.
+  into the UI). Start sheet: `recommendPlans(min)`, `selectableSpecies(min)`,
+  `placementOptions(speciesId)`, then `start({...})`. Ask notification permission on the first
+  start, then `controller.updateSettings({ notifications })`. Show "Still with us?" when
+  `status().longPause`. Retire `widget` and `pressed` tips with `controller.retireTip`; pass
+  `{ now, swapAvailable, widgetSupported }` to `activeTips`.
+- **Widget**: `controller.setTicker(workerTicker)`; read `status().timeline` (growth, block,
+  remaining, plan segments) and call `water()` / `skipBreak()`; notify on `session:break`,
+  `session:focus`, `session:complete`. Title countdown via `formatClock(timeline.totalRemainingMs)`.
+- **Plants/render**: draw the session's seedling at `timeline.growth` in `session.slotId`; fade the
+  plant `session.displacedPlantId` while a session runs; plants may reference unknown species
+  (kept on import/load) — skip them.
+- **Fauna**: `unlockedFauna(state, getSpecies)` (finished plants only); on a creature's first
+  appearance call `announceFauna(id)` and show `faunaUnlock(id).arrival`.
 - When the scene task replaces `placeholderScene`, `main.ts` must keep passing the same scene's
   slots to `createReducer` and the controller.
