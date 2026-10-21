@@ -1,6 +1,6 @@
 import { createRng } from '../core/rng';
 import { createPainter, makeCanvas, mix, PIGMENTS } from '../paint';
-import { crossFade, drawPlant, scratch } from './draw';
+import { crossFade, drawPlant, morphBetween, scratch } from './draw';
 import { getSpecies } from './registry';
 import { createSpriteCache, PRIORITY, stagePair, type Sprite, type SpriteCache, type SpriteSpec } from './sprites';
 import type { SpeciesDef } from './types';
@@ -163,7 +163,7 @@ export function renderPlantView(canvas: AnyCanvas, opts: PlantViewOptions): bool
     if (imgs.a && imgs.b && imgs.weight > 0) {
       const buf = scratch('plant-view', L.w, L.h);
       if (buf) {
-        crossFade(buf, imgs.a.image, imgs.b.image, imgs.weight);
+        crossFade(buf, imgs.a.image, imgs.b.image, imgs.weight, morphBetween(imgs.a.bounds, imgs.b.bounds, def.anchor));
         image = buf.canvas;
       }
     }

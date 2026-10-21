@@ -143,24 +143,56 @@ export function scratch(id: string, w: number, h: number): Scratch | null {
 }
 
 /**
+ * Size ratio from one growth step to the next (hi ÷ lo, measured from the painted content),
+ * about the plant's anchor (fractions of the box). During a cross-fade the lower step is
+ * stretched toward the upper one and the upper one starts shrunk to the lower's size, so tips
+ * and heads travel instead of dissolving in place; both scales are 1 at their own step.
+ */
+export interface Morph {
+  sx: number;
+  sy: number;
+  ax: number;
+  ay: number;
+}
+
+type Frac = { left: number; top: number; right: number; bottom: number };
+const clampRatio = (v: number) => (Number.isFinite(v) ? Math.max(0.8, Math.min(1.25, v)) : 1);
+
+export function morphBetween(lo: Frac | null | undefined, hi: Frac | null | undefined, anchor: { x: number; y: number }): Morph | null {
+  if (!lo || !hi) return null;
+  const hLo = anchor.y - lo.top;
+  const hHi = anchor.y - hi.top;
+  const wLo = lo.right - lo.left;
+  const wHi = hi.right - hi.left;
+  if (hLo <= 0.01 || hHi <= 0.01 || wLo <= 0.01 || wHi <= 0.01) return null;
+  return { sx: clampRatio(wHi / wLo), sy: clampRatio(hHi / hLo), ax: anchor.x, ay: anchor.y };
+}
+
+/**
  * `(1 − weight)·a + weight·b` per pixel into `out` (premultiplied colours add under `lighter`),
  * each image stretched to the buffer. With only one image (or weight 0/1) it is copied.
  */
-export function crossFade(out: Scratch, a: CanvasImageSource | null, b: CanvasImageSource | null, weight: number): void {
+export function crossFade(out: Scratch, a: CanvasImageSource | null, b: CanvasImageSource | null, weight: number, morph?: Morph | null): void {
   const { ctx, canvas } = out;
   const w = canvas.width;
   const h = canvas.height;
   const wb = b ? Math.max(0, Math.min(1, weight)) : 0;
   const wa = a ? 1 - wb : 0;
+  const put = (img: CanvasImageSource, sx: number, sy: number) => {
+    if (sx === 1 && sy === 1) return ctx.drawImage(img, 0, 0, w, h);
+    const ax = (morph?.ax ?? 0.5) * w;
+    const ay = (morph?.ay ?? 1) * h;
+    ctx.drawImage(img, ax - ax * sx, ay - ay * sy, w * sx, h * sy);
+  };
   ctx.globalCompositeOperation = 'source-over';
   if (a && wa > 0) {
     ctx.globalAlpha = wa;
-    ctx.drawImage(a, 0, 0, w, h);
+    put(a, morph ? morph.sx ** wb : 1, morph ? morph.sy ** wb : 1);
   }
   if (b && wb > 0) {
     ctx.globalCompositeOperation = wa > 0 ? 'lighter' : 'source-over';
     ctx.globalAlpha = wb;
-    ctx.drawImage(b, 0, 0, w, h);
+    put(b, morph ? morph.sx ** (wb - 1) : 1, morph ? morph.sy ** (wb - 1) : 1);
   }
   ctx.globalAlpha = 1;
   ctx.globalCompositeOperation = 'source-over';

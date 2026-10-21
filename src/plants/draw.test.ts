@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { bendOffset, crossFade, drawPlant, drawSliced, type Scratch } from './draw';
+import { bendOffset, crossFade, drawPlant, drawSliced, morphBetween, type Scratch } from './draw';
 import { FakeCanvas } from './test-canvas';
 
 describe('sway maths', () => {
@@ -68,5 +68,29 @@ describe('drawing', () => {
     alphas.length = 0;
     crossFade(out, {} as CanvasImageSource, null, 0.3);
     expect(alphas).toEqual([[1, 'source-over']]);
+  });
+
+  it('morphs between steps: the lower grows toward the upper, both exact at their own step', () => {
+    const m = morphBetween({ left: 0.3, top: 0.5, right: 0.7, bottom: 0.95 }, { left: 0.25, top: 0.4, right: 0.75, bottom: 0.95 }, { x: 0.5, y: 0.95 })!;
+    expect(m.sy).toBeCloseTo(0.55 / 0.45, 9);
+    expect(m.sx).toBeCloseTo(0.5 / 0.4, 9);
+    expect(morphBetween(null, { left: 0, top: 0, right: 1, bottom: 1 }, { x: 0.5, y: 1 })).toBeNull();
+    // huge jumps are clamped (a species may change shape between steps)
+    expect(morphBetween({ left: 0.45, top: 0.9, right: 0.55, bottom: 1 }, { left: 0, top: 0, right: 1, bottom: 1 }, { x: 0.5, y: 1 })!.sy).toBe(1.25);
+    const c = new FakeCanvas(100, 200);
+    const out = { canvas: c, ctx: c.ctx } as unknown as Scratch;
+    crossFade(out, {} as CanvasImageSource, {} as CanvasImageSource, 0, { sx: 1.2, sy: 1.2, ax: 0.5, ay: 1 });
+    // weight 0: the lower step is drawn exactly, unscaled
+    expect(c.ctx.calls.filter((k) => k.name === 'drawImage').map((k) => k.args.slice(1))).toEqual([[0, 0, 100, 200]]);
+    c.ctx.calls.length = 0;
+    crossFade(out, {} as CanvasImageSource, {} as CanvasImageSource, 0.5, { sx: 1.21, sy: 1.21, ax: 0.5, ay: 1 });
+    const [lo, hi] = c.ctx.calls.filter((k) => k.name === 'drawImage').map((k) => k.args as number[]);
+    expect(lo![3]).toBeCloseTo(110, 6); // 100 × 1.21^0.5
+    expect(hi![3]).toBeCloseTo(100 / 1.1, 6);
+    // both stay centred on the anchor and keep the base row
+    expect(lo![1]! + lo![3]! / 2).toBeCloseTo(50, 6);
+    expect(hi![1]! + hi![3]! / 2).toBeCloseTo(50, 6);
+    expect(lo![2]! + lo![4]!).toBeCloseTo(200, 6);
+    expect(hi![2]! + hi![4]!).toBeCloseTo(200, 6);
   });
 });

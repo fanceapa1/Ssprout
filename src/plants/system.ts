@@ -4,7 +4,7 @@ import type { Drawable, FrameInfo, LayerId, System, SystemContext } from '../ren
 import type { Rect } from '../render/viewport';
 import type { SceneGeometry, Slot } from '../scene/geometry';
 import { plantWorldBounds, type WorldRect } from './bounds';
-import { crossFade, drawPlant, scratch, type PlantPose } from './draw';
+import { crossFade, drawPlant, morphBetween, scratch, type PlantPose } from './draw';
 import { DAB_BOX, dabAlpha, GHOST_ALPHA, highlightDab, NO_PLACEMENT, type PlacementSnapshot, type PlacementSource } from './highlight';
 import { drawReflection, reflectionImage, shoreAxis } from './reflection';
 import {
@@ -246,7 +246,7 @@ export function createPlantSystem(opts: PlantSystemOptions): PlantSystem {
     const spec = specFor(inst, imgs.lo);
     const buf = scratch(`grow:${id}`, spec.w, spec.h);
     if (!buf) return { image: one.image, w: one.spec.w, h: one.spec.h };
-    crossFade(buf, imgs.a.image, imgs.b.image, imgs.weight);
+    crossFade(buf, imgs.a.image, imgs.b.image, imgs.weight, morphBetween(imgs.a.bounds, imgs.b.bounds, inst.def.anchor));
     return { image: buf.canvas, w: spec.w, h: spec.h };
   }
 
