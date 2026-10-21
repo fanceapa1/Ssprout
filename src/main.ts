@@ -13,6 +13,8 @@ import { installPlantsDebug } from './plants/debug';
 import { allSpecies } from './plants/registry';
 import { createPlantSystem } from './plants/system';
 import { setPlantViewSpecies } from './plants/view';
+import { createFauna } from './fauna';
+import { allSpecies, getSpecies } from './plants/registry';
 import { createRenderer } from './render/renderer';
 import { gardenScene } from './scene/geometry';
 import { createUI } from './ui';
@@ -73,6 +75,8 @@ function boot(): void {
   setPlantViewSpecies(getSpecies);
   const plants = createPlantSystem({ getSpecies });
   void renderer.add(plants);
+  void renderer.add(createPlaceholderBackground());
+  void renderer.add(createFauna({ species: getSpecies, debug: dev }));
   renderer.start();
 
   // Timer surfaces: worker ticker, tab title/favicon, notifications (asked inside session:start),
