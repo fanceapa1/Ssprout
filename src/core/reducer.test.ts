@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { Habitat, SizeClass } from '../plants/types';
+import type { Habitat, SizeClass, Tier } from '../plants/types';
+import { findPlan, type StudyPlan } from './plans';
 import {
   createDefaultState,
   createReducer,
@@ -7,17 +8,15 @@ import {
   reducer as worldlessReducer,
   type Action,
   type GardenState,
-  type PlantInstance,
   type ReducerWorld,
 } from './state';
+import { makePlant, MIN, plan, T0 } from './testing';
 
-const MIN = 60_000;
-const T0 = 1_700_000_000_000;
-
-const SPECIES: Record<string, { habitats: Habitat[]; sizeClass: SizeClass }> = {
-  violet: { habitats: ['meadow', 'rock'], sizeClass: 'small' },
-  iris: { habitats: ['shore'], sizeClass: 'medium' },
-  cherry: { habitats: ['back', 'meadow'], sizeClass: 'tree' },
+const SPECIES: Record<string, { habitats: Habitat[]; sizeClass: SizeClass; tier: Tier }> = {
+  violet: { habitats: ['meadow', 'rock'], sizeClass: 'small', tier: 1 },
+  iris: { habitats: ['shore'], sizeClass: 'medium', tier: 2 },
+  peony: { habitats: ['meadow'], sizeClass: 'medium', tier: 3 },
+  cherry: { habitats: ['back', 'meadow'], sizeClass: 'tree', tier: 4 },
 };
 const SLOTS: Record<string, { id: string; habitat: Habitat; maxSize: SizeClass }> = {
   'meadow-1': { id: 'meadow-1', habitat: 'meadow', maxSize: 'large' },
@@ -30,80 +29,120 @@ const reducer = createReducer(world);
 
 const run = (state: GardenState, ...actions: Action[]): GardenState => actions.reduce(reducer, state);
 const fresh = () => createDefaultState(T0);
-const start = (goalMinutes = 25, now = T0): Action => ({
-  type: 'session/start',
-  goalMinutes,
-  now,
-  id: 'session-1',
-  weather: 'rain',
-});
-const complete = (now: number, tier: 1 | 2 | 3 | 4 = 2, options = ['violet', 'iris', 'cherry']): Action => ({
-  type: 'session/complete',
-  now,
-  options,
-  tier,
-});
-const place = (slotId: string, id = 'plant-1', now = T0 + 30 * MIN): Action => ({
-  type: 'plant/place',
-  slotId,
-  id,
-  seed: 42,
-  now,
-});
-/** A state with a completed 25-min session and `chosen` picked. */
-const rewarded = (chosen = 'violet', base = fresh()) =>
-  run(base, start(25), complete(T0 + 25 * MIN), { type: 'reward/choose', speciesId: chosen });
+/** 25 focus · 5 break · 25 focus · 5 break · 30 focus */
+const POMODORO = plan([25, -5, 25, -5, 30], 'pomodoro');
 
-const plant = (id: string, slotId: string, speciesId = 'violet'): PlantInstance => ({
-  id,
-  speciesId,
-  slotId,
-  seed: 7,
-  plantedAt: T0 - 1000,
-  sessionMinutes: 10,
-});
+type StartOver = Partial<Omit<Extract<Action, { type: 'session/start' }>, 'type'>>;
+const start = (over: StartOver = {}): Action => {
+  const goalMinutes = over.goalMinutes ?? (over.plan ? over.plan.blocks.reduce((s, b) => s + b.minutes, 0) : 25);
+  return {
+    type: 'session/start',
+    id: 'session-1',
+    taskName: 'Biology ch. 4',
+    goalMinutes,
+    plan: over.plan ?? (findPlan(goalMinutes, 'unbroken') as StudyPlan),
+    speciesId: 'violet',
+    slotId: 'meadow-1',
+    seed: 42,
+    now: T0,
+    weather: 'rain',
+    ...over,
+  };
+};
+const at = (min: number) => T0 + min * MIN;
+const running = (over: StartOver = {}, base = fresh()) => run(base, start(over));
 
 /** Asserts the action is a no-op: the exact same state object comes back. */
 const expectNoop = (state: GardenState, action: Action) => expect(reducer(state, action)).toBe(state);
 
 describe('session/start', () => {
-  it('starts a session and remembers the goal', () => {
-    const s = run(fresh(), start(50));
+  it('plants a seedling session with everything chosen up front', () => {
+    const s = running({ plan: POMODORO, goalMinutes: 90 });
     expect(s.session).toEqual({
       id: 'session-1',
-      goalMs: 50 * MIN,
+      taskName: 'Biology ch. 4',
+      goalMs: 90 * MIN,
+      plan: POMODORO,
+      speciesId: 'violet',
+      slotId: 'meadow-1',
+      seed: 42,
+      displacedPlantId: null,
       startedAt: T0,
       pausedAt: null,
       pausedTotalMs: 0,
+      skippedMs: 0,
       weather: 'rain',
+      waterings: [],
     });
-    expect(s.settings.lastGoalMinutes).toBe(50);
+    expect(s.settings.lastGoalMinutes).toBe(90);
+    expect(s.plants).toEqual([]);
   });
 
-  it('clamps and snaps the goal to 10–180 in 5-min steps', () => {
-    expect(run(fresh(), start(3)).session!.goalMs).toBe(10 * MIN);
-    expect(run(fresh(), start(999)).session!.goalMs).toBe(180 * MIN);
-    expect(run(fresh(), start(47)).session!.goalMs).toBe(45 * MIN);
-    expect(run(fresh(), start(47)).settings.lastGoalMinutes).toBe(45);
+  it('copies the plan (later mutation of the input does not leak in)', () => {
+    const p = plan([25]);
+    const s = running({ plan: p });
+    p.blocks[0]!.minutes = 99;
+    expect(s.session!.plan.blocks[0]!.minutes).toBe(25);
   });
 
-  it('cannot start while a session is active', () => {
-    const s = run(fresh(), start());
-    expectNoop(s, start(50, T0 + 1000));
+  it('normalises the task name', () => {
+    expect(running({ taskName: '   ' }).session!.taskName).toBe('Study session');
+    expect(running({ taskName: '  French  verbs ' }).session!.taskName).toBe('French verbs');
+    expect(running({ taskName: 'x'.repeat(60) }).session!.taskName).toHaveLength(40);
   });
 
-  it('cannot start while a reward is pending', () => {
-    const s = run(fresh(), start(), complete(T0 + 25 * MIN));
-    expect(s.pendingReward).not.toBeNull();
-    expectNoop(s, start());
+  it('records the finished plant in the chosen slot as displaced (it stays until completion)', () => {
+    const old = makePlant({ id: 'old', slotId: 'meadow-1' });
+    const s = running({}, { ...fresh(), plants: [old] });
+    expect(s.session!.displacedPlantId).toBe('old');
+    expect(s.plants).toEqual([old]);
+  });
+
+  it('cannot start while a session exists', () => {
+    expectNoop(running(), start({ id: 'session-2' }));
+  });
+
+  it('requires a valid total on the 5-minute grid and a plan summing to it', () => {
+    expectNoop(fresh(), start({ goalMinutes: 27, plan: plan([27]) }));
+    expectNoop(fresh(), start({ goalMinutes: 5, plan: plan([5]) }));
+    expectNoop(fresh(), start({ goalMinutes: 30, plan: plan([25]) }));
+    expectNoop(fresh(), start({ goalMinutes: 30, plan: plan([25, -5]) })); // ends with a break
+    expectNoop(fresh(), start({ goalMinutes: 30, plan: { id: 'x', name: 'x', blocks: [] } }));
+  });
+
+  it('only allows species whose tier is earned by the total', () => {
+    expectNoop(fresh(), start({ speciesId: 'peony', goalMinutes: 25 }));
+    expect(running({ speciesId: 'peony', goalMinutes: 50 }).session!.speciesId).toBe('peony');
+    expect(running({ speciesId: 'violet', goalMinutes: 180 }).session).not.toBeNull(); // lower tiers ok
+    expectNoop(fresh(), start({ speciesId: 'cherry', slotId: 'back-1', goalMinutes: 85 }));
+    expect(running({ speciesId: 'cherry', slotId: 'back-1', goalMinutes: 90 }).session).not.toBeNull();
+  });
+
+  it('requires a compatible slot (habitat + size class)', () => {
+    expectNoop(fresh(), start({ speciesId: 'violet', slotId: 'shore-1' }));
+    expectNoop(fresh(), start({ speciesId: 'cherry', slotId: 'meadow-1', goalMinutes: 90 })); // too big
+    expectNoop(fresh(), start({ slotId: 'nowhere' }));
+    expectNoop(fresh(), start({ speciesId: 'ghost' }));
   });
 
   it('rejects malformed payloads', () => {
     const s = fresh();
-    expectNoop(s, { ...start(), id: '' } as Action);
-    expectNoop(s, { ...start(), now: Number.NaN } as Action);
-    expectNoop(s, { ...start(), goalMinutes: Number.NaN } as Action);
-    expectNoop(s, { ...start(), weather: 'snow' } as unknown as Action);
+    expectNoop(s, start({ id: '' }));
+    expectNoop(s, start({ speciesId: '' }));
+    expectNoop(s, start({ slotId: '' }));
+    expectNoop(s, start({ now: Number.NaN }));
+    expectNoop(s, start({ seed: Infinity }));
+    expectNoop(s, start({ weather: 'snow' as never }));
+    expectNoop(s, start({ goalMinutes: Number.NaN }));
+  });
+
+  it('rejects a session id already used by a finished plant', () => {
+    expectNoop({ ...fresh(), plants: [makePlant({ id: 'session-1', slotId: 'rock-1' })] }, start());
+  });
+
+  it('without a world, any species and slot are accepted', () => {
+    const s = worldlessReducer(fresh(), start({ speciesId: 'anything', slotId: 'anywhere' }));
+    expect(s.session!.slotId).toBe('anywhere');
   });
 
   it('does not mutate the previous state', () => {
@@ -116,35 +155,23 @@ describe('session/start', () => {
 
 describe('session/pause and session/resume', () => {
   it('pause records the moment; resume adds the paused span', () => {
-    let s = run(fresh(), start(), { type: 'session/pause', now: T0 + 5 * MIN });
-    expect(s.session!.pausedAt).toBe(T0 + 5 * MIN);
-    s = run(s, { type: 'session/resume', now: T0 + 12 * MIN });
+    let s = run(running(), { type: 'session/pause', now: at(5) });
+    expect(s.session!.pausedAt).toBe(at(5));
+    s = run(s, { type: 'session/resume', now: at(12) });
     expect(s.session!.pausedAt).toBeNull();
     expect(s.session!.pausedTotalMs).toBe(7 * MIN);
-    s = run(s, { type: 'session/pause', now: T0 + 20 * MIN }, { type: 'session/resume', now: T0 + 21 * MIN });
-    expect(s.session!.pausedTotalMs).toBe(8 * MIN);
   });
 
-  it('pause is idempotent', () => {
-    const s = run(fresh(), start(), { type: 'session/pause', now: T0 + MIN });
-    expectNoop(s, { type: 'session/pause', now: T0 + 2 * MIN });
+  it('pause and resume are idempotent', () => {
+    const paused = run(running(), { type: 'session/pause', now: at(1) });
+    expectNoop(paused, { type: 'session/pause', now: at(2) });
+    expectNoop(running(), { type: 'session/resume', now: at(1) });
   });
 
-  it('resume is idempotent', () => {
-    const s = run(fresh(), start());
-    expectNoop(s, { type: 'session/resume', now: T0 + MIN });
-  });
-
-  it('a clock running backwards never produces a negative paused span', () => {
-    const s = run(
-      fresh(),
-      start(),
-      { type: 'session/pause', now: T0 + 5 * MIN },
-      { type: 'session/resume', now: T0 + 4 * MIN },
-    );
+  it('a clock running backwards never produces negative spans', () => {
+    const s = run(running(), { type: 'session/pause', now: at(5) }, { type: 'session/resume', now: at(4) });
     expect(s.session!.pausedTotalMs).toBe(0);
-    const early = run(fresh(), start(), { type: 'session/pause', now: T0 - 10 });
-    expect(early.session!.pausedAt).toBe(T0);
+    expect(run(running(), { type: 'session/pause', now: T0 - 10 }).session!.pausedAt).toBe(T0);
   });
 
   it('pause / resume without a session are no-ops', () => {
@@ -153,161 +180,138 @@ describe('session/pause and session/resume', () => {
   });
 });
 
+describe('session/water', () => {
+  const pom = () => running({ plan: POMODORO });
+
+  it('waters the current break once', () => {
+    const s = run(pom(), { type: 'session/water', blockIndex: 1, now: at(26) });
+    expect(s.session!.waterings).toEqual([1]);
+    expectNoop(s, { type: 'session/water', blockIndex: 1, now: at(27) });
+    const later = run(s, { type: 'session/water', blockIndex: 3, now: at(56) });
+    expect(later.session!.waterings).toEqual([1, 3]);
+  });
+
+  it('only during a break, and only the current one', () => {
+    const s = pom();
+    expectNoop(s, { type: 'session/water', blockIndex: 0, now: at(10) }); // focus
+    expectNoop(s, { type: 'session/water', blockIndex: 1, now: at(10) }); // not yet
+    expectNoop(s, { type: 'session/water', blockIndex: 3, now: at(26) }); // not current
+    expectNoop(s, { type: 'session/water', blockIndex: 1, now: at(31) }); // already over
+    expectNoop(fresh(), { type: 'session/water', blockIndex: 1, now: at(26) });
+    expectNoop(s, { type: 'session/water', blockIndex: 1, now: Number.NaN });
+  });
+
+  it('is allowed while paused in a break', () => {
+    const s = run(pom(), { type: 'session/pause', now: at(26) }, { type: 'session/water', blockIndex: 1, now: at(40) });
+    expect(s.session!.waterings).toEqual([1]);
+  });
+
+  it('not watering changes nothing about the outcome', () => {
+    const dry = run(pom(), { type: 'session/complete', now: at(90) });
+    const wet = run(pom(), { type: 'session/water', blockIndex: 1, now: at(26) }, { type: 'session/complete', now: at(90) });
+    expect(dry.plants).toEqual(wet.plants);
+    expect(dry.stats).toEqual(wet.stats);
+  });
+});
+
+describe('session/skipBreak', () => {
+  const pom = () => running({ plan: POMODORO });
+
+  it('removes the rest of the current break; the session ends that much sooner', () => {
+    const s = run(pom(), { type: 'session/skipBreak', now: at(27) });
+    expect(s.session!.skippedMs).toBe(3 * MIN);
+    expectNoop(s, { type: 'session/complete', now: at(87) - 1 });
+    expect(run(s, { type: 'session/complete', now: at(87) }).session).toBeNull();
+  });
+
+  it('accumulates across breaks and keeps the tier (total) unchanged', () => {
+    const s = run(pom(), { type: 'session/skipBreak', now: at(25) }, { type: 'session/skipBreak', now: at(50) });
+    expect(s.session!.skippedMs).toBe(10 * MIN);
+    const done = run(s, { type: 'session/complete', now: at(80) });
+    expect(done.plants[0]!.sessionMinutes).toBe(90);
+  });
+
+  it('is a no-op during focus, without a session, or at the end', () => {
+    expectNoop(pom(), { type: 'session/skipBreak', now: at(10) });
+    expectNoop(fresh(), { type: 'session/skipBreak', now: at(26) });
+    expectNoop(pom(), { type: 'session/skipBreak', now: at(200) });
+    expectNoop(pom(), { type: 'session/skipBreak', now: Number.NaN });
+  });
+});
+
 describe('session/cancel', () => {
-  it('clears the session and counts it, growing nothing', () => {
-    const s = run(fresh(), start(), { type: 'session/cancel', now: T0 + MIN });
+  it('clears the session and counts it; nothing grows', () => {
+    const s = run(running(), { type: 'session/cancel', now: at(1) });
     expect(s.session).toBeNull();
-    expect(s.pendingReward).toBeNull();
     expect(s.plants).toEqual([]);
     expect(s.stats).toEqual({ totalMinutes: 0, completed: 0, cancelled: 1 });
   });
 
-  it('works while paused', () => {
-    const s = run(fresh(), start(), { type: 'session/pause', now: T0 + MIN }, { type: 'session/cancel', now: T0 });
-    expect(s.session).toBeNull();
-    expect(s.stats.cancelled).toBe(1);
+  it('a displaced plant returns (it was never removed)', () => {
+    const old = makePlant({ id: 'old', slotId: 'meadow-1' });
+    const s = run(running({}, { ...fresh(), plants: [old] }), { type: 'session/cancel', now: at(1) });
+    expect(s.plants).toEqual([old]);
+    expect(s.pressed).toEqual([]);
   });
 
-  it('is a no-op without a session', () => {
+  it('works while paused; no-op without a session', () => {
+    const s = run(running(), { type: 'session/pause', now: at(1) }, { type: 'session/cancel', now: at(2) });
+    expect(s.session).toBeNull();
     expectNoop(fresh(), { type: 'session/cancel', now: T0 });
   });
 });
 
 describe('session/complete', () => {
-  it('creates the pending reward, clears the session and updates stats', () => {
-    const s = run(fresh(), start(25), complete(T0 + 25 * MIN));
+  it('finalises the plant with its task name and updates stats with focused minutes', () => {
+    const s = run(running({ plan: POMODORO }), { type: 'session/complete', now: at(91) });
     expect(s.session).toBeNull();
-    expect(s.pendingReward).toEqual({
-      sessionId: 'session-1',
-      goalMinutes: 25,
-      tier: 2,
-      options: ['violet', 'iris', 'cherry'],
-      chosen: null,
-      completedAt: T0 + 25 * MIN,
-    });
-    expect(s.stats).toEqual({ totalMinutes: 25, completed: 1, cancelled: 0 });
-  });
-
-  it('adds goal minutes (not wall time) to totalMinutes', () => {
-    const s = run(fresh(), start(10), complete(T0 + 300 * MIN, 1));
-    expect(s.stats.totalMinutes).toBe(10);
-  });
-
-  it('is rejected before studied time reaches the goal', () => {
-    const s = run(fresh(), start(25));
-    expectNoop(s, complete(T0 + 25 * MIN - 1));
-  });
-
-  it('accounts for pauses', () => {
-    const s = run(fresh(), start(25), { type: 'session/pause', now: T0 }, { type: 'session/resume', now: T0 + 5 * MIN });
-    expectNoop(s, complete(T0 + 29 * MIN));
-    expect(run(s, complete(T0 + 30 * MIN)).pendingReward).not.toBeNull();
-  });
-
-  it('requires the tier to match the goal', () => {
-    const s = run(fresh(), start(25));
-    expectNoop(s, complete(T0 + 25 * MIN, 1));
-    expectNoop(s, complete(T0 + 25 * MIN, 3));
-  });
-
-  it('rejects duplicate or empty option ids; allows an empty offer', () => {
-    const s = run(fresh(), start(25));
-    expectNoop(s, complete(T0 + 25 * MIN, 2, ['a', 'a']));
-    expectNoop(s, complete(T0 + 25 * MIN, 2, ['']));
-    expect(run(s, complete(T0 + 25 * MIN, 2, [])).pendingReward!.options).toEqual([]);
-  });
-
-  it('is a no-op without a session', () => {
-    expectNoop(fresh(), complete(T0));
-  });
-});
-
-describe('reward/choose', () => {
-  it('picks one of the offered species and may change its mind', () => {
-    let s = rewarded('violet');
-    expect(s.pendingReward!.chosen).toBe('violet');
-    s = run(s, { type: 'reward/choose', speciesId: 'iris' });
-    expect(s.pendingReward!.chosen).toBe('iris');
-  });
-
-  it('rejects species that were not offered, repeats and missing rewards', () => {
-    const s = rewarded('violet');
-    expectNoop(s, { type: 'reward/choose', speciesId: 'lotus' });
-    expectNoop(s, { type: 'reward/choose', speciesId: 'violet' });
-    expectNoop(fresh(), { type: 'reward/choose', speciesId: 'violet' });
-  });
-});
-
-describe('plant/place', () => {
-  it('plants the chosen species in a compatible empty slot and clears the reward', () => {
-    const s = run(rewarded('violet'), place('meadow-1'));
     expect(s.plants).toEqual([
-      { id: 'plant-1', speciesId: 'violet', slotId: 'meadow-1', seed: 42, plantedAt: T0 + 30 * MIN, sessionMinutes: 25 },
+      {
+        id: 'session-1',
+        speciesId: 'violet',
+        slotId: 'meadow-1',
+        seed: 42,
+        plantedAt: T0,
+        sessionMinutes: 90,
+        taskName: 'Biology ch. 4',
+        completedAt: at(91),
+      },
     ]);
-    expect(s.pendingReward).toBeNull();
+    expect(s.stats).toEqual({ totalMinutes: 80, completed: 1, cancelled: 0 });
+  });
+
+  it('presses the displaced plant with its task name', () => {
+    const old = makePlant({ id: 'old', slotId: 'meadow-1', speciesId: 'cherry', taskName: 'Old task' });
+    const other = makePlant({ id: 'other', slotId: 'rock-1' });
+    const s = run(running({}, { ...fresh(), plants: [old, other] }), { type: 'session/complete', now: at(25) });
+    expect(s.plants.map((p) => p.id)).toEqual(['other', 'session-1']);
+    expect(s.pressed).toEqual([
+      { speciesId: 'cherry', seed: old.seed, plantedAt: old.plantedAt, removedAt: at(25), taskName: 'Old task' },
+    ]);
+  });
+
+  it('keeps one plant per slot even if the slot was filled meanwhile', () => {
+    const s0 = running();
+    const intruder = makePlant({ id: 'intruder', slotId: 'meadow-1' });
+    const s = run({ ...s0, plants: [intruder] }, { type: 'session/complete', now: at(25) });
+    expect(s.plants.map((p) => p.id)).toEqual(['session-1']);
+    expect(s.pressed).toHaveLength(1);
+  });
+
+  it('tolerates a displaced plant that no longer exists', () => {
+    const old = makePlant({ id: 'old', slotId: 'meadow-1' });
+    const s0 = running({}, { ...fresh(), plants: [old] });
+    const s = run({ ...s0, plants: [] }, { type: 'session/complete', now: at(25) });
+    expect(s.plants).toHaveLength(1);
     expect(s.pressed).toEqual([]);
   });
 
-  it('requires a chosen species', () => {
-    const s = run(fresh(), start(25), complete(T0 + 25 * MIN));
-    expectNoop(s, place('meadow-1'));
-    expectNoop(fresh(), place('meadow-1'));
-  });
-
-  it('rejects slots with the wrong habitat', () => {
-    expectNoop(rewarded('violet'), place('shore-1'));
-    expectNoop(rewarded('iris'), place('meadow-1'));
-  });
-
-  it('rejects slots that are too small for the species', () => {
-    const s = rewarded('cherry');
-    expect(run(s, place('back-1')).plants).toHaveLength(1);
-    expectNoop(s, place('meadow-1')); // meadow-1 maxSize large < tree
-  });
-
-  it('rejects unknown slots and unknown species', () => {
-    expectNoop(rewarded('violet'), place('nowhere'));
-    const unknown = run(fresh(), start(25), complete(T0 + 25 * MIN, 2, ['ghost']), {
-      type: 'reward/choose',
-      speciesId: 'ghost',
-    });
-    expectNoop(unknown, place('meadow-1'));
-  });
-
-  it('rejects duplicate plant ids and malformed payloads', () => {
-    const base = { ...fresh(), plants: [plant('plant-1', 'rock-1')] };
-    const s = rewarded('violet', base);
-    expectNoop(s, place('meadow-1', 'plant-1'));
-    expectNoop(s, { ...place('meadow-1'), seed: Number.NaN } as Action);
-    expectNoop(s, { ...place('meadow-1'), id: '' } as Action);
-  });
-
-  it('swaps an occupant into the pressed flowers', () => {
-    const old = plant('old', 'meadow-1', 'cherry');
-    const other = plant('other', 'rock-1');
-    const s = run(rewarded('violet', { ...fresh(), plants: [old, other] }), place('meadow-1', 'new', T0 + 40 * MIN));
-    expect(s.plants.map((p) => p.id)).toEqual(['other', 'new']);
-    expect(s.plants.find((p) => p.slotId === 'meadow-1')!.speciesId).toBe('violet');
-    expect(s.pressed).toEqual([{ speciesId: 'cherry', seed: 7, plantedAt: T0 - 1000, removedAt: T0 + 40 * MIN }]);
-    expect(s.pendingReward).toBeNull();
-  });
-
-  it('without a world, any slot id is accepted', () => {
-    const s = [start(25), complete(T0 + 25 * MIN), { type: 'reward/choose', speciesId: 'violet' } as Action, place('anything')].reduce(
-      worldlessReducer,
-      fresh(),
-    );
-    expect(s.plants[0]!.slotId).toBe('anything');
-  });
-});
-
-describe('reward/discard', () => {
-  it('drops the pending reward', () => {
-    expect(run(rewarded(), { type: 'reward/discard' }).pendingReward).toBeNull();
-  });
-
-  it('is a no-op without one', () => {
-    expectNoop(fresh(), { type: 'reward/discard' });
+  it('is rejected before the plan has run, and while paused short of it', () => {
+    expectNoop(running(), { type: 'session/complete', now: at(25) - 1 });
+    const paused = run(running(), { type: 'session/pause', now: at(5) });
+    expectNoop(paused, { type: 'session/complete', now: at(500) });
+    expectNoop(fresh(), { type: 'session/complete', now: at(500) });
+    expectNoop(running(), { type: 'session/complete', now: Number.NaN });
   });
 });
 
@@ -341,7 +345,7 @@ describe('settings/update', () => {
   it('mergeSettings returns the same object when unchanged', () => {
     const cur = fresh().settings;
     expect(mergeSettings(cur, { lastGoalMinutes: 25 })).toBe(cur);
-    expect(mergeSettings(cur, { lastGoalMinutes: 26 })).toBe(cur); // snaps back to 25
+    expect(mergeSettings(cur, { lastGoalMinutes: 26 })).toBe(cur);
   });
 });
 
@@ -368,28 +372,34 @@ describe('state/replace and state/reset', () => {
   });
 
   it('reset returns a fresh default garden', () => {
-    const s = run(rewarded(), place('meadow-1'), { type: 'state/reset', now: T0 + 99 });
+    const s = run(running(), { type: 'state/reset', now: T0 + 99 });
     expect(s).toEqual(createDefaultState(T0 + 99));
     expectNoop(fresh(), { type: 'state/reset', now: Number.NaN });
   });
 });
 
+describe('unknown actions', () => {
+  it('return the same state', () => {
+    const s = fresh();
+    expect(reducer(s, { type: 'reward/choose', speciesId: 'x' } as never)).toBe(s);
+  });
+});
+
 describe('full loop', () => {
-  it('start → pause → resume → complete → choose → place', () => {
+  it('start → break (water) → skip → pause → resume → complete', () => {
     const s = run(
       fresh(),
-      start(10),
-      { type: 'session/pause', now: T0 + 2 * MIN },
-      { type: 'session/resume', now: T0 + 40 * MIN },
-      complete(T0 + 48 * MIN, 1, ['violet']),
-      { type: 'reward/choose', speciesId: 'violet' },
-      place('rock-1', 'p', T0 + 50 * MIN),
+      start({ plan: POMODORO, taskName: 'Thesis' }),
+      { type: 'session/water', blockIndex: 1, now: at(26) },
+      { type: 'session/skipBreak', now: at(27) },
+      { type: 'session/pause', now: at(40) },
+      { type: 'session/resume', now: at(50) },
+      { type: 'session/complete', now: at(97) },
     );
     expect(s.session).toBeNull();
-    expect(s.pendingReward).toBeNull();
     expect(s.plants).toHaveLength(1);
-    expect(s.plants[0]!.sessionMinutes).toBe(10);
-    expect(s.stats).toEqual({ totalMinutes: 10, completed: 1, cancelled: 0 });
+    expect(s.plants[0]).toMatchObject({ taskName: 'Thesis', sessionMinutes: 90, completedAt: at(97) });
+    expect(s.stats).toEqual({ totalMinutes: 80, completed: 1, cancelled: 0 });
     expect(JSON.parse(JSON.stringify(s))).toEqual(s);
   });
 });

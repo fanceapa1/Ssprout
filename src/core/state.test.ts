@@ -8,7 +8,7 @@ describe('createDefaultState', () => {
     expect(s.createdAt).toBe(1234);
     expect(s.plants).toEqual([]);
     expect(s.session).toBeNull();
-    expect(s.pendingReward).toBeNull();
+    expect('pendingReward' in s).toBe(false);
     expect(s.settings.muted).toBe(true);
     expect(s.settings.lastGoalMinutes).toBe(25);
     expect(s.settings.notifications).toBe('unasked');

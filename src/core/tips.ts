@@ -1,3 +1,5 @@
+import { hasBreaks } from './plans';
+import { sessionTimeline } from './session';
 import type { Action, GardenState } from './state';
 
 /**
@@ -5,14 +7,32 @@ import type { Action, GardenState } from './state';
  * the first time the gardener uses that mechanism. Retired tips stay listed behind the ⓘ.
  */
 
-export type TipId = 'duration' | 'widget' | 'placement' | 'swap' | 'pressed' | 'sound' | 'notifications';
+export type TipId =
+  | 'task'
+  | 'duration'
+  | 'plan'
+  | 'placement'
+  | 'swap'
+  | 'notifications'
+  | 'widget'
+  | 'water'
+  | 'pressed'
+  | 'sound';
 
 /** Facts the state alone cannot tell (supplied by the UI). */
 export interface TipContext {
-  /** Some compatible slot for the chosen species is occupied. Default: the garden has plants. */
+  /** Current time, to know whether a session is in a break (the `water` tip). Default: never. */
+  now?: number;
+  /** Some compatible slot for the species being placed is occupied. Default: the garden has plants. */
   swapAvailable?: boolean;
   /** The floating widget (Document PiP) is supported. Default true. */
   widgetSupported?: boolean;
+}
+
+interface ResolvedContext {
+  now: number | null;
+  swapAvailable: boolean;
+  widgetSupported: boolean;
 }
 
 export interface TipDef {
@@ -20,13 +40,21 @@ export interface TipDef {
   /** the control this tip sits next to (for the UI to anchor it) */
   anchor: string;
   copy: string;
-  relevant(state: GardenState, ctx: Required<TipContext>): boolean;
+  relevant(state: GardenState, ctx: ResolvedContext): boolean;
 }
 
-const idle = (s: GardenState) => s.session === null && s.pendingReward === null;
-const placing = (s: GardenState) => s.pendingReward !== null && s.pendingReward.chosen !== null;
+const idle = (s: GardenState) => s.session === null;
+const inBreak = (s: GardenState, now: number | null) =>
+  s.session !== null && now !== null && sessionTimeline(s.session, now).block.kind === 'break';
 
+/** Registry order = the order of the start flow, then the session, then the garden. */
 export const TIPS: readonly TipDef[] = [
+  {
+    id: 'task',
+    anchor: 'task',
+    copy: 'Name what you are studying. Your plant will carry its name.',
+    relevant: idle,
+  },
   {
     id: 'duration',
     anchor: 'duration',
@@ -34,28 +62,40 @@ export const TIPS: readonly TipDef[] = [
     relevant: idle,
   },
   {
+    id: 'plan',
+    anchor: 'plan',
+    copy: 'Breaks are watering moments — your plant will be glad of them.',
+    relevant: idle,
+  },
+  {
+    id: 'placement',
+    anchor: 'garden',
+    copy: 'Choose one of the softly glowing spots for your seedling.',
+    relevant: idle,
+  },
+  {
+    id: 'swap',
+    anchor: 'garden',
+    copy: 'A glowing spot already in bloom can be replanted. The old plant is pressed and kept.',
+    relevant: (s, ctx) => idle(s) && ctx.swapAvailable,
+  },
+  {
     id: 'notifications',
     anchor: 'start',
-    copy: "When you begin, we'll ask once if we may chime softly when your time is up.",
+    copy: "When you begin, we'll ask once if we may chime softly at breaks and at the end.",
     relevant: (s) => idle(s) && s.settings.notifications === 'unasked',
   },
   {
     id: 'widget',
     anchor: 'widget',
-    copy: 'Open the little floating timer to keep the garden with you while you work elsewhere.',
+    copy: 'Open the little floating window to keep your plant with you while you work elsewhere.',
     relevant: (s, ctx) => s.session !== null && ctx.widgetSupported,
   },
   {
-    id: 'placement',
-    anchor: 'garden',
-    copy: 'Choose one of the softly glowing spots to plant it.',
-    relevant: placing,
-  },
-  {
-    id: 'swap',
-    anchor: 'garden',
-    copy: 'A glowing spot that is already in bloom can be replanted. The old plant is pressed and kept.',
-    relevant: (s, ctx) => placing(s) && ctx.swapAvailable,
+    id: 'water',
+    anchor: 'water',
+    copy: 'Tap the watering can to give your plant a drink. No rush, it will wait.',
+    relevant: (s, ctx) => inBreak(s, ctx.now),
   },
   {
     id: 'pressed',
@@ -81,14 +121,15 @@ export function isRetired(state: Pick<GardenState, 'tips'>, id: string): boolean
   return state.tips[id] === 'seen';
 }
 
-const withDefaults = (state: GardenState, ctx: TipContext = {}): Required<TipContext> => ({
+const resolve = (state: GardenState, ctx: TipContext = {}): ResolvedContext => ({
+  now: ctx.now ?? null,
   swapAvailable: ctx.swapAvailable ?? state.plants.length > 0,
   widgetSupported: ctx.widgetSupported ?? true,
 });
 
 /** Tips to show right now: relevant and not retired, in registry order. */
 export function activeTips(state: GardenState, ctx?: TipContext): TipDef[] {
-  const c = withDefaults(state, ctx);
+  const c = resolve(state, ctx);
   return TIPS.filter((t) => !isRetired(state, t.id) && t.relevant(state, c));
 }
 
@@ -106,12 +147,16 @@ export function tipsRetiredBy(action: Action, prev: GardenState, next: GardenSta
   if (next === prev) return [];
   const used: TipId[] = [];
   switch (action.type) {
-    case 'session/start':
-      if (next.session && !prev.session) used.push('duration');
+    case 'session/start': {
+      const s = next.session;
+      if (!s || prev.session) break;
+      used.push('task', 'duration', 'placement');
+      if (hasBreaks(s.plan)) used.push('plan');
+      if (s.displacedPlantId !== null) used.push('swap');
       break;
-    case 'plant/place':
-      used.push('placement');
-      if (next.pressed.length > prev.pressed.length) used.push('swap');
+    }
+    case 'session/water':
+      used.push('water');
       break;
     case 'settings/update':
       if (next.settings.muted !== prev.settings.muted) used.push('sound');

@@ -16,6 +16,7 @@ import {
   type StorageLike,
 } from './persistence';
 import { createDefaultState, type GardenState } from './state';
+import { makePlant, makePressed, makeSession, MIN, plan } from './testing';
 
 const T0 = 1_700_000_000_000;
 
@@ -34,10 +35,10 @@ function memoryStorage(init: Record<string, string> = {}) {
 const garden = (): GardenState => ({
   ...createDefaultState(T0),
   plants: [
-    { id: 'p1', speciesId: 'violet', slotId: 'meadow-1', seed: 11, plantedAt: T0 + 1, sessionMinutes: 10 },
-    { id: 'p2', speciesId: 'iris', slotId: 'shore-1', seed: 22, plantedAt: T0 + 2, sessionMinutes: 25 },
+    makePlant({ id: 'p1', speciesId: 'violet', slotId: 'meadow-1', seed: 11, taskName: 'French verbs' }),
+    makePlant({ id: 'p2', speciesId: 'iris', slotId: 'shore-1', seed: 22, taskName: 'Biology ch. 4' }),
   ],
-  pressed: [{ speciesId: 'clover', seed: 3, plantedAt: T0, removedAt: T0 + 5 }],
+  pressed: [makePressed({ speciesId: 'clover' })],
   stats: { totalMinutes: 35, completed: 2, cancelled: 1 },
   faunaSeen: ['striders'],
   tips: { duration: 'seen' },
@@ -86,6 +87,9 @@ describe('migrate', () => {
     expect(r.value.doc.version).toBe(1);
     const v = validateState(r.value.doc);
     expect(v.ok && v.value.state.plants[0]!.speciesId).toBe('violet');
+    // fields that did not exist in v0 take their defaults
+    expect(v.ok && v.value.state.plants[0]!.taskName).toBe('Study session');
+    expect(v.ok && v.value.state.plants[0]!.completedAt).toBe(T0 + 1);
     expect(v.ok && v.value.state.settings.muted).toBe(false);
   });
 
@@ -142,21 +146,43 @@ describe('validateState', () => {
 
   it('keeps unknown species but flags them (sorted, unique)', () => {
     const g = garden();
-    g.plants.push({ id: 'p3', speciesId: 'moonflower', slotId: 'x', seed: 1, plantedAt: 0, sessionMinutes: 10 });
-    g.pressed.push({ speciesId: 'ghost-fern', seed: 1, plantedAt: 0, removedAt: 0 });
-    g.pressed.push({ speciesId: 'moonflower', seed: 2, plantedAt: 0, removedAt: 0 });
+    g.plants.push(makePlant({ id: 'p3', speciesId: 'moonflower', slotId: 'x' }));
+    g.pressed.push(makePressed({ speciesId: 'ghost-fern' }));
+    g.pressed.push(makePressed({ speciesId: 'moonflower' }));
     const r = validateState(g, { isKnownSpecies });
     expect(r.ok && r.value.state.plants).toHaveLength(3);
     expect(r.ok && r.value.warnings.unknownSpecies).toEqual(['ghost-fern', 'moonflower']);
   });
 
-  it('flags unknown species in a pending offer', () => {
-    const g: GardenState = {
-      ...createDefaultState(0),
-      pendingReward: { sessionId: 's', goalMinutes: 25, tier: 2, options: ['violet', 'nova'], chosen: 'nova', completedAt: 1 },
-    };
+  it('flags an unknown species growing in the active session', () => {
+    const g: GardenState = { ...createDefaultState(0), session: makeSession({ speciesId: 'nova' }) };
     const r = validateState(g, { isKnownSpecies });
     expect(r.ok && r.value.warnings.unknownSpecies).toEqual(['nova']);
+  });
+
+  it('round-trips an active session with a plan, waterings and skips', () => {
+    const session = makeSession({
+      plan: plan([25, -5, 25, -5, 30]),
+      waterings: [1],
+      skippedMs: 2 * MIN,
+      pausedAt: T0 + 40 * MIN,
+      pausedTotalMs: MIN,
+      displacedPlantId: 'p1',
+    });
+    const g: GardenState = { ...garden(), session };
+    const r = validateState(JSON.parse(JSON.stringify(g)), { isKnownSpecies });
+    expect(r.ok && r.value.state).toEqual(g);
+  });
+
+  it('defaults optional session fields and normalises names', () => {
+    const { skippedMs: _s, waterings: _w, displacedPlantId: _d, ...bare } = makeSession({ taskName: '  Essay  ' });
+    const r = validateState({ version: 1, session: bare });
+    expect(r.ok && r.value.state.session).toMatchObject({ skippedMs: 0, waterings: [], displacedPlantId: null, taskName: 'Essay' });
+  });
+
+  it('ignores a leftover pendingReward key (pre-ADR 0003 drafts)', () => {
+    const r = validateState({ version: 1, pendingReward: { anything: true } });
+    expect(r.ok && 'pendingReward' in r.value.state).toBe(false);
   });
 
   it('clamps lastGoalMinutes and dedupes faunaSeen', () => {
@@ -172,12 +198,19 @@ describe('validateState', () => {
     ['plant with empty id', { version: 1, plants: [{ id: '', speciesId: 's', slotId: 'x', seed: 1, plantedAt: 0, sessionMinutes: 1 }] }, 'plants[0].id'],
     ['NaN-ish seed', { version: 1, plants: [{ id: 'a', speciesId: 's', slotId: 'x', seed: '1', plantedAt: 0, sessionMinutes: 1 }] }, 'plants[0].seed'],
     ['pressed entry', { version: 1, pressed: [{ speciesId: 's', seed: 1, plantedAt: 0 }] }, 'pressed[0].removedAt'],
-    ['bad weather', { version: 1, session: { id: 's', goalMs: 1000, startedAt: 0, pausedAt: null, pausedTotalMs: 0, weather: 'snow' } }, 'session.weather'],
-    ['zero goal', { version: 1, session: { id: 's', goalMs: 0, startedAt: 0, pausedAt: null, pausedTotalMs: 0, weather: 'sun' } }, 'session.goalMs'],
-    ['negative pause total', { version: 1, session: { id: 's', goalMs: 10, startedAt: 0, pausedAt: null, pausedTotalMs: -5, weather: 'sun' } }, 'session.pausedTotalMs'],
-    ['bad tier', { version: 1, pendingReward: { sessionId: 's', goalMinutes: 25, tier: 5, options: [], chosen: null, completedAt: 0 } }, 'pendingReward.tier'],
-    ['chosen not offered', { version: 1, pendingReward: { sessionId: 's', goalMinutes: 25, tier: 2, options: ['a'], chosen: 'b', completedAt: 0 } }, 'pendingReward.chosen'],
-    ['duplicate options', { version: 1, pendingReward: { sessionId: 's', goalMinutes: 25, tier: 2, options: ['a', 'a'], chosen: null, completedAt: 0 } }, 'pendingReward.options'],
+    ['plant task name not a string', { version: 1, plants: [{ ...makePlant(), taskName: 3 }] }, 'plants[0].taskName'],
+    ['bad weather', { version: 1, session: { ...makeSession(), weather: 'snow' } }, 'session.weather'],
+    ['zero goal', { version: 1, session: { ...makeSession(), goalMs: 0 } }, 'session.goalMs'],
+    ['goal not whole minutes', { version: 1, session: { ...makeSession(), goalMs: 25 * MIN + 1 } }, 'session.goalMs'],
+    ['negative pause total', { version: 1, session: { ...makeSession(), pausedTotalMs: -5 } }, 'session.pausedTotalMs'],
+    ['negative skipped', { version: 1, session: { ...makeSession(), skippedMs: -5 } }, 'session.skippedMs'],
+    ['missing plan', { version: 1, session: { ...makeSession(), plan: undefined } }, 'session.plan'],
+    ['plan not summing to goal', { version: 1, session: { ...makeSession(), plan: plan([20]) } }, 'session.plan'],
+    ['plan ending with a break', { version: 1, session: { ...makeSession(), goalMs: 30 * MIN, plan: plan([25, -5]) } }, 'session.plan'],
+    ['bad block kind', { version: 1, session: { ...makeSession(), plan: { id: 'x', name: 'x', blocks: [{ kind: 'nap', minutes: 25 }] } } }, 'session.plan.blocks[0].kind'],
+    ['missing species', { version: 1, session: { ...makeSession(), speciesId: '' } }, 'session.speciesId'],
+    ['watering a focus block', { version: 1, session: { ...makeSession(), waterings: [0] } }, 'session.waterings[0]'],
+    ['bad displaced id', { version: 1, session: { ...makeSession(), displacedPlantId: 5 } }, 'session.displacedPlantId'],
     ['negative stats', { version: 1, stats: { totalMinutes: -1 } }, 'stats.totalMinutes'],
     ['muted not boolean', { version: 1, settings: { muted: 'no' } }, 'settings.muted'],
     ['bad notifications', { version: 1, settings: { notifications: 'maybe' } }, 'settings.notifications'],
@@ -189,7 +222,7 @@ describe('validateState', () => {
   });
 
   it('rejects duplicate plant ids and two plants in one slot', () => {
-    const p = { speciesId: 's', seed: 1, plantedAt: 0, sessionMinutes: 1 };
+    const p = { speciesId: 's', seed: 1, plantedAt: 0, sessionMinutes: 1, taskName: 't', completedAt: 0 };
     expect(validateState({ version: 1, plants: [{ ...p, id: 'a', slotId: 'x' }, { ...p, id: 'a', slotId: 'y' }] })).toMatchObject({
       ok: false,
       error: { path: 'plants[1].id' },
@@ -200,13 +233,9 @@ describe('validateState', () => {
     });
   });
 
-  it('rejects a session alongside a pending reward', () => {
-    const doc = {
-      version: 1,
-      session: { id: 's', goalMs: 10, startedAt: 0, pausedAt: null, pausedTotalMs: 0, weather: 'sun' },
-      pendingReward: { sessionId: 's0', goalMinutes: 25, tier: 2, options: [], chosen: null, completedAt: 0 },
-    };
-    expect(validateState(doc)).toMatchObject({ ok: false, error: { code: 'invalid-state' } });
+  it('rejects a session whose id is already a finished plant', () => {
+    const doc = { version: 1, plants: [makePlant({ id: 's1' })], session: makeSession({ id: 's1', slotId: 'rock-1' }) };
+    expect(validateState(doc)).toMatchObject({ ok: false, error: { code: 'invalid-state', path: 'session.id' } });
   });
 });
 

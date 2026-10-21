@@ -1,4 +1,4 @@
-import type { ActiveSession, PendingReward, PlantInstance, PressedFlower, Settings } from './state';
+import type { ActiveSession, PlantInstance, PressedFlower, Settings } from './state';
 
 /**
  * Typed app-wide events (contract: docs/ARCHITECTURE.md › Events).
@@ -9,8 +9,14 @@ export interface EventMap {
   'session:pause': { sessionId: string; at: number };
   'session:resume': { sessionId: string; at: number };
   'session:cancel': { sessionId: string; at: number };
-  'session:complete': { sessionId: string; reward: PendingReward };
-  'reward:chosen': { speciesId: string };
+  /** a break block began (emitted once, from the tick; at most the current block) */
+  'session:break': { blockIndex: number };
+  /** a focus block after a break began */
+  'session:focus': { blockIndex: number };
+  /** the current break was watered */
+  'session:water': { blockIndex: number };
+  /** the plan ended; `plant` is the finalised plant */
+  'session:complete': { sessionId: string; plant: PlantInstance };
   'plant:placed': { plant: PlantInstance };
   'plant:swapped': { plant: PlantInstance; removed: PressedFlower };
   'fauna:arrived': { id: string };
@@ -41,8 +47,10 @@ export const EVENT_NAMES: readonly EventName[] = [
   'session:pause',
   'session:resume',
   'session:cancel',
+  'session:break',
+  'session:focus',
+  'session:water',
   'session:complete',
-  'reward:chosen',
   'plant:placed',
   'plant:swapped',
   'fauna:arrived',

@@ -72,14 +72,31 @@ function setup(state: Partial<GardenState> = {}, settings: Partial<GardenState['
 
 const session = (patch: Partial<ActiveSession> = {}): ActiveSession => ({
   id: 's1',
+  taskName: 'Task',
   goalMs: 25 * 60_000,
+  plan: { id: 'unbroken', name: 'Unbroken', blocks: [{ kind: 'focus', minutes: 25 }] },
+  speciesId: 'x',
+  slotId: 'a',
+  seed: 1,
+  displacedPlantId: null,
   startedAt: 0,
   pausedAt: null,
   pausedTotalMs: 0,
+  skippedMs: 0,
   weather: 'sun',
+  waterings: [],
   ...patch,
 });
-const plant: PlantInstance = { id: 'p', speciesId: 'x', slotId: 'a', seed: 1, plantedAt: 0, sessionMinutes: 25 };
+const plant: PlantInstance = {
+  id: 'p',
+  speciesId: 'x',
+  slotId: 'a',
+  seed: 1,
+  plantedAt: 0,
+  sessionMinutes: 25,
+  taskName: 'Task',
+  completedAt: 0,
+};
 
 /** Run the scheduler for `seconds` of audio time. */
 function runFor(s: ReturnType<typeof setup>, seconds: number) {
@@ -206,10 +223,7 @@ describe('createGardenAudio soundscape', () => {
     s.audio.unlock();
     s.bus.emit('plant:placed', { plant });
     s.fake.advance(10);
-    s.bus.emit('session:complete', {
-      sessionId: 's1',
-      reward: { sessionId: 's1', goalMinutes: 25, tier: 2, options: [], chosen: null, completedAt: 0 },
-    });
+    s.bus.emit('session:complete', { sessionId: 's1', plant });
     const chimes = s.fake.played.filter((p) => p.bus === 'chime').map((p) => p.spec.name);
     expect(chimes).toEqual(['rin', 'completion']);
   });

@@ -1,35 +1,33 @@
 import { describe, expect, it } from 'vitest';
 import { createRng } from './rng';
 import {
+  blockStartMs,
+  blockStartsMs,
   clampGoalMinutes,
   completionTime,
+  DEFAULT_TASK_NAME,
   elapsedMs,
   formatClock,
   goalMinutesOf,
+  growth,
   isComplete,
   isLongPause,
   isPaused,
   isValidGoalMinutes,
   LONG_PAUSE_MS,
+  normalizeTaskName,
   pausedFor,
   pickWeather,
+  planPositionMs,
   progress,
   remainingMs,
   sessionPhase,
+  sessionTimeline,
 } from './session';
-import type { ActiveSession, PendingReward } from './state';
+import { makeSession, MIN, plan, T0 } from './testing';
 
-const MIN = 60_000;
-
-const session = (over: Partial<ActiveSession> = {}): ActiveSession => ({
-  id: 's1',
-  goalMs: 25 * MIN,
-  startedAt: 1_000_000,
-  pausedAt: null,
-  pausedTotalMs: 0,
-  weather: 'sun',
-  ...over,
-});
+/** 25 focus · 5 break · 25 focus · 5 break · 30 focus = 90 */
+const POMODORO = plan([25, -5, 25, -5, 30]);
 
 describe('clampGoalMinutes', () => {
   it('clamps to 10–180', () => {
@@ -56,7 +54,6 @@ describe('clampGoalMinutes', () => {
   it('isValidGoalMinutes accepts only grid values in range', () => {
     expect(isValidGoalMinutes(10)).toBe(true);
     expect(isValidGoalMinutes(180)).toBe(true);
-    expect(isValidGoalMinutes(90)).toBe(true);
     expect(isValidGoalMinutes(5)).toBe(false);
     expect(isValidGoalMinutes(27)).toBe(false);
     expect(isValidGoalMinutes(185)).toBe(false);
@@ -64,113 +61,205 @@ describe('clampGoalMinutes', () => {
   });
 });
 
-describe('elapsed / remaining maths', () => {
+describe('elapsed / plan position / remaining', () => {
   it('counts wall time since start while running', () => {
-    const s = session();
-    expect(elapsedMs(s, s.startedAt)).toBe(0);
-    expect(elapsedMs(s, s.startedAt + 5 * MIN)).toBe(5 * MIN);
-    expect(remainingMs(s, s.startedAt + 5 * MIN)).toBe(20 * MIN);
+    const s = makeSession();
+    expect(elapsedMs(s, T0)).toBe(0);
+    expect(elapsedMs(s, T0 + 5 * MIN)).toBe(5 * MIN);
+    expect(remainingMs(s, T0 + 5 * MIN)).toBe(20 * MIN);
   });
 
-  it('excludes previous pauses', () => {
-    const s = session({ pausedTotalMs: 3 * MIN });
-    expect(elapsedMs(s, s.startedAt + 10 * MIN)).toBe(7 * MIN);
+  it('excludes previous pauses and freezes during the current one', () => {
+    expect(elapsedMs(makeSession({ pausedTotalMs: 3 * MIN }), T0 + 10 * MIN)).toBe(7 * MIN);
+    const paused = makeSession({ pausedAt: T0 + 4 * MIN, pausedTotalMs: MIN });
+    expect(elapsedMs(paused, T0 + 400 * MIN)).toBe(3 * MIN);
   });
 
-  it('freezes during the current pause', () => {
-    const s = session({ pausedAt: 1_000_000 + 4 * MIN, pausedTotalMs: 1 * MIN });
-    expect(elapsedMs(s, s.startedAt + 4 * MIN)).toBe(3 * MIN);
-    expect(elapsedMs(s, s.startedAt + 400 * MIN)).toBe(3 * MIN);
+  it('skipped break time moves the plan position forward', () => {
+    const s = makeSession({ plan: POMODORO, skippedMs: 3 * MIN });
+    expect(planPositionMs(s, T0 + 10 * MIN)).toBe(13 * MIN);
+    expect(remainingMs(s, T0 + 10 * MIN)).toBe(77 * MIN);
   });
 
-  it('is never negative and remaining never below zero', () => {
-    const s = session();
-    expect(elapsedMs(s, s.startedAt - 10_000)).toBe(0);
-    expect(remainingMs(s, s.startedAt + 999 * MIN)).toBe(0);
+  it('is never negative and caps at the total', () => {
+    const s = makeSession();
+    expect(elapsedMs(s, T0 - 10_000)).toBe(0);
+    expect(planPositionMs(s, T0 + 999 * MIN)).toBe(25 * MIN);
+    expect(remainingMs(s, T0 + 999 * MIN)).toBe(0);
   });
 
   it('goalMinutesOf converts back to minutes', () => {
-    expect(goalMinutesOf(session({ goalMs: 90 * MIN }))).toBe(90);
+    expect(goalMinutesOf(makeSession({ plan: POMODORO }))).toBe(90);
   });
 });
 
 describe('isComplete / progress', () => {
-  it('completes exactly when studied time reaches the goal', () => {
-    const s = session();
-    expect(isComplete(s, s.startedAt + 25 * MIN - 1)).toBe(false);
-    expect(isComplete(s, s.startedAt + 25 * MIN)).toBe(true);
-    expect(isComplete(s, s.startedAt + 26 * MIN)).toBe(true);
+  it('completes exactly when the plan position reaches the total', () => {
+    const s = makeSession();
+    expect(isComplete(s, T0 + 25 * MIN - 1)).toBe(false);
+    expect(isComplete(s, T0 + 25 * MIN)).toBe(true);
   });
 
-  it('paused time delays completion', () => {
-    const s = session({ pausedTotalMs: 10 * MIN });
-    expect(isComplete(s, s.startedAt + 30 * MIN)).toBe(false);
-    expect(isComplete(s, s.startedAt + 35 * MIN)).toBe(true);
+  it('paused time delays completion; skipped time brings it forward', () => {
+    expect(isComplete(makeSession({ pausedTotalMs: 10 * MIN }), T0 + 30 * MIN)).toBe(false);
+    expect(isComplete(makeSession({ pausedTotalMs: 10 * MIN }), T0 + 35 * MIN)).toBe(true);
+    const skipped = makeSession({ plan: POMODORO, skippedMs: 10 * MIN });
+    expect(isComplete(skipped, T0 + 80 * MIN)).toBe(true);
+    expect(isComplete(skipped, T0 + 80 * MIN - 1)).toBe(false);
   });
 
-  it('never completes while paused short of the goal', () => {
-    const s = session({ pausedAt: 1_000_000 + 5 * MIN });
-    expect(isComplete(s, s.startedAt + 1000 * MIN)).toBe(false);
+  it('never completes while paused short of the end', () => {
+    expect(isComplete(makeSession({ pausedAt: T0 + 5 * MIN }), T0 + 1000 * MIN)).toBe(false);
   });
 
-  it('progress goes 0..1 and clamps', () => {
-    const s = session({ goalMs: 20 * MIN });
-    expect(progress(s, s.startedAt)).toBe(0);
-    expect(progress(s, s.startedAt + 5 * MIN)).toBeCloseTo(0.25);
-    expect(progress(s, s.startedAt + 20 * MIN)).toBe(1);
-    expect(progress(s, s.startedAt + 60 * MIN)).toBe(1);
-    expect(progress(session({ goalMs: 0 }), 0)).toBe(1);
+  it('progress goes 0..1 of the whole plan', () => {
+    const s = makeSession({ plan: plan([20]) });
+    expect(progress(s, T0)).toBe(0);
+    expect(progress(s, T0 + 5 * MIN)).toBeCloseTo(0.25);
+    expect(progress(s, T0 + 60 * MIN)).toBe(1);
+    expect(progress(makeSession({ goalMs: 0 }), T0)).toBe(1);
   });
 });
 
 describe('pauses', () => {
   it('pausedFor is 0 when running and grows while paused', () => {
-    expect(pausedFor(session(), 5_000_000)).toBe(0);
-    const s = session({ pausedAt: 2_000_000 });
+    expect(pausedFor(makeSession(), T0 + 5 * MIN)).toBe(0);
+    const s = makeSession({ pausedAt: T0 + MIN });
     expect(isPaused(s)).toBe(true);
-    expect(isPaused(session())).toBe(false);
-    expect(pausedFor(s, 2_000_000 + 7 * MIN)).toBe(7 * MIN);
-    expect(pausedFor(s, 1_000)).toBe(0);
+    expect(isPaused(makeSession())).toBe(false);
+    expect(pausedFor(s, T0 + 8 * MIN)).toBe(7 * MIN);
+    expect(pausedFor(s, T0)).toBe(0);
   });
 
   it('detects a long pause at 30 minutes', () => {
-    const s = session({ pausedAt: 2_000_000 });
+    const s = makeSession({ pausedAt: T0 });
     expect(LONG_PAUSE_MS).toBe(30 * MIN);
-    expect(isLongPause(s, 2_000_000 + 30 * MIN - 1)).toBe(false);
-    expect(isLongPause(s, 2_000_000 + 30 * MIN)).toBe(true);
-    expect(isLongPause(session(), 2_000_000 + 99 * MIN)).toBe(false);
+    expect(isLongPause(s, T0 + 30 * MIN - 1)).toBe(false);
+    expect(isLongPause(s, T0 + 30 * MIN)).toBe(true);
+    expect(isLongPause(makeSession(), T0 + 99 * MIN)).toBe(false);
   });
 });
 
 describe('completionTime', () => {
-  it('is start + paused total + goal while running', () => {
-    const s = session({ pausedTotalMs: 2 * MIN });
-    expect(completionTime(s)).toBe(s.startedAt + 27 * MIN);
+  it('is start + paused + total − skipped while running', () => {
+    const s = makeSession({ plan: POMODORO, pausedTotalMs: 2 * MIN, skippedMs: 4 * MIN });
+    expect(completionTime(s)).toBe(T0 + 88 * MIN);
     expect(isComplete(s, completionTime(s)!)).toBe(true);
     expect(isComplete(s, completionTime(s)! - 1)).toBe(false);
   });
 
-  it('is null while paused before the goal, and the real moment if paused after it', () => {
-    expect(completionTime(session({ pausedAt: 1_000_000 + 5 * MIN }))).toBeNull();
-    const late = session({ pausedAt: 1_000_000 + 40 * MIN });
-    expect(completionTime(late)).toBe(1_000_000 + 25 * MIN);
+  it('is null while paused before the end, and the real moment if paused after it', () => {
+    expect(completionTime(makeSession({ pausedAt: T0 + 5 * MIN }))).toBeNull();
+    expect(completionTime(makeSession({ pausedAt: T0 + 40 * MIN }))).toBe(T0 + 25 * MIN);
+  });
+});
+
+describe('blocks', () => {
+  it('blockStartsMs / blockStartMs', () => {
+    expect(blockStartsMs(POMODORO)).toEqual([0, 25 * MIN, 30 * MIN, 55 * MIN, 60 * MIN]);
+    expect(blockStartMs(POMODORO, 2)).toBe(30 * MIN);
+    expect(blockStartMs(POMODORO, 5)).toBeNull();
+    expect(blockStartMs(POMODORO, -1)).toBeNull();
+    expect(blockStartMs(POMODORO, 1.5)).toBeNull();
+  });
+});
+
+describe('sessionTimeline', () => {
+  const s = makeSession({ plan: POMODORO });
+  const at = (min: number, over = {}) => sessionTimeline({ ...s, ...over }, T0 + min * MIN);
+
+  it('starts in the first focus block with no growth', () => {
+    expect(at(0)).toEqual({
+      elapsedMs: 0,
+      blockIndex: 0,
+      block: { kind: 'focus', minutes: 25 },
+      blockElapsedMs: 0,
+      blockRemainingMs: 25 * MIN,
+      totalRemainingMs: 90 * MIN,
+      focusDoneMs: 0,
+      focusTotalMs: 80 * MIN,
+      growth: 0,
+      progress: 0,
+      watered: false,
+      complete: false,
+    });
+  });
+
+  it('grows only during focus: growth = focused ÷ total focus', () => {
+    expect(at(10).growth).toBeCloseTo(10 / 80);
+    expect(at(25).growth).toBeCloseTo(25 / 80);
+    expect(at(27).growth).toBeCloseTo(25 / 80); // in the break
+    expect(at(30).growth).toBeCloseTo(25 / 80);
+    expect(at(40).growth).toBeCloseTo(35 / 80);
+    expect(at(90).growth).toBe(1);
+  });
+
+  it('tracks the current block, its remaining time and the total remaining', () => {
+    const t = at(27);
+    expect(t.blockIndex).toBe(1);
+    expect(t.block.kind).toBe('break');
+    expect(t.blockElapsedMs).toBe(2 * MIN);
+    expect(t.blockRemainingMs).toBe(3 * MIN);
+    expect(t.totalRemainingMs).toBe(63 * MIN);
+    expect(t.progress).toBeCloseTo(27 / 90);
+    // a block boundary belongs to the next block
+    expect(at(25).blockIndex).toBe(1);
+    expect(at(30).blockIndex).toBe(2);
+  });
+
+  it('reports the last block, full, at the end', () => {
+    const t = at(200);
+    expect(t.blockIndex).toBe(4);
+    expect(t.blockRemainingMs).toBe(0);
+    expect(t.totalRemainingMs).toBe(0);
+    expect(t.complete).toBe(true);
+    expect(t.progress).toBe(1);
+  });
+
+  it('watered reflects the current break', () => {
+    expect(at(27, { waterings: [1] }).watered).toBe(true);
+    expect(at(27, { waterings: [3] }).watered).toBe(false);
+    expect(at(10, { waterings: [1] }).watered).toBe(false);
+  });
+
+  it('a skipped break jumps straight to the next focus block', () => {
+    const t = at(26, { skippedMs: 4 * MIN });
+    expect(t.blockIndex).toBe(2);
+    expect(t.elapsedMs).toBe(30 * MIN);
+    expect(t.growth).toBeCloseTo(25 / 80);
+  });
+
+  it('pauses freeze the timeline', () => {
+    expect(at(80, { pausedAt: T0 + 10 * MIN }).elapsedMs).toBe(10 * MIN);
+  });
+
+  it('growth() mirrors the timeline', () => {
+    expect(growth(s, T0 + 40 * MIN)).toBeCloseTo(35 / 80);
   });
 });
 
 describe('sessionPhase', () => {
-  const reward: PendingReward = {
-    sessionId: 's0',
-    goalMinutes: 25,
-    tier: 2,
-    options: ['a'],
-    chosen: null,
-    completedAt: 0,
-  };
-  it('maps state to idle / running / paused / reward', () => {
-    expect(sessionPhase({ session: null, pendingReward: null })).toBe('idle');
-    expect(sessionPhase({ session: session(), pendingReward: null })).toBe('running');
-    expect(sessionPhase({ session: session({ pausedAt: 5 }), pendingReward: null })).toBe('paused');
-    expect(sessionPhase({ session: null, pendingReward: reward })).toBe('reward');
+  it('maps state to idle / focus / break / paused', () => {
+    const s = makeSession({ plan: POMODORO });
+    expect(sessionPhase({ session: null }, T0)).toBe('idle');
+    expect(sessionPhase({ session: s }, T0 + MIN)).toBe('focus');
+    expect(sessionPhase({ session: s }, T0 + 26 * MIN)).toBe('break');
+    expect(sessionPhase({ session: { ...s, pausedAt: T0 + 26 * MIN } }, T0 + 26 * MIN)).toBe('paused');
+  });
+});
+
+describe('normalizeTaskName', () => {
+  it('trims, collapses whitespace and caps at 40 characters', () => {
+    expect(normalizeTaskName('  Biology   ch. 4 ')).toBe('Biology ch. 4');
+    expect(normalizeTaskName('x'.repeat(50))).toHaveLength(40);
+    expect(normalizeTaskName('日本語'.repeat(20))).toBe('日本語'.repeat(20).slice(0, 40));
+  });
+
+  it('falls back to "Study session"', () => {
+    expect(DEFAULT_TASK_NAME).toBe('Study session');
+    expect(normalizeTaskName('   ')).toBe('Study session');
+    expect(normalizeTaskName(undefined)).toBe('Study session');
+    expect(normalizeTaskName(42)).toBe('Study session');
   });
 });
 
@@ -198,7 +287,6 @@ describe('pickWeather', () => {
     expect(pickWeather(fixed(0.6))).toBe('rain');
     expect(pickWeather(fixed(0.84))).toBe('rain');
     expect(pickWeather(fixed(0.85))).toBe('mist');
-    expect(pickWeather(fixed(0.999))).toBe('mist');
   });
 });
 

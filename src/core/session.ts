@@ -1,9 +1,15 @@
+import type { PlanBlock, StudyPlan } from './plans';
 import type { Rng } from './rng';
 import type { ActiveSession, GardenState, Weather } from './state';
 
 /**
- * Session maths (SPEC §2). Pure functions of an `ActiveSession` and an explicit `now`; time
- * always comes from the injected Clock at the call site.
+ * Session maths (SPEC §2, ADR 0036). Pure functions of an `ActiveSession` and an explicit `now`;
+ * time always comes from the injected Clock at the call site.
+ *
+ * Two time axes:
+ * - session time = wall time since start minus pauses (`elapsedMs`);
+ * - plan position = session time + skipped break remainders (`planPositionMs`), capped at the
+ *   total. Blocks, growth and completion are measured on the plan position.
  */
 
 export const MIN_GOAL_MINUTES = 10;
@@ -26,27 +32,34 @@ export function isValidGoalMinutes(minutes: number): boolean {
   return Number.isFinite(minutes) && clampGoalMinutes(minutes) === minutes;
 }
 
-export function goalMinutesOf(s: ActiveSession): number {
+export function goalMinutesOf(s: Pick<ActiveSession, 'goalMs'>): number {
   return Math.round(s.goalMs / MINUTE_MS);
 }
 
-/** Studied time so far; paused spans (including the current one) are excluded. Never negative. */
+/** Session time so far, pauses excluded (the current one included). Never negative. */
 export function elapsedMs(s: ActiveSession, now: number): number {
   return Math.max(0, (s.pausedAt ?? now) - s.startedAt - s.pausedTotalMs);
 }
 
+/** Position in the plan: session time plus skipped break time, capped at the total. */
+export function planPositionMs(s: ActiveSession, now: number): number {
+  return Math.min(s.goalMs, elapsedMs(s, now) + s.skippedMs);
+}
+
+/** Time left until the plan ends. */
 export function remainingMs(s: ActiveSession, now: number): number {
-  return Math.max(0, s.goalMs - elapsedMs(s, now));
+  return s.goalMs - planPositionMs(s, now);
 }
 
+/** The plan has run to its end (skipped breaks count as passed). */
 export function isComplete(s: ActiveSession, now: number): boolean {
-  return elapsedMs(s, now) >= s.goalMs;
+  return elapsedMs(s, now) + s.skippedMs >= s.goalMs;
 }
 
-/** 0..1 */
+/** 0..1 of the whole plan. */
 export function progress(s: ActiveSession, now: number): number {
   if (s.goalMs <= 0) return 1;
-  return Math.min(1, elapsedMs(s, now) / s.goalMs);
+  return planPositionMs(s, now) / s.goalMs;
 }
 
 export function isPaused(s: ActiveSession): boolean {
@@ -63,27 +76,122 @@ export function isLongPause(s: ActiveSession, now: number): boolean {
 }
 
 /**
- * The instant studied time reached the goal, assuming no further pauses. `null` while paused
- * short of the goal (it cannot complete until resumed). Used to stamp a session that finished
- * while the app was closed with its real completion time.
+ * The instant the plan reached its end, assuming no further pauses or skips. `null` while paused
+ * short of it. Used to stamp a session that finished while the app was closed.
  */
 export function completionTime(s: ActiveSession): number | null {
-  const at = s.startedAt + s.pausedTotalMs + s.goalMs;
+  const at = s.startedAt + s.pausedTotalMs + s.goalMs - s.skippedMs;
   if (s.pausedAt !== null && at > s.pausedAt) return null;
   return at;
 }
 
-export type SessionPhase = 'idle' | 'running' | 'paused' | 'reward';
+/** Start offset (ms into the plan) of every block. */
+export function blockStartsMs(plan: Pick<StudyPlan, 'blocks'>): number[] {
+  let t = 0;
+  return plan.blocks.map((b) => {
+    const start = t;
+    t += b.minutes * MINUTE_MS;
+    return start;
+  });
+}
 
-/** Where the garden is in the session state machine (docs/systems/core.md). */
-export function sessionPhase(state: Pick<GardenState, 'session' | 'pendingReward'>): SessionPhase {
-  if (state.session) return state.session.pausedAt === null ? 'running' : 'paused';
-  if (state.pendingReward) return 'reward';
-  return 'idle';
+/** Plan offset (ms) at which block `index` starts, or null if out of range. */
+export function blockStartMs(plan: Pick<StudyPlan, 'blocks'>, index: number): number | null {
+  const starts = blockStartsMs(plan);
+  return Number.isInteger(index) && index >= 0 && index < starts.length ? starts[index]! : null;
+}
+
+export interface SessionTimeline {
+  /** plan position, ms (session time excluding pauses, plus skipped break time) */
+  elapsedMs: number;
+  blockIndex: number;
+  block: PlanBlock;
+  blockElapsedMs: number;
+  blockRemainingMs: number;
+  totalRemainingMs: number;
+  focusDoneMs: number;
+  focusTotalMs: number;
+  /** focusDone ÷ focusTotal: 0 = seed … 1 = full bloom; breaks don't grow */
+  growth: number;
+  /** 0..1 of the whole plan */
+  progress: number;
+  /** the current block is a break that has been watered */
+  watered: boolean;
+  complete: boolean;
+}
+
+/** Where the session is in its plan at `now`. At the very end it reports the last block, full. */
+export function sessionTimeline(s: ActiveSession, now: number): SessionTimeline {
+  const pos = planPositionMs(s, now);
+  const blocks = s.plan.blocks;
+  let start = 0;
+  let index = -1;
+  let indexStart = 0;
+  let focusDone = 0;
+  let focusTotal = 0;
+  for (let i = 0; i < blocks.length; i++) {
+    const b = blocks[i]!;
+    const len = b.minutes * MINUTE_MS;
+    if (b.kind === 'focus') {
+      focusTotal += len;
+      focusDone += Math.min(len, Math.max(0, pos - start));
+    }
+    if (index < 0 && pos < start + len) {
+      index = i;
+      indexStart = start;
+    }
+    start += len;
+  }
+  if (index < 0) {
+    index = blocks.length - 1;
+    indexStart = start - blocks[index]!.minutes * MINUTE_MS;
+  }
+  const block = blocks[index]!;
+  const blockLen = block.minutes * MINUTE_MS;
+  const blockElapsed = Math.min(blockLen, Math.max(0, pos - indexStart));
+  return {
+    elapsedMs: pos,
+    blockIndex: index,
+    block,
+    blockElapsedMs: blockElapsed,
+    blockRemainingMs: blockLen - blockElapsed,
+    totalRemainingMs: s.goalMs - pos,
+    focusDoneMs: focusDone,
+    focusTotalMs: focusTotal,
+    growth: focusTotal > 0 ? focusDone / focusTotal : 1,
+    progress: s.goalMs > 0 ? pos / s.goalMs : 1,
+    watered: block.kind === 'break' && s.waterings.includes(index),
+    complete: isComplete(s, now),
+  };
+}
+
+/** Live growth of the session's plant, 0..1. */
+export function growth(s: ActiveSession, now: number): number {
+  return sessionTimeline(s, now).growth;
+}
+
+export type SessionPhase = 'idle' | 'focus' | 'break' | 'paused';
+
+/** Where the garden is in the session state machine at `now` (docs/systems/core.md). */
+export function sessionPhase(state: Pick<GardenState, 'session'>, now: number): SessionPhase {
+  const s = state.session;
+  if (!s) return 'idle';
+  if (s.pausedAt !== null) return 'paused';
+  return sessionTimeline(s, now).block.kind;
+}
+
+export const MAX_TASK_NAME = 40;
+export const DEFAULT_TASK_NAME = 'Study session';
+
+/** Collapse whitespace, trim, cap at 40 characters; empty → "Study session". */
+export function normalizeTaskName(name: unknown): string {
+  const t = typeof name === 'string' ? name.replace(/\s+/g, ' ').trim() : '';
+  if (t === '') return DEFAULT_TASK_NAME;
+  return [...t].slice(0, MAX_TASK_NAME).join('').trimEnd();
 }
 
 export const WEATHERS: readonly Weather[] = ['sun', 'rain', 'mist'];
-/** Cumulative weights: sun 60 %, rain 25 %, mist 15 %. */
+/** sun 60 %, rain 25 %, mist 15 %. */
 export const WEATHER_WEIGHTS: Readonly<Record<Weather, number>> = { sun: 0.6, rain: 0.25, mist: 0.15 };
 
 export function pickWeather(rng: Rng): Weather {

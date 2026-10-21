@@ -35,11 +35,11 @@ describe('event bus', () => {
   it('once() fires a single time', () => {
     const bus = createEventBus();
     const fn = vi.fn();
-    bus.once('reward:chosen', fn);
-    bus.emit('reward:chosen', { speciesId: 'iris' });
-    bus.emit('reward:chosen', { speciesId: 'peony' });
+    bus.once('session:water', fn);
+    bus.emit('session:water', { blockIndex: 1 });
+    bus.emit('session:water', { blockIndex: 3 });
     expect(fn).toHaveBeenCalledTimes(1);
-    expect(fn).toHaveBeenCalledWith({ speciesId: 'iris' });
+    expect(fn).toHaveBeenCalledWith({ blockIndex: 1 });
   });
 
   it('handlers added or removed during emit do not affect the current delivery', () => {
@@ -76,6 +76,6 @@ describe('event bus', () => {
     bus.clear();
     bus.emit('fauna:arrived', { id: 'x' });
     expect(fn).not.toHaveBeenCalled();
-    expect(EVENT_NAMES).toHaveLength(11);
+    expect(EVENT_NAMES).toHaveLength(13);
   });
 });

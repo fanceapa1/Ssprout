@@ -22,6 +22,8 @@ const plants = (n: number, speciesId = 'grass'): PlantInstance[] =>
     id: `${speciesId}-${i}`,
     speciesId,
     slotId: `slot-${speciesId}-${i}`,
+    taskName: 'Task',
+    completedAt: 0,
     seed: i,
     plantedAt: 0,
     sessionMinutes: 25,

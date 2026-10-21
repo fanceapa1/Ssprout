@@ -19,6 +19,8 @@ const plant = (id: string, slotId: string): PlantInstance => ({
   seed: 1,
   plantedAt: 0,
   sessionMinutes: 10,
+  taskName: 'Task',
+  completedAt: 0,
 });
 
 describe('isCompatible', () => {

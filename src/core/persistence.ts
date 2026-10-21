@@ -1,11 +1,10 @@
-import { TIERS, type Tier } from '../plants/types';
-import { clampGoalMinutes } from './session';
+import { planProblem, type StudyPlan } from './plans';
+import { clampGoalMinutes, DEFAULT_TASK_NAME, MINUTE_MS, normalizeTaskName } from './session';
 import {
   createDefaultState,
   STATE_VERSION,
   type ActiveSession,
   type GardenState,
-  type PendingReward,
   type PlantInstance,
   type PressedFlower,
   type Settings,
@@ -165,15 +164,25 @@ function opt<T>(o: Json, key: string, fallback: T, read: (v: unknown, path: stri
   return o[key] === undefined ? fallback : read(o[key], path);
 }
 
+function taskName(o: Json, path: string): string {
+  return normalizeTaskName(opt(o, 'taskName', DEFAULT_TASK_NAME, (v, p) => {
+    if (typeof v !== 'string') throw new Invalid(p, 'expected a string');
+    return v;
+  }, path));
+}
+
 function readPlant(v: unknown, path: string): PlantInstance {
   const o = obj(v, path);
+  const plantedAt = num(o.plantedAt, `${path}.plantedAt`);
   return {
     id: str(o.id, `${path}.id`),
     speciesId: str(o.speciesId, `${path}.speciesId`),
     slotId: str(o.slotId, `${path}.slotId`),
     seed: num(o.seed, `${path}.seed`),
-    plantedAt: num(o.plantedAt, `${path}.plantedAt`),
+    plantedAt,
     sessionMinutes: num(o.sessionMinutes, `${path}.sessionMinutes`, 0),
+    taskName: taskName(o, `${path}.taskName`),
+    completedAt: opt(o, 'completedAt', plantedAt, num, `${path}.completedAt`),
   };
 }
 
@@ -184,39 +193,62 @@ function readPressed(v: unknown, path: string): PressedFlower {
     seed: num(o.seed, `${path}.seed`),
     plantedAt: num(o.plantedAt, `${path}.plantedAt`),
     removedAt: num(o.removedAt, `${path}.removedAt`),
+    taskName: taskName(o, `${path}.taskName`),
   };
+}
+
+function readPlan(v: unknown, path: string, goalMinutes: number): StudyPlan {
+  const o = obj(v, path);
+  const plan: StudyPlan = {
+    id: str(o.id, `${path}.id`),
+    name: str(o.name, `${path}.name`),
+    blocks: arr(o.blocks, `${path}.blocks`).map((b, i) => {
+      const bo = obj(b, `${path}.blocks[${i}]`);
+      return {
+        kind: oneOf(bo.kind, ['focus', 'break'] as const, `${path}.blocks[${i}].kind`),
+        minutes: num(bo.minutes, `${path}.blocks[${i}].minutes`),
+      };
+    }),
+  };
+  const problem = planProblem(plan, goalMinutes);
+  if (problem) throw new Invalid(path, problem);
+  return plan;
 }
 
 function readSession(v: unknown, path: string): ActiveSession | null {
   if (v === null) return null;
   const o = obj(v, path);
+  const goalMs = num(o.goalMs, `${path}.goalMs`, 1);
+  if (goalMs % MINUTE_MS !== 0) throw new Invalid(`${path}.goalMs`, 'expected whole minutes');
+  const plan = readPlan(o.plan, `${path}.plan`, goalMs / MINUTE_MS);
   const pausedAt = o.pausedAt ?? null;
+  const displaced = o.displacedPlantId ?? null;
+  const waterings = [
+    ...new Set(
+      opt(o, 'waterings', [] as number[], (w, p) => arr(w, p).map((x, i) => {
+        const n = num(x, `${p}[${i}]`, 0);
+        if (!Number.isInteger(n) || plan.blocks[n]?.kind !== 'break') {
+          throw new Invalid(`${p}[${i}]`, 'expected the index of a break block');
+        }
+        return n;
+      }), `${path}.waterings`),
+    ),
+  ];
   return {
     id: str(o.id, `${path}.id`),
-    goalMs: num(o.goalMs, `${path}.goalMs`, 1),
+    taskName: taskName(o, `${path}.taskName`),
+    goalMs,
+    plan,
+    speciesId: str(o.speciesId, `${path}.speciesId`),
+    slotId: str(o.slotId, `${path}.slotId`),
+    seed: num(o.seed, `${path}.seed`),
+    displacedPlantId: displaced === null ? null : str(displaced, `${path}.displacedPlantId`),
     startedAt: num(o.startedAt, `${path}.startedAt`),
     pausedAt: pausedAt === null ? null : num(pausedAt, `${path}.pausedAt`),
     pausedTotalMs: num(o.pausedTotalMs ?? 0, `${path}.pausedTotalMs`, 0),
+    skippedMs: num(o.skippedMs ?? 0, `${path}.skippedMs`, 0),
     weather: oneOf(o.weather, WEATHERS, `${path}.weather`),
-  };
-}
-
-function readReward(v: unknown, path: string): PendingReward | null {
-  if (v === null) return null;
-  const o = obj(v, path);
-  const options = arr(o.options, `${path}.options`).map((id, i) => str(id, `${path}.options[${i}]`));
-  if (new Set(options).size !== options.length) throw new Invalid(`${path}.options`, 'duplicate species ids');
-  const chosen = o.chosen ?? null;
-  if (chosen !== null && !options.includes(str(chosen, `${path}.chosen`))) {
-    throw new Invalid(`${path}.chosen`, 'chosen species is not one of the options');
-  }
-  return {
-    sessionId: str(o.sessionId, `${path}.sessionId`),
-    goalMinutes: num(o.goalMinutes, `${path}.goalMinutes`, 0),
-    tier: oneOf<Tier>(o.tier, TIERS, `${path}.tier`),
-    options,
-    chosen: chosen as string | null,
-    completedAt: num(o.completedAt, `${path}.completedAt`),
+    waterings,
   };
 }
 
@@ -251,7 +283,6 @@ function readState(raw: unknown, now: number): GardenState {
     plants,
     pressed: opt(o, 'pressed', d.pressed, (v, p) => arr(v, p).map((x, i) => readPressed(x, `${p}[${i}]`)), 'pressed'),
     session: opt(o, 'session', null, readSession, 'session'),
-    pendingReward: opt(o, 'pendingReward', null, readReward, 'pendingReward'),
     stats: {
       totalMinutes: opt(statsRaw, 'totalMinutes', 0, (v, p) => num(v, p, 0), 'stats.totalMinutes'),
       completed: opt(statsRaw, 'completed', 0, (v, p) => num(v, p, 0), 'stats.completed'),
@@ -275,25 +306,25 @@ function readState(raw: unknown, now: number): GardenState {
       ),
     },
   };
-  if (state.session && state.pendingReward) {
-    throw new Invalid('session', 'a session cannot run while a reward is pending');
+  if (state.session && ids.has(state.session.id)) {
+    throw new Invalid('session.id', 'the session id is already used by a finished plant');
   }
   return state;
 }
 
-/** Referenced species ids (plants, pressed flowers, pending offer) unknown to `isKnown`. */
+/** Referenced species ids (plants, pressed flowers, the growing session) unknown to `isKnown`. */
 export function unknownSpeciesIds(state: GardenState, isKnown: (id: string) => boolean): string[] {
   const ids = new Set<string>();
   for (const p of state.plants) ids.add(p.speciesId);
   for (const p of state.pressed) ids.add(p.speciesId);
-  for (const id of state.pendingReward?.options ?? []) ids.add(id);
+  if (state.session) ids.add(state.session.speciesId);
   return [...ids].filter((id) => !isKnown(id)).sort();
 }
 
 /**
  * Structural validation + normalisation of a current-version document. Absent keys get their
  * defaults, present keys must have the right shape, unknown keys are dropped, invariants
- * (unique plant ids, one plant per slot, no session alongside a pending reward) are enforced.
+ * (unique plant ids, one plant per slot, a valid plan for the session) are enforced.
  */
 export function validateState(raw: unknown, opts: ValidateOptions = {}): Result<Validated> {
   try {
