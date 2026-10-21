@@ -131,5 +131,9 @@ toggle in the corner; setting remembered.
 Desktop-first; works on phones (touch, portrait crop, controls reachable). Modern evergreen
 browsers. Respects `prefers-reduced-motion` (ambience/fauna reduced, no sway).
 
+## 11. Developer tools
+- **Studio** (`/Ssprout/studio.html`): a review page showing every sprite, creature, effect and
+  paint primitive with seed/reseed, play/pause, speed, background and scale controls.
+
 ## Non-goals (v1)
 Accounts, sync, server push, seasons, social features, streaks/penalties.
