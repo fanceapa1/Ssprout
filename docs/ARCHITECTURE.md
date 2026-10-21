@@ -124,6 +124,18 @@ export interface SpeciesDef {
 instance seed + viewport scale) and cross-fades during the bloom animation.
 Runtime sway = tiny horizontal skew of the sprite about its base, driven by a wind noise field.
 
+### Plant view (`src/plants/view.ts`, ADRs 0003, 0094)
+One species at an arbitrary growth, optionally mid-watering or wilting — shared by the widget,
+start-sheet previews and the garden:
+```ts
+export interface PlantViewOptions { speciesId: string; seed: number; growth: number; watering: number | null /* 0..1 */; wilt?: number /* 0..1 */ }
+export function renderPlantView(canvas: HTMLCanvasElement | OffscreenCanvas, opts: PlantViewOptions): boolean; // false: unknown species
+```
+Clears the canvas, contains the species with its base at the bottom centre (`plantLayout`), draws
+`species.draw(painterFor(ctx, { seed }), createRng(seed).fork(id), { w, h, growth })` cached per
+quantised growth (`GROWTH_STEPS = 24`) and a placeholder watering animation (can, droplets, wet
+soil, leaves lift). The plants task owns the internals; keep the signature.
+
 ### Scene geometry & slots (`src/scene/geometry.ts`, `src/scene/slots.ts`)
 ```ts
 export interface Slot { id: string; x: number; y: number; habitat: Habitat; maxSize: SizeClass; scale: number; /* perspective, ~0.55 far … 1.15 near */ }
@@ -276,6 +288,20 @@ speciesId?, slotId? })`, `pause()`, `resume()`, `water()`, `skipBreak()`, `cance
 `skipToBlock(i)`, `completeSession()` (these jump the dev clock), `plans(min)`,
 `selectableSpecies(min)`, `placementOptions(speciesId?)`, `addPlants(n, tier?)` (finished plants with
 task names), `setState(partial)` (validated), `status()`, `flush()`, `exportState()`, `importState(json)`.
+
+Widget (`src/widget/dev.ts`, `installWidgetDebug`): `window.sprout.widget` — `supported()`,
+`isOpen()`, `open()`, `close()`, `tickerMode()`, `title()`, `favicon()`, `bloomed()`,
+`lastNotification()`, `mountHarness()` (the floating card in `iframe#sprout-widget-harness`),
+`closeHarness()`, `harnessMode()`, `harnessWatering()`.
+
+## Timer surfaces (`src/widget/`, ADRs 0090–0094)
+`createTimerSurfaces({ controller, store, bus, clock })` → `{ widget: { supported, open(), isOpen(),
+close(), onChange(fn) }, requestPermissionFromGesture(), dispose() }`. It installs a Web Worker
+`Ticker` on the controller (`setTicker`), keeps the tab title/favicon in sync, sends break / focus /
+bloom notifications (service worker `public/sw.js` → `${BASE_URL}sw.js`) and opens the Document
+Picture-in-Picture card. It reads the controller through the structural `WidgetController`
+(`src/widget/contract.ts`), which `SessionController` satisfies (type-checked in a test). Wiring
+and policies: `docs/systems/widget.md`.
 
 ## Studio (`studio.html`, `src/studio/`)
 A dev page (also deployed at `/Ssprout/studio.html`) showing **every sprite, creature, effect
