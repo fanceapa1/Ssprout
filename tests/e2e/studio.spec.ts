@@ -31,7 +31,8 @@ test.describe('studio', () => {
   });
 
   test('reseed re-renders with a new seed', async ({ page }) => {
-    await openStudio(page);
+    // one section keeps this fast; re-rendering every entry of every section is covered by the load test
+    await openStudio(page, '#scene');
     const seed = page.locator('#seed');
     const before = await seed.inputValue();
     const renders = await page.evaluate(() => window.studio!.renders());
