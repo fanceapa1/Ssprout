@@ -9,7 +9,10 @@ import { installCoreDebug } from './dev/core-debug';
 import { installDebug, isDev } from './dev/debug';
 import { withFixtures } from './dev/fixture-species';
 import { createFakeWidget, installUiDebug } from './dev/ui-debug';
+import { installPlantsDebug } from './plants/debug';
 import { allSpecies } from './plants/registry';
+import { createPlantSystem } from './plants/system';
+import { setPlantViewSpecies } from './plants/view';
 import { createRenderer } from './render/renderer';
 import { gardenScene } from './scene/geometry';
 import { createUI } from './ui';
@@ -66,6 +69,11 @@ function boot(): void {
   const sceneSystem = createSceneSystem({ invalidate: (layer) => renderer.invalidate(layer), showSlots: dev && params.has('slots') });
   void renderer.add(createPaperSystem());
   void renderer.add(sceneSystem);
+  void renderer.add(createPlaceholderBackground());
+  // plants: finished + growing sprites, wither, watering, reflections (docs/systems/plants.md)
+  setPlantViewSpecies(getSpecies);
+  const plants = createPlantSystem({ getSpecies });
+  void renderer.add(plants);
   renderer.start();
 
   // Timer surfaces: worker ticker, tab title/favicon, notifications (asked inside session:start),
@@ -91,6 +99,7 @@ function boot(): void {
     reducedMotion,
     timeScale: dev && Number.isFinite(uiTime) && params.has('uitime') ? uiTime : 1,
   });
+  plants.connectPlacement(ui.placement);
 
   if (speedClock) {
     installDebug({ store, renderer, clock: speedClock });
@@ -98,6 +107,7 @@ function boot(): void {
     installUiDebug({ ui, clock: speedClock, widget: fakeWidget, viewport: () => renderer.viewport, slots: scene.slots });
     installWidgetDebug({ surfaces, controller, store, bus });
     installSceneDebug(sceneSystem, scene);
+    installPlantsDebug(plants);
   }
 }
 
