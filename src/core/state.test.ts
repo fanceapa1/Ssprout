@@ -27,10 +27,10 @@ describe('createDefaultState', () => {
   });
 });
 
-describe('reducer skeleton', () => {
-  it('returns the same reference for unhandled actions', () => {
+describe('reducer export', () => {
+  it('returns the same reference for unknown actions', () => {
     const s = createDefaultState(0);
-    expect(reducer(s, { type: 'tip/retire', id: 'x' })).toBe(s);
+    expect(reducer(s, { type: 'nope' } as never)).toBe(s);
   });
 });
 
