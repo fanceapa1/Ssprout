@@ -430,7 +430,7 @@ export function toothedLeaf(
   rng: Rng,
   at: Pt,
   pose: { angle: number; length: number; width: number; curve?: number },
-  style: { pigment: Pigment; teeth?: number; toothSize?: number; opacity?: number; vein?: number; midrib?: Pigment | null },
+  style: { pigment: Pigment; teeth?: number; toothSize?: number; toothAngle?: number; opacity?: number; vein?: number; midrib?: Pigment | null },
 ): void {
   const { angle, length, width } = pose;
   if (length < 0.6 || width < 0.3) return;
@@ -455,7 +455,7 @@ export function toothedLeaf(
       p.dabInto(L, { x: q.x + nx * hw * 0.62, y: q.y + ny * hw * 0.62 }, style.pigment, {
         rng: rng.fork(`t-${i}-${sgn}`),
         variant: 'leaf',
-        angle: ta + sgn * 0.85,
+        angle: ta + sgn * (style.toothAngle ?? 0.85),
         length: tl,
         width: tl * 0.75,
         pool: 0,
