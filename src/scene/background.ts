@@ -8,7 +8,7 @@ import { createPainter, makeCanvas, type AnyCanvas, type Painter, type Quality }
 import type { Rect } from '../render/viewport';
 import { gardenScene, type SceneGeometry } from './geometry';
 import { FOREGROUND_TUFTS, SHRUBS, TREES, TUFTS, type ShrubSpec, type TreeSpec, type TuftSpec } from './layout';
-import { paintBanks, paintHills, paintMargins, paintPath, paintSky, paintTufts, reservePond } from './paint-land';
+import { paintBanks, paintHills, paintMargins, paintPath, paintSky, paintStones, paintTufts, reservePond } from './paint-land';
 import { paintPavilion } from './paint-pavilion';
 import { paintReflections, paintWater, paintWaterDetail } from './paint-pond';
 import { paintShrub, paintTree } from './paint-trees';
@@ -70,6 +70,7 @@ export function backgroundSteps(art: SceneArt, only?: readonly ElementId[]): Pai
       .map((t) => ({ el: 'trees' as const, name: t.id, run: (p: Painter) => paintTree(p, r(t.id), t) })),
     { el: 'tufts', name: 'tufts', run: (p) => paintTufts(p, r('tufts'), art.tufts) },
     { el: 'margins', name: 'margins', soft: true, run: (p) => paintMargins(p, r('margins')) },
+    { el: 'path', name: 'stones', run: (p) => paintStones(p, r('stones'), scene.path) },
     // after the margins: the engawa runs off the right edge of the sheet, crisp
     { el: 'pavilion', name: 'pavilion', run: (p) => paintPavilion(p, r('pavilion'), scene.pavilion) },
   ];

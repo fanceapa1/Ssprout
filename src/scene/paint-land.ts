@@ -190,16 +190,18 @@ export function paintBanks(p: Painter, rng: Rng): void {
 
   // near mounds either side of the path: warmer, a defined lip on top, lost toward the corners
   const warm = mix(PIGMENTS.sap, PIGMENTS.gold, 0.1);
+  // the lips roll down toward the path (the mounds slope into it rather than stopping flat)
   const nearLeft: Pt[] = [
-    { x: -60, y: 800 },
-    { x: 90, y: 772 },
-    { x: 250, y: 750 },
-    { x: 420, y: 760 },
-    { x: 560, y: 744 },
-    { x: 630, y: 750 },
-    { x: 690, y: 772 },
-    { x: 684, y: 820 },
-    { x: 640, y: 900 },
+    { x: -60, y: 790 },
+    { x: 90, y: 764 },
+    { x: 250, y: 748 },
+    { x: 420, y: 752 },
+    { x: 540, y: 746 },
+    { x: 620, y: 760 },
+    { x: 676, y: 790 },
+    { x: 700, y: 830 },
+    { x: 668, y: 900 },
+    { x: 600, y: 960 },
     { x: 560, y: WORLD_H + 60 },
     { x: -60, y: WORLD_H + 60 },
   ];
@@ -220,16 +222,18 @@ export function paintBanks(p: Painter, rng: Rng): void {
     fade: { angle: Math.PI / 2 + 0.6, start: 0.35, amount: 1, ragged: 0.6 },
   });
   const nearRight: Pt[] = [
-    { x: 930, y: 808 },
-    { x: 926, y: 772 },
-    { x: 990, y: 752 },
-    { x: 1140, y: 762 },
-    { x: 1300, y: 746 },
-    { x: 1460, y: 764 },
-    { x: WORLD_W + 60, y: 772 },
+    { x: 912, y: 840 },
+    { x: 924, y: 796 },
+    { x: 966, y: 768 },
+    { x: 1040, y: 754 },
+    { x: 1160, y: 756 },
+    { x: 1300, y: 744 },
+    { x: 1460, y: 758 },
+    { x: WORLD_W + 60, y: 768 },
     { x: WORLD_W + 60, y: WORLD_H + 60 },
-    { x: 1070, y: WORLD_H + 60 },
-    { x: 976, y: 900 },
+    { x: 1060, y: WORLD_H + 60 },
+    { x: 990, y: 960 },
+    { x: 940, y: 900 },
   ];
   p.wetInWet(nearRight, mix(PIGMENTS.sageLight, warm, 0.5), mix(PIGMENTS.sageLight, warm, 0.2), {
     rng,
@@ -264,38 +268,59 @@ export function paintBanks(p: Painter, rng: Rng): void {
   p.dryBrush([{ x: 1060, y: 780 }, { x: 1260, y: 772 }, { x: 1460, y: 786 }], { rng, pigment: lip, width: 12, opacity: 0.25 });
 }
 
-/** The earthen path: lift the grass back to paper with soft edges, then the stepping stones. */
+/**
+ * The earthen path: lift the grass back to warm paper with soft, grass-nibbled edges and a
+ * little grit. The stones are `paintStones` (after the margins).
+ */
 export function paintPath(p: Painter, rng: Rng, stones: readonly Stone[]): void {
   const ground: Pt[] = [
-    { x: 744, y: 718 },
-    { x: 868, y: 720 },
-    { x: 892, y: 790 },
-    { x: 940, y: 880 },
-    { x: 1040, y: WORLD_H + 40 },
-    { x: 590, y: WORLD_H + 40 },
-    { x: 660, y: 880 },
-    { x: 722, y: 790 },
+    { x: 734, y: 716 },
+    { x: 860, y: 718 },
+    { x: 896, y: 776 },
+    { x: 920, y: 840 },
+    { x: 960, y: 920 },
+    { x: 1030, y: WORLD_H + 40 },
+    { x: 580, y: WORLD_H + 40 },
+    { x: 640, y: 920 },
+    { x: 690, y: 840 },
+    { x: 712, y: 776 },
   ];
-  p.lift(ground, { rng, amount: 0.35, deform: 0.12, spread: 0.5, sharpness: 0.1, edge: 0, layers: 12 });
-  p.glaze(ground, mix(PIGMENTS.stoneWarm, PIGMENTS.washiDeep, 0.55), { rng, opacity: 0.1, edge: 0, sharpness: 0.2, fade: { angle: Math.PI / 2, start: 0.55, amount: 0.8 } });
+  p.lift(ground, { rng, amount: 0.42, deform: 0.1, spread: 0.45, sharpness: 0.15, edge: 0, layers: 12 });
+  // bare earth: warm and very pale, a touch deeper where feet have worn it between the stones
+  const earth = mix(PIGMENTS.stoneWarm, PIGMENTS.washiDeep, 0.5);
+  p.glaze(ground, earth, { rng, opacity: 0.13, edge: 0, sharpness: 0.2, fade: { angle: Math.PI / 2, start: 0.6, amount: 0.8 } });
+  p.glaze(insetPolygon(ground, 26), mix(earth, PIGMENTS.stone, 0.3), { rng, opacity: 0.08, edge: 0, sharpness: 0.1 });
+  // grit along the worn line, and grass creeping in at both edges
+  for (let i = 0; i < 2; i++) {
+    const side = i === 0 ? -1 : 1;
+    const edgeLine = stones.map((s) => ({ x: s.x + side * (s.rx * 1.25 + 10), y: s.y + rng.range(-6, 6) }));
+    p.dryBrush(edgeLine, { rng, pigment: mix(PIGMENTS.sage, PIGMENTS.stoneWarm, 0.45), width: 9, opacity: 0.22 });
+  }
+}
+
+/**
+ * The stepping stones themselves — painted after the paper margins so the near stones stay
+ * crisp where the grass around them dissolves (the eye follows them in from the bottom edge).
+ */
+export function paintStones(p: Painter, rng: Rng, stones: readonly Stone[]): void {
   for (const s of stones) {
-    const k = (s.y - 700) / 300; // 0 far .. 1 near
-    // soft shadow the stone sits in
-    p.glaze({ cx: s.x + s.rx * 0.06, cy: s.y + s.ry * 0.45, rx: s.rx * 1.05, ry: s.ry * 0.55 }, mix(PIGMENTS.stoneDark, PIGMENTS.sage, 0.35), {
+    const k = Math.max(0, Math.min(1, (s.y - 700) / 300)); // 0 far .. 1 near
+    // the shallow hollow the stone is bedded in: cool, offset down-right (light from upper left)
+    p.glaze({ cx: s.x + s.rx * 0.04, cy: s.y + s.ry * 0.3, rx: s.rx * 1.04, ry: s.ry * 0.7 }, mix(PIGMENTS.stoneDark, PIGMENTS.sage, 0.4), {
       rng,
-      opacity: 0.22,
+      opacity: 0.2 + 0.05 * k,
     });
     p.stone(
-      { cx: s.x, cy: s.y, rx: s.rx, ry: s.ry, rotation: rng.range(-0.05, 0.05) },
+      { cx: s.x, cy: s.y, rx: s.rx, ry: s.ry, rotation: rng.range(-0.06, 0.06) },
       {
         rng,
-        pigment: mix(PIGMENTS.stone, PIGMENTS.stoneWarm, 0.3),
+        pigment: mix(PIGMENTS.stone, PIGMENTS.stoneWarm, 0.35),
         warm: 0.4,
-        moss: k > 0.5 ? 0.12 : 0,
-        granulation: 0.45,
-        ink: 0.18 + 0.12 * k,
+        moss: k > 0.4 ? 0.14 : 0.05,
+        granulation: 0.5,
+        ink: 0.22 + 0.14 * k,
         groundShadow: false,
-        patches: rng.int(1, 2),
+        patches: rng.int(1, 3),
       },
     );
   }
