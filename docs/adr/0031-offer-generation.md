@@ -1,6 +1,6 @@
 # ADR 0031 — Reward offers: earned tier first, unowned first, seeded per session
 
-- Status: accepted
+- Status: superseded by ADR 0003 / ADR 0036 (no end-of-session offer; the species is chosen at start)
 - Date: 2026-10-21
 
 ## Context

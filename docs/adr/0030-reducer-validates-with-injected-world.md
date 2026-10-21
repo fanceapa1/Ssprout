@@ -1,6 +1,6 @@
 # ADR 0030 — Reducer validates every action, placement via an injected world
 
-- Status: accepted
+- Status: accepted; amended by ADR 0036 (the compatibility and tier checks now run on `session/start`; there is no pending reward)
 - Date: 2026-10-21
 
 ## Context

@@ -10,7 +10,7 @@ a session before its goal (ADR 0030), so the debug API either needs a bypass or 
 ## Decision
 `SpeedClock` gains `advance(ms)` (jump virtual time forward; finite, ≥ 0). `completeSession()`
 resumes a paused session, advances the dev clock by the remaining time and calls
-`controller.check()`. Everything that reads the clock (widget countdown, title, lighting) sees a
+`controller.check()`. (ADR 0036 adds `toBreak()`/`skipToBlock(i)`, which jump the same way to a block start.) Everything that reads the clock (widget countdown, title, lighting) sees a
 consistent world, exactly as if the time had really passed.
 
 ## Rejected

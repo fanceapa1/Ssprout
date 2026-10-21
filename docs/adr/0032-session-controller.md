@@ -1,6 +1,6 @@
 # ADR 0032 — The session controller is the single UI-facing API
 
-- Status: accepted
+- Status: accepted; API revised by ADR 0036 (start with plan/species/slot, water, skipBreak, block events; no choose/place/offer)
 - Date: 2026-10-21
 
 ## Context
