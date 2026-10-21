@@ -53,7 +53,6 @@ export function planBalloonFlower(rng: Rng): BalloonPlan {
   const ns = rng.int(2, 3);
   const stems: Stem[] = [];
   const flip = rng.chance(0.5) ? 1 : -1;
-  let order = 0;
   const totalHeads: Head[] = [];
   for (let s = 0; s < ns; s++) {
     const side = (s % 2 === 0 ? 1 : -1) * flip;
@@ -87,7 +86,6 @@ export function planBalloonFlower(rng: Rng): BalloonPlan {
       };
       heads.push(h);
       totalHeads.push(h);
-      order++;
     }
     stems.push({ stem, window: [...stagger(s, ns, [0.08, 0.5], 0.75)] as [number, number], leaves, heads });
   }
@@ -101,7 +99,6 @@ export function planBalloonFlower(rng: Rng): BalloonPlan {
     h.bud = [...stagger(k, n, [0.42, 0.78], 0.55)] as [number, number];
     h.open = k < n - keep ? ([...stagger(k, n - keep, [0.75, 1], 0.6)] as [number, number]) : null;
   });
-  void order;
   return { stems, colour, green };
 }
 

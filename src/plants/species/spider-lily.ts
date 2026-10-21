@@ -116,7 +116,7 @@ function drawFloret(p: Painter, rng: Rng, f: Floret, c: Pt, size: number, open: 
     const SL = p.layer({ x: base.x - S, y: base.y - S, w: S * 2, h: S * 2 });
     const ctx = SL.ctx;
     ctx.lineCap = 'round';
-    f.stamens.forEach((st, j) => {
+    f.stamens.forEach((st) => {
       const a0 = d.angle + st.spread;
       const len = size * 1.7 * st.len * k;
       const mid = add(base, a0, len * 0.55);
@@ -131,7 +131,6 @@ function drawFloret(p: Painter, rng: Rng, f: Floret, c: Pt, size: number, open: 
       ctx.beginPath();
       ctx.ellipse(end.x, end.y, 0.55 * k, 0.35 * k, a0, 0, Math.PI * 2);
       ctx.fill();
-      void j;
     });
     SL.dry({ opacity: 0.85 * k, edge: 0.3, edgeWidth: 0.2, sharpness: 0.8, centreLift: 0, granulation: 0.05, flow: 0.3, flowScale: 3, darken: 0.2 });
   }
