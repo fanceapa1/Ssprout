@@ -89,6 +89,8 @@ export interface Ambience {
   settle(): void;
   /** force the lighting cache to repaint on the next update */
   invalidateLighting(): void;
+  /** the grade the lighting layer was last painted with, and how many repaints so far */
+  light(): { grade: Grade; paints: number };
   drawWater(ctx: Ctx): void;
   drawAir(ctx: Ctx): void;
   drawLighting(ctx: Ctx): void;
@@ -338,6 +340,7 @@ export function createAmbience(opts: AmbienceOptions): Ambience {
       }
     },
     level: (c) => env.value[c],
+    light: () => ({ grade: painted ?? grade, paints }),
     debug() {
       return {
         phase,

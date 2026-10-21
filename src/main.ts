@@ -18,6 +18,7 @@ import { createFauna } from './fauna';
 import { createRenderer } from './render/renderer';
 import { gardenScene } from './scene/geometry';
 import { createUI } from './ui';
+import { applyUiLight } from './ui/ambient-light';
 import { createTimerSurfaces } from './widget';
 import { installWidgetDebug } from './widget/dev';
 import { installSceneDebug } from './scene/debug';
@@ -86,8 +87,9 @@ function boot(): void {
   const audio = createGardenAudio({ bus, getState: store.get, clock });
   const fakeWidget = dev && params.get('widget') === 'fake' ? createFakeWidget() : null;
   const uiTime = Number(params.get('uitime'));
+  const uiRoot = document.querySelector<HTMLElement>('#ui')!;
   const ui = createUI({
-    root: document.querySelector<HTMLElement>('#ui')!,
+    root: uiRoot,
     controller,
     store,
     bus,
@@ -111,7 +113,9 @@ function boot(): void {
     installSceneDebug(sceneSystem, scene);
     installPlantsDebug(plants);
   }
-  addAmbience(renderer, { dev: speedClock !== null });
+  const ambience = addAmbience(renderer, { dev: speedClock !== null });
+  // the DOM slips and paper dabs follow the garden's light (ADR 0121)
+  ambience.onLight((grade) => applyUiLight(uiRoot, grade));
 }
 
 boot();

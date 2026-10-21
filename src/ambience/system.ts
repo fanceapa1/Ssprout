@@ -10,7 +10,7 @@ import type { LayerId, System } from '../render/types';
 import type { SceneGeometry } from '../scene/geometry';
 import { createAmbience, type Ambience, type AmbienceDebug } from './ambience';
 import { moteEmitters, type Emitter } from './motes';
-import { localHour, parseTimeOverride, type TimeOverride } from './timeofday';
+import { localHour, parseTimeOverride, type Grade, type TimeOverride } from './timeofday';
 
 export const WEATHER_PREVIEWS: readonly (Weather | null)[] = ['sun', 'rain', 'mist', null];
 
@@ -22,6 +22,8 @@ export interface AmbienceSystem extends System {
   /** dev/tests: jump every transition to its steady state */
   settle(): void;
   debug(): (AmbienceDebug & { ms: number; timeOverride: number | null }) | null;
+  /** called with the time-of-day grade whenever the lighting repaints (e.g. to tint the DOM UI) */
+  onLight(fn: (grade: Grade) => void): () => void;
 }
 
 export interface AmbienceSystemOptions {
@@ -39,6 +41,8 @@ export function createAmbienceSystem(opts: AmbienceSystemOptions = {}): Ambience
   /** moving average of the per-frame draw cost (ms), and the current frame's running sum */
   let ms = 0;
   let frameMs = 0;
+  const lightListeners = new Set<(grade: Grade) => void>();
+  let lightPaints = -1;
   const now = () => (typeof performance !== 'undefined' ? performance.now() : 0);
 
   const timed = (fn: () => void) => {
@@ -73,6 +77,13 @@ export function createAmbienceSystem(opts: AmbienceSystemOptions = {}): Ambience
         emitters: phase === 'focus' || e.level('motes') > 0.001 ? moteEmitters(state, engineScene!.slots, f.now) : NO_EMITTERS,
         hour: timeOverride ?? localHour(f.now),
       }));
+      if (lightListeners.size) {
+        const { grade, paints } = e.light();
+        if (paints !== lightPaints) {
+          lightPaints = paints;
+          for (const fn of lightListeners) fn(grade);
+        }
+      }
     },
     draw(layer: LayerId, ctx) {
       const e = engine;
@@ -100,6 +111,13 @@ export function createAmbienceSystem(opts: AmbienceSystemOptions = {}): Ambience
     },
     debug() {
       return engine ? { ...engine.debug(), ms, timeOverride } : null;
+    },
+    onLight(fn) {
+      lightListeners.add(fn);
+      lightPaints = -1;
+      return () => {
+        lightListeners.delete(fn);
+      };
     },
     dispose() {
       engine = null;

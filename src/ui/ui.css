@@ -21,6 +21,9 @@
 }
 
 .ui-root {
+  /* paper under the garden's current light, and a dimming for slips (ambient-light.ts) */
+  --ui-dab: 243, 236, 217;
+  --ui-dim: 1;
   font-family: var(--ui-body);
   font-size: 18px;
   line-height: 1.35;
@@ -144,7 +147,7 @@ dialog :focus-visible {
   position: absolute;
   inset: 5px;
   border-radius: 46% 54% 50% 50% / 52% 46% 54% 48%;
-  background: radial-gradient(closest-side, rgba(243, 236, 217, 0.82), rgba(243, 236, 217, 0.5) 62%, rgba(243, 236, 217, 0));
+  background: radial-gradient(closest-side, rgba(var(--ui-dab), 0.82), rgba(var(--ui-dab), 0.5) 62%, rgba(var(--ui-dab), 0));
   transition: transform var(--ui-mid) var(--ui-breath), opacity var(--ui-mid);
   opacity: 0.85;
 }
@@ -541,6 +544,14 @@ input.duration:focus-visible {
   }
 }
 
+/* slips are paper lying in the garden: at dusk and night they dim with it instead of glowing */
+.ui-root .panel,
+.ui-root .tip,
+.ui-root .placement-bar,
+.ui-root .plant-label {
+  filter: brightness(var(--ui-dim));
+}
+
 /* resting while studying: the controls step back */
 .ui-root.is-resting .panel:not(:hover):not(:has(:focus-visible)) {
   opacity: 0.26;
@@ -674,7 +685,7 @@ input.duration:focus-visible {
   font-size: 20px;
   letter-spacing: 0.01em;
   color: var(--ui-ink);
-  background: radial-gradient(closest-side, rgba(243, 236, 217, 0.7), rgba(243, 236, 217, 0.35) 70%, rgba(243, 236, 217, 0));
+  background: radial-gradient(closest-side, rgba(var(--ui-dab), 0.7), rgba(var(--ui-dab), 0.35) 70%, rgba(var(--ui-dab), 0));
   opacity: 0;
   pointer-events: none !important;
   transition: opacity var(--ui-slow) var(--ui-breath);
