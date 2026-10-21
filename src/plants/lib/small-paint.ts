@@ -114,7 +114,7 @@ export function paintStem(p: Painter, rng: Rng, pts: readonly Pt[], o: StemStyle
     pressure: [1, 0.85, 0.7],
     wobble: 0.2,
     wetness: o.wetness ?? 0.45,
-    opacity: o.opacity ?? 0.85,
+    opacity: (o.opacity ?? 0.85) * smooth(len / (o.width * 10)),
     edge: 0.4,
   });
   if (o.ink && len > o.width * 4) {
