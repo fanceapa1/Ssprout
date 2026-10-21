@@ -24,7 +24,10 @@ type Ctx = CanvasRenderingContext2D;
 export const LOOK = {
   sunGrade: { rgb: [250, 236, 208], alpha: 0.2 },
   rainGrade: { rgb: [204, 213, 221], alpha: 0.2 },
+  /** a thin veil over the far half only: it fades out above the plant zone (`mistVeilTo`) */
   mistVeil: { rgb: [244, 242, 236], alpha: 0.08 },
+  /** at night the mist (multiplied by the indigo wash) reads as fog: thin it this much */
+  mistNight: 0.45,
   shaftAlpha: 0.6,
   /** breathing period of the light shafts (s) and depth (0..1) */
   shaftBreathS: 13,
@@ -158,6 +161,8 @@ export function createAmbience(opts: AmbienceOptions): Ambience {
   };
 
   const daylight = () => 1 - 0.85 * Math.min(1, grade.lantern);
+  const pondTop = pondBox.y;
+  let mistVeil: { top: number; to: number; fill: CanvasGradient } | null = null;
 
   const api: Ambience = {
     preview: null,
@@ -254,17 +259,29 @@ export function createAmbience(opts: AmbienceOptions): Ambience {
       fill(LOOK.sunGrade.rgb, LOOK.sunGrade.alpha * lv.sun, 'multiply');
       fill(LOOK.rainGrade.rgb, LOOK.rainGrade.alpha * lv.rain, 'multiply');
 
-      // mist: drifting bands over the far bank, then a thin veil
+      // mist: drifting bands over the far bank, then a thin veil over the far half only
       if (lv.mist > 0.002) {
+        const mist = lv.mist * (1 - LOOK.mistNight * (1 - daylight()) / 0.85);
         ctx.globalCompositeOperation = 'source-over';
         for (const b of sprites.mist) {
-          ctx.globalAlpha = b.alpha * lv.mist;
+          ctx.globalAlpha = b.alpha * mist;
           const off = (((sim.t * b.speed) % WORLD_W) + WORLD_W) % WORLD_W;
           const y = b.y - b.h / 2;
           ctx.drawImage(b.canvas as CanvasImageSource, off - WORLD_W, y, WORLD_W, b.h);
           ctx.drawImage(b.canvas as CanvasImageSource, off, y, WORLD_W, b.h);
         }
-        fill(LOOK.mistVeil.rgb, LOOK.mistVeil.alpha * lv.mist, 'source-over');
+        const veilTo = pondTop + 140;
+        if (!mistVeil || mistVeil.top !== area.y || mistVeil.to !== veilTo) {
+          const gr = ctx.createLinearGradient(0, area.y, 0, veilTo);
+          const [r, g, b] = LOOK.mistVeil.rgb;
+          gr.addColorStop(0, `rgba(${r},${g},${b},1)`);
+          gr.addColorStop(0.7, `rgba(${r},${g},${b},0.8)`);
+          gr.addColorStop(1, `rgba(${r},${g},${b},0)`);
+          mistVeil = { top: area.y, to: veilTo, fill: gr };
+        }
+        ctx.globalAlpha = LOOK.mistVeil.alpha * mist;
+        ctx.fillStyle = mistVeil.fill;
+        ctx.fillRect(area.x, area.y, area.w, veilTo - area.y);
       }
 
       // light shafts, two groups breathing in turn

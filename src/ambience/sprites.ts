@@ -231,13 +231,16 @@ export interface MistLayout {
   pondBottom: number;
 }
 
-/** Bands sit over the far bank and the far water, one faint low band in front. */
+/**
+ * Bands hug the far bank and the far water, where mist gathers; the near garden (where the plants
+ * are) stays clear but for one wisp lying low on the water.
+ */
 export function mistLayout(m: MistLayout): Array<Omit<MistBand, 'canvas'>> {
   return [
-    { y: m.pondTop - 120, h: 170, speed: 3.5, alpha: 0.6 },
-    { y: m.pondTop - 45, h: 110, speed: 6, alpha: 0.75 },
-    { y: m.pondTop + 20, h: 70, speed: 8.5, alpha: 0.55 },
-    { y: m.pondBottom + 70, h: 90, speed: 11, alpha: 0.22 },
+    { y: m.pondTop - 110, h: 150, speed: 3.5, alpha: 0.42 },
+    { y: m.pondTop - 40, h: 100, speed: 6, alpha: 0.55 },
+    { y: m.pondTop + 22, h: 60, speed: 8.5, alpha: 0.4 },
+    { y: (m.pondTop + m.pondBottom) / 2 + 30, h: 46, speed: 11, alpha: 0.16 },
   ];
 }
 
