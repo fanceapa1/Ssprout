@@ -6,6 +6,7 @@ import { planGinkgo } from '../species/ginkgo';
 import { planJapaneseMaple } from '../species/japanese-maple';
 import { planPlumBlossom } from '../species/plum-blossom';
 import { planWeepingCherry } from '../species/weeping-cherry';
+import { planWisteria } from '../species/wisteria';
 
 /** Every tier-4 tree builds its whole plan (skeleton, foliage, blossom) from the rng alone. */
 const PLANS: Record<string, (rng: Rng) => unknown> = {
@@ -14,6 +15,7 @@ const PLANS: Record<string, (rng: Rng) => unknown> = {
   'black-pine': planBlackPine,
   ginkgo: planGinkgo,
   'plum-blossom': planPlumBlossom,
+  wisteria: planWisteria,
 };
 
 describe('tier-4 tree plans', () => {
