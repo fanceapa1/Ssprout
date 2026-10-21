@@ -19,8 +19,9 @@ src/
     events.ts             typed event bus
     state.ts              GardenState types, defaults, createReducer(world)/actions, store
     persistence.ts        localStorage load/save, schema version + migrations, export/import validation
-    session.ts            session phases (idle/running/paused/reward), elapsed maths, goal clamp, weather
-    rewards.ts            tier from minutes, offer generation (3 species, prefer unowned)
+    session.ts            session phases (idle/focus/break/paused), timeline + growth maths, goal clamp, weather
+    rewards.ts            tier from minutes, selectable species per total
+    plans.ts              study plans: recommendPlans(total), plan validation
     placement.ts          slot compatibility (habitat + size class), swap candidates
     fauna-unlocks.ts      which creatures are unlocked for a given state
     tips.ts               tooltip registry + seen/retired logic
@@ -137,22 +138,27 @@ export interface SceneGeometry {
 }
 ```
 
-### State (`src/core/state.ts`)
+### State (`src/core/state.ts`, ADR 0003, ADR 0036)
+Each session is one plant, chosen at start, growing live in its slot.
 ```ts
-export interface PlantInstance { id: string; speciesId: string; slotId: string; seed: number; plantedAt: number; sessionMinutes: number; }
-export interface PressedFlower { speciesId: string; seed: number; plantedAt: number; removedAt: number; }
+export type PlanBlock = { kind: 'focus' | 'break'; minutes: number };
+export interface StudyPlan { id: string; name: string; blocks: PlanBlock[] } // core/plans.ts
+export interface PlantInstance { id: string /* = session id */; speciesId: string; slotId: string; seed: number;
+  plantedAt: number /* session start */; sessionMinutes: number /* total */; taskName: string; completedAt: number; }
+export interface PressedFlower { speciesId: string; seed: number; plantedAt: number; removedAt: number; taskName: string; }
 export type Weather = 'sun' | 'rain' | 'mist';
-export interface ActiveSession { id: string; goalMs: number; startedAt: number; pausedAt: number | null; pausedTotalMs: number; weather: Weather; }
-export interface PendingReward { sessionId: string; goalMinutes: number; tier: Tier; options: string[]; chosen: string | null; completedAt: number; }
+export interface ActiveSession { id: string; taskName: string; goalMs: number /* total incl. breaks */; plan: StudyPlan;
+  speciesId: string; slotId: string; seed: number; displacedPlantId: string | null;
+  startedAt: number; pausedAt: number | null; pausedTotalMs: number; skippedMs: number; weather: Weather;
+  waterings: number[] /* watered break block indexes */; }
 export interface GardenState {
   version: 1;
   createdAt: number;
-  plants: PlantInstance[];
+  plants: PlantInstance[];      // finished plants only
   pressed: PressedFlower[];
   session: ActiveSession | null;
-  pendingReward: PendingReward | null;
-  stats: { totalMinutes: number; completed: number; cancelled: number };
-  faunaSeen: string[];        // creature ids already announced
+  stats: { totalMinutes: number /* focused */; completed: number; cancelled: number };
+  faunaSeen: string[];          // creature ids already announced
   tips: Record<string, 'seen'>; // retired tips
   settings: { muted: boolean; lastGoalMinutes: number; notifications: 'unasked' | 'granted' | 'denied' };
 }
@@ -165,25 +171,24 @@ from inside a listener are queued and applied after the current delivery (ADR 00
 Reducers are pure and live in `core/`.
 
 The app reducer is `createReducer(world)` with
-`ReducerWorld = { getSpecies(id): SpeciesDef-like | undefined; getSlot(id): Slot-like | undefined }`
-so `plant/place` can enforce slot compatibility; `reducer` is `createReducer()` (no world: any slot
-id accepted). **Invalid actions are no-ops returning the same reference** (ADR 0030). Every rule is
-listed in `docs/systems/core.md`.
+`ReducerWorld = { getSpecies(id): { habitats, sizeClass, tier } | undefined; getSlot(id): { id, habitat, maxSize } | undefined }`
+so `session/start` can enforce the earned tier and slot compatibility; `reducer` is
+`createReducer()` (no world: any species/slot accepted). **Invalid actions are no-ops returning the
+same reference** (ADR 0030). Every rule is listed in `docs/systems/core.md`.
 
 #### Actions
-Every impure input (time, ids, seeds, weather, offers) is carried in the action, so reducers
-stay pure and deterministic. `type Action =`
+Every impure input (time, ids, seeds, weather) is carried in the action, so reducers stay pure and
+deterministic. `type Action =`
 
 | type | payload | meaning |
 |---|---|---|
-| `session/start` | `goalMinutes, now, id, weather` | start a session (sets `settings.lastGoalMinutes`) |
-| `session/pause` | `now` | pause the running session |
+| `session/start` | `id, taskName, goalMinutes, plan, speciesId, slotId, seed, now, weather` | plant a seedling and start (plan sums to the total; species tier ≤ earned; compatible slot; an occupant becomes `displacedPlantId`; sets `settings.lastGoalMinutes`) |
+| `session/pause` | `now` | pause (focus or break) |
 | `session/resume` | `now` | resume; adds the paused span to `pausedTotalMs` |
-| `session/cancel` | `now` | end without reward (`stats.cancelled++`) |
-| `session/complete` | `now, options: string[], tier` | end with reward → `pendingReward` (only once elapsed ≥ goal and `tier` matches the goal) |
-| `reward/choose` | `speciesId` | pick one of `pendingReward.options` |
-| `plant/place` | `slotId, id, seed, now` | plant the chosen species (swaps an occupant into `pressed`) |
-| `reward/discard` | — | drop the pending reward |
+| `session/water` | `blockIndex, now` | water the current break (once) |
+| `session/skipBreak` | `now` | skip the rest of the current break (`skippedMs +=` remainder) |
+| `session/cancel` | `now` | seedling withers, displaced plant stays (`stats.cancelled++`) |
+| `session/complete` | `now` | plan finished → finished plant (id = session id), displaced plant → `pressed` |
 | `tip/retire` | `id` | mark a tip as seen |
 | `settings/update` | `patch: Partial<Settings>` | merge settings |
 | `fauna/seen` | `id` | creature announced |
@@ -194,22 +199,38 @@ Types exported alongside: `Settings`, `GardenStats`, `Reducer<S, A>`, `Listener<
 `createDefaultState(now)`, `STATE_VERSION`, `DEFAULT_GOAL_MINUTES`, `createReducer`, `ReducerWorld`,
 `mergeSettings`.
 
-### Session maths (`src/core/session.ts`)
-`elapsedMs(s, now) = (s.pausedAt ?? now) - s.startedAt - s.pausedTotalMs` (clamped ≥ 0); complete when
-`elapsedMs >= goalMs`. All time comes from the injected `Clock` — never `Date.now()` directly.
-Also: `remainingMs`, `progress` (0..1), `pausedFor`, `isLongPause` (≥ 30 min), `completionTime`,
-`sessionPhase(state)`, `clampGoalMinutes` (10–180, step 5), `pickWeather(rng)` (sun .6 / rain .25 /
-mist .15), `formatClock(ms)`.
+### Study plans (`src/core/plans.ts`, ADR 0036)
+`recommendPlans(totalMinutes): StudyPlan[]` — 2–4 plans (only `unbroken` below 30 min), each summing
+exactly to the total and ending with focus; `unbroken` always first. Ids: `unbroken`, `pomodoro`,
+`long-focus`, `deep-work`, `two-deep`. Also `findPlan`, `planProblem`, `focusMinutes`, `hasBreaks`.
 
-### Session controller (`src/core/controller.ts`, ADR 0032)
+### Session maths (`src/core/session.ts`)
+Session time `elapsedMs(s, now) = max(0, (pausedAt ?? now) − startedAt − pausedTotalMs)`; plan
+position `planPositionMs = min(goalMs, elapsed + skippedMs)`; complete when `elapsed + skippedMs ≥
+goalMs`. All time comes from the injected `Clock` — never `Date.now()` directly.
+```ts
+export interface SessionTimeline { elapsedMs: number /* plan position */; blockIndex: number; block: PlanBlock;
+  blockElapsedMs: number; blockRemainingMs: number; totalRemainingMs: number; focusDoneMs: number;
+  focusTotalMs: number; growth: number /* focusDone ÷ focusTotal */; progress: number; watered: boolean; complete: boolean }
+export function sessionTimeline(s: ActiveSession, now: number): SessionTimeline;
+```
+Also: `sessionPhase(state, now)` → `'idle' | 'focus' | 'break' | 'paused'`, `remainingMs`, `progress`,
+`growth`, `pausedFor`, `isLongPause` (≥ 30 min), `completionTime`, `blockStartMs`, `clampGoalMinutes`
+(10–180, step 5), `normalizeTaskName` (≤ 40 chars, empty → "Study session"), `pickWeather(rng)`
+(sun .6 / rain .25 / mist .15), `formatClock(ms)`. Tiers: `tierForMinutes`, `selectableSpecies`
+(`core/rewards.ts`).
+
+### Session controller (`src/core/controller.ts`, ADRs 0032, 0036)
 `createSessionController({ store, clock, bus, species, slots?, ticker?, seed? })` is the **single
-API the UI and widget use**: `start(min?)`, `pause()`, `resume()`, `cancel()`, `check()`,
-`choose(id)`, `offer()`, `placementOptions()`, `place(slotId)`, `discard()`, `retireTip(id)`,
-`updateSettings(patch)`, `announceFauna(id)`, `status()`, `onTick(fn)`, `setTicker(t)`,
-`setSeed(s)`, `dispose()`. It supplies time/ids/seeds/weather/offers, emits the bus events,
-completes due sessions on every tick and once at creation (closed-app completion), and retires tips
-automatically. `Ticker = { start(tick): stop }` (default `setInterval` 1 s). Full table in
-`docs/systems/core.md`.
+API the UI and widget use**: `start({ taskName, goalMinutes, planId?, speciesId, slotId }) => boolean`,
+`pause()`, `resume()`, `water()`, `skipBreak()`, `cancel()`, `check()`, `recommendPlans(min)`,
+`selectableSpecies(min) => { species, locked, requiredMinutes, earned }[]`,
+`placementOptions(speciesId) => { slot, occupiedBy? }[]`, `retireTip(id)`, `updateSettings(patch)`,
+`announceFauna(id)`, `status() => { phase, session, timeline, pausedForMs, longPause }`, `onTick(fn)`,
+`setTicker(t)`, `setSeed(s)`, `dispose()`. It supplies time/ids/seeds/weather, emits the bus events
+(including block transitions), completes due sessions on every tick and once at creation
+(closed-app completion), and retires tips automatically. `Ticker = { start(tick): stop }` (default
+`setInterval` 1 s). Full table in `docs/systems/core.md`.
 
 ### Persistence (`src/core/persistence.ts`, ADRs 0033–0034)
 Key `studysprout:v1` (stable; the document's `version` drives `MIGRATIONS`). `loadState(storage,
@@ -219,10 +240,11 @@ flushes on `pagehide`). `exportState`/`exportFileName`/`importState` (typed erro
 kept and flagged).
 
 ### Events (`src/core/events.ts`)
-`session:start | session:pause | session:resume | session:cancel | session:complete |
-reward:chosen | plant:placed | plant:swapped | fauna:arrived | tip:retired | settings:changed`.
-Payloads are typed in `EventMap` (e.g. `'plant:placed': { plant }`,
-`'plant:swapped': { plant, removed }`, `'session:complete': { sessionId, reward }`).
+`session:start | session:pause | session:resume | session:cancel | session:break | session:focus |
+session:water | session:complete | plant:placed | plant:swapped | fauna:arrived | tip:retired |
+settings:changed`. Payloads are typed in `EventMap`: `'session:break' | 'session:focus' |
+'session:water': { blockIndex }`, `'session:complete': { sessionId, plant }`, `'plant:placed': { plant }`
+and `'plant:swapped': { plant, removed }` (both on completion; swapped first).
 `createEventBus()` → `{ on, once, off, emit, clear }`; `on` returns an unsubscribe function;
 delivery is synchronous to a snapshot of handlers; a throwing handler does not stop the others.
 
@@ -249,10 +271,11 @@ initialised), `freeze()` (async; resolves after a stable frame is drawn), `unfre
 `setSpeed(n)`, `now()`. Others add methods with `extendDebug({...})` from `src/dev/debug.ts` and
 augment the `SproutDebug` interface via declaration merging.
 
-Core logic (`src/dev/core-debug.ts`): `reset()`, `seed(n)`, `start(min?)`, `pause()`, `resume()`,
-`cancel()`, `completeSession()` (jumps the dev clock to the goal), `choose(id?)`,
-`placementOptions()`, `place(slotId?)`, `addPlants(n, tier?)`, `setState(partial)` (validated),
-`status()`, `flush()`, `exportState()`, `importState(json)`.
+Core logic (`src/dev/core-debug.ts`): `reset()`, `seed(n)`, `start(min?, { taskName?, planId?,
+speciesId?, slotId? })`, `pause()`, `resume()`, `water()`, `skipBreak()`, `cancel()`, `toBreak()`,
+`skipToBlock(i)`, `completeSession()` (these jump the dev clock), `plans(min)`,
+`selectableSpecies(min)`, `placementOptions(speciesId?)`, `addPlants(n, tier?)` (finished plants with
+task names), `setState(partial)` (validated), `status()`, `flush()`, `exportState()`, `importState(json)`.
 
 ## Studio (`studio.html`, `src/studio/`)
 A dev page (also deployed at `/Ssprout/studio.html`) showing **every sprite, creature, effect
