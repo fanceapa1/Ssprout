@@ -51,16 +51,29 @@ function audioContextCtor(): AudioContextCtor | null {
   return g.AudioContext ?? g.webkitAudioContext ?? null;
 }
 
-/** Web Audio implementation; returns null where Web Audio is unavailable. */
-export function createWebAudioBackend(seed: number | string = 'garden-audio'): AudioBackend | null {
-  const Ctor = audioContextCtor();
-  if (!Ctor) return null;
-  let ctx: AudioContext;
-  try {
-    ctx = new Ctor({ latencyHint: 'playback' });
-  } catch {
-    return null;
+/**
+ * Web Audio implementation; returns null where Web Audio is unavailable. Pass `context` (e.g.
+ * an OfflineAudioContext) to render into it instead of creating a real-time AudioContext —
+ * used to measure levels offline.
+ */
+export function createWebAudioBackend(
+  seed: number | string = 'garden-audio',
+  options: { context?: BaseAudioContext } = {},
+): AudioBackend | null {
+  let ctx: BaseAudioContext;
+  if (options.context) {
+    ctx = options.context;
+  } else {
+    const Ctor = audioContextCtor();
+    if (!Ctor) return null;
+    try {
+      ctx = new Ctor({ latencyHint: 'playback' });
+    } catch {
+      return null;
+    }
   }
+  /** the real-time context we own (null when rendering into a provided one) */
+  const live = options.context ? null : (ctx as AudioContext);
   const rng = createRng(seed);
   const sr = ctx.sampleRate;
 
@@ -179,7 +192,7 @@ export function createWebAudioBackend(seed: number | string = 'garden-audio'): A
   }
 
   // --- one-shots ------------------------------------------------------------------------------
-  let live = 0;
+  let playing = 0;
 
   const ramp = (param: AudioParam, pts: readonly Point[], t0: number) => {
     const [first, ...rest] = pts;
@@ -222,8 +235,8 @@ export function createWebAudioBackend(seed: number | string = 'garden-audio'): A
   }
 
   function play(spec: SoundSpec, when: number, bus: SoundBus) {
-    if (live >= MAX_LIVE_SOUNDS || spec.voices.length === 0) return;
-    live++;
+    if (playing >= MAX_LIVE_SOUNDS || spec.voices.length === 0) return;
+    playing++;
     const t0 = Math.max(when, ctx.currentTime);
     const out = ctx.createGain();
     out.gain.value = spec.gain;
@@ -243,7 +256,7 @@ export function createWebAudioBackend(seed: number | string = 'garden-audio'): A
       n.onended = () => {
         n.disconnect();
         if (--remaining === 0) {
-          live--;
+          playing--;
           out.disconnect();
           pan.disconnect();
         }
@@ -260,8 +273,8 @@ export function createWebAudioBackend(seed: number | string = 'garden-audio'): A
 
   return {
     now: () => ctx.currentTime,
-    resume: () => (ctx.state === 'closed' ? Promise.resolve() : ctx.resume()),
-    suspend: () => (ctx.state === 'running' ? ctx.suspend() : Promise.resolve()),
+    resume: () => (live && live.state !== 'closed' ? live.resume() : Promise.resolve()),
+    suspend: () => (live && live.state === 'running' ? live.suspend() : Promise.resolve()),
     startBeds,
     setMaster: (level, seconds) => glide(master.gain, level, seconds),
     applyMix(mix, seconds) {
@@ -295,7 +308,7 @@ export function createWebAudioBackend(seed: number | string = 'garden-audio'): A
           // already stopped
         }
       }
-      void ctx.close().catch(() => undefined);
+      void live?.close().catch(() => undefined);
     },
   };
 }
