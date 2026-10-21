@@ -48,8 +48,8 @@ function sheetEntry(id: string, label: string, make: (res: number, seed: number)
       const ctx = canvas.getContext('2d')!;
       ctx.fillStyle = '#ffffff';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
-      // first pass at a guess, then repaint at the resolution the layout needs
-      let sprites = make(2, seed);
+      // a cheap low-resolution pass gives the layout, then paint at the resolution it needs
+      let sprites = make(0.25, seed);
       const pad = 10;
       const total = sprites.reduce((s, sp) => s + sp.w, 0);
       const tall = Math.max(...sprites.map((sp) => sp.h));

@@ -106,6 +106,7 @@ function paintBackdrop(canvas: AnyCanvas, scene: SceneGeometry, spec: StageSpec,
 }
 
 const paperCache = new Map<string, AnyCanvas>();
+const backdrops = new Map<string, AnyCanvas>();
 
 export class Stage {
   readonly sim: FaunaSim;
@@ -143,8 +144,15 @@ export class Stage {
     this.sim.setResolution(k);
     const key = `${canvas.width}x${canvas.height}`;
     if (!this.backdrop || this.key !== key) {
-      this.backdrop = makeCanvas(canvas.width, canvas.height);
-      paintBackdrop(this.backdrop, this.scene, this.spec, k, this.seed);
+      // the backdrop doesn't depend on the seed: shared across reseeds and stages of one size
+      const shared = `${this.spec.w}x${this.spec.h}@${key}`;
+      let bd = backdrops.get(shared);
+      if (!bd) {
+        bd = makeCanvas(canvas.width, canvas.height);
+        paintBackdrop(bd, this.scene, this.spec, k, 1);
+        backdrops.set(shared, bd);
+      }
+      this.backdrop = bd;
       this.key = key;
     }
     this.tickRespawn(t);
