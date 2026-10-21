@@ -97,7 +97,7 @@ function paintBody(p: Painter, S: number, c: Colours, species: BirdSpecies, opts
   // wing
   const shoulder = P(2.8, -7.0);
   if (opts.wing === 'fold') {
-    p.dab(shoulder, c.wing, { rng, variant: 'leaf', angle: Math.PI - 0.16, length: 8.2 * r * sx, width: 3.3 * r, curve: 0.06, opacity: 0.85 });
+    p.dab({ x: shoulder.x, y: shoulder.y + 0.7 * r }, c.wing, { rng, variant: 'leaf', angle: Math.PI - 0.3, length: 8.2 * r * sx, width: 3.3 * r, curve: 0.06, opacity: 0.85 });
     for (let k = 0; k < 3; k++) {
       const y = shoulder.y + (0.5 + k * 0.7) * r;
       p.inkLine([{ x: shoulder.x - 2 * r, y }, { x: shoulder.x - 6.6 * r * sx, y: y + 1.1 * r }], { rng, width: 0.22 * r, opacity: 0.4, breaks: 0.3, pigment: c.streak });
@@ -298,7 +298,7 @@ export class Bird extends BaseCreature {
       this.pos = { x, y: perchY(p, x) - Math.sin(k * Math.PI) * 4 };
     } else if (this.act === 2) {
       const t = (this.timerAct % 0.32) / 0.32;
-      this.pitch = Math.sin(t * Math.PI) * 0.75;
+      this.pitch = Math.sin(t * Math.PI) * 0.5;
     }
     // tails: the wagtail pumps constantly, the sparrow flicks now and then
     const t = w.t + this.id;
@@ -346,7 +346,7 @@ export class Bird extends BaseCreature {
       const tail = parts.tail;
       ctx.save();
       ctx.translate(-4.6 * (S / 17), -2.6 * (S / 17));
-      ctx.rotate(-0.25 + this.tailAngle);
+      ctx.rotate(-0.25 + this.tailAngle - this.pitch * 0.8); // the tail stays level while the head goes down
       ctx.drawImage(tail.img as CanvasImageSource, -tail.ox, -tail.oy, tail.w, tail.h);
       ctx.restore();
       ctx.rotate(this.tailAngle * -0.12);
