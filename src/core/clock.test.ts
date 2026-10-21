@@ -53,6 +53,19 @@ describe('createSpeedClock', () => {
     expect(c.now()).toBe(0);
   });
 
+  it('advance jumps virtual time forward and keeps the speed', () => {
+    const base = createManualClock(0);
+    const c = createSpeedClock(2, base);
+    c.advance(5_000);
+    expect(c.now()).toBe(5_000);
+    base.advance(100);
+    expect(c.now()).toBe(5_200);
+    c.setSpeed(1);
+    expect(c.now()).toBe(5_200);
+    expect(() => c.advance(-1)).toThrow(RangeError);
+    expect(() => c.advance(Number.NaN)).toThrow(RangeError);
+  });
+
   it('rejects invalid speeds', () => {
     expect(() => createSpeedClock(-1)).toThrow(RangeError);
     expect(() => createSpeedClock(Number.NaN)).toThrow(RangeError);

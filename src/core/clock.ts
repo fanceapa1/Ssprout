@@ -15,6 +15,8 @@ export interface SpeedClock extends Clock {
   readonly speed: number;
   /** Change the speed without a jump: time continues from the current virtual instant. */
   setSpeed(speed: number): void;
+  /** Jump virtual time forward by `ms` (dev/test only, e.g. "complete this session now"). */
+  advance(ms: number): void;
 }
 
 function assertSpeed(speed: number): void {
@@ -45,6 +47,10 @@ export function createSpeedClock(speed: number, base: Clock = realClock): SpeedC
       anchorVirtual = now();
       anchorBase = base.now();
       s = next;
+    },
+    advance(ms: number) {
+      if (!Number.isFinite(ms) || ms < 0) throw new RangeError(`advance needs a finite ms >= 0, got ${ms}`);
+      anchorVirtual += ms;
     },
   };
 }
