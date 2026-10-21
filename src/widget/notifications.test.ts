@@ -1,20 +1,18 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createManualClock } from '../core/clock';
-import { createSessionController } from '../core/controller';
-import { createEventBus } from '../core/events';
-import { createDefaultState, createStore, reducer, type GardenState } from '../core/state';
+import type { GardenState, Settings } from '../core/state';
 import {
   createNotifier,
   decideNotification,
-  NOTIFICATION_BODY,
   NOTIFICATION_TAG,
-  NOTIFICATION_TITLE,
+  notificationText,
   reconcileSetting,
   shouldAsk,
   type NotificationEnv,
   type NotificationPayload,
   type PermissionState,
 } from './notifications';
+import { fakeBus, fakeController, status } from './test-helpers';
 
 describe('decideNotification', () => {
   const base = { supported: true, permission: 'granted' as const, setting: 'granted' as const, attended: false, alreadyNotified: false };
@@ -36,7 +34,7 @@ describe('decideNotification', () => {
     expect(decideNotification({ ...base, attended: true })).toBe('attended');
   });
 
-  it('never notifies twice for one session', () => {
+  it('never notifies twice for one moment', () => {
     expect(decideNotification({ ...base, alreadyNotified: true })).toBe('duplicate');
   });
 });
@@ -67,8 +65,19 @@ describe('reconcileSetting / shouldAsk', () => {
   });
 });
 
+describe('notificationText', () => {
+  it('names the plant and the task', () => {
+    expect(notificationText('break', 'Japanese Iris', 'Biology')).toMatchObject({ title: 'Time for a break — your Japanese Iris is thirsty.' });
+    expect(notificationText('focus', 'Japanese Iris', 'Biology ch. 4')).toMatchObject({ title: 'Back to focus — Biology ch. 4.' });
+    expect(notificationText('complete', 'Japanese Iris', 'Biology')).toEqual({
+      title: 'Your session is complete',
+      body: 'Your Japanese Iris has bloomed — return to your garden.',
+    });
+  });
+});
+
 /** A scriptable NotificationEnv. */
-function fakeEnv(initial: PermissionState = 'default', answer: PermissionState = 'granted') {
+function fakeEnv(initial: PermissionState = 'default') {
   let perm = initial;
   let attended = false;
   const shown: NotificationPayload[] = [];
@@ -78,8 +87,7 @@ function fakeEnv(initial: PermissionState = 'default', answer: PermissionState =
     requests: number;
     prepared: number;
     setAttended(v: boolean): void;
-    setPermission(p: PermissionState): void;
-    answer(p?: PermissionState): void;
+    answer(p: PermissionState): void;
     inGesture: boolean;
     requestedOutsideGesture: boolean;
   } = {
@@ -95,20 +103,17 @@ function fakeEnv(initial: PermissionState = 'default', answer: PermissionState =
       if (!env.inGesture) env.requestedOutsideGesture = true;
       return new Promise((res) => {
         resolveRequest = (p) => {
-          perm = p === 'default' ? 'default' : p;
+          perm = p;
           res(p);
         };
       });
     },
-    answer(p = answer) {
+    answer(p) {
       resolveRequest?.(p);
     },
     attended: () => attended,
     setAttended(v) {
       attended = v;
-    },
-    setPermission(p) {
-      perm = p;
     },
     prepare() {
       env.prepared++;
@@ -118,32 +123,40 @@ function fakeEnv(initial: PermissionState = 'default', answer: PermissionState =
       return 'service-worker';
     },
     appUrl: () => 'https://example.test/Ssprout/?dev',
-    icon: () => 'data:image/png;base64,AAAA',
+    icon: (kind) => `icon:${kind}`,
   };
   return env;
 }
 
-function setup(env: ReturnType<typeof fakeEnv>, state?: Partial<GardenState>) {
+function setup(env: NotificationEnv, setting: Settings['notifications'] = 'unasked') {
   const clock = createManualClock(1_800_000_000_000);
-  const store = createStore({ ...createDefaultState(clock.now()), ...state }, reducer);
-  const bus = createEventBus();
-  const manualTicker = { start: () => () => {} };
-  const controller = createSessionController({ store, clock, bus, species: [], seed: 3, ticker: manualTicker });
-  const notifier = createNotifier({ controller, store, bus, clock, env });
-  /** a click on "Begin": start() runs inside the gesture */
-  const clickBegin = (min = 10) => {
-    env.inGesture = true;
+  const settings: Pick<Settings, 'notifications'> = { notifications: setting };
+  const store = { get: () => ({ settings }) as unknown as GardenState };
+  const controller = fakeController(status());
+  const updateSettings = vi.fn((patch: Partial<Settings>) => {
+    if (patch.notifications) settings.notifications = patch.notifications;
+    return true;
+  });
+  const bus = fakeBus();
+  const notifier = createNotifier({
+    controller: { ...controller, updateSettings },
+    store,
+    bus,
+    clock,
+    env,
+    speciesName: (id) => (id === 'japanese-iris' ? 'Japanese Iris' : undefined),
+  });
+  /** a click on "Begin": the controller starts the session and emits session:start in the click */
+  const clickBegin = () => {
+    controller.set(status('focus', {}, { speciesId: 'japanese-iris' }));
+    (env as ReturnType<typeof fakeEnv>).inGesture = true;
     try {
-      return controller.start(min);
+      bus.emit('session:start', { session: controller.status().session });
     } finally {
-      env.inGesture = false;
+      (env as ReturnType<typeof fakeEnv>).inGesture = false;
     }
   };
-  const complete = () => {
-    clock.advance((store.get().session?.goalMs ?? 0) + 1);
-    return controller.check();
-  };
-  return { clock, store, bus, controller, notifier, clickBegin, complete };
+  return { clock, settings, controller, updateSettings, bus, notifier, clickBegin };
 }
 
 const flush = () => new Promise((r) => setTimeout(r, 0));
@@ -151,37 +164,34 @@ const flush = () => new Promise((r) => setTimeout(r, 0));
 describe('createNotifier · permission flow', () => {
   it('asks at the first session:start, synchronously inside the click, and stores a grant', async () => {
     const env = fakeEnv('default');
-    const { store, clickBegin } = setup(env);
+    const { settings, clickBegin } = setup(env);
     clickBegin();
     expect(env.requests).toBe(1);
     expect(env.requestedOutsideGesture).toBe(false);
     env.answer('granted');
     await flush();
-    expect(store.get().settings.notifications).toBe('granted');
+    expect(settings.notifications).toBe('granted');
     expect(env.prepared).toBeGreaterThan(0); // service worker registered once granted
-    expect(store.get().tips.notifications).toBe('seen'); // the tip retires itself
   });
 
   it('stores a denial and never asks again', async () => {
     const env = fakeEnv('default');
-    const { store, controller, clickBegin } = setup(env);
+    const { settings, clickBegin } = setup(env);
     clickBegin();
     env.answer('denied');
     await flush();
-    expect(store.get().settings.notifications).toBe('denied');
-    controller.cancel();
+    expect(settings.notifications).toBe('denied');
     clickBegin();
     expect(env.requests).toBe(1);
   });
 
   it('a dismissed prompt leaves the setting unasked and is not repeated on this page', async () => {
     const env = fakeEnv('default');
-    const { store, controller, clickBegin } = setup(env);
+    const { settings, clickBegin } = setup(env);
     clickBegin();
     env.answer('default');
     await flush();
-    expect(store.get().settings.notifications).toBe('unasked');
-    controller.cancel();
+    expect(settings.notifications).toBe('unasked');
     clickBegin();
     expect(env.requests).toBe(1);
   });
@@ -189,38 +199,37 @@ describe('createNotifier · permission flow', () => {
   it('does not prompt when the browser already decided; mirrors the answer instead', () => {
     const granted = fakeEnv('granted');
     const a = setup(granted);
-    expect(a.store.get().settings.notifications).toBe('granted'); // synced at creation
+    expect(a.settings.notifications).toBe('granted'); // synced at creation
     a.clickBegin();
     expect(granted.requests).toBe(0);
 
     const denied = fakeEnv('denied');
     const b = setup(denied);
-    expect(b.store.get().settings.notifications).toBe('denied');
+    expect(b.settings.notifications).toBe('denied');
     b.clickBegin();
     expect(denied.requests).toBe(0);
   });
 
   it('requestPermissionFromGesture shares one pending prompt', async () => {
     const env = fakeEnv('default');
-    const { notifier, store } = setup(env);
+    const { notifier, settings, clickBegin } = setup(env);
     const p1 = notifier.requestPermissionFromGesture();
     const p2 = notifier.requestPermissionFromGesture();
     expect(p1).toBe(p2);
     expect(env.requests).toBe(1);
     env.answer('granted');
     await expect(p1).resolves.toBe('granted');
-    expect(store.get().settings.notifications).toBe('granted');
-    // the UI calling it first means session:start does not ask again
-    await expect(notifier.requestPermissionFromGesture()).resolves.toBe('granted');
+    expect(settings.notifications).toBe('granted');
+    // the UI asked first, so session:start does not ask again
+    clickBegin();
     expect(env.requests).toBe(1);
   });
 
   it('an explicit request stores the browser answer even over an in-app opt-out', async () => {
     const env = fakeEnv('granted');
-    const { notifier, store, controller } = setup(env);
-    controller.updateSettings({ notifications: 'denied' });
+    const { notifier, settings } = setup(env, 'denied');
     await expect(notifier.requestPermissionFromGesture()).resolves.toBe('granted');
-    expect(store.get().settings.notifications).toBe('granted');
+    expect(settings.notifications).toBe('granted');
     expect(env.requests).toBe(0);
   });
 
@@ -235,75 +244,94 @@ describe('createNotifier · permission flow', () => {
 
   it('reports unsupported browsers without touching settings', async () => {
     const env = { ...fakeEnv('default'), supported: false };
-    const { notifier, store, clickBegin } = setup(env as ReturnType<typeof fakeEnv>);
+    const { notifier, settings, clickBegin } = setup(env);
     clickBegin();
     await expect(notifier.requestPermissionFromGesture()).resolves.toBe('unsupported');
-    expect(store.get().settings.notifications).toBe('unasked');
+    expect(settings.notifications).toBe('unasked');
   });
 });
 
-describe('createNotifier · completion', () => {
-  it('notifies on completion when the page is not attended', async () => {
+describe('createNotifier · session moments', () => {
+  it('break, back to focus and bloom, while the page is not attended', () => {
     const env = fakeEnv('granted');
-    const { clickBegin, complete, notifier, clock } = setup(env);
-    const session = clickBegin()!;
-    expect(complete()).toBe(true);
-    expect(notifier.lastDecision()).toBe('notify');
-    expect(env.shown).toEqual([
-      {
-        title: NOTIFICATION_TITLE,
-        body: NOTIFICATION_BODY,
-        tag: NOTIFICATION_TAG,
-        icon: 'data:image/png;base64,AAAA',
-        timestamp: clock.now(),
-        data: { url: 'https://example.test/Ssprout/?dev', sessionId: session.id },
-      },
+    const { controller, bus, notifier, clock, clickBegin } = setup(env);
+    clickBegin();
+    controller.set(status('break', { blockIndex: 1, block: { kind: 'break', minutes: 10 } }, { speciesId: 'japanese-iris' }));
+    bus.emit('session:break', { sessionId: 'session-test' });
+    controller.set(status('focus', { blockIndex: 2 }, { speciesId: 'japanese-iris' }));
+    bus.emit('session:focus', { sessionId: 'session-test' });
+    controller.set(status()); // the session is gone by the time completion is announced
+    bus.emit('session:complete', { sessionId: 'session-test' });
+    expect(env.shown.map((n) => n.title)).toEqual([
+      'Time for a break — your Japanese Iris is thirsty.',
+      'Back to focus — Biology ch. 4.',
+      'Your session is complete',
     ]);
-    expect(NOTIFICATION_TITLE).toBe('Your session is complete');
-    expect(NOTIFICATION_BODY).toBe('Something is ready to bloom in your garden.');
+    expect(env.shown[2]).toEqual({
+      title: 'Your session is complete',
+      body: 'Your Japanese Iris has bloomed — return to your garden.',
+      tag: NOTIFICATION_TAG,
+      icon: 'icon:complete',
+      timestamp: clock.now(),
+      data: { url: 'https://example.test/Ssprout/?dev', sessionId: 'session-test', kind: 'complete' },
+    });
+    expect(new Set(env.shown.map((n) => n.tag)).size).toBe(1);
+    expect(notifier.lastDecision()).toEqual({ kind: 'complete', decision: 'notify' });
   });
 
   it('does not notify while the page is visible and focused', () => {
     const env = fakeEnv('granted');
     env.setAttended(true);
-    const { clickBegin, complete, notifier } = setup(env);
+    const { bus, notifier, clickBegin } = setup(env);
     clickBegin();
-    complete();
-    expect(notifier.lastDecision()).toBe('attended');
+    bus.emit('session:complete', {});
+    expect(notifier.lastDecision()).toEqual({ kind: 'complete', decision: 'attended' });
     expect(env.shown).toEqual([]);
+  });
+
+  it('the same block is announced once', () => {
+    const env = fakeEnv('granted');
+    const { controller, bus, clickBegin } = setup(env);
+    clickBegin();
+    controller.set(status('break', { blockIndex: 1 }));
+    bus.emit('session:break', {});
+    bus.emit('session:break', {});
+    bus.emit('session:complete', { sessionId: 'x' });
+    bus.emit('session:complete', { sessionId: 'x' });
+    expect(env.shown).toHaveLength(2);
   });
 
   it('respects denied permission and an in-app opt-out', () => {
     const env = fakeEnv('denied');
     const a = setup(env);
     a.clickBegin();
-    a.complete();
-    expect(a.notifier.lastDecision()).toBe('not-granted');
+    a.bus.emit('session:complete', {});
+    expect(a.notifier.lastDecision()?.decision).toBe('not-granted');
 
     const granted = fakeEnv('granted');
-    const b = setup(granted);
-    b.controller.updateSettings({ notifications: 'denied' });
+    const b = setup(granted, 'denied');
     b.clickBegin();
-    b.complete();
-    expect(b.notifier.lastDecision()).toBe('opted-out');
+    b.bus.emit('session:complete', {});
+    expect(b.notifier.lastDecision()?.decision).toBe('opted-out');
     expect(granted.shown).toEqual([]);
   });
 
   it('stops listening after dispose', () => {
     const env = fakeEnv('granted');
-    const { clickBegin, complete, notifier } = setup(env);
+    const { bus, notifier, clickBegin } = setup(env);
     notifier.dispose();
     clickBegin();
-    complete();
+    bus.emit('session:complete', {});
     expect(env.shown).toEqual([]);
+    expect(bus.count()).toBe(0);
   });
 
   it('show failures are swallowed', async () => {
     const env = fakeEnv('granted');
     env.show = vi.fn(async () => 'failed' as const);
-    const { clickBegin, complete } = setup(env);
+    const { bus, clickBegin } = setup(env);
     clickBegin();
-    expect(() => complete()).not.toThrow();
+    expect(() => bus.emit('session:complete', {})).not.toThrow();
     await flush();
     expect(env.show).toHaveBeenCalledTimes(1);
   });

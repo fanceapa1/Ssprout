@@ -1,18 +1,19 @@
 import type { Clock } from '../core/clock';
-import type { SessionController } from '../core/controller';
-import type { EventBus } from '../core/events';
 import type { Settings, Store } from '../core/state';
+import { payloadSessionId, type WidgetBus, type WidgetController, type WidgetSession } from './contract';
 
 /**
- * Completion notifications (SPEC §6). Policy (ADR 0091, docs/systems/widget.md):
+ * Session notifications (SPEC §2, §6): a break starts, the next focus block starts, the plant has
+ * bloomed. Policy (ADR 0091, docs/systems/widget.md):
  * - Permission is asked once, at the first `session:start` (the bus event is emitted
  *   synchronously inside `controller.start()`, so a Begin click is still the active user
  *   gesture). `requestPermissionFromGesture()` is also exported for the UI to call directly.
  * - The answer is stored with `controller.updateSettings({ notifications })`; a dismissed prompt
- *   leaves `unasked` and is not repeated during this page's lifetime.
- * - On `session:complete` we notify only when permission is granted, the user has not opted
- *   out, the page is not visible-and-focused (the in-page reward flow handles that case) and
- *   this session has not been notified yet. One tag, so a newer notification replaces an old one.
+ *   leaves `unasked` and is not repeated during this page's lifetime. An in-app `denied` is an
+ *   opt-out that a browser grant alone does not undo.
+ * - We notify only when permission is granted, the user has not opted out, the page is not
+ *   visible-and-focused (the in-page flow shows it) and this moment (session × block × kind)
+ *   has not been notified yet. One tag with `renotify`, so each new message replaces the last.
  * - Delivered through the service worker registration when available (works in more places,
  *   e.g. Android Chrome, and the SW focuses the app on click), else `new Notification`.
  */
@@ -20,9 +21,21 @@ import type { Settings, Store } from '../core/state';
 export type PermissionState = 'default' | 'granted' | 'denied';
 export type PermissionResult = PermissionState | 'unsupported';
 
-export const NOTIFICATION_TITLE = 'Your session is complete';
-export const NOTIFICATION_BODY = 'Something is ready to bloom in your garden.';
-export const NOTIFICATION_TAG = 'study-sprout-session-complete';
+export const NOTIFICATION_TAG = 'study-sprout-session';
+
+export type NotifyKind = 'break' | 'focus' | 'complete';
+
+/** The text of each notification. `plant` is the species name, `task` the session's task. */
+export function notificationText(kind: NotifyKind, plant: string, task: string): { title: string; body: string } {
+  switch (kind) {
+    case 'break':
+      return { title: `Time for a break — your ${plant} is thirsty.`, body: 'Tap the watering can when you are ready.' };
+    case 'focus':
+      return { title: `Back to focus — ${task}.`, body: `Your ${plant} is growing again.` };
+    default:
+      return { title: 'Your session is complete', body: `Your ${plant} has bloomed — return to your garden.` };
+  }
+}
 
 export interface NotificationPayload {
   title: string;
@@ -31,7 +44,7 @@ export interface NotificationPayload {
   icon?: string;
   timestamp?: number;
   /** read by the service worker's notificationclick handler */
-  data: { url: string; sessionId: string };
+  data: { url: string; sessionId: string; kind: NotifyKind };
 }
 
 /** Everything browser-specific, injectable for tests. */
@@ -40,7 +53,7 @@ export interface NotificationEnv {
   permission(): PermissionState;
   /** Must be called synchronously inside a user gesture. */
   request(): Promise<PermissionState>;
-  /** The page is visible and focused: the in-page flow will show the completion. */
+  /** The page is visible and focused: the in-page flow will show the moment. */
   attended(): boolean;
   /** Prepare delivery early (register the service worker). Safe to call repeatedly. */
   prepare(): void;
@@ -48,12 +61,12 @@ export interface NotificationEnv {
   /** The app URL a click should return to. */
   appUrl(): string;
   /** Optional painted icon for the notification. */
-  icon?(): string | undefined;
+  icon?(kind: NotifyKind): string | undefined;
 }
 
 export type NotifyDecision = 'notify' | 'unsupported' | 'not-granted' | 'opted-out' | 'attended' | 'duplicate';
 
-/** Pure decision: should this completion produce a system notification? */
+/** Pure decision: should this moment produce a system notification? */
 export function decideNotification(input: {
   supported: boolean;
   permission: PermissionState;
@@ -91,25 +104,33 @@ export function shouldAsk(setting: Settings['notifications'], permission: Permis
 export interface Notifier {
   /** Ask for permission (call inside a click handler). Resolves with the browser's answer. */
   requestPermissionFromGesture(): Promise<PermissionResult>;
-  /** Last decision taken on completion (dev/tests). */
-  lastDecision(): NotifyDecision | null;
+  /** Last decision taken (dev/tests). */
+  lastDecision(): { kind: NotifyKind; decision: NotifyDecision } | null;
   dispose(): void;
 }
 
 export interface NotifierDeps {
-  controller: Pick<SessionController, 'updateSettings'>;
+  controller: Pick<WidgetController, 'updateSettings' | 'status' | 'onTick'>;
   store: Pick<Store, 'get'>;
-  bus: Pick<EventBus, 'on'>;
+  bus: WidgetBus;
   clock: Clock;
   env: NotificationEnv;
+  /** display name of a species (default: "plant") */
+  speciesName?: (id: string) => string | undefined;
 }
 
-export function createNotifier({ controller, store, bus, clock, env }: NotifierDeps): Notifier {
+export function createNotifier({ controller, store, bus, clock, env, speciesName }: NotifierDeps): Notifier {
   let asked = false;
   let pending: Promise<PermissionResult> | null = null;
-  let last: NotifyDecision | null = null;
+  let last: { kind: NotifyKind; decision: NotifyDecision } | null = null;
   const notified = new Set<string>();
   let disposed = false;
+  /** the latest session seen (a completed session is gone from the status by the time we hear) */
+  let lastSession: WidgetSession | null = controller.status().session;
+  const remember = (): void => {
+    const s = controller.status().session;
+    if (s) lastSession = s;
+  };
 
   const permission = (): PermissionResult => (env.supported ? env.permission() : 'unsupported');
 
@@ -151,32 +172,46 @@ export function createNotifier({ controller, store, bus, clock, env }: NotifierD
     return pending;
   };
 
-  const offStart = bus.on('session:start', () => {
-    const p = permission();
-    if (shouldAsk(store.get().settings.notifications, p, asked)) void requestPermissionFromGesture();
-    else sync(p);
-  });
-
-  const offComplete = bus.on('session:complete', ({ sessionId }) => {
+  const notify = (kind: NotifyKind, payload: unknown): void => {
+    remember();
+    const st = controller.status();
+    const s = kind === 'complete' ? lastSession : (st.session ?? lastSession);
+    const sessionId = payloadSessionId(payload) ?? s?.id ?? 'session';
+    const key = kind === 'complete' ? `${sessionId}:complete` : `${sessionId}:${kind}:${st.timeline?.blockIndex ?? -1}`;
     const decision = decideNotification({
       supported: env.supported,
       permission: env.supported ? env.permission() : 'default',
       setting: store.get().settings.notifications,
       attended: env.attended(),
-      alreadyNotified: notified.has(sessionId),
+      alreadyNotified: notified.has(key),
     });
-    last = decision;
+    last = { kind, decision };
     if (decision !== 'notify') return;
-    notified.add(sessionId);
+    notified.add(key);
+    const plant = (s && speciesName?.(s.speciesId)) || 'plant';
+    const { title, body } = notificationText(kind, plant, s?.taskName || 'your study');
     void env.show({
-      title: NOTIFICATION_TITLE,
-      body: NOTIFICATION_BODY,
+      title,
+      body,
       tag: NOTIFICATION_TAG,
-      icon: env.icon?.(),
+      icon: env.icon?.(kind),
       timestamp: clock.now(),
-      data: { url: env.appUrl(), sessionId },
+      data: { url: env.appUrl(), sessionId, kind },
     });
-  });
+  };
+
+  const offs = [
+    controller.onTick(remember),
+    bus.on('session:start', () => {
+      remember();
+      const p = permission();
+      if (shouldAsk(store.get().settings.notifications, p, asked)) void requestPermissionFromGesture();
+      else sync(p);
+    }),
+    bus.on('session:break', (payload) => notify('break', payload)),
+    bus.on('session:focus', (payload) => notify('focus', payload)),
+    bus.on('session:complete', (payload) => notify('complete', payload)),
+  ];
 
   // the browser may already know the answer (granted earlier, or blocked in site settings)
   sync(permission());
@@ -186,8 +221,7 @@ export function createNotifier({ controller, store, bus, clock, env }: NotifierD
     lastDecision: () => last,
     dispose() {
       disposed = true;
-      offStart();
-      offComplete();
+      for (const off of offs) off();
     },
   };
 }
@@ -203,7 +237,7 @@ export interface BrowserEnvOptions {
   scope?: string;
   /** how long to wait for the worker to activate before falling back (ms) */
   readyTimeoutMs?: number;
-  icon?: () => string | undefined;
+  icon?: (kind: NotifyKind) => string | undefined;
 }
 
 const baseUrl = (): string => (typeof import.meta.env?.BASE_URL === 'string' ? import.meta.env.BASE_URL : '/');
@@ -244,10 +278,19 @@ export function createBrowserNotificationEnv(win: Window = window, opts: Browser
     }
   };
 
+  const options = (n: NotificationPayload): NotificationOptions & { timestamp?: number; renotify?: boolean } => ({
+    body: n.body,
+    tag: n.tag,
+    icon: n.icon,
+    data: n.data,
+    timestamp: n.timestamp,
+    renotify: true,
+  });
+
   const pageNotification = (n: NotificationPayload): boolean => {
     if (!supported) return false;
     try {
-      const note = new N(n.title, { body: n.body, tag: n.tag, icon: n.icon, data: n.data });
+      const note = new N(n.title, options(n));
       note.onclick = () => {
         win.focus();
         note.close();
@@ -275,14 +318,7 @@ export function createBrowserNotificationEnv(win: Window = window, opts: Browser
       try {
         const reg = await activeRegistration();
         if (reg) {
-          const options: NotificationOptions & { timestamp?: number; renotify?: boolean } = {
-            body: n.body,
-            tag: n.tag,
-            icon: n.icon,
-            data: n.data,
-            timestamp: n.timestamp,
-          };
-          await reg.showNotification(n.title, options);
+          await reg.showNotification(n.title, options(n));
           return 'service-worker';
         }
       } catch (err) {
