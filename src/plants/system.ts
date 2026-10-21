@@ -437,7 +437,8 @@ export function createPlantSystem(opts: PlantSystemOptions): PlantSystem {
           const pose = swayPose(g.inst, t);
           if (u !== null && watering?.start != null) {
             const rig = wateringRig(g, imgs.a ?? imgs.b);
-            drawWetSoil(ctx, rig, gardenWetness(t - watering.start) * 0.85);
+            // on the pond the drops ring the water instead of darkening soil
+            if (g.inst.slot.habitat !== 'water') drawWetSoil(ctx, rig, gardenWetness(t - watering.start) * 0.85);
             if (u < 1) {
               const lift = wateringTimeline(u).lift;
               pose.scaleY = 1 + LIFT_SCALE * lift;
