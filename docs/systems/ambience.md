@@ -114,7 +114,10 @@ npm run shots -- --name night-rain --eval "sprout.setTime('night'); sprout.start
 
 ## Performance
 Headless Chromium, 1440×900: rain (132 strokes + ripples) ≈ 0.35 ms/frame, sun ≈ 0.14, mist ≈ 0.06
-(update + draw command recording); the lighting blit is one full-frame `drawImage`. Budget 1.5 ms is
+(update + draw command recording); the lighting blit is one full-frame `drawImage` with
+`imageSmoothingQuality = 'low'` (bilinear — `'high'` made each blit dramatically slower on software
+GPUs and is invisible on a soft wash). Sprites and the lighting noise field are built once per
+scene + seed and shared between engines (the studio runs several). Budget 1.5 ms is
 asserted in `tests/e2e/ambience.spec.ts`. Sprites are painted once per scene (~100 ms total).
 
 ## Tests

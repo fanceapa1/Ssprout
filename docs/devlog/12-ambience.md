@@ -10,8 +10,10 @@
   start/end crossfade over 4 s. Reduced motion: still strokes, no motes, lighting unchanged.
 - Registered in `main.ts` with one import + one line (`addAmbience`). Dev: `setTime`, `setWeather`,
   `settleAmbience`, `ambience()`.
-- Studio: three sections over a painted test garden (each weather, a 60 s session loop, paused,
-  reduced motion, motes, the wind field, every keyframe, a 48 s day cycle).
+- Studio: three sections over a painted test garden (each weather, a 60 s session loop, a strip of
+  stills for breaks / paused / reduced motion, motes, the wind field, a keyframe strip, a lantern
+  close-up, a 48 s day cycle). Stills share canvases: the studio page is heavy in headless Chromium,
+  and a `'high'` smoothing-quality blit had slowed it from ~3 s to ~30 s (now bilinear).
 - Tests: 56 unit tests (wind, envelopes, keyframes, motes/sim, lighting wash); e2e
   `tests/e2e/ambience.spec.ts` (previews, session weather, night, pause/end, setTime parsing,
   frame budget, reduced motion).
