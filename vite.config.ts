@@ -27,6 +27,9 @@ export default defineConfig({
   test: {
     include: ['src/**/*.test.ts'],
     environment: 'node',
+    // The fs module cache does not invalidate import.meta.glob results when new files are
+    // added (e.g. a new species), which made the registry miss species (ADR 0004).
+    fsModuleCache: false,
     // DOM tests opt in per file with: // @vitest-environment jsdom
   },
 });
