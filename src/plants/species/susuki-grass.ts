@@ -46,7 +46,7 @@ const RUSSET = mix(PIGMENTS.sakura, PIGMENTS.wood, 0.55);
 export function planSusukiGrass(rng: Rng): SusukiPlan {
   const wind = rng.chance(0.5) ? 1 : -1;
   const green = jitter(mix(PIGMENTS.sage, PIGMENTS.sap, 0.4), rng, 0.03);
-  const n = rng.int(14, 20);
+  const n = rng.int(13, 18);
   const blades: Blade[] = [];
   for (let i = 0; i < n; i++) {
     const u = i / (n - 1) - 0.5;
@@ -97,7 +97,7 @@ export function planSusukiGrass(rng: Rng): SusukiPlan {
 }
 
 /** A blade with a pale midrib bled in wet-in-wet; it lengthens from the base and arches as it grows. */
-function drawBlade(p: Painter, rng: Rng, b: Blade, g: number) {
+function drawBlade(p: Painter, rng: Rng, b: Blade, g: number, rib = true) {
   const k = ease(g, b.window[0], b.window[1]);
   if (!visible(k)) return;
   const length = b.length * easeOut(k);
@@ -108,8 +108,8 @@ function drawBlade(p: Painter, rng: Rng, b: Blade, g: number) {
   const tone = b.autumn ? mix(b.tone, PIGMENTS.woodLight, b.autumn * ease(g, 0.6, 1)) : b.tone;
   const op = 0.82 * smooth(k * 8);
   p.stroke(pts, { rng: rng.fork('blade'), pigment: tone, width: b.width, taper: [0.03, 0.85], pressure: [1, 0.95, 0.7], wobble: 0.15, wetness: 0.45, opacity: op, edge: 0.5 });
-  // the pale midrib, lifted back toward the paper
-  p.stroke(subPath(pts, 0.8), { rng: rng.fork('rib'), pigment: lighten(tone, 0.6), width: b.width * 0.22, taper: [0.1, 0.7], wobble: 0.1, wetness: 0.3, opacity: op * 0.5, blend: 'source-over', edge: 0.05 });
+  // the pale midrib, lifted back toward the paper (front blades only: it is lost behind)
+  if (rib) p.stroke(subPath(pts, 0.8), { rng: rng.fork('rib'), pigment: lighten(tone, 0.6), width: b.width * 0.22, taper: [0.1, 0.7], wobble: 0.1, wetness: 0.3, opacity: op * 0.5, blend: 'source-over', edge: 0.05 });
 }
 
 function drawPlume(p: Painter, rng: Rng, pl: Plume, plan: SusukiPlan, g: number) {
@@ -183,7 +183,7 @@ const susukiGrass: SpeciesDef = {
       seedMound(p, r, g, { rx: 9 });
       const back = plan.blades.filter((_, i) => i % 2 === 0);
       const front = plan.blades.filter((_, i) => i % 2 === 1);
-      back.forEach((b, i) => drawBlade(p, r.fork(`bb-${i}`), b, g));
+      back.forEach((b, i) => drawBlade(p, r.fork(`bb-${i}`), b, g, false));
       plan.plumes.forEach((pl, i) => drawPlume(p, r.fork(`plume-${i}`), pl, plan, g));
       front.forEach((b, i) => drawBlade(p, r.fork(`fb-${i}`), b, g));
 
