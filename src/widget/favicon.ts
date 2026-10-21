@@ -1,10 +1,11 @@
-import type { SessionStatus } from '../core/controller';
 import { createRng } from '../core/rng';
+import type { WidgetPhase, WidgetTimeline } from './contract';
 import { brushStroke, clamp01, PIGMENT, wash, wobble, type Ctx, type P } from './brush';
 
 /**
  * Painted favicon (SPEC §6 fallback): a brush ring that fills clockwise with session progress in
- * muted green, warm grey while paused, closed with a vermilion dot once the session is complete.
+ * muted green (pond celadon during breaks, warm grey while paused), closed with a vermilion dot
+ * once a session has bloomed while the user was away.
  * The model is pure and quantised so the icon is redrawn only when it visibly changes.
  */
 
@@ -12,28 +13,28 @@ export const FAVICON_SIZE = 32;
 /** Progress resolution of the ring (one redraw per step at most). */
 export const FAVICON_STEPS = 48;
 
-export type FaviconModel =
-  | { kind: 'none' }
-  | { kind: 'progress'; step: number; paused: boolean }
-  | { kind: 'complete' };
+export type RingTone = 'focus' | 'break' | 'paused';
 
-export function faviconModel(status: Pick<SessionStatus, 'phase' | 'progress'>): FaviconModel {
-  switch (status.phase) {
-    case 'running':
-    case 'paused': {
-      const p = Number.isFinite(status.progress) ? clamp01(status.progress) : 0;
-      return { kind: 'progress', step: Math.floor(p * FAVICON_STEPS), paused: status.phase === 'paused' };
-    }
-    case 'reward':
-      return { kind: 'complete' };
-    default:
-      return { kind: 'none' };
-  }
+export type FaviconModel = { kind: 'none' } | { kind: 'progress'; step: number; tone: RingTone } | { kind: 'complete' };
+
+export interface FaviconInput {
+  phase: WidgetPhase;
+  timeline: Pick<WidgetTimeline, 'progress'> | null;
+  /** an unseen completion */
+  bloomed?: boolean;
+}
+
+/** Ring = whole-session progress; tone = focus (olive), break (pond celadon) or paused (stone). */
+export function faviconModel(input: FaviconInput): FaviconModel {
+  if (input.phase === 'idle') return input.bloomed ? { kind: 'complete' } : { kind: 'none' };
+  const raw = input.timeline?.progress ?? 0;
+  const p = Number.isFinite(raw) ? clamp01(raw) : 0;
+  return { kind: 'progress', step: Math.floor(p * FAVICON_STEPS), tone: input.phase };
 }
 
 /** Stable identity of a model (redraw only when it changes). */
 export function faviconKey(m: FaviconModel): string {
-  if (m.kind === 'progress') return `p${m.step}${m.paused ? 'z' : ''}`;
+  if (m.kind === 'progress') return `p${m.step}${m.tone[0]}`;
   return m.kind;
 }
 
@@ -43,6 +44,8 @@ export function ringFraction(m: FaviconModel): number {
   if (m.kind === 'progress') return clamp01(m.step / FAVICON_STEPS);
   return 0;
 }
+
+export const RING_PIGMENT: Record<RingTone, string> = { focus: PIGMENT.olive, break: '#6f9690', paused: PIGMENT.stone };
 
 const RING_SEED = 'favicon-ring';
 
@@ -81,7 +84,7 @@ export function drawFavicon(ctx: Ctx, m: FaviconModel, size = FAVICON_SIZE): voi
 
   const frac = ringFraction(m);
   if (frac > 0) {
-    const color = m.kind === 'progress' && m.paused ? PIGMENT.stone : PIGMENT.olive;
+    const color = m.kind === 'progress' ? RING_PIGMENT[m.tone] : PIGMENT.olive;
     const steps = Math.max(3, Math.round(48 * frac));
     const pts = arc(0, frac, steps);
     // the brush loads at the start, presses in the middle, lifts at the end

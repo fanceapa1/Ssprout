@@ -1,4 +1,4 @@
-import type { SessionController } from '../core/controller';
+import type { WidgetBus, WidgetController } from './contract';
 import { faviconDataUrl, faviconKey, faviconModel, type FaviconModel } from './favicon';
 import { titleFor } from './title';
 
@@ -6,7 +6,9 @@ import { titleFor } from './title';
  * Always-on fallback surfaces (every browser): the tab-title countdown and the painted favicon.
  * Updates on every controller tick (1 Hz while a session exists) and on store changes, writing
  * to the document only when the text / quantised icon actually changes — so the tab is touched
- * at most once per tick. `dispose()` restores the original title and icon.
+ * at most once per tick. A session that completes while the user is away leaves
+ * `Bloomed · Study Sprout` and a vermilion-dot icon until they come back (focus / visible).
+ * `dispose()` restores the original title and icon.
  */
 
 export interface TabSurfaces {
@@ -14,14 +16,19 @@ export interface TabSurfaces {
   update(): void;
   /** The favicon href currently applied by us (null = original icon). */
   faviconHref(): string | null;
+  /** A completion the user has not seen yet. */
+  bloomed(): boolean;
   dispose(): void;
 }
 
 export interface TabSurfacesDeps {
-  controller: Pick<SessionController, 'status' | 'onTick'>;
+  controller: Pick<WidgetController, 'status' | 'onTick'>;
   /** anything with a store-like `subscribe` (the app Store) */
   store: { subscribe(fn: () => void): () => void };
-  doc?: Document;
+  bus: WidgetBus;
+  /** the user is looking at the page (visible and focused) */
+  attended: () => boolean;
+  win?: Window;
   /** Plain title (default: the document title at creation). */
   baseTitle?: string;
   /** Renders a favicon model to an href (default: 32×32 canvas → PNG data URL). */
@@ -29,7 +36,8 @@ export interface TabSurfacesDeps {
 }
 
 export function createTabSurfaces(deps: TabSurfacesDeps): TabSurfaces {
-  const doc = deps.doc ?? document;
+  const win = deps.win ?? window;
+  const doc = win.document;
   const baseTitle = deps.baseTitle ?? (doc.title || 'Study Sprout');
   const renderIcon = deps.renderIcon ?? ((m: FaviconModel) => faviconDataUrl(doc, m));
 
@@ -43,6 +51,7 @@ export function createTabSurfaces(deps: TabSurfacesDeps): TabSurfaces {
   let appliedKey = 'none';
   let appliedHref: string | null = null;
   const iconCache = new Map<string, string>();
+  let bloomed = false;
 
   const setIcon = (href: string | null): void => {
     if (href === null) {
@@ -71,10 +80,11 @@ export function createTabSurfaces(deps: TabSurfacesDeps): TabSurfaces {
   const update = (): void => {
     if (disposed) return;
     const st = deps.controller.status();
-    const title = titleFor(st, baseTitle);
+    const input = { phase: st.phase, timeline: st.timeline, bloomed };
+    const title = titleFor(input, baseTitle);
     if (doc.title !== title) doc.title = title;
 
-    const model = faviconModel(st);
+    const model = faviconModel(input);
     const key = faviconKey(model);
     if (key === appliedKey) return;
     appliedKey = key;
@@ -91,18 +101,39 @@ export function createTabSurfaces(deps: TabSurfacesDeps): TabSurfaces {
     if (href) setIcon(href);
   };
 
-  const offTick = deps.controller.onTick(update);
-  const offStore = deps.store.subscribe(() => update());
+  const seen = (): void => {
+    if (bloomed && deps.attended()) {
+      bloomed = false;
+      update();
+    }
+  };
+
+  const offs = [
+    deps.controller.onTick(update),
+    deps.store.subscribe(() => update()),
+    deps.bus.on('session:start', () => {
+      bloomed = false;
+      update();
+    }),
+    deps.bus.on('session:complete', () => {
+      bloomed = !deps.attended();
+      update();
+    }),
+  ];
+  win.addEventListener('focus', seen);
+  doc.addEventListener('visibilitychange', seen);
   update();
 
   return {
     update,
     faviconHref: () => appliedHref,
+    bloomed: () => bloomed,
     dispose() {
       if (disposed) return;
       disposed = true;
-      offTick();
-      offStore();
+      for (const off of offs) off();
+      win.removeEventListener('focus', seen);
+      doc.removeEventListener('visibilitychange', seen);
       doc.title = baseTitle;
       setIcon(null);
     },

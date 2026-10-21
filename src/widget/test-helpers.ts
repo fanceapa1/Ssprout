@@ -1,18 +1,117 @@
-import type { SessionStatus } from '../core/controller';
+import type { WidgetBus, WidgetEvent, WidgetSession, WidgetStatus, WidgetTimeline } from './contract';
 
-/** A SessionStatus for tests (defaults: idle). */
-export function status(patch: Partial<SessionStatus> = {}): SessionStatus {
+/** Test builders for the widget's controller contract (not shipped: imported by tests only). */
+
+export function session(patch: Partial<WidgetSession> = {}): WidgetSession {
   return {
-    phase: 'idle',
-    session: null,
-    pendingReward: null,
-    goalMs: 0,
-    elapsedMs: 0,
-    remainingMs: 0,
-    progress: 0,
-    pausedForMs: 0,
-    longPause: false,
+    id: 'session-test',
+    taskName: 'Biology ch. 4',
+    plan: {
+      id: 'two-pomodoros',
+      name: 'Two pomodoros',
+      blocks: [
+        { kind: 'focus', minutes: 25 },
+        { kind: 'break', minutes: 10 },
+        { kind: 'focus', minutes: 25 },
+      ],
+    },
+    speciesId: 'placeholder-sprout',
+    seed: 7,
     ...patch,
+  };
+}
+
+export function timeline(patch: Partial<WidgetTimeline> = {}): WidgetTimeline {
+  return {
+    blockIndex: 0,
+    block: { kind: 'focus', minutes: 25 },
+    blockRemainingMs: 25 * 60_000,
+    totalRemainingMs: 60 * 60_000,
+    growth: 0,
+    progress: 0,
+    watered: false,
+    complete: false,
+    ...patch,
+  };
+}
+
+/** A status (defaults: idle). Phases other than idle get a session and a timeline. */
+export function status(phase: WidgetStatus['phase'] = 'idle', tl: Partial<WidgetTimeline> = {}, s: Partial<WidgetSession> = {}): WidgetStatus {
+  if (phase === 'idle') return { phase, timeline: null, session: null };
+  return { phase, timeline: timeline(tl), session: session(s) };
+}
+
+/** A scriptable controller: set the status, fire ticks, count calls. */
+export function fakeController(initial: WidgetStatus = status()) {
+  let st = initial;
+  const ticks = new Set<() => void>();
+  const calls: string[] = [];
+  const record = (name: string) => () => {
+    calls.push(name);
+    return true;
+  };
+  return {
+    calls,
+    status: () => st,
+    onTick(fn: () => void) {
+      ticks.add(fn);
+      return () => {
+        ticks.delete(fn);
+      };
+    },
+    set(next: WidgetStatus) {
+      st = next;
+    },
+    tick() {
+      for (const fn of [...ticks]) fn();
+    },
+    listeners: () => ticks.size,
+    pause: record('pause'),
+    resume: record('resume'),
+    water: record('water'),
+    skipBreak: record('skipBreak'),
+    setTicker: () => {
+      calls.push('setTicker');
+    },
+    updateSettings: (patch: unknown) => {
+      calls.push(`updateSettings:${JSON.stringify(patch)}`);
+      return true;
+    },
+  };
+}
+
+export function fakeBus() {
+  const handlers = new Map<WidgetEvent, Set<(p: unknown) => void>>();
+  const bus: WidgetBus & { emit(name: WidgetEvent, payload?: unknown): void; count(): number } = {
+    on(name, fn) {
+      let set = handlers.get(name);
+      if (!set) handlers.set(name, (set = new Set()));
+      set.add(fn);
+      return () => {
+        set.delete(fn);
+      };
+    },
+    emit(name, payload = {}) {
+      for (const fn of [...(handlers.get(name) ?? [])]) fn(payload);
+    },
+    count: () => [...handlers.values()].reduce((n, s) => n + s.size, 0),
+  };
+  return bus;
+}
+
+export function fakeStore() {
+  const subs = new Set<() => void>();
+  return {
+    subscribe(fn: () => void) {
+      subs.add(fn);
+      return () => {
+        subs.delete(fn);
+      };
+    },
+    emit() {
+      for (const fn of [...subs]) fn();
+    },
+    listeners: () => subs.size,
   };
 }
 
