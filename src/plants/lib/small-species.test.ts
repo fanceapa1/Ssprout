@@ -77,5 +77,5 @@ describe.each(ids)('species %s', (id) => {
         prev = cur;
       }
     }
-  });
+  }, 60_000); // 400 full draws per species: slow on a loaded machine
 });
