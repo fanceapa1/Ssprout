@@ -1,6 +1,6 @@
 import type { Rng } from '../../core/rng';
 import { PIGMENTS, jitter, lighten, mix, type Painter, type Pigment } from '../../paint';
-import { ease, lerp, smooth, stagger, visible } from '../lib/small-growth';
+import { ease, easeOut, lerp, smooth, stagger, visible } from '../lib/small-growth';
 import { groundShadow, paintPetal, paintStem, petalFlower, plantFrame, seedMound } from '../lib/small-paint';
 import { UP, arc, makeStem, pointAt, stemPoints, type PetalPlan, type StemPlan } from '../lib/small-structure';
 import type { SpeciesDef } from '../types';
@@ -119,7 +119,7 @@ function drawLeaf(p: Painter, rng: Rng, l: CloverLeaf, g: number) {
     petals: l.leaflets,
     view: { tilt: l.tilt, roll: l.roll },
     open: unfold,
-    size: l.size * lerp(0.35, 1, smooth(k)),
+    size: l.size * easeOut(k),
     width: 0.78,
     closedLen: 0.7,
     tone: 0.03,
@@ -136,7 +136,7 @@ function drawHead(p: Painter, rng: Rng, h: CloverHead, g: number) {
   paintStem(p, rng.fork('stalk'), pts, { width: 0.6, opacity: 0.7, ink: 0.3 * budK, inkReach: 0.6 });
   if (!visible(budK)) return;
   const tip = pointAt(pts, 1);
-  const r = h.radius * lerp(0.35, 0.72, budK) * lerp(1, 1.38, openK);
+  const r = h.radius * 0.72 * easeOut(budK) * lerp(1, 1.38, openK);
   const c = { x: tip.x, y: tip.y - r * 0.7 };
   // the ball's core: a pale cream-green wash, cool on its shaded side
   p.wash({ cx: c.x, cy: c.y, rx: r * 0.72, ry: r * 0.68 }, mix(PIGMENTS.sageLight, FLORET, 0.45 + 0.5 * openK), {

@@ -173,7 +173,7 @@ function drawSpray(p: Painter, rng: Rng, s: Spray, plan: ForgetMeNotPlan, g: num
       width: 0.72,
       closedLen: 0.75,
       pigment: colour,
-      inner: open > 0.2 ? lighten(colour, 0.6) : undefined,
+      inner: lighten(colour, 0.6 * open),
       opacity: 0.9,
     });
     if (open > 0.25) {

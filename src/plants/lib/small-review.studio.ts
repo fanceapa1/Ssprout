@@ -3,17 +3,13 @@ import { PIGMENTS, createPainter, mix, paperTexture, type AnyCanvas } from '../.
 import type { StudioEntry, StudioSection } from '../../studio/types';
 import { getSpecies } from '../registry';
 import type { SpeciesDef } from '../types';
+import { SPECIES_A } from './small-species-list';
 
 /**
  * Review boards for the tier 1–2 species: every species at full bloom side by side at the same
  * world scale (do they belong to one painting?), and per-species growth strips (does it grow
  * believably?). Painted on white with the paper multiplied last, like the garden.
  */
-
-export const SPECIES_A = {
-  1: ['violet', 'white-clover', 'forget-me-not', 'wild-strawberry', 'dandelion', 'maidenhair-fern'],
-  2: ['japanese-iris', 'anemone', 'balloon-flower', 'cosmos', 'spider-lily', 'water-lily', 'susuki-grass'],
-} as const;
 
 export const STRIP = [0, 0.06, 0.12, 0.2, 0.3, 0.45, 0.55, 0.65, 0.75, 0.82, 0.9, 1] as const;
 

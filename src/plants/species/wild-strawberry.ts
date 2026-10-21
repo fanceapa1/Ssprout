@@ -1,8 +1,8 @@
 import type { Rng } from '../../core/rng';
 import { PIGMENTS, jitter, lighten, mix, shade, type Painter, type Pigment, type Pt } from '../../paint';
-import { ease, lerp, smooth, stagger, visible } from '../lib/small-growth';
+import { ease, easeOut, lerp, smooth, stagger, visible } from '../lib/small-growth';
 import { bloom, groundShadow, paintLeaf, paintStem, plantFrame, seedMound, toothedLeaf } from '../lib/small-paint';
-import { UP, arc, makeStem, petalPose, petalRing, pointAt, stemPoints, type FlowerView, type PetalPlan, type StemPlan } from '../lib/small-structure';
+import { UP, arc, makeStem, petalPose, petalRing, pointAt, stemPoints, subPath, type FlowerView, type PetalPlan, type StemPlan } from '../lib/small-structure';
 import type { SpeciesDef } from '../types';
 
 /**
@@ -121,7 +121,7 @@ function drawLeaf(p: Painter, rng: Rng, l: Leaf, g: number) {
   const pts = stemPoints(l.stem, lerp(0.12, 1, k) * smooth(k * 3), lerp(0.4, 1, k));
   paintStem(p, rng.fork('stalk'), pts, { width: 0.6, opacity: 0.65, pigment: mix(PIGMENTS.sage, RUNNER, 0.15), ink: 0.25 * k, inkReach: 0.7 });
   const tip = pointAt(pts, 1);
-  leaflets(p, rng.fork('leaflets'), tip, l.leaflets, { tilt: l.tilt, roll: l.roll }, ease(g, lerp(l.window[0], l.window[1], 0.3), l.window[1] + 0.06), l.size * lerp(0.3, 1, smooth(k)), l.tone, 0.25);
+  leaflets(p, rng.fork('leaflets'), tip, l.leaflets, { tilt: l.tilt, roll: l.roll }, ease(g, lerp(l.window[0], l.window[1], 0.3), l.window[1] + 0.06), l.size * easeOut(k), l.tone, 0.25);
 }
 
 /** Three toothed leaflets unfolding from a folded bunch (`open` 0..1). */
@@ -177,11 +177,11 @@ function drawFlower(p: Painter, rng: Rng, f: Flower, g: number) {
 function drawBerry(p: Painter, rng: Rng, b: Berry, g: number) {
   const k = ease(g, b.window[0], b.window[1]);
   if (!visible(k)) return;
-  const pts = stemPoints(b.stem, lerp(0.3, 1, k), lerp(0.2, 1, k));
+  const pts = stemPoints(b.stem, easeOut(k), lerp(0.2, 1, k));
   paintStem(p, rng.fork('stem'), pts, { width: 0.45, opacity: 0.6 });
   const tip = pointAt(pts, 1);
   const ripe = ease(g, b.window[0] + 0.25, 1);
-  const s = b.size * lerp(0.25, 1, k);
+  const s = b.size * easeOut(k);
   const colour = mix(PIGMENTS.sageLight, BERRY, ripe);
   const angle = tip.angle;
   // the berry: a rounded cone hanging from the stalk end, darker on its shaded flank
@@ -206,8 +206,7 @@ function drawRunner(p: Painter, rng: Rng, plan: StrawberryPlan, g: number) {
   const k = ease(g, 0.32, 0.8);
   if (!visible(k)) return;
   const full = arc({ x: 0, y: -1 }, r.to, r.bow, 10);
-  const end = Math.max(1, Math.round(10 * k));
-  const pts = full.slice(0, end + 1).map((q, i) => (i === end ? { x: lerp(full[end - 1]!.x, q.x, (10 * k) % 1 || 1), y: lerp(full[end - 1]!.y, q.y, (10 * k) % 1 || 1) } : q));
+  const pts = subPath(full, k);
   paintStem(p, rng.fork('runner'), pts, { width: 0.45, opacity: 0.6, pigment: RUNNER });
   const leaf = ease(g, 0.62, 0.95);
   if (visible(leaf)) {

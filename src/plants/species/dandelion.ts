@@ -107,7 +107,7 @@ function drawFlowerHead(p: Painter, rng: Rng, h: Head, c: Pt, openK: number, gol
     const a = h.roll + Math.PI + (j - 3) * 0.32;
     p.dabInto(bl, c, PIGMENTS.sage, { rng: rng.fork(`br-${j}`), variant: 'blade', angle: a, length: h.size * 0.55 * lerp(0.5, 1, openK), width: 0.9, pool: 0.3, layers: 2 });
   }
-  bl.dry({ opacity: 0.7, edge: 0.4, edgeWidth: 0.3, sharpness: 0.7, flowScale: 4 });
+  bl.dry({ opacity: 0.7 * smooth(openK / 0.3), edge: 0.4, edgeWidth: 0.3, sharpness: 0.7, flowScale: 4 });
   // three rings of ray florets, each merged wet-in-wet, glazed outer → inner (paler → deeper)
   h.rings.forEach((ring, ri) => {
     const pig = ri === 0 ? lighten(gold, 0.2) : ri === 1 ? gold : mix(gold, PIGMENTS.vermilion, 0.06);
@@ -124,7 +124,7 @@ function drawFlowerHead(p: Painter, rng: Rng, h: Head, c: Pt, openK: number, gol
       const len = h.size * f.len * lerp(0.4, 1, o) * lerp(0.5, Math.max(0.3, reach), o);
       p.dabInto(L, c, jitter(pig, rng.fork(`fj-${ri}-${j}`), 0.03), { rng: rng.fork(`f-${ri}-${j}`), variant: 'petal', angle, length: len, width: Math.max(0.5, h.size * 0.21 * f.len), pool: 0.25, basePool: 0.25, layers: 2 });
     });
-    L.dry({ opacity: 0.86, edge: 0.38, edgeWidth: 0.3, sharpness: 0.75, centreLift: 0.2, granulation: 0.06, flow: 0.35, flowScale: h.size, darken: 0.3 });
+    L.dry({ opacity: 0.86 * smooth(openK / 0.35), edge: 0.38, edgeWidth: 0.3, sharpness: 0.75, centreLift: 0.2, granulation: 0.06, flow: 0.35, flowScale: h.size, darken: 0.3 });
   });
 }
 
@@ -216,7 +216,7 @@ const dandelion: SpeciesDef = {
         const k = ease(g, l.window[0], l.window[1]);
         if (!visible(k)) return;
         const e = smooth(k);
-        runcinateLeaf(p, r.fork(`leaf-${i}`), { angle: lerpTo(UP, l.angle, e), length: l.length * lerp(0.15, 1, e), width: l.width * lerp(0.3, 1, e), curve: l.curve * e }, l, e);
+        runcinateLeaf(p, r.fork(`leaf-${i}`), { angle: lerpTo(UP, l.angle, e), length: l.length * e, width: l.width * lerp(0.3, 1, e), curve: l.curve * e }, l, e);
       });
       plan.heads.forEach((h, i) => drawHead(p, r.fork(`head-${i}`), h, plan, g));
     } finally {

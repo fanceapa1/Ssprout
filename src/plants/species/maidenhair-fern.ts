@@ -93,7 +93,7 @@ function drawFrond(p: Painter, rng: Rng, f: Frond, g: number) {
   if (!visible(e)) return;
   // a fiddlehead: the tip is curled tight while short and unrolls as the frond lengthens
   const curl = lerp(6, 1, smooth(e));
-  const tipPts = stemPoints({ ...f.stem, bends: f.stem.bends.map((b, i) => b * (i > f.stem.bends.length * 0.65 ? curl : 1)) }, lerp(0.1, 1, e), 1);
+  const tipPts = stemPoints({ ...f.stem, bends: f.stem.bends.map((b, i) => b * (i > f.stem.bends.length * 0.65 ? curl : 1)) }, e, 1);
   p.inkLine(tipPts, { rng: rng.fork('stipe'), width: 0.42, pigment: STIPE, opacity: 0.8, breaks: 0.05, wobble: 0.15, pressureVar: 0.25, taper: [0.02, 0.5], pressure: [1.1, 0.8, 0.5] });
   const colour = f.young ? mix(f.tone, BRONZE, 0.35 * (1 - 0.4 * ease(g, 0.8, 1))) : f.tone;
   f.pinnae.forEach((pn, j) => {
