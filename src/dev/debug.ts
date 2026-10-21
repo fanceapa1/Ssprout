@@ -40,7 +40,8 @@ export interface DebugDeps {
 }
 
 export function installDebug({ store, renderer, clock }: DebugDeps): SproutDebug {
-  const api: SproutDebug = {
+  // Typed as the base methods only: augmented methods are added later via extendDebug.
+  const api = {
     state: () => store.get(),
     ready: () => renderer.whenReady(),
     async freeze() {
@@ -50,7 +51,7 @@ export function installDebug({ store, renderer, clock }: DebugDeps): SproutDebug
     unfreeze: () => renderer.unfreeze(),
     setSpeed: (n) => clock.setSpeed(n),
     now: () => clock.now(),
-  };
+  } satisfies Partial<SproutDebug> as SproutDebug;
   window.sprout = api;
   return api;
 }
