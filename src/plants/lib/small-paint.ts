@@ -408,15 +408,77 @@ export function paintBud(
     { pigment: body, inner: green, innerReach: 0.45, opacity: (o.opacity ?? 0.85) * lerp(0.6, 1, k), white: o.white && o.colour > 0.5 },
   );
   const n = o.sepals ?? 2;
+  const sl = len * (o.sepalLen ?? 0.45);
+  if (n > 0 && sl > 0.4) {
+    // sepals merge in one wet layer so where they overlap they don't knot up darker
+    const L = p.layer({ x: at.x - sl * 1.3, y: at.y - sl * 1.3, w: sl * 2.6, h: sl * 2.6 });
+    for (let i = 0; i < n; i++) {
+      const spread = n === 1 ? 0 : (i / (n - 1) - 0.5) * 1.1;
+      p.dabInto(L, at, green, { rng: rng.fork(`sepal-${i}`), variant: 'leaf', angle: o.angle + spread, length: sl, width: wid * 0.42, curve: -spread * 0.4, pool: 0.3, basePool: 0.1, layers: 3 });
+    }
+    L.dry({ opacity: 0.7 * lerp(0.6, 1, k) * ((o.opacity ?? 0.85) / 0.85), edge: 0.45, edgeWidth: Math.max(0.2, wid * 0.08), sharpness: 0.7, centreLift: 0.2, granulation: 0.05, flow: 0.3, flowScale: Math.max(2, sl) });
+  }
+}
+
+/**
+ * A toothed leaf (strawberry, balloon flower, anemone): one wet layer holding the blade dab plus
+ * small forward-pointing tooth dabs along both margins, so the silhouette is serrated but the
+ * leaf dries as a single wash; a darker band down the midrib bleeds in wet-in-wet.
+ */
+export function toothedLeaf(
+  p: Painter,
+  rng: Rng,
+  at: Pt,
+  pose: { angle: number; length: number; width: number; curve?: number },
+  style: { pigment: Pigment; teeth?: number; toothSize?: number; opacity?: number; vein?: number; midrib?: Pigment | null },
+): void {
+  const { angle, length, width } = pose;
+  if (length < 0.6 || width < 0.3) return;
+  const curve = pose.curve ?? 0;
+  const r = length * 1.2 + width;
+  const L = p.layer({ x: at.x - r, y: at.y - r, w: r * 2, h: r * 2 });
+  const side = shadowSide(angle);
+  p.dabInto(L, at, style.pigment, { rng: rng.fork('blade'), variant: 'leaf', angle, length, width, curve, asym: 0, pool: 0.5, poolSide: side, basePool: 0.3, layers: 4 });
+  const n = style.teeth ?? 5;
+  const axis = dabAxis(at, angle, length, curve, 24);
+  const ts = style.toothSize ?? 1;
   for (let i = 0; i < n; i++) {
-    const spread = n === 1 ? 0 : (i / (n - 1) - 0.5) * 1.1;
-    paintLeaf(
-      p,
-      rng.fork(`sepal-${i}`),
-      at,
-      { angle: o.angle + spread, length: len * (o.sepalLen ?? 0.45), width: wid * 0.45, k: 1, curve: -spread * 0.4 },
-      { pigment: green, shadow: null, opacity: 0.8 },
-    );
+    const t = 0.28 + (0.58 * (i + 0.5)) / n;
+    const q = axis[Math.round(t * 24)]!;
+    const q2 = axis[Math.min(24, Math.round(t * 24) + 1)]!;
+    const ta = Math.atan2(q2.y - q.y, q2.x - q.x);
+    const hw = width * 0.5 * Math.sin(Math.PI * t ** 0.76) ** 0.85;
+    for (const sgn of [-1, 1]) {
+      const nx = -Math.sin(ta) * sgn;
+      const ny = Math.cos(ta) * sgn;
+      const tl = Math.min(length * 0.13, width * 0.32) * ts * (1 - t * 0.4);
+      p.dabInto(L, { x: q.x + nx * hw * 0.62, y: q.y + ny * hw * 0.62 }, style.pigment, {
+        rng: rng.fork(`t-${i}-${sgn}`),
+        variant: 'leaf',
+        angle: ta + sgn * 0.85,
+        length: tl,
+        width: tl * 0.75,
+        pool: 0,
+        basePool: 0,
+        layers: 2,
+      });
+    }
+  }
+  if (style.midrib !== null) {
+    p.dabInto(L, at, style.midrib ?? shade(style.pigment, 0.3), { rng: rng.fork('mid'), variant: 'blade', angle, length: length * 0.85, width: width * 0.16, curve, pool: 0, basePool: 0.3, layers: 2 });
+  }
+  L.dry({
+    opacity: style.opacity ?? 0.8,
+    edge: 0.55,
+    edgeWidth: Math.max(0.25, Math.min(2, width * 0.08)),
+    sharpness: 0.72,
+    centreLift: 0.3,
+    granulation: 0.1,
+    flow: 0.35,
+    flowScale: Math.max(3, length * 0.6),
+  });
+  if (style.vein && length > 4) {
+    p.inkLine(dabAxis(at, angle, length, curve, 6, 0.75), { rng: rng.fork('vein'), width: Math.max(0.2, width * 0.04), pigment: INK_GREEN, opacity: style.vein, breaks: 0.4, wobble: 0.2, taper: [0.05, 0.6] });
   }
 }
 
