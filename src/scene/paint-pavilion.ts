@@ -104,8 +104,24 @@ export function paintPavilion(p: Painter, rng: Rng, pv: SceneGeometry['pavilion'
   p.wash(beam, mix(wood, PIGMENTS.sumi, 0.15), { rng, deform: 0.02, spread: 0.05, opacity: 0.72, edge: 0.4, granulation: 0.3 });
   p.inkLine([deckTop[3]!, deckTop[2]!], { rng, width: 1.5, pigment: ink, opacity: 0.75 });
   p.inkLine([beam[3]!, beam[2]!], { rng, width: 1.2, pigment: ink, opacity: 0.5, breaks: 0.35 });
-  // a cool shadow under the deck
-  p.glaze({ cx: f.x0 + 160, cy: f.deckY + 46, rx: 170, ry: 12 }, PIGMENTS.shadow, { rng, opacity: 0.25, fade: { angle: Math.PI / 2, start: 0.4 } });
+  // the deck stands on the bank: a dark crawl space under it, footing stones under the posts,
+  // a cool shadow on the grass in front and the flat step stone (kutsunugi-ishi) at its edge
+  const under: Pt[] = [
+    beam[3]!,
+    beam[2]!,
+    { x: f.right, y: f.deckY + 40 },
+    { x: f.x0 + 14, y: f.deckY + 48 },
+  ];
+  p.wash(under, mix(PIGMENTS.shadow, PIGMENTS.sumi, 0.35), { rng, deform: 0.03, spread: 0.06, opacity: 0.5, edge: 0.2, granulation: 0.2, fade: { angle: Math.PI / 2, start: 0.55, amount: 0.7 } });
+  for (const x of [f.post.x, f.inner.x]) {
+    p.stone({ cx: x + 1, cy: f.deckY + 47, rx: 9, ry: 4 }, { rng, pigment: PIGMENTS.stone, moss: 0, ink: 0.3, groundShadow: false, patches: 0 });
+  }
+  p.glaze({ cx: f.x0 + 170, cy: f.deckY + 54, rx: 190, ry: 14 }, PIGMENTS.shadow, { rng, opacity: 0.28, fade: { angle: Math.PI / 2, start: 0.35 } });
+  p.glaze({ cx: f.x0 + 100, cy: f.deckY + 68, rx: 40, ry: 7 }, mix(PIGMENTS.stoneDark, PIGMENTS.sage, 0.4), { rng, opacity: 0.25 });
+  p.stone(
+    { cx: f.x0 + 96, cy: f.deckY + 62, rx: 36, ry: 10, rotation: -0.04 },
+    { rng, pigment: mix(PIGMENTS.stone, PIGMENTS.stoneWarm, 0.35), warm: 0.4, moss: 0.08, granulation: 0.45, ink: 0.28, groundShadow: false, patches: 1 },
+  );
 
   // hanging paper lantern
   const L = f.lantern;

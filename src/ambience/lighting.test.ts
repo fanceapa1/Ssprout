@@ -101,7 +101,8 @@ describe('pondMask / lanternReflection', () => {
 describe('awayFromShore', () => {
   it('moves a point hugging the shore onto open water, leaves open water alone', () => {
     const pond = gardenScene.pond;
-    const edge = { x: 1352, y: 612 }; // the pavilion lobe, right at its rim
+    const right = pond.reduce((a, q) => (q.x > a.x ? q : a));
+    const edge = { x: right.x - 3, y: right.y }; // the pond's right end, right at its rim
     const moved = awayFromShore(edge, pond);
     expect(moved.x).toBeLessThan(edge.x);
     expect(pointInPolygon(moved, pond)).toBe(true);

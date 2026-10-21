@@ -41,7 +41,7 @@ const SPECS: Record<Habitat, SlotSpec[]> = {
     ['water-3', 850, 520, 'medium'],
     ['water-4', 952, 612, 'medium'],
     ['water-5', 1064, 548, 'medium'],
-    ['water-6', 1196, 618, 'small'],
+    ['water-6', 1160, 600, 'small'],
     ['water-7', 836, 672, 'small'],
   ],
   // the pond's rim, in the gaps between boulders (iris, reeds)
@@ -49,9 +49,9 @@ const SPECS: Record<Habitat, SlotSpec[]> = {
     ['shore-1', 490, 498, 'medium'],
     ['shore-2', 792, 446, 'medium'],
     ['shore-3', 890, 447, 'medium'],
-    ['shore-4', 1296, 552, 'medium'],
-    ['shore-5', 1382, 664, 'large'],
-    ['shore-6', 1248, 690, 'medium'],
+    ['shore-4', 1192, 494, 'medium'],
+    ['shore-5', 1262, 636, 'large'],
+    ['shore-6', 1146, 704, 'medium'],
     ['shore-7', 934, 730, 'medium'],
     ['shore-8', 652, 712, 'medium'],
     ['shore-9', 446, 618, 'large'],
@@ -77,7 +77,7 @@ const SPECS: Record<Habitat, SlotSpec[]> = {
   ],
   // beside the stepping stones (small things that soften the path)
   path: [
-    ['path-1', 708, 958, 'small'],
+    ['path-1', 676, 962, 'small'],
     ['path-2', 904, 936, 'medium'],
     ['path-3', 690, 880, 'medium'],
     ['path-4', 886, 868, 'small'],
@@ -101,7 +101,7 @@ const SPECS: Record<Habitat, SlotSpec[]> = {
     ['rock-2', 680, 449, 'small'],
     ['rock-3', 1132, 468, 'small'],
     ['rock-4', 1128, 730, 'small'],
-    ['rock-5', 1246, 532, 'small'],
+    ['rock-5', 1222, 690, 'small'],
     ['rock-6', 552, 702, 'small'],
   ],
 };

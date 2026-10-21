@@ -51,8 +51,9 @@ export interface SceneGeometry {
  * behind every number: docs/systems/scene.md. Painting-only details (trees, hills, banks,
  * tufts) live in `layout.ts`; slots in `slots.ts`.
  *
- * The pond is a wide kidney centred a little right of the world centre, with a lobe that runs
- * toward the pavilion's engawa on the right. Clockwise from the far-left corner.
+ * The pond is a wide kidney a little right of the world centre. Its right end turns back well
+ * short of the pavilion, so the engawa stands on the grassy bank (it used to run under the deck).
+ * Clockwise from the far-left corner.
  */
 export const POND: Pt[] = [
   // far (back) edge — almost straight, seen nearly edge-on
@@ -62,18 +63,15 @@ export const POND: Pt[] = [
   { x: 862, y: 453 },
   { x: 982, y: 458 },
   { x: 1082, y: 468 },
-  { x: 1150, y: 486 },
-  { x: 1196, y: 512 },
-  // lobe toward the pavilion
-  { x: 1246, y: 540 },
-  { x: 1306, y: 562 },
-  { x: 1352, y: 594 },
-  { x: 1364, y: 628 },
-  { x: 1342, y: 656 },
-  { x: 1290, y: 668 },
-  { x: 1222, y: 664 },
-  { x: 1160, y: 672 },
-  { x: 1104, y: 690 },
+  { x: 1150, y: 484 },
+  // the right end: a soft bay that turns back toward the viewer
+  { x: 1198, y: 504 },
+  { x: 1236, y: 532 },
+  { x: 1256, y: 566 },
+  { x: 1250, y: 602 },
+  { x: 1222, y: 636 },
+  { x: 1176, y: 664 },
+  { x: 1112, y: 688 },
   // near (front) edge, where the path arrives
   { x: 1040, y: 704 },
   { x: 960, y: 712 },
@@ -104,19 +102,23 @@ export const ROCKS: Rock[] = [
   { id: 'rock-back-left-small', x: 708, y: 458, w: 62, h: 30, perch: false },
   { id: 'rock-back-right', x: 1000, y: 467, w: 132, h: 64, perch: true },
   { id: 'rock-back-right-small', x: 1094, y: 476, w: 66, h: 34, perch: false },
-  { id: 'rock-lobe', x: 1188, y: 524, w: 104, h: 56, perch: true },
+  { id: 'rock-lobe', x: 1262, y: 548, w: 104, h: 56, perch: true },
   { id: 'rock-front-right', x: 1060, y: 722, w: 140, h: 78, perch: true },
-  { id: 'rock-front-right-small', x: 1158, y: 694, w: 62, h: 34, perch: false },
+  { id: 'rock-front-right-small', x: 1186, y: 682, w: 62, h: 34, perch: false },
   { id: 'rock-path', x: 704, y: 720, w: 62, h: 32, perch: false },
 ];
 
-/** Stepping stones from the bottom centre up to the pond (near → far). */
+/**
+ * Stepping stones from the bottom centre up to the pond (near → far): broad flat stones set
+ * close, winding gently left and right and shrinking with distance, the last one at the water.
+ */
 export const PATH: Stone[] = [
-  { x: 812, y: 966, rx: 74, ry: 24 },
-  { x: 776, y: 902, rx: 62, ry: 20 },
-  { x: 810, y: 845, rx: 52, ry: 17 },
-  { x: 786, y: 796, rx: 43, ry: 14 },
-  { x: 806, y: 755, rx: 35, ry: 11 },
+  { x: 804, y: 968, rx: 92, ry: 27 },
+  { x: 760, y: 912, rx: 80, ry: 23 },
+  { x: 794, y: 862, rx: 70, ry: 20 },
+  { x: 834, y: 818, rx: 61, ry: 17.5 },
+  { x: 808, y: 778, rx: 53, ry: 15 },
+  { x: 780, y: 744, rx: 45, ry: 13 },
 ];
 
 /**

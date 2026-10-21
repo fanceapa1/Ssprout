@@ -21,7 +21,6 @@ import {
 import type { Pt } from '../render/viewport';
 import type { Rock, SceneGeometry } from './geometry';
 import type { ShrubSpec, TreeSpec } from './layout';
-import { pavilionFrame } from './paint-pavilion';
 import { foliageFor } from './paint-trees';
 import { atmos } from './paint-land';
 
@@ -111,29 +110,7 @@ export function paintReflections(p: Painter, rng: Rng, input: ReflectionInput): 
     L.fill(shape, mix(PIGMENTS.stoneDark, PIGMENTS.celadonDeep, 0.45), 0.34 * (1 - near * 0.6));
   }
 
-  // the pavilion's posts and deck beam over the lobe
-  const f = pavilionFrame(scene.pavilion);
-  const about = f.deckY + 50;
-  const wood = mix(PIGMENTS.wood, PIGMENTS.celadonDeep, 0.4);
-  const beam: Pt[] = [
-    { x: f.x0 + 8, y: f.deckY + 34 },
-    { x: f.right, y: f.deckY + 20 },
-    { x: f.right, y: f.deckY + 4 },
-    { x: f.x0 + 8, y: f.deckY + 16 },
-  ];
-  L.fill(mirror(beam, about), wood, 0.4);
-  for (const x of [f.post.x, f.inner.x]) {
-    L.fill(
-      [
-        { x: x - 4.5, y: about },
-        { x: x + 4.5, y: about },
-        { x: x + 5, y: about + 150 },
-        { x: x - 5, y: about + 150 },
-      ],
-      wood,
-      0.35,
-    );
-  }
+  // (the pavilion stands on the bank, clear of the water: nothing of it reflects)
   L.ctx.restore();
   L.dry({ opacity: 0.6, edge: 0.18, edgeWidth: 2.5, sharpness: 0.25, centreLift: 0.05, granulation: 0.15, flow: 0.5, flowScale: 30 });
 
