@@ -294,6 +294,21 @@ Widget (`src/widget/dev.ts`, `installWidgetDebug`): `window.sprout.widget` — `
 `lastNotification()`, `mountHarness()` (the floating card in `iframe#sprout-widget-harness`),
 `closeHarness()`, `harnessMode()`, `harnessWatering()`.
 
+UI (`src/dev/ui-debug.ts`): `window.sprout.ui` — `state()` (mode, panel view, confirm, resting,
+dialogs, tips, markers, line, plantLabel, draft), `refresh()`, `setTimeScale(n)`, `placement()`,
+`showPlantLabel(world)`, `slotScreen(id)`, `widget` (fake only); `window.sprout.advance(ms)`.
+Query flags: `?fixtures` (dev `fx-*` species, ADR 0055), `?uitime=0.05` (UI delays),
+`?widget=fake`.
+
+## UI (`src/ui/`, ADRs 0050–0055)
+`createUI({ root, controller, store, bus, clock, getSpecies, slots, viewport, audio?, widget?,
+notifications?, isKnownSpecies?, reducedMotion?, timeScale? })` → `{ placement: { current(),
+subscribe(fn) }, state(), refresh(), setTimeScale(), showPlantLabel(), dispose() }`. DOM only,
+drives the app through the controller. `widget` is the `WidgetIntegration`
+(`{ supported, open(), isOpen(), onChange?() }`, satisfied by `surfaces.widget`).
+`ui.placement.subscribe` gives the renderer the placement markers (world units) for an optional
+in-canvas highlight. Details: `docs/systems/ui.md`.
+
 ## Timer surfaces (`src/widget/`, ADRs 0090–0094)
 `createTimerSurfaces({ controller, store, bus, clock })` → `{ widget: { supported, open(), isOpen(),
 close(), onChange(fn) }, requestPermissionFromGesture(), dispose() }`. It installs a Web Worker
