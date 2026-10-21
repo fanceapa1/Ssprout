@@ -65,7 +65,8 @@ const SPECS: Record<Habitat, SlotSpec[]> = {
     ['meadow-5', 330, 734, 'large'],
     ['meadow-6', 124, 822, 'large'],
     ['meadow-7', 498, 802, 'medium'],
-    ['meadow-8', 300, 902, 'large'],
+    // (kept above the lower-left corner, where the timer slip sits on wide screens)
+    ['meadow-8', 432, 812, 'large'],
     ['meadow-9', 1168, 792, 'medium'],
     ['meadow-10', 1324, 748, 'large'],
     ['meadow-11', 1478, 700, 'large'],

@@ -527,9 +527,23 @@ input.duration:focus-visible {
   margin-bottom: 2px;
 }
 
+/*
+ * Wide screens: the panel is a slip laid in the lower-left corner, where the painting has
+ * already dissolved into bare paper, so the stepping-stone path (the picture's leading line)
+ * stays clear and the resting timer sits on paper rather than over stones.
+ */
+@media (min-width: 900px) and (min-aspect-ratio: 5/4) {
+  .panel {
+    left: max(28px, env(safe-area-inset-left));
+    bottom: max(26px, env(safe-area-inset-bottom));
+    transform: none;
+    width: 360px;
+  }
+}
+
 /* resting while studying: the controls step back */
 .ui-root.is-resting .panel:not(:hover):not(:has(:focus-visible)) {
-  opacity: 0.2;
+  opacity: 0.26;
 }
 .ui-root.is-resting .menu:not(:hover):not(:has(:focus-visible)) {
   opacity: 0.32;
