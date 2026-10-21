@@ -42,8 +42,8 @@ const STIPE = mix(PIGMENTS.sumi, '#5b3e4a', 0.4);
 const BRONZE = mix(PIGMENTS.sakura, PIGMENTS.woodLight, 0.5);
 
 export function planMaidenhairFern(rng: Rng): FernPlan {
-  const n = rng.int(3, 5);
-  const green = jitter(mix(PIGMENTS.sap, PIGMENTS.sageLight, 0.35), rng, 0.03);
+  const n = rng.int(4, 6);
+  const green = jitter(mix(PIGMENTS.sap, PIGMENTS.sage, 0.35), rng, 0.03);
   const lean = rng.range(-0.15, 0.15);
   const fronds: Frond[] = [];
   const youngest = rng.int(0, n - 1);
@@ -59,7 +59,7 @@ export function planMaidenhairFern(rng: Rng): FernPlan {
       tipBias: 0.65,
       wobble: 0.02,
     });
-    const np = rng.int(4, 6);
+    const np = rng.int(5, 7);
     const pinnae: Pinna[] = [];
     for (let j = 0; j < np; j++) {
       const t = 0.36 + (0.6 * j) / np + rng.gaussian(0, 0.02);
@@ -68,7 +68,7 @@ export function planMaidenhairFern(rng: Rng): FernPlan {
       const pinnules: Pinnule[] = [];
       const nq = rng.int(4, 6);
       for (let q = 0; q < nq; q++) {
-        pinnules.push({ t: 0.12 + (0.88 * q) / nq, side: q % 2 === 0 ? 1 : -1, size: rng.range(1.9, 2.7) * (1 - (q / nq) * 0.35), turn: rng.gaussian(0, 0.2) });
+        pinnules.push({ t: 0.12 + (0.88 * q) / nq, side: q % 2 === 0 ? 1 : -1, size: rng.range(2.4, 3.3) * (1 - (q / nq) * 0.35), turn: rng.gaussian(0, 0.2) });
       }
       pinnae.push({
         t,

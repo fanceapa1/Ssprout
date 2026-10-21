@@ -58,7 +58,9 @@ function lineup(tier: 1 | 2): StudioEntry {
   const defs = SPECIES_A[tier].map((id) => getSpecies(id)).filter((d): d is SpeciesDef => !!d);
   const gap = 12;
   const W = defs.reduce((s, d) => s + d.size.w * SCALE + gap, gap);
-  const H = Math.max(...defs.map((d) => d.size.h * SCALE), 10) + 30;
+  const above = Math.max(...defs.map((d) => d.size.h * SCALE * d.anchor.y), 10);
+  const below = Math.max(...defs.map((d) => d.size.h * SCALE * (1 - d.anchor.y)), 0);
+  const H = above + below + 20;
   return {
     id: `lineup-t${tier}`,
     label: `tier ${tier} at full bloom, same world scale (×${SCALE})`,
@@ -70,7 +72,7 @@ function lineup(tier: 1 | 2): StudioEntry {
         for (const d of defs) {
           const h = d.size.h * SCALE;
           // bases on one ground line
-          place(p, d, x, H - 14 - h * d.anchor.y, seed, 1);
+          place(p, d, x, 10 + above - h * d.anchor.y, seed, 1);
           x += d.size.w * SCALE + gap;
         }
       });

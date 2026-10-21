@@ -64,7 +64,7 @@ export function planWhiteClover(rng: Rng): CloverPlan {
         curve: rng.gaussian(0, 0.06),
         tone: rng.next(),
       })),
-      size: rng.range(5.5, 7.5),
+      size: rng.range(6.5, 8.5),
       tilt: rng.range(0.38, 0.75),
       roll: UP + rng.gaussian(0, 0.25) + u * 0.3,
       window: [0, 0],
@@ -90,7 +90,7 @@ export function planWhiteClover(rng: Rng): CloverPlan {
     heads.push({
       stem: makeStem(rng, { base: { x: side * rng.range(0, 8) * (i === 0 ? 0.3 : 1), y: 0 }, length: rng.range(24, 34) * (i === 0 ? 1 : rng.range(0.62, 0.82)), angle: UP + lean + side * rng.range(0.12, 0.3) * (i === 0 ? 0.6 : 1.5), bend: -side * rng.range(0.05, 0.3), segments: 8, tipBias: 0.5 }),
       florets,
-      radius: rng.range(4.2, 5.2),
+      radius: rng.range(5, 6.2),
       bud: [...stagger(i, nh, [0.44, 0.78], 0.6)] as [number, number],
       open: [...stagger(i, nh, [0.74, 1], 0.7)] as [number, number],
     });
