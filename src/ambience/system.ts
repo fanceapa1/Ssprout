@@ -63,15 +63,16 @@ export function createAmbienceSystem(opts: AmbienceSystemOptions = {}): Ambience
       if (!engine || !store) return;
       ms = ms * 0.95 + frameMs * 0.05;
       frameMs = 0;
+      const e = engine;
       const state = store.get();
       const phase = sessionPhase(state, f.now);
-      engine.update({
+      timed(() => e.update({
         dt: f.dt,
         phase,
         weather: state.session?.weather ?? null,
-        emitters: phase === 'focus' || engine.debug().levels.motes > 0.001 ? moteEmitters(state, engineScene!.slots, f.now) : NO_EMITTERS,
+        emitters: phase === 'focus' || e.level('motes') > 0.001 ? moteEmitters(state, engineScene!.slots, f.now) : NO_EMITTERS,
         hour: timeOverride ?? localHour(f.now),
-      });
+      }));
     },
     draw(layer: LayerId, ctx) {
       const e = engine;

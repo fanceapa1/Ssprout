@@ -9,7 +9,7 @@ import type { Weather } from '../core/state';
 import { bounds, type Rect } from '../paint/geometry';
 import { WORLD_H, WORLD_W } from '../render/viewport';
 import type { SceneGeometry } from '../scene/geometry';
-import { createEnvelope, settleEnvelope, stepEnvelope, targetsFor, type EnvelopeState, type Levels } from './envelope';
+import { createEnvelope, settleEnvelope, stepEnvelope, targetsFor, type Channel, type EnvelopeState, type Levels } from './envelope';
 import { createLightingCache, LIGHT, type LightingCache } from './lighting';
 import { MOTE, type Emitter } from './motes';
 import { createSim, lifeAlpha, setSimArea, stepSim, warmSim, type Sim } from './sim';
@@ -69,6 +69,8 @@ export interface AmbienceDebug {
   time: TimeName;
   counts: { rain: number; ripples: number; glints: number; motes: number };
   lightingPaints: number;
+  /** cost of the last lighting repaint (ms; repaints happen every few seconds at most) */
+  lightingMs: number;
   reducedMotion: boolean;
 }
 
@@ -84,6 +86,8 @@ export interface Ambience {
   drawWater(ctx: Ctx): void;
   drawAir(ctx: Ctx): void;
   drawLighting(ctx: Ctx): void;
+  /** current eased level of one channel */
+  level(channel: Channel): number;
   debug(): AmbienceDebug;
 }
 
@@ -104,6 +108,8 @@ export function createAmbience(opts: AmbienceOptions): Ambience {
   let painted: Grade | null = null;
   let grade: Grade = gradeAt(12);
   let paints = 0;
+  let paintMs = 0;
+  const perfNow = () => (typeof performance !== 'undefined' ? performance.now() : 0);
   let hour = 12;
   let phase: SessionPhase = 'idle';
   let weather: Weather | null = null;
@@ -162,9 +168,11 @@ export function createAmbience(opts: AmbienceOptions): Ambience {
       // lighting: repaint on demand, else every few seconds if the grade moved
       sinceLight += frame.dt;
       const next = gradeAt(hour);
-      if (lightDirty || (sinceLight >= LIGHT.redrawS && (!painted || gradeDistance(next, painted) > 1e-7))) {
+      if (lightDirty || (sinceLight >= LIGHT.redrawS && (!painted || gradeDistance(next, painted) > LIGHT.redrawEps))) {
         grade = next;
+        const t0 = perfNow();
         lighting.paint(grade);
+        paintMs = perfNow() - t0;
         painted = grade;
         paints++;
         lightDirty = false;
@@ -289,6 +297,7 @@ export function createAmbience(opts: AmbienceOptions): Ambience {
         ctx.drawImage(sprites.flame as CanvasImageSource, L.x - s, L.y - s * 1.2, s * 2, s * 2.4);
       }
     },
+    level: (c) => env.value[c],
     debug() {
       return {
         phase,
@@ -299,6 +308,7 @@ export function createAmbience(opts: AmbienceOptions): Ambience {
         time: timeName(hour),
         counts: { rain: sim.rain.length, ripples: sim.ripples.length, glints: sim.glints.length, motes: sim.motes.length },
         lightingPaints: paints,
+        lightingMs: paintMs,
         reducedMotion,
       };
     },

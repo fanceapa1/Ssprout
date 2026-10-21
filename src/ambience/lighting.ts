@@ -19,6 +19,8 @@ export const LIGHT = {
   cacheScale: 0.3,
   /** repaint interval (s) when following the clock */
   redrawS: 3,
+  /** …and only when the grade moved perceptibly (squared grade distance; a repaint costs ~5 ms) */
+  redrawEps: 2e-5,
   /** lantern reserve radius (world units) and how much of the wash it lifts */
   lanternR: 62,
   lanternLift: 0.62,
