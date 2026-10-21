@@ -13,7 +13,7 @@ import { RAIN, SPRITE_VARIANTS } from './sim';
 
 export const COLOURS = {
   /** warm cream light (screen) */
-  shaft: [255, 236, 200] as Rgb,
+  shaft: [255, 244, 222] as Rgb,
   /** ink-wash rain, grey-blue (multiply) */
   rain: [92, 108, 122] as Rgb,
   /** ripple line: deep celadon, and the lifted pale line beside it */
