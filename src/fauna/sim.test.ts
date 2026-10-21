@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { FAUNA_UNLOCKS } from '../core/fauna-unlocks';
 import type { PlantInstance } from '../core/state';
-import { placeholderScene } from '../scene/geometry';
+import { gardenScene } from '../scene/geometry';
 import { pointInPolygon } from './math';
 import { FaunaSim } from './sim';
 import type { TargetSpecies } from './targets';
@@ -11,7 +11,7 @@ const ALL = FAUNA_UNLOCKS.map((f) => f.id);
 const flower: TargetSpecies = { pollinators: true, habitats: ['meadow', 'path', 'rock', 'shore', 'back'], size: { w: 60, h: 90 }, anchor: { x: 0.5, y: 0.95 }, bloomColor: '#e8a7a9' };
 const lily: TargetSpecies = { pollinators: false, habitats: ['water'], size: { w: 60, h: 30 }, anchor: { x: 0.5, y: 0.6 }, bloomColor: '#faf6ee' };
 const lookup = (id: string) => (id === 'lily' ? lily : flower);
-const plants: PlantInstance[] = placeholderScene.slots.map((s, i) => ({
+const plants: PlantInstance[] = gardenScene.slots.map((s, i) => ({
   id: `p${i}`,
   speciesId: s.habitat === 'water' ? 'lily' : 'flower',
   slotId: s.id,
@@ -23,7 +23,7 @@ const plants: PlantInstance[] = placeholderScene.slots.map((s, i) => ({
 }));
 
 function run(opts: { seed?: number; seconds: number; reduced?: boolean; hour?: number; each?: (sim: FaunaSim) => void }) {
-  const sim = new FaunaSim({ scene: placeholderScene, seed: opts.seed ?? 7, reducedMotion: opts.reduced });
+  const sim = new FaunaSim({ scene: gardenScene, seed: opts.seed ?? 7, reducedMotion: opts.reduced });
   sim.setGarden(plants, ALL, lookup);
   sim.hourOverride = opts.hour ?? 12;
   const spawnedKinds = new Map<string, number>();
@@ -57,7 +57,7 @@ describe('FaunaSim', () => {
       each(sim) {
         let visitors = 0;
         for (const c of sim.creatures) {
-          if (c.kind === 'koi' || c.kind === 'strider') expect(pointInPolygon(c, placeholderScene.pond), `${c.kind} at ${c.x},${c.y}`).toBe(true);
+          if (c.kind === 'koi' || c.kind === 'strider') expect(pointInPolygon(c, gardenScene.pond), `${c.kind} at ${c.x},${c.y}`).toBe(true);
           if (c.visitor) visitors++;
           expect(Number.isFinite(c.x) && Number.isFinite(c.y)).toBe(true);
         }

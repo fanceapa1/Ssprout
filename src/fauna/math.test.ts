@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createRng } from '../core/rng';
-import { placeholderScene } from '../scene/geometry';
+import { gardenScene } from '../scene/geometry';
 import {
   angleDiff,
   approach,
@@ -91,8 +91,8 @@ describe('polygons', () => {
   it('randomPointInside stays inside the pond with a margin (seeded)', () => {
     const rng = createRng(3);
     for (let i = 0; i < 100; i++) {
-      const p = randomPointInside(placeholderScene.pond, rng, 20);
-      expect(insideWithMargin(p, placeholderScene.pond, 20)).toBe(true);
+      const p = randomPointInside(gardenScene.pond, rng, 20);
+      expect(insideWithMargin(p, gardenScene.pond, 20)).toBe(true);
     }
   });
 

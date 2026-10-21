@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { createRng } from '../core/rng';
 import type { PlantInstance } from '../core/state';
-import { placeholderScene, type Slot } from '../scene/geometry';
-import { pointInPolygon } from './math';
+import { gardenScene, type Slot } from '../scene/geometry';
+import { pointInPolygon, polygonCentroid } from './math';
 import {
   choosePerch,
   flowerTargets,
@@ -31,7 +31,7 @@ const plant = (id: string, speciesId: string, slotId: string, seed = 7): PlantIn
   taskName: 't',
   completedAt: 1,
 });
-const slots = placeholderScene.slots;
+const slots = gardenScene.slots;
 
 describe('flowerTargets', () => {
   it('only pollinator plants, inside the top part of the sprite box', () => {
@@ -59,20 +59,20 @@ describe('lilyPads', () => {
   it('needs a water species in a water slot', () => {
     const pads = lilyPads([plant('a', 'lily', 'water-1'), plant('b', 'iris', 'shore-1')], slots, lookup);
     expect(pads.map((p) => p.plantId)).toEqual(['a']);
-    expect(pointInPolygon(pads[0]!, placeholderScene.pond)).toBe(true);
+    expect(pointInPolygon(pads[0]!, gardenScene.pond)).toBe(true);
     expect(lilyPads([plant('b', 'iris', 'shore-1')], slots, lookup)).toEqual([]);
   });
 });
 
 describe('perches', () => {
-  const perches = perchesOf(placeholderScene);
+  const perches = perchesOf(gardenScene);
 
   it('uses perch-flagged rocks and the path stones', () => {
     const rockIds = perches.filter((p) => p.kind === 'rock').map((p) => p.id);
-    expect(rockIds).toEqual(placeholderScene.rocks.filter((r) => r.perch).map((r) => r.id));
-    expect(perches.filter((p) => p.kind === 'stone')).toHaveLength(placeholderScene.path.length);
+    expect(rockIds).toEqual(gardenScene.rocks.filter((r) => r.perch).map((r) => r.id));
+    expect(perches.filter((p) => p.kind === 'stone')).toHaveLength(gardenScene.path.length);
     for (const p of perches.filter((q) => q.kind === 'rock')) {
-      const rock = placeholderScene.rocks.find((r) => r.id === p.id)!;
+      const rock = gardenScene.rocks.find((r) => r.id === p.id)!;
       expect(p.y).toBeLessThan(rock.y - rock.h * 0.8); // on top
       expect(p.depth).toBeGreaterThan(rock.y); // drawn in front of the rock
     }
@@ -99,12 +99,12 @@ describe('perches', () => {
 
 describe('heronStands', () => {
   it('are just inside the far half of the pond, away from things to avoid', () => {
-    const pond = placeholderScene.pond;
+    const pond = gardenScene.pond;
     const stands = heronStands(pond, []);
     expect(stands.length).toBeGreaterThan(3);
     for (const s of stands) {
       expect(pointInPolygon(s, pond)).toBe(true);
-      expect(s.y).toBeLessThan(placeholderScene.waterline + 20);
+      expect(s.y).toBeLessThan(polygonCentroid(pond).y + 40);
     }
     const avoid = [{ x: stands[0]!.x, y: stands[0]!.y }];
     expect(heronStands(pond, avoid).every((s) => Math.hypot(s.x - avoid[0]!.x, s.y - avoid[0]!.y) >= 60)).toBe(true);
