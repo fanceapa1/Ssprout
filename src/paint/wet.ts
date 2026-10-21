@@ -46,6 +46,9 @@ export interface DryOptions {
   granulation?: number;
   /** keep only granules — speckle without a body wash (used by `granulate`, default 0) */
   speckle?: number;
+  /** extra pigment settled as clustered dark granules on top of the body, in the same pass
+   * (cheaper than a separate `granulate`; default 0) */
+  granules?: number;
   /** mottled, uneven pigment flow (default 0.35) */
   flow?: number;
   /** size of flow mottling, user units (default 40) */
@@ -66,6 +69,7 @@ export const DRY_DEFAULTS = {
   centreLift: 0.25,
   granulation: 0.2,
   speckle: 0,
+  granules: 0,
   flow: 0.35,
   flowScale: 40,
   dry: 0,
@@ -234,6 +238,7 @@ export function dryPixels(
   const flowAmt = o.flow * 1.7;
   const gran = o.granulation;
   const speckle = o.speckle;
+  const granules = o.granules;
   const dry = o.dry;
   const darken = o.darken;
   const opacity = o.opacity;
@@ -285,11 +290,16 @@ export function dryPixels(
       dens *= 1 + gran * (0.5 - g) * 2.6;
       // granules cluster: paper valleys (low g) gated by a coarser noise so speckle comes in drifts
       if (speckle > 0) dens *= smoothstep(0.7 - speckle * 0.15, 0.9, (1 - g) * 0.85 + (f - 0.5) * 0.9 + 0.12);
+      let gk = 0;
+      if (granules > 0) {
+        gk = granules * smoothstep(0.7 - granules * 0.15, 0.9, (1 - g) * 0.85 + (f - 0.5) * 0.9 + 0.12);
+        dens += gk * sv * 0.6;
+      }
       // dry brush: pigment only catches paper peaks, and breaks up most at the stroke's edges
       if (dry > 0) dens *= smoothstep(dry - 0.1, dry + 0.1, g * 0.75 + f * 0.35 + (sv - 0.7) * 0.2 - e * 0.3);
       let alpha = dens * opacity;
       alpha = alpha < 0 ? 0 : alpha > 1 ? 1 : alpha;
-      const dk = 1 - darken * e * 0.9 - gran * 0.16 * (0.5 - g);
+      const dk = 1 - darken * e * 0.9 - gran * 0.16 * (0.5 - g) - gk * 0.3;
       data[j] = data[j]! * dk;
       data[j + 1] = data[j + 1]! * dk;
       data[j + 2] = data[j + 2]! * dk;
@@ -305,7 +315,7 @@ export function dryPixels(
 export function layerResolution(quality: Quality, devArea: number): number {
   if (quality === 'draft') return 0.5;
   if (quality === 'high') return 1;
-  return devArea > 1_500_000 ? 0.7 : devArea > 400_000 ? 0.8 : 1;
+  return devArea > 1_500_000 ? 0.7 : devArea > 250_000 ? 0.8 : 1;
 }
 
 export function tracePath(ctx: Ctx2D, poly: readonly Pt[]): void {

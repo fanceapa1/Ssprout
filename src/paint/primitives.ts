@@ -197,7 +197,7 @@ export function wash(t: PaintTarget, shape: Shape, pigment: Pigment, opts: WashO
   const rng = opts.rng ?? t.env.rng;
   const o = prepareOutline(shape, rng, opts.deform ?? WASH_DEFAULTS.deform);
   const b = o.bounds;
-  const L = new WetLayer(t.ctx, padRect(b, sizeOf(b) * 0.08 + (opts.edgeWidth ?? 2.5) * 2), t.env);
+  const L = new WetLayer(t.ctx, padRect(b, sizeOf(b) * 0.035 + (opts.edgeWidth ?? 2.5) * 2), t.env);
   try {
     layered(
       L,
@@ -251,7 +251,7 @@ export const GLAZE_DEFAULTS: ResolvedDry = {
 export function glaze(t: PaintTarget, shape: Shape, pigment: Pigment, opts: WashOptions = {}): void {
   const rng = opts.rng ?? t.env.rng;
   const o = prepareOutline(shape, rng, opts.deform ?? 0.22);
-  const L = new WetLayer(t.ctx, padRect(o.bounds, sizeOf(o.bounds) * 0.08 + 4), t.env);
+  const L = new WetLayer(t.ctx, padRect(o.bounds, sizeOf(o.bounds) * 0.035 + 4), t.env);
   layered(L, o, pigment, rng, layersFor(t.env, opts.layers ?? 7), opts.spread ?? 0.3, opts.coverage ?? 0.85, opts.jitter ?? 0.015);
   if (opts.fade !== undefined) applyFade(L, o.base, opts.fade, rng);
   L.dry(opts, GLAZE_DEFAULTS);
@@ -289,7 +289,7 @@ export function wetInWet(t: PaintTarget, shape: Shape, a: Pigment, b: Pigment, o
   const [lo, hi] = extentAlong(o.base, angle);
   const ext = Math.max(1, hi - lo);
   const big = ext * 2 + sizeOf(bb);
-  const L = new WetLayer(t.ctx, padRect(bb, sizeOf(bb) * 0.08 + 5), t.env);
+  const L = new WetLayer(t.ctx, padRect(bb, sizeOf(bb) * 0.035 + 5), t.env);
   const n = layersFor(t.env, opts.layers ?? 14);
   const alpha = layerAlpha(n, opts.coverage ?? 0.9);
   const spread = opts.spread ?? WASH_DEFAULTS.spread;
@@ -333,7 +333,7 @@ export function granulate(t: PaintTarget, shape: Shape, pigment: Pigment, opts: 
   const rng = opts.rng ?? t.env.rng;
   const s = opts.strength ?? 0.6;
   const o = prepareOutline(shape, rng, opts.deform ?? 0.25);
-  const L = new WetLayer(t.ctx, padRect(o.bounds, sizeOf(o.bounds) * 0.08 + 4), t.env);
+  const L = new WetLayer(t.ctx, padRect(o.bounds, sizeOf(o.bounds) * 0.035 + 4), t.env);
   layered(L, o, pigment, rng, layersFor(t.env, opts.layers ?? 3), opts.spread ?? 0.35, 0.85, 0.02);
   if (opts.fade !== undefined) applyFade(L, o.base, opts.fade, rng);
   L.dry(opts, {

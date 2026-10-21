@@ -24,7 +24,6 @@ import {
 import { PIGMENTS, darken, jitter, lighten, mix, rgba, shade, type Pigment } from './pigments';
 import {
   glaze,
-  granulate,
   inkLine,
   layerAlpha,
   layersFor,
@@ -359,6 +358,7 @@ export function stone(t: PaintTarget, shape: Shape | StoneBox, opts: StoneOption
     edgeWidth: Math.max(1.2, size * 0.012),
     centreLift: 0.2,
     granulation: 0.25 * gran + 0.05,
+    granules: gran,
     flow: 0.45,
     flowScale: size * 0.35,
     fade: { angle: lightA, start: 0.3, amount: 0.5, ragged: 0.4 },
@@ -402,8 +402,7 @@ export function stone(t: PaintTarget, shape: Shape | StoneBox, opts: StoneOption
   S.ctx.restore();
   S.dry({}, { ...DRY_DEFAULTS, opacity: 0.36, edge: 0.32, edgeWidth: Math.max(1, size * 0.015), sharpness: 0.32, centreLift: 0.1, granulation: 0.3 * gran, flow: 0.45, flowScale: size * 0.28 });
 
-  // 4. granulation over the body
-  if (gran > 0) granulate(t, o.base, PIGMENTS.stoneDark, { rng, strength: gran * 0.55 });
+  // 4. granulation: settled granules are part of the body wash's drying pass (`granules`)
 
   // 5. a broken ink accent along part of the shadowed underside (lost elsewhere)
   const ink = opts.ink ?? 0.3;
