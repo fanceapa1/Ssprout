@@ -7,14 +7,14 @@ import type { SessionPhase } from '../core/session';
 import type { Weather } from '../core/state';
 import { createPainter, lighten, mix, paperTexture, PIGMENTS, shade, type AnyCanvas, type Painter } from '../paint';
 import { WORLD_H, WORLD_W } from '../render/viewport';
-import { placeholderScene } from '../scene/geometry';
+import { gardenScene } from '../scene/geometry';
 import type { StudioEntry, StudioSection } from '../studio/types';
 import { createAmbience, type Ambience } from './ambience';
 import type { Emitter } from './motes';
 import { NAMED_HOURS } from './timeofday';
 import { wind } from './wind';
 
-const scene = placeholderScene;
+const scene = gardenScene;
 const W = 800;
 const H = 500;
 

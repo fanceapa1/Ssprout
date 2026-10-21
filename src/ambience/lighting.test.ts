@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { placeholderScene } from '../scene/geometry';
+import { gardenScene } from '../scene/geometry';
 import { lanternReflection, paintGradeWash, pondMask, type WashField } from './lighting';
 import { gradeAt, NAMED_HOURS } from './timeofday';
 
@@ -13,9 +13,9 @@ const field = (over: Partial<WashField> = {}): WashField => ({
   mottle: () => 0.5,
   bloom: () => 0.3,
   edge: () => 0.5,
-  pond: pondMask(placeholderScene.pond, w, h, scale),
-  lantern: placeholderScene.pavilion.lantern,
-  reflection: lanternReflection(placeholderScene),
+  pond: pondMask(gardenScene.pond, w, h, scale),
+  lantern: gardenScene.pavilion.lantern,
+  reflection: lanternReflection(gardenScene),
   ...over,
 });
 const paint = (hour: number, over?: Partial<WashField>) => {
@@ -49,7 +49,7 @@ describe('paintGradeWash', () => {
 
   it('the lantern reserves paper around itself at night, warm-tinted', () => {
     const out = paint(NAMED_HOURS.night);
-    const L = placeholderScene.pavilion.lantern;
+    const L = gardenScene.pavilion.lantern;
     const inside = alphaAt(out, L.x, L.y);
     const outside = alphaAt(out, L.x - 200, L.y);
     expect(inside).toBeLessThan(outside * 0.5);
@@ -58,7 +58,7 @@ describe('paintGradeWash', () => {
   });
 
   it('the lantern light lies on the water', () => {
-    const refl = lanternReflection(placeholderScene)!;
+    const refl = lanternReflection(gardenScene)!;
     expect(refl).not.toBeNull();
     const lit = alphaAt(paint(NAMED_HOURS.night), refl.x, refl.y);
     const dark = alphaAt(paint(NAMED_HOURS.night, { reflection: null }), refl.x, refl.y);
@@ -84,15 +84,15 @@ describe('paintGradeWash', () => {
 
 describe('pondMask / lanternReflection', () => {
   it('masks the pond', () => {
-    const m = pondMask(placeholderScene.pond, w, h, scale);
+    const m = pondMask(gardenScene.pond, w, h, scale);
     expect(m[Math.floor(560 * scale) * w + Math.floor(800 * scale)]).toBe(1);
     expect(m[Math.floor(100 * scale) * w + Math.floor(100 * scale)]).toBe(0);
   });
 
   it('mirrors the lantern when that lands on the water, else spills from the nearest shore', () => {
-    const mirrored = lanternReflection({ ...placeholderScene, pavilion: { ...placeholderScene.pavilion, lantern: { x: 800, y: 520 } }, waterline: 560 });
+    const mirrored = lanternReflection({ ...gardenScene, pavilion: { ...gardenScene.pavilion, lantern: { x: 800, y: 520 } }, waterline: 560 });
     expect(mirrored).toEqual({ x: 800, y: 600 });
-    const spill = lanternReflection(placeholderScene)!;
+    const spill = lanternReflection(gardenScene)!;
     expect(spill.x).toBeGreaterThan(900); // toward the lantern side (right)
   });
 });

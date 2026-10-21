@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { createRng } from '../core/rng';
 import { createDefaultState, type ActiveSession, type GardenState, type PlantInstance } from '../core/state';
-import { placeholderScene } from '../scene/geometry';
+import { gardenScene } from '../scene/geometry';
 import { createEnvelope, settleEnvelope, targetsFor } from './envelope';
 import { MOTE, moteEmitters, moteRate, pickEmitter, type Emitter } from './motes';
 import { createSim, lifeAlpha, rainTarget, RAIN, stepSim, warmSim, type SimInputs } from './sim';
 import { wind } from './wind';
 
-const slots = placeholderScene.slots;
+const slots = gardenScene.slots;
 const plant = (slotId: string, i: number): PlantInstance => ({
   id: `p${i}`,
   speciesId: 'x',
@@ -82,7 +82,7 @@ describe('moteRate', () => {
   });
 });
 
-const world = { pond: placeholderScene.pond, area: { x: 0, y: 0, w: 1600, h: 1000 } };
+const world = { pond: gardenScene.pond, area: { x: 0, y: 0, w: 1600, h: 1000 } };
 const inputs = (levels = settleEnvelope(targetsFor('focus', 'rain')).value, emitters: Emitter[] = []): SimInputs => ({ levels, wind, emitters });
 
 describe('sim', () => {
