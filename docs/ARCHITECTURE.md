@@ -32,7 +32,9 @@ src/
     types.ts              SpeciesDef contract (below)
     registry.ts           auto-discovers species via import.meta.glob('./species/*.ts')
     species/<id>.ts       one file per species, default export SpeciesDef
-    sprites.ts            renders + caches plant sprites per instance & growth stage
+    sprites.ts            renders + caches plant sprites per instance & growth step (workers, LRU)
+    system.ts             PlantSystem: garden drawables, growth, sway, bloom, wither, watering, reflections
+    view.ts               renderPlantView (widget, previews) — docs/systems/plants.md
   fauna/                  creatures (one file each) + FaunaSystem — docs/systems/fauna.md
   ambience/               session weather (sun/rain/mist), motes, time-of-day lighting
   render/                 Renderer, layers, viewport (world↔screen), System interface, frame loop
@@ -126,9 +128,12 @@ export interface SpeciesDef {
   draw(p: Painter, rng: Rng, opts: { w: number; h: number; growth: number }): void;
 }
 ```
-`sprites.ts` renders each placed plant at growth stages `[0.1, 0.3, 0.55, 0.8, 1]` (cached per
-instance seed + viewport scale) and cross-fades during the bloom animation.
-Runtime sway = tiny horizontal skew of the sprite about its base, driven by a wind noise field.
+`sprites.ts` renders each placed plant at growth steps `k / 24` (`GROWTH_STEPS`; finished plants only
+step 24), cached per instance seed + step + pixel size (`size × slot.scale × resolution bucket`), painted
+in module workers; the garden cross-fades (and morphs) between the two nearest steps, so live growth is
+continuous (ADRs 0110–0112). `draw` must be deterministic per (seed, growth, w, h), stay inside its box
+and not touch the DOM (it runs in a worker). Runtime sway = horizontal skew (a bend for large plants
+and trees) about the base, driven by the garden wind (ADR 0113). Details: `docs/systems/plants.md`.
 
 ### Plant view (`src/plants/view.ts`, ADRs 0003, 0094)
 One species at an arbitrary growth, optionally mid-watering or wilting — shared by the widget,
@@ -137,10 +142,11 @@ start-sheet previews and the garden:
 export interface PlantViewOptions { speciesId: string; seed: number; growth: number; watering: number | null /* 0..1 */; wilt?: number /* 0..1 */ }
 export function renderPlantView(canvas: HTMLCanvasElement | OffscreenCanvas, opts: PlantViewOptions): boolean; // false: unknown species
 ```
-Clears the canvas, contains the species with its base at the bottom centre (`plantLayout`), draws
-`species.draw(painterFor(ctx, { seed }), createRng(seed).fork(id), { w, h, growth })` cached per
-quantised growth (`GROWTH_STEPS = 24`) and a placeholder watering animation (can, droplets, wet
-soil, leaves lift). The plants task owns the internals; keep the signature.
+Clears the canvas, contains the species with its base at the bottom centre (`plantLayout`) over a soft
+ground wash, and draws the same cached growth steps as the garden (`GROWTH_STEPS = 24`, morphing
+cross-fade), the painted watering animation (jōro, droplets, damp soil, leaves lift) and the wither
+(ADR 0118). `setPlantViewSpecies(fn)` adds species the registry lacks (main passes its `getSpecies`, so
+`?fixtures` render). Keep the signature.
 
 ### Scene geometry & slots (`src/scene/geometry.ts`, `src/scene/slots.ts`)
 ```ts
@@ -315,14 +321,19 @@ dialogs, tips, markers, line, plantLabel, draft), `refresh()`, `setTimeScale(n)`
 Query flags: `?fixtures` (dev `fx-*` species, ADR 0055), `?uitime=0.05` (UI delays),
 `?widget=fake`.
 
+Plants (`src/plants/debug.ts`): `window.sprout.plants` — `state()`, `settle()` (snap growth/fades and
+resolve once their sprites are painted), `whenIdle()`, `bounds(plantId)`, `boundsFor(speciesId, slotId)`,
+`toDevice(rect)`, `perf()`, `resetPerf()`, `ambienceWind()`.
+
 ## UI (`src/ui/`, ADRs 0050–0055)
 `createUI({ root, controller, store, bus, clock, getSpecies, slots, viewport, audio?, widget?,
 notifications?, isKnownSpecies?, reducedMotion?, timeScale? })` → `{ placement: { current(),
 subscribe(fn) }, state(), refresh(), setTimeScale(), showPlantLabel(), dispose() }`. DOM only,
 drives the app through the controller. `widget` is the `WidgetIntegration`
 (`{ supported, open(), isOpen(), onChange?() }`, satisfied by `surfaces.widget`).
-`ui.placement.subscribe` gives the renderer the placement markers (world units) for an optional
-in-canvas highlight. Details: `docs/systems/ui.md`.
+`ui.placement.subscribe` gives the renderer the placement markers (world units); `main.ts` connects it
+to the plant system (`plants.connectPlacement(ui.placement)`) for the in-canvas highlight (ADR 0117).
+Plant labels hit-test with `plantWorldBounds` (`src/plants/bounds.ts`). Details: `docs/systems/ui.md`.
 
 ## Timer surfaces (`src/widget/`, ADRs 0090–0094)
 `createTimerSurfaces({ controller, store, bus, clock })` → `{ widget: { supported, open(), isOpen(),
