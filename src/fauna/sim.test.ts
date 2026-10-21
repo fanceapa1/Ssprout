@@ -64,8 +64,7 @@ describe('FaunaSim', () => {
         maxVisitors = Math.max(maxVisitors, visitors);
       },
     });
-    // a group (bees, swallows) may top the cap up to its own size, never beyond a handful
-    expect(maxVisitors).toBeLessThanOrEqual(FAUNA_TUNING.maxVisitors + 2);
+    expect(maxVisitors).toBeLessThanOrEqual(FAUNA_TUNING.maxVisitors);
   });
 
   it('brings every visiting kind over a long afternoon, but rarely', () => {
