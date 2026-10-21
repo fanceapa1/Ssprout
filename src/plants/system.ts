@@ -137,6 +137,10 @@ export interface PlantSystem extends System {
   connectPlacement(source: PlacementSource): () => void;
   /** world rect of a finished (or the growing) plant's sprite box */
   plantBounds(plantId: string): Rect | null;
+  /** world rect a species would occupy in a slot */
+  boundsFor(speciesId: string, slotId: string): Rect | null;
+  /** a world rect in canvas device pixels (current viewport) */
+  toDevice(rect: Rect): Rect | null;
   /** resolves when no sprite is queued or being painted */
   whenIdle(): Promise<void>;
   /** tests/screenshots: snap growth and fades to their targets, paint what is needed, resolve when done */
@@ -647,6 +651,17 @@ export function createPlantSystem(opts: PlantSystemOptions): PlantSystem {
       const def = plant ? getSpecies(plant.speciesId) : undefined;
       const slot = plant ? slotById.get(plant.slotId) : undefined;
       return def && slot ? plantWorldBounds(def, slot) : null;
+    },
+    boundsFor(speciesId, slotId) {
+      const def = getSpecies(speciesId);
+      const slot = slotById.get(slotId);
+      return def && slot ? plantWorldBounds(def, slot) : null;
+    },
+    toDevice(rect) {
+      const vp = sys?.viewport;
+      if (!vp) return null;
+      const p = vp.worldToScreen(rect);
+      return { x: p.x * vp.dpr, y: p.y * vp.dpr, w: rect.w * vp.pixelScale, h: rect.h * vp.pixelScale };
     },
     whenIdle: () => cache.whenIdle(),
     settle() {

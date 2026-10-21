@@ -13,6 +13,10 @@ declare module '../dev/debug' {
       /** snap growth/fades to their targets and resolve once their sprites are painted */
       settle(): Promise<void>;
       bounds(plantId: string): Rect | null;
+      /** world rect a species would occupy in a slot */
+      boundsFor(speciesId: string, slotId: string): Rect | null;
+      /** world rect → canvas device pixels */
+      toDevice(rect: Rect): Rect | null;
       perf(): PlantPerf;
       resetPerf(): void;
       /** true when the ambience wind field is in use (else the local fallback) */
@@ -28,6 +32,8 @@ export function installPlantsDebug(system: PlantSystem): void {
       whenIdle: () => system.whenIdle(),
       settle: () => system.settle(),
       bounds: (id: string) => system.plantBounds(id),
+      boundsFor: (speciesId: string, slotId: string) => system.boundsFor(speciesId, slotId),
+      toDevice: (rect: Rect) => system.toDevice(rect),
       perf: () => system.perf(),
       resetPerf: () => system.resetPerf(),
       ambienceWind: () => usingAmbienceWind,
