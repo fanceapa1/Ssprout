@@ -10,51 +10,84 @@ async function reloadDev(page: Page): Promise<void> {
 }
 
 test.describe('core loop', () => {
-  test('start → complete → choose → place, persisted across reloads', async ({ page }) => {
+  test('plant at start → break → water → skip → complete, persisted across reloads', async ({ page }) => {
     await openDev(page);
     await page.evaluate(() => {
       window.sprout!.reset();
       window.sprout!.seed(42);
     });
 
-    const session = await page.evaluate(() => window.sprout!.start(25));
-    expect(session).toMatchObject({ goalMs: 25 * MIN, pausedAt: null });
+    const plans = await page.evaluate(() => window.sprout!.plans(60).map((p) => p.id));
+    expect(plans[0]).toBe('unbroken');
+    expect(plans).toContain('pomodoro');
+
+    const session = await page.evaluate(() =>
+      window.sprout!.start(60, { taskName: 'Biology ch. 4', planId: 'pomodoro' }),
+    );
+    expect(session).toMatchObject({ goalMs: 60 * MIN, taskName: 'Biology ch. 4', pausedAt: null });
+    expect(session!.plan.id).toBe('pomodoro');
 
     // a running session survives a reload
     await reloadDev(page);
-    const resumed = await page.evaluate(() => window.sprout!.state().session);
-    expect(resumed).toEqual(session);
+    expect(await page.evaluate(() => window.sprout!.state().session)).toEqual(session);
 
-    const reward = await page.evaluate(() => window.sprout!.completeSession());
-    expect(reward).toMatchObject({ sessionId: session!.id, goalMinutes: 25, tier: 2, chosen: null });
-    expect(reward!.options.length).toBeGreaterThan(0);
+    // jump to the first break, water it, skip the rest
+    const breakIndex = await page.evaluate(() => window.sprout!.toBreak());
+    expect(breakIndex).toBe(1);
+    expect(await page.evaluate(() => window.sprout!.status().phase)).toBe('break');
+    expect(await page.evaluate(() => window.sprout!.water())).toBe(true);
+    expect(await page.evaluate(() => window.sprout!.skipBreak())).toBe(true);
+    const status = await page.evaluate(() => window.sprout!.status());
+    expect(status.phase).toBe('focus');
+    expect(status.session!.waterings).toEqual([1]);
+    expect(status.session!.skippedMs).toBeGreaterThan(0);
 
-    // the pending reward also survives a reload ("plant later")
+    // watering and skipping survive a reload too
     await reloadDev(page);
-    expect(await page.evaluate(() => window.sprout!.state().pendingReward)).toEqual(reward);
+    const reloaded = await page.evaluate(() => window.sprout!.state().session);
+    expect(reloaded!.waterings).toEqual([1]);
 
-    expect(await page.evaluate((id) => window.sprout!.choose(id), reward!.options[0]!)).toBe(true);
-    const options = await page.evaluate(() => window.sprout!.placementOptions());
-    expect(options.length).toBeGreaterThan(0);
-    const plant = await page.evaluate((slotId) => window.sprout!.place(slotId), options[0]!.id);
-    expect(plant).toMatchObject({ speciesId: reward!.options[0], slotId: options[0]!.id, sessionMinutes: 25 });
+    const plant = await page.evaluate(() => window.sprout!.completeSession());
+    expect(plant).toMatchObject({
+      id: session!.id,
+      speciesId: session!.speciesId,
+      slotId: session!.slotId,
+      taskName: 'Biology ch. 4',
+      sessionMinutes: 60,
+    });
 
     // reload straight away: the debounced save is flushed on pagehide
     await reloadDev(page);
     const state = await page.evaluate(() => window.sprout!.state());
     expect(state.plants).toEqual([plant]);
-    expect(state.pendingReward).toBeNull();
     expect(state.session).toBeNull();
-    expect(state.stats).toEqual({ totalMinutes: 25, completed: 1, cancelled: 0 });
-    expect(state.tips).toMatchObject({ duration: 'seen', placement: 'seen' });
+    expect(state.stats.completed).toBe(1);
+    expect(state.stats.totalMinutes).toBe(55); // focus minutes of 30 · (5) · 25
+    expect(state.tips).toMatchObject({ task: 'seen', duration: 'seen', plan: 'seen', water: 'seen' });
+  });
+
+  test('cancel: the seedling withers and the replaced plant stays', async ({ page }) => {
+    await openDev(page);
+    await page.evaluate(() => window.sprout!.reset());
+    expect(await page.evaluate(() => window.sprout!.addPlants(1))).toBe(1);
+    const [old] = await page.evaluate(() => window.sprout!.state().plants);
+    const session = await page.evaluate(
+      (o) => window.sprout!.start(25, { speciesId: o.speciesId, slotId: o.slotId }),
+      old!,
+    );
+    expect(session!.displacedPlantId).toBe(old!.id);
+    expect(await page.evaluate(() => window.sprout!.cancel())).toBe(true);
+    const state = await page.evaluate(() => window.sprout!.state());
+    expect(state.plants).toEqual([old]);
+    expect(state.pressed).toEqual([]);
+    expect(state.stats.cancelled).toBe(1);
   });
 
   test('a corrupt save is backed up and the garden starts fresh', async ({ page }) => {
     await openDev(page);
     await page.evaluate(() => localStorage.setItem('studysprout:v1', '{"version":1,"plants":[oops'));
     await reloadDev(page);
-    const state = await page.evaluate(() => window.sprout!.state());
-    expect(state.plants).toEqual([]);
+    expect(await page.evaluate(() => window.sprout!.state().plants)).toEqual([]);
     const backups = await page.evaluate(() =>
       Object.keys(localStorage)
         .filter((k) => k.startsWith('studysprout:corrupt:'))
@@ -63,7 +96,7 @@ test.describe('core loop', () => {
     expect(backups).toEqual(['{"version":1,"plants":[oops']);
   });
 
-  test('addPlants fills free compatible slots and setState validates', async ({ page }) => {
+  test('addPlants creates finished, named plants; setState validates', async ({ page }) => {
     await openDev(page);
     await page.evaluate(() => window.sprout!.reset());
     const added = await page.evaluate(() => window.sprout!.addPlants(50));
@@ -71,6 +104,7 @@ test.describe('core loop', () => {
     const plants = await page.evaluate(() => window.sprout!.state().plants);
     expect(plants).toHaveLength(added);
     expect(new Set(plants.map((p) => p.slotId)).size).toBe(added);
+    for (const p of plants) expect(p.taskName.length).toBeGreaterThan(0);
 
     const err = await page.evaluate(() => {
       try {
@@ -81,7 +115,5 @@ test.describe('core loop', () => {
       }
     });
     expect(err).toContain('plants');
-    const stats = await page.evaluate(() => window.sprout!.setState({ stats: { totalMinutes: 5, completed: 1, cancelled: 0 } }).stats);
-    expect(stats.totalMinutes).toBe(5);
   });
 });
