@@ -18,7 +18,7 @@ test.describe('ui · menu, tips and data', () => {
     expect(await page.evaluate(() => window.sprout!.state().tips.sound)).toBe('seen');
 
     // inside the planting sheet, sheet tips appear next to their controls
-    await page.getByRole('button', { name: 'Plant a session' }).click();
+    await page.getByRole('button', { name: 'Start studying' }).click();
     const sheetTips = page.locator('dialog[data-dialog="planting"] .tip');
     await expect(sheetTips.first()).toBeVisible();
     await page.keyboard.press('Escape');

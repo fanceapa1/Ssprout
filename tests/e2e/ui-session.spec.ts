@@ -4,7 +4,7 @@ import { MIN, openUi, plantSession, reloadUi, setMinutes } from './ui-helpers';
 test.describe('ui · planting a session', () => {
   test('sheet: task, time, plans and plants; locked tiers; placement shows only compatible spots', async ({ page }) => {
     await openUi(page);
-    await page.getByRole('button', { name: 'Plant a session' }).click();
+    await page.getByRole('button', { name: 'Start studying' }).click();
     const sheet = page.locator('dialog[data-dialog="planting"]');
     await expect(sheet).toBeVisible();
     await expect(sheet.getByLabel('What are you studying?')).toHaveAttribute('maxlength', '40');

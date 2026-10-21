@@ -23,7 +23,7 @@ the widget surfaces — the UI then asks in the Begin click itself.
 | File | What |
 |---|---|
 | `index.ts` | `createUI` — composition, modes (`garden` / `planting` / `placement`), dialog management, flows, store/tick/bus wiring |
-| `timer-panel.ts` | bottom-centre panel: idle "Plant a session"; studying: task, block label, block + total remaining, plan line with progress, Pause/End, break Water/Skip, cancel confirm, long-pause prompt; fades while focusing |
+| `timer-panel.ts` | bottom-centre panel: idle "Start studying"; studying: task, block label, block + total remaining, plan line with progress, Pause/End, break Water/Skip, cancel confirm, long-pause prompt; fades while focusing |
 | `session-view.ts` | the one adapter from `controller.status()` to what the panel shows |
 | `planting-sheet.ts` | `<dialog>`: task name (≤ 40), total time, recommended plans, plant grid → "Choose a spot" (ADR 0053) |
 | `duration.ts` | numeral + slider 10–180/5 + chips 25/50/90 + tier words |
@@ -44,7 +44,7 @@ the widget surfaces — the UI then asks in the Begin click itself.
 
 ## Flows
 ```
-idle ── Plant a session ──▶ planting sheet ── Choose a spot ──▶ placement ── Begin ──▶ focus
+idle ── Start studying ──▶ planting sheet ── Choose a spot ──▶ placement ── Begin ──▶ focus
   ▲                          ▲   (Esc/close → idle)          │ (Back/Esc)            │  ⇅ pause
   │                          └───────────────────────────────┘                        ▼
   │                                                                   break: Water · Skip break

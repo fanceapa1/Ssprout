@@ -8,7 +8,7 @@ import { sessionView, type SessionView } from './session-view';
 import type { UIState } from './types';
 
 /**
- * The timer panel (bottom centre). Idle: "Plant a session". Studying: task name, the current
+ * The timer panel (bottom centre). Idle: "Start studying". Studying: task name, the current
  * block ("Focus · 2 of 3" / "Break — water your iris"), block and total remaining, the plan as a
  * segmented brush line with progress, Pause / End; during a break a watering can (Water) and
  * Skip break. Every action goes through the session controller.
@@ -41,7 +41,7 @@ export function createTimerPanel(ctx: UIContext, actions: TimerPanelActions): Ti
   let lastView: PanelView | null = null;
 
   // ── idle ────────────────────────────────────────────────────────────────────────────────
-  const plantBtn = h('button.seal.plant-session', { type: 'button', 'data-anchor': 'start', onclick: () => actions.plant(plantBtn) }, 'Plant a session');
+  const plantBtn = h('button.seal.plant-session', { type: 'button', 'data-anchor': 'start', onclick: () => actions.plant(plantBtn) }, 'Start studying');
   const idleLine = h('p.idle-line');
   const idle = h('div.view.view-idle', {}, h('span.idle-sprout', { 'aria-hidden': 'true' }, fragment(ICONS.sprout)), idleLine, h('div.actions', {}, plantBtn));
 
