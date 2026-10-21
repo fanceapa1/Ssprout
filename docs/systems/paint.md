@@ -1,0 +1,236 @@
+# Paint engine
+
+`src/paint/` — the watercolour engine every scene, plant, creature and effect is painted with.
+It turns seeded geometry into marks that read as pigment on washi: irregular wet edges with
+pigment pooled at the rim, lighter centres, mottled flow, granulation that sits in the paper
+grain, blooms, bleeds, dry brush and tapered sumi lines.
+
+Look at it first: studio → **Paint · primitives**, **Paint · recipes**, **Paint · test
+vignettes** (`npm run shots -- --studio paint-vignettes`, or
+`/Ssprout/studio.html?entry=paint-vignettes/tree-crown`).
+
+## How it works (one paragraph)
+Every primitive builds pure geometry (`geometry.ts`), lays it down as many low-alpha fills into
+a private CPU **wet layer** (`wet.ts`) in the target's own coordinates, then calls
+`layer.dry()`. The drying pass is per pixel: it sharpens the soft layered coverage into a wet
+edge (the *median* layer contour, so edges are organic but not spiky), finds the rim with a
+blur (edge − blur), pools pigment there and lifts the centre, modulates density with a flow
+noise and with the shared paper grain (granulation, dry brush, edge micro-texture), then
+composites onto the target with `multiply` by default — watercolour is subtractive. See
+ADR 0020–0022.
+
+## Pipeline convention (important)
+Paint **on white** (or transparent) and multiply `paperTexture` over the finished frame last —
+that is exactly what the renderer's `paper` layer does. Lifted or reserved paper is painted
+`PAPER_WHITE` (`#fffdf8`) and becomes washi colour once the paper is multiplied. The studio
+entries follow the same pipeline (`ground()` + `finish()` in `paint.studio.ts`). ADR 0021.
+
+Sprites (plants, creatures) are painted on transparent canvases; a multiplied wash over
+transparency is just its colour at its alpha, so sprites composite normally (`source-over`)
+over the background and still receive the paper texture at the end.
+
+## Creating a painter
+```ts
+import { createPainter, makeCanvas, PIGMENTS } from '../paint';
+
+const canvas = makeCanvas(600, 800);          // OffscreenCanvas if available, else <canvas>
+const p = createPainter(canvas, { seed: 42, quality: 'normal' });
+p.ctx.setTransform(2, 0, 0, 2, 0, 0);          // draw in your own units; any transform works
+p.wash({ cx: 150, cy: 200, rx: 80, ry: 50 }, PIGMENTS.sap);
+```
+- `createPainter(canvas, opts?)` / `painterFor(ctx, opts?)` (e.g. a renderer layer context).
+- `Painter` keeps the original contract (`ctx`, `w`, `h`) and adds `rng`, `quality`, `paper`,
+  `env` and the methods below. Species code receives a painter in `SpeciesDef.draw(p, rng, …)`.
+- `PainterOptions`: `seed` (fallback rng + flow noise, default 1), `paperSeed` (default 1 —
+  keep it shared), `grainScale` (grain texel in device px, default 1), `quality`
+  (`'draft' | 'normal' | 'high'`, default `'normal'`).
+- **Randomness**: every method takes `rng` in its options. Pass yours (e.g. the species `rng`)
+  for stable, per-instance results; otherwise the painter's own stream is consumed in call
+  order. No `Math.random` anywhere.
+- **Units**: all sizes are in the context's user units (whatever transform is set). Wet-layer
+  resolution and grain are in device pixels, so the same call looks right at DPR 1 and 2.
+- **Shapes** (`Shape`): a polygon `Pt[]` or an ellipse spec `{ cx, cy, rx, ry, rotation? }`
+  (becomes a gently irregular blob). Author shapes at any density — outlines are resampled
+  evenly before deformation.
+
+## API reference
+All option fields are optional. Every wash-like call also accepts the **drying options**
+(`DryOptions`): `opacity` 0.85 · `edge` 0.5 (rim pooling) · `edgeWidth` 2.5 · `sharpness` 0.6 ·
+`centreLift` 0.25 · `granulation` 0.2 · `granules` 0 · `speckle` 0 · `flow` 0.35 ·
+`flowScale` 40 · `dry` 0 · `darken` 0.3 · `blend` `'multiply'`. (Defaults shown are
+`DRY_DEFAULTS`; each primitive overrides some, see below.)
+
+### `wash(shape, pigment, opts)` — wet-edge wash
+The workhorse. `layers` 16 · `deform` 0.3 (outline wander) · `spread` 0.15 (layer wander) ·
+`coverage` 0.9 · `jitter` 0.025 · `fade` (angle or `{ angle, start 0.45, amount 1, ragged 0.6 }`
+→ lost edge toward `angle`) · `blooms` 0 · `bloomSize` 0.16 · `drops` (wet-in-wet blotches:
+`[{ pigment, at?, size? 0.3, alpha? 0.6 }]`).
+```ts
+p.wash(bank, PIGMENTS.sageLight, { opacity: 0.6, fade: { angle: Math.PI / 2, start: 0.6 } });
+p.wash(pad, PIGMENTS.sap, { blooms: 1 });                       // a cauliflower backrun
+p.wash(rock, PIGMENTS.stone, { drops: [{ pigment: PIGMENTS.sage, size: 0.35 }] });
+```
+
+### `glaze(shape, pigment, opts)` — transparent tint
+Soft edges, almost no pooling, opacity 0.35, multiplied. Shadows (use `shade(p)`), warm
+light, unifying a passage. `fade` makes it die away.
+```ts
+p.glaze(underside, shade(PIGMENTS.stone, 0.3), { fade: -Math.PI / 2, opacity: 0.4 });
+```
+
+### `wetInWet(shape, a, b, opts)` — two pigments bleeding
+`angle` (from `a` toward `b`, default π/2 = `b` below) · `split` 0.5 · `softness` 0.3 ·
+`fingers` 0.5, plus wash options.
+```ts
+p.wetInWet(stone, PIGMENTS.stone, PIGMENTS.sage, { angle: -Math.PI / 2, split: 0.75 });
+p.wetInWet(sky, lighten(PIGMENTS.bellflower, 0.5), PIGMENTS.washiDeep, { opacity: 0.35, edge: 0.15 });
+```
+
+### `granulate(shape, pigment, opts)` — settled granules
+`strength` 0.6. Clustered speckle in the paper's valleys, soft-edged; lay over a wash of the
+same family. Cheaper alternative inside a wash: the `granules` drying option.
+
+### `dab(at, pigment, opts)` — one brush dab
+Base at `at`. `variant` `'leaf' | 'petal' | 'blade' | 'needle' | 'round'` · `angle` −π/2 (up) ·
+`length` 22 · `width` length × 0.42 · `curve` 0 · `asym` random ±0.25 · `pool` 0.5 (flank) ·
+`poolSide` random ±1 · `basePool` 0.3 · `layers` 4 · `jitter` 0.03.
+```ts
+p.dab(node, PIGMENTS.sage, { angle: -0.6, length: 26, curve: 0.2 });                  // leaf
+p.dab(centre, PIGMENTS.sakura, { variant: 'petal', angle: a, length: 18, blend: 'source-over' });
+```
+`p.dabInto(layer, at, pigment, opts)` paints a dab into an open layer without drying (dabs then
+merge wet-in-wet — see recipes).
+
+### `stroke(points, opts)` — brush stroke
+`pigment` sage · `width` 6 · `taper` [0.12, 0.4] · `pressure` (fn of t, or samples) ·
+`wobble` 0.5 · `wetness` 0.5 · `dryness` 0 (bristle breakup) · `bristles` auto · `layers` 3.
+```ts
+p.stroke(trunk, { pigment: mix(PIGMENTS.wood, PIGMENTS.sumi, 0.2), width: 7, taper: [0, 0], pressure: [1.25, 1, 0.9] });
+```
+
+### `inkLine(points, opts)` — thin sumi line
+`width` 1.6 · `pigment` sumi `#4a443c` · `breaks` 0.15 · `wobble` 0.35 · `pressureVar` 0.35 ·
+`taper` [0.15, 0.3] · `pressure`. Tapered, pressure-varied, occasionally broken. Sparingly.
+```ts
+p.inkLine([{ x: 270, y: 354 }, { x: 274, y: 300 }, { x: 266, y: 252 }], { width: 2.2, pressure: [1.4, 1, 0.6] });
+```
+
+### `dryBrush(points, opts)` — scumble
+`stroke` with `dryness` 0.6, `wetness` 0.15, `width` 14, flat ends. Breaks up along the paper
+grain and most at its edges. Grass banks, bark, path edges, worn wood.
+
+### `splatter(center, opts)` — a few flicked drops
+`pigment` sage · `radius` 30 · `count` ~6 · `size` 2.4. Rare and subtle — never confetti.
+
+### `ripple(center, opts)` — water ripple lines
+`width` 70 · `count` 3 · `squash` 0.12 · `pigment` deep celadon · `opacity` 0.5 ·
+`light` 0.65 (pale lifted line beside each) · `lineWidth` 1.1.
+
+### `lift(shape, opts)` — lift pigment back to paper
+`amount` 0.5 · `paper` `PAPER_WHITE`. Paints pale paper colour (`source-over`) — use on opaque
+backgrounds (reflections, highlights), not on transparent sprites.
+
+### `layer(area?)` → `WetLayer` — batch marks into one drying pass
+```ts
+const L = p.layer({ x: cx - 40, y: cy - 40, w: 80, h: 80 });   // user-unit area to cover
+for (let k = 0; k < 6; k++) p.dabInto(L, c, PIGMENTS.sakuraLight, { variant: 'petal', angle: k, rng });
+L.lift(highlightPoly, 0.4);        // also: L.fill(poly, pigment, alpha), L.clip(poly), raw L.ctx
+L.dry({ edge: 0.6, blend: 'source-over' });
+```
+Marks in one layer merge like wet paint (no edges where they overlap); separate layers dry
+separately and glaze over each other (edges show where they overlap). Call `dry()` exactly
+once (or `discard()`).
+
+### Recipes
+- `foliageClump(center, radius, pigments = FOLIAGE_GREEN, opts)` — cloud-pad of round dabs
+  merged into a scalloped mass + mid-tone + cool shadow + a few darks. `light` (angle light
+  comes from, −2.3 = upper left) · `flatness` 0.62 · `density` 1 · `dabSize` 0.2 · `shadow` 0.6 ·
+  `opacity` 0.85 · `gaps` 0.35. `FoliagePigments = { light, mid, shadow, dark? }`.
+- `grassTuft(base, opts)` — `height` 40 · `spread` height × 0.5 · `blades` 9–15 · `lean` ±0.15 ·
+  `pigments` (light → dark) · `ground` true (faint wash under it) · `opacity` 0.85.
+- `stone(shapeOrBox, opts)` — accepts a polygon, ellipse or `{ x, y, w, h }` (base at x,y, like
+  scene rocks). `pigment` stone · `warm` 0.35 · `light` −2.2 · `moss` 0.3 · `granulation` 0.35 ·
+  `ink` 0.3 · `groundShadow` true · `patches` 2–4 · `reserve` true (paints paper-white under
+  itself so it is opaque over water/grass painted earlier).
+- `waterBody(shape, opts)` — `pigments` [light, mid, deep] celadons · `bands` 5 · `ripples` 3 ·
+  `reflection` 0.5 · `farShadow` 0.55 · `granulation` 0.4. Background only (lifts paper).
+
+### Pigments (`pigments.ts`)
+`PIGMENTS` — the ART_DIRECTION palette: `washi washiDeep sap sage sageLight olive celadon
+celadonMid celadonDeep stone stoneDark stoneWarm sumi wood woodLight sakura sakuraLight iris
+irisLight bellflower petalWhite petalShade vermilion gold shadow`. A `Pigment` is a hex string.
+Helpers work in OKLab: `mix(a, b, t)`, `lighten(p, k)` (also thins chroma, like water),
+`darken(p, k)`, `saturate(p, f)`, `shade(p, k)` (darker + cooler — use instead of black),
+`jitter(p, rng, k)` (per-stroke variation), `rgba(p, a)`, `lightness`, `chroma`.
+
+### Paper, noise, geometry
+- `paperTexture(w, h, seed, { tint, base, grain, mottle, vignette, grainScale })` → canvas.
+  `paperGrain(seed)` → the tileable grain field granulation and dry brush sample.
+- `createSimplex2D(rng)`, `createValueNoise2D(rng, period)`, `fbm(noise, x, y, opts)`,
+  `noiseGrid(...)`.
+- Pure geometry: `deformPolygon`, `organicOutline` / `outlineLayer`, `blob`, `stoneShape`,
+  `dabOutline`, `smoothPath`, `ribbon`, `smoothPolygon`, `insetPolygon`, `bounds`, … — all
+  deterministic for a given `Rng`, all unit-tested.
+
+## Recipes for other agents
+**A leaf clump / shrub.** One `foliageClump` per mass; trees are several clumps (pads) at
+different sizes, `flatness` ~0.55, drawn *after* the branches so the ink shows faintly through
+(see `paint-vignettes/tree-crown`). Pale spring: `{ light: lighten(sageLight, 0.1), mid:
+sageLight, shadow: sap }`; pine: `{ light: sap, mid: sage, shadow: olive, dark: mix(olive,
+sumi, 0.4) }`.
+
+**Petals.** Petals of one flower overlap and should *not* merge — paint each with
+`p.dab(…, { variant: 'petal' })` (separate layers glaze over each other), rotate around the
+centre with ±0.15 rad jitter and ±10% length so the flower is never symmetric. For white
+petals use `petalWhite` with `blend: 'source-over'` and shade one side with a `petalShade`
+glaze. Finish with a small `round` dab in `gold` for the centre and 1–2 tapered `inkLine`
+stamens at low opacity.
+
+**Leaves along a stem.** `inkLine` (or a thin `stroke`) for the stem in `olive`, then `leaf`
+dabs at nodes alternating ±0.6–1.0 rad, lengths tapering toward the tip; pass the species
+`rng` everywhere.
+
+**Grass and reeds.** `grassTuft` for tufts; reeds/iris leaves = `blade` dabs with `length`
+3–5× the tuft height and `curve` 0.05–0.15.
+
+**Stones and path.** `stone({x,y,w,h})` straight from scene rocks; stepping stones:
+`stone(ellipse, { moss: 0, groundShadow: false })`. Paint stones *after* water and banks
+(`reserve` keeps them opaque).
+
+**Water.** `waterBody(pond)` first, then reflections as soft `glaze`s of the reflected colour
+(vertically flipped shapes, low opacity), then stones.
+
+### Do
+- Keep most of the frame barely tinted; spend contrast on plant heads and stones.
+- Layer: light → mid → dark, each dried separately; shadows as cool `glaze`s.
+- Vary everything with the rng: count, angle, length, pigment (`jitter`).
+- Use `fade` (lost edges) on big washes so shapes dissolve toward the margins.
+
+### Don't
+- Don't fill or stroke with raw canvas calls for visible art — it reads as vector.
+- No pure black (use `sumi` or `shade`), no saturated colours outside flowers and koi.
+- Don't `lift` on transparent sprite canvases (it paints paper colour).
+- Don't put dozens of separate `dab` calls where one `layer` + `dabInto` would do (speed),
+  but don't merge marks that should show overlapping edges (petals).
+- Don't call primitives per frame — they are for cached sprites and backgrounds.
+
+## Performance
+Measured in headless Chromium (Apple M3) with an ad-hoc benchmark driving the engine through
+the dev server, DPR 2:
+
+| Workload | draft | normal | high |
+|---|---|---|---|
+| Dense full background 1600×1000 world → 3200×2000 px (sky bleed, 3 hills, 2 bank bleeds, pond, 5 stepping + 9 boulders, 18 foliage clumps, 8 trunks, 30 tufts, 6 dry-brush strokes) | 0.61 s | 1.25 s | 1.62 s |
+| + `paperTexture(3200, 2000)` (separate cached layer) | +0.16 s | +0.16 s | +0.16 s |
+| Plant sprite 300×400 at DPR 2 (5 stems, 30 leaf dabs, 5 five-petal heads) | 10 ms | 24 ms | 26 ms |
+
+The real scene has fewer elements than the stress composition. Cost is roughly proportional
+to the wet-layer pixels processed (≈18 M px for the normal background); `quality` trades layer
+counts and wet-layer resolution (draft: half resolution; normal: 0.8 for layers > 250 k px,
+0.7 above 1.5 M px). Tips: batch marks into one `layer()`, keep shapes' bounding boxes tight.
+
+## Tests
+`noise.test.ts`, `pigments.test.ts`, `geometry.test.ts` (determinism of deformation and
+outlines, brush profiles, paths), `wet.test.ts` (drying pass on synthetic buffers: rim pooling,
+opacity, dry brush, determinism), `primitives.test.ts` (jsdom-safe import, documented
+defaults, quality scaling, pure brush geometry). Visuals: the studio sections above.
