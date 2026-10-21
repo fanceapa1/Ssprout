@@ -54,7 +54,7 @@ rock entity they stand on (feet are on its top, which is above its base).
 | `bird` (small-birds) | visitor, wagtail or sparrow. Bounding flight on a cubic path (flap bursts / folded glides), lands on a free perch (`choosePerch`: wagtails prefer rocks, sparrows stones), then hops along the perch, pecks, turns, stands; wagtails pump the tail; flies off after 16–45 s. |
 | `frog` | resident when a water plant grows in a water slot. Sits on the pad, throat pulses with breath, sometimes turns; every 4–12 min crouches and hops into open water (big ring), stays under 30–90 s, climbs back. |
 | `swallow` (swallows) | visitor group of 1–3 sweeping one swooping cubic across the sky band, flap bursts and swept glides. Not in reduced motion. |
-| `heron` | rare visitor. Slow wingbeats in (the wing foreshortens through edge-on as it beats), glides down to a wading spot on the far half of the pond edge (`heronStands`), stands 1.5–4 min: slow neck drift, craning forward, a rare step; crouches and leaves with slow beats. Faint reflection. |
+| `heron` | rare visitor. Slow wingbeats in (the wing foreshortens through edge-on as it beats), glides down to a wading spot on the far edge of the pond, clear of boulders, pads and far-bank plants (`heronStands`, cached), stands 1.5–4 min: slow neck drift, craning forward, a rare step; crouches and leaves with slow beats. Faint reflection. |
 
 **Targets.** Flowers: finished plants whose species has `pollinators`, a seeded point in the top
 third of the sprite box (slot position + `size` × `scale` + `anchor`). Pads: water species in water
@@ -79,8 +79,9 @@ one strider, no swallows.
 
 `maxVisitors` 3 (counting individuals). A due visit that is blocked (cap, night) is retried after
 8–20 s, not dropped. Sizes (world units at perspective 1): strider 13, bee 7, butterfly 24 / 30,
-dragonfly 30, sparrow 17, wagtail 24, frog 17, swallow 26, koi 51–69, heron 150 tall (≈ 95–110
-on the far shore after perspective).
+dragonfly 30, sparrow 19, wagtail 27, frog 17, swallow 26, koi 56–76 (≈ 45–60 after the pond's
+perspective), heron 150 tall (≈ 95–110 on the far shore). Sizes were tuned against the painted
+scene (boulders 60–150 wide).
 
 ## Art
 Every part is painted once with the paint engine (`paintSprite` → `createPainter`, washes,
@@ -95,15 +96,16 @@ single wing (butterflies horizontally, heron vertically).
 `kinds()`, `spawn(id, count?)` (kinds or unlock ids; ignores schedule, cap and night; the frog needs
 a pad), `list()` (`{ id, kind, x, y, layer, state, visitor, inPond }`), `clear()`,
 `step(seconds, dt?)` (advance the sim without rendering), `setHour(h | null)`, `roster()`,
-`schedule()` (seconds until each visit), `pond()`, `view()`, `bench(frames?)` (update + draw ms).
+`schedule()` (seconds until each visit), `pond()`, `view()`, `targets()` (flowers, pads, perches,
+heron stands), `bench(frames?)` (update + draw ms).
 ```js
 sprout.fauna.setHour(12); sprout.fauna.spawn('heron'); sprout.fauna.step(25); await sprout.freeze();
 ```
 
 ## Performance
 `bench(300)` in headless Chromium (Apple M3), 1440×900 at DPR 2, 17 creatures (3 koi, 3 striders,
-dragonfly, 2 butterflies, 3 bees, 2 birds, 3 swallows, heron, leaves): **update 0.01 ms + draw
-0.87 ms per frame** (budget 1.5 ms). Painting parts happens on first appearance (a few ms per kind).
+dragonfly, 2 butterflies, 3 bees, 2 birds, 3 swallows, heron, leaves): **update 0.01–0.02 ms + draw
+0.87–1.18 ms per frame** (placeholder vs painted scene; budget 1.5 ms). Painting parts happens on first appearance (a few ms per kind).
 
 ## Adding a creature
 1. Add its kind (and visit tuning if it visits) to `tuning.ts`; map its unlock id in `roster.ts`.

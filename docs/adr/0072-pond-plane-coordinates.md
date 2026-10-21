@@ -10,7 +10,7 @@ circles would be squashed ellipses.
 
 ## Decision
 - Water creatures simulate in a plane where `y_plane = cy + (y − cy) / pondSquash` (`pondSquash`
-  0.42 in `tuning.ts`, `cy` the pond centroid). The pond polygon is mapped once; containment
+  0.36 in `tuning.ts`, tuned to the painted kidney pond, 904 × 261 world units, `cy` the pond centroid). The pond polygon is mapped once; containment
   (`insideWithMargin`, `containPoint`), targets and steering happen there; positions are mapped back
   to world for drawing and depth.
 - Bodies are drawn foreshortened: koi with a gentler squash (0.62, so they don't read as slivers),

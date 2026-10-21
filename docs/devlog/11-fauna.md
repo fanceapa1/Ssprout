@@ -42,8 +42,17 @@ Rounds per creature on studio stages and in the garden (`npm run shots`, frame s
 `sprout.fauna.bench(300)`: 0.88 ms per frame (update 0.01 + draw 0.87) with 17 creatures at
 1440×900 DPR 2 (budget 1.5 ms).
 
+## Real scene pass
+After the rebase onto the painted scene and the 25 species: tests moved to `gardenScene`; the heron
+now wades only on the far edge, between the boulders and clear of far-bank plants (it had settled in
+the lobe by the pavilion); `pondSquash` 0.42 → 0.36 for the wide kidney pond; koi 60 → 66 and
+small birds ~12 % larger so they read against 60–150-unit boulders; heron stands are cached (they were
+recomputed every frame — the long sims got 7× faster). Verified with `sprout.fauna.targets()`: 33
+flower heads, 5 water-lily pads (the frog sits on one), 10 perches (5 boulder tops, 5 stones), 10
+wading spots, all from the contract. Studio stage backdrops are shared across reseeds.
+
 ## Left
 - The arrival line ("A koi has found your pond.") is for the UI (`controller.announceFauna`).
-- Re-check pacing and scale against the real painted scene (pond polygon, perch rocks, ~55 slots)
-  and real pollinator / water species once those land; `pondSquash` may need tuning.
+- Look again once the plant system draws plants in the garden (frog on a visible lily, bees on
+  visible flowers).
 - `sprout.setTime` (ambience) should also pin `sprout.fauna.setHour`.
