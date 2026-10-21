@@ -21,7 +21,11 @@ function pixelAtWorld(page: Page, x: number, y: number) {
 test.describe('scene', () => {
   test('paints the garden: pale paper sky, celadon pond, varied painted marks', async ({ page }) => {
     await openDev(page);
-    await page.evaluate(() => window.sprout!.freeze());
+    // lighting follows the local clock: pin daylight so the colours do not depend on when tests run
+    await page.evaluate(() => {
+      window.sprout!.setTime('noon');
+      return window.sprout!.freeze();
+    });
     const stats = await canvasStats(page);
     expect(stats.distinctColours).toBeGreaterThan(200); // a painting, not flat fills
     const sky = await pixelAtWorld(page, 800, 120);

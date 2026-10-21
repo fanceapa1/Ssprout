@@ -69,7 +69,8 @@ test.describe('core loop', () => {
   test('cancel: the seedling withers and the replaced plant stays', async ({ page }) => {
     await openDev(page);
     await page.evaluate(() => window.sprout!.reset());
-    expect(await page.evaluate(() => window.sprout!.addPlants(1))).toBe(1);
+    // a tier-1 plant, so a 25-minute session (tier 2) may replant its slot with the same species
+    expect(await page.evaluate(() => window.sprout!.addPlants(1, 1))).toBe(1);
     const [old] = await page.evaluate(() => window.sprout!.state().plants);
     const session = await page.evaluate(
       (o) => window.sprout!.start(25, { speciesId: o.speciesId, slotId: o.slotId }),
