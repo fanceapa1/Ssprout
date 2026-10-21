@@ -193,7 +193,9 @@ export function createTips(ctx: UIContext, opts: { tipContext(): TipContext; res
     const root = ctx.deps.root;
     const openDialog = [...root.querySelectorAll<HTMLDialogElement>('dialog[open]')].find((d) => !d.classList.contains('is-closing')) ?? null;
     const anyClosing = root.querySelector('dialog.is-closing') !== null;
-    const active = anyClosing ? [] : activeTips(store.get(), opts.tipContext());
+    // one quiet thing at a time: notes wait while the quiet line is speaking (a bloom, a koi)
+    const lineSpeaking = !openDialog && root.querySelector('.quiet-line.is-in') !== null;
+    const active = anyClosing || lineSpeaking ? [] : activeTips(store.get(), opts.tipContext());
     const anchors = new Map<TipId, HTMLElement>();
     const next = pickTips(active, (anchor, id) => {
       const a = opts.resolve(anchor, id);

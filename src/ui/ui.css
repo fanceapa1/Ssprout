@@ -1396,8 +1396,10 @@ dialog.planting {
   }
   .planting-foot {
     margin: 0 -20px;
-    padding: 10px 20px 14px;
+    /* the summary wraps onto its own line: keep the paper opaque behind it (cards scroll under) */
+    padding: 22px 20px 14px;
     flex-wrap: wrap;
+    background: linear-gradient(to bottom, rgba(243, 236, 217, 0), rgb(241, 234, 216) 14px);
   }
   .plants {
     grid-template-columns: repeat(2, 1fr);
