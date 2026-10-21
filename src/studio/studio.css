@@ -69,6 +69,10 @@ button {
   cursor: pointer;
 }
 
+input[type='range'] {
+  accent-color: var(--accent);
+}
+
 button:hover {
   border-color: var(--accent);
 }
@@ -142,8 +146,10 @@ main h2 {
 
 figcaption {
   display: flex;
-  gap: 0.5rem;
+  flex-wrap: wrap;
+  column-gap: 0.5rem;
   align-items: baseline;
+  max-width: 34ch;
   font-size: 0.95rem;
   padding-top: 0.25rem;
 }
