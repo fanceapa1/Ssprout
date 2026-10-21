@@ -1,16 +1,17 @@
-import { createRng, type Rng } from '../core/rng';
-import { painterFor } from '../paint';
+import { createRng } from '../core/rng';
+import { createPainter, makeCanvas, mix, PIGMENTS } from '../paint';
+import { crossFade, drawPlant, scratch } from './draw';
 import { getSpecies } from './registry';
+import { createSpriteCache, PRIORITY, stagePair, type Sprite, type SpriteCache, type SpriteSpec } from './sprites';
 import type { SpeciesDef } from './types';
+import { drawWateringFront, drawWetSoil, fitRigToCanvas, LIFT_SCALE, wateringTimeline, type WateringRig } from './watering';
+import { drawWithering } from './wither';
 
 /**
- * PlantView: one species drawn at an arbitrary growth value, optionally mid-watering or wilting.
- * Shared by the floating widget, start-sheet previews and (later) the garden (ADR 0003).
- *
- * PLACEHOLDER internals (widget task): growth is quantised to `GROWTH_STEPS` and each step is
- * rendered once with `species.draw` and cached; the watering animation is a simple painted can,
- * droplets and darkening soil. The plants task will replace the internals with cached
- * growth-stage sprites and a painted watering animation — keep this signature stable.
+ * PlantView (ADRs 0003, 0094, 0118): one species at an arbitrary growth, optionally mid-watering
+ * or wilting — shared by the floating widget, the planting sheet's previews and the studio. It
+ * uses the plant system's pieces: the sprite cache (24 growth steps, cross-faded so growth is
+ * continuous), the painted watering animation and the wither. The signature is stable.
  */
 
 export interface PlantViewOptions {
@@ -24,52 +25,27 @@ export interface PlantViewOptions {
   wilt?: number;
 }
 
-export const GROWTH_STEPS = 24;
-
-export const quantiseGrowth = (g: number): number => {
-  const v = Number.isFinite(g) ? Math.max(0, Math.min(1, g)) : 0;
-  return Math.round(v * GROWTH_STEPS) / GROWTH_STEPS;
-};
+export { GROWTH_STEPS, quantiseGrowth } from './sprites';
 
 type AnyCanvas = HTMLCanvasElement | OffscreenCanvas;
 type Ctx2D = CanvasRenderingContext2D;
 
-const smooth = (a: number, b: number, v: number): number => {
-  const t = Math.max(0, Math.min(1, (v - a) / (b - a)));
-  return t * t * (3 - 2 * t);
-};
+let extraSpecies: ((id: string) => SpeciesDef | undefined) | null = null;
 
-function makeCanvas(w: number, h: number): AnyCanvas | null {
-  if (typeof document !== 'undefined') {
-    const c = document.createElement('canvas');
-    c.width = w;
-    c.height = h;
-    return c;
-  }
-  if (typeof OffscreenCanvas !== 'undefined') return new OffscreenCanvas(w, h);
-  return null;
+/**
+ * Let the view resolve species the registry does not hold (the dev `?fixtures` set). main.ts
+ * passes its `getSpecies`; the registry is always consulted first.
+ */
+export function setPlantViewSpecies(fn: ((id: string) => SpeciesDef | undefined) | null): void {
+  extraSpecies = fn;
 }
 
-const SPRITE_CACHE_MAX = 96;
-const sprites = new Map<string, AnyCanvas>();
+const resolve = (id: string): SpeciesDef | undefined => getSpecies(id) ?? extraSpecies?.(id);
 
-/** The species at one quantised growth, w×h px, cached (LRU-ish). */
-function sprite(def: SpeciesDef, seed: number, growth: number, w: number, h: number): AnyCanvas | null {
-  const key = `${def.id}|${seed}|${growth}|${w}x${h}`;
-  const hit = sprites.get(key);
-  if (hit) {
-    sprites.delete(key);
-    sprites.set(key, hit);
-    return hit;
-  }
-  const c = makeCanvas(w, h);
-  const ctx = c?.getContext('2d') as Ctx2D | null | undefined;
-  if (!c || !ctx) return null;
-  def.draw(painterFor(ctx, { seed }), createRng(seed).fork(def.id), { w, h, growth });
-  sprites.set(key, c);
-  if (sprites.size > SPRITE_CACHE_MAX) sprites.delete(sprites.keys().next().value!);
-  return c;
-}
+/** Main-thread cache: the view must draw synchronously (a widget frame, a preview card). */
+const VIEW_BUDGET = 24 * 1024 * 1024;
+let viewCache: SpriteCache | null = null;
+const cacheFor = (): SpriteCache => (viewCache ??= createSpriteCache({ getSpecies: resolve, createWorker: null, budgetBytes: VIEW_BUDGET }));
 
 /** Where the species sits in a W×H target: contained, base (anchor) at the bottom centre. */
 export function plantLayout(def: Pick<SpeciesDef, 'size' | 'anchor'>, W: number, H: number) {
@@ -81,141 +57,121 @@ export function plantLayout(def: Pick<SpeciesDef, 'size' | 'anchor'>, W: number,
   return { w, h, x: baseX - def.anchor.x * w, y: baseY - def.anchor.y * h, baseX, baseY, scale };
 }
 
+const clamp01 = (v: number) => (Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : 0);
+
+/**
+ * The sprites for a growth: the lower step is painted now if nothing nearer is cached (first
+ * frame); the upper step is queued for idle time and faded in once it exists.
+ */
+function viewImages(cache: SpriteCache, base: Omit<SpriteSpec, 'step'>, growth: number): { a?: Sprite; b?: Sprite; weight: number } {
+  const { lo, hi, weight } = stagePair(growth);
+  let a = cache.get({ ...base, step: lo });
+  if (!a) {
+    for (let s = lo - 1; s >= Math.max(0, lo - 3) && !a; s--) a = cache.get({ ...base, step: s });
+    if (a) cache.request({ ...base, step: lo }, PRIORITY.now);
+    else a = cache.ensureSync({ ...base, step: lo });
+  }
+  let b: Sprite | undefined;
+  if (weight > 0) {
+    b = cache.get({ ...base, step: hi });
+    if (!b) cache.request({ ...base, step: hi }, PRIORITY.now);
+  }
+  if (hi + 1 <= 24) cache.request({ ...base, step: Math.min(24, hi + 1) }, PRIORITY.next);
+  return { a, b, weight: a && b ? weight : 0 };
+}
+
+const groundCache = new Map<number, AnyCanvas | null>();
+
+/** A soft wash of earth and grass under the plant (200 × 48 units), cached per pixel width. */
+function groundWash(px: number): AnyCanvas | null {
+  const b = Math.max(24, Math.min(720, 2 ** (Math.round(Math.log2(Math.max(1, px)) * 3) / 3)));
+  if (groundCache.has(b)) return groundCache.get(b)!;
+  let out: AnyCanvas | null = null;
+  try {
+    const scale = b / 200;
+    const c = makeCanvas(Math.ceil(200 * scale), Math.ceil(48 * scale));
+    const p = createPainter(c, { seed: 'view-ground' });
+    const rng = createRng('view-ground');
+    p.ctx.setTransform(scale, 0, 0, scale, 0, 0);
+    p.wash({ cx: 100, cy: 26, rx: 88, ry: 13 }, mix(PIGMENTS.sageLight, PIGMENTS.stoneWarm, 0.35), {
+      rng,
+      opacity: 0.42,
+      edge: 0.3,
+      sharpness: 0.3,
+      centreLift: 0.3,
+      deform: 0.45,
+      granulation: 0.3,
+      fade: { angle: -Math.PI / 2, start: 0.2, amount: 0.8, ragged: 0.6 },
+    });
+    p.wash({ cx: 96, cy: 28, rx: 42, ry: 6 }, mix(PIGMENTS.sap, PIGMENTS.stoneWarm, 0.4), { rng, opacity: 0.3, edge: 0.3, sharpness: 0.3, deform: 0.5 });
+    p.ctx.setTransform(1, 0, 0, 1, 0, 0);
+    out = c;
+  } catch {
+    out = null;
+  }
+  groundCache.set(b, out);
+  return out;
+}
+
 /**
  * Draw the plant into `canvas` (clears it first). Returns false when the species is unknown or
  * no 2D context is available (callers may draw a fallback).
  */
 export function renderPlantView(canvas: AnyCanvas, opts: PlantViewOptions): boolean {
-  const def = getSpecies(opts.speciesId);
+  const def = resolve(opts.speciesId);
   const ctx = canvas.getContext('2d') as Ctx2D | null;
   if (!def || !ctx) return false;
   const W = canvas.width;
   const H = canvas.height;
   ctx.save();
   ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.globalAlpha = 1;
+  ctx.globalCompositeOperation = 'source-over';
   ctx.clearRect(0, 0, W, H);
   const L = plantLayout(def, W, H);
-  const growth = quantiseGrowth(opts.growth);
-  const img = sprite(def, opts.seed >>> 0, growth, L.w, L.h);
-  const water = opts.watering === null ? null : Math.max(0, Math.min(1, opts.watering));
-  const wilt = Math.max(0, Math.min(1, opts.wilt ?? 0));
-  const rng = createRng(`water:${opts.seed}`);
+  const seed = opts.seed >>> 0;
+  const water = opts.watering === null || opts.watering === undefined ? null : clamp01(opts.watering);
+  const wilt = clamp01(opts.wilt ?? 0);
+  const cache = cacheFor();
+  cache.beginFrame();
+  const imgs = viewImages(cache, { speciesId: def.id, seed, w: L.w, h: L.h }, clamp01(opts.growth));
+  const shown = imgs.a ?? imgs.b;
+  const box = { x: L.x, y: L.y, w: L.w, h: L.h };
+  const bounds = shown?.bounds;
+  const top = bounds ? L.y + bounds.top * L.h : L.baseY - L.h * Math.max(0.2, opts.growth) * 0.8;
+  const half = bounds ? ((bounds.right - bounds.left) / 2) * L.w : L.w * 0.25;
 
-  if (water !== null) paintWetSoil(ctx, L.baseX, L.baseY, L.w, water);
+  // a soft ground wash under the plant
+  const gw = Math.min(W * 0.92, Math.max(half * 2.6, L.w * 0.55, W * 0.3));
+  const ground = groundWash(gw);
+  if (ground) ctx.drawImage(ground, L.baseX - gw / 2, L.baseY - (gw * 48) / 200 * 0.6, gw, (gw * 48) / 200);
 
-  if (img) {
-    // leaves lift a touch while (and just after) the water arrives; a wilting plant droops
-    const lift = water === null ? 0 : smooth(0.35, 0.7, water) * (1 - smooth(0.85, 1, water) * 0.6);
-    const sy = 1 + 0.045 * lift - 0.28 * wilt;
-    const skew = 0.18 * wilt;
-    ctx.save();
-    ctx.globalAlpha = 1 - 0.75 * wilt;
-    ctx.translate(L.baseX, L.baseY);
-    ctx.transform(1, 0, -skew, sy, 0, 0);
-    ctx.translate(-L.baseX, -L.baseY);
-    ctx.drawImage(img as CanvasImageSource, L.x, L.y, L.w, L.h);
-    ctx.restore();
+  let rig: WateringRig | null = null;
+  let lift = 0;
+  if (water !== null) {
+    const unit = Math.min(W, H);
+    const visibleH = Math.max(unit * 0.1, L.baseY - top);
+    const size = Math.max(unit * 0.15, Math.min(unit * 0.23, visibleH * 0.42));
+    rig = fitRigToCanvas({ baseX: L.baseX, baseY: L.baseY, top, halfWidth: Math.max(half, unit * 0.04), size, side: 1 }, W, H);
+    const ph = wateringTimeline(water);
+    lift = ph.lift;
+    drawWetSoil(ctx, rig, ph.wet * 0.6);
   }
 
-  if (water !== null) paintWateringCan(ctx, L, water, rng);
+  if (shown) {
+    let image: CanvasImageSource = shown.image;
+    if (imgs.a && imgs.b && imgs.weight > 0) {
+      const buf = scratch('plant-view', L.w, L.h);
+      if (buf) {
+        crossFade(buf, imgs.a.image, imgs.b.image, imgs.weight);
+        image = buf.canvas;
+      }
+    }
+    if (wilt > 0) drawWithering(ctx, image, L.w, L.h, box, L.baseX, L.baseY, wilt, seed % 2 === 0 ? 1 : -1, image === shown.image);
+    else drawPlant(ctx, image, box, L.baseX, L.baseY, { lean: 0, bend: 1, scaleY: 1 + LIFT_SCALE * lift, alpha: 1 });
+  }
+
+  if (rig && water !== null) drawWateringFront(ctx, rig, water, seed);
   ctx.restore();
   return true;
-}
-
-/** Darkening soil where the water lands (stays dark through the end of the animation). */
-function paintWetSoil(ctx: Ctx2D, x: number, y: number, w: number, t: number): void {
-  const wet = smooth(0.3, 0.7, t) * (1 - smooth(0.92, 1, t) * 0.4);
-  if (wet <= 0) return;
-  const rx = Math.max(10, w * 0.32);
-  const g = ctx.createRadialGradient(x, y, 0, x, y, rx);
-  g.addColorStop(0, `rgba(92,84,70,${0.34 * wet})`);
-  g.addColorStop(0.7, `rgba(110,100,84,${0.18 * wet})`);
-  g.addColorStop(1, 'rgba(110,100,84,0)');
-  ctx.save();
-  ctx.translate(x, y);
-  ctx.scale(1, 0.22);
-  ctx.translate(-x, -y);
-  ctx.fillStyle = g;
-  ctx.fillRect(x - rx, y - rx, rx * 2, rx * 2);
-  ctx.restore();
-}
-
-/**
- * A small painted watering can: slides in from the right (0–0.2), tilts (0.2–0.35), pours
- * droplets in an arc (0.3–0.8), straightens and leaves (0.8–1).
- */
-function paintWateringCan(ctx: Ctx2D, L: ReturnType<typeof plantLayout>, t: number, rng: Rng): void {
-  const W = ctx.canvas.width;
-  const H = ctx.canvas.height;
-  const size = Math.min(W, H) * 0.2;
-  const enter = smooth(0, 0.2, t) * (1 - smooth(0.82, 1, t));
-  const tilt = -0.62 * smooth(0.18, 0.34, t) * (1 - smooth(0.76, 0.88, t));
-  const restX = Math.min(W - size * 0.7, L.baseX + Math.max(L.w * 0.55, size * 1.6));
-  const cx = W + size * 1.2 - enter * (W + size * 1.2 - restX);
-  const cy = Math.max(size * 0.9, L.baseY - Math.max(L.h * 0.75, size * 2.2));
-  const alpha = Math.min(1, enter * 1.4);
-
-  ctx.save();
-  ctx.translate(cx, cy);
-  ctx.rotate(tilt);
-  ctx.globalAlpha = alpha;
-  // body: layered translucent washes in a cool grey-blue, a darker pooled rim
-  const body = (j: number) => {
-    ctx.beginPath();
-    ctx.moveTo(-size * 0.42 + j * rng.range(-1, 1), -size * 0.32);
-    ctx.lineTo(size * 0.42 + j * rng.range(-1, 1), -size * 0.32);
-    ctx.lineTo(size * 0.48, size * 0.38);
-    ctx.quadraticCurveTo(0, size * 0.46, -size * 0.48, size * 0.38);
-    ctx.closePath();
-  };
-  for (let k = 0; k < 3; k++) {
-    body(size * 0.03);
-    ctx.fillStyle = 'rgba(143,176,171,0.22)';
-    ctx.fill();
-  }
-  // a broken ink contour (lost edges), not a closed vector outline
-  ctx.strokeStyle = 'rgba(74,68,60,0.4)';
-  ctx.lineWidth = Math.max(0.8, size * 0.03);
-  ctx.setLineDash([size * 0.5, size * 0.12, size * 0.3, size * 0.2]);
-  body(0);
-  ctx.stroke();
-  ctx.setLineDash([]);
-  // spout (to the left) and handle
-  ctx.beginPath();
-  ctx.moveTo(-size * 0.4, size * 0.18);
-  ctx.quadraticCurveTo(-size * 0.75, size * 0.05, -size * 0.98, -size * 0.32);
-  ctx.lineWidth = Math.max(1, size * 0.07);
-  ctx.strokeStyle = 'rgba(111,150,144,0.7)';
-  ctx.stroke();
-  ctx.beginPath();
-  ctx.arc(size * 0.08, -size * 0.36, size * 0.26, Math.PI * 1.05, Math.PI * 1.95);
-  ctx.lineWidth = Math.max(0.8, size * 0.035);
-  ctx.strokeStyle = 'rgba(74,68,60,0.6)';
-  ctx.stroke();
-  ctx.restore();
-
-  // droplets: from the rose, arcing down to the soil at the base
-  const pour = smooth(0.3, 0.42, t) * (1 - smooth(0.72, 0.8, t));
-  if (pour <= 0) return;
-  const c = Math.cos(tilt);
-  const s = Math.sin(tilt);
-  const rose = { x: cx + (-size * 0.98) * c - (-size * 0.32) * s, y: cy + (-size * 0.98) * s + (-size * 0.32) * c };
-  const target = { x: L.baseX + L.w * 0.08, y: L.baseY - 2 };
-  const drops = 14;
-  for (let i = 0; i < drops; i++) {
-    const phase = (t * 6 + i / drops + rng.range(0, 0.08)) % 1;
-    const spread = rng.range(-0.5, 0.5) * size * 0.35;
-    const x = rose.x + (target.x + spread - rose.x) * phase;
-    const y = rose.y + (target.y - rose.y) * phase * phase - Math.sin(phase * Math.PI) * size * 0.25;
-    const r = Math.max(0.8, size * 0.035) * (0.7 + 0.5 * (1 - phase));
-    ctx.save();
-    ctx.globalAlpha = pour * 0.75;
-    ctx.translate(x, y);
-    ctx.rotate(Math.atan2(target.y - rose.y, target.x - rose.x) * 0.5 + Math.PI / 2);
-    ctx.beginPath();
-    ctx.ellipse(0, 0, r * 0.7, r * 1.4, 0, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgba(111,150,144,0.85)';
-    ctx.fill();
-    ctx.restore();
-  }
 }
