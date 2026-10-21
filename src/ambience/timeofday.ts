@@ -47,7 +47,7 @@ const NIGHT: Grade = {
   glowX: 0.5,
   glowY: 0.3,
   lantern: 1,
-  mottle: 0.2,
+  mottle: 0.1,
 };
 const DAWN: Grade = {
   tint: [178, 184, 210],
@@ -98,8 +98,8 @@ const EVENING: Grade = {
   mottle: 0.16,
 };
 const DUSK: Grade = {
-  tint: [134, 146, 192],
-  amount: 0.46,
+  tint: [124, 140, 200],
+  amount: 0.4,
   sky: 0.12,
   ground: 0.86,
   glow: 0.22,
