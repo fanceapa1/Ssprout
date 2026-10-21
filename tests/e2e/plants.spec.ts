@@ -128,6 +128,7 @@ test.describe('plants · garden', () => {
       return s.id;
     });
     await settle(page);
+    await page.evaluate(() => window.sprout!.freeze()); // a frame drawn with the painted sprites
     const st = await page.evaluate(() => window.sprout!.plants.state());
     expect(st.reflections).toContain(id);
     expect(st.finished.find((p) => p.id === id)?.drawn).toBe(true);
