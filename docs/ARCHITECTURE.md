@@ -17,12 +17,14 @@ src/
     clock.ts              Clock interface; real clock + dev speed clock (?speed=N)
     rng.ts                seeded RNG (mulberry32) + helpers; string seeds hashed
     events.ts             typed event bus
-    state.ts              GardenState types, defaults, reducers/actions
+    state.ts              GardenState types, defaults, createReducer(world)/actions, store
     persistence.ts        localStorage load/save, schema version + migrations, export/import validation
-    session.ts            session state machine (idle/running/paused/completed), elapsed maths
+    session.ts            session phases (idle/running/paused/reward), elapsed maths, goal clamp, weather
     rewards.ts            tier from minutes, offer generation (3 species, prefer unowned)
+    placement.ts          slot compatibility (habitat + size class), swap candidates
     fauna-unlocks.ts      which creatures are unlocked for a given state
     tips.ts               tooltip registry + seen/retired logic
+    controller.ts         session controller: the single API the UI/widget call (no DOM)
   paint/                  watercolour engine (pure canvas drawing utilities) — see docs/systems/paint.md
   scene/                  the static painted landscape, scene geometry, slots — docs/systems/scene.md
   plants/
@@ -162,6 +164,12 @@ A reducer returning the same reference means "no change" (no notifications). Dis
 from inside a listener are queued and applied after the current delivery (ADR 0011).
 Reducers are pure and live in `core/`.
 
+The app reducer is `createReducer(world)` with
+`ReducerWorld = { getSpecies(id): SpeciesDef-like | undefined; getSlot(id): Slot-like | undefined }`
+so `plant/place` can enforce slot compatibility; `reducer` is `createReducer()` (no world: any slot
+id accepted). **Invalid actions are no-ops returning the same reference** (ADR 0030). Every rule is
+listed in `docs/systems/core.md`.
+
 #### Actions
 Every impure input (time, ids, seeds, weather, offers) is carried in the action, so reducers
 stay pure and deterministic. `type Action =`
@@ -172,7 +180,7 @@ stay pure and deterministic. `type Action =`
 | `session/pause` | `now` | pause the running session |
 | `session/resume` | `now` | resume; adds the paused span to `pausedTotalMs` |
 | `session/cancel` | `now` | end without reward (`stats.cancelled++`) |
-| `session/complete` | `now, options: string[], tier` | end with reward → `pendingReward` |
+| `session/complete` | `now, options: string[], tier` | end with reward → `pendingReward` (only once elapsed ≥ goal and `tier` matches the goal) |
 | `reward/choose` | `speciesId` | pick one of `pendingReward.options` |
 | `plant/place` | `slotId, id, seed, now` | plant the chosen species (swaps an occupant into `pressed`) |
 | `reward/discard` | — | drop the pending reward |
@@ -183,11 +191,32 @@ stay pure and deterministic. `type Action =`
 | `state/reset` | `now` | fresh default state |
 
 Types exported alongside: `Settings`, `GardenStats`, `Reducer<S, A>`, `Listener<S, A>`,
-`createDefaultState(now)`, `STATE_VERSION`, `DEFAULT_GOAL_MINUTES`.
+`createDefaultState(now)`, `STATE_VERSION`, `DEFAULT_GOAL_MINUTES`, `createReducer`, `ReducerWorld`,
+`mergeSettings`.
 
 ### Session maths (`src/core/session.ts`)
-`elapsedMs(s, now) = (s.pausedAt ?? now) - s.startedAt - s.pausedTotalMs`; complete when
+`elapsedMs(s, now) = (s.pausedAt ?? now) - s.startedAt - s.pausedTotalMs` (clamped ≥ 0); complete when
 `elapsedMs >= goalMs`. All time comes from the injected `Clock` — never `Date.now()` directly.
+Also: `remainingMs`, `progress` (0..1), `pausedFor`, `isLongPause` (≥ 30 min), `completionTime`,
+`sessionPhase(state)`, `clampGoalMinutes` (10–180, step 5), `pickWeather(rng)` (sun .6 / rain .25 /
+mist .15), `formatClock(ms)`.
+
+### Session controller (`src/core/controller.ts`, ADR 0032)
+`createSessionController({ store, clock, bus, species, slots?, ticker?, seed? })` is the **single
+API the UI and widget use**: `start(min?)`, `pause()`, `resume()`, `cancel()`, `check()`,
+`choose(id)`, `offer()`, `placementOptions()`, `place(slotId)`, `discard()`, `retireTip(id)`,
+`updateSettings(patch)`, `announceFauna(id)`, `status()`, `onTick(fn)`, `setTicker(t)`,
+`setSeed(s)`, `dispose()`. It supplies time/ids/seeds/weather/offers, emits the bus events,
+completes due sessions on every tick and once at creation (closed-app completion), and retires tips
+automatically. `Ticker = { start(tick): stop }` (default `setInterval` 1 s). Full table in
+`docs/systems/core.md`.
+
+### Persistence (`src/core/persistence.ts`, ADRs 0033–0034)
+Key `studysprout:v1` (stable; the document's `version` drives `MIGRATIONS`). `loadState(storage,
+now, opts)` never throws (`fresh | loaded | migrated | recovered | unavailable`; corrupt data is
+copied to `studysprout:corrupt:<ts>`). `createSaver(storage)` debounces saves (300 ms; `main.ts`
+flushes on `pagehide`). `exportState`/`exportFileName`/`importState` (typed errors; unknown species
+kept and flagged).
 
 ### Events (`src/core/events.ts`)
 `session:start | session:pause | session:resume | session:cancel | session:complete |
@@ -199,7 +228,7 @@ delivery is synchronous to a snapshot of handlers; a throwing handler does not s
 
 ### Clock & Rng (`src/core/clock.ts`, `src/core/rng.ts`)
 `Clock = { now(): number }`; `realClock`; `createSpeedClock(speed, base?)` (anchored at
-creation, `setSpeed(n)` without jumps); `createManualClock(t)` for tests.
+creation, `setSpeed(n)` without jumps, `advance(ms)` dev jump — ADR 0035); `createManualClock(t)` for tests.
 `createRng(seed: number | string)` → `{ seed, next, range, int, pick, shuffle, gaussian, chance,
 fork(label) }`. `int` is inclusive; `shuffle` returns a copy; `fork` derives from the stream's
 *seed* + label, not its position (ADR 0012).
@@ -219,6 +248,11 @@ Implemented by the foundation: `state()`, `ready()` (resolves when all systems a
 initialised), `freeze()` (async; resolves after a stable frame is drawn), `unfreeze()`,
 `setSpeed(n)`, `now()`. Others add methods with `extendDebug({...})` from `src/dev/debug.ts` and
 augment the `SproutDebug` interface via declaration merging.
+
+Core logic (`src/dev/core-debug.ts`): `reset()`, `seed(n)`, `start(min?)`, `pause()`, `resume()`,
+`cancel()`, `completeSession()` (jumps the dev clock to the goal), `choose(id?)`,
+`placementOptions()`, `place(slotId?)`, `addPlants(n, tier?)`, `setState(partial)` (validated),
+`status()`, `flush()`, `exportState()`, `importState(json)`.
 
 ## Studio (`studio.html`, `src/studio/`)
 A dev page (also deployed at `/Ssprout/studio.html`) showing **every sprite, creature, effect
