@@ -3,29 +3,29 @@ import type { Slot } from '../scene/geometry';
 import type { Clock } from './clock';
 import type { EventBus } from './events';
 import { compatibleSlots, type CompatibleSlot } from './placement';
-import { generateOffer, ownedSpeciesIds, tierForMinutes } from './rewards';
+import { findPlan, recommendPlans, type StudyPlan } from './plans';
+import { selectableSpecies, type SelectableSpecies } from './rewards';
 import { createRng, type Rng } from './rng';
 import {
+  clampGoalMinutes,
   completionTime,
-  elapsedMs,
-  goalMinutesOf,
   isComplete,
   isLongPause,
   pausedFor,
   pickWeather,
-  progress,
-  remainingMs,
   sessionPhase,
+  sessionTimeline,
   type SessionPhase,
+  type SessionTimeline,
 } from './session';
-import type { ActiveSession, GardenState, PendingReward, PlantInstance, Settings, Store } from './state';
+import type { Action, ActiveSession, GardenState, Settings, Store } from './state';
 import { tipsRetiredBy } from './tips';
 
 /**
  * The session controller: the single API the UI (and widget) use to drive the garden. It owns
- * every impure input — time from the Clock, ids/seeds/weather/offers from a seeded Rng — turns
- * user intent into store actions, and announces what happened on the event bus.
- * No DOM. Contract and examples: docs/systems/core.md.
+ * every impure input — time from the Clock, ids/seeds/weather from a seeded Rng — turns user
+ * intent into store actions, and announces what happened on the event bus. No DOM.
+ * Contract and examples: docs/systems/core.md.
  */
 
 /** Calls `tick` periodically until the returned stop function is called. */
@@ -47,48 +47,52 @@ export interface SessionControllerDeps {
   store: Store;
   clock: Clock;
   bus: EventBus;
-  /** every species the garden can offer (the plant registry) */
+  /** every species that can be planted (the plant registry) */
   species: readonly SpeciesDef[];
-  /** scene slots, for placement checks/options (default: none known → `placementOptions` is empty) */
+  /** scene slots, for `placementOptions` (default: none) */
   slots?: readonly Slot[];
   ticker?: Ticker;
-  /** seed for ids, weather, offers and plant seeds (default: clock time at creation) */
+  /** seed for ids, weather and plant seeds (default: clock time at creation) */
   seed?: number | string;
+}
+
+export interface StartOptions {
+  /** free text; trimmed, ≤ 40 chars, empty → "Study session" */
+  taskName: string;
+  /** total minutes (clamped to 10–180, step 5) */
+  goalMinutes: number;
+  /** one of `recommendPlans(goalMinutes)` ids; default 'unbroken' */
+  planId?: string;
+  speciesId: string;
+  slotId: string;
 }
 
 export interface SessionStatus {
   phase: SessionPhase;
   session: ActiveSession | null;
-  pendingReward: PendingReward | null;
-  goalMs: number;
-  elapsedMs: number;
-  remainingMs: number;
-  /** 0..1 */
-  progress: number;
+  timeline: SessionTimeline | null;
   pausedForMs: number;
   /** paused for 30 min or more → show "Still with us?" */
   longPause: boolean;
 }
 
 export interface SessionController {
-  /** Start a session (goal clamped to 10–180 / step 5; default: last goal). Null if not idle. */
-  start(goalMinutes?: number): ActiveSession | null;
+  /** Plant a seedling and start studying. False if a session exists or the choice is invalid. */
+  start(opts: StartOptions): boolean;
   pause(): boolean;
   resume(): boolean;
-  /** End without reward (no penalty). */
+  /** Water the current break (once per break). */
+  water(): boolean;
+  /** Skip the rest of the current break; the session ends that much sooner. */
+  skipBreak(): boolean;
+  /** End without a plant: the seedling withers, a displaced plant stays. */
   cancel(): boolean;
-  /** Complete the session if its goal has been reached. Runs on every tick. */
+  /** Announce block transitions and complete the plan when due. Runs on every tick. */
   check(): boolean;
-  /** Pick one of the offered species. */
-  choose(speciesId: string): boolean;
-  /** Species definitions of the pending offer (unknown ids are skipped). */
-  offer(): SpeciesDef[];
-  /** Compatible slots for the chosen species, each with its occupant (swap) if any. */
-  placementOptions(): CompatibleSlot[];
-  /** Plant the chosen species; an occupant is swapped into the pressed flowers. */
-  place(slotId: string): PlantInstance | null;
-  /** Drop the pending reward (to "plant later", simply do not place: it stays pending). */
-  discard(): boolean;
+  recommendPlans(totalMinutes: number): StudyPlan[];
+  selectableSpecies(totalMinutes: number): SelectableSpecies[];
+  /** Slots this species fits, each with its finished occupant (a swap) if any. */
+  placementOptions(speciesId: string): CompatibleSlot[];
   retireTip(id: string): boolean;
   updateSettings(patch: Partial<Settings>): boolean;
   /** Record that a creature has been announced; emits `fauna:arrived` the first time. */
@@ -98,7 +102,7 @@ export interface SessionController {
   onTick(fn: (status: SessionStatus) => void): () => void;
   /** Swap the tick source (e.g. a Web Worker ticker). */
   setTicker(ticker: Ticker): void;
-  /** Reseed the rng used for ids, weather, offers and plant seeds (dev/tests). */
+  /** Reseed the rng used for ids, weather and plant seeds (dev/tests). */
   setSeed(seed: number | string): void;
   dispose(): void;
 }
@@ -113,13 +117,15 @@ export function createSessionController(deps: SessionControllerDeps): SessionCon
   let ticker = deps.ticker ?? createIntervalTicker();
   let stopTicker: (() => void) | null = null;
   const tickListeners = new Set<(s: SessionStatus) => void>();
+  /** last block announced for a session; null = not yet known (e.g. just reloaded) */
+  let announced: { sessionId: string; blockIndex: number } | null = null;
 
   const newId = (prefix: string): string =>
     `${prefix}-${Math.max(0, Math.floor(clock.now())).toString(36)}-${rng.int(0, 0xffffff).toString(36).padStart(5, '0')}`;
   const newSeed = (): number => rng.int(0, 0xffffffff) >>> 0;
 
   /** Dispatch and report whether the state changed. */
-  const apply = (action: Parameters<Store['dispatch']>[0]): { changed: boolean; prev: GardenState; next: GardenState } => {
+  const apply = (action: Action): { changed: boolean; prev: GardenState; next: GardenState } => {
     const prev = store.get();
     store.dispatch(action);
     const next = store.get();
@@ -131,13 +137,9 @@ export function createSessionController(deps: SessionControllerDeps): SessionCon
     const s = state.session;
     const now = clock.now();
     return {
-      phase: sessionPhase(state),
+      phase: sessionPhase(state, now),
       session: s,
-      pendingReward: state.pendingReward,
-      goalMs: s?.goalMs ?? 0,
-      elapsedMs: s ? elapsedMs(s, now) : 0,
-      remainingMs: s ? remainingMs(s, now) : 0,
-      progress: s ? progress(s, now) : 0,
+      timeline: s ? sessionTimeline(s, now) : null,
       pausedForMs: s ? pausedFor(s, now) : 0,
       longPause: s ? isLongPause(s, now) : false,
     };
@@ -168,21 +170,43 @@ export function createSessionController(deps: SessionControllerDeps): SessionCon
     syncTicker();
   });
 
+  const complete = (s: ActiveSession, now: number): boolean => {
+    const at = Math.min(now, completionTime(s) ?? now); // the real moment (matters after a reload)
+    const { changed, prev, next } = apply({ type: 'session/complete', now: at });
+    if (!changed) return false;
+    const plant = next.plants.find((p) => p.id === s.id);
+    if (!plant) return false;
+    announced = null;
+    for (const removed of next.pressed.slice(prev.pressed.length)) bus.emit('plant:swapped', { plant, removed });
+    bus.emit('plant:placed', { plant });
+    bus.emit('session:complete', { sessionId: s.id, plant });
+    return true;
+  };
+
   const controller: SessionController = {
-    start(goalMinutes) {
+    start(opts) {
       const state = store.get();
-      if (sessionPhase(state) !== 'idle') return null;
+      if (state.session) return false;
+      const goalMinutes = clampGoalMinutes(opts.goalMinutes);
+      const plan = findPlan(goalMinutes, opts.planId ?? 'unbroken');
+      if (!plan) return false;
       const id = newId('session');
       const { changed, next } = apply({
         type: 'session/start',
-        goalMinutes: goalMinutes ?? state.settings.lastGoalMinutes,
-        now: clock.now(),
         id,
+        taskName: opts.taskName,
+        goalMinutes,
+        plan,
+        speciesId: opts.speciesId,
+        slotId: opts.slotId,
+        seed: newSeed(),
+        now: clock.now(),
         weather: pickWeather(rng),
       });
-      if (!changed || !next.session) return null;
+      if (!changed || !next.session) return false;
+      announced = { sessionId: id, blockIndex: 0 };
       bus.emit('session:start', { session: next.session });
-      return next.session;
+      return true;
     },
 
     pause() {
@@ -203,67 +227,55 @@ export function createSessionController(deps: SessionControllerDeps): SessionCon
       return true;
     },
 
+    water() {
+      const s = store.get().session;
+      if (!s) return false;
+      const now = clock.now();
+      const { blockIndex } = sessionTimeline(s, now);
+      if (!apply({ type: 'session/water', blockIndex, now }).changed) return false;
+      bus.emit('session:water', { blockIndex });
+      return true;
+    },
+
+    skipBreak() {
+      if (!apply({ type: 'session/skipBreak', now: clock.now() }).changed) return false;
+      controller.check(); // announce the next focus block (or complete)
+      return true;
+    },
+
     cancel() {
       const s = store.get().session;
       if (!s) return false;
       const at = clock.now();
       if (!apply({ type: 'session/cancel', now: at }).changed) return false;
+      announced = null;
       bus.emit('session:cancel', { sessionId: s.id, at });
       return true;
     },
 
     check() {
-      const state = store.get();
-      const s = state.session;
+      const s = store.get().session;
+      if (!s) return false;
       const now = clock.now();
-      if (!s || !isComplete(s, now)) return false;
-      // stamp the moment the goal was actually reached (matters when the app was closed)
-      const at = Math.min(now, completionTime(s) ?? now);
-      const tier = tierForMinutes(goalMinutesOf(s));
-      const options = generateOffer(rng.fork(`offer:${s.id}`), tier, species, ownedSpeciesIds(state.plants));
-      const { changed, next } = apply({ type: 'session/complete', now: at, options, tier });
-      if (!changed || !next.pendingReward) return false;
-      bus.emit('session:complete', { sessionId: s.id, reward: next.pendingReward });
-      return true;
+      if (isComplete(s, now)) return complete(s, now);
+      const { blockIndex, block } = sessionTimeline(s, now);
+      const known = announced?.sessionId === s.id ? announced.blockIndex : null;
+      if (known === blockIndex) return false;
+      announced = { sessionId: s.id, blockIndex };
+      // first block of a fresh session is announced by session:start; after a reload the
+      // current block (only) is announced once
+      if (known === null && blockIndex === 0) return false;
+      bus.emit(block.kind === 'break' ? 'session:break' : 'session:focus', { blockIndex });
+      return false;
     },
 
-    choose(speciesId) {
-      if (!apply({ type: 'reward/choose', speciesId }).changed) return false;
-      bus.emit('reward:chosen', { speciesId });
-      return true;
-    },
+    recommendPlans: (totalMinutes) => recommendPlans(totalMinutes),
 
-    offer() {
-      const r = store.get().pendingReward;
-      return (r?.options ?? []).flatMap((id) => {
-        const def = speciesById.get(id);
-        return def ? [def] : [];
-      });
-    },
+    selectableSpecies: (totalMinutes) => selectableSpecies(species, totalMinutes),
 
-    placementOptions() {
-      const state = store.get();
-      const chosen = state.pendingReward?.chosen;
-      const def = chosen ? speciesById.get(chosen) : undefined;
-      return def ? compatibleSlots(def, slots, state.plants) : [];
-    },
-
-    place(slotId) {
-      const id = newId('plant');
-      const { changed, prev, next } = apply({ type: 'plant/place', slotId, id, seed: newSeed(), now: clock.now() });
-      if (!changed) return null;
-      const plant = next.plants.find((p) => p.id === id);
-      if (!plant) return null;
-      if (next.pressed.length > prev.pressed.length) {
-        const removed = next.pressed[next.pressed.length - 1]!;
-        bus.emit('plant:swapped', { plant, removed });
-      }
-      bus.emit('plant:placed', { plant });
-      return plant;
-    },
-
-    discard() {
-      return apply({ type: 'reward/discard' }).changed;
+    placementOptions(speciesId) {
+      const def = speciesById.get(speciesId);
+      return def ? compatibleSlots(def, slots, store.get().plants) : [];
     },
 
     retireTip(id) {
@@ -315,8 +327,9 @@ export function createSessionController(deps: SessionControllerDeps): SessionCon
     },
   };
 
-  // A session may have finished while the app was closed: complete it now (reward waits).
+  // A session may have finished (or moved into a break) while the app was closed.
   controller.check();
   syncTicker();
   return controller;
 }
+

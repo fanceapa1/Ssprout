@@ -2,12 +2,10 @@ import { describe, expect, it, vi } from 'vitest';
 import type { Habitat, SizeClass, SpeciesDef, Tier } from '../plants/types';
 import type { Slot } from '../scene/geometry';
 import { createManualClock } from './clock';
-import { createSessionController, createIntervalTicker, type Ticker } from './controller';
+import { createIntervalTicker, createSessionController, type StartOptions, type Ticker } from './controller';
 import { createEventBus, EVENT_NAMES, type EventMap, type EventName } from './events';
 import { createDefaultState, createReducer, createStore, type GardenState } from './state';
-
-const MIN = 60_000;
-const T0 = 1_700_000_000_000;
+import { makePlant, makeSession, MIN, plan, T0 } from './testing';
 
 const def = (id: string, tier: Tier, habitats: Habitat[], sizeClass: SizeClass = 'small'): SpeciesDef => ({
   id,
@@ -24,11 +22,8 @@ const def = (id: string, tier: Tier, habitats: Habitat[], sizeClass: SizeClass =
 });
 const SPECIES = [
   def('violet', 1, ['meadow', 'rock']),
-  def('clover', 1, ['meadow']),
-  def('moss', 1, ['rock']),
   def('iris', 2, ['shore'], 'medium'),
-  def('anemone', 2, ['meadow'], 'medium'),
-  def('bellflower', 2, ['meadow', 'path']),
+  def('peony', 3, ['meadow'], 'medium'),
   def('cherry', 4, ['back'], 'tree'),
 ];
 const slot = (id: string, habitat: Habitat, maxSize: SizeClass): Slot => ({ id, x: 0, y: 0, habitat, maxSize, scale: 1 });
@@ -72,226 +67,238 @@ function setup(initial: GardenState = createDefaultState(T0), seed: number | str
   const controller = createSessionController({ store, clock, bus, species: SPECIES, slots: SLOTS, ticker, seed });
   const names = () => events.map(([n]) => n);
   const payload = <K extends EventName>(name: K) => events.filter(([n]) => n === name).map(([, p]) => p as EventMap[K]);
-  return { clock, store, bus, ticker, controller, events, names, payload };
+  /** advance the clock to `min` minutes after T0 and tick */
+  const to = (min: number) => {
+    clock.set(T0 + min * MIN);
+    ticker.tick();
+  };
+  return { clock, store, bus, ticker, controller, events, names, payload, to };
 }
 
+const opts = (over: Partial<StartOptions> = {}): StartOptions => ({
+  taskName: 'Biology ch. 4',
+  goalMinutes: 25,
+  speciesId: 'violet',
+  slotId: 'meadow-1',
+  ...over,
+});
+/** 90 min "Pomodoro": 30 · (5) · 25 · (5) · 25 */
+const POM = opts({ goalMinutes: 90, planId: 'pomodoro' });
+
 describe('start', () => {
-  it('starts a session with a seeded id and weather and emits session:start', () => {
+  it('plants the chosen species with the chosen plan, seeded id/seed/weather, and emits session:start', () => {
     const { controller, store, payload } = setup();
-    const s = controller.start(50);
-    expect(s).not.toBeNull();
-    expect(store.get().session).toBe(s);
-    expect(s!.goalMs).toBe(50 * MIN);
-    expect(s!.startedAt).toBe(T0);
-    expect(['sun', 'rain', 'mist']).toContain(s!.weather);
+    expect(controller.start(POM)).toBe(true);
+    const s = store.get().session!;
+    expect(s).toMatchObject({
+      taskName: 'Biology ch. 4',
+      goalMs: 90 * MIN,
+      speciesId: 'violet',
+      slotId: 'meadow-1',
+      startedAt: T0,
+      displacedPlantId: null,
+      plan: { id: 'pomodoro', blocks: plan([30, -5, 25, -5, 25]).blocks },
+    });
+    expect(s.id).toMatch(/^session-/);
+    expect(Number.isInteger(s.seed)).toBe(true);
+    expect(['sun', 'rain', 'mist']).toContain(s.weather);
     expect(payload('session:start')).toEqual([{ session: s }]);
   });
 
-  it('defaults to the last goal and clamps', () => {
-    const { controller } = setup({ ...createDefaultState(T0), settings: { muted: true, lastGoalMinutes: 90, notifications: 'unasked' } });
-    expect(controller.start()!.goalMs).toBe(90 * MIN);
-    const b = setup();
-    expect(b.controller.start(7)!.goalMs).toBe(10 * MIN);
+  it('defaults to the unbroken plan and clamps the total', () => {
+    const { controller, store } = setup();
+    expect(controller.start(opts({ goalMinutes: 27 }))).toBe(true);
+    expect(store.get().session!.plan.id).toBe('unbroken');
+    expect(store.get().session!.goalMs).toBe(25 * MIN);
   });
 
   it('is deterministic for a seed', () => {
-    const a = setup(undefined, 'x').controller.start(25);
-    const b = setup(undefined, 'x').controller.start(25);
-    expect(a).toEqual(b);
+    const a = setup(undefined, 'x');
+    const b = setup(undefined, 'x');
+    a.controller.start(POM);
+    b.controller.start(POM);
+    expect(a.store.get().session).toEqual(b.store.get().session);
   });
 
-  it('refuses while a session runs or a reward is pending', () => {
-    const { controller, clock, names } = setup();
-    controller.start(10);
-    expect(controller.start(10)).toBeNull();
-    clock.advance(10 * MIN);
-    controller.check();
-    expect(controller.start(10)).toBeNull();
+  it('refuses plans not offered for the total, locked species, incompatible slots and a running session', () => {
+    const { controller, store, names } = setup();
+    expect(controller.start(opts({ planId: 'pomodoro' }))).toBe(false); // 25 min: only unbroken
+    expect(controller.start(opts({ speciesId: 'peony' }))).toBe(false); // tier 3 needs 50
+    expect(controller.start(opts({ slotId: 'shore-1' }))).toBe(false);
+    expect(store.get().session).toBeNull();
+    expect(controller.start(opts())).toBe(true);
+    expect(controller.start(opts())).toBe(false);
     expect(names().filter((n) => n === 'session:start')).toHaveLength(1);
   });
 
-  it('retires the duration tip and announces it', () => {
+  it('retires the start-flow tips', () => {
     const { controller, store, payload } = setup();
-    controller.start(25);
-    expect(store.get().tips.duration).toBe('seen');
-    expect(payload('tip:retired')).toEqual([{ id: 'duration' }]);
+    controller.start(POM);
+    expect(store.get().tips).toEqual({ task: 'seen', duration: 'seen', placement: 'seen', plan: 'seen' });
+    expect(payload('tip:retired').map((p) => p.id)).toEqual(['task', 'duration', 'placement', 'plan']);
+  });
+});
+
+describe('choices for the start sheet', () => {
+  it('recommendPlans proxies the pure function', () => {
+    const { controller } = setup();
+    expect(controller.recommendPlans(60).map((p) => p.id)).toEqual(['unbroken', 'pomodoro', 'long-focus']);
+  });
+
+  it('selectableSpecies marks locked and earned species', () => {
+    const { controller } = setup();
+    const r = controller.selectableSpecies(50);
+    expect(r.map((s) => [s.species.id, s.locked, s.earned, s.requiredMinutes])).toEqual([
+      ['peony', false, true, 50],
+      ['iris', false, false, 25],
+      ['violet', false, false, 10],
+      ['cherry', true, false, 90],
+    ]);
+  });
+
+  it('placementOptions lists compatible slots with occupants', () => {
+    const occupant = makePlant({ id: 'old', slotId: 'meadow-2' });
+    const { controller } = setup({ ...createDefaultState(T0), plants: [occupant] });
+    expect(controller.placementOptions('violet').map((o) => [o.slot.id, o.occupiedBy?.id])).toEqual([
+      ['meadow-1', undefined],
+      ['meadow-2', 'old'],
+      ['rock-1', undefined],
+    ]);
+    expect(controller.placementOptions('nope')).toEqual([]);
+  });
+});
+
+describe('blocks: breaks, watering and skipping', () => {
+  it('announces each block transition once from the tick', () => {
+    const { controller, to, names, payload } = setup();
+    controller.start(POM);
+    to(10);
+    to(29);
+    expect(names()).not.toContain('session:break');
+    to(30);
+    to(31);
+    expect(payload('session:break')).toEqual([{ blockIndex: 1 }]);
+    to(35);
+    to(36);
+    expect(payload('session:focus')).toEqual([{ blockIndex: 2 }]);
+  });
+
+  it('after a long gap, only the current block is announced', () => {
+    const { controller, to, payload } = setup();
+    controller.start(POM);
+    to(62); // blocks 1, 2, 3 passed / reached while "throttled": now in break 3
+    expect(payload('session:break')).toEqual([{ blockIndex: 3 }]);
+    expect(payload('session:focus')).toEqual([]);
+  });
+
+  it('water() waters the current break once and emits session:water', () => {
+    const { controller, to, store, payload } = setup();
+    controller.start(POM);
+    expect(controller.water()).toBe(false); // focus
+    to(31);
+    expect(controller.water()).toBe(true);
+    expect(controller.water()).toBe(false);
+    expect(store.get().session!.waterings).toEqual([1]);
+    expect(payload('session:water')).toEqual([{ blockIndex: 1 }]);
+    expect(controller.status().timeline!.watered).toBe(true);
+    expect(store.get().tips.water).toBe('seen');
+  });
+
+  it('skipBreak() jumps to the next focus block and announces it; the session ends sooner', () => {
+    const { controller, to, store, payload, clock } = setup();
+    controller.start(POM);
+    to(31);
+    expect(controller.skipBreak()).toBe(true);
+    expect(store.get().session!.skippedMs).toBe(4 * MIN);
+    expect(payload('session:focus')).toEqual([{ blockIndex: 2 }]);
+    expect(controller.skipBreak()).toBe(false); // now in focus
+    clock.set(T0 + 86 * MIN - 1);
+    controller.check();
+    expect(store.get().session).not.toBeNull();
+    to(86);
+    expect(store.get().session).toBeNull();
+    expect(store.get().plants[0]!.sessionMinutes).toBe(90);
+  });
+
+  it('skipping the last break straight to the end completes the session', () => {
+    const { controller, store, clock } = setup();
+    controller.start(opts({ goalMinutes: 30, planId: 'pomodoro' })); // 15 · (5) · 10
+    clock.set(T0 + 16 * MIN);
+    controller.skipBreak();
+    expect(store.get().session).not.toBeNull();
+    clock.set(T0 + 26 * MIN);
+    controller.check();
+    expect(store.get().plants).toHaveLength(1);
   });
 });
 
 describe('pause / resume / cancel', () => {
   it('excludes paused time and emits events with timestamps', () => {
-    const { controller, clock, payload } = setup();
-    const s = controller.start(25)!;
+    const { controller, clock, store, payload } = setup();
+    controller.start(opts());
+    const id = store.get().session!.id;
     clock.advance(5 * MIN);
     expect(controller.pause()).toBe(true);
-    expect(controller.pause()).toBe(false); // idempotent
+    expect(controller.pause()).toBe(false);
     clock.advance(60 * MIN);
-    expect(controller.status()).toMatchObject({ phase: 'paused', elapsedMs: 5 * MIN, longPause: true, pausedForMs: 60 * MIN });
+    expect(controller.status()).toMatchObject({ phase: 'paused', longPause: true, pausedForMs: 60 * MIN });
+    expect(controller.status().timeline!.elapsedMs).toBe(5 * MIN);
     expect(controller.resume()).toBe(true);
     expect(controller.resume()).toBe(false);
-    expect(controller.status()).toMatchObject({ phase: 'running', elapsedMs: 5 * MIN, remainingMs: 20 * MIN, longPause: false });
-    expect(payload('session:pause')).toEqual([{ sessionId: s.id, at: T0 + 5 * MIN }]);
-    expect(payload('session:resume')).toEqual([{ sessionId: s.id, at: T0 + 65 * MIN }]);
+    expect(controller.status()).toMatchObject({ phase: 'focus', longPause: false });
+    expect(controller.status().timeline!.totalRemainingMs).toBe(20 * MIN);
+    expect(payload('session:pause')).toEqual([{ sessionId: id, at: T0 + 5 * MIN }]);
+    expect(payload('session:resume')).toEqual([{ sessionId: id, at: T0 + 65 * MIN }]);
   });
 
-  it('cancel ends the session without reward', () => {
-    const { controller, store, payload } = setup();
-    const s = controller.start(25)!;
+  it('cancel withers the seedling; a displaced plant stays', () => {
+    const old = makePlant({ id: 'old', slotId: 'meadow-1' });
+    const { controller, store, payload } = setup({ ...createDefaultState(T0), plants: [old] });
+    controller.start(opts());
+    const id = store.get().session!.id;
     expect(controller.cancel()).toBe(true);
     expect(store.get().session).toBeNull();
-    expect(store.get().pendingReward).toBeNull();
+    expect(store.get().plants).toEqual([old]);
     expect(store.get().stats.cancelled).toBe(1);
-    expect(payload('session:cancel')).toEqual([{ sessionId: s.id, at: T0 }]);
+    expect(payload('session:cancel')).toEqual([{ sessionId: id, at: T0 }]);
     expect(controller.cancel()).toBe(false);
   });
 
-  it('pause/resume/cancel without a session do nothing', () => {
+  it('nothing to do without a session', () => {
     const { controller, names } = setup();
     expect(controller.pause()).toBe(false);
     expect(controller.resume()).toBe(false);
     expect(controller.cancel()).toBe(false);
+    expect(controller.water()).toBe(false);
+    expect(controller.skipBreak()).toBe(false);
+    expect(controller.check()).toBe(false);
     expect(names()).toEqual([]);
   });
 });
 
 describe('completion', () => {
-  it('the ticker completes the session with a tiered, seeded offer', () => {
-    const { controller, clock, ticker, store, payload } = setup();
-    const s = controller.start(25)!;
+  it('the tick finalises the plant and emits plant:placed then session:complete', () => {
+    const { controller, ticker, store, to, payload, names } = setup();
+    controller.start(opts());
+    const id = store.get().session!.id;
     expect(ticker.running).toBe(true);
-    clock.advance(25 * MIN - 1);
-    ticker.tick();
-    expect(store.get().session).not.toBeNull();
-    clock.advance(1);
-    ticker.tick();
-    const r = store.get().pendingReward!;
-    expect(r).toMatchObject({ sessionId: s.id, goalMinutes: 25, tier: 2, chosen: null, completedAt: T0 + 25 * MIN });
-    expect(r.options).toHaveLength(3);
-    expect(r.options.sort()).toEqual(['anemone', 'bellflower', 'iris']);
-    expect(payload('session:complete')).toEqual([{ sessionId: s.id, reward: r }]);
-    expect(store.get().stats).toMatchObject({ completed: 1, totalMinutes: 25 });
-    expect(ticker.running).toBe(false); // no session → no ticking
-  });
-
-  it('falls back to lower tiers and prefers unowned species', () => {
-    const owned: GardenState = {
-      ...createDefaultState(T0),
-      plants: [{ id: 'p', speciesId: 'violet', slotId: 'rock-1', seed: 1, plantedAt: 0, sessionMinutes: 10 }],
-    };
-    const { controller, clock, store } = setup(owned);
-    controller.start(90); // tier 4: only cherry, then tier 2 (3 species)
-    clock.advance(90 * MIN);
-    controller.check();
-    const r = store.get().pendingReward!;
-    expect(r.tier).toBe(4);
-    expect(r.options[0]).toBe('cherry');
-    expect(r.options).toHaveLength(3);
-    expect(r.options).not.toContain('violet');
-  });
-
-  it('offers are deterministic per seed', () => {
-    const run = (seed: number) => {
-      const { controller, clock, store } = setup(undefined, seed);
-      controller.start(10);
-      clock.advance(10 * MIN);
-      controller.check();
-      return store.get().pendingReward!.options;
-    };
-    expect(run(3)).toEqual(run(3));
-  });
-
-  it('does not complete while paused short of the goal', () => {
-    const { controller, clock } = setup();
-    controller.start(10);
-    clock.advance(MIN);
-    controller.pause();
-    clock.advance(100 * MIN);
-    expect(controller.check()).toBe(false);
-  });
-
-  it('completes on startup a session that finished while the app was closed', () => {
-    const saved: GardenState = {
-      ...createDefaultState(T0),
-      session: { id: 's-old', goalMs: 25 * MIN, startedAt: T0 - 3 * 60 * MIN, pausedAt: null, pausedTotalMs: 10 * MIN, weather: 'mist' },
-    };
-    const { store, payload, ticker } = setup(saved);
-    const r = store.get().pendingReward!;
-    expect(r.sessionId).toBe('s-old');
-    expect(r.completedAt).toBe(T0 - 3 * 60 * MIN + 35 * MIN); // the real moment it finished
-    expect(payload('session:complete')).toHaveLength(1);
+    to(25);
+    const plant = store.get().plants[0]!;
+    expect(plant).toMatchObject({ id, speciesId: 'violet', slotId: 'meadow-1', taskName: 'Biology ch. 4', sessionMinutes: 25, completedAt: T0 + 25 * MIN, plantedAt: T0 });
+    expect(payload('plant:placed')).toEqual([{ plant }]);
+    expect(payload('session:complete')).toEqual([{ sessionId: id, plant }]);
+    const n = names();
+    expect(n.indexOf('plant:placed')).toBeLessThan(n.indexOf('session:complete'));
     expect(ticker.running).toBe(false);
   });
 
-  it('resumes ticking on startup for a session still in progress', () => {
-    const saved: GardenState = {
-      ...createDefaultState(T0),
-      session: { id: 's-old', goalMs: 25 * MIN, startedAt: T0 - 5 * MIN, pausedAt: null, pausedTotalMs: 0, weather: 'sun' },
-    };
-    const { store, ticker, controller } = setup(saved);
-    expect(store.get().session).not.toBeNull();
-    expect(ticker.running).toBe(true);
-    expect(controller.status().remainingMs).toBe(20 * MIN);
-  });
-
-  it('check() is a no-op without a session', () => {
-    expect(setup().controller.check()).toBe(false);
-  });
-});
-
-describe('choose and place', () => {
-  const rewarded = (initial?: GardenState) => {
-    const ctx = setup(initial);
-    ctx.controller.start(10);
-    ctx.clock.advance(10 * MIN);
-    ctx.controller.check();
-    return ctx;
-  };
-
-  it('offer() returns the species definitions of the options', () => {
-    const { controller, store } = rewarded();
-    expect(controller.offer().map((s) => s.id)).toEqual(store.get().pendingReward!.options);
-  });
-
-  it('choose emits reward:chosen; placementOptions lists compatible slots', () => {
-    const { controller, payload } = rewarded();
-    expect(controller.placementOptions()).toEqual([]);
-    expect(controller.choose('violet')).toBe(true);
-    expect(controller.choose('violet')).toBe(false);
-    expect(controller.choose('cherry')).toBe(false); // not offered
-    expect(payload('reward:chosen')).toEqual([{ speciesId: 'violet' }]);
-    expect(controller.placementOptions().map((o) => o.slot.id)).toEqual(['meadow-1', 'meadow-2', 'rock-1']);
-  });
-
-  it('place plants the species, retires the placement tip and emits plant:placed', () => {
-    const { controller, store, payload } = rewarded();
-    controller.choose('violet');
-    const plant = controller.place('meadow-2')!;
-    expect(plant).toMatchObject({ speciesId: 'violet', slotId: 'meadow-2', plantedAt: T0 + 10 * MIN, sessionMinutes: 10 });
-    expect(Number.isInteger(plant.seed)).toBe(true);
-    expect(store.get().plants).toEqual([plant]);
-    expect(store.get().pendingReward).toBeNull();
-    expect(store.get().tips.placement).toBe('seen');
-    expect(payload('plant:placed')).toEqual([{ plant }]);
-    expect(payload('plant:swapped')).toEqual([]);
-  });
-
-  it('place into an incompatible slot fails quietly', () => {
-    const { controller, store, names } = rewarded();
-    controller.choose('violet');
-    expect(controller.place('shore-1')).toBeNull();
-    expect(controller.place('nowhere')).toBeNull();
-    expect(store.get().pendingReward).not.toBeNull();
-    expect(names()).not.toContain('plant:placed');
-  });
-
-  it('swapping presses the old plant and emits plant:swapped before plant:placed', () => {
-    const old = { id: 'old', speciesId: 'clover', slotId: 'meadow-1', seed: 5, plantedAt: T0 - 1, sessionMinutes: 10 };
-    const { controller, store, payload, names } = rewarded({ ...createDefaultState(T0), plants: [old] });
-    controller.choose(store.get().pendingReward!.options.find((id) => id !== 'moss')!);
-    const opts = controller.placementOptions();
-    expect(opts.find((o) => o.slot.id === 'meadow-1')?.occupiedBy).toEqual(old);
-    const plant = controller.place('meadow-1')!;
-    const removed = { speciesId: 'clover', seed: 5, plantedAt: T0 - 1, removedAt: T0 + 10 * MIN };
+  it('a displaced plant is pressed: plant:swapped precedes plant:placed', () => {
+    const old = makePlant({ id: 'old', slotId: 'meadow-1', taskName: 'Old task' });
+    const { controller, store, to, payload, names } = setup({ ...createDefaultState(T0), plants: [old] });
+    controller.start(opts());
+    to(25);
+    const plant = store.get().plants.find((p) => p.slotId === 'meadow-1')!;
+    const removed = { speciesId: old.speciesId, seed: old.seed, plantedAt: old.plantedAt, removedAt: T0 + 25 * MIN, taskName: 'Old task' };
     expect(store.get().pressed).toEqual([removed]);
     expect(payload('plant:swapped')).toEqual([{ plant, removed }]);
     const n = names();
@@ -299,16 +306,63 @@ describe('choose and place', () => {
     expect(store.get().tips.swap).toBe('seen');
   });
 
-  it('place without a chosen species does nothing', () => {
-    const { controller } = rewarded();
-    expect(controller.place('meadow-1')).toBeNull();
+  it('completes on startup a session that finished while the app was closed', () => {
+    const saved: GardenState = {
+      ...createDefaultState(T0),
+      session: makeSession({ id: 's-old', startedAt: T0 - 3 * 60 * MIN, pausedTotalMs: 10 * MIN }),
+    };
+    const { store, payload, ticker } = setup(saved);
+    const plant = store.get().plants[0]!;
+    expect(plant.id).toBe('s-old');
+    expect(plant.completedAt).toBe(T0 - 3 * 60 * MIN + 35 * MIN); // the real moment it finished
+    expect(payload('session:complete')).toHaveLength(1);
+    expect(ticker.running).toBe(false);
   });
 
-  it('discard drops the reward', () => {
-    const { controller, store } = rewarded();
-    expect(controller.discard()).toBe(true);
-    expect(store.get().pendingReward).toBeNull();
-    expect(controller.discard()).toBe(false);
+  it('on startup mid-break: announces the current break once, not past blocks', () => {
+    const saved: GardenState = {
+      ...createDefaultState(T0),
+      session: makeSession({ plan: plan([25, -5, 25, -5, 30]), startedAt: T0 - 57 * MIN }),
+    };
+    const { payload, ticker, controller } = setup(saved);
+    expect(payload('session:break')).toEqual([{ blockIndex: 3 }]);
+    ticker.tick();
+    ticker.tick();
+    expect(payload('session:break')).toHaveLength(1);
+    expect(payload('session:focus')).toEqual([]);
+    expect(ticker.running).toBe(true);
+    expect(controller.status().phase).toBe('break');
+  });
+
+  it('on startup in the first focus block: nothing to announce', () => {
+    const saved: GardenState = { ...createDefaultState(T0), session: makeSession({ startedAt: T0 - 5 * MIN }) };
+    const { names, controller } = setup(saved);
+    expect(names()).toEqual([]);
+    expect(controller.status().timeline!.totalRemainingMs).toBe(20 * MIN);
+  });
+
+  it('does not complete while paused short of the end', () => {
+    const { controller, clock } = setup();
+    controller.start(opts());
+    clock.advance(MIN);
+    controller.pause();
+    clock.advance(100 * MIN);
+    expect(controller.check()).toBe(false);
+  });
+});
+
+describe('status', () => {
+  it('idle → focus → break, with a live timeline', () => {
+    const { controller, clock } = setup();
+    expect(controller.status()).toEqual({ phase: 'idle', session: null, timeline: null, pausedForMs: 0, longPause: false });
+    controller.start(POM);
+    clock.set(T0 + 15 * MIN);
+    const st = controller.status();
+    expect(st.phase).toBe('focus');
+    expect(st.timeline!.growth).toBeCloseTo(15 / 80);
+    clock.set(T0 + 32 * MIN);
+    expect(controller.status().phase).toBe('break');
+    expect(controller.status().timeline!.blockRemainingMs).toBe(3 * MIN);
   });
 });
 
@@ -339,45 +393,32 @@ describe('settings, tips and fauna', () => {
 
 describe('ticking', () => {
   it('onTick delivers the status after each tick', () => {
-    const { controller, clock, ticker } = setup();
+    const { controller, to } = setup();
     const seen: number[] = [];
-    const off = controller.onTick((s) => seen.push(s.remainingMs));
-    controller.start(10);
-    clock.advance(MIN);
-    ticker.tick();
-    clock.advance(MIN);
-    ticker.tick();
+    const off = controller.onTick((s) => seen.push(s.timeline!.totalRemainingMs));
+    controller.start(opts({ goalMinutes: 10 }));
+    to(1);
+    to(2);
     off();
-    ticker.tick();
+    to(3);
     expect(seen).toEqual([9 * MIN, 8 * MIN]);
-  });
-
-  it('status() while idle and with a pending reward', () => {
-    const { controller, clock } = setup();
-    expect(controller.status()).toMatchObject({ phase: 'idle', elapsedMs: 0, progress: 0, session: null });
-    controller.start(10);
-    clock.advance(5 * MIN);
-    expect(controller.status().progress).toBeCloseTo(0.5);
-    clock.advance(5 * MIN);
-    controller.check();
-    expect(controller.status().phase).toBe('reward');
   });
 
   it('setTicker swaps the tick source without losing the session', () => {
     const { controller, ticker, clock, store } = setup();
-    controller.start(10);
+    controller.start(opts({ goalMinutes: 10 }));
     const other = manualTicker();
     controller.setTicker(other);
     expect(ticker.running).toBe(false);
     expect(other.running).toBe(true);
     clock.advance(10 * MIN);
     other.tick();
-    expect(store.get().pendingReward).not.toBeNull();
+    expect(store.get().plants).toHaveLength(1);
   });
 
   it('dispose stops ticking and listening', () => {
     const { controller, ticker, store } = setup();
-    controller.start(10);
+    controller.start(opts());
     controller.dispose();
     expect(ticker.running).toBe(false);
     store.dispatch({ type: 'settings/update', patch: { muted: false } });
@@ -399,13 +440,13 @@ describe('ticking', () => {
     }
   });
 
-  it('setSeed makes subsequent ids and weather reproducible', () => {
+  it('setSeed makes subsequent ids, seeds and weather reproducible', () => {
     const a = setup();
     a.controller.setSeed(99);
-    const s1 = a.controller.start(10)!;
+    a.controller.start(opts());
     const b = setup(undefined, 'something-else');
     b.controller.setSeed(99);
-    const s2 = b.controller.start(10)!;
-    expect(s1).toEqual(s2);
+    b.controller.start(opts());
+    expect(a.store.get().session).toEqual(b.store.get().session);
   });
 });
