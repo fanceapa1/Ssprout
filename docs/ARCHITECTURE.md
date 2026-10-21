@@ -37,9 +37,11 @@ src/
   widget/                 Document PiP widget, title/favicon fallback, notifications, timer worker
   audio/                  procedural Web Audio ambience + chime
   dev/                    ?dev debug API (window.sprout) used by e2e tests
+  studio/                 studio.html page: discovers every *.studio.ts and shows all sprites/animations
 tests/e2e/                Playwright specs
 tests/visual/             screenshot specs (tolerant thresholds)
 scripts/                  e.g. shots.ts — capture screenshots to artifacts/ (gitignored) for review
+studio.html               second Vite entry (deployed at /Ssprout/studio.html)
 docs/                     SPEC, ARCHITECTURE, ART_DIRECTION, ROADMAP, adr/, systems/, devlog/
 ```
 
@@ -61,6 +63,11 @@ docs/                     SPEC, ARCHITECTURE, ART_DIRECTION, ROADMAP, adr/, syst
 | 5 | `ambience` | sun shafts, rain strokes, mist, light motes | per frame |
 | 6 | `lighting` | time-of-day colour grade (multiply/soft-light washes), lantern glow | throttled (every few s) |
 | 7 | `paper` | static washi grain + vignette over everything (multiply) | once per resize |
+
+The renderer (`createRenderer` in `src/render/renderer.ts`) owns the frame loop, the cached
+`background`/`paper` canvases (paper is composited with `multiply`) and the depth sort; its API
+(`add`, `remove`, `start`, `freeze`, `renderOnce`, `invalidate`, `whenReady`, …) is documented
+in `docs/systems/render.md`.
 
 Slot markers, the reward picker and all controls are **DOM** above the canvas (accessible,
 e2e-clickable: `[data-slot-id="..."]`).
@@ -148,8 +155,35 @@ export interface GardenState {
   settings: { muted: boolean; lastGoalMinutes: number; notifications: 'unasked' | 'granted' | 'denied' };
 }
 ```
-`Store` = `{ get(): GardenState; dispatch(action): void; subscribe(fn): unsub }`. Every
-dispatch persists (debounced). Reducers are pure and live in `core/`.
+`Store` = `{ get(): GardenState; dispatch(action): void; subscribe(fn): unsub }` where
+`fn(state, prev, action)`. `createStore(initial, reducer, onChange?)`: `onChange` runs on every
+state change before subscribers (the persistence hook — every dispatch persists, debounced).
+A reducer returning the same reference means "no change" (no notifications). Dispatches made
+from inside a listener are queued and applied after the current delivery (ADR 0011).
+Reducers are pure and live in `core/`.
+
+#### Actions
+Every impure input (time, ids, seeds, weather, offers) is carried in the action, so reducers
+stay pure and deterministic. `type Action =`
+
+| type | payload | meaning |
+|---|---|---|
+| `session/start` | `goalMinutes, now, id, weather` | start a session (sets `settings.lastGoalMinutes`) |
+| `session/pause` | `now` | pause the running session |
+| `session/resume` | `now` | resume; adds the paused span to `pausedTotalMs` |
+| `session/cancel` | `now` | end without reward (`stats.cancelled++`) |
+| `session/complete` | `now, options: string[], tier` | end with reward → `pendingReward` |
+| `reward/choose` | `speciesId` | pick one of `pendingReward.options` |
+| `plant/place` | `slotId, id, seed, now` | plant the chosen species (swaps an occupant into `pressed`) |
+| `reward/discard` | — | drop the pending reward |
+| `tip/retire` | `id` | mark a tip as seen |
+| `settings/update` | `patch: Partial<Settings>` | merge settings |
+| `fauna/seen` | `id` | creature announced |
+| `state/replace` | `state` | import / load a whole state |
+| `state/reset` | `now` | fresh default state |
+
+Types exported alongside: `Settings`, `GardenStats`, `Reducer<S, A>`, `Listener<S, A>`,
+`createDefaultState(now)`, `STATE_VERSION`, `DEFAULT_GOAL_MINUTES`.
 
 ### Session maths (`src/core/session.ts`)
 `elapsedMs(s, now) = (s.pausedAt ?? now) - s.startedAt - s.pausedTotalMs`; complete when
@@ -158,6 +192,21 @@ dispatch persists (debounced). Reducers are pure and live in `core/`.
 ### Events (`src/core/events.ts`)
 `session:start | session:pause | session:resume | session:cancel | session:complete |
 reward:chosen | plant:placed | plant:swapped | fauna:arrived | tip:retired | settings:changed`.
+Payloads are typed in `EventMap` (e.g. `'plant:placed': { plant }`,
+`'plant:swapped': { plant, removed }`, `'session:complete': { sessionId, reward }`).
+`createEventBus()` → `{ on, once, off, emit, clear }`; `on` returns an unsubscribe function;
+delivery is synchronous to a snapshot of handlers; a throwing handler does not stop the others.
+
+### Clock & Rng (`src/core/clock.ts`, `src/core/rng.ts`)
+`Clock = { now(): number }`; `realClock`; `createSpeedClock(speed, base?)` (anchored at
+creation, `setSpeed(n)` without jumps); `createManualClock(t)` for tests.
+`createRng(seed: number | string)` → `{ seed, next, range, int, pick, shuffle, gaussian, chance,
+fork(label) }`. `int` is inclusive; `shuffle` returns a copy; `fork` derives from the stream's
+*seed* + label, not its position (ADR 0012).
+
+### Shared helpers
+`Pt` lives in `src/render/viewport.ts` (re-exported from `scene/geometry.ts`).
+`src/plants/types.ts` also exports `TIERS`, `HABITATS`, `SIZE_CLASSES`, `fitsSize()`, `reflects()`.
 
 ## Dev / test hooks (`src/dev/`)
 Enabled by `?dev` query param. `?speed=60` → clock runs 60× (also `window.sprout.setSpeed`).
@@ -166,7 +215,32 @@ Enabled by `?dev` query param. `?speed=60` → clock runs 60× (also `window.spr
 `setWeather(w)`, `freeze()` (stop animation for stable screenshots).
 E2E tests must use these instead of sleeping.
 
+Implemented by the foundation: `state()`, `ready()` (resolves when all systems are
+initialised), `freeze()` (async; resolves after a stable frame is drawn), `unfreeze()`,
+`setSpeed(n)`, `now()`. Others add methods with `extendDebug({...})` from `src/dev/debug.ts` and
+augment the `SproutDebug` interface via declaration merging.
+
+## Studio (`studio.html`, `src/studio/`)
+A dev page (also deployed at `/Ssprout/studio.html`) showing **every sprite, creature, effect
+and paint primitive** for visual review. Any `src/**/*.studio.ts` is discovered with
+`import.meta.glob('/src/**/*.studio.ts', { eager: true })` and default-exports a
+`StudioSection` **or an array of them** (`src/studio/types.ts`):
+```ts
+export interface StudioSection { id: string; title: string; order?: number; entries: StudioEntry[] }
+export interface StudioEntry {
+  id: string; label: string; w: number; h: number; animated?: boolean;
+  render(canvas: HTMLCanvasElement, ctx: { t: number; dt: number; seed: number; frame: number; pixelRatio: number }): void;
+}
+```
+`render` fills `canvas.width × canvas.height` pixels (the studio clears the canvas and resets
+the transform before each call; `pixelRatio = canvas.width / w`). Animated entries render every
+frame, static ones once per seed/scale. Section ids are unique; entry ids are unique per section
+and addressed as `<section>/<entry>`. URL: `#<section>`, `?entry=<id>`, `?seed=n`, `?t=sec`
+(start paused), `?scale=2`, `?bg=paper|white|dark`. All species automatically get a section
+(growth stages + grow loop) from `src/plants/species.studio.ts`. See `docs/systems/studio.md`.
+
 ## Conventions
 - Pure logic in `core/` must have unit tests. Rendering code is verified with screenshots.
 - No `Date.now()`/`Math.random()` outside `core/clock.ts`/`core/rng.ts` — everything seeded.
 - Each system documents itself in `docs/systems/<name>.md`.
+- Every sprite, creature, effect and paint primitive has a studio entry in a colocated `*.studio.ts`.
