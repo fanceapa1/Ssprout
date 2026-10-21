@@ -69,7 +69,6 @@ function boot(): void {
   const sceneSystem = createSceneSystem({ invalidate: (layer) => renderer.invalidate(layer), showSlots: dev && params.has('slots') });
   void renderer.add(createPaperSystem());
   void renderer.add(sceneSystem);
-  void renderer.add(createPlaceholderBackground());
   // plants: finished + growing sprites, wither, watering, reflections (docs/systems/plants.md)
   setPlantViewSpecies(getSpecies);
   const plants = createPlantSystem({ getSpecies });
