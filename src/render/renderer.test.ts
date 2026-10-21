@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { createManualClock } from '../core/clock';
 import { createEventBus } from '../core/events';
 import { createDefaultState, createStore, reducer } from '../core/state';
-import { placeholderScene } from '../scene/geometry';
+import { gardenScene } from '../scene/geometry';
 import { createRenderer, type RendererOptions } from './renderer';
 import type { LayerId, System } from './types';
 
@@ -48,7 +48,7 @@ function setup(over: Partial<RendererOptions> = {}) {
     store: createStore(createDefaultState(0), reducer),
     bus: createEventBus(),
     clock,
-    scene: placeholderScene,
+    scene: gardenScene,
     measure: () => ({ w: 800, h: 500, dpr: 2 }),
     createCanvas: () => {
       const c = fakeCanvas(`cache${offscreen.length}`);

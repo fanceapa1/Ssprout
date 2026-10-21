@@ -11,7 +11,7 @@ import { withFixtures } from './dev/fixture-species';
 import { createFakeWidget, installUiDebug } from './dev/ui-debug';
 import { allSpecies } from './plants/registry';
 import { createRenderer } from './render/renderer';
-import { placeholderScene } from './scene/geometry';
+import { gardenScene } from './scene/geometry';
 import { createPlaceholderBackground } from './scene/placeholder-background';
 import { createUI } from './ui';
 import { createTimerSurfaces } from './widget';
@@ -36,7 +36,7 @@ function boot(): void {
   const speedClock = dev ? createSpeedClock(Number.isFinite(speed) && speed >= 0 ? speed : 1) : null;
   const clock: Clock = speedClock ?? realClock;
 
-  const scene = placeholderScene;
+  const scene = gardenScene;
   // ?dev&fixtures adds the dev-only fx-* species (ADR 0055)
   const species = dev && params.has('fixtures') ? withFixtures(allSpecies()) : allSpecies();
   const speciesById = new Map(species.map((s) => [s.id, s]));
