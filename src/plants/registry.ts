@@ -5,7 +5,7 @@ import type { SpeciesDef, Tier } from './types';
  * SpeciesDef and it is registered. The file name must equal the species id.
  */
 const modules = import.meta.glob<{ default: SpeciesDef }>(
-  ['./species/*.ts', '!./species/*.test.ts'],
+  ['./species/*.ts', '!./species/*.test.ts', '!./species/*.studio.ts'],
   { eager: true },
 );
 
