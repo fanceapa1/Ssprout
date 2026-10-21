@@ -3,6 +3,7 @@ import { createManualClock } from '../core/clock';
 import { createSessionController, type Ticker } from '../core/controller';
 import { createEventBus } from '../core/events';
 import { createDefaultState, createStore, reducer } from '../core/state';
+import type { SpeciesDef } from '../plants/types';
 import { createWorkerTicker, TICK_WORKER_SOURCE, type TickerCommand, type WorkerLike } from './ticker';
 
 /** A fake worker that records commands; `tick(id)` simulates the worker posting a tick. */
@@ -188,10 +189,24 @@ describe('createWorkerTicker', () => {
     const clock = createManualClock(1_000_000);
     const store = createStore(createDefaultState(clock.now()), reducer);
     const bus = createEventBus();
-    const controller = createSessionController({ store, clock, bus, species: [], seed: 1 });
+    const violet: SpeciesDef = {
+      id: 'violet',
+      name: 'Violet',
+      tier: 1,
+      habitats: ['meadow'],
+      sizeClass: 'small',
+      size: { w: 10, h: 10 },
+      anchor: { x: 0.5, y: 1 },
+      description: '',
+      bloomColor: '#fff',
+      pollinators: false,
+      draw: () => {},
+    };
+    const slots = [{ id: 'meadow-1', x: 0, y: 0, habitat: 'meadow' as const, maxSize: 'small' as const, scale: 1 }];
+    const controller = createSessionController({ store, clock, bus, species: [violet], slots, seed: 1 });
     controller.setTicker(createWorkerTicker({ createWorker: () => w, fallback: manualTicker() }));
     expect(w.sent).toEqual([]);
-    controller.start(10);
+    expect(controller.start({ taskName: 'Reading', goalMinutes: 10, speciesId: 'violet', slotId: 'meadow-1' })).toBe(true);
     expect(w.sent).toEqual([{ type: 'start', id: 1, ms: 1000 }]);
     const completed = vi.fn();
     bus.on('session:complete', completed);

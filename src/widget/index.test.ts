@@ -1,5 +1,7 @@
 // @vitest-environment jsdom
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, expectTypeOf, it, vi } from 'vitest';
+import type { SessionController } from '../core/controller';
+import type { WidgetController } from './contract';
 import { createManualClock } from '../core/clock';
 import { createDefaultState, type GardenState } from '../core/state';
 import { createTimerSurfaces } from './index';
@@ -40,6 +42,10 @@ function setup() {
 }
 
 describe('createTimerSurfaces', () => {
+  it('accepts the real session controller (compile-time check)', () => {
+    expectTypeOf<SessionController>().toMatchTypeOf<WidgetController>();
+  });
+
   it('installs the worker ticker, the tab countdown and the widget', () => {
     const { setTicker, surfaces } = setup();
     expect(setTicker).toHaveBeenCalledWith(surfaces.internals.ticker);

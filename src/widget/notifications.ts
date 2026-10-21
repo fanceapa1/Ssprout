@@ -177,7 +177,9 @@ export function createNotifier({ controller, store, bus, clock, env, speciesName
     const st = controller.status();
     const s = kind === 'complete' ? lastSession : (st.session ?? lastSession);
     const sessionId = payloadSessionId(payload) ?? s?.id ?? 'session';
-    const key = kind === 'complete' ? `${sessionId}:complete` : `${sessionId}:${kind}:${st.timeline?.blockIndex ?? -1}`;
+    const p = payload as { blockIndex?: unknown } | null;
+    const blockIndex = typeof p?.blockIndex === 'number' ? p.blockIndex : (st.timeline?.blockIndex ?? -1);
+    const key = kind === 'complete' ? `${sessionId}:complete` : `${sessionId}:${kind}:${blockIndex}`;
     const decision = decideNotification({
       supported: env.supported,
       permission: env.supported ? env.permission() : 'default',
