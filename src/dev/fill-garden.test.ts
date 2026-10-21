@@ -3,7 +3,7 @@ import { isCompatible } from '../core/placement';
 import { createRng } from '../core/rng';
 import { createDefaultState } from '../core/state';
 import type { Habitat, SizeClass, Tier } from '../plants/types';
-import { plantRandomly } from './fill-garden';
+import { plantRandomly, SAMPLE_TASKS } from './fill-garden';
 
 const sp = (id: string, tier: Tier, habitats: Habitat[], sizeClass: SizeClass) => ({ id, tier, habitats, sizeClass });
 const SPECIES = [
@@ -27,7 +27,9 @@ describe('plantRandomly', () => {
     for (const p of state.plants) {
       const def = SPECIES.find((s) => s.id === p.speciesId)!;
       expect(isCompatible(def, SLOTS.find((s) => s.id === p.slotId)!)).toBe(true);
-      expect(p.plantedAt).toBe(5);
+      expect(p.completedAt).toBe(5);
+      expect(p.plantedAt).toBe(5 - p.sessionMinutes * 60_000);
+      expect(SAMPLE_TASKS).toContain(p.taskName);
     }
   });
 
