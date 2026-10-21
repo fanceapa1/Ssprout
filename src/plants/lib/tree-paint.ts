@@ -8,7 +8,7 @@
 import type { Rng } from '../../core/rng';
 import type { Painter } from '../../paint';
 import { blob, bounds, dabOutline, deformPolygon, padRect, ribbon, smoothPath, type Pt, type Rect } from '../../paint/geometry';
-import { PIGMENTS, darken, jitter, lighten, mix, shade, type Pigment } from '../../paint/pigments';
+import { PIGMENTS, darken, jitter, lighten, mix, rgba, shade, type Pigment } from '../../paint/pigments';
 import { dab, dryBrush, glaze, layerAlpha, paintDab, stroke, type PaintTarget } from '../../paint/primitives';
 import { foliageClump, foliageLayout, type FoliageOptions, type FoliagePigments } from '../../paint/recipes';
 import { WetLayer, type DryOptions, type PaintEnv } from '../../paint/wet';
@@ -494,7 +494,24 @@ export function paintBlossoms(
   rng: Rng,
   open: (b: Blossom) => number,
   pig: BlossomPigments,
-  o: { petals?: number; opacity?: number; dry?: DryOptions; centres?: number } = {},
+  o: {
+    petals?: number;
+    opacity?: number;
+    dry?: DryOptions;
+    centres?: number;
+    /** body passes that dry separately so neighbouring flowers keep their own rims (default 1) */
+    groups?: number;
+    /** chance a flower shows its centre (default 0.55) */
+    centreChance?: number;
+    /** centre size as a fraction of the petal length (default 0.16) */
+    centreSize?: number;
+    /** stamen hairs per flower (default 0) */
+    stamens?: number;
+    /** stamen pigment (default sumi) */
+    stamenPigment?: Pigment;
+    /** chance of a deeper glaze petal per flower (default 0.5 + tone × 0.4) */
+    deepChance?: number;
+  } = {},
 ): void {
   const live = blossoms.map((b) => ({ b, k: open(b) })).filter((x) => x.k > 0.04);
   if (!live.length) return;
@@ -502,7 +519,8 @@ export function paintBlossoms(
   const maxR = live.reduce((m, x) => Math.max(m, x.b.r), 1);
   const area = padRect(bounds(at), maxR * 2.4 + 3);
   const petals = o.petals ?? 5;
-  const body = stableLayer(p, area, rng.fork('bl-body-dry'));
+  const groups = Math.max(1, o.groups ?? 1);
+  const bodies = Array.from({ length: groups }, (_, gi) => stableLayer(p, area, rng.fork(gi ? `bl-body-dry-${gi}` : 'bl-body-dry')));
   const deep = stableLayer(p, area, rng.fork('bl-deep-dry'));
   const centres: { at: Pt; r: number; k: number; id: number }[] = [];
   let deepCount = 0;
@@ -512,6 +530,7 @@ export function paintBlossoms(
   live.forEach(({ b, k }, i) => {
     const c = at[i]!;
     const r = rng.fork(`bl-${b.id}`);
+    const body = bodies[i % groups]!;
     const len = b.r * (0.45 + 0.55 * k) * (0.7 + 0.3 * view.scale);
     const pg = tones[Math.min(TONES - 1, Math.round(b.tone * 0.6 * (TONES - 1)))]!;
     if (b.kind === 'flower') {
@@ -519,11 +538,11 @@ export function paintBlossoms(
         const ang = b.rot + (j / petals) * Math.PI * 2 + r.gaussian(0, 0.15);
         petalMark(body, c, pg, ang, len * r.range(0.88, 1.1), len * 0.85, 0.8, r);
       }
-      if (r.chance(0.5 + b.tone * 0.4)) {
+      if (r.chance(o.deepChance ?? 0.5 + b.tone * 0.4)) {
         petalMark(deep, c, pig.deep, b.rot + r.range(0, 6.3), len * 0.8, len * 0.7, 0.75, r);
         deepCount++;
       }
-      if (r.chance(0.55)) centres.push({ at: c, r: len, k, id: b.id });
+      if (r.chance(o.centreChance ?? 0.55)) centres.push({ at: c, r: len, k, id: b.id });
     } else if (b.kind === 'bud') {
       dotMark(deep, c, budPig, len * 0.45, len * 0.34, b.rot, 0.85, r);
       deepCount++;
@@ -536,7 +555,7 @@ export function paintBlossoms(
     }
   });
   const op = o.opacity ?? 0.92;
-  body.dry({ opacity: op, edge: 0.5, edgeWidth: 0.7, sharpness: 0.75, centreLift: 0.25, granulation: 0.08, flow: 0.3, flowScale: 12, darken: 0.25, blend: 'source-over', ...o.dry });
+  for (const body of bodies) body.dry({ opacity: op, edge: 0.5, edgeWidth: 0.7, sharpness: 0.75, centreLift: 0.25, granulation: 0.08, flow: 0.3, flowScale: 12, darken: 0.25, blend: 'source-over', ...o.dry });
   if (deepCount) deep.dry({ opacity: op * 0.6, edge: 0.45, edgeWidth: 0.6, sharpness: 0.7, centreLift: 0.25, granulation: 0.08, flowScale: 10 });
   else deep.discard();
   const cAmt = o.centres ?? 1;
@@ -545,7 +564,31 @@ export function paintBlossoms(
     const cp = pig.centre ?? PIGMENTS.gold;
     for (const c of centres) {
       const r = rng.fork(`blc-${c.id}`);
-      dotMark(C, { x: c.at.x + r.range(-0.15, 0.15) * c.r, y: c.at.y + r.range(-0.15, 0.15) * c.r }, cp, c.r * 0.16, c.r * 0.13, 0, 0.9, r);
+      const cs = o.centreSize ?? 0.16;
+      dotMark(C, { x: c.at.x + r.range(-0.15, 0.15) * c.r, y: c.at.y + r.range(-0.15, 0.15) * c.r }, cp, c.r * cs, c.r * cs * 0.8, 0, 0.9, r);
+      const ns = o.stamens ?? 0;
+      if (ns > 0) {
+        const sc = C.ctx;
+        sc.strokeStyle = rgba(o.stamenPigment ?? PIGMENTS.sumi, 0.55);
+        sc.lineWidth = Math.max(0.25, c.r * 0.05);
+        sc.lineCap = 'round';
+        sc.beginPath();
+        for (let j = 0; j < ns; j++) {
+          const a = r.range(0, Math.PI * 2);
+          const l = c.r * r.range(0.4, 0.6);
+          sc.moveTo(c.at.x, c.at.y);
+          sc.lineTo(c.at.x + Math.cos(a) * l, c.at.y + Math.sin(a) * l);
+        }
+        sc.stroke();
+        sc.fillStyle = rgba(mix(o.stamenPigment ?? PIGMENTS.sumi, cp, 0.4), 0.7);
+        for (let j = 0; j < ns; j++) {
+          const a = r.range(0, Math.PI * 2);
+          const l = c.r * r.range(0.4, 0.62);
+          sc.beginPath();
+          sc.arc(c.at.x + Math.cos(a) * l, c.at.y + Math.sin(a) * l, Math.max(0.3, c.r * 0.06), 0, Math.PI * 2);
+          sc.fill();
+        }
+      }
     }
     C.dry({ opacity: 0.5 * cAmt, edge: 0.4, edgeWidth: 0.5, sharpness: 0.7, centreLift: 0.1, flowScale: 6 });
   }

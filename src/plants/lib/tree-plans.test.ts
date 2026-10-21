@@ -4,6 +4,7 @@ import { getSpecies } from '../registry';
 import { planBlackPine } from '../species/black-pine';
 import { planGinkgo } from '../species/ginkgo';
 import { planJapaneseMaple } from '../species/japanese-maple';
+import { planPlumBlossom } from '../species/plum-blossom';
 import { planWeepingCherry } from '../species/weeping-cherry';
 
 /** Every tier-4 tree builds its whole plan (skeleton, foliage, blossom) from the rng alone. */
@@ -12,6 +13,7 @@ const PLANS: Record<string, (rng: Rng) => unknown> = {
   'japanese-maple': planJapaneseMaple,
   'black-pine': planBlackPine,
   ginkgo: planGinkgo,
+  'plum-blossom': planPlumBlossom,
 };
 
 describe('tier-4 tree plans', () => {
@@ -22,6 +24,7 @@ describe('tier-4 tree plans', () => {
         expect(def).toBeDefined();
         expect(def.tier).toBe(4);
         expect(def.size.w).toBeGreaterThan(200);
+        expect(['large', 'tree']).toContain(def.sizeClass);
         expect(def.anchor.y).toBeGreaterThan(0.8);
       });
 
