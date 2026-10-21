@@ -12,10 +12,11 @@ import { createFakeWidget, installUiDebug } from './dev/ui-debug';
 import { allSpecies } from './plants/registry';
 import { createRenderer } from './render/renderer';
 import { gardenScene } from './scene/geometry';
-import { createPlaceholderBackground } from './scene/placeholder-background';
 import { createUI } from './ui';
 import { createTimerSurfaces } from './widget';
 import { installWidgetDebug } from './widget/dev';
+import { installSceneDebug } from './scene/debug';
+import { createPaperSystem, createSceneSystem } from './scene/system';
 
 /** localStorage, or null when the browser blocks it (private mode, disabled storage). */
 function browserStorage(): StorageLike | null {
@@ -62,7 +63,9 @@ function boot(): void {
   const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
 
   const renderer = createRenderer({ canvas, store, bus, clock, scene, reducedMotion });
-  void renderer.add(createPlaceholderBackground());
+  const sceneSystem = createSceneSystem({ invalidate: (layer) => renderer.invalidate(layer), showSlots: dev && params.has('slots') });
+  void renderer.add(createPaperSystem());
+  void renderer.add(sceneSystem);
   renderer.start();
 
   // Timer surfaces: worker ticker, tab title/favicon, notifications (asked inside session:start),
@@ -94,6 +97,7 @@ function boot(): void {
     installCoreDebug({ store, controller, clock: speedClock, species, slots: scene.slots, saver: saver ?? undefined, isKnownSpecies });
     installUiDebug({ ui, clock: speedClock, widget: fakeWidget, viewport: () => renderer.viewport, slots: scene.slots });
     installWidgetDebug({ surfaces, controller, store, bus });
+    installSceneDebug(sceneSystem, scene);
   }
 }
 
