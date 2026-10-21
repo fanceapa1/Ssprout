@@ -37,11 +37,13 @@ export interface Keyframe {
   grade: Grade;
 }
 
+// moonlit watercolour, not a veil: a cool indigo glaze the paper still breathes through, deeper
+// in the sky, lighter over the garden so the plants stay readable (SPEC §5)
 const NIGHT: Grade = {
-  tint: [70, 80, 132],
-  amount: 0.68,
-  sky: 0.16,
-  ground: 0.8,
+  tint: [100, 114, 182],
+  amount: 0.47,
+  sky: 0.2,
+  ground: 0.66,
   glow: 0,
   warm: [236, 214, 170],
   glowX: 0.5,
@@ -98,10 +100,10 @@ const EVENING: Grade = {
   mottle: 0.16,
 };
 const DUSK: Grade = {
-  tint: [124, 140, 200],
-  amount: 0.4,
-  sky: 0.12,
-  ground: 0.86,
+  tint: [146, 158, 206],
+  amount: 0.34,
+  sky: 0.1,
+  ground: 0.82,
   glow: 0.22,
   warm: [230, 178, 166],
   glowX: 0.1,
