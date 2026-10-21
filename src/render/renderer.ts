@@ -53,8 +53,30 @@ export interface Renderer {
   resize(): Promise<void>;
   /** Rebuild a cached layer before the next frame (e.g. when the scene changes). */
   invalidate(layer?: LayerId): void;
+  /** Main-thread cost of recent frames (update + composite) and the intervals between them, in ms. */
+  frameStats(): FrameStats;
+  resetFrameStats(): void;
   dispose(): void;
 }
+
+export interface FrameStats {
+  frames: number;
+  workAvg: number;
+  workP95: number;
+  workMax: number;
+  intervalAvg: number;
+  intervalP95: number;
+}
+
+const STAT_FRAMES = 600;
+
+function percentile(xs: number[], p: number): number {
+  if (!xs.length) return 0;
+  const s = [...xs].sort((a, b) => a - b);
+  return s[Math.min(s.length - 1, Math.floor(p * s.length))]!;
+}
+const avg = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0);
+const r2 = (x: number) => Math.round(x * 100) / 100;
 
 interface Entry {
   system: System;
@@ -222,13 +244,21 @@ export function createRenderer(opts: RendererOptions): Renderer {
     }
   };
 
+  const work: number[] = [];
+  const intervals: number[] = [];
+  const perfNow = () => (typeof performance !== 'undefined' ? performance.now() : 0);
   const frame = (dt: number) => {
     if (!sized) return;
+    const t0 = perfNow();
     const f = frameInfo(dt);
     for (const e of entries) {
       if (e.ready && e.system.update) guard(e.system.id, 'update', () => e.system.update!(f));
     }
     composite(f);
+    work.push(perfNow() - t0);
+    if (dt > 0) intervals.push(dt * 1000);
+    if (work.length > STAT_FRAMES) work.shift();
+    if (intervals.length > STAT_FRAMES) intervals.shift();
   };
 
   const loop = (ts: number) => {
@@ -349,6 +379,18 @@ export function createRenderer(opts: RendererOptions): Renderer {
       frame(0);
     },
     resize,
+    frameStats: () => ({
+      frames: work.length,
+      workAvg: r2(avg(work)),
+      workP95: r2(percentile(work, 0.95)),
+      workMax: r2(Math.max(0, ...work)),
+      intervalAvg: r2(avg(intervals)),
+      intervalP95: r2(percentile(intervals, 0.95)),
+    }),
+    resetFrameStats() {
+      work.length = 0;
+      intervals.length = 0;
+    },
     invalidate(layer) {
       if (layer) dirty.add(layer);
       else for (const l of CACHED_LAYERS) dirty.add(l);

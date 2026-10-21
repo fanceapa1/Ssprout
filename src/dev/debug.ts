@@ -21,6 +21,9 @@ export interface SproutDebug {
   setSpeed(n: number): void;
   /** Current time of the app clock (epoch ms, accelerated by ?speed). */
   now(): number;
+  /** Main-thread frame cost (update + composite) and rAF intervals over the last frames, ms. */
+  frameStats(): ReturnType<Renderer['frameStats']>;
+  resetFrameStats(): void;
 }
 
 declare global {
@@ -51,6 +54,8 @@ export function installDebug({ store, renderer, clock }: DebugDeps): SproutDebug
     unfreeze: () => renderer.unfreeze(),
     setSpeed: (n) => clock.setSpeed(n),
     now: () => clock.now(),
+    frameStats: () => renderer.frameStats(),
+    resetFrameStats: () => renderer.resetFrameStats(),
   } satisfies Partial<SproutDebug> as SproutDebug;
   window.sprout = api;
   return api;
