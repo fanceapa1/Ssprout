@@ -7,13 +7,13 @@ import { test as base, expect, type Page } from '@playwright/test';
 export const test = base.extend<{ errors: string[] }>({
   errors: [
     async ({ page }, use) => {
-    const errors: string[] = [];
-    page.on('console', (msg) => {
-      if (msg.type() === 'error') errors.push(`console: ${msg.text()}`);
-    });
-    page.on('pageerror', (err) => errors.push(`pageerror: ${err.message}`));
-    await use(errors);
-    expect(errors, 'page logged errors').toEqual([]);
+      const errors: string[] = [];
+      page.on('console', (msg) => {
+        if (msg.type() === 'error') errors.push(`console: ${msg.text()}`);
+      });
+      page.on('pageerror', (err) => errors.push(`pageerror: ${err.message}`));
+      await use(errors);
+      expect(errors, 'page logged errors').toEqual([]);
     },
     { auto: true },
   ],
