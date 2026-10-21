@@ -382,8 +382,11 @@ export function createPlantSystem(opts: PlantSystemOptions): PlantSystem {
     const top = b ? box.y + b.top * box.h : slot.y - box.h * Math.max(0.25, g.shown) * 0.8;
     const half = b ? ((b.right - b.left) / 2) * box.w : box.w * 0.25;
     const visibleH = Math.max(8, slot.y - top);
-    const size = Math.max(22 * slot.scale, Math.min(48 * slot.scale, visibleH * 0.42));
-    const side: 1 | -1 = slot.x > 1300 ? -1 : 1;
+    const size = Math.max(30 * slot.scale, Math.min(54 * slot.scale, visibleH * 0.5));
+    // the can comes from the open side: from the left when its path would cross the pavilion
+    // (or run off the right edge of the world)
+    const reach = slot.x + half * 0.6 + size * 3.2;
+    const side: 1 | -1 = reach > Math.min(scene?.pavilion.x ?? 1600, 1600) ? -1 : 1;
     return { baseX: slot.x, baseY: slot.y, top, halfWidth: Math.max(half, 6), size, side };
   }
 
