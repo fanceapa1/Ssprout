@@ -41,6 +41,8 @@ export interface Raceme {
   sway: number;
   delay: number;
   id: number;
+  /** hangs further back: paler, painted first */
+  back: boolean;
 }
 
 export interface WisteriaPlan {
@@ -127,7 +129,15 @@ export function planWisteria(rng: Rng): WisteriaPlan {
   }
   for (const at of hangFrom) {
     if (racemes.some((q) => Math.abs(q.x - at.x) < 9)) continue;
-    racemes.push({ x: at.x, y: at.y + 2, len: rr.range(60, 125), sway: rr.range(-0.12, 0.12), delay: rr.range(0, 1), id: racemes.length });
+    racemes.push({ x: at.x, y: at.y + 2, len: rr.range(60, 130), sway: rr.range(-0.12, 0.12), delay: rr.range(0, 1), id: racemes.length, back: false });
+  }
+  // a second, paler curtain hanging behind, between the front racemes
+  const front = racemes.slice().sort((a, b) => a.x - b.x);
+  for (let i = 0; i + 1 < front.length; i++) {
+    const a = front[i]!;
+    const b = front[i + 1]!;
+    if (b.x - a.x < 14 || !rr.chance(0.75)) continue;
+    racemes.push({ x: (a.x + b.x) / 2 + rr.range(-3, 3), y: beamY + rr.range(2, 8), len: rr.range(45, 100), sway: rr.range(-0.1, 0.1), delay: rr.range(0, 1), id: racemes.length, back: true });
   }
   const florets: WisteriaPlan['florets'] = [];
   for (const rc of racemes) {
@@ -143,7 +153,7 @@ export function planWisteria(rng: Rng): WisteriaPlan {
         y: rc.y + u * rc.len + fr.range(-1.5, 1.5),
         r: tip ? fr.range(2.6, 3.4) : fr.range(4.6, 6.2) * (1 - u * 0.4),
         rot: fr.range(-0.6, 0.6) + Math.PI / 2,
-        tone: Math.min(1, Math.max(0, 1 - u * 1.05 + fr.range(-0.15, 0.15))),
+        tone: Math.min(1, Math.max(0, (rc.back ? 0.55 : 1) * (1 - u * 1.05) + fr.range(-0.15, 0.15))),
         delay: 0,
         kind: tip ? 'bud' : 'dot',
         id: florets.length,
@@ -239,11 +249,15 @@ const wisteria: SpeciesDef = {
     inUnits(p, SIZE, opts, () => {
       paintGroundShadow(p, plan.tree.base, 120, { ...view, scale: 0.4 + 0.6 * ramp(g, 0, 0.6) }, pr);
       paintTrellis(p, plan.trellis, pr);
+      plan.trellis.posts.forEach((post, i) => {
+        const gr = pr.fork(`tuft-${i}`);
+        p.grassTuft({ x: post.x + gr.range(-3, 3), y: BASE_Y + 2 }, { rng: gr, height: gr.range(14, 22) });
+      });
       paintSeed(p, plan.tree.base, g, pr);
       // vine thickens with age; no overall scaling (the trellis is full size from the start)
       const vis = paintSkeleton(p, plan.tree, { ...view, thick: 0.35 + 0.65 * ramp(g, 0.02, 0.7) }, pr, { pigment: BARK, texture: 0.7, modelling: 0.55, flare: 0.25, wobble: 0.2 });
       paintTipLeaves(p, vis, view, 1 - ramp(g, 0.5, 0.7), pr, { pigment: lighten(PIGMENTS.sap, 0.05), size: 6 });
-      paintPadMass(p, plan.pads, view, pr, (pad) => stagger(g, 0.5, 0.76, pad.delay, 0.14), () => FRESH, { flatness: 0.4, opacity: 0.6, gaps: 0.6, dabSize: 0.26, shadow: 0.45 });
+      paintPadMass(p, plan.pads, view, pr, (pad) => stagger(g, 0.5, 0.76, pad.delay, 0.14), () => FRESH, { flatness: 0.45, opacity: 0.5, gaps: 0.7, dabSize: 0.28, shadow: 0.4, density: 0.8 });
       paintLeaves(p, plan.leaves, view, pr.fork('leaves'), (l) => stagger(g, 0.52, 0.78, l.delay, 0.12), lighten(PIGMENTS.sageLight, 0.04), PIGMENTS.sap, { opacity: 0.75 });
       // racemes lengthen and open from the top down (0.72–1)
       const rOpen = plan.racemes.map((rc) => stagger(g, 0.7, 1, rc.delay, 0.2));
@@ -251,8 +265,11 @@ const wisteria: SpeciesDef = {
         const f = b as WisteriaPlan['florets'][number];
         return ramp(rOpen[f.raceme]!, f.u * 0.75, f.u * 0.75 + 0.25);
       };
+      const isBack = (f: WisteriaPlan['florets'][number]) => plan.racemes[f.raceme]!.back;
       const tips = plan.florets.filter((f) => f.kind === 'bud');
-      const body = plan.florets.filter((f) => f.kind !== 'bud');
+      const body = plan.florets.filter((f) => f.kind !== 'bud' && !isBack(f));
+      const back = plan.florets.filter((f) => f.kind !== 'bud' && isBack(f));
+      paintBlossoms(p, back, view, pr.fork('florets-back'), floretOpen, { pale: mix(VIOLET.pale, PIGMENTS.petalWhite, 0.3), deep: mix(PIGMENTS.irisLight, PIGMENTS.petalShade, 0.3) }, { opacity: 0.6, centres: 0, dry: { edge: 0.4 } });
       paintBlossoms(p, body, view, pr.fork('florets'), floretOpen, VIOLET, { groups: 2, opacity: 0.9, centres: 0, dry: { edge: 0.55 } });
       paintBlossoms(p, tips, view, pr.fork('tips'), floretOpen, TIP_BUDS, { opacity: 0.85, centres: 0 });
     });
