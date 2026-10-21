@@ -337,7 +337,7 @@ Plant labels hit-test with `plantWorldBounds` (`src/plants/bounds.ts`). Details:
 `ui.placement.subscribe` gives the renderer the placement markers (world units) for an optional
 in-canvas highlight. Details: `docs/systems/ui.md`.
 Fauna (`src/fauna/dev.ts`): `window.sprout.fauna` — `spawn(id)`, `list()`, `clear()`, `step(s)`,
-`setHour(h)`, `roster()`, `schedule()`, `pond()`, `view()`, `bench()` (docs/systems/fauna.md).
+`setHour(h)`, `roster()`, `schedule()`, `pond()`, `view()`, `targets()`, `bench()` (docs/systems/fauna.md).
 
 ## Timer surfaces (`src/widget/`, ADRs 0090–0094)
 `createTimerSurfaces({ controller, store, bus, clock })` → `{ widget: { supported, open(), isOpen(),

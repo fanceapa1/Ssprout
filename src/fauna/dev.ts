@@ -44,6 +44,8 @@ export interface FaunaDebug {
   schedule(): Record<string, number>;
   /** Pond polygon and visible world rect (bounds checks in tests). */
   pond(): Pt[];
+  /** Where creatures go right now: flower heads, lily pads, perches, heron wading spots. */
+  targets(): { flowers: Pt[]; pads: Pt[]; perches: Pt[]; stands: Pt[] };
   view(): Rect;
   /** Time update + draw of all fauna layers over `frames` simulated frames at the real canvas size. */
   bench(frames?: number): FaunaBench;
@@ -91,6 +93,11 @@ export function installFaunaDebug(system: FaunaSystem): void {
       return Object.fromEntries([...s.schedule.entries()].map(([k, due]) => [k, Math.max(0, due - s.time)]));
     },
     pond: () => sim().world.pond.world.map((p) => ({ ...p })),
+    targets() {
+      const w = sim().world;
+      const xy = (p: Pt) => ({ x: p.x, y: p.y });
+      return { flowers: w.flowers.map(xy), pads: w.pads.map(xy), perches: w.perches.map(xy), stands: sim().heronStands().map(xy) };
+    },
     view: () => ({ ...sim().world.view }),
     bench(frames = 120) {
       const s = sim();
