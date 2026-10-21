@@ -6,6 +6,12 @@ import { usingAmbienceWind } from './wind-adapter';
 /** `window.sprout.plants` (?dev): plant system state for e2e tests and screenshots. */
 declare module '../dev/debug' {
   interface SproutDebug {
+    /**
+     * Resolves once every plant sprite the garden needs right now is painted (sprites paint in
+     * workers, asynchronously). Unlike `plants.settle()` it does not snap growth or blooms —
+     * use it before a screenshot: `sprout.addPlants(25); await sprout.plantsReady()`.
+     */
+    plantsReady(): Promise<void>;
     plants: {
       state(): PlantDebugState;
       /** resolves once every requested sprite is painted */
@@ -27,6 +33,11 @@ declare module '../dev/debug' {
 
 export function installPlantsDebug(system: PlantSystem): void {
   extendDebug({
+    plantsReady: async () => {
+      // the store change lands on the next frame; give the system one to see new plants
+      await new Promise((r) => requestAnimationFrame(() => r(undefined)));
+      await system.ready();
+    },
     plants: {
       state: () => system.debugState(),
       whenIdle: () => system.whenIdle(),

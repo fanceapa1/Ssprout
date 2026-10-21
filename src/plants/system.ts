@@ -145,6 +145,8 @@ export interface PlantSystem extends System {
   whenIdle(): Promise<void>;
   /** tests/screenshots: snap growth and fades to their targets, paint what is needed, resolve when done */
   settle(): Promise<void>;
+  /** request every sprite the current garden needs (without snapping animations); resolve once painted */
+  ready(): Promise<void>;
   debugState(): PlantDebugState;
   perf(): PlantPerf;
   resetPerf(): void;
@@ -678,6 +680,15 @@ export function createPlantSystem(opts: PlantSystemOptions): PlantSystem {
           if (rec.appear !== null) rec.appear = null;
           rec.presence = { from: rec.presence.to, to: rec.presence.to, start: 0, dur: 1 };
         }
+        requestAll();
+        requestAhead();
+      }
+      return cache.whenIdle();
+    },
+    ready() {
+      const state = sys?.store.get();
+      if (state && sys) {
+        sync(state, sys.clock.now(), false);
         requestAll();
         requestAhead();
       }
