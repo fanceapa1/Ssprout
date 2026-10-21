@@ -1,7 +1,7 @@
 # Roadmap & task ownership
 
 The project is built by an orchestrator delegating to agents working in parallel git
-worktrees. **Only the orchestrator edits this file** (agents report status in their devlog).
+worktrees (max 2 concurrent from phase 5 on). **Only the orchestrator edits this file** (agents report status in their devlog).
 
 ADR numbering ranges (to avoid collisions in parallel work):
 0001–0009 orchestrator · 0010–0019 foundation · 0020–0029 paint · 0030–0039 core logic ·
@@ -15,15 +15,15 @@ ADR numbering ranges (to avoid collisions in parallel work):
 | 2 | Watercolour paint engine + studio entries | `src/paint` | done |
 | 2 | Core logic (sessions, plans, state, persistence, unlocks, tips, controller), revised for plant-at-start (ADR 0003) | `src/core`, `src/dev/core-debug.ts` | done |
 | 2 | Procedural audio | `src/audio` | done |
-| 3 | Painted landscape scene + geometry + slots + water animation | `src/scene` | in progress |
-| 3 | UI: planting sheet, session panel, watering, placement, menu, tips, herbarium | `src/ui`, `tests/e2e` | in progress |
-| 3 | Floating widget (PiP), title/favicon, notifications, worker ticker | `src/widget`, `src/plants/view.ts` (stub) | in progress |
-| 3 | **First playable → deploy to Pages** | — | todo |
-| 4 | Plant species A: tiers 1–2 (13) | `src/plants/species/*`, `src/plants/lib/small-*` | in progress |
-| 4 | Plant species B: tier 3 (6) | `src/plants/species/*`, `src/plants/lib/shrub-*` | in progress |
-| 4 | Plant species C: tier 4 trees (6) | `src/plants/species/*`, `src/plants/lib/tree-*` | in progress |
-| 4 | Plant system: garden sprites, live growth, wither, painted watering animation, reflections, hover labels | `src/plants/{view,sprites,system}.ts` | todo |
-| 4 | Fauna | `src/fauna` | todo |
-| 4 | Ambience (weather, motes) + time-of-day lighting | `src/ambience` | todo |
-| 5 | Polish: mobile, reduced motion, tooltips pass, art review loop | all | todo |
-| 5 | Full e2e + visual pass, docs audit | `tests`, `docs` | todo |
+| 3 | Painted landscape scene + geometry + slots + water animation | `src/scene` | done |
+| 3 | UI: planting sheet, session panel, watering, placement, menu, tips, herbarium | `src/ui`, `tests/e2e` | done |
+| 3 | Floating widget (PiP), title/favicon, notifications, worker ticker | `src/widget`, `src/plants/view.ts` (stub) | done |
+| 3 | **First playable → deploy to Pages** | — | done |
+| 4 | Plant species A: tiers 1–2 (13) | `src/plants/species/*`, `src/plants/lib/small-*` | done |
+| 4 | Plant species B: tier 3 (6) | `src/plants/species/*`, `src/plants/lib/shrub-*` | done |
+| 4 | Plant species C: tier 4 trees (6) | `src/plants/species/*`, `src/plants/lib/tree-*` | done |
+| 4 | Plant system: garden sprites, live growth, wither, painted watering animation, reflections, hover labels | `src/plants/{view,sprites,system}.ts` | done |
+| 4 | Fauna | `src/fauna` | done |
+| 4 | Ambience (weather, motes) + time-of-day lighting | `src/ambience` | done |
+| 5 | Polish: mobile, reduced motion, tooltips pass, art review loop | `src/**` | in progress |
+| 5 | QA: requirements→tests matrix, gap tests, flakiness, docs audit, README | `tests/**`, `docs/**` | in progress |
