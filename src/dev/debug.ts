@@ -19,6 +19,8 @@ export interface SproutDebug {
   unfreeze(): void;
   /** Change the dev clock speed (1 = real time). */
   setSpeed(n: number): void;
+  /** Current time of the app clock (epoch ms, accelerated by ?speed). */
+  now(): number;
 }
 
 declare global {
@@ -47,6 +49,7 @@ export function installDebug({ store, renderer, clock }: DebugDeps): SproutDebug
     },
     unfreeze: () => renderer.unfreeze(),
     setSpeed: (n) => clock.setSpeed(n),
+    now: () => clock.now(),
   };
   window.sprout = api;
   return api;
