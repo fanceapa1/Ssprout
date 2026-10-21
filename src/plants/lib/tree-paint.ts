@@ -10,7 +10,7 @@ import type { Painter } from '../../paint';
 import { blob, bounds, dabOutline, deformPolygon, padRect, ribbon, smoothPath, type Pt, type Rect } from '../../paint/geometry';
 import { PIGMENTS, darken, jitter, lighten, mix, rgba, shade, type Pigment } from '../../paint/pigments';
 import { dab, dryBrush, glaze, layerAlpha, paintDab, stroke, type PaintTarget } from '../../paint/primitives';
-import { foliageClump, foliageLayout, type FoliageOptions, type FoliagePigments } from '../../paint/recipes';
+import { foliageLayout, type FoliagePigments } from '../../paint/recipes';
 import { WetLayer, type DryOptions, type PaintEnv } from '../../paint/wet';
 import { branchProgress, partialPath, ramp, viewPt, widthAt, type Branch, type Tree, type TreeView } from './tree-structure';
 
@@ -306,32 +306,6 @@ export interface Pad {
   depth?: number;
   /** branch the pad grows from (species bookkeeping) */
   branch?: number;
-}
-
-/**
- * Paint foliage pads with the engine's `foliageClump`, each from its own rng fork so a pad has
- * the same dabs at every growth step (only its radius changes). `size(pad)` gives the current
- * radius factor (0 = absent).
- */
-export function paintPads(
-  p: Painter,
-  pads: readonly Pad[],
-  view: TreeView,
-  rng: Rng,
-  size: (pad: Pad) => number,
-  pigments: (pad: Pad) => FoliagePigments,
-  opts: (pad: Pad) => FoliageOptions = () => ({}),
-): void {
-  const order = pads.slice().sort((a, b) => (a.depth ?? 0) - (b.depth ?? 0) || a.id - b.id);
-  for (const pad of order) {
-    const k = size(pad);
-    if (k <= 0.03) continue;
-    const r = pad.r * k * view.scale;
-    if (r < 1.2) continue;
-    const at = viewPt(view, pad);
-    const pr = rng.fork(`pad-${pad.id}`);
-    foliageClump(stableTarget(p, pr.fork('dry')), at, r, pigments(pad), { ...opts(pad), rng: pr });
-  }
 }
 
 export interface PadStyle {
