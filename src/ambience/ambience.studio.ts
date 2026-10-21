@@ -126,27 +126,55 @@ interface Scenario {
 /** One engine per entry + seed, stepped with the studio's dt. */
 const engines = new Map<string, { amb: Ambience; seed: number; frame: number }>();
 
-function composite(canvas: HTMLCanvasElement, amb: Ambience, seed: number) {
+interface View {
+  /** world rectangle shown */
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+const WHOLE: View = { x: 0, y: 0, w: WORLD_W, h: WORLD_H };
+
+/**
+ * Renderer pipeline into a destination rectangle of the canvas: backdrop → water effects →
+ * ambience → lighting → paper (multiplied last).
+ */
+function composite(canvas: HTMLCanvasElement, amb: Ambience, seed: number, view: View = WHOLE, dest = { x: 0, y: 0, w: canvas.width, h: canvas.height }) {
   const ctx = canvas.getContext('2d')!;
-  const cw = canvas.width;
-  const ch = canvas.height;
+  const k = dest.w / view.w;
+  // the backdrop is painted at the resolution this view needs, then cropped
+  const bw = Math.round(WORLD_W * k);
+  const bh = Math.round(WORLD_H * k);
+  ctx.save();
   ctx.setTransform(1, 0, 0, 1, 0, 0);
-  ctx.drawImage(backdrop(cw, ch, seed) as CanvasImageSource, 0, 0);
-  const world = () => ctx.setTransform(cw / WORLD_W, 0, 0, ch / WORLD_H, 0, 0);
+  ctx.beginPath();
+  ctx.rect(dest.x, dest.y, dest.w, dest.h);
+  ctx.clip();
+  ctx.drawImage(backdrop(bw, bh, seed) as CanvasImageSource, view.x * k, view.y * k, dest.w, dest.h, dest.x, dest.y, dest.w, dest.h);
   for (const draw of [amb.drawWater, amb.drawAir, amb.drawLighting]) {
     ctx.save();
-    world();
+    ctx.setTransform(k, 0, 0, k, dest.x - view.x * k, dest.y - view.y * k);
     draw(ctx);
     ctx.restore();
   }
-  ctx.save();
-  ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.globalCompositeOperation = 'multiply';
-  ctx.drawImage(paper(cw, ch) as CanvasImageSource, 0, 0);
+  ctx.drawImage(paper(Math.ceil(dest.w), Math.ceil(dest.h)) as CanvasImageSource, dest.x, dest.y);
   ctx.restore();
 }
 
-function entry(id: string, label: string, sc: Scenario, opts: { animated?: boolean; reducedMotion?: boolean } = {}): StudioEntry {
+function engineFor(id: string, seed: number, frame: number, sc: Pick<Scenario, 'preview'>, reducedMotion = false): Ambience {
+  let e = engines.get(id);
+  if (!e || e.seed !== seed || frame === 0 || frame < e.frame) {
+    e = { amb: createAmbience({ scene, seed: `studio-${seed}`, reducedMotion }), seed, frame };
+    e.amb.preview = sc.preview ?? null;
+    engines.set(id, e);
+    e.amb.settle();
+  }
+  e.frame = frame;
+  return e.amb;
+}
+
+function entry(id: string, label: string, sc: Scenario, opts: { animated?: boolean; reducedMotion?: boolean; view?: View } = {}): StudioEntry {
   return {
     id,
     label,
@@ -154,22 +182,51 @@ function entry(id: string, label: string, sc: Scenario, opts: { animated?: boole
     h: H,
     animated: opts.animated ?? true,
     render(canvas, { t, dt, seed, frame }) {
-      let e = engines.get(id);
-      if (!e || e.seed !== seed || frame === 0 || frame < e.frame) {
-        e = { amb: createAmbience({ scene, seed: `studio-${seed}`, reducedMotion: opts.reducedMotion }), seed, frame };
-        e.amb.preview = sc.preview ?? null;
-        engines.set(id, e);
-        e.amb.settle();
-      }
-      e.frame = frame;
-      e.amb.update({ dt, phase: sc.phase(t), weather: sc.weather, emitters: EMITTERS, hour: sc.hour(t) });
-      composite(canvas, e.amb, seed);
+      const amb = engineFor(id, seed, frame, sc, opts.reducedMotion);
+      amb.update({ dt, phase: sc.phase(t), weather: sc.weather, emitters: EMITTERS, hour: sc.hour(t) });
+      composite(canvas, amb, seed, opts.view);
+    },
+  };
+}
+
+interface Cell extends Scenario {
+  label: string;
+  reducedMotion?: boolean;
+}
+
+/** Several still scenarios side by side in one canvas (one settled engine per cell). */
+function strip(id: string, label: string, cells: Cell[], cols = 3): StudioEntry {
+  const rows = Math.ceil(cells.length / cols);
+  const cw = 400;
+  const chh = 250;
+  const gap = 18;
+  return {
+    id,
+    label,
+    w: cw * cols,
+    h: (chh + gap) * rows,
+    render(canvas, { seed, pixelRatio }) {
+      const ctx = canvas.getContext('2d')!;
+      ctx.fillStyle = '#f3ecd9';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      cells.forEach((c, i) => {
+        const amb = engineFor(`${id}-${i}`, seed, 0, c, c.reducedMotion);
+        amb.update({ dt: 0, phase: c.phase(0), weather: c.weather, emitters: EMITTERS, hour: c.hour(0) });
+        const x = (i % cols) * cw * pixelRatio;
+        const y = Math.floor(i / cols) * (chh + gap) * pixelRatio;
+        composite(canvas, amb, seed, WHOLE, { x, y, w: cw * pixelRatio, h: chh * pixelRatio });
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.fillStyle = '#4a443c';
+        ctx.font = `${12 * pixelRatio}px serif`;
+        ctx.fillText(c.label, x + 4 * pixelRatio, y + (chh + 13) * pixelRatio);
+      });
     },
   };
 }
 
 const noon = () => NAMED_HOURS.noon;
 const always = (p: SessionPhase) => () => p;
+const at = (name: keyof typeof NAMED_HOURS) => () => NAMED_HOURS[name];
 
 /** idle 0–6 s · focus 6–20 · break 20–28 · focus 28–36 · paused 36–44 · focus 44–52 · idle 52–60 */
 const cycle = (t: number): SessionPhase => {
@@ -182,13 +239,6 @@ const cycle = (t: number): SessionPhase => {
   if (u < 52) return 'focus';
   return 'idle';
 };
-
-const lightingEntry = (name: keyof typeof NAMED_HOURS, weather: Weather | null = null): StudioEntry =>
-  entry(`light-${name}${weather ? `-${weather}` : ''}`, `${name} (${NAMED_HOURS[name]}h)${weather ? ` · ${weather}` : ''}`, {
-    phase: always(weather ? 'focus' : 'idle'),
-    weather,
-    hour: () => NAMED_HOURS[name],
-  }, { animated: false });
 
 /** The wind field as ink stalks swaying in a row (sway) with gust strength as a faint wash. */
 const windEntry: StudioEntry = {
@@ -224,6 +274,11 @@ const windEntry: StudioEntry = {
   },
 };
 
+const lantern = scene.pavilion.lantern;
+const LANTERN_VIEW: View = { x: lantern.x - 300, y: lantern.y - 160, w: 400, h: 250 };
+
+// Few canvases on purpose: the studio page holds every system's entries, and many large
+// composited canvases make headless Chromium crawl. Stills share one canvas per strip.
 const sections: StudioSection[] = [
   {
     id: 'ambience-weather',
@@ -233,34 +288,37 @@ const sections: StudioSection[] = [
       entry('sun', 'sun · focus (shafts, warm grade, glints)', { phase: always('focus'), weather: 'sun', hour: noon }),
       entry('rain', 'rain · focus (strokes ×3 depths, ripples, cool grade)', { phase: always('focus'), weather: 'rain', hour: noon }),
       entry('mist', 'mist · focus (drifting bands, far bank softened)', { phase: always('focus'), weather: 'mist', hour: noon }),
-      entry('none', 'no session (reference)', { phase: always('idle'), weather: null, hour: noon }),
       entry('rain-cycle', 'rain through a session: idle → focus → break → focus → paused → focus → end (60 s loop)', { phase: cycle, weather: 'rain', hour: noon }),
-      entry('sun-cycle', 'sun through a session (60 s loop)', { phase: cycle, weather: 'sun', hour: noon }),
-      entry('mist-paused', 'mist · paused (held breath: still, faint)', { phase: always('paused'), weather: 'mist', hour: noon }),
-      entry('rain-reduced', 'rain · reduced motion (static strokes, no motes)', { phase: always('focus'), weather: 'rain', hour: noon }, { reducedMotion: true }),
+      strip('stills', 'still frames: reference, breaks, paused, reduced motion', [
+        { label: 'no session (reference)', phase: always('idle'), weather: null, hour: noon },
+        { label: 'sun · break (softened)', phase: always('break'), weather: 'sun', hour: noon },
+        { label: 'mist · paused (a still trace)', phase: always('paused'), weather: 'mist', hour: noon },
+        { label: 'rain · reduced motion (static strokes)', phase: always('focus'), weather: 'rain', hour: noon, reducedMotion: true },
+        { label: 'rain · break', phase: always('break'), weather: 'rain', hour: noon },
+        { label: 'mist · break', phase: always('break'), weather: 'mist', hour: noon },
+      ]),
     ],
   },
   {
     id: 'ambience-motes',
     title: 'Ambience · photosynthesis motes & wind',
     order: 401,
-    entries: [
-      entry('motes', 'motes · focus, no weather (the shore iris is growing)', { phase: always('focus'), weather: null, hour: noon, preview: null }),
-      entry('motes-evening', 'motes · evening sun', { phase: always('focus'), weather: 'sun', hour: () => NAMED_HOURS.evening }),
-      windEntry,
-    ],
+    entries: [entry('motes', 'motes · focus, no weather (the shore iris is growing)', { phase: always('focus'), weather: null, hour: noon }), windEntry],
   },
   {
     id: 'ambience-lighting',
     title: 'Ambience · time of day',
     order: 402,
     entries: [
-      lightingEntry('morning'),
-      lightingEntry('noon'),
-      lightingEntry('evening'),
-      lightingEntry('dusk'),
-      lightingEntry('night'),
-      lightingEntry('night', 'rain'),
+      strip('keyframes', 'keyframes: morning, noon, evening, dusk, night, night with rain', [
+        { label: 'morning (8h)', phase: always('idle'), weather: null, hour: at('morning') },
+        { label: 'noon (13h)', phase: always('idle'), weather: null, hour: at('noon') },
+        { label: 'evening (17.75h) · sun', phase: always('focus'), weather: 'sun', hour: at('evening') },
+        { label: 'dusk (19.5h)', phase: always('idle'), weather: null, hour: at('dusk') },
+        { label: 'night (23h)', phase: always('idle'), weather: null, hour: at('night') },
+        { label: 'night (23h) · rain', phase: always('focus'), weather: 'rain', hour: at('night') },
+      ]),
+      entry('lantern', 'lantern at night (close-up): reserved warm paper, light on the water', { phase: always('idle'), weather: null, hour: at('night') }, { view: LANTERN_VIEW }),
       entry('day-cycle', 'a whole day in 48 s (smooth keyframe interpolation)', { phase: always('idle'), weather: null, hour: (t) => (t / 2) % 24 }),
     ],
   },
