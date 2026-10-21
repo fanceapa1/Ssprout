@@ -1,5 +1,6 @@
 import './style.css';
 import { createGardenAudio } from './audio';
+import { addAmbience } from './ambience';
 import { createSpeedClock, realClock, type Clock } from './core/clock';
 import { createSessionController } from './core/controller';
 import { createEventBus } from './core/events';
@@ -110,6 +111,7 @@ function boot(): void {
     installSceneDebug(sceneSystem, scene);
     installPlantsDebug(plants);
   }
+  addAmbience(renderer, { dev: speedClock !== null });
 }
 
 boot();
