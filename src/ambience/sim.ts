@@ -35,8 +35,8 @@ export const RAIN = {
   windSlant: 0.14,
 } as const;
 
-export const RIPPLE = { rate: 2.4, life: [1.8, 2.9] as const, size: [12, 30] as const, max: 16 } as const;
-export const GLINT = { rate: 0.8, life: [1.3, 2.4] as const, len: [5, 14] as const, max: 5 } as const;
+export const RIPPLE = { rate: 2.4, life: [1.8, 2.9] as const, size: [16, 36] as const, max: 16 } as const;
+export const GLINT = { rate: 1.2, life: [1.3, 2.4] as const, len: [8, 18] as const, max: 5 } as const;
 
 export interface RainDrop {
   x: number;

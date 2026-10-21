@@ -21,17 +21,17 @@ type Ctx = CanvasRenderingContext2D;
 
 /** Look tuning (alphas are peaks at level 1). docs/systems/ambience.md › Tuning. */
 export const LOOK = {
-  sunGrade: { rgb: [250, 238, 214], alpha: 0.13 },
+  sunGrade: { rgb: [250, 236, 208], alpha: 0.15 },
   rainGrade: { rgb: [204, 213, 221], alpha: 0.2 },
   mistVeil: { rgb: [244, 242, 236], alpha: 0.08 },
-  shaftAlpha: 0.26,
+  shaftAlpha: 0.42,
   /** breathing period of the light shafts (s) and depth (0..1) */
   shaftBreathS: 13,
   shaftBreath: 0.35,
-  rainAlpha: [0.2, 0.26, 0.3] as readonly number[],
+  rainAlpha: [0.24, 0.3, 0.34] as readonly number[],
   /** stroke width per rain layer (world units) */
-  rainWidth: [0.6, 0.8, 1.05] as readonly number[],
-  rippleAlpha: 0.5,
+  rainWidth: [0.7, 0.95, 1.25] as readonly number[],
+  rippleAlpha: 0.75,
   /** vertical squash of ripple rings (perspective) */
   rippleSquash: 0.3,
   glintAlpha: 0.65,

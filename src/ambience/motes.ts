@@ -20,11 +20,11 @@ export interface Emitter {
 
 export const MOTE = {
   /** motes per second with one plant, at full level */
-  base: 0.1,
+  base: 0.15,
   /** extra motes per second per unit of emitter weight */
-  perWeight: 0.05,
+  perWeight: 0.06,
   /** spawn-rate ceiling (per second) */
-  maxRate: 0.55,
+  maxRate: 0.6,
   /** never more than this many alive */
   max: 7,
   /** lifetime range (s) */
@@ -36,9 +36,9 @@ export const MOTE = {
   /** emitter weight of the plant growing in the current session */
   growingWeight: 3,
   /** sprite radius range (world units) */
-  size: [1.1, 2.1] as const,
+  size: [1.6, 2.8] as const,
   /** peak alpha */
-  alpha: 0.5,
+  alpha: 0.7,
 } as const;
 
 /** Rough plant height per slot size class at slot scale 1 (world units). */

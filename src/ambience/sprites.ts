@@ -20,8 +20,8 @@ export const COLOURS = {
   rippleDark: [88, 124, 122] as Rgb,
   rippleLight: [250, 248, 238] as Rgb,
   glint: [255, 251, 238] as Rgb,
-  moteGold: [236, 214, 140] as Rgb,
-  moteGreen: [200, 220, 150] as Rgb,
+  moteGold: [234, 206, 124] as Rgb,
+  moteGreen: [214, 228, 150] as Rgb,
   mist: [246, 244, 238] as Rgb,
   flame: [246, 222, 170] as Rgb,
 } as const;
@@ -101,7 +101,7 @@ function shaftCanvas(defs: ShaftDef[], noise: Noise2D, streak: Noise2D): AnyCanv
       const side = 1 - smoothstep(0.3, 1.05 + 0.15 * noise(along / 40, 3 + i), k);
       const len = along / s.length;
       const lengthwise = smoothstep(0, 0.18, len) * (1 - smoothstep(0.4, 0.95, len));
-      const streaks = 0.65 + 0.35 * streak(across / 16, along / 380 + i * 3);
+      const streaks = 0.82 + 0.18 * streak(across / 34, along / 300 + i * 3);
       keep *= 1 - side * lengthwise * streaks;
     });
     return 1 - keep;
@@ -234,9 +234,9 @@ export interface MistLayout {
 /** Bands sit over the far bank and the far water, one faint low band in front. */
 export function mistLayout(m: MistLayout): Array<Omit<MistBand, 'canvas'>> {
   return [
-    { y: m.pondTop - 120, h: 170, speed: 3.5, alpha: 0.5 },
-    { y: m.pondTop - 45, h: 110, speed: 6, alpha: 0.6 },
-    { y: m.pondTop + 20, h: 70, speed: 8.5, alpha: 0.45 },
+    { y: m.pondTop - 120, h: 170, speed: 3.5, alpha: 0.6 },
+    { y: m.pondTop - 45, h: 110, speed: 6, alpha: 0.75 },
+    { y: m.pondTop + 20, h: 70, speed: 8.5, alpha: 0.55 },
     { y: m.pondBottom + 70, h: 90, speed: 11, alpha: 0.22 },
   ];
 }
