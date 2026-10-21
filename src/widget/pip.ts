@@ -247,7 +247,7 @@ export function iframeHostOpener(doc: Document, id = 'sprout-widget-harness'): H
     const frame = doc.createElement('iframe');
     frame.id = id;
     frame.title = 'Study Sprout floating timer (harness)';
-    frame.style.cssText = `position:fixed;left:12px;bottom:12px;width:${size.width}px;height:${size.height}px;border:0;z-index:2147483647;box-shadow:0 0 0 1px rgba(74,68,60,.2)`;
+    frame.style.cssText = `position:fixed;right:12px;bottom:12px;width:${size.width}px;height:${size.height}px;border:0;z-index:2147483647;box-shadow:0 0 0 1px rgba(74,68,60,.2)`;
     doc.body.append(frame);
     const w = frame.contentWindow;
     if (!w) throw new Error('iframe has no window');
