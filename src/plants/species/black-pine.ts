@@ -2,7 +2,7 @@ import type { Rng } from '../../core/rng';
 import { PIGMENTS, lighten, mix } from '../../paint/pigments';
 import type { FoliagePigments } from '../../paint/recipes';
 import { inUnits, paintGroundShadow, paintLeaves, paintPadMass, paintSeed, paintSkeleton, paintTipLeaves, type Leaf, type Pad } from '../lib/tree-paint';
-import { fitTree, growChildren, normalise, pointAt, ramp, stagger, startTree, treeView, type Tree } from '../lib/tree-structure';
+import { addBranch, fitTree, growChildren, growLimb, normalise, pointAt, ramp, stagger, startTree, treeView, widthAt, type Tree } from '../lib/tree-structure';
 import type { SpeciesDef } from '../types';
 
 const SIZE = { w: 380, h: 460 };
@@ -24,26 +24,37 @@ export function planBlackPine(rng: Rng): BlackPinePlan {
   const side = r.chance(0.5) ? 1 : -1;
   const base = { x: SIZE.w / 2 - side * r.range(0, 14), y: BASE_Y };
   // the trunk leans out, then twists back upward (a pruned garden pine)
-  const lean = side * r.range(0.35, 0.7);
+  const lean = side * r.range(0.3, 0.6);
   const tree = startTree(r, base, {
     angle: UP + lean,
     length: r.range(230, 280),
     width: r.range(14, 18),
     tipWidth: 4,
-    limb: { segments: 9, wander: 0.2, kink: 0.16, gravity: -0.1, lengthJitter: 0.35 },
+    limb: { segments: 9, wander: 0.2, kink: 0.16, gravity: -0.14, lengthJitter: 0.35 },
     dur: 1,
   });
   growChildren(
     tree,
     tree.branches[0]!,
     [
-      { count: [4, 6], span: [0.3, 0.92], angle: [0.9, 1.45], length: [0.26, 0.46], shrink: 0.3, level: 0.55, side: 'alternate', limb: { segments: 5, wander: 0.14, kink: 0.14, gravity: 0.04 }, width: 0.55, tipWidth: 0.35, dur: 0.8 },
+      { count: [4, 6], span: [0.3, 0.92], angle: [0.9, 1.45], length: [0.22, 0.38], shrink: 0.3, level: 0.55, side: 'alternate', limb: { segments: 5, wander: 0.14, kink: 0.14, gravity: 0.04 }, width: 0.55, tipWidth: 0.35, dur: 0.8 },
       { count: [1, 3], span: [0.45, 1], angle: [0.3, 0.8], length: [0.35, 0.55], level: 0.5, limb: { segments: 3, wander: 0.15, kink: 0.15 }, width: 0.7, tipWidth: 0.45, dur: 0.7 },
     ],
     r,
   );
+  if (r.chance(0.6)) {
+    // a long low limb reaching out over the water on the leaning side
+    const trunk = tree.branches[0]!;
+    const attach = r.range(0.25, 0.42);
+    const at = pointAt(trunk, attach);
+    const pts = growLimb(r, at, side > 0 ? r.range(-0.25, 0.05) : Math.PI + r.range(-0.05, 0.25), trunk.len * r.range(0.45, 0.6), { segments: 6, wander: 0.14, kink: 0.14, gravity: 0.05 });
+    const w0 = widthAt(trunk, attach) * 0.6;
+    const t0 = trunk.t0 + (trunk.t1 - trunk.t0) * attach + 0.02;
+    const limb = addBranch(tree, trunk.id, 1, { pts, w0, w1: w0 * 0.35, attach, t0, t1: t0 + 0.75, tag: 'reach' }, r);
+    growChildren(tree, limb, [{ count: [1, 3], span: [0.4, 0.95], angle: [0.4, 0.9], length: [0.25, 0.4], level: 0.5, limb: { segments: 3, wander: 0.15, kink: 0.15 }, width: 0.7, tipWidth: 0.45, dur: 0.6 }], r);
+  }
   normalise(tree);
-  fitTree(tree, SIZE, 40, 40);
+  fitTree(tree, SIZE, 30, 36);
 
   const pr = rng.fork('pads');
   const pads: Pad[] = [];
@@ -73,8 +84,8 @@ export function planBlackPine(rng: Rng): BlackPinePlan {
     for (let i = 0; i < fans; i++) {
       // mostly along the top and the two ends of the pad
       const th = -Math.PI / 2 + nr.gaussian(0, 1.0);
-      const cx = pad.x + Math.cos(th) * pad.r * nr.range(0.75, 0.98);
-      const cy = pad.y + Math.sin(th) * pad.r * 0.34 * nr.range(0.85, 1.05) + 2;
+      const cx = pad.x + Math.cos(th) * pad.r * nr.range(0.55, 0.85);
+      const cy = pad.y + Math.sin(th) * pad.r * 0.26 * nr.range(0.8, 1.0) + 2.5;
       const n = nr.int(5, 8);
       const tone = nr.range(0, 1);
       const spread = nr.range(0.7, 1.0);
