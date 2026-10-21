@@ -5,7 +5,7 @@ import type { StudyPlan } from '../core/plans';
 import { createDefaultState, createStore, reducer, type GardenState, type PlantInstance } from '../core/state';
 import type { FrameInfo, SystemContext } from '../render/types';
 import { createViewport } from '../render/viewport';
-import { placeholderScene, type SceneGeometry, type Slot } from '../scene/geometry';
+import type { SceneGeometry, Slot } from '../scene/geometry';
 import { plantWorldBounds } from './bounds';
 import { dabAlpha } from './highlight';
 import { spriteKey, type Sprite, type SpriteCache, type SpriteSpec } from './sprites';
@@ -14,6 +14,26 @@ import { FakeCanvas, installFakeOffscreenCanvas } from './test-canvas';
 import type { SpeciesDef } from './types';
 
 const MIN = 60_000;
+
+/** A small local geometry (an oval pond and a few slots), independent of the painted scene. */
+const POND_WOBBLE = [1, 0.94, 1.05, 0.98, 0.9, 1.04, 1.08, 0.97, 1, 0.93, 1.02, 1.06, 0.95, 1, 1.03, 0.96];
+const placeholderScene: SceneGeometry = {
+  pond: POND_WOBBLE.map((k, i) => {
+    const a = (i / POND_WOBBLE.length) * Math.PI * 2;
+    return { x: 800 + Math.cos(a) * 300 * k, y: 560 + Math.sin(a) * 115 * k };
+  }),
+  waterline: 560,
+  rocks: [],
+  path: [],
+  pavilion: { x: 1280, y: 260, w: 320, h: 380, lantern: { x: 1260, y: 610 } },
+  slots: [
+    { id: 'water-1', x: 740, y: 560, habitat: 'water', maxSize: 'medium', scale: 0.9 },
+    { id: 'meadow-1', x: 300, y: 780, habitat: 'meadow', maxSize: 'large', scale: 1.05 },
+    { id: 'path-2', x: 900, y: 930, habitat: 'path', maxSize: 'small', scale: 1.15 },
+    { id: 'back-1', x: 380, y: 420, habitat: 'back', maxSize: 'tree', scale: 0.6 },
+  ],
+  skyBand: { top: 40, bottom: 300 },
+};
 
 const species = (id: string, sizeClass: SpeciesDef['sizeClass'], w: number, h: number): SpeciesDef =>
   ({ id, name: id, tier: 1, habitats: ['meadow', 'shore', 'water', 'back', 'path', 'rock'], sizeClass, size: { w, h }, anchor: { x: 0.5, y: 0.95 }, description: '', bloomColor: '#fff', pollinators: false, draw() {} }) as SpeciesDef;
