@@ -14,7 +14,6 @@ import { allSpecies } from './plants/registry';
 import { createPlantSystem } from './plants/system';
 import { setPlantViewSpecies } from './plants/view';
 import { createFauna } from './fauna';
-import { allSpecies, getSpecies } from './plants/registry';
 import { createRenderer } from './render/renderer';
 import { gardenScene } from './scene/geometry';
 import { createUI } from './ui';
