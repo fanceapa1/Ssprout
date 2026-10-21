@@ -72,6 +72,12 @@ The renderer (`createRenderer` in `src/render/renderer.ts`) owns the frame loop,
 (`add`, `remove`, `start`, `freeze`, `renderOnce`, `invalidate`, `whenReady`, …) is documented
 in `docs/systems/render.md`.
 
+Scene systems (`src/scene/system.ts`, docs/systems/scene.md): `createPaperSystem()` draws the
+`paper` layer (ADR 0040); `createSceneSystem({ invalidate: renderer.invalidate })` paints the
+cached `background` (repainted only when the scale changes > 10 %, cross-faded, ADR 0041),
+animates `waterSurface` and contributes the boulders and foreground tufts to `entities` with
+depth = base y (ADR 0042).
+
 Slot markers, the reward picker and all controls are **DOM** above the canvas (accessible,
 e2e-clickable: `[data-slot-id="..."]`).
 
@@ -149,6 +155,11 @@ export interface SceneGeometry {
   skyBand: { top: number; bottom: number }; // where flying creatures travel
 }
 ```
+
+The garden instance is `gardenScene` (`geometry.ts`): 52 slots, 11 rocks, 5 stepping stones.
+Every slot's `scale` is `perspectiveScale(y)` (0.55 at y 400 → 1.15 at y 960) and
+`PLANT_SIZES` gives the canonical plant box per size class at scale 1 — small 70×70,
+medium 120×160, large 200×220, tree 380×460 (`slots.ts`, ADR 0043).
 
 ### State (`src/core/state.ts`, ADR 0003, ADR 0036)
 Each session is one plant, chosen at start, growing live in its slot.
@@ -282,6 +293,10 @@ Implemented by the foundation: `state()`, `ready()` (resolves when all systems a
 initialised), `freeze()` (async; resolves after a stable frame is drawn), `unfreeze()`,
 `setSpeed(n)`, `now()`. Others add methods with `extendDebug({...})` from `src/dev/debug.ts` and
 augment the `SproutDebug` interface via declaration merging.
+
+Scene (`src/scene/debug.ts`): `slots()`, `sceneStats()` (paints, rescales, per-step timings),
+`scenePainted()` (resolves when no background repaint is pending). `?dev&slots` draws the slot
+overlay.
 
 Core logic (`src/dev/core-debug.ts`): `reset()`, `seed(n)`, `start(min?, { taskName?, planId?,
 speciesId?, slotId? })`, `pause()`, `resume()`, `water()`, `skipBreak()`, `cancel()`, `toBreak()`,
