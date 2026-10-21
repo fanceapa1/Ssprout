@@ -3,10 +3,16 @@
  */
 import type { Sprite } from '../sprite';
 import type { FaunaKind } from '../tuning';
+import { paintBee } from './bee';
+import { paintBird } from './bird';
+import { paintButterfly } from './butterfly';
 import { paintDragonfly } from './dragonfly';
+import { paintFrog } from './frog';
+import { paintHeron } from './heron';
 import { paintKoi } from './koi';
 import { leafSprite } from './leaf';
 import { striderSprites } from './strider';
+import { paintSwallows } from './swallow';
 
 export interface Sheet {
   make(res: number, seed: number): Sprite[];
@@ -15,6 +21,56 @@ export interface Sheet {
 }
 
 export const SHEETS: Partial<Record<FaunaKind, Sheet>> = {
+  frog: {
+    w: 420,
+    h: 120,
+    make(res, seed) {
+      const a = paintFrog(res, seed);
+      return [a.sit, a.throat, a.leap];
+    },
+  },
+  swallow: {
+    w: 420,
+    h: 130,
+    make(res, seed) {
+      const a = paintSwallows(res, seed);
+      return [a.spread, a.up, a.swept];
+    },
+  },
+  heron: {
+    w: 720,
+    h: 240,
+    make(res, seed) {
+      const a = paintHeron(res, seed);
+      return [a.body, a.neck, a.flyBody, a.wing];
+    },
+  },
+  bird: {
+    w: 700,
+    h: 200,
+    make(res, seed) {
+      const a = paintBird(res, seed, 'wagtail');
+      const b = paintBird(res, seed + 5, 'sparrow');
+      return [a.body, a.tail, a.legs, a.flyUp, a.flyDown, b.body, b.tail, b.flyUp, b.fold];
+    },
+  },
+  butterfly: {
+    w: 560,
+    h: 140,
+    make(res, seed) {
+      const a = paintButterfly(res, seed, 'white');
+      const b = paintButterfly(res, seed + 3, 'swallowtail');
+      return [a.wingL, a.wingR, a.body, b.wingL, b.wingR, b.body];
+    },
+  },
+  bee: {
+    w: 360,
+    h: 110,
+    make(res, seed) {
+      const a = paintBee(res, seed);
+      return [a.body, a.wings, a.blur];
+    },
+  },
   dragonfly: {
     w: 520,
     h: 130,
@@ -29,9 +85,7 @@ export const SHEETS: Partial<Record<FaunaKind, Sheet>> = {
     h: 150,
     make(res, seed) {
       const a = paintKoi(res, seed, 'kohaku', 60);
-      const b = paintKoi(res, seed + 1, 'yamabuki', 60);
-      const c = paintKoi(res, seed + 2, 'sanke', 60);
-      return [a.body, a.tail, a.fin, a.bodyDeep, b.body, b.tail, c.body, c.bodyDeep];
+      return [a.body, a.tail, a.fin, a.bodyDeep, a.tailDeep, a.finDeep];
     },
   },
   strider: {

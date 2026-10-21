@@ -77,6 +77,8 @@ export class FaunaSim {
   private lively = false;
   private koiSeed: number;
   private nightApplied = false;
+  /** simulation seconds (advanced by update; dev `step` and studio presimulation share it) */
+  time = 0;
   readonly rng: Rng;
 
   constructor(opts: SimOptions) {
@@ -185,11 +187,15 @@ export class FaunaSim {
     return out;
   }
 
-  update(dt: number, t: number, now: number): void {
+  /** Advance by `dt` seconds; `now` (epoch ms, from the Clock) only feeds the time of day. */
+  update(dt: number, now: number): void {
     const w = this.world;
+    const step = Math.max(0, Math.min(dt, 0.1));
+    this.time += step;
+    const t = this.time;
     w.t = t;
     w.mode = { reduced: this.reduced, lively: this.lively, night: isNight(this.hour(now)), birdBoost: this.roster.birdBoost };
-    if (dt <= 0) return;
+    if (step <= 0) return;
     if (this.auto) {
       this.upkeepResidents();
       if (w.mode.night && !this.nightApplied) {
@@ -202,9 +208,9 @@ export class FaunaSim {
       }
       warmArt(this.roster, w);
     }
-    for (const c of this.creatures) c.update(dt, w);
+    for (const c of this.creatures) c.update(step, w);
     this.creatures = this.creatures.filter((c) => !c.done);
-    for (const r of this.ripples) r.age += dt;
+    for (const r of this.ripples) r.age += step;
     this.ripples = this.ripples.filter((r) => r.age < r.life);
   }
 

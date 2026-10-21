@@ -2,7 +2,10 @@
  * Studio: every creature alive on its own small painted stage (the real behaviour code running in
  * a FaunaSim), its painted parts / frames, and a garden stage with everyone together.
  */
+import { createRng } from '../core/rng';
+import { createPainter } from '../paint';
 import type { StudioEntry, StudioSection } from '../studio/types';
+import { drawKoiStraight, KOI_PATTERNS, paintKoi } from './creatures/koi';
 import { SHEETS } from './creatures/sheets';
 import { multiplyPaper, Stage, type StageSpec } from './stage';
 import type { Sprite } from './sprite';
@@ -26,7 +29,7 @@ function aliveEntry(id: string, label: string, kind: FaunaKind | null, spec: Sta
         stages.set(key, stage);
         for (let s = 0; s < t; s += 1 / 30) {
           stage.tickRespawn(s);
-          stage.sim.update(1 / 30, s, 0);
+          stage.sim.update(1 / 30, 0);
         }
       }
       stage.render(canvas, t, dt);
@@ -91,6 +94,35 @@ const sections: StudioSection[] = SHOWS.map((s, i) => {
   if (sheet) entries.push(sheetEntry('parts', `${s.title}: painted parts and frames`, sheet.make, sheet.w, sheet.h));
   return { id: `fauna-${s.kind}`, title: `Fauna · ${s.title}`, order: 310 + i, entries };
 });
+
+/** Every koi variety side by side: near the surface (top row) and deeper down (bottom row). */
+const varieties: StudioEntry = {
+  id: 'varieties',
+  label: 'koi varieties: Kohaku, Yamabuki ogon, Sanke, Showa, Asagi — near the surface / deeper',
+  w: 760,
+  h: 250,
+  render(canvas, { seed, pixelRatio }) {
+    const ctx = canvas.getContext('2d')!;
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    const p = createPainter(canvas, { seed });
+    p.ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+    p.waterBody({ cx: 380, cy: 125, rx: 400, ry: 150 }, { rng: createRng(seed), ripples: 0, reflection: 0 });
+    ctx.setTransform(pixelRatio * 1.9, 0, 0, pixelRatio * 1.9, 0, 0);
+    KOI_PATTERNS.forEach((pattern, i) => {
+      const parts = paintKoi(pixelRatio * 1.9, seed + i * 17, pattern, 60);
+      for (const deep of [false, true]) {
+        ctx.save();
+        ctx.globalAlpha = deep ? 0.55 : 0.95;
+        drawKoiStraight(ctx, parts, 6 + i * 79, deep ? 95 : 35, deep);
+        ctx.restore();
+      }
+    });
+    multiplyPaper(canvas);
+  },
+};
+
+sections.find((s) => s.id === 'fauna-koi')!.entries.splice(1, 0, varieties);
 
 sections.unshift({
   id: 'fauna-garden',

@@ -148,7 +148,7 @@ export class Stage {
       this.key = key;
     }
     this.tickRespawn(t);
-    this.sim.update(Math.min(dt, 0.1), t, 0);
+    this.sim.update(Math.min(dt, 0.1), 0);
     const ctx = canvas.getContext('2d')!;
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.drawImage(this.backdrop as CanvasImageSource, 0, 0);
