@@ -1,4 +1,3 @@
-import { newlyArrived } from '../core/fauna-unlocks';
 import type { UIContext } from './context';
 import { h, setText } from './dom';
 import { faunaArrivalLine } from './format';
@@ -6,14 +5,14 @@ import { faunaArrivalLine } from './format';
 /**
  * The quiet line near the top of the garden: one sentence at a time for ~6 s, then it fades.
  * - Completion: "Your Japanese Iris for “Biology ch. 4” has bloomed." (`say`, jumps the queue).
- * - Fauna arrivals (SPEC §4): the UI watches for newly unlocked creatures (core `newlyArrived`),
- *   shows the line and records it with `controller.announceFauna(id)`. A `fauna:arrived` emitted
- *   by someone else (e.g. the fauna system on first sight) shows the line too.
+ * - Fauna arrivals (SPEC §4): the fauna system emits `fauna:arrived` the first time a newly
+ *   unlocked creature is actually in view (ADR 0120); the line is queued, shown when the garden
+ *   is calm, and recorded then with `controller.announceFauna(id)` (state.faunaSeen).
  * Lines wait while a sheet or placement is open, and for `hold(ms)`.
  */
 export interface QuietLine {
   readonly el: HTMLElement;
-  /** look for new creature arrivals */
+  /** show anything queued now that the garden may be calm again */
   check(): void;
   /** show a line next (before any queued arrivals) */
   say(text: string, kind?: string): void;
@@ -34,7 +33,7 @@ interface Item {
 }
 
 export function createQuietLine(ctx: UIContext): QuietLine {
-  const { store, bus, controller, getSpecies } = ctx.deps;
+  const { store, bus, controller } = ctx.deps;
   const text = h('span.line-text');
   const el = h('p.quiet-line', { role: 'status', 'aria-live': 'polite' }, text);
   const queue: Item[] = [];
@@ -106,7 +105,6 @@ export function createQuietLine(ctx: UIContext): QuietLine {
   return {
     el,
     check() {
-      for (const id of newlyArrived(store.get(), getSpecies)) enqueueFauna(id);
       next();
     },
     say(t, kind = 'note') {

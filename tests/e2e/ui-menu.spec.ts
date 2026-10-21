@@ -99,8 +99,9 @@ test.describe('ui · menu, tips and data', () => {
     });
     const line = page.locator('.quiet-line');
     await expect(line).toHaveClass(/is-in/);
-    await expect(line).toContainText(/dragonfly|koi/i);
-    await expect.poll(() => page.evaluate(() => window.sprout!.state().faunaSeen)).toEqual(expect.arrayContaining(['dragonfly']));
+    // announced on first sight (ADR 0120): the koi is in the pond at once, the dragonfly only visits
+    await expect(line).toContainText(/koi/i);
+    await expect.poll(() => page.evaluate(() => window.sprout!.state().faunaSeen)).toEqual(expect.arrayContaining(['koi-1']));
   });
 
   test('the panel rests while studying and wakes on pointer movement', async ({ page }) => {
