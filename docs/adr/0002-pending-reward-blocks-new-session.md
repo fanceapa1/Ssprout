@@ -1,6 +1,6 @@
 # ADR 0002 — A pending reward must be planted or let go before a new session
 
-- Status: accepted
+- Status: superseded by ADR 0003
 - Date: 2026-10-21
 - Decided by: orchestrator
 
