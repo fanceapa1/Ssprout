@@ -38,8 +38,10 @@ and the store (`session.weather`, phase via `sessionPhase`, `plants`, session sl
   multiply grade; occasional lifted-paper glints on the far water. Shafts/glints fade at dusk/night.
 - **Rain**: tapered, faintly broken ink-wash strokes in three depths (far: short, slow, many; near:
   long, fast, few), slanted by the wind; broken ripple rings (deep line + pale lifted line, often a
-  second ring) expanding on the pond; a cool grey grade. No eave drip line (the eave position is not
-  in the geometry contract).
+  second ring) expanding on the pond; a cool grey grade; a **drip line** off the pavilion eave — drops
+  gather at points every ~30 units along the fascia (`eaveOf(scene)`, from the scene's own
+  `pavilionFrame`) and fall straight down under gravity, stretching as they speed up, to the foot of
+  the deck (`pavilion.y + h`).
 - **Mist**: four horizontally tileable painted bands (dense bottom, wispy top) drifting at different
   speeds over the far bank, far water and one faint low band; a thin veil.
 - **Motes**: pale gold/green specks rising from plants (the growing plant weighs 3×), drifting with the
@@ -47,7 +49,13 @@ and the store (`session.weather`, phase via `sessionPhase`, `plants`, session sl
 - **Lighting**: a noise-mottled multiply wash with rare soft backruns; the sky deepens first, the
   foreground stays lighter (plants readable); a warm, thinner wash toward a low sun; at dusk and
   night the paper is **reserved** (left lighter and warm) around `pavilion.lantern` and on the water
-  where its light falls (mirrored about `waterline` if that lands on the pond, else the nearest water).
+  where its light falls (mirrored about `waterline` if that lands on the pond, else the nearest water;
+  then stepped toward the pond's middle until it is off the shore and clear of the water hidden under
+  the pavilion — in the garden scene it lies just left of the front post, broken into soft bands).
+- **Real-scene check** (1440×900 and 390×844): mist bands sit on the hills, the far bank and the far
+  water (heights derive from the pond's top); at 1× DPR the rain strokes needed more weight than on
+  phones, and the shafts only read over foliage, hills and water (the pre-paper sky is white, so a
+  `screen` shaft cannot lighten it — they read against the slightly stronger warm grade instead).
 
 ## Envelopes (`envelope.ts`)
 Channels `sun rain mist motes motion boost`, each eased toward a target with a critically damped
@@ -96,10 +104,12 @@ sway a touch more" during a session. The plant system should use `sway` for its 
 both. Unit tests cover bounds, determinism, continuity, boost and the front direction.
 
 ## Tuning constants
-`LOOK` (ambience.ts): grade alphas (sun 0.15, rain 0.2, mist veil 0.08), `shaftAlpha` 0.42 (screen),
-breath 13 s / 0.35, rain alpha per depth 0.24/0.30/0.34 and widths 0.7/0.95/1.25, `rippleAlpha` 0.75,
-squash 0.3, `glintAlpha` 0.65, flame 0.22. `RAIN` (sim.ts): strokes per depth 70/42/16 per full world,
-speeds 300/470/720, slant 0.2 rad + 0.14 × sway. `RIPPLE` 2.4/s, max 16. `GLINT` 1.2/s, max 5.
+`LOOK` (ambience.ts): grade alphas (sun 0.2, rain 0.2, mist veil 0.08), `shaftAlpha` 0.6 (screen,
+near-white cream), breath 13 s / 0.35, rain alpha per depth 0.30/0.36/0.42 and widths 0.9/1.2/1.5,
+`rippleAlpha` 0.75, squash 0.3, `glintAlpha` 0.65, `dripAlpha` 0.6, `dripMaxLen` 30, flame 0.22.
+`RAIN` (sim.ts): strokes per depth 84/50/20 per full world, speeds 300/470/720, slant 0.2 rad +
+0.14 × sway. `RIPPLE` 2.4/s, max 16. `GLINT` 1.2/s, max 5. `DRIP` spacing 30, 0.6/s per point,
+v0 30, gravity 1300, max 24. `LIGHT.reflectLift` 0.45.
 `MOTE` (motes.ts): 0.15/s + 0.06/s per weight, ≤ 0.6/s, ≤ 7 alive. `ENVELOPE`, `LIGHT` as above.
 
 ## Dev (`?dev`)

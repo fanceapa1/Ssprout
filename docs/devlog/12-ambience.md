@@ -30,10 +30,20 @@
 ADR 0080 (engine vs system), 0081 (critically damped envelopes, ambience time), 0082 (lighting as a
 reserved multiply wash), 0083 (wind contract), 0084 (Poisson particles + pre-painted sprites).
 
+## After the scene merge
+- Switched to `gardenScene`; shots of the real garden (1440×900, 390×844: sun, rain, mist, evening,
+  night). Mist heights were right as derived. Rain read too faint at 1× DPR → heavier strokes, a few
+  more of them. Shafts were nearly invisible (white pre-paper sky) → stronger warm grade, near-white
+  shafts. The lantern's mirrored light hugged the lobe's rim under the deck → stepped onto open
+  water left of the post, softer.
+- Added the eave drip line (eave from the scene's `pavilionFrame`).
+- Studio backdrop painted once per resolution (not per seed): reseeding the studio was timing out.
+- Two e2e fixes outside `src/ambience`: the scene colour check pins `setTime('noon')` (lighting
+  follows the clock, so it failed at night), and the cancel test plants a tier-1 plant (a random
+  tier-3/4 plant could not be replanted by a 25-minute session, so the test failed intermittently).
+
 ## Left / for others
 - Plant system: use `wind(f.t, x, y, windBoost(phase))` for sway (`src/ambience`).
-- Real scene: shots so far used the placeholder background and the studio test garden; re-check the
-  mist band heights (derived from the pond top) and the lantern reflection against the real scene.
-- No eave drip line (the eave is not in the geometry contract); add if the scene exposes it.
+- The studio still uses its own quick test garden rather than the real scene painting.
 - Audio: mirror dev `setTime` / `setWeather` into the audio controller during integration.
 - ROADMAP row (orchestrator): ambience + lighting done.
