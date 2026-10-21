@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { createRng, type Rng } from '../../core/rng';
 import { getSpecies } from '../registry';
+import { planJapaneseMaple } from '../species/japanese-maple';
 import { planWeepingCherry } from '../species/weeping-cherry';
 
 /** Every tier-4 tree builds its whole plan (skeleton, foliage, blossom) from the rng alone. */
 const PLANS: Record<string, (rng: Rng) => unknown> = {
   'weeping-cherry': planWeepingCherry,
+  'japanese-maple': planJapaneseMaple,
 };
 
 describe('tier-4 tree plans', () => {
