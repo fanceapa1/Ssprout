@@ -105,7 +105,7 @@ export function planWeepingCherry(rng: Rng): WeepingCherryPlan {
     groups.set(scaffoldOf(b.id), grp);
     const isWhip = b.tag === 'whip';
     const from = isWhip ? 0.12 : 0.55;
-    const step = isWhip ? 2.5 : 4.5;
+    const step = isWhip ? 2.1 : 4;
     const n = Math.floor((b.len * (1 - from)) / step);
     for (let i = 0; i < n; i++) {
       const f = from + ((i + br.range(0, 1)) * step) / b.len;
@@ -123,7 +123,7 @@ export function planWeepingCherry(rng: Rng): WeepingCherryPlan {
           y,
           r: kind === 'flower' ? br.range(3.0, 4.2) : kind === 'bud' ? br.range(1.6, 2.2) : br.range(2.6, 3.8),
           rot: br.range(0, Math.PI * 2),
-          tone: Math.min(1, br.range(0, 0.5) + f * 0.2),
+          tone: Math.min(1, br.range(0.1, 0.65) + f * 0.2),
           delay,
           kind,
           id: id++,
