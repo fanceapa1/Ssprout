@@ -106,42 +106,71 @@ export function shapeAlpha(a: number, sharpness: number): number {
   return a + sharpness * (hard - a);
 }
 
-/** Separable box blur of a scalar field, run `passes` times (≈ Gaussian); outside = 0. */
-export function boxBlur(src: Float32Array, w: number, h: number, radius: number, passes = 2): Float32Array {
+/**
+ * Sides of a buffer where the painted shape was cut off (by the canvas edge) rather than ending:
+ * the blur extends the border pixels outward there instead of treating outside as empty, so the
+ * drying pass does not pool pigment into a false edge along the cut (a hard frame line).
+ */
+export interface OpenSides {
+  l: boolean;
+  t: boolean;
+  r: boolean;
+  b: boolean;
+}
+
+const CLOSED: OpenSides = { l: false, t: false, r: false, b: false };
+
+/**
+ * Separable box blur of a scalar field, run `passes` times (≈ Gaussian). Outside = 0, except on
+ * `open` sides, where the border value continues.
+ */
+export function boxBlur(src: Float32Array, w: number, h: number, radius: number, passes = 2, open: OpenSides = CLOSED): Float32Array {
   const r = Math.max(0, Math.round(radius));
   if (r === 0) return src.slice();
   const a = src.slice();
   const b = new Float32Array(src.length);
   const col = new Float64Array(w);
   const inv = 1 / (2 * r + 1);
+  // index along a line, or -1 for "outside, empty"
+  const hx = (k: number) => (k < 0 ? (open.l ? 0 : -1) : k >= w ? (open.r ? w - 1 : -1) : k);
+  const vy = (k: number) => (k < 0 ? (open.t ? 0 : -1) : k >= h ? (open.b ? h - 1 : -1) : k);
   for (let p = 0; p < passes; p++) {
     // horizontal a → b
     for (let y = 0; y < h; y++) {
       const row = y * w;
       let acc = 0;
-      for (let x = 0; x < Math.min(r, w); x++) acc += a[row + x]!;
+      for (let k = -r; k < r; k++) {
+        const i = hx(k);
+        if (i >= 0) acc += a[row + i]!;
+      }
       for (let x = 0; x < w; x++) {
-        const add = x + r;
-        if (add < w) acc += a[row + add]!;
-        const sub = x - r - 1;
+        const add = hx(x + r);
+        if (add >= 0) acc += a[row + add]!;
+        const sub = x > 0 ? hx(x - r - 1) : -1;
         if (sub >= 0) acc -= a[row + sub]!;
         b[row + x] = acc * inv;
       }
     }
     // vertical b → a, row by row with a running column sum (cache friendly)
     col.fill(0);
-    for (let y = 0; y < Math.min(r, h); y++) {
-      const row = y * w;
+    for (let k = -r; k < r; k++) {
+      const yy = vy(k);
+      if (yy < 0) continue;
+      const row = yy * w;
       for (let x = 0; x < w; x++) col[x] = col[x]! + b[row + x]!;
     }
     for (let y = 0; y < h; y++) {
-      const add = y + r;
-      const sub = y - r - 1;
-      const ra = add * w;
-      const rs = sub * w;
+      const add = vy(y + r);
+      const sub = y > 0 ? vy(y - r - 1) : -1;
       const row = y * w;
-      if (add < h) for (let x = 0; x < w; x++) col[x] = col[x]! + b[ra + x]!;
-      if (sub >= 0) for (let x = 0; x < w; x++) col[x] = col[x]! - b[rs + x]!;
+      if (add >= 0) {
+        const ra = add * w;
+        for (let x = 0; x < w; x++) col[x] = col[x]! + b[ra + x]!;
+      }
+      if (sub >= 0) {
+        const rs = sub * w;
+        for (let x = 0; x < w; x++) col[x] = col[x]! - b[rs + x]!;
+      }
       for (let x = 0; x < w; x++) a[row + x] = col[x]! * inv;
     }
   }
@@ -152,8 +181,8 @@ export function boxBlur(src: Float32Array, w: number, h: number, radius: number,
  * Blur used for edge detection. Wide radii are computed on a half-resolution copy and
  * upsampled bilinearly — 4× less work, visually identical for a soft rim profile.
  */
-export function edgeBlur(src: Float32Array, w: number, h: number, radius: number): Float32Array {
-  if (radius < 2 || w < 8 || h < 8) return boxBlur(src, w, h, radius, 2);
+export function edgeBlur(src: Float32Array, w: number, h: number, radius: number, open: OpenSides = CLOSED): Float32Array {
+  if (radius < 2 || w < 8 || h < 8) return boxBlur(src, w, h, radius, 2, open);
   const bw = Math.ceil(w / 2);
   const bh = Math.ceil(h / 2);
   const half = new Float32Array(bw * bh);
@@ -166,7 +195,7 @@ export function edgeBlur(src: Float32Array, w: number, h: number, radius: number
       half[y * bw + x] = (src[y0 * w + x0]! + src[y0 * w + x1]! + src[y1 * w + x0]! + src[y1 * w + x1]!) * 0.25;
     }
   }
-  const hb = boxBlur(half, bw, bh, radius / 2, 2);
+  const hb = boxBlur(half, bw, bh, radius / 2, 2, open);
   const out = new Float32Array(w * h);
   for (let y = 0; y < h; y++) {
     const fy = Math.max(0, Math.min(bh - 1.001, (y - 0.5) / 2));
@@ -212,6 +241,7 @@ export function dryPixels(
   edgePx: number,
   grain: GrainLookup,
   flow: NoiseGrid | null,
+  open: OpenSides = CLOSED,
 ): void {
   const n = w * h;
   const s = new Float32Array(n);
@@ -232,7 +262,7 @@ export function dryPixels(
     }
   }
   if (!any) return;
-  const blur = edgeBlur(s, w, h, edgePx / 1.7);
+  const blur = edgeBlur(s, w, h, edgePx / 1.7, open);
   const edge = o.edge * 0.95;
   const lift = o.centreLift;
   const flowAmt = o.flow * 1.7;
@@ -346,6 +376,8 @@ export class WetLayer {
   private readonly res: number;
   private readonly W: number;
   private readonly H: number;
+  /** sides cut off by the target canvas (the shape continues beyond them) */
+  private readonly open: OpenSides;
   private done = false;
 
   constructor(target: Ctx2D, area: Rect | null, env: PaintEnv, res?: number) {
@@ -358,6 +390,7 @@ export class WetLayer {
     let y0 = 0;
     let x1 = cw;
     let y1 = ch;
+    let open: OpenSides = { l: true, t: true, r: true, b: true };
     if (area) {
       const cs: [number, number][] = [
         [area.x, area.y],
@@ -377,11 +410,13 @@ export class WetLayer {
         x1 = Math.max(x1, X);
         y1 = Math.max(y1, Y);
       }
+      open = { l: x0 < 0, t: y0 < 0, r: x1 > cw, b: y1 > ch };
       x0 = Math.max(0, Math.floor(x0));
       y0 = Math.max(0, Math.floor(y0));
       x1 = Math.min(cw, Math.ceil(x1));
       y1 = Math.min(ch, Math.ceil(y1));
     }
+    this.open = open;
     this.empty = !(x1 > x0 && y1 > y0);
     const dw = Math.max(1, x1 - x0);
     const dh = Math.max(1, y1 - y0);
@@ -443,7 +478,7 @@ export class WetLayer {
             })
           : null;
       const edgePx = Math.max(1, Math.min(48, o.edgeWidth * this.scale));
-      dryPixels(img.data, W, H, o, edgePx, grain, flow);
+      dryPixels(img.data, W, H, o, edgePx, grain, flow, this.open);
       ctx.putImageData(img, 0, 0);
       const t = this.target;
       t.save();

@@ -51,6 +51,28 @@ describe('blurs', () => {
     expect(b[0]).toBeLessThan(1); // outside counts as 0
   });
 
+  it('boxBlur continues the border on open sides (a shape cut off by the canvas)', () => {
+    const w = 20;
+    const src = new Float32Array(w * w).fill(1);
+    const open = { l: true, t: true, r: true, b: true };
+    expect(boxBlur(src, w, w, 3, 2, open)[0]).toBeCloseTo(1, 5);
+    const left = boxBlur(src, w, w, 3, 2, { l: true, t: false, r: false, b: false });
+    expect(left[10 * w]).toBeCloseTo(1, 5); // left edge, mid height: no false rim
+    expect(left[10 * w + w - 1]).toBeLessThan(1); // right edge still falls off
+    expect(edgeBlur(src, w, w, 6, open)[5 * w]).toBeCloseTo(1, 4);
+  });
+
+  it('dryPixels pools no edge along open sides', () => {
+    const w = 40;
+    const d = square(w, w, 0); // fills the whole buffer: every side is a cut
+    const closed = d.slice();
+    dryPixels(closed, w, w, resolveDry({ flow: 0, granulation: 0, edge: 0.6 }), 4, flatGrain(w, w), null);
+    dryPixels(d, w, w, resolveDry({ flow: 0, granulation: 0, edge: 0.6 }), 4, flatGrain(w, w), null, { l: true, t: true, r: true, b: true });
+    const at = (buf: Uint8ClampedArray, x: number, y: number) => buf[(y * w + x) * 4 + 3]!;
+    expect(at(closed, 0, 20)).toBeGreaterThan(at(closed, 20, 20)); // the false rim
+    expect(Math.abs(at(d, 0, 20) - at(d, 20, 20))).toBeLessThanOrEqual(2);
+  });
+
   it('edgeBlur (half resolution) approximates boxBlur', () => {
     const w = 64;
     const src = new Float32Array(w * w);
