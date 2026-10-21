@@ -72,6 +72,8 @@ const SPECS: Record<Habitat, SlotSpec[]> = {
     ['meadow-12', 1496, 838, 'large'],
     ['meadow-13', 1350, 900, 'large'],
     ['meadow-14', 1068, 878, 'medium'],
+    ['meadow-15', 566, 872, 'medium'],
+    ['meadow-16', 1012, 818, 'medium'],
   ],
   // beside the stepping stones (small things that soften the path)
   path: [
