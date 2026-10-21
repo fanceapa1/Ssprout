@@ -620,6 +620,11 @@ input.duration:focus-visible {
   pointer-events: none !important;
   transition: opacity var(--ui-slow) var(--ui-breath);
 }
+/* one quiet text at a time: the moment a quiet line speaks, garden notes step out of the way */
+.ui-root:has(.quiet-line.is-in) > .tips {
+  opacity: 0;
+  transition-duration: 160ms;
+}
 .tip-leaders {
   position: absolute;
   inset: 0;
@@ -1354,6 +1359,10 @@ dialog.planting {
     width: 100vw;
     padding: 16px 18px max(16px, env(safe-area-inset-bottom));
     background-image: var(--grain), var(--slip-dense-0);
+  }
+  /* the full-width sheet rests over the path and plants: keep it a quiet slip, not a ghost of text */
+  .ui-root.is-resting .panel:not(:hover):not(:has(:focus-visible)) {
+    opacity: 0.55;
   }
   .goal {
     font-size: 44px;
