@@ -32,8 +32,15 @@ export function shadowSide(angle: number): 1 | -1 {
  * Set up plant-local units: base at the anchor, 1 unit = 1 world unit at slot scale 1 (the
  * canvas is `w × h` px for a `size` box). Returns the restore function.
  */
-export function plantFrame(p: Painter, def: Pick<SpeciesDef, 'size' | 'anchor'>, o: SpeciesDrawOptions): () => void {
-  const s = Math.min(o.w / def.size.w, o.h / def.size.h);
+export function plantFrame(
+  p: Painter,
+  def: Pick<SpeciesDef, 'size' | 'anchor'>,
+  o: SpeciesDrawOptions,
+  /** the box the species is drawn in (design units; default `def.size`). A sprite box larger
+   * than this scales the whole drawing up — how tier-1 ground plants read at garden scale. */
+  design: { w: number; h: number } = def.size,
+): () => void {
+  const s = Math.min(o.w / design.w, o.h / design.h);
   p.ctx.save();
   p.ctx.translate(def.anchor.x * o.w, def.anchor.y * o.h);
   p.ctx.scale(s, s);

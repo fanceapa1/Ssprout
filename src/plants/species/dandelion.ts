@@ -2,6 +2,7 @@ import type { Rng } from '../../core/rng';
 import { PIGMENTS, jitter, lighten, mix, shade, type Painter, type Pigment, type Pt } from '../../paint';
 import { ease, lerp, smooth, stagger, visible } from '../lib/small-growth';
 import { INK_GREEN, dabAxis, groundShadow, paintBud, paintStem, plantFrame, seedMound } from '../lib/small-paint';
+import { SMALL_DESIGN, SMALL_SIZE } from '../lib/small-size';
 import { UP, makeStem, pointAt, projectDir, stemPoints, type StemPlan } from '../lib/small-structure';
 import type { SpeciesDef } from '../types';
 
@@ -43,8 +44,8 @@ export interface DandelionPlan {
 
 export function planDandelion(rng: Rng): DandelionPlan {
   const green = jitter(mix(PIGMENTS.sage, PIGMENTS.sap, 0.4), rng, 0.03);
-  const gold = jitter(mix(PIGMENTS.gold, '#e6c454', 0.55), rng, 0.02);
-  const n = rng.int(5, 8);
+  const gold = jitter(mix(PIGMENTS.gold, '#e2b93e', 0.6), rng, 0.02);
+  const n = rng.int(6, 9);
   const rot = rng.range(0, 1);
   const leaves: Leaf[] = [];
   for (let i = 0; i < n; i++) {
@@ -60,7 +61,7 @@ export function planDandelion(rng: Rng): DandelionPlan {
       tone: jitter(green, rng, 0.035),
     });
   }
-  const nh = rng.int(1, 3);
+  const nh = rng.int(2, 3);
   const clockAt = rng.chance(0.4) ? rng.int(0, nh - 1) : -1;
   const heads: Head[] = [];
   const flip = rng.chance(0.5) ? 1 : -1;
@@ -159,7 +160,7 @@ function drawClock(p: Painter, rng: Rng, h: Head, c: Pt, openK: number) {
     }
   }
   L.dry({ opacity: 0.85, edge: 0, edgeWidth: 0.2, sharpness: 0.2, centreLift: 0, granulation: 0.05, flow: 0.4, flowScale: 3, darken: 0 });
-  p.dab(c, mix(PIGMENTS.woodLight, PIGMENTS.stoneWarm, 0.5), { rng: rng.fork('receptacle'), variant: 'round', angle: 0, length: h.size * 0.28, width: h.size * 0.24, opacity: 0.6, edge: 0.3 });
+  p.dab(c, mix(PIGMENTS.woodLight, PIGMENTS.stoneWarm, 0.5), { rng: rng.fork('receptacle'), variant: 'round', angle: 0, length: h.size * 0.28 * openK, width: h.size * 0.24 * openK, opacity: 0.6, edge: 0.3 });
 }
 
 function drawHead(p: Painter, rng: Rng, h: Head, plan: DandelionPlan, g: number) {
@@ -199,7 +200,8 @@ const dandelion: SpeciesDef = {
   tier: 1,
   habitats: ['meadow', 'path'],
   sizeClass: 'small',
-  size: { w: 70, h: 70 },
+  // drawn in a 70-unit design box, shown larger so it reads at garden scale
+  size: { w: SMALL_SIZE, h: SMALL_SIZE },
   anchor: { x: 0.5, y: 0.88 },
   description: 'Dandelion — a small sun, and later, a hundred wishes.',
   bloomColor: '#dfbe5c',
@@ -207,7 +209,7 @@ const dandelion: SpeciesDef = {
   draw(p, rng, opts) {
     const plan = planDandelion(rng.fork('plan'));
     const g = opts.growth;
-    const end = plantFrame(p, this, opts);
+    const end = plantFrame(p, this, opts, SMALL_DESIGN);
     try {
       const r = rng.fork('paint');
       groundShadow(p, r, { rx: 17, k: ease(g, 0.08, 0.6) });

@@ -2,6 +2,7 @@ import type { Rng } from '../../core/rng';
 import { PIGMENTS, jitter, lighten, mix, type Painter, type Pigment } from '../../paint';
 import { ease, lerp, phase, smooth, stagger, visible } from '../lib/small-growth';
 import { groundShadow, paintLeaf, paintStem, plantFrame, seedMound, smallBlossom } from '../lib/small-paint';
+import { SMALL_DESIGN, SMALL_SIZE } from '../lib/small-size';
 import { UP, makeStem, petalRing, pointAt, stemPoints, type PetalPlan, type StemPlan } from '../lib/small-structure';
 import type { SpeciesDef } from '../types';
 
@@ -61,7 +62,7 @@ export interface ForgetMeNotPlan {
 export function planForgetMeNot(rng: Rng): ForgetMeNotPlan {
   const lean = rng.range(-0.2, 0.2);
   const green = jitter(mix(PIGMENTS.sap, PIGMENTS.sage, 0.6), rng, 0.03);
-  const blue = jitter(lighten(PIGMENTS.bellflower, rng.range(0.12, 0.28)), rng, 0.025);
+  const blue = jitter(lighten(PIGMENTS.bellflower, rng.range(0.02, 0.14)), rng, 0.025);
   const nb = rng.int(3, 5);
   const basal: Basal[] = [];
   for (let i = 0; i < nb; i++) {
@@ -75,7 +76,7 @@ export function planForgetMeNot(rng: Rng): ForgetMeNotPlan {
       tone: jitter(green, rng, 0.03),
     });
   }
-  const ns = rng.int(3, 5);
+  const ns = rng.int(4, 6);
   const sprays: Spray[] = [];
   const flip = rng.chance(0.5) ? 1 : -1;
   for (let s = 0; s < ns; s++) {
@@ -173,8 +174,8 @@ function drawSpray(p: Painter, rng: Rng, s: Spray, plan: ForgetMeNotPlan, g: num
       width: 0.72,
       closedLen: 0.75,
       pigment: colour,
-      inner: lighten(colour, 0.6 * open),
-      opacity: 0.9,
+      inner: lighten(colour, 0.5 * open),
+      opacity: 0.95,
     });
     if (open > 0.25) {
       p.dab(c, mix(PIGMENTS.gold, PIGMENTS.petalWhite, 0.25), { rng: rng.fork(`eye-${j}`), variant: 'round', angle: 0.3, length: size * 0.3, width: size * 0.26, opacity: 0.9 * smooth((open - 0.25) / 0.5), edge: 0.35 });
@@ -196,7 +197,8 @@ const forgetMeNot: SpeciesDef = {
   tier: 1,
   habitats: ['shore', 'meadow'],
   sizeClass: 'small',
-  size: { w: 70, h: 70 },
+  // drawn in a 70-unit design box, shown larger so it reads at garden scale
+  size: { w: SMALL_SIZE, h: SMALL_SIZE },
   anchor: { x: 0.5, y: 0.88 },
   description: 'Forget-me-not — a little sky kept close to the water.',
   bloomColor: '#93a9d6',
@@ -204,7 +206,7 @@ const forgetMeNot: SpeciesDef = {
   draw(p, rng, opts) {
     const plan = planForgetMeNot(rng.fork('plan'));
     const g = opts.growth;
-    const end = plantFrame(p, this, opts);
+    const end = plantFrame(p, this, opts, SMALL_DESIGN);
     try {
       const r = rng.fork('paint');
       groundShadow(p, r, { rx: plan.spread * 0.8, k: ease(g, 0.08, 0.6) });

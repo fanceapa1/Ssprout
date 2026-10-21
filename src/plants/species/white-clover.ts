@@ -2,6 +2,7 @@ import type { Rng } from '../../core/rng';
 import { PIGMENTS, jitter, lighten, mix, type Painter, type Pigment } from '../../paint';
 import { ease, easeOut, lerp, smooth, stagger, visible } from '../lib/small-growth';
 import { groundShadow, paintPetal, paintStem, petalFlower, plantFrame, seedMound } from '../lib/small-paint';
+import { SMALL_DESIGN, SMALL_SIZE } from '../lib/small-size';
 import { UP, arc, makeStem, pointAt, stemPoints, type PetalPlan, type StemPlan } from '../lib/small-structure';
 import type { SpeciesDef } from '../types';
 
@@ -49,7 +50,7 @@ const OLD = mix(PIGMENTS.sakuraLight, PIGMENTS.woodLight, 0.55);
 
 export function planWhiteClover(rng: Rng): CloverPlan {
   const lean = rng.range(-0.15, 0.15);
-  const n = rng.int(5, 9);
+  const n = rng.int(7, 11);
   const green = jitter(mix(PIGMENTS.sage, PIGMENTS.sap, 0.45), rng, 0.03);
   const leaves: CloverLeaf[] = [];
   for (let i = 0; i < n; i++) {
@@ -76,7 +77,7 @@ export function planWhiteClover(rng: Rng): CloverPlan {
     leaves[li]!.window = [...stagger(k, n, [0.06, 0.5], 0.4)] as [number, number];
   });
 
-  const nh = rng.int(1, 3);
+  const nh = rng.int(2, 4);
   const heads: CloverHead[] = [];
   const flip = rng.chance(0.5) ? 1 : -1;
   for (let i = 0; i < nh; i++) {
@@ -141,13 +142,13 @@ function drawHead(p: Painter, rng: Rng, h: CloverHead, g: number) {
   // the ball's core: a pale cream-green wash, cool on its shaded side
   p.wash({ cx: c.x, cy: c.y, rx: r * 0.72, ry: r * 0.68 }, mix(PIGMENTS.sageLight, FLORET, 0.45 + 0.5 * openK), {
     rng: rng.fork('core'),
-    opacity: 0.55,
-    edge: 0.1,
-    darken: 0.1,
+    opacity: 0.7,
+    edge: 0.14,
+    darken: 0.14,
     blend: 'source-over',
   });
   if (visible(openK)) {
-    p.glaze({ cx: c.x + r * 0.22, cy: c.y + r * 0.28, rx: r * 0.62, ry: r * 0.55 }, PIGMENTS.petalShade, { rng: rng.fork('shade'), opacity: 0.2 * openK });
+    p.glaze({ cx: c.x + r * 0.22, cy: c.y + r * 0.28, rx: r * 0.62, ry: r * 0.55 }, PIGMENTS.petalShade, { rng: rng.fork('shade'), opacity: 0.34 * openK });
   }
   // florets sit on the ball and point outward; back ones first; they open from the bottom up
   const order = h.florets.map((f, i) => ({ f, i, z: Math.sin(f.a) })).sort((a, b) => a.z - b.z);
@@ -184,7 +185,8 @@ const whiteClover: SpeciesDef = {
   tier: 1,
   habitats: ['meadow', 'path'],
   sizeClass: 'small',
-  size: { w: 70, h: 70 },
+  // drawn in a 70-unit design box, shown larger so it reads at garden scale
+  size: { w: SMALL_SIZE, h: SMALL_SIZE },
   anchor: { x: 0.5, y: 0.88 },
   description: 'White clover — three leaves for patience, a fourth for luck.',
   bloomColor: '#f4f0e4',
@@ -192,7 +194,7 @@ const whiteClover: SpeciesDef = {
   draw(p, rng, opts) {
     const plan = planWhiteClover(rng.fork('plan'));
     const g = opts.growth;
-    const end = plantFrame(p, this, opts);
+    const end = plantFrame(p, this, opts, SMALL_DESIGN);
     try {
       const r = rng.fork('paint');
       groundShadow(p, r, { rx: plan.spread * 0.8, k: ease(g, 0.08, 0.6) });

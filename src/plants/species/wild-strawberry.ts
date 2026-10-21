@@ -2,6 +2,7 @@ import type { Rng } from '../../core/rng';
 import { PIGMENTS, jitter, lighten, mix, type Painter, type Pigment, type Pt } from '../../paint';
 import { ease, easeOut, lerp, smooth, stagger, visible } from '../lib/small-growth';
 import { bloom, groundShadow, leafletFan, paintLeaf, paintStem, plantFrame, seedMound } from '../lib/small-paint';
+import { SMALL_DESIGN, SMALL_SIZE } from '../lib/small-size';
 import { UP, arc, makeStem, petalRing, pointAt, stemPoints, subPath, type PetalPlan, type StemPlan } from '../lib/small-structure';
 import type { SpeciesDef } from '../types';
 
@@ -63,7 +64,7 @@ function trifoliate(rng: Rng): PetalPlan[] {
 export function planWildStrawberry(rng: Rng): StrawberryPlan {
   const lean = rng.range(-0.15, 0.15);
   const green = jitter(mix(PIGMENTS.sage, PIGMENTS.olive, 0.3), rng, 0.03);
-  const n = rng.int(3, 5);
+  const n = rng.int(4, 6);
   const leaves: Leaf[] = [];
   for (let i = 0; i < n; i++) {
     const u = i / (n - 1) - 0.5;
@@ -81,7 +82,7 @@ export function planWildStrawberry(rng: Rng): StrawberryPlan {
   rng.shuffle(leaves.map((_, i) => i)).forEach((li, k) => {
     leaves[li]!.window = [...stagger(k, n, [0.06, 0.48], 0.45)] as [number, number];
   });
-  const nf = rng.int(1, 3);
+  const nf = rng.int(2, 4);
   const flowers: Flower[] = [];
   const flip = rng.chance(0.5) ? 1 : -1;
   for (let i = 0; i < nf; i++) {
@@ -209,7 +210,8 @@ const wildStrawberry: SpeciesDef = {
   tier: 1,
   habitats: ['meadow', 'path', 'rock'],
   sizeClass: 'small',
-  size: { w: 70, h: 70 },
+  // drawn in a 70-unit design box, shown larger so it reads at garden scale
+  size: { w: SMALL_SIZE, h: SMALL_SIZE },
   anchor: { x: 0.5, y: 0.86 },
   description: 'Wild strawberry — sweetness found by looking down.',
   bloomColor: '#f6f1e6',
@@ -217,7 +219,7 @@ const wildStrawberry: SpeciesDef = {
   draw(p, rng, opts) {
     const plan = planWildStrawberry(rng.fork('plan'));
     const g = opts.growth;
-    const end = plantFrame(p, this, opts);
+    const end = plantFrame(p, this, opts, SMALL_DESIGN);
     try {
       const r = rng.fork('paint');
       groundShadow(p, r, { rx: 20, k: ease(g, 0.08, 0.6) });

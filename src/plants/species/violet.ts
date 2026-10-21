@@ -2,6 +2,7 @@ import type { Rng } from '../../core/rng';
 import { PIGMENTS, jitter, lighten, mix, shade, type Painter, type Pigment, type Pt } from '../../paint';
 import { ease, lerp, smooth, stagger, visible } from '../lib/small-growth';
 import { bloom, groundShadow, paintLeaf, paintStem, plantFrame, seedMound } from '../lib/small-paint';
+import { SMALL_DESIGN, SMALL_SIZE } from '../lib/small-size';
 import { UP, lerpAngle, makeStem, pointAt, stemPoints, type PetalPlan, type StemPlan } from '../lib/small-structure';
 import type { SpeciesDef } from '../types';
 
@@ -43,7 +44,7 @@ const DEEP = mix(PIGMENTS.iris, '#4f3f86', 0.35);
 
 export function planViolet(rng: Rng): VioletPlan {
   const lean = rng.range(-0.2, 0.2);
-  const nLeaves = rng.int(5, 8);
+  const nLeaves = rng.int(6, 9);
   const greenBase = jitter(mix(PIGMENTS.sap, PIGMENTS.sage, 0.55), rng, 0.03);
   const leaves: VioletLeaf[] = [];
   for (let i = 0; i < nLeaves; i++) {
@@ -67,7 +68,7 @@ export function planViolet(rng: Rng): VioletPlan {
     leaves[li]!.window = [...stagger(k, nLeaves, [0.06, 0.5], 0.42)];
   });
 
-  const nFlowers = rng.int(2, 4);
+  const nFlowers = rng.int(3, 5);
   const hue = rng.next();
   const flowers: VioletFlower[] = [];
   const flip = rng.chance(0.5) ? 1 : -1;
@@ -142,7 +143,7 @@ function drawFlower(p: Painter, rng: Rng, f: VioletFlower, g: number) {
     size,
     width: 0.62,
     closedLen: 0.6,
-    style: { pigment: f.colour, inner: shade(f.colour, 0.3), innerReach: 0.35, opacity: 0.86 },
+    style: { pigment: shade(f.colour, 0.08), inner: shade(f.colour, 0.36), innerReach: 0.38, opacity: 0.92 },
     // the broad lower lip has a pale throat
     styleFor: (i) => (i === 4 ? { inner: throat, innerReach: 0.5 } : undefined),
   });
@@ -171,7 +172,8 @@ const violet: SpeciesDef = {
   tier: 1,
   habitats: ['meadow', 'path', 'rock'],
   sizeClass: 'small',
-  size: { w: 70, h: 70 },
+  // drawn in a 70-unit design box, shown larger so it reads at garden scale
+  size: { w: SMALL_SIZE, h: SMALL_SIZE },
   anchor: { x: 0.5, y: 0.9 },
   description: 'Violet — small courage at the foot of stones.',
   bloomColor: '#6f5f9f',
@@ -179,7 +181,7 @@ const violet: SpeciesDef = {
   draw(p, rng, opts) {
     const plan = planViolet(rng.fork('plan'));
     const g = opts.growth;
-    const end = plantFrame(p, this, opts);
+    const end = plantFrame(p, this, opts, SMALL_DESIGN);
     try {
       const r = rng.fork('paint');
       groundShadow(p, r, { rx: plan.spread * 0.75, k: ease(g, 0.08, 0.6) });

@@ -25,7 +25,7 @@ export function perspectiveScale(y: number): number {
  * agents size `SpeciesDef.size` from this; the slot's `scale` then shrinks or grows it.
  */
 export const PLANT_SIZES: Record<SizeClass, { w: number; h: number }> = {
-  small: { w: 70, h: 70 },
+  small: { w: 86, h: 86 },
   medium: { w: 120, h: 160 },
   large: { w: 200, h: 220 },
   tree: { w: 380, h: 460 },
