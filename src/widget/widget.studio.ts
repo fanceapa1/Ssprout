@@ -1,65 +1,96 @@
 import '@fontsource/cormorant-garamond/500.css';
 import '@fontsource/cormorant-garamond/400-italic.css';
+import '@fontsource/cormorant-garamond/500-italic.css';
 import '@fontsource/shippori-mincho/latin-500.css';
-import type { SessionStatus } from '../core/controller';
+import { allSpecies } from '../plants/registry';
+import { renderPlantView } from '../plants/view';
 import type { StudioEntry, StudioSection } from '../studio/types';
-import { CARD_H, CARD_W, paintCardPreview } from './card-art';
+import { CARD_H, CARD_W, paintCardPreview, type CardArtState } from './card-art';
+import type { WidgetPhase, WidgetStatus } from './contract';
 import { drawFavicon, FAVICON_STEPS, type FaviconModel } from './favicon';
-import { paintSprout } from './sprout';
+import { session, timeline } from './test-helpers';
 import { widgetView } from './view';
 
 /**
- * Studio · Widget: the floating card at several moments of a session, the favicon ring, and an
- * animated sprout growing from seed to bloom. Card text is painted with the widget's fonts, so
- * the card entries are animated (they repaint once the web fonts have loaded).
+ * Studio · Widget: the floating card through a session (growth 0 / 0.3 / 0.7, break, watering,
+ * paused, bloom, idle), the generic-sprout fallback, the favicon ring, and an animated loop of a
+ * whole two-pomodoro session with its watering break. Card text is painted with the widget's web
+ * fonts, so card entries are animated (they repaint once the fonts have loaded).
  */
 
-const GOAL = 25 * 60_000;
+const SPECIES = allSpecies()[0]?.id ?? 'placeholder-sprout';
+const speciesName = (id: string) => allSpecies().find((s) => s.id === id)?.name;
+const layers = new WeakMap<HTMLCanvasElement, HTMLCanvasElement>();
+const layerFor = (c: HTMLCanvasElement) => {
+  let l = layers.get(c);
+  if (!l) layers.set(c, (l = document.createElement('canvas')));
+  return l;
+};
 
-function statusAt(progress: number, phase: SessionStatus['phase'], seed: number): SessionStatus {
-  const id = `session-studio-${seed}`;
+const PLAN = session().plan; // 25 focus · 10 break · 25 focus
+const MIN = 60_000;
+
+/** A status at a moment of the 60-minute two-pomodoro plan (minutes elapsed). */
+function statusAt(minutes: number, opts: { paused?: boolean; watered?: boolean; speciesId?: string; seed: number }): WidgetStatus {
+  const inBreak = minutes >= 25 && minutes < 35;
+  const blockIndex = minutes < 25 ? 0 : inBreak ? 1 : 2;
+  const blockEnd = [25, 35, 60][blockIndex]!;
+  const focused = Math.min(minutes, 25) + Math.max(0, minutes - 35);
+  const phase: WidgetPhase = opts.paused ? 'paused' : inBreak ? 'break' : 'focus';
   return {
     phase,
-    session:
-      phase === 'running' || phase === 'paused'
-        ? { id, goalMs: GOAL, startedAt: 0, pausedAt: phase === 'paused' ? 1 : null, pausedTotalMs: 0, weather: 'sun' }
-        : null,
-    pendingReward: phase === 'reward' ? { sessionId: id, goalMinutes: 25, tier: 2, options: [], chosen: null, completedAt: 0 } : null,
-    goalMs: GOAL,
-    elapsedMs: GOAL * progress,
-    remainingMs: GOAL * (1 - progress),
-    progress,
-    pausedForMs: 0,
-    longPause: false,
+    session: session({ speciesId: opts.speciesId ?? SPECIES, seed: opts.seed }),
+    timeline: timeline({
+      blockIndex,
+      block: PLAN.blocks[blockIndex]!,
+      blockRemainingMs: (blockEnd - minutes) * MIN,
+      totalRemainingMs: (60 - minutes) * MIN,
+      growth: focused / 50,
+      progress: minutes / 60,
+      watered: !!opts.watered,
+    }),
   };
 }
 
-const card = (id: string, label: string, progress: number, phase: SessionStatus['phase']): StudioEntry => ({
+function paint(canvas: HTMLCanvasElement, pixelRatio: number, status: WidgetStatus, art: Partial<CardArtState> = {}, done = false) {
+  const ctx = canvas.getContext('2d')!;
+  ctx.scale(pixelRatio, pixelRatio);
+  const view = widgetView(status, { speciesName, completed: done ? status.session : null });
+  const shown = done ? widgetView({ phase: 'idle', timeline: null, session: null }, { speciesName, completed: status.session }) : view;
+  paintCardPreview(ctx, CARD_W, CARD_H, shown, { growth: art.growth ?? shown.growth, watering: art.watering ?? null }, {
+    renderPlant: (layer, o) => renderPlantView(layer, o),
+    plantLayer: layerFor(canvas),
+    pixelRatio,
+  });
+}
+
+const card = (
+  id: string,
+  label: string,
+  make: (seed: number) => WidgetStatus,
+  art: Partial<CardArtState> = {},
+  done = false,
+): StudioEntry => ({
   id,
   label,
   w: CARD_W,
   h: CARD_H,
   animated: true,
-  render(canvas, { seed, pixelRatio }) {
-    const ctx = canvas.getContext('2d')!;
-    ctx.scale(pixelRatio, pixelRatio);
-    const view = widgetView(statusAt(progress, phase, seed));
-    paintCardPreview(ctx, CARD_W, CARD_H, view, { growth: view.growth, bloom: view.bloom ? 1 : 0 });
-  },
+  render: (canvas, { seed, pixelRatio }) => paint(canvas, pixelRatio, make(seed), art, done),
 });
 
 const FAVICONS: { label: string; model: FaviconModel }[] = [
-  { label: '0', model: { kind: 'progress', step: 0, paused: false } },
-  { label: '25 %', model: { kind: 'progress', step: FAVICON_STEPS / 4, paused: false } },
-  { label: '60 %', model: { kind: 'progress', step: Math.round(FAVICON_STEPS * 0.6), paused: false } },
-  { label: '90 %', model: { kind: 'progress', step: Math.round(FAVICON_STEPS * 0.9), paused: false } },
-  { label: 'paused 45 %', model: { kind: 'progress', step: Math.round(FAVICON_STEPS * 0.45), paused: true } },
-  { label: 'complete', model: { kind: 'complete' } },
+  { label: '0', model: { kind: 'progress', step: 0, tone: 'focus' } },
+  { label: '25 %', model: { kind: 'progress', step: FAVICON_STEPS / 4, tone: 'focus' } },
+  { label: 'break 50 %', model: { kind: 'progress', step: FAVICON_STEPS / 2, tone: 'break' } },
+  { label: '90 %', model: { kind: 'progress', step: Math.round(FAVICON_STEPS * 0.9), tone: 'focus' } },
+  { label: 'paused 45 %', model: { kind: 'progress', step: Math.round(FAVICON_STEPS * 0.45), tone: 'paused' } },
+  { label: 'bloomed', model: { kind: 'complete' } },
 ];
 
 const favicons: StudioEntry = {
   id: 'favicons',
-  label: 'favicon: 8× and actual size on light / dark tab strips',
+  label: 'favicon: enlarged and actual size on light / dark tab strips',
   w: 560,
   h: 220,
   render(canvas, { pixelRatio }) {
@@ -69,15 +100,14 @@ const favicons: StudioEntry = {
       const x = 12 + i * 92;
       ctx.save();
       ctx.translate(x, 8);
-      ctx.scale(2.5, 2.5); // 80 px preview of the 32 px design
+      ctx.scale(2.5, 2.5);
       drawFavicon(ctx, model);
       ctx.restore();
-      // actual size on a light and a dark strip
       ctx.fillStyle = '#dee1e6';
       ctx.fillRect(x, 104, 80, 40);
       ctx.fillStyle = '#35363a';
       ctx.fillRect(x, 148, 80, 40);
-      for (const [y] of [[108], [152]] as const) {
+      for (const y of [108, 152]) {
         ctx.save();
         ctx.translate(x + 8, y);
         ctx.scale(0.5, 0.5); // 16 css px tab icon
@@ -96,21 +126,22 @@ const favicons: StudioEntry = {
   },
 };
 
-const grow: StudioEntry = {
-  id: 'sprout-grow',
-  label: 'sprout growing seed → bloom (8 s loop)',
+/** 12 s loop: focus 0→25 min (5 s), break with a watering (3 s), focus 35→60 (3 s), bloom (1 s). */
+const sessionLoop: StudioEntry = {
+  id: 'session-loop',
+  label: 'a whole session: grow, water in the break, grow, bloom (12 s loop)',
   w: CARD_W,
   h: CARD_H,
   animated: true,
   render(canvas, { t, seed, pixelRatio }) {
-    const ctx = canvas.getContext('2d')!;
-    ctx.scale(pixelRatio, pixelRatio);
-    const cycle = t % 8;
-    const progress = Math.min(1, cycle / 6);
-    const bloom = Math.max(0, Math.min(1, (cycle - 6) / 1.5));
-    const phase = bloom > 0 ? 'reward' : 'running';
-    const view = widgetView(statusAt(progress, phase, seed));
-    paintCardPreview(ctx, CARD_W, CARD_H, view, { growth: progress, bloom }, paintSprout);
+    const c = t % 12;
+    if (c < 5) return paint(canvas, pixelRatio, statusAt((c / 5) * 25, { seed }));
+    if (c < 8) {
+      const w = (c - 5) / 2.5;
+      return paint(canvas, pixelRatio, statusAt(25 + (c - 5) * 3, { seed, watered: w > 0.3 }), { watering: w <= 1 ? w : null });
+    }
+    if (c < 11) return paint(canvas, pixelRatio, statusAt(35 + ((c - 8) / 3) * 25, { seed }));
+    return paint(canvas, pixelRatio, statusAt(60, { seed }), {}, true);
   },
 };
 
@@ -119,14 +150,17 @@ const section: StudioSection = {
   title: 'Widget · floating timer card & favicon',
   order: 510,
   entries: [
-    card('card-idle', 'card · idle', 0, 'idle'),
-    card('card-0', 'card · just started (0)', 0, 'running'),
-    card('card-30', 'card · 30 %', 0.3, 'running'),
-    card('card-70', 'card · 70 % (bud)', 0.7, 'running'),
-    card('card-paused', 'card · paused at 45 %', 0.45, 'paused'),
-    card('card-complete', 'card · complete (bloom)', 1, 'reward'),
+    card('card-0', 'focus · growth 0', (seed) => statusAt(0, { seed })),
+    card('card-30', 'focus · growth 0.3', (seed) => statusAt(15, { seed })),
+    card('card-70', 'focus 2 · growth 0.7', (seed) => statusAt(45, { seed })),
+    card('card-break', 'break · thirsty', (seed) => statusAt(27, { seed })),
+    card('card-watering', 'break · watering (mid-animation)', (seed) => statusAt(28, { seed, watered: true }), { watering: 0.55 }),
+    card('card-paused', 'paused · growth 0.45', (seed) => statusAt(22.5, { seed, paused: true })),
+    card('card-bloom', 'complete · growth 1', (seed) => statusAt(60, { seed }), {}, true),
+    card('card-idle', 'idle', () => ({ phase: 'idle', timeline: null, session: null })),
+    card('card-fallback', 'unknown species → generic sprout (growth 0.7)', (seed) => statusAt(45, { seed, speciesId: 'not-a-species' })),
     favicons,
-    grow,
+    sessionLoop,
   ],
 };
 
