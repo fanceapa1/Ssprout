@@ -112,7 +112,7 @@ test.describe('ui · menu, tips and data', () => {
     await page.evaluate(() => window.sprout!.ui.setTimeScale(0.01));
     await page.mouse.move(10, 10);
     await expect.poll(() => page.evaluate(() => window.sprout!.ui.state().resting)).toBe(true);
-    await expect(page.locator('.panel')).toHaveCSS('opacity', '0.2');
+    await expect(page.locator('.panel')).toHaveCSS('opacity', '0.26');
     await page.evaluate(() => window.sprout!.ui.setTimeScale(100));
     await page.mouse.move(200, 200);
     await expect.poll(() => page.evaluate(() => window.sprout!.ui.state().resting)).toBe(false);

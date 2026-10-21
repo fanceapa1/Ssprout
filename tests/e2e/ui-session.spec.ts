@@ -94,7 +94,7 @@ test.describe('ui · planting a session', () => {
     await page.evaluate((ms) => window.sprout!.advance(ms), firstFocus * MIN + 2000);
     const panel = page.locator('.panel');
     await expect(panel).toHaveAttribute('data-view', 'break');
-    await expect(panel.locator('.block-label')).toContainText('Break — water your japanese iris');
+    await expect(panel.locator('.block-label')).toContainText('Break — water your Japanese iris');
 
     const water = panel.locator('button.water');
     await water.click();
