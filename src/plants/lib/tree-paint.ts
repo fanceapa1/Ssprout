@@ -48,6 +48,15 @@ export function stableLayer(p: Painter, area: Rect, rng: Rng, res?: number): Wet
   return new WetLayer(p.ctx, area, { ...p.env, rng }, res);
 }
 
+/**
+ * Work resolution for soft, low-contrast passes (shadow glazes, mid-tones, deep petal tints):
+ * their edges are blurry anyway, so they dry at reduced resolution (big speed win on
+ * crown-sized layers). `undefined` = the engine default (high quality keeps full detail).
+ */
+export function softRes(p: Painter): number | undefined {
+  return p.quality === 'high' ? undefined : p.quality === 'draft' ? 0.45 : 0.6;
+}
+
 // ---------------------------------------------------------------------------------------------
 // skeleton
 
@@ -420,7 +429,7 @@ export function paintPadMass(
     else L.discard();
   }
   // 2. mid-tone away from the light
-  const L2 = stableLayer(p, area, rng.fork('pads-mid'));
+  const L2 = stableLayer(p, area, rng.fork('pads-mid'), softRes(p));
   for (const l of live) {
     const r = l.rng.fork('mid');
     for (const d of l.dabs) {
@@ -430,7 +439,7 @@ export function paintPadMass(
   }
   L2.dry({ ...dryBase, opacity: opacity * 0.42, edge: 0.32, sharpness: 0.55 });
   // 3. cool shadow on the underside
-  const L3 = stableLayer(p, area, rng.fork('pads-shadow'));
+  const L3 = stableLayer(p, area, rng.fork('pads-shadow'), softRes(p));
   for (const l of live) {
     const r = l.rng.fork('shadow');
     const sh = shade(l.pig.shadow, 0.25);
@@ -441,7 +450,7 @@ export function paintPadMass(
   }
   L3.dry({ ...dryBase, opacity: opacity * 0.3 * (0.5 + shadowK), edge: 0.3, sharpness: 0.5, centreLift: 0.2 });
   // 4. a few dark accents tucked under
-  const L4 = stableLayer(p, area, rng.fork('pads-dark'));
+  const L4 = stableLayer(p, area, rng.fork('pads-dark'), softRes(p));
   let accents = 0;
   for (const l of live) {
     const r = l.rng.fork('dark');
@@ -521,8 +530,8 @@ export function paintBlossoms(
   const petals = o.petals ?? 5;
   const groups = Math.max(1, o.groups ?? 1);
   const bodies = Array.from({ length: groups }, (_, gi) => stableLayer(p, area, rng.fork(gi ? `bl-body-dry-${gi}` : 'bl-body-dry')));
-  const deep = stableLayer(p, area, rng.fork('bl-deep-dry'));
-  const centres: { at: Pt; r: number; k: number; id: number }[] = [];
+  const deep = stableLayer(p, area, rng.fork('bl-deep-dry'), softRes(p));
+  const centres: { at: Pt; r: number; k: number; id: number; group: number }[] = [];
   let deepCount = 0;
   const TONES = 6;
   const tones = Array.from({ length: TONES }, (_, i) => mix(pig.pale, pig.deep, i / (TONES - 1)));
@@ -542,7 +551,7 @@ export function paintBlossoms(
         petalMark(deep, c, pig.deep, b.rot + r.range(0, 6.3), len * 0.8, len * 0.7, 0.75, r);
         deepCount++;
       }
-      if (r.chance(o.centreChance ?? 0.55)) centres.push({ at: c, r: len, k, id: b.id });
+      if (r.chance(o.centreChance ?? 0.55)) centres.push({ at: c, r: len, k, id: b.id, group: i % groups });
     } else if (b.kind === 'bud') {
       dotMark(deep, c, budPig, len * 0.45, len * 0.34, b.rot, 0.85, r);
       deepCount++;
@@ -555,21 +564,22 @@ export function paintBlossoms(
     }
   });
   const op = o.opacity ?? 0.92;
-  for (const body of bodies) body.dry({ opacity: op, edge: 0.5, edgeWidth: 0.7, sharpness: 0.75, centreLift: 0.25, granulation: 0.08, flow: 0.3, flowScale: 12, darken: 0.25, blend: 'source-over', ...o.dry });
-  if (deepCount) deep.dry({ opacity: op * 0.6, edge: 0.45, edgeWidth: 0.6, sharpness: 0.7, centreLift: 0.25, granulation: 0.08, flowScale: 10 });
-  else deep.discard();
+  // plain centres go into the (still wet) petal layer of their flower and dry with it (no extra
+  // crown-sized pass); flowers with stamens get their own crisp multiplied pass on top
   const cAmt = o.centres ?? 1;
+  const own = (o.stamens ?? 0) > 0 && cAmt > 0 && centres.length > 0 ? stableLayer(p, area, rng.fork('bl-centre-dry')) : null;
   if (cAmt > 0 && centres.length) {
-    const C = stableLayer(p, area, rng.fork('bl-centre-dry'));
-    const cp = pig.centre ?? PIGMENTS.gold;
+    const cp = own ? (pig.centre ?? PIGMENTS.gold) : mix(pig.pale, pig.centre ?? PIGMENTS.gold, 0.35 + 0.4 * cAmt);
+    const sp = own ? (o.stamenPigment ?? PIGMENTS.sumi) : mix(pig.pale, o.stamenPigment ?? PIGMENTS.sumi, 0.6);
     for (const c of centres) {
       const r = rng.fork(`blc-${c.id}`);
+      const C = own ?? bodies[c.group]!;
       const cs = o.centreSize ?? 0.16;
-      dotMark(C, { x: c.at.x + r.range(-0.15, 0.15) * c.r, y: c.at.y + r.range(-0.15, 0.15) * c.r }, cp, c.r * cs, c.r * cs * 0.8, 0, 0.9, r);
+      dotMark(C, { x: c.at.x + r.range(-0.15, 0.15) * c.r, y: c.at.y + r.range(-0.15, 0.15) * c.r }, cp, c.r * cs, c.r * cs * 0.8, 0, 0.95, r);
       const ns = o.stamens ?? 0;
       if (ns > 0) {
         const sc = C.ctx;
-        sc.strokeStyle = rgba(o.stamenPigment ?? PIGMENTS.sumi, 0.55);
+        sc.strokeStyle = rgba(sp, 0.8);
         sc.lineWidth = Math.max(0.25, c.r * 0.05);
         sc.lineCap = 'round';
         sc.beginPath();
@@ -580,7 +590,7 @@ export function paintBlossoms(
           sc.lineTo(c.at.x + Math.cos(a) * l, c.at.y + Math.sin(a) * l);
         }
         sc.stroke();
-        sc.fillStyle = rgba(mix(o.stamenPigment ?? PIGMENTS.sumi, cp, 0.4), 0.7);
+        sc.fillStyle = rgba(mix(sp, cp, 0.4), 0.9);
         for (let j = 0; j < ns; j++) {
           const a = r.range(0, Math.PI * 2);
           const l = c.r * r.range(0.4, 0.62);
@@ -590,8 +600,11 @@ export function paintBlossoms(
         }
       }
     }
-    C.dry({ opacity: 0.5 * cAmt, edge: 0.4, edgeWidth: 0.5, sharpness: 0.7, centreLift: 0.1, flowScale: 6 });
   }
+  for (const body of bodies) body.dry({ opacity: op, edge: 0.5, edgeWidth: 0.7, sharpness: 0.75, centreLift: 0.25, granulation: 0.08, flow: 0.3, flowScale: 12, darken: 0.25, blend: 'source-over', ...o.dry });
+  if (deepCount) deep.dry({ opacity: op * 0.6, edge: 0.45, edgeWidth: 0.6, sharpness: 0.7, centreLift: 0.25, granulation: 0.08, flowScale: 10 });
+  else deep.discard();
+  own?.dry({ opacity: 0.7 * cAmt, edge: 0.4, edgeWidth: 0.5, sharpness: 0.7, centreLift: 0.1, flowScale: 6 });
 }
 
 export interface Leaf {

@@ -1,16 +1,17 @@
 import type { Rng } from '../../core/rng';
+import type { Painter } from '../../paint';
+import { blob, bounds, deformPolygon, padRect } from '../../paint/geometry';
 import { PIGMENTS, lighten, mix } from '../../paint/pigments';
-import { glaze } from '../../paint/primitives';
 import {
   inUnits,
   paintBlossoms,
   paintFallingPetals,
   paintGroundShadow,
+  paintLeaves,
   paintSeed,
   paintSkeleton,
   paintTipLeaves,
-  stableTarget,
-  paintLeaves,
+  stableLayer,
   type Blossom,
   type Leaf,
 } from '../lib/tree-paint';
@@ -191,6 +192,21 @@ export function planWeepingCherry(rng: Rng): WeepingCherryPlan {
   return { tree, blossoms, buds, falling, fallen, haze, leaves };
 }
 
+/** A faint pink veil behind each curtain, all in one low-resolution wet layer. */
+function paintHaze(p: Painter, haze: WeepingCherryPlan['haze'], amount: number, rng: Rng): void {
+  if (amount <= 0.01 || !haze.length) return;
+  const pts = haze.flatMap((h) => [{ x: h.cx - h.rx, y: h.cy - h.ry }, { x: h.cx + h.rx, y: h.cy + h.ry }]);
+  const L = stableLayer(p, padRect(bounds(pts), 6), rng.fork('haze-dry'), 0.35);
+  for (const h of haze) {
+    const hr = rng.fork(`haze-${h.id}`);
+    const shape = blob(h.cx, h.cy, h.rx, h.ry, hr, { irregularity: 0.25 });
+    for (let k = 0; k < 3; k++) L.fill(deformPolygon(shape, hr, { depth: 2, variance: 0.2 }), PIGMENTS.sakuraLight, 0.35);
+    // lost lower edge: the veil fades into the curtains
+    L.lift(blob(h.cx, h.cy + h.ry * 1.1, h.rx * 1.2, h.ry * 0.7, hr, { irregularity: 0.3 }), 0.6);
+  }
+  L.dry({ opacity: 0.12 * amount, edge: 0.05, sharpness: 0.12, centreLift: 0, granulation: 0.05, flow: 0.3, flowScale: 60 });
+}
+
 const BARK = mix(PIGMENTS.sumi, PIGMENTS.wood, 0.35);
 const PINK = { pale: mix(PIGMENTS.sakuraLight, PIGMENTS.petalWhite, 0.45), deep: mix(PIGMENTS.sakura, PIGMENTS.sakuraLight, 0.25), centre: mix(PIGMENTS.sakura, PIGMENTS.vermilion, 0.35) };
 
@@ -220,18 +236,7 @@ const weepingCherry: SpeciesDef = {
       // buds swell along the curtains (0.5–0.8), then open (0.74–1)
       const open = (b: Blossom) => stagger(g, 0.74, 1, b.delay, 0.12);
       paintBlossoms(p, plan.buds, view, pr.fork('buds'), (b) => stagger(g, 0.5, 0.8, b.delay, 0.1) * (1 - open(b)), PINK, { opacity: 0.85, centres: 0 });
-      const hz = ramp(g, 0.8, 1);
-      if (hz > 0.01)
-        for (const h of plan.haze) {
-          const hr = pr.fork(`haze-${h.id}`);
-          glaze(stableTarget(p, hr.fork('dry')), { cx: h.cx, cy: h.cy, rx: h.rx, ry: h.ry }, PIGMENTS.sakuraLight, {
-            rng: hr,
-            opacity: 0.1 * hz,
-            edge: 0,
-            sharpness: 0.12,
-            fade: { angle: Math.PI / 2, start: 0.3, amount: 0.85 },
-          });
-        }
+      paintHaze(p, plan.haze, ramp(g, 0.8, 1), pr);
       paintBlossoms(p, plan.blossoms, view, pr.fork('bloom'), open, PINK);
       const fall = ramp(g, 0.96, 1);
       paintFallingPetals(p, plan.fallen.map((q) => ({ ...q })), lighten(PIGMENTS.sakuraLight, 0.04), pr.fork('fallen'), fall);
