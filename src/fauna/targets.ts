@@ -133,7 +133,7 @@ export interface Stand {
 }
 
 /**
- * A wading spot for the heron: on the far half / sides of the pond edge (so the water and its
+ * A wading spot for the heron: on the far edge of the pond (so the water and its
  * reflection lie in front of it), a few units into the water, away from pads and rocks.
  */
 export function heronStands(pond: readonly Pt[], avoid: readonly Pt[], step = 14, inward = 7): Stand[] {
@@ -148,8 +148,8 @@ export function heronStands(pond: readonly Pt[], avoid: readonly Pt[], step = 14
     for (let k = 0; k < n; k++) {
       const t = k / n;
       const e = { x: a.x + (q.x - a.x) * t, y: a.y + (q.y - a.y) * t };
-      if (e.y > c.y + b.h * 0.12) continue; // near shore: the bird would hide the water
-      if (Math.abs(e.x - c.x) > b.w * 0.46) continue; // the extreme ends are too pointed
+      if (e.y > c.y - b.h * 0.15) continue; // only the far edge: the water and its reflection lie in front of it
+      if (Math.abs(e.x - c.x) > b.w * 0.4) continue; // the extreme ends are too pointed
       if (avoid.some((o) => dist(o, e) < 70)) continue;
       const dx = c.x - e.x;
       const dy = c.y - e.y;

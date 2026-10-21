@@ -14,7 +14,7 @@ import { easeOut, localHour, polygonBounds, polygonCentroid, rangeOf, toPlane } 
 import { rosterFor, type Roster } from './roster';
 import { CALM_MODE, dueVisits, groupSize, isNight, residentTarget, type Census, type FaunaMode, type Schedule } from './schedule';
 import { ArtCache, drawSprite, paintSprite, type Sprite } from './sprite';
-import { flowerTargets, heronStands, lilyPads, perchesOf, perspectiveFit, type TargetLookup } from './targets';
+import { flowerTargets, heronStands, lilyPads, perchesOf, perspectiveFit, type Stand, type TargetLookup } from './targets';
 import { FAUNA_TUNING, VISITS, type FaunaKind, type VisitorKind } from './tuning';
 import type { Creature, Ctx, FaunaWorld, PondInfo } from './types';
 
@@ -146,12 +146,25 @@ export class FaunaSim {
     const slots = this.world.scene.slots;
     this.world.flowers = flowerTargets(this.plants, slots, this.lookup);
     this.world.pads = lilyPads(this.plants, slots, this.lookup);
+    this.stands = null;
   }
 
-  /** Where a heron could wade right now (away from pads and rocks). */
-  heronStands() {
-    const avoid: Pt[] = [...this.world.pads, ...this.world.scene.rocks.map((r) => ({ x: r.x, y: r.y - r.h * 0.4 }))];
-    return heronStands(this.world.pond.world, avoid);
+  private stands: Stand[] | null = null;
+
+  /** Where a heron could wade right now (away from pads, rocks and far-bank plants; cached). */
+  heronStands(): Stand[] {
+    this.stands ??= this.computeStands();
+    return this.stands;
+  }
+
+  private computeStands(): Stand[] {
+    const w = this.world;
+    const avoid: Pt[] = [...w.pads, ...w.scene.rocks.map((r) => ({ x: r.x, y: r.y - r.h * 0.4 }))];
+    // plants growing on the far bank would stand in its way; if they fill it, wade among them
+    const slots = new Map(w.scene.slots.map((s) => [s.id, s]));
+    const planted = this.plants.map((p) => slots.get(p.slotId)).filter((s): s is NonNullable<typeof s> => !!s && (s.habitat === 'shore' || s.habitat === 'back'));
+    const clear = heronStands(w.pond.world, [...avoid, ...planted]);
+    return clear.length > 0 ? clear : heronStands(w.pond.world, avoid);
   }
 
   private addRipple(x: number, y: number, size: number, strength: number): void {
