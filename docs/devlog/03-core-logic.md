@@ -23,7 +23,7 @@
 - `dev/core-debug.ts` + `dev/fill-garden.ts`: `window.sprout` reset/seed/start/pause/resume/cancel/
   completeSession/choose/placementOptions/place/addPlants/setState/status/flush/export/import.
   Fixed `installDebug` typing so declaration-merged methods don't break it.
-- Tests: ~270 unit tests total (core ≈ 210); e2e `tests/e2e/core-loop.spec.ts` (start → reload →
+- Tests: 276 unit tests total (core + dev: 249); e2e `tests/e2e/core-loop.spec.ts` (start → reload →
   complete → reload → choose → place → reload; corrupt save backup; addPlants/setState).
 
 ## Why (non-obvious)
@@ -31,7 +31,7 @@ ADRs 0030 (reducer validation + world), 0031 (offers), 0032 (controller), 0033 (
 0034 (validation), 0035 (dev clock jump).
 
 ## Left for others / open questions
-- **UI**: create no actions directly; call the controller (exported from `main.ts` boot, pass it
+- **UI**: create no actions directly; call the controller (created in `main.ts` `boot()`; pass it
   into the UI). Ask notification permission on the first `start`, then
   `controller.updateSettings({ notifications })`. Show "Still with us?" when
   `status().longPause`. Retire `widget` and `pressed` tips with `controller.retireTip`.
