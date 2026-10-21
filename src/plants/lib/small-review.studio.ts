@@ -16,22 +16,21 @@ export const STRIP = [0, 0.06, 0.12, 0.2, 0.3, 0.45, 0.55, 0.65, 0.75, 0.82, 0.9
 const SCALE = 2;
 const paperCache = new Map<string, AnyCanvas>();
 
-function board(canvas: HTMLCanvasElement, pixelRatio: number, draw: (p: ReturnType<typeof createPainter>) => void, meadow = true) {
+function board(canvas: HTMLCanvasElement, pixelRatio: number, draw: (p: ReturnType<typeof createPainter>) => void, ground: 'meadow' | 'water' = 'meadow') {
   const ctx = canvas.getContext('2d')!;
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   const p = createPainter(canvas);
   ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
-  if (meadow) {
-    const h = canvas.height / pixelRatio;
-    const w = canvas.width / pixelRatio;
-    p.wash([{ x: 0, y: h * 0.62 }, { x: w, y: h * 0.6 }, { x: w, y: h }, { x: 0, y: h }], mix(PIGMENTS.sageLight, PIGMENTS.washiDeep, 0.5), {
-      rng: createRng('meadow'),
-      opacity: 0.35,
-      edge: 0.2,
-      fade: { angle: -Math.PI / 2, start: 0.5, amount: 0.8 },
-    });
-  }
+  const h = canvas.height / pixelRatio;
+  const w = canvas.width / pixelRatio;
+  const top = ground === 'water' ? 0.35 : 0.62;
+  p.wash([{ x: 0, y: h * top }, { x: w, y: h * (top - 0.02) }, { x: w, y: h }, { x: 0, y: h }], ground === 'water' ? PIGMENTS.celadon : mix(PIGMENTS.sageLight, PIGMENTS.washiDeep, 0.5), {
+    rng: createRng(ground),
+    opacity: ground === 'water' ? 0.6 : 0.35,
+    edge: 0.2,
+    fade: { angle: -Math.PI / 2, start: 0.5, amount: 0.8 },
+  });
   draw(p);
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   const key = `${canvas.width}x${canvas.height}`;
@@ -91,9 +90,14 @@ function strip(id: string): StudioEntry | null {
     w: Math.round(cw * STRIP.length + w * 0.15),
     h: Math.round(h + 10),
     render(canvas, { seed, pixelRatio }) {
-      board(canvas, pixelRatio, (p) => {
-        STRIP.forEach((g, i) => place(p, def, cw * i, 5, seed, g));
-      });
+      board(
+        canvas,
+        pixelRatio,
+        (p) => {
+          STRIP.forEach((g, i) => place(p, def, cw * i, 5, seed, g));
+        },
+        def.habitats.includes('water') ? 'water' : 'meadow',
+      );
     },
   };
 }
