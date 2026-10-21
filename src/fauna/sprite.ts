@@ -35,7 +35,7 @@ export function paintSprite(res: number, box: SpriteBox, seed: number, paint: (p
  * A softened, cooler copy (seen through deeper water): the sprite drawn small and back up
  * (a cheap blur that works on every canvas), then tinted with a cool glaze over its own pixels.
  */
-export function deepCopy(s: Sprite, res: number, tint: Pigment = PIGMENTS.celadonDeep, tintAlpha = 0.3, blur = 3): Sprite {
+export function deepCopy(s: Sprite, res: number, tint: Pigment = PIGMENTS.celadonDeep, tintAlpha = 0.2, blur = 3): Sprite {
   const W = Math.max(1, Math.ceil(s.w * res));
   const H = Math.max(1, Math.ceil(s.h * res));
   const small = makeCanvas(Math.max(1, W / blur), Math.max(1, H / blur));
