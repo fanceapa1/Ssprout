@@ -42,11 +42,11 @@ export interface MixParams {
 }
 
 /** Overall loudness of the finished mix (master gain into a gentle limiter). Keep it low. */
-export const MASTER_LEVEL = 0.55;
+export const MASTER_LEVEL = 0.8;
 /** Master fade in/out, seconds. Never abrupt. */
 export const FADE_S = 2;
 
-export const BED = { water: 0.05, wind: 0.032, rain: 0.055 } as const;
+export const BED = { water: 0.06, wind: 0.032, rain: 0.055 } as const;
 
 /** Events per minute at full activity (before time-of-day, weather and fauna factors). */
 export const BASE_RATES: Readonly<Record<EventKind, number>> = {
