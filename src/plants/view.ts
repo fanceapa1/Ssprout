@@ -151,8 +151,9 @@ function paintWateringCan(ctx: Ctx2D, L: ReturnType<typeof plantLayout>, t: numb
   const size = Math.min(W, H) * 0.2;
   const enter = smooth(0, 0.2, t) * (1 - smooth(0.82, 1, t));
   const tilt = -0.62 * smooth(0.18, 0.34, t) * (1 - smooth(0.76, 0.88, t));
-  const cx = W + size * 1.2 - enter * (size * 1.2 + W * 0.2);
-  const cy = Math.max(size * 0.9, L.baseY - L.h * 0.78);
+  const restX = Math.min(W - size * 0.7, L.baseX + Math.max(L.w * 0.55, size * 1.6));
+  const cx = W + size * 1.2 - enter * (W + size * 1.2 - restX);
+  const cy = Math.max(size * 0.9, L.baseY - Math.max(L.h * 0.75, size * 2.2));
   const alpha = Math.min(1, enter * 1.4);
 
   ctx.save();
@@ -173,10 +174,13 @@ function paintWateringCan(ctx: Ctx2D, L: ReturnType<typeof plantLayout>, t: numb
     ctx.fillStyle = 'rgba(143,176,171,0.22)';
     ctx.fill();
   }
-  body(0);
-  ctx.strokeStyle = 'rgba(74,68,60,0.55)';
+  // a broken ink contour (lost edges), not a closed vector outline
+  ctx.strokeStyle = 'rgba(74,68,60,0.4)';
   ctx.lineWidth = Math.max(0.8, size * 0.03);
+  ctx.setLineDash([size * 0.5, size * 0.12, size * 0.3, size * 0.2]);
+  body(0);
   ctx.stroke();
+  ctx.setLineDash([]);
   // spout (to the left) and handle
   ctx.beginPath();
   ctx.moveTo(-size * 0.4, size * 0.18);
