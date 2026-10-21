@@ -105,9 +105,10 @@ export function paintReflections(p: Painter, rng: Rng, input: ReflectionInput): 
 
   // boulders: the stone's own silhouette, flipped about its base, darker and cooler
   for (const r of scene.rocks) {
-    const shape = mirror(rockOutline(r, input.seed), r.y);
+    // flipped about the base and a little foreshortened (we look down onto the water)
+    const shape = rockOutline(r, input.seed).map((q) => ({ x: q.x, y: r.y + (r.y - q.y) * 0.72 }));
     const near = (r.y - 450) / 300; // near-edge rocks barely show (their reflection is hidden)
-    L.fill(shape, mix(PIGMENTS.stoneDark, PIGMENTS.celadonDeep, 0.45), 0.3 * (1 - near * 0.6));
+    L.fill(shape, mix(PIGMENTS.stoneDark, PIGMENTS.celadonDeep, 0.45), 0.34 * (1 - near * 0.6));
   }
 
   // the pavilion's posts and deck beam over the lobe

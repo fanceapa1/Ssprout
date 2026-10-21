@@ -4,7 +4,7 @@
  * every frame at its world box, depth-sorted by base y.
  */
 import { createRng } from '../core/rng';
-import { PIGMENTS, createPainter, makeCanvas, mix, type AnyCanvas, type Quality } from '../paint';
+import { PIGMENTS, createPainter, makeCanvas, mix, shade, type AnyCanvas, type Quality } from '../paint';
 import type { Rect } from '../render/viewport';
 import type { Rock } from './geometry';
 import type { TuftSpec } from './layout';
@@ -42,6 +42,8 @@ export function paintRockSprite(r: Rock, seed: number, scale: number, quality: Q
   const { canvas, p } = spriteCanvas(box, scale, `${seed}:${r.id}:paint`, quality);
   const rng = createRng(`${seed}:${r.id}:paint`);
   const far = Math.max(0, Math.min(1, (620 - r.y) / 200));
+  // the darkest small accent of the scene: the cool contact shadow where the boulder sits
+  p.glaze({ cx: r.x + r.w * 0.04, cy: r.y - r.h * 0.02, rx: r.w * 0.5, ry: r.h * 0.09 }, shade(PIGMENTS.stoneDark, 0.35), { rng, opacity: 0.5, deform: 0.15 });
   p.stone(rockOutline(r, seed), {
     rng,
     pigment: atmos(mix(PIGMENTS.stone, PIGMENTS.stoneDark, rng.range(0, 0.4)), far * 0.25),

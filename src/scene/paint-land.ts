@@ -85,7 +85,7 @@ export function paintHills(p: Painter, rng: Rng): void {
     rng,
     deform: 0.02,
     spread: 0.05,
-    opacity: 0.28,
+    opacity: 0.2,
     edge: 0.3,
     edgeWidth: 2,
     sharpness: 0.6,
@@ -196,11 +196,11 @@ export function paintBanks(p: Painter, rng: Rng): void {
     { x: 250, y: 750 },
     { x: 420, y: 760 },
     { x: 560, y: 744 },
-    { x: 640, y: 752 },
-    { x: 684, y: 778 },
-    { x: 694, y: 830 },
-    { x: 676, y: 900 },
-    { x: 640, y: WORLD_H + 60 },
+    { x: 630, y: 750 },
+    { x: 690, y: 772 },
+    { x: 684, y: 820 },
+    { x: 640, y: 900 },
+    { x: 560, y: WORLD_H + 60 },
     { x: -60, y: WORLD_H + 60 },
   ];
   p.wetInWet(nearLeft, mix(PIGMENTS.sageLight, warm, 0.5), mix(PIGMENTS.sageLight, warm, 0.2), {
@@ -220,16 +220,16 @@ export function paintBanks(p: Painter, rng: Rng): void {
     fade: { angle: Math.PI / 2 + 0.6, start: 0.35, amount: 1, ragged: 0.6 },
   });
   const nearRight: Pt[] = [
-    { x: 920, y: 800 },
-    { x: 932, y: 770 },
+    { x: 930, y: 808 },
+    { x: 926, y: 772 },
     { x: 990, y: 752 },
     { x: 1140, y: 762 },
     { x: 1300, y: 746 },
     { x: 1460, y: 764 },
     { x: WORLD_W + 60, y: 772 },
     { x: WORLD_W + 60, y: WORLD_H + 60 },
-    { x: 966, y: WORLD_H + 60 },
-    { x: 928, y: 900 },
+    { x: 1070, y: WORLD_H + 60 },
+    { x: 976, y: 900 },
   ];
   p.wetInWet(nearRight, mix(PIGMENTS.sageLight, warm, 0.5), mix(PIGMENTS.sageLight, warm, 0.2), {
     rng,
@@ -270,10 +270,10 @@ export function paintPath(p: Painter, rng: Rng, stones: readonly Stone[]): void 
     { x: 744, y: 718 },
     { x: 868, y: 720 },
     { x: 892, y: 790 },
-    { x: 902, y: 880 },
-    { x: 936, y: WORLD_H + 40 },
-    { x: 676, y: WORLD_H + 40 },
-    { x: 700, y: 880 },
+    { x: 940, y: 880 },
+    { x: 1040, y: WORLD_H + 40 },
+    { x: 590, y: WORLD_H + 40 },
+    { x: 660, y: 880 },
     { x: 722, y: 790 },
   ];
   p.lift(ground, { rng, amount: 0.35, deform: 0.12, spread: 0.5, sharpness: 0.1, edge: 0, layers: 12 });
