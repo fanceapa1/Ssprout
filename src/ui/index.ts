@@ -209,6 +209,8 @@ export function createUI(deps: UIDeps): UI {
     draft.taskName = '';
     draft.speciesId = null;
     draft.slotId = null;
+    // keyboard users land on the running session's first control, not on <body>
+    panel.render();
     panel.el.querySelector<HTMLElement>('.pause')?.focus({ preventScroll: true });
   }
 

@@ -71,6 +71,13 @@ export function createTimerPanel(ctx: UIContext, actions: TimerPanelActions): Ti
   const keepBtn = h('button.quiet.keep', { type: 'button', onclick: () => closeConfirm() }, 'Keep studying');
   const confirmEndBtn = h('button.quiet.ink.confirm-end', { type: 'button', onclick: () => doCancel() }, 'End');
   const cancelConfirm = h('div.confirm.confirm-cancel', { role: 'group', 'aria-labelledby': 'confirm-cancel-text' }, confirmText, h('div.actions', {}, keepBtn, confirmEndBtn));
+  // Escape steps back out of the question, like closing a dialog
+  cancelConfirm.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && confirm === 'cancel') {
+      e.preventDefault();
+      closeConfirm();
+    }
+  });
 
   const longResume = h('button.seal.long-resume', { type: 'button', onclick: () => controller.resume() }, 'Resume');
   const longEnd = h('button.quiet.long-end', { type: 'button', onclick: () => doCancel() }, 'End session');
