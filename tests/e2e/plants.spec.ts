@@ -149,13 +149,17 @@ test.describe('plants · garden', () => {
 
   test('plant bounds drive the hover label and the plant system stays within budget', async ({ page }) => {
     await openUi(page);
-    await page.evaluate(() => window.sprout!.addPlants(11));
+    const plant = await page.evaluate(() => {
+      window.sprout!.start(25, { speciesId: 'fx-violet', slotId: 'meadow-6', taskName: 'Herbarium notes' });
+      return window.sprout!.completeSession()!;
+    });
     await settle(page);
-    const plant = await page.evaluate(() => window.sprout!.state().plants.find((p) => p.slotId === 'meadow-2')!);
     const b = await page.evaluate((pid) => window.sprout!.plants.bounds(pid)!, plant.id);
     const label = await page.evaluate((p) => window.sprout!.ui.showPlantLabel(p), { x: b.x + b.w / 2, y: b.y + b.h * 0.7 });
-    expect(label).toContain(plant.taskName);
-    await page.evaluate(() => window.sprout!.start(50, { speciesId: 'fx-iris', slotId: 'water-1' }));
+    expect(label).toContain('Herbarium notes');
+    // a busy garden plus a growing plant for the frame budget
+    await page.evaluate(() => window.sprout!.addPlants(30));
+    expect(await page.evaluate(() => window.sprout!.start(50))).not.toBeNull();
     await settle(page);
     await page.evaluate(() => window.sprout!.plants.resetPerf());
     await expect.poll(() => page.evaluate(() => window.sprout!.plants.perf().frames)).toBeGreaterThan(30);
