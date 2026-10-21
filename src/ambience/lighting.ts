@@ -167,8 +167,13 @@ export function pondMask(pond: readonly Pt[], w: number, h: number, scale: numbe
 
 /**
  * Where the lantern's light falls on the water: mirrored about the waterline when that lands on
- * the pond, else the nearest stretch of water to the lantern (a warm spill near the shore).
+ * the pond, else the nearest stretch of water to the lantern (a warm spill near the shore) — but
+ * only when the water comes within `SPILL_REACH` of where the mirror image would be: a lantern
+ * hanging over dry bank has no reflection (the pavilion now stands on the bank, ADR 0122).
  */
+/** How far (world units) the water may be from the lantern's mirror image and still catch its light. */
+const SPILL_REACH = 70;
+
 export function lanternReflection(scene: Pick<SceneGeometry, 'pond' | 'waterline' | 'pavilion'>): Pt | null {
   const { pond, pavilion } = scene;
   if (pond.length < 3) return null;
@@ -191,6 +196,7 @@ export function lanternReflection(scene: Pick<SceneGeometry, 'pond' | 'waterline
       best = p;
     }
   }
+  if (distanceToOutline(mirrored, pond) > SPILL_REACH) return null;
   let cx = 0;
   let cy = 0;
   for (const p of pond) {

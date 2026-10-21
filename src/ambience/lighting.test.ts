@@ -59,10 +59,11 @@ describe('paintGradeWash', () => {
   });
 
   it('the lantern light lies on the water', () => {
-    const refl = lanternReflection(gardenScene)!;
+    const over = { ...gardenScene, pavilion: { ...gardenScene.pavilion, lantern: { x: 800, y: 520 } }, waterline: 560 };
+    const refl = lanternReflection(over)!;
     expect(refl).not.toBeNull();
-    const lit = alphaAt(paint(NAMED_HOURS.night), refl.x, refl.y);
-    const dark = alphaAt(paint(NAMED_HOURS.night, { reflection: null }), refl.x, refl.y);
+    const lit = alphaAt(paint(NAMED_HOURS.night, { lantern: over.pavilion.lantern, reflection: refl }), refl.x, refl.y);
+    const dark = alphaAt(paint(NAMED_HOURS.night, { lantern: over.pavilion.lantern, reflection: null }), refl.x, refl.y);
     expect(lit).toBeLessThan(dark);
   });
 
@@ -90,11 +91,16 @@ describe('pondMask / lanternReflection', () => {
     expect(m[Math.floor(100 * scale) * w + Math.floor(100 * scale)]).toBe(0);
   });
 
-  it('mirrors the lantern when that lands on the water, else spills from the nearest shore', () => {
-    const mirrored = lanternReflection({ ...gardenScene, pavilion: { ...gardenScene.pavilion, lantern: { x: 800, y: 520 } }, waterline: 560 });
+  it('mirrors the lantern when that lands on the water, else spills from a nearby shore, else none', () => {
+    const at = (x: number, y: number) => ({ ...gardenScene, pavilion: { ...gardenScene.pavilion, lantern: { x, y } } });
+    const mirrored = lanternReflection({ ...at(800, 520), waterline: 560 });
     expect(mirrored).toEqual({ x: 800, y: 600 });
-    const spill = lanternReflection(gardenScene)!;
+    const right = gardenScene.pond.reduce((a, q) => (q.x > a.x ? q : a));
+    const spill = lanternReflection(at(right.x + 30, 2 * gardenScene.waterline - right.y))!;
+    expect(spill).not.toBeNull();
     expect(spill.x).toBeGreaterThan(900); // toward the lantern side (right)
+    // the garden's lantern hangs over the bank, well clear of the water: no reflection
+    expect(lanternReflection(gardenScene)).toBeNull();
   });
 });
 
