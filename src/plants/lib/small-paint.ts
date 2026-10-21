@@ -7,7 +7,7 @@
  * cross-faded growth steps read as one plant growing rather than a re-rolled one.
  */
 import type { Rng } from '../../core/rng';
-import { PIGMENTS, mix, shade, type DabVariant, type Painter, type Pigment, type Pt } from '../../paint';
+import { PIGMENTS, lighten, mix, shade, type DabVariant, type Painter, type Pigment, type Pt } from '../../paint';
 import type { SpeciesDef, SpeciesDrawOptions } from '../types';
 import { clamp01, easeOut, ease, lerp, smooth, visible } from './small-growth';
 import { UP, lerpAngle, pathLen, petalPose, subPath, type FlowerView, type PetalPlan } from './small-structure';
@@ -179,7 +179,7 @@ export function paintLeaf(p: Painter, rng: Rng, at: Pt, pose: LeafPose, style: L
   const width = pose.width * e * lerp(0.35, 1, smooth(k));
   const angle = pose.fold !== undefined ? lerpAngle(pose.fold, pose.angle, smooth(k)) : pose.angle;
   const curve = (pose.curve ?? 0) * lerp(0.3, 1, k);
-  const op = (style.opacity ?? 0.75) * lerp(0.55, 1, smooth(k * 2));
+  const op = (style.opacity ?? 0.75) * lerp(0.55, 1, smooth(k * 2)) * smooth(k * 8);
   const side = shadowSide(angle);
   const variant = style.variant ?? 'leaf';
   p.dab(at, style.pigment, {
@@ -195,7 +195,7 @@ export function paintLeaf(p: Painter, rng: Rng, at: Pt, pose: LeafPose, style: L
     basePool: 0.35,
     opacity: op,
   });
-  if (style.shadow !== null && width > 0.6) {
+  if (style.shadow !== null && width > 0.3) {
     const nx = -Math.sin(angle) * side;
     const ny = Math.cos(angle) * side;
     p.dab({ x: at.x + nx * width * 0.2, y: at.y + ny * width * 0.2 }, style.shadow ?? shade(style.pigment, 0.35), {
@@ -209,7 +209,7 @@ export function paintLeaf(p: Painter, rng: Rng, at: Pt, pose: LeafPose, style: L
       pool: 0,
       basePool: 0.25,
       layers: 3,
-      opacity: op * 0.28,
+      opacity: op * 0.28 * smooth((width - 0.3) / 1.5),
       edge: 0.04,
       sharpness: 0.2,
       centreLift: 0,
@@ -481,6 +481,39 @@ export function toothedLeaf(
   });
   if (style.vein && length > 4) {
     p.inkLine(dabAxis(at, angle, length, curve, 6, 0.75), { rng: rng.fork('vein'), width: Math.max(0.2, width * 0.04), pigment: INK_GREEN, opacity: style.vein, breaks: 0.4, wobble: 0.2, taper: [0.05, 0.6] });
+  }
+}
+
+/**
+ * A compound leaf of toothed leaflets (strawberry, anemone) radiating from one point, seen in
+ * perspective and unfolding from a folded bunch as `open` goes 0 → 1.
+ */
+export function leafletFan(
+  p: Painter,
+  rng: Rng,
+  at: Pt,
+  plan: readonly PetalPlan[],
+  view: FlowerView,
+  open: number,
+  size: number,
+  tone: Pigment,
+  o: { vein?: number; width?: number; teeth?: number; toothSize?: number; opacity?: number } = {},
+): void {
+  const poses = plan.map((pl, i) => ({ pl, i, pose: petalPose(pl.a, view, open, 0.75) })).sort((a, b) => a.pose.depth - b.pose.depth);
+  for (const { pl, i, pose } of poses) {
+    toothedLeaf(
+      p,
+      rng.fork(`lf-${i}`),
+      at,
+      { angle: pose.angle, length: size * pl.len * pose.len, width: size * (o.width ?? 0.62) * pl.wid * lerp(0.45, 1, open), curve: pl.curve },
+      {
+        pigment: mix(tone, pl.tone > 0.5 ? lighten(tone, 0.25) : shade(tone, 0.2), Math.abs(pl.tone - 0.5)),
+        teeth: o.teeth ?? 6,
+        toothSize: o.toothSize,
+        vein: (o.vein ?? 0) * open,
+        opacity: o.opacity ?? 0.8,
+      },
+    );
   }
 }
 

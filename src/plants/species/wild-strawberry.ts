@@ -1,8 +1,8 @@
 import type { Rng } from '../../core/rng';
-import { PIGMENTS, jitter, lighten, mix, shade, type Painter, type Pigment, type Pt } from '../../paint';
+import { PIGMENTS, jitter, lighten, mix, type Painter, type Pigment, type Pt } from '../../paint';
 import { ease, easeOut, lerp, smooth, stagger, visible } from '../lib/small-growth';
-import { bloom, groundShadow, paintLeaf, paintStem, plantFrame, seedMound, toothedLeaf } from '../lib/small-paint';
-import { UP, arc, makeStem, petalPose, petalRing, pointAt, stemPoints, subPath, type FlowerView, type PetalPlan, type StemPlan } from '../lib/small-structure';
+import { bloom, groundShadow, leafletFan, paintLeaf, paintStem, plantFrame, seedMound } from '../lib/small-paint';
+import { UP, arc, makeStem, petalRing, pointAt, stemPoints, subPath, type PetalPlan, type StemPlan } from '../lib/small-structure';
 import type { SpeciesDef } from '../types';
 
 /**
@@ -121,21 +121,7 @@ function drawLeaf(p: Painter, rng: Rng, l: Leaf, g: number) {
   const pts = stemPoints(l.stem, lerp(0.12, 1, k) * smooth(k * 3), lerp(0.4, 1, k));
   paintStem(p, rng.fork('stalk'), pts, { width: 0.6, opacity: 0.65, pigment: mix(PIGMENTS.sage, RUNNER, 0.15), ink: 0.25 * k, inkReach: 0.7 });
   const tip = pointAt(pts, 1);
-  leaflets(p, rng.fork('leaflets'), tip, l.leaflets, { tilt: l.tilt, roll: l.roll }, ease(g, lerp(l.window[0], l.window[1], 0.3), l.window[1] + 0.06), l.size * easeOut(k), l.tone, 0.25);
-}
-
-/** Three toothed leaflets unfolding from a folded bunch (`open` 0..1). */
-function leaflets(p: Painter, rng: Rng, at: Pt, plan: PetalPlan[], view: FlowerView, open: number, size: number, tone: Pigment, vein: number) {
-  const poses = plan.map((pl, i) => ({ pl, i, pose: petalPose(pl.a, view, open, 0.75) })).sort((a, b) => a.pose.depth - b.pose.depth);
-  for (const { pl, i, pose } of poses) {
-    toothedLeaf(
-      p,
-      rng.fork(`lf-${i}`),
-      at,
-      { angle: pose.angle, length: size * pl.len * pose.len, width: size * 0.62 * pl.wid * lerp(0.45, 1, open), curve: pl.curve },
-      { pigment: mix(tone, pl.tone > 0.5 ? lighten(tone, 0.25) : shade(tone, 0.2), Math.abs(pl.tone - 0.5)), teeth: 6, vein: vein * open, opacity: 0.8 },
-    );
-  }
+  leafletFan(p, rng.fork('leaflets'), tip, l.leaflets, { tilt: l.tilt, roll: l.roll }, ease(g, lerp(l.window[0], l.window[1], 0.3), l.window[1] + 0.06), l.size * easeOut(k), l.tone, { vein: 0.25 });
 }
 
 function drawFlower(p: Painter, rng: Rng, f: Flower, g: number) {
@@ -212,7 +198,7 @@ function drawRunner(p: Painter, rng: Rng, plan: StrawberryPlan, g: number) {
   if (visible(leaf)) {
     const at = full[10]!;
     paintStem(p, rng.fork('plantlet-stalk'), [at, { x: at.x, y: at.y - 4 * leaf }], { width: 0.4, opacity: 0.6 });
-    leaflets(p, rng.fork('plantlet'), { x: at.x, y: at.y - 4 * leaf }, r.leaflets, { tilt: 0.7, roll: UP }, leaf, 4.5 * leaf, lighten(plan.green, 0.15), 0);
+    leafletFan(p, rng.fork('plantlet'), { x: at.x, y: at.y - 4 * leaf }, r.leaflets, { tilt: 0.7, roll: UP }, leaf, 4.5 * leaf, lighten(plan.green, 0.15));
   }
 }
 
