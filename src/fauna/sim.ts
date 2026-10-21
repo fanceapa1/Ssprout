@@ -79,6 +79,7 @@ export class FaunaSim {
   private nightApplied = false;
   /** simulation seconds (advanced by update; dev `step` and studio presimulation share it) */
   time = 0;
+  private lastId = 0;
   readonly rng: Rng;
 
   constructor(opts: SimOptions) {
@@ -246,6 +247,7 @@ export class FaunaSim {
     });
     for (const c of made) {
       c.forced = forced;
+      c.id = ++this.lastId;
       this.creatures.push(c);
     }
     return made;

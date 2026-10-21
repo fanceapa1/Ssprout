@@ -48,7 +48,8 @@ export interface FaunaWorld {
 }
 
 export interface Creature {
-  readonly id: number;
+  /** unique within its sim (assigned on spawn; also salts per-creature noise) */
+  id: number;
   readonly kind: FaunaKind;
   /** world position: feet / body centre */
   x: number;
@@ -75,7 +76,7 @@ export interface Creature {
 let nextId = 1;
 
 export abstract class BaseCreature implements Creature {
-  readonly id = nextId++;
+  id = nextId++;
   abstract readonly kind: FaunaKind;
   x = 0;
   y = 0;
