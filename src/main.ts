@@ -74,7 +74,6 @@ function boot(): void {
   setPlantViewSpecies(getSpecies);
   const plants = createPlantSystem({ getSpecies });
   void renderer.add(plants);
-  void renderer.add(createPlaceholderBackground());
   void renderer.add(createFauna({ species: getSpecies, debug: dev }));
   renderer.start();
 
