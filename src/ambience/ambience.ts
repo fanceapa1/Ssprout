@@ -91,13 +91,24 @@ export interface Ambience {
   debug(): AmbienceDebug;
 }
 
+const spriteCache = new WeakMap<SceneGeometry, Map<string, Sprites>>();
+
+/** Sprites are immutable: build once per scene + seed. */
+function spritesFor(scene: SceneGeometry, seed: string, layout: Parameters<typeof buildSprites>[1]): Sprites {
+  let bySeed = spriteCache.get(scene);
+  if (!bySeed) spriteCache.set(scene, (bySeed = new Map()));
+  let s = bySeed.get(seed);
+  if (!s) bySeed.set(seed, (s = buildSprites(seed, layout)));
+  return s;
+}
+
 export function createAmbience(opts: AmbienceOptions): Ambience {
   const { scene } = opts;
   const reducedMotion = opts.reducedMotion ?? false;
   const windFn = opts.wind ?? defaultWind;
   const seed = opts.seed ?? 'ambience';
   const pondBox = bounds(scene.pond);
-  const sprites: Sprites = buildSprites(seed, { pondTop: pondBox.y, pondBottom: pondBox.y + pondBox.h });
+  const sprites: Sprites = spritesFor(scene, seed, { pondTop: pondBox.y, pondBottom: pondBox.y + pondBox.h });
   const lighting: LightingCache = createLightingCache(scene, `${seed}-light`);
   const area0 = opts.area ?? { x: 0, y: 0, w: WORLD_W, h: WORLD_H };
   let sim: Sim = createSim(createRng(seed).fork('sim'), { pond: scene.pond, area: area0 });
@@ -286,7 +297,7 @@ export function createAmbience(opts: AmbienceOptions): Ambience {
       if (grade.amount <= 0.004 && grade.lantern <= 0.004 && grade.glow <= 0.004) return;
       ctx.globalCompositeOperation = 'multiply';
       ctx.imageSmoothingEnabled = true;
-      ctx.imageSmoothingQuality = 'high';
+      ctx.imageSmoothingQuality = 'low';
       ctx.drawImage(lighting.canvas as CanvasImageSource, 0, 0, WORLD_W, WORLD_H);
       if (grade.lantern > 0.02) {
         const L = scene.pavilion.lantern;

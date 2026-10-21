@@ -215,8 +215,14 @@ export interface LightingCache {
   paint(g: Grade): void;
 }
 
-/** Build the cache (noise grids and pond mask once per scene). Browser only. */
-export function createLightingCache(scene: SceneGeometry, seed = 'lighting'): LightingCache {
+const fields = new WeakMap<SceneGeometry, Map<string, WashField>>();
+
+/** Noise grids and pond mask for a scene + seed (built once, shared by every cache). */
+function washField(scene: SceneGeometry, seed: string): WashField {
+  let bySeed = fields.get(scene);
+  if (!bySeed) fields.set(scene, (bySeed = new Map()));
+  const known = bySeed.get(seed);
+  if (known) return known;
   const scale = LIGHT.cacheScale;
   const w = Math.ceil(WORLD_W * scale);
   const h = Math.ceil(WORLD_H * scale);
@@ -235,6 +241,14 @@ export function createLightingCache(scene: SceneGeometry, seed = 'lighting'): Li
     lantern: scene.pavilion.lantern,
     reflection: lanternReflection(scene),
   };
+  bySeed.set(seed, field);
+  return field;
+}
+
+/** A lighting cache canvas for a scene (the noise field is shared per scene + seed). Browser only. */
+export function createLightingCache(scene: SceneGeometry, seed = 'lighting'): LightingCache {
+  const field = washField(scene, seed);
+  const { w, h } = field;
   const canvas = makeCanvas(w, h);
   const ctx = canvas.getContext('2d') as CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
   const img = ctx.createImageData(w, h);
