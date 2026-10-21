@@ -69,8 +69,15 @@ async function openWidgetDev(page: Page, query = ''): Promise<void> {
   });
 }
 
-/** Start a session through the core debug API (default plan and plant). */
-const start = (page: Page) => page.evaluate(() => (window.sprout as unknown as { start(): unknown }).start());
+/** Start a session through the core debug API (default total, unbroken plan, first plant). */
+const start = (page: Page) => page.evaluate(() => window.sprout!.start());
+/** Start a 60-minute session whose plan has a break. */
+const startWithBreak = (page: Page) =>
+  page.evaluate(() => {
+    const plan = window.sprout!.plans(60).find((p) => p.blocks.some((b) => b.kind === 'break'));
+    if (!plan) throw new Error('no plan with a break for 60 min');
+    return window.sprout!.start(60, { planId: plan.id, taskName: 'Biology ch. 4' });
+  });
 const away = (page: Page) =>
   page.evaluate(() => {
     window.__vis = 'hidden';
@@ -116,6 +123,33 @@ test.describe('timer surfaces', () => {
     await back(page);
     await expect(page).toHaveTitle('Study Sprout');
     expect(await icon()).toBe(original);
+  });
+
+  test('breaks show in the title and favicon', async ({ page }) => {
+    await stubPageAndNotifications(page);
+    await openWidgetDev(page);
+    await startWithBreak(page);
+    await expect(page).toHaveTitle(/^\d+:\d\d · Study Sprout$/);
+    const focusIcon = await page.evaluate(() => window.sprout!.widget.favicon());
+    expect(await page.evaluate(() => window.sprout!.toBreak())).toBeGreaterThan(0);
+    await expect(page).toHaveTitle(/^Break \d+:\d\d · Study Sprout$/);
+    await expect.poll(() => page.evaluate(() => window.sprout!.widget.favicon())).not.toBe(focusIcon);
+  });
+
+  test('break and back-to-focus notify while the page is in the background', async ({ page }) => {
+    await stubPageAndNotifications(page, 'granted');
+    await openWidgetDev(page);
+    await startWithBreak(page);
+    await away(page);
+    const i = await page.evaluate(() => window.sprout!.toBreak());
+    await expect.poll(() => page.evaluate(() => window.__notes!.map((n) => n.title))).toEqual([
+      expect.stringMatching(/^Time for a break — your .+ is thirsty\.$/),
+    ]);
+    await page.evaluate((next) => window.sprout!.skipToBlock(next), i + 1);
+    await expect.poll(() => page.evaluate(() => window.__notes!.length)).toBe(2);
+    const notes = await page.evaluate(() => window.__notes!);
+    expect(notes[1]!.title).toBe('Back to focus — Biology ch. 4.');
+    expect(new Set(notes.map((n) => n.tag))).toEqual(new Set(['study-sprout-session']));
   });
 
   test('completion notifies when the page is in the background', async ({ page, context }) => {
@@ -227,5 +261,21 @@ test.describe('floating widget', () => {
     await expect(card.locator('button[data-action="open"]')).toBeVisible();
     await page.evaluate(() => window.sprout!.widget.closeHarness());
     await expect(page.locator('#sprout-widget-harness')).toHaveCount(0);
+  });
+  test('in a break the card waters the plant and skips the break', async ({ page }) => {
+    await openWidgetDev(page);
+    await startWithBreak(page);
+    await page.evaluate(() => window.sprout!.widget.mountHarness());
+    const card = page.frameLocator('#sprout-widget-harness');
+    const i = await page.evaluate(() => window.sprout!.toBreak());
+    await expect(card.locator('.ss-card')).toHaveAttribute('data-mode', 'break');
+    await expect(card.locator('.ss-state')).toHaveText(/^Break — your .+ is thirsty/);
+    await card.locator('button[data-action="water"]').click();
+    expect(await page.evaluate(() => window.sprout!.state().session?.waterings)).toEqual([i]);
+    expect(await page.evaluate(() => window.sprout!.widget.harnessWatering())).not.toBeNull();
+    await expect(card.locator('.ss-state')).toHaveText(/^Watered — your .+ is resting/);
+    await expect(card.locator('button[data-action="water"]')).toHaveCount(0);
+    await card.locator('button[data-action="skip"]').click();
+    await expect(card.locator('.ss-card')).toHaveAttribute('data-mode', 'focus');
   });
 });
