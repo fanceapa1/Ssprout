@@ -85,6 +85,9 @@ test.describe('core loop', () => {
 
   test('a corrupt save is backed up and the garden starts fresh', async ({ page }) => {
     await openDev(page);
+    // boot may have scheduled a debounced save (e.g. the notification setting synced with the
+    // browser); write it now so pagehide doesn't flush it over the corrupt value
+    await page.evaluate(() => window.sprout!.flush());
     await page.evaluate(() => localStorage.setItem('studysprout:v1', '{"version":1,"plants":[oops'));
     await reloadDev(page);
     expect(await page.evaluate(() => window.sprout!.state().plants)).toEqual([]);
