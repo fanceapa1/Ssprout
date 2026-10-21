@@ -1,5 +1,5 @@
 import { createRng, type Rng } from '../core/rng';
-import type { Painter } from '../paint';
+import { painterFor } from '../paint';
 import { getSpecies } from './registry';
 import type { SpeciesDef } from './types';
 
@@ -65,8 +65,7 @@ function sprite(def: SpeciesDef, seed: number, growth: number, w: number, h: num
   const c = makeCanvas(w, h);
   const ctx = c?.getContext('2d') as Ctx2D | null | undefined;
   if (!c || !ctx) return null;
-  const painter: Painter = { ctx, w, h };
-  def.draw(painter, createRng(seed).fork(def.id), { w, h, growth });
+  def.draw(painterFor(ctx, { seed }), createRng(seed).fork(def.id), { w, h, growth });
   sprites.set(key, c);
   if (sprites.size > SPRITE_CACHE_MAX) sprites.delete(sprites.keys().next().value!);
   return c;
