@@ -78,7 +78,7 @@ export const SIZES = {
   strider: 13,
   leaf: 14,
   dragonfly: 30,
-  koi: 54,
+  koi: 60,
   butterfly: 24,
   swallowtail: 30,
   bee: 7,

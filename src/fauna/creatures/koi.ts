@@ -4,7 +4,7 @@
  * sink again (softer, cooler). Painted body strip + fins, composed along the spine each frame.
  */
 import type { Rng } from '../../core/rng';
-import { blob, lighten, mix, PIGMENTS, shade, type Painter, type Pigment } from '../../paint';
+import { blob, jitter, lighten, mix, PIGMENTS, shade, smoothPolygon, type Painter, type Pigment } from '../../paint';
 import type { LayerId } from '../../render/types';
 import type { Pt } from '../../render/viewport';
 import {
@@ -26,26 +26,40 @@ import { deepCopy, drawSprite, paintSprite, type Sprite } from '../sprite';
 import { FAUNA_TUNING, SIZES, SPEEDS } from '../tuning';
 import { BaseCreature, type Ctx, type FaunaWorld } from '../types';
 
-export type KoiPattern = 'kohaku' | 'sanke' | 'tancho' | 'yamabuki' | 'hariwake';
-export const KOI_PATTERNS: readonly KoiPattern[] = ['kohaku', 'yamabuki', 'sanke', 'tancho', 'hariwake'];
+export type KoiPattern = 'kohaku' | 'sanke' | 'yamabuki' | 'showa' | 'asagi';
+/** Classic varieties, in the order the pond's koi take them (the first is usually a kohaku). */
+export const KOI_PATTERNS: readonly KoiPattern[] = ['kohaku', 'yamabuki', 'sanke', 'showa', 'asagi'];
+export const KOI_NAMES: Record<KoiPattern, string> = {
+  kohaku: 'Kohaku',
+  sanke: 'Sanke',
+  yamabuki: 'Yamabuki ogon',
+  showa: 'Showa',
+  asagi: 'Asagi',
+};
 
 /** Body length share (the caudal fin is a separate part) and half width. */
-const BODY = 0.8;
-const HALF_W = 0.115;
+const BODY = 0.78;
+const HALF_W = 0.11;
 /** spine segments the body strip is cut into */
 const SEGMENTS = 9;
 /** koi are drawn a little less foreshortened than the pond plane (they'd read as slivers) */
 const DRAW_SQUASH = 0.62;
+/** where the pectoral fins sit along the body */
+const FIN_AT = 0.2;
 
-/** Body half-width profile along the body (s: 0 = snout … 1 = tail root), as a fraction of HALF_W. */
+/**
+ * Body half-width along the body (s: 0 = snout … 1 = tail root), as a fraction of HALF_W: a
+ * broad, rounded head, the widest point a third of the way back, a long torpedo taper.
+ */
 export function koiProfile(s: number): number {
-  const nose = Math.sqrt(clamp(s / 0.09, 0, 1));
-  const body = s < 0.32 ? 0.72 + 0.28 * Math.sin((s / 0.32) * (Math.PI / 2)) : 1 - 0.8 * ((s - 0.32) / 0.68) ** 1.25;
+  const nose = Math.sqrt(clamp(s / 0.07, 0, 1)) * (0.75 + 0.25 * clamp(s / 0.12, 0, 1));
+  const body = s < 0.34 ? 0.8 + 0.2 * Math.sin((s / 0.34) * (Math.PI / 2)) : 1 - 0.78 * ((s - 0.34) / 0.66) ** 1.35;
   return nose * body;
 }
 
 export interface KoiParts {
   len: number;
+  pattern: KoiPattern;
   body: Sprite;
   bodyDeep: Sprite;
   tail: Sprite;
@@ -59,8 +73,8 @@ function bodyPolygon(len: number): Pt[] {
   const hw = len * HALF_W;
   const top: Pt[] = [];
   const bottom: Pt[] = [];
-  for (let i = 0; i <= 28; i++) {
-    const s = i / 28;
+  for (let i = 0; i <= 30; i++) {
+    const s = i / 30;
     const w = hw * koiProfile(s);
     top.push({ x: s * lb, y: -w });
     bottom.push({ x: s * lb, y: w });
@@ -68,29 +82,129 @@ function bodyPolygon(len: number): Pt[] {
   return [...top, ...bottom.reverse()];
 }
 
-interface Palette {
-  base: Pigment;
-  patch: Pigment | null;
-  ink: boolean;
-  head: boolean;
-  fin: Pigment;
+const RED = mix(PIGMENTS.vermilion, '#c45a3e', 0.3);
+const GOLD = mix(PIGMENTS.gold, '#e0a85a', 0.35);
+const SUMI = mix(PIGMENTS.sumi, '#2f3438', 0.3);
+const ASAGI_BACK = mix(PIGMENTS.bellflower, PIGMENTS.stone, 0.55);
+const ASAGI_BELLY = mix(PIGMENTS.vermilion, PIGMENTS.gold, 0.45);
+
+/** Base colour and fin tint per variety. */
+function palette(pattern: KoiPattern): { base: Pigment; fin: Pigment } {
+  switch (pattern) {
+    case 'yamabuki':
+      return { base: GOLD, fin: lighten(GOLD, 0.2) };
+    case 'asagi':
+      return { base: ASAGI_BELLY, fin: mix(PIGMENTS.petalWhite, ASAGI_BELLY, 0.35) };
+    case 'showa':
+      return { base: PIGMENTS.petalWhite, fin: mix(PIGMENTS.petalWhite, PIGMENTS.stone, 0.25) };
+    default:
+      return { base: PIGMENTS.petalWhite, fin: PIGMENTS.petalWhite };
+  }
 }
 
-function palette(pattern: KoiPattern): Palette {
-  const white = PIGMENTS.petalWhite;
-  const red = mix(PIGMENTS.vermilion, '#c45a3e', 0.3);
-  const gold = mix(PIGMENTS.gold, '#e0a85a', 0.35);
-  switch (pattern) {
-    case 'kohaku':
-      return { base: white, patch: red, ink: false, head: false, fin: lighten(white, 0.02) };
-    case 'sanke':
-      return { base: white, patch: red, ink: true, head: false, fin: white };
-    case 'tancho':
-      return { base: white, patch: red, ink: false, head: true, fin: white };
-    case 'yamabuki':
-      return { base: gold, patch: null, ink: false, head: false, fin: lighten(gold, 0.18) };
-    case 'hariwake':
-      return { base: white, patch: gold, ink: false, head: false, fin: lighten(gold, 0.25) };
+interface Spot {
+  s: number;
+  dy: number;
+  rx: number;
+  ry: number;
+}
+
+/** Wet-in-wet pattern patches inside the body, each set merging in one drying pass. */
+function patches(p: Painter, rng: Rng, poly: Pt[], len: number, pigment: Pigment, spots: Spot[], opts: { alpha?: number; over?: boolean } = {}): void {
+  const lb = len * BODY;
+  const hw = len * HALF_W;
+  const L = p.layer({ x: -3, y: -hw - 3, w: lb + 6, h: hw * 2 + 6 });
+  L.clip(poly);
+  for (const q of spots) {
+    const shape = blob(q.s * lb, q.dy * hw, q.rx * lb, q.ry * hw, rng, { irregularity: 0.3, points: 22 });
+    for (let k = 0; k < 4; k++) L.fill(shape, jitter(pigment, rng, 0.03), (opts.alpha ?? 0.92) / 4 + 0.04);
+  }
+  L.dry({ opacity: 0.9, edge: 0.42, edgeWidth: 1.2, sharpness: 0.45, centreLift: 0.15, flow: 0.55, flowScale: 6, blend: opts.over ? 'source-over' : 'multiply' });
+}
+
+/** Red patches along the back, kohaku-style: 2–3, broad, wrapping the body, a gap at the tail. */
+function redSpots(rng: Rng, head = true): Spot[] {
+  const out: Spot[] = [];
+  let s = head ? rng.range(0.05, 0.1) : rng.range(0.2, 0.28);
+  const n = rng.int(2, 3);
+  for (let i = 0; i < n && s < 0.8; i++) {
+    const rx = rng.range(0.07, 0.13);
+    out.push({ s: s + rx, dy: rng.range(-0.3, 0.3), rx, ry: rng.range(0.85, 1.4) });
+    s += rx * 2 + rng.range(0.05, 0.13);
+  }
+  return out;
+}
+
+function paintBody(p: Painter, rng: Rng, len: number, pattern: KoiPattern): void {
+  const lb = len * BODY;
+  const hw = len * HALF_W;
+  const poly = bodyPolygon(len);
+  const pal = palette(pattern);
+  const wash = { rng, blend: 'source-over' as const, opacity: 0.94, deform: 0.04, spread: 0.03, edge: 0.35, edgeWidth: 0.9, centreLift: 0.12, granulation: 0.04, flow: 0.25, flowScale: 8 };
+  p.wash(poly, pal.base, wash);
+  if (pattern === 'asagi') {
+    // orange flanks under a blue-grey back, the two bleeding into each other; a pale head
+    patches(p, rng, poly, len, ASAGI_BACK, [{ s: 0.56, dy: 0, rx: 0.44, ry: 0.62 }], { over: true });
+    p.glaze(blob(lb * 0.07, 0, lb * 0.09, hw * 0.75, rng), lighten(ASAGI_BACK, 0.45), { rng, opacity: 0.7, blend: 'source-over' });
+    // the netted scales: tiny broken arcs
+    for (let i = 0; i < 7; i++) {
+      for (let j = -1; j <= 1; j++) {
+        const x = lb * (0.2 + i * 0.085) + (j & 1) * lb * 0.04;
+        const y = j * hw * 0.32;
+        p.inkLine([{ x: x - 1, y: y - 0.9 }, { x: x + 0.4, y }, { x: x - 1, y: y + 0.9 }], { rng, width: 0.25, opacity: 0.22, breaks: 0, pigment: shade(ASAGI_BACK, 0.4) });
+      }
+    }
+  }
+  if (pattern === 'yamabuki') {
+    // soft metallic sheen: a pale lift along the back and on the head
+    p.glaze(blob(lb * 0.45, 0, lb * 0.34, hw * 0.28, rng), lighten(GOLD, 0.45), { rng, opacity: 0.55, blend: 'source-over' });
+    p.glaze(blob(lb * 0.1, 0, lb * 0.1, hw * 0.65, rng), lighten(GOLD, 0.3), { rng, opacity: 0.45, blend: 'source-over' });
+  }
+  if (pattern === 'kohaku' || pattern === 'sanke') patches(p, rng, poly, len, RED, redSpots(rng, pattern === 'kohaku' || rng.chance(0.5)));
+  if (pattern === 'sanke') {
+    const spots = Array.from({ length: rng.int(3, 5) }, () => ({ s: rng.range(0.3, 0.8), dy: rng.range(-0.55, 0.55), rx: rng.range(0.02, 0.04), ry: rng.range(0.2, 0.38) }));
+    patches(p, rng, poly, len, SUMI, spots, { alpha: 0.8 });
+  }
+  if (pattern === 'showa') {
+    // black base patterns wrapping the body (and the head), red and white between
+    patches(p, rng, poly, len, RED, redSpots(rng, true), { over: true });
+    const bands = [{ s: 0.1, dy: 0, rx: 0.1, ry: 1.3 }, ...Array.from({ length: rng.int(3, 4) }, (_, i) => ({ s: 0.3 + i * 0.17 + rng.range(-0.03, 0.03), dy: rng.range(-0.5, 0.5), rx: rng.range(0.06, 0.1), ry: rng.range(0.8, 1.4) }))];
+    patches(p, rng, poly, len, SUMI, bands, { over: true, alpha: 1 });
+  }
+  // continuous dorsal fin along the back: a translucent ridge with a fine ink edge
+  const ridge = smoothPolygon(
+    [
+      { x: lb * 0.3, y: 0 },
+      { x: lb * 0.45, y: -hw * 0.12 },
+      { x: lb * 0.72, y: -hw * 0.07 },
+      { x: lb * 0.8, y: 0 },
+      { x: lb * 0.6, y: hw * 0.06 },
+    ],
+    1,
+  );
+  p.glaze(ridge, shade(pal.base === PIGMENTS.petalWhite ? PIGMENTS.petalShade : pal.base, 0.25), { rng, opacity: 0.4 });
+  p.inkLine(
+    [
+      { x: lb * 0.3, y: rng.range(-0.2, 0.2) },
+      { x: lb * 0.55, y: rng.range(-0.3, 0.3) },
+      { x: lb * 0.8, y: 0 },
+    ],
+    { rng, width: 0.45, opacity: 0.25, breaks: 0.35, wobble: 0.2 },
+  );
+  // the far flank in cool shade
+  const lower = poly.filter((q) => q.y >= 0);
+  p.glaze([{ x: 0, y: 0 }, ...lower.reverse(), { x: lb, y: 0 }], shade(pal.base, 0.35), { rng, opacity: 0.14, fade: -Math.PI / 2 });
+  // eyes set wide on the broad head, and the pair of barbels at the mouth
+  for (const side of [-1, 1]) {
+    p.dab({ x: lb * 0.07, y: side * hw * 0.62 }, PIGMENTS.sumi, { rng, variant: 'round', length: 1.3, width: 1.1, opacity: 0.6, angle: 0 });
+    p.inkLine(
+      [
+        { x: lb * 0.012, y: side * hw * 0.32 },
+        { x: -len * 0.02, y: side * hw * 0.55 },
+        { x: -len * 0.035, y: side * hw * 0.85 },
+      ],
+      { rng, width: 0.32, opacity: 0.45, breaks: 0, taper: [0.05, 0.7], wobble: 0.1 },
+    );
   }
 }
 
@@ -100,101 +214,50 @@ export function paintKoi(res: number, seed: number, pattern: KoiPattern, len: nu
   const lb = len * BODY;
   const hw = len * HALF_W;
   const pad = 3;
-  const body = paintSprite(res, { w: lb + pad * 2, h: hw * 2 + pad * 2, ox: pad, oy: hw + pad }, seed, (p, rng) => {
-    const poly = bodyPolygon(len);
-    p.wash(poly, pal.base, { rng, blend: 'source-over', opacity: 0.94, deform: 0.05, spread: 0.03, edge: 0.35, edgeWidth: 1, centreLift: 0.12, granulation: 0.04, flow: 0.25, flowScale: 8 });
-    if (pal.base !== PIGMENTS.petalWhite) {
-      // a paler head and belly line in self-coloured koi
-      p.glaze(blob(lb * 0.12, 0, lb * 0.12, hw * 0.7, rng), lighten(pal.base, 0.25), { rng, opacity: 0.5, blend: 'source-over' });
-    }
-    if (pal.patch) paintPatches(p, rng, poly, lb, hw, pal, pattern);
-    if (pal.ink) {
-      const L = p.layer({ x: -2, y: -hw - 2, w: lb + 4, h: hw * 2 + 4 });
-      L.clip(poly);
-      const n = rng.int(3, 5);
-      for (let i = 0; i < n; i++) {
-        const sx = rng.range(0.25, 0.8) * lb;
-        const spot = blob(sx, rng.range(-0.6, 0.6) * hw, rng.range(0.025, 0.05) * len, rng.range(0.25, 0.5) * hw, rng, { irregularity: 0.3 });
-        for (let k = 0; k < 3; k++) L.fill(spot, PIGMENTS.sumi, 0.28);
-      }
-      L.dry({ opacity: 0.75, edge: 0.6, edgeWidth: 0.8, flow: 0.4, flowScale: 6 });
-    }
-    // the far flank in cool shade, and a light lift along the back
-    const lower = poly.filter((q) => q.y >= 0);
-    p.glaze([{ x: 0, y: 0 }, ...lower.reverse(), { x: lb, y: 0 }], shade(pal.base, 0.35), { rng, opacity: 0.16, fade: -Math.PI / 2 });
-    // a touch of ink: broken dorsal line and the eyes
-    p.inkLine(
-      [
-        { x: lb * 0.22, y: rng.range(-0.3, 0.3) },
-        { x: lb * 0.5, y: rng.range(-0.4, 0.4) },
-        { x: lb * 0.8, y: 0 },
-      ],
-      { rng, width: 0.5, opacity: 0.22, breaks: 0.5, wobble: 0.2 },
-    );
+  const body = paintSprite(res, { w: lb + pad + len * 0.05, h: hw * 2 + pad * 2, ox: len * 0.05, oy: hw + pad }, seed, (p, rng) => paintBody(p, rng, len, pattern));
+
+  // soft, flowing caudal fin: two long lobes that curl outward, fine rays
+  const tailLen = len * 0.28;
+  const tail = paintSprite(res, { w: tailLen + 4, h: tailLen * 1.3 + 4, ox: 1.5, oy: tailLen * 0.65 + 2 }, seed + 1, (p, rng) => {
+    const finPig = pattern === 'showa' ? mix(pal.fin, SUMI, 0.2) : pal.fin;
     for (const side of [-1, 1]) {
-      p.dab({ x: lb * 0.075, y: side * hw * 0.55 }, PIGMENTS.sumi, { rng, variant: 'round', length: 1.3, width: 1.1, opacity: 0.6, angle: 0 });
+      p.dab({ x: 0, y: 0 }, finPig, { rng, variant: 'petal', angle: side * rng.range(0.24, 0.31), length: tailLen * rng.range(0.92, 1.04), width: tailLen * 0.38, curve: side * 0.26, opacity: 0.55, blend: 'source-over', pool: 0.25, edge: 0.35 });
+    }
+    for (let k = 0; k < 6; k++) {
+      const a = (k / 5 - 0.5) * 1.1;
+      p.inkLine(
+        [
+          { x: 1, y: 0 },
+          { x: Math.cos(a) * tailLen * 0.5, y: Math.sin(a) * tailLen * 0.5 + Math.sign(a) * 0.6 },
+          { x: Math.cos(a) * tailLen * 0.85, y: Math.sin(a) * tailLen * 0.85 + Math.sign(a) * 1.5 },
+        ],
+        { rng, width: 0.22, opacity: 0.12, breaks: 0.3 },
+      );
     }
   });
 
-  const tailLen = len * 0.21;
-  const tail = paintSprite(res, { w: tailLen + 4, h: tailLen * 1.25 + 4, ox: 1.5, oy: tailLen * 0.62 + 2 }, seed + 1, (p, rng) => {
-    for (const side of [-1, 1]) {
-      p.dab({ x: 0, y: 0 }, pal.fin, {
-        rng,
-        variant: 'petal',
-        angle: side * rng.range(0.24, 0.32),
-        length: tailLen * rng.range(0.92, 1.04),
-        width: tailLen * 0.4,
-        curve: side * 0.12,
-        opacity: 0.6,
-        blend: 'source-over',
-        pool: 0.3,
-      });
-    }
-    if (pal.patch && pattern === 'hariwake') p.glaze(blob(tailLen * 0.15, 0, tailLen * 0.2, tailLen * 0.18, rng), pal.patch, { rng, opacity: 0.35 });
+  // long, flowing pectoral fins
+  const finLen = len * 0.22;
+  const fin = paintSprite(res, { w: finLen + 3, h: finLen * 0.85 + 2, ox: 1, oy: finLen * 0.42 + 1 }, seed + 2, (p, rng) => {
+    const finPig = pattern === 'showa' ? mix(pal.fin, SUMI, 0.35) : pal.fin;
+    p.dab({ x: 0, y: 0 }, finPig, { rng, variant: 'petal', angle: 0, length: finLen, width: finLen * 0.6, curve: 0.15, opacity: 0.5, blend: 'source-over', pool: 0.2, edge: 0.35 });
     for (let k = 0; k < 4; k++) {
-      const a = (k / 3 - 0.5) * 0.9;
-      p.inkLine([{ x: 1, y: 0 }, { x: Math.cos(a) * tailLen * 0.8, y: Math.sin(a) * tailLen * 0.8 }], { rng, width: 0.3, opacity: 0.13, breaks: 0.3 });
+      const a = (k / 3 - 0.5) * 0.6;
+      p.inkLine([{ x: 0.5, y: 0 }, { x: Math.cos(a) * finLen * 0.85, y: Math.sin(a) * finLen * 0.85 }], { rng, width: 0.2, opacity: 0.12, breaks: 0.2 });
     }
   });
 
-  const finLen = len * 0.17;
-  const fin = paintSprite(res, { w: finLen + 3, h: finLen * 0.8 + 2, ox: 1, oy: finLen * 0.4 + 1 }, seed + 2, (p, rng) => {
-    p.dab({ x: 0, y: 0 }, pal.fin, { rng, variant: 'petal', angle: 0, length: finLen, width: finLen * 0.62, opacity: 0.5, blend: 'source-over', pool: 0.25 });
-    p.inkLine([{ x: 0.5, y: 0 }, { x: finLen * 0.8, y: rng.range(-1, 1) }], { rng, width: 0.3, opacity: 0.12 });
-  });
-
-  return {
-    len,
-    body,
-    bodyDeep: deepCopy(body, res),
-    tail,
-    tailDeep: deepCopy(tail, res),
-    fin,
-    finDeep: deepCopy(fin, res),
-  };
+  return { len, pattern, body, bodyDeep: deepCopy(body, res), tail, tailDeep: deepCopy(tail, res), fin, finDeep: deepCopy(fin, res) };
 }
 
-function paintPatches(p: Painter, rng: Rng, poly: Pt[], lb: number, hw: number, pal: Palette, pattern: KoiPattern): void {
-  const L = p.layer({ x: -2, y: -hw - 2, w: lb + 4, h: hw * 2 + 4 });
-  L.clip(poly);
-  const patches: { s: number; rx: number; ry: number; dy: number }[] = [];
-  if (pattern === 'tancho') {
-    patches.push({ s: 0.13, rx: 0.07, ry: 0.55, dy: 0 });
-  } else {
-    const n = rng.int(2, 3);
-    let s = rng.range(0.04, 0.14);
-    for (let i = 0; i < n && s < 0.86; i++) {
-      const rx = rng.range(0.08, 0.15);
-      patches.push({ s: s + rx, rx, ry: rng.range(0.8, 1.4), dy: rng.range(-0.35, 0.35) });
-      s += rx * 2 + rng.range(0.05, 0.14);
-    }
-  }
-  for (const q of patches) {
-    const shape = blob(q.s * lb, q.dy * hw, q.rx * lb, q.ry * hw, rng, { irregularity: 0.28, points: 22 });
-    for (let k = 0; k < 4; k++) L.fill(shape, pal.patch!, 0.24);
-  }
-  L.dry({ opacity: 0.88, edge: 0.55, edgeWidth: 1, centreLift: 0.2, flow: 0.45, flowScale: 7 });
+/** A koi laid out straight (snout at x, tail to the right), for the studio varieties sheet. */
+export function drawKoiStraight(ctx: Ctx, parts: KoiParts, x: number, y: number, deep = false): void {
+  const lb = parts.len * BODY;
+  const hw = parts.len * HALF_W;
+  const off = hw * koiProfile(FIN_AT) * 0.75;
+  drawSprite(ctx, deep ? parts.tailDeep : parts.tail, x + lb * 0.93, y, 0);
+  for (const side of [-1, 1]) drawSprite(ctx, deep ? parts.finDeep : parts.fin, x + lb * FIN_AT, y + side * off, side * 0.75, 1, 1, 0.9);
+  drawSprite(ctx, deep ? parts.bodyDeep : parts.body, x, y);
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -256,7 +319,7 @@ export class Koi extends BaseCreature {
     const rng = w.rng;
     this.seed = opts.seed;
     this.pattern = opts.pattern;
-    this.len = SIZES.koi * rng.range(0.86, 1.08);
+    this.len = SIZES.koi * rng.range(0.85, 1.15);
     this.cruise = rangeOf(rng, SPEEDS.koi);
     this.p = opts.at ?? randomPointInside(w.pond.plane, rng, this.margin());
     this.heading = rng.range(0, TAU);
@@ -454,13 +517,13 @@ export class Koi extends BaseCreature {
     drawSprite(ctx, tail, tp.x, tp.y, angle(SEGMENTS - 1) + sweep);
 
     // pectoral fins: paddle slowly, spread wide when gliding
-    const fi = Math.round(SEGMENTS * 0.22);
+    const fi = Math.round(SEGMENTS * FIN_AT);
     const fp = pts[fi]!;
     const fa = angle(fi);
     const spread = this.state === 'glide' ? 1.05 : 0.75;
     for (const side of [-1, 1]) {
       const paddle = 0.22 * Math.sin(t * 1.4 + side * 0.8 + this.wobble);
-      const off = hw * koiProfile(0.22) * 0.75;
+      const off = hw * koiProfile(FIN_AT) * 0.75;
       drawSprite(ctx, fin, fp.x - Math.sin(fa) * off * side, fp.y + Math.cos(fa) * off * side, fa + side * (spread + paddle), 1, 1, 0.9);
     }
 
