@@ -1,4 +1,5 @@
 import type { PlantInstance } from '../core/state';
+import { plantWorldEdges } from '../plants/bounds';
 import type { SpeciesDef } from '../plants/types';
 import type { Pt } from '../render/viewport';
 import type { Slot } from '../scene/geometry';
@@ -19,13 +20,9 @@ export interface PlantLabels {
   dispose(): void;
 }
 
-/** World-space sprite box of a placed plant (same maths as the plant sprites: scale by slot). */
+/** World-space sprite box of a placed plant: exactly the box the plant system draws into. */
 export function plantBox(def: Pick<SpeciesDef, 'size' | 'anchor'>, slot: Pick<Slot, 'x' | 'y' | 'scale'>): { left: number; top: number; right: number; bottom: number } {
-  const w = def.size.w * slot.scale;
-  const hh = def.size.h * slot.scale;
-  const left = slot.x - def.anchor.x * w;
-  const top = slot.y - def.anchor.y * hh;
-  return { left, top, right: left + w, bottom: top + hh };
+  return plantWorldEdges(def, slot);
 }
 
 /** The frontmost plant whose (slightly inset) box contains `p`. */
