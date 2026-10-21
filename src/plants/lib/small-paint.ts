@@ -237,6 +237,8 @@ export interface PetalStyle {
   inner?: Pigment;
   /** how far the inner colour reaches (0..1 of the petal, default 0.5) */
   innerReach?: number;
+  /** width of the inner colour as a fraction of the petal width (default from the reach) */
+  innerWidth?: number;
   /** pigment bled in at the tip */
   tip?: Pigment;
   opacity?: number;
@@ -263,7 +265,7 @@ export function paintPetal(
   p.dabInto(L, at, style.pigment, { ...common, rng: rng.fork('body'), length, width, pool: 0.45, poolSide: shadowSide(pose.angle), basePool: 0.2 });
   if (style.inner) {
     const reach = style.innerReach ?? 0.5;
-    p.dabInto(L, at, style.inner, { ...common, rng: rng.fork('inner'), length: length * reach, width: width * (0.35 + reach * 0.4), pool: 0, basePool: 0.45, layers: 2 });
+    p.dabInto(L, at, style.inner, { ...common, rng: rng.fork('inner'), length: length * reach, width: width * (style.innerWidth ?? 0.35 + reach * 0.4), pool: 0, basePool: 0.45, layers: 2 });
   }
   if (style.tip) {
     const u = { x: Math.cos(pose.angle), y: Math.sin(pose.angle) };
