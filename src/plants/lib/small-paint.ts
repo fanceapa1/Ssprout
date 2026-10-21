@@ -439,3 +439,51 @@ export function stamens(p: Painter, rng: Rng, c: Pt, o: { count: number; length:
     });
   }
 }
+
+/**
+ * A tiny flower (a few world units across) painted in a single wet layer: at that size the
+ * petals' overlaps would only read as dark knots, so they merge wet-in-wet instead. Cheaper
+ * than `petalFlower` (one drying pass per flower) — for forget-me-nots, florets, umbels.
+ */
+export function smallBlossom(
+  p: Painter,
+  rng: Rng,
+  c: Pt,
+  o: {
+    petals: readonly PetalPlan[];
+    view: FlowerView;
+    open: number;
+    size: number;
+    width?: number;
+    pigment: Pigment;
+    inner?: Pigment;
+    opacity?: number;
+    white?: boolean;
+    closedLen?: number;
+  },
+): void {
+  if (o.size < 0.25) return;
+  const r = o.size * 1.5 + 1;
+  const L = p.layer({ x: c.x - r, y: c.y - r, w: r * 2, h: r * 2 });
+  o.petals.forEach((pl, i) => {
+    const pose = petalPose(pl.a, o.view, o.open, o.closedLen ?? 0.5);
+    const length = o.size * pl.len * pose.len;
+    const width = o.size * (o.width ?? 0.75) * pl.wid * lerp(0.6, 1, clamp01(o.open));
+    p.dabInto(L, c, o.pigment, { rng: rng.fork(`b-${i}`), variant: 'petal', angle: pose.angle, length, width, curve: pl.curve, pool: 0.3, basePool: 0.15, layers: 3 });
+    if (o.inner) {
+      p.dabInto(L, c, o.inner, { rng: rng.fork(`i-${i}`), variant: 'petal', angle: pose.angle, length: length * 0.4, width: width * 0.5, pool: 0, basePool: 0.4, layers: 2 });
+    }
+  });
+  L.dry({
+    opacity: o.opacity ?? 0.88,
+    edge: 0.5,
+    edgeWidth: Math.max(0.2, o.size * 0.08),
+    sharpness: 0.7,
+    centreLift: 0.25,
+    granulation: 0.05,
+    flow: 0.3,
+    flowScale: Math.max(2, o.size),
+    darken: o.white ? 0.18 : 0.28,
+    blend: o.white ? 'source-over' : 'multiply',
+  });
+}
