@@ -40,6 +40,17 @@ export function habitatPhrase(habitats: readonly Habitat[]): string {
 export const formatTimer = formatClock;
 
 /** "25 minutes", "1 hour", "1 hour 30 minutes" — for screen readers. */
+/**
+ * A species name inside a sentence: "your japanese iris" reads wrong, "your Japanese iris" right.
+ * Lower-cases the common words, keeps proper adjectives (Japanese).
+ */
+export function inSentence(name: string): string {
+  return name
+    .split(' ')
+    .map((w) => (w === 'Japanese' ? w : w.toLowerCase()))
+    .join(' ');
+}
+
 export function spokenMinutes(minutes: number): string {
   const m = Math.max(0, Math.round(minutes));
   const hours = Math.floor(m / 60);
@@ -100,9 +111,9 @@ export const TIP_PRIORITY: readonly string[] = [
   'task',
   'duration',
   'plan',
+  'notifications',
   'widget',
   'pressed',
-  'notifications',
   'sound',
 ];
 
@@ -126,13 +137,14 @@ export function tipSides(id: string): Side[] {
 }
 
 /**
- * Choose the tips to show: by priority, one per screen region, at most `max` (default 2), and
- * only those whose anchor is currently on screen (`anchorAvailable`).
+ * Choose the tips to show: by priority, one per screen region, at most `max` (default 1: one
+ * quiet note at a time, the rest wait their turn), and only those whose anchor is currently on
+ * screen (`anchorAvailable`).
  */
 export function pickTips<T extends string>(
   active: readonly { id: T; anchor: string }[],
   anchorAvailable: (anchor: string, id: T) => boolean,
-  max = 2,
+  max = 1,
 ): T[] {
   const rank = (id: string) => {
     const i = TIP_PRIORITY.indexOf(id);

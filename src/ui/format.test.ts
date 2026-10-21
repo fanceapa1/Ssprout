@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { crossedMilestone, faunaArrivalLine, formatTimer, habitatPhrase, pickTips, spokenMinutes, TIER_WORDS } from './format';
+import { crossedMilestone, faunaArrivalLine, formatTimer, habitatPhrase, inSentence, pickTips, spokenMinutes, TIER_WORDS } from './format';
 
 const MIN = 60_000;
 
@@ -48,22 +48,32 @@ describe('ui format helpers', () => {
     expect(faunaArrivalLine('unicorn')).toBeNull();
   });
 
+  it('writes species names in a sentence with proper adjectives kept', () => {
+    expect(inSentence('Japanese Iris')).toBe('Japanese iris');
+    expect(inSentence('Red Spider Lily')).toBe('red spider lily');
+  });
+
   describe('pickTips', () => {
     const tip = (id: string) => ({ id, anchor: id });
     const all = ['sound', 'notifications', 'duration', 'task', 'plan', 'swap', 'placement', 'widget', 'mystery'].map(tip);
-    it('orders by priority, one per region, at most two', () => {
-      expect(pickTips(all, () => true)).toEqual(['placement', 'task']);
+    it('shows one tip at a time, the most relevant first', () => {
+      expect(pickTips(all, () => true)).toEqual(['placement']);
       const sheet = ['duration', 'plan', 'task', 'sound'].map(tip);
-      expect(pickTips(sheet, () => true)).toEqual(['task', 'sound']);
+      expect(pickTips(sheet, () => true)).toEqual(['task']);
+      // a fresh garden: the note by Start studying before the speaker's
+      expect(pickTips(['sound', 'notifications'].map(tip), () => true)).toEqual(['notifications']);
+      // during a session: watering, then the floating window, then sound
+      expect(pickTips(['sound', 'widget', 'water'].map(tip), () => true)).toEqual(['water']);
+      expect(pickTips(['sound', 'widget'].map(tip), () => true)).toEqual(['widget']);
     });
     it('skips tips whose anchor is not on screen', () => {
       const idle = ['notifications', 'sound', 'widget'].map(tip);
-      expect(pickTips(idle, (a) => a !== 'widget')).toEqual(['notifications', 'sound']);
+      expect(pickTips(idle, (a) => a !== 'notifications')).toEqual(['widget']);
       expect(pickTips(idle, (a) => a === 'sound')).toEqual(['sound']);
     });
-    it('respects max and ranks unknown ids last', () => {
-      expect(pickTips(all, () => true, 1)).toEqual(['placement']);
-      expect(pickTips([tip('mystery'), tip('sound')], () => true)).toEqual(['sound', 'mystery']);
+    it('can show more (one per region) and ranks unknown ids last', () => {
+      expect(pickTips(all, () => true, 2)).toEqual(['placement', 'task']);
+      expect(pickTips([tip('mystery'), tip('sound')], () => true, 2)).toEqual(['sound', 'mystery']);
     });
   });
 });

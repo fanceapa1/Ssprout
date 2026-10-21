@@ -1,7 +1,7 @@
 import { MINUTE_MS } from '../core/session';
 import type { UIContext } from './context';
 import { fragment, h, setText, show } from './dom';
-import { crossedMilestone, formatTimer, spokenMinutes } from './format';
+import { crossedMilestone, formatTimer, inSentence, spokenMinutes } from './format';
 import { ICONS } from './icons';
 import { createPlanLineSvg, renderPlanLine } from './plan-line';
 import { sessionView, type SessionView } from './session-view';
@@ -124,7 +124,7 @@ export function createTimerPanel(ctx: UIContext, actions: TimerPanelActions): Ti
         if (view === 'paused') ctx.announce('Paused.');
         if ((lastView === 'paused' || lastView === 'longPause') && (view === 'focus' || view === 'break')) ctx.announce('Resumed.');
         if (view === 'longPause') ctx.announce('Still with us? The session is paused.');
-        if (lastView === 'focus' && view === 'break' && v) ctx.announce(`Time for a break — your ${v.plantName.toLowerCase()} is thirsty.`);
+        if (lastView === 'focus' && view === 'break' && v) ctx.announce(`Time for a break — your ${inSentence(v.plantName)} is thirsty.`);
         if (lastView === 'break' && view === 'focus') ctx.announce('Back to focus.');
       }
       if (view === 'idle') confirm = null;
@@ -141,7 +141,7 @@ export function createTimerPanel(ctx: UIContext, actions: TimerPanelActions): Ti
       setText(idleLine, n === 0 ? 'Name a task, choose a plant, and watch it grow while you work.' : n === 1 ? 'One plant is growing in your garden.' : `${n} plants are growing in your garden.`);
     } else {
       setText(taskName, v.taskName);
-      const plantLower = v.plantName.toLowerCase();
+      const plantLower = inSentence(v.plantName);
       if (view === 'break') setText(blockLabel, v.watered ? `Break — your ${plantLower} has had a drink` : `Break — water your ${plantLower}`);
       else if (view === 'focus') setText(blockLabel, v.focusCount > 1 ? `Focus · ${v.focusIndex} of ${v.focusCount}` : 'Focus');
       else setText(blockLabel, 'paused');

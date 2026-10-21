@@ -5,8 +5,9 @@ import { pickTips, tipSides } from './format';
 
 /**
  * Tooltips (SPEC §7): tiny handwritten-feel notes on a faint paper slip with a thin ink leader
- * line to their control. Shown only while relevant and not retired (core `activeTips`), at
- * most two at a time, one per screen region. They never take pointer events. Tips for controls
+ * line to their control. Shown only while relevant and not retired (core `activeTips`), one at
+ * a time — the most relevant (`TIP_PRIORITY`) whose control is in view; the others wait their
+ * turn. They never take pointer events. Tips for controls
  * inside an open sheet render inside that <dialog> (the top layer); with a sheet open, only its
  * controls carry tips.
  */
@@ -71,7 +72,14 @@ export function createTips(ctx: UIContext, opts: { tipContext(): TipContext; res
   const isVisible = (a: HTMLElement | null): a is HTMLElement => {
     if (!a || !a.isConnected || a.closest('[hidden],[inert]')) return false;
     const r = a.getBoundingClientRect();
-    return r.width > 0 && r.height > 0;
+    if (!(r.width > 0 && r.height > 0)) return false;
+    // inside a scrolling sheet: only while the control is actually scrolled into view
+    const scroller = a.closest<HTMLElement>('.sheet-inner');
+    if (scroller) {
+      const s = scroller.getBoundingClientRect();
+      if (r.bottom < s.top + 8 || r.top > s.bottom - 48) return false;
+    }
+    return r.bottom > 0 && r.top < window.innerHeight;
   };
 
   function retire(id: TipId): void {
@@ -220,6 +228,8 @@ export function createTips(ctx: UIContext, opts: { tipContext(): TipContext; res
     raf ??= requestAnimationFrame(layout);
   };
   window.addEventListener('resize', schedule);
+  // a sheet scrolled: notes follow their controls (or step aside when they scroll out of view)
+  document.addEventListener('scroll', schedule, { capture: true, passive: true });
   void document.fonts?.ready.then(schedule);
 
   return {
@@ -228,6 +238,7 @@ export function createTips(ctx: UIContext, opts: { tipContext(): TipContext; res
     visible: () => [...current],
     dispose() {
       window.removeEventListener('resize', schedule);
+      document.removeEventListener('scroll', schedule, { capture: true });
       if (raf !== null) cancelAnimationFrame(raf);
     },
   };

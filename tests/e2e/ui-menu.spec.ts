@@ -5,14 +5,16 @@ import { openUi, plantSession, reloadUi } from './ui-helpers';
 test.describe('ui · menu, tips and data', () => {
   test('tips show near their control, retire when used, and stay listed under ⓘ', async ({ page }) => {
     await openUi(page);
-    // fresh garden: the sound tip sits under the menu
+    // fresh garden: one note at a time — the one by Start studying first; the speaker's waits
+    const startTip = page.locator('.tip[data-tip-id="notifications"]');
+    await expect(startTip).toBeVisible();
     const soundTip = page.locator('.tip[data-tip-id="sound"]');
-    await expect(soundTip).toBeVisible();
-    await expect(soundTip).toContainText('speaker');
-    expect((await page.evaluate(() => window.sprout!.ui.state())).tips.length).toBeLessThanOrEqual(2);
+    await expect(soundTip).toHaveCount(0);
+    expect((await page.evaluate(() => window.sprout!.ui.state())).tips).toEqual(['notifications']);
     // tips never block clicks
     await expect(page.locator('.tips')).toHaveCSS('pointer-events', 'none');
 
+    // using the speaker retires its tip, even while it was still waiting its turn
     await page.getByRole('button', { name: 'Garden sounds' }).click();
     await expect(soundTip).toHaveCount(0);
     expect(await page.evaluate(() => window.sprout!.state().tips.sound)).toBe('seen');

@@ -51,6 +51,8 @@ export function createPlantingSheet(ctx: UIContext, draft: PlantingDraft, action
   });
   task.addEventListener('input', () => {
     draft.taskName = task.value.slice(0, TASK_MAX);
+    // named it: the task tip has done its job, the next one (time) may speak
+    if (draft.taskName.trim()) controller.retireTip('task');
     renderSummary();
   });
   task.addEventListener('keydown', (e) => {
@@ -64,7 +66,10 @@ export function createPlantingSheet(ctx: UIContext, draft: PlantingDraft, action
   const duration = createDurationControl(draft.goalMinutes, (m, committed) => {
     draft.goalMinutes = m;
     refill();
-    if (committed) controller.updateSettings({ lastGoalMinutes: m });
+    if (committed) {
+      controller.updateSettings({ lastGoalMinutes: m });
+      controller.retireTip('duration');
+    }
   });
 
   // ── plan ──
@@ -131,6 +136,7 @@ export function createPlantingSheet(ctx: UIContext, draft: PlantingDraft, action
 
   function selectPlan(id: string): void {
     draft.planId = id;
+    controller.retireTip('plan');
     for (const c of plans.querySelectorAll<HTMLElement>('.plan-card')) {
       const on = c.dataset.planId === id;
       c.setAttribute('aria-checked', String(on));
