@@ -77,6 +77,8 @@ function paintBackdrop(p: Painter, rng: Rng): void {
   }
 }
 
+/** The test garden is the same for every studio seed (reseed varies the effects, not the backdrop). */
+const BACKDROP_SEED = 1;
 const backdrops = new Map<string, AnyCanvas>();
 const papers = new Map<string, AnyCanvas>();
 
@@ -142,15 +144,25 @@ const WHOLE: View = { x: 0, y: 0, w: WORLD_W, h: WORLD_H };
 function composite(canvas: HTMLCanvasElement, amb: Ambience, seed: number, view: View = WHOLE, dest = { x: 0, y: 0, w: canvas.width, h: canvas.height }) {
   const ctx = canvas.getContext('2d')!;
   const k = dest.w / view.w;
-  // the backdrop is painted at the resolution this view needs, then cropped
-  const bw = Math.round(WORLD_W * k);
-  const bh = Math.round(WORLD_H * k);
+  // the backdrop is painted once at half or full world resolution (painting is the slow part)
+  // and cropped/scaled to the view
+  const kb = k <= 0.5 ? 0.5 : 1;
   ctx.save();
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.beginPath();
   ctx.rect(dest.x, dest.y, dest.w, dest.h);
   ctx.clip();
-  ctx.drawImage(backdrop(bw, bh, seed) as CanvasImageSource, view.x * k, view.y * k, dest.w, dest.h, dest.x, dest.y, dest.w, dest.h);
+  ctx.drawImage(
+    backdrop(WORLD_W * kb, WORLD_H * kb, BACKDROP_SEED) as CanvasImageSource,
+    view.x * kb,
+    view.y * kb,
+    view.w * kb,
+    view.h * kb,
+    dest.x,
+    dest.y,
+    dest.w,
+    dest.h,
+  );
   for (const draw of [amb.drawWater, amb.drawAir, amb.drawLighting]) {
     ctx.save();
     ctx.setTransform(k, 0, 0, k, dest.x - view.x * k, dest.y - view.y * k);
