@@ -93,7 +93,8 @@ export interface Ambience {
   light(): { grade: Grade; paints: number };
   drawWater(ctx: Ctx): void;
   drawAir(ctx: Ctx): void;
-  drawLighting(ctx: Ctx): void;
+  /** `alpha` fades the whole grade (the app reveals it once the painting is there) */
+  drawLighting(ctx: Ctx, alpha?: number): void;
   /** current eased level of one channel */
   level(channel: Channel): number;
   debug(): AmbienceDebug;
@@ -327,8 +328,10 @@ export function createAmbience(opts: AmbienceOptions): Ambience {
         }
       }
     },
-    drawLighting(ctx) {
+    drawLighting(ctx, alpha = 1) {
+      if (alpha <= 0.002) return;
       if (grade.amount <= 0.004 && grade.lantern <= 0.004 && grade.glow <= 0.004) return;
+      ctx.globalAlpha = alpha;
       ctx.globalCompositeOperation = 'multiply';
       ctx.imageSmoothingEnabled = true;
       ctx.imageSmoothingQuality = 'low';
@@ -343,7 +346,7 @@ export function createAmbience(opts: AmbienceOptions): Ambience {
         const flicker = 0.88 + 0.12 * (0.5 + 0.5 * Math.sin(flameT * 2.3) * Math.sin(flameT * 3.7 + 1));
         const s = LOOK.flameSize;
         ctx.globalCompositeOperation = 'screen';
-        ctx.globalAlpha = LOOK.flameAlpha * grade.lantern * flicker;
+        ctx.globalAlpha = LOOK.flameAlpha * grade.lantern * flicker * alpha;
         ctx.drawImage(sprites.flame as CanvasImageSource, L.x - s, L.y - s * 1.2, s * 2, s * 2.4);
       }
     },

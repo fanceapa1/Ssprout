@@ -114,8 +114,11 @@ function boot(): void {
     installPlantsDebug(plants);
   }
   const ambience = addAmbience(renderer, { dev: speedClock !== null });
-  // the DOM slips and paper dabs follow the garden's light (ADR 0121)
-  ambience.onLight((grade) => applyUiLight(uiRoot, grade));
+  // the time-of-day wash eases in once the landscape is painted (never on bare paper), and the
+  // DOM slips and paper dabs follow the garden's light from then on (ADR 0121)
+  const painted = renderer.whenReady();
+  ambience.revealLightAfter(painted);
+  void painted.then(() => ambience.onLight((grade) => applyUiLight(uiRoot, grade)));
 }
 
 boot();

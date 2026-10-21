@@ -24,7 +24,15 @@ export interface AmbienceSystem extends System {
   debug(): (AmbienceDebug & { ms: number; timeOverride: number | null }) | null;
   /** called with the time-of-day grade whenever the lighting repaints (e.g. to tint the DOM UI) */
   onLight(fn: (grade: Grade) => void): () => void;
+  /**
+   * Keep the time-of-day wash off until `ready` resolves (the landscape is painted), then ease
+   * it in — on a first load at night the indigo wash and lantern otherwise float on bare paper.
+   */
+  revealLightAfter(ready: Promise<unknown>): void;
 }
+
+/** Seconds the lighting takes to ease in once revealed. */
+const LIGHT_REVEAL_S = 1.4;
 
 export interface AmbienceSystemOptions {
   seed?: string;
@@ -43,6 +51,10 @@ export function createAmbienceSystem(opts: AmbienceSystemOptions = {}): Ambience
   let frameMs = 0;
   const lightListeners = new Set<(grade: Grade) => void>();
   let lightPaints = -1;
+  /** 0..1 how much of the lighting shows; `revealing` while it eases in */
+  let reveal = 1;
+  let revealing = false;
+  let reducedMotion = false;
   const now = () => (typeof performance !== 'undefined' ? performance.now() : 0);
 
   const timed = (fn: () => void) => {
@@ -55,6 +67,7 @@ export function createAmbienceSystem(opts: AmbienceSystemOptions = {}): Ambience
     id: 'ambience',
     init(ctx) {
       store = ctx.store;
+      reducedMotion = ctx.reducedMotion;
       if (!engine || engineScene !== ctx.scene) {
         engine = createAmbience({ scene: ctx.scene, reducedMotion: ctx.reducedMotion, seed: opts.seed, area: ctx.viewport.visible });
         engine.preview = preview;
@@ -67,6 +80,10 @@ export function createAmbienceSystem(opts: AmbienceSystemOptions = {}): Ambience
       if (!engine || !store) return;
       ms = ms * 0.95 + frameMs * 0.05;
       frameMs = 0;
+      if (revealing) {
+        reveal = reducedMotion || f.dt === 0 ? 1 : Math.min(1, reveal + f.dt / LIGHT_REVEAL_S);
+        if (reveal >= 1) revealing = false;
+      }
       const e = engine;
       const state = store.get();
       const phase = sessionPhase(state, f.now);
@@ -90,7 +107,7 @@ export function createAmbienceSystem(opts: AmbienceSystemOptions = {}): Ambience
       if (!e) return;
       if (layer === 'waterSurface') timed(() => e.drawWater(ctx));
       else if (layer === 'ambience') timed(() => e.drawAir(ctx));
-      else if (layer === 'lighting') timed(() => e.drawLighting(ctx));
+      else if (layer === 'lighting') timed(() => e.drawLighting(ctx, reveal * reveal * (3 - 2 * reveal)));
     },
     setTime(value) {
       timeOverride = parseTimeOverride(value);
@@ -108,9 +125,20 @@ export function createAmbienceSystem(opts: AmbienceSystemOptions = {}): Ambience
     },
     settle() {
       engine?.settle();
+      if (revealing) {
+        reveal = 1;
+        revealing = false;
+      }
     },
     debug() {
       return engine ? { ...engine.debug(), ms, timeOverride } : null;
+    },
+    revealLightAfter(ready) {
+      reveal = 0;
+      revealing = false;
+      void ready.then(() => {
+        revealing = true;
+      });
     },
     onLight(fn) {
       lightListeners.add(fn);
