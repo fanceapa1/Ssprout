@@ -10,7 +10,7 @@ ADR numbering ranges (to avoid collisions in parallel work):
 
 | Phase | Task | Area (owned paths) | Status |
 |---|---|---|---|
-| 1 | Foundation: repo, tooling, CI/Pages, render skeleton, contracts as code | root config, `src/render`, `src/main.ts`, stubs | todo |
+| 1 | Foundation: repo, tooling, CI/Pages, render skeleton, contracts as code, studio page | root config, `src/render`, `src/studio`, `src/main.ts`, stubs | done |
 | 2 | Watercolour paint engine + gallery page | `src/paint`, `gallery.html` | todo |
 | 2 | Core logic (session, rewards, state, persistence, unlocks, tips) + unit tests | `src/core` | todo |
 | 3 | Painted landscape scene + geometry + slots | `src/scene` | todo |
