@@ -22,7 +22,9 @@ const stub = (id: string, extra: Partial<SpeciesDef> = {}): { default: SpeciesDe
 describe('species registry', () => {
   it('discovers species files', () => {
     expect(allSpecies().length).toBeGreaterThan(0);
-    expect(getSpecies('placeholder-sprout')?.tier).toBe(1);
+    expect(getSpecies('white-clover')?.tier).toBe(1);
+    // the placeholder is a test fixture (src/dev), never a plant the player can pick
+    expect(getSpecies('placeholder-sprout')).toBeUndefined();
     expect(getSpecies('nope')).toBeUndefined();
   });
 

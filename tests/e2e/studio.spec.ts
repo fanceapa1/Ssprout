@@ -24,7 +24,7 @@ test.describe('studio', () => {
     await openStudio(page);
     const entries = await page.evaluate(() => window.studio!.entries);
     expect(entries.length).toBeGreaterThan(0);
-    expect(entries).toEqual(expect.arrayContaining(['scene/full', 'species-placeholder-sprout/growth-1']));
+    expect(entries).toEqual(expect.arrayContaining(['scene/full', 'species-white-clover/growth-1']));
     await expect(page.locator('canvas[data-entry]')).toHaveCount(entries.length);
     expect(await page.evaluate(() => window.studio!.errors)).toEqual([]);
     expect(await blankCanvases(page)).toEqual([]);

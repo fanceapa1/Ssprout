@@ -6,7 +6,7 @@ async function plantGarden(page: Page, n: number) {
   await page.evaluate((count) => {
     const plants = Array.from({ length: count }, (_, i) => ({
       id: `fauna-test-${i}`,
-      speciesId: 'placeholder-sprout',
+      speciesId: 'white-clover',
       slotId: `fauna-test-slot-${i}`,
       seed: 100 + i,
       plantedAt: 0,

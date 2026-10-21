@@ -2,12 +2,17 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { FakeCanvas, installFakeOffscreenCanvas } from './test-canvas';
 import { GROWTH_STEPS, plantLayout, quantiseGrowth, renderPlantView, setPlantViewSpecies } from './view';
 import type { SpeciesDef } from './types';
+import { placeholderSprout } from '../dev/placeholder-sprout';
 
 let restore: () => void;
 beforeAll(() => {
   restore = installFakeOffscreenCanvas();
+  setPlantViewSpecies((id) => (id === placeholderSprout.id ? placeholderSprout : undefined));
 });
-afterAll(() => restore());
+afterAll(() => {
+  setPlantViewSpecies(null);
+  restore();
+});
 
 const target = (w = 200, h = 160) => new FakeCanvas(w, h);
 const asCanvas = (c: FakeCanvas) => c as unknown as HTMLCanvasElement;

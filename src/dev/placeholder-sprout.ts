@@ -1,10 +1,11 @@
-import type { SpeciesDef } from '../types';
+import type { SpeciesDef } from '../plants/types';
 
 /**
- * PLACEHOLDER species so the registry is never empty during early development.
- * Drawn with plain canvas calls; replaced once real species and the paint engine exist.
+ * TEST FIXTURE: a trivial two-leaf sprout drawn with plain canvas calls — cheap to paint, so unit
+ * tests (plant view, widget) can render "a species" without the watercolour engine. Not in the
+ * player-facing registry (`src/plants/species/`); `?dev&fixtures` adds it with the `fx-*` species.
  */
-const placeholderSprout: SpeciesDef = {
+export const placeholderSprout: SpeciesDef = {
   id: 'placeholder-sprout',
   name: 'Sprout',
   tier: 1,
@@ -40,4 +41,3 @@ const placeholderSprout: SpeciesDef = {
   },
 };
 
-export default placeholderSprout;

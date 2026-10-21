@@ -18,7 +18,7 @@ import { widgetView } from './view';
  * fonts, so card entries are animated (they repaint once the fonts have loaded).
  */
 
-const SPECIES = allSpecies()[0]?.id ?? 'placeholder-sprout';
+const SPECIES = allSpecies()[0]?.id ?? 'white-clover';
 const speciesName = (id: string) => allSpecies().find((s) => s.id === id)?.name;
 const layers = new WeakMap<HTMLCanvasElement, HTMLCanvasElement>();
 const layerFor = (c: HTMLCanvasElement) => {

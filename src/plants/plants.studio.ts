@@ -23,7 +23,7 @@ const fixtures = new Map(FIXTURE_SPECIES.map((s) => [s.id, s]));
 setPlantViewSpecies((id) => fixtures.get(id));
 const lookup = (id: string): SpeciesDef | undefined => getSpecies(id) ?? fixtures.get(id);
 
-const real = allSpecies().filter((s) => s.id !== 'placeholder-sprout');
+const real = allSpecies();
 /** a few contrasting plants for the watering/wither reviews: real ones first, fixtures to fill */
 const showcase: string[] = [...real.map((s) => s.id), 'fx-iris', 'fx-bellflower', 'fx-hydrangea', 'fx-violet', 'fx-cherry'].slice(0, 5);
 

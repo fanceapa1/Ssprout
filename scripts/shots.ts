@@ -6,7 +6,7 @@
  *   npm run shots -- --eval "await sprout.addPlants(20)" --name full
  *   npm run shots -- --viewports 390x844             only some viewports (or: desktop,hd,mobile)
  *   npm run shots -- --studio                        the whole studio (full page)
- *   npm run shots -- --studio species-placeholder-sprout
+ *   npm run shots -- --studio species-white-clover
  *   npm run shots -- --entry scene/full
  *   npm run shots -- --url http://localhost:5173/Ssprout/   use a running server
  *
