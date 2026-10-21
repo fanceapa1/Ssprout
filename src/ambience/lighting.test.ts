@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { gardenScene } from '../scene/geometry';
-import { lanternReflection, paintGradeWash, pondMask, type WashField } from './lighting';
+import { pointInPolygon } from '../paint/geometry';
+import { awayFromShore, lanternReflection, paintGradeWash, pondMask, type WashField } from './lighting';
 import { gradeAt, NAMED_HOURS } from './timeofday';
 
 const scale = 0.1; // 160 × 100 px
@@ -94,5 +95,16 @@ describe('pondMask / lanternReflection', () => {
     expect(mirrored).toEqual({ x: 800, y: 600 });
     const spill = lanternReflection(gardenScene)!;
     expect(spill.x).toBeGreaterThan(900); // toward the lantern side (right)
+  });
+});
+
+describe('awayFromShore', () => {
+  it('moves a point hugging the shore onto open water, leaves open water alone', () => {
+    const pond = gardenScene.pond;
+    const edge = { x: 1352, y: 612 }; // the pavilion lobe, right at its rim
+    const moved = awayFromShore(edge, pond);
+    expect(moved.x).toBeLessThan(edge.x);
+    expect(pointInPolygon(moved, pond)).toBe(true);
+    expect(awayFromShore({ x: 800, y: 580 }, pond)).toEqual({ x: 800, y: 580 });
   });
 });

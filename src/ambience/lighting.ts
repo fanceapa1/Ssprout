@@ -29,7 +29,7 @@ export const LIGHT = {
   /** reflection streak half-size on the pond (world units) */
   reflectW: 13,
   reflectH: 46,
-  reflectLift: 0.55,
+  reflectLift: 0.45,
   /** backruns: noise threshold and how much they lift / pool */
   bloomAt: 0.66,
   bloomLift: 0.05,
@@ -174,7 +174,7 @@ export function lanternReflection(scene: Pick<SceneGeometry, 'pond' | 'waterline
   if (pond.length < 3) return null;
   const L = pavilion.lantern;
   const mirrored = { x: L.x, y: 2 * scene.waterline - L.y };
-  if (pointInPolygon(mirrored, pond)) return mirrored;
+  if (pointInPolygon(mirrored, pond)) return awayFromShore(mirrored, pond, LIGHT.reflectW * 2.5, pavilion);
   // nearest point on the outline, nudged inward toward the pond centre
   let best: Pt = pond[0]!;
   let bestD = Infinity;
@@ -205,6 +205,42 @@ export function lanternReflection(scene: Pick<SceneGeometry, 'pond' | 'waterline
   const inset = Math.min(40, len * 0.5);
   const p = { x: best.x + (dx / len) * inset, y: best.y + (dy / len) * inset };
   return pointInPolygon(p, pond) ? p : null;
+}
+
+/** Distance from `p` to the closest point of a closed outline. */
+function distanceToOutline(p: Pt, poly: readonly Pt[]): number {
+  let best = Infinity;
+  for (let i = 0; i < poly.length; i++) {
+    const a = poly[i]!;
+    const b = poly[(i + 1) % poly.length]!;
+    const abx = b.x - a.x;
+    const aby = b.y - a.y;
+    const t = clamp01(((p.x - a.x) * abx + (p.y - a.y) * aby) / (abx * abx + aby * aby || 1));
+    best = Math.min(best, Math.hypot(a.x + abx * t - p.x, a.y + aby * t - p.y));
+  }
+  return best;
+}
+
+/** Keep the light's streak on open water: step a mirrored point toward the pond's middle if it hugs the shore. */
+export function awayFromShore(p: Pt, pond: readonly Pt[], clearance = LIGHT.reflectW * 2.5, avoid?: { x: number; y: number; w: number; h: number }): Pt {
+  let cx = 0;
+  let cy = 0;
+  for (const q of pond) {
+    cx += q.x;
+    cy += q.y;
+  }
+  cx /= pond.length;
+  cy /= pond.length;
+  const len = Math.hypot(cx - p.x, cy - p.y) || 1;
+  let out = p;
+  // water hidden under the building (its box, plus the reflection's half-width) does not count
+  const hidden = (q: Pt) => !!avoid && q.x > avoid.x - LIGHT.reflectW * 1.5 && q.y < avoid.y + avoid.h + LIGHT.reflectH * 0.5;
+  for (let step = 0; step < 40 && (distanceToOutline(out, pond) < clearance || hidden(out)); step++) {
+    const next = { x: out.x + ((cx - p.x) / len) * 6, y: out.y + ((cy - p.y) / len) * 6 };
+    if (!pointInPolygon(next, pond)) break;
+    out = next;
+  }
+  return out;
 }
 
 export interface LightingCache {
