@@ -12,7 +12,7 @@ ADR numbering ranges (to avoid collisions in parallel work):
 |---|---|---|---|
 | 1 | Foundation: repo, tooling, CI/Pages, render skeleton, contracts as code, studio page | root config, `src/render`, `src/studio`, `src/main.ts`, stubs | done |
 | 2 | Watercolour paint engine + gallery page | `src/paint`, `gallery.html` | todo |
-| 2 | Core logic (session, rewards, state, persistence, unlocks, tips) + unit tests | `src/core` | todo |
+| 2 | Core logic (session, rewards, state, persistence, unlocks, tips, controller) + unit tests | `src/core`, `src/dev/core-debug.ts` | done |
 | 3 | Painted landscape scene + geometry + slots | `src/scene` | todo |
 | 3 | UI shell: timer panel, reward picker, placement, menu, dev API, e2e | `src/ui`, `src/dev`, `tests/e2e` | todo |
 | 3 | **First playable → deploy to Pages** | — | todo |
