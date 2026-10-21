@@ -284,6 +284,15 @@ creation, `setSpeed(n)` without jumps, `advance(ms)` dev jump — ADR 0035); `cr
 fork(label) }`. `int` is inclusive; `shuffle` returns a copy; `fork` derives from the stream's
 *seed* + label, not its position (ADR 0012).
 
+### Wind field (`src/ambience/wind.ts`, ADR 0083)
+```ts
+export function wind(t: number, x: number, y: number, boost?: number /* 0..1 */): { sway: number /* -1..1, + = toward +x */; gust: number /* 0..1 */ };
+export function windBoost(phase: SessionPhase): number; // focus 1, break 0.5, else 0
+```
+Pure, fixed seed (`createWind(seed)` for others); gust fronts travel toward +x. Plants use `sway`
+for their skew, fauna may use both. Ambience/lighting dev hooks and internals:
+`docs/systems/ambience.md` (`setTime`, `setWeather`, `settleAmbience()`, `ambience()`).
+
 ### Shared helpers
 `Pt` lives in `src/render/viewport.ts` (re-exported from `scene/geometry.ts`).
 `src/plants/types.ts` also exports `TIERS`, `HABITATS`, `SIZE_CLASSES`, `fitsSize()`, `reflects()`.
@@ -291,8 +300,8 @@ fork(label) }`. `int` is inclusive; `shuffle` returns a copy; `fork` derives fro
 ## Dev / test hooks (`src/dev/`)
 Enabled by `?dev` query param. `?speed=60` → clock runs 60× (also `window.sprout.setSpeed`).
 `window.sprout` exposes: `state()`, `reset()`, `seed(n)`, `completeSession()`,
-`addPlants(n, tier?)`, `setTime('morning'|'noon'|'evening'|'night'|null)`,
-`setWeather(w)`, `freeze()` (stop animation for stable screenshots).
+`addPlants(n, tier?)`, `setTime('morning'|'noon'|'evening'|'dusk'|'night'|hour|null)`,
+`setWeather('sun'|'rain'|'mist'|null)`, `freeze()` (stop animation for stable screenshots).
 E2E tests must use these instead of sleeping.
 
 Implemented by the foundation: `state()`, `ready()` (resolves when all systems are
