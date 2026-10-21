@@ -60,7 +60,7 @@ entry id works when unique) · `?seed=n` · `?t=seconds` (start paused at t) · 
 ```
 npm run shots -- --studio                         # whole studio, full page
 npm run shots -- --studio species-placeholder-sprout
-npm run shots -- --entry scene-placeholder/background --seed 7 --t 2.5
+npm run shots -- --entry scene/full --seed 7 --t 2.5
 ```
 
 ## Tests

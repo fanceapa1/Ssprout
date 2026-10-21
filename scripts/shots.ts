@@ -7,7 +7,7 @@
  *   npm run shots -- --viewports 390x844             only some viewports (or: desktop,hd,mobile)
  *   npm run shots -- --studio                        the whole studio (full page)
  *   npm run shots -- --studio species-placeholder-sprout
- *   npm run shots -- --entry scene-placeholder/background
+ *   npm run shots -- --entry scene/full
  *   npm run shots -- --url http://localhost:5173/Ssprout/   use a running server
  *
  * Without --url a Vite dev server is started on a free port and stopped afterwards.

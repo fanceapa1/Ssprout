@@ -24,7 +24,7 @@ test.describe('studio', () => {
     await openStudio(page);
     const entries = await page.evaluate(() => window.studio!.entries);
     expect(entries.length).toBeGreaterThan(0);
-    expect(entries).toEqual(expect.arrayContaining(['scene-placeholder/background', 'species-placeholder-sprout/growth-1']));
+    expect(entries).toEqual(expect.arrayContaining(['scene/full', 'species-placeholder-sprout/growth-1']));
     await expect(page.locator('canvas[data-entry]')).toHaveCount(entries.length);
     expect(await page.evaluate(() => window.studio!.errors)).toEqual([]);
     expect(await blankCanvases(page)).toEqual([]);
@@ -42,13 +42,13 @@ test.describe('studio', () => {
   });
 
   test('#section shows only that section', async ({ page }) => {
-    await openStudio(page, '#scene-placeholder');
+    await openStudio(page, '#scene');
     const entries = await page.evaluate(() => window.studio!.entries);
-    expect(entries.every((e) => e.startsWith('scene-placeholder/'))).toBe(true);
+    expect(entries.every((e) => e.startsWith('scene/'))).toBe(true);
   });
 
   test('?entry shows a single entry large', async ({ page }) => {
-    await openStudio(page, '?entry=scene-placeholder/background&t=0');
+    await openStudio(page, '?entry=scene/full&t=0');
     await expect(page.locator('canvas[data-entry]')).toHaveCount(1);
     const box = await page.locator('canvas[data-entry]').boundingBox();
     expect(box!.width).toBeGreaterThan(800);
