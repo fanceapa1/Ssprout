@@ -12,7 +12,8 @@ import type { SceneGeometry } from '../scene/geometry';
 import { createEnvelope, settleEnvelope, stepEnvelope, targetsFor, type Channel, type EnvelopeState, type Levels } from './envelope';
 import { createLightingCache, LIGHT, type LightingCache } from './lighting';
 import { MOTE, type Emitter } from './motes';
-import { createSim, lifeAlpha, setSimArea, stepSim, warmSim, type Sim } from './sim';
+import { pavilionFrame } from '../scene/paint-pavilion';
+import { createSim, lifeAlpha, setSimArea, stepSim, warmSim, type Eave, type Sim } from './sim';
 import { buildSprites, type Sprites } from './sprites';
 import { gradeAt, gradeDistance, timeName, type Grade, type TimeName } from './timeofday';
 import { wind as defaultWind, type WindFn } from './wind';
@@ -21,20 +22,23 @@ type Ctx = CanvasRenderingContext2D;
 
 /** Look tuning (alphas are peaks at level 1). docs/systems/ambience.md › Tuning. */
 export const LOOK = {
-  sunGrade: { rgb: [250, 236, 208], alpha: 0.15 },
+  sunGrade: { rgb: [250, 236, 208], alpha: 0.2 },
   rainGrade: { rgb: [204, 213, 221], alpha: 0.2 },
   mistVeil: { rgb: [244, 242, 236], alpha: 0.08 },
-  shaftAlpha: 0.42,
+  shaftAlpha: 0.6,
   /** breathing period of the light shafts (s) and depth (0..1) */
   shaftBreathS: 13,
   shaftBreath: 0.35,
-  rainAlpha: [0.24, 0.3, 0.34] as readonly number[],
+  rainAlpha: [0.3, 0.36, 0.42] as readonly number[],
   /** stroke width per rain layer (world units) */
-  rainWidth: [0.7, 0.95, 1.25] as readonly number[],
+  rainWidth: [0.9, 1.2, 1.5] as readonly number[],
   rippleAlpha: 0.75,
   /** vertical squash of ripple rings (perspective) */
   rippleSquash: 0.3,
   glintAlpha: 0.65,
+  /** eave drips: peak alpha and longest streak (world units) */
+  dripAlpha: 0.6,
+  dripMaxLen: 30,
   flameAlpha: 0.22,
   flameSize: 5,
 } as const;
@@ -57,6 +61,8 @@ export interface AmbienceOptions {
   seed?: string;
   /** world area to spawn particles in (the visible part of the world); default whole world */
   area?: Rect;
+  /** eave for the rain drip line (default: from the scene's pavilion; null = none) */
+  eave?: Eave | null;
   wind?: WindFn;
 }
 
@@ -67,7 +73,7 @@ export interface AmbienceDebug {
   levels: Levels;
   hour: number;
   time: TimeName;
-  counts: { rain: number; ripples: number; glints: number; motes: number };
+  counts: { rain: number; ripples: number; glints: number; motes: number; drips: number };
   lightingPaints: number;
   /** cost of the last lighting repaint (ms; repaints happen every few seconds at most) */
   lightingMs: number;
@@ -91,6 +97,15 @@ export interface Ambience {
   debug(): AmbienceDebug;
 }
 
+/** The eave line of the scene's pavilion (same frame the scene paints it with). */
+export function eaveOf(scene: SceneGeometry): Eave | null {
+  const pv = scene.pavilion;
+  if (!(pv.w > 0 && pv.h > 0)) return null;
+  const f = pavilionFrame(pv);
+  // the fascia's lower edge, where drops gather; they land at the foot of the deck
+  return { a: { x: f.eaveL.x, y: f.eaveL.y + 9 }, b: { x: f.eaveR.x, y: f.eaveR.y + 9 }, ground: pv.y + pv.h };
+}
+
 const spriteCache = new WeakMap<SceneGeometry, Map<string, Sprites>>();
 
 /** Sprites are immutable: build once per scene + seed. */
@@ -111,7 +126,7 @@ export function createAmbience(opts: AmbienceOptions): Ambience {
   const sprites: Sprites = spritesFor(scene, seed, { pondTop: pondBox.y, pondBottom: pondBox.y + pondBox.h });
   const lighting: LightingCache = createLightingCache(scene, `${seed}-light`);
   const area0 = opts.area ?? { x: 0, y: 0, w: WORLD_W, h: WORLD_H };
-  let sim: Sim = createSim(createRng(seed).fork('sim'), { pond: scene.pond, area: area0 });
+  let sim: Sim = createSim(createRng(seed).fork('sim'), { pond: scene.pond, area: area0, eave: opts.eave ?? eaveOf(scene) });
   let env: EnvelopeState = createEnvelope({ motion: 1 });
   let pendingSettle = true;
   let lightDirty = true;
@@ -281,6 +296,20 @@ export function createAmbience(opts: AmbienceOptions): Ambience {
         ctx.setTransform(m);
       }
 
+      // drips off the eave: straight down, stretching as they speed up
+      if (sim.drips.length && lv.rain > 0.002) {
+        ctx.globalCompositeOperation = 'multiply';
+        const ww = LOOK.rainWidth[2]! * 4;
+        for (const dr of sim.drips) {
+          const len = Math.min(LOOK.dripMaxLen, Math.max(3, dr.vy * 0.025));
+          const fade = Math.min(1, dr.age / 0.12) * Math.min(1, (dr.ground - dr.y) / 30);
+          const a = LOOK.dripAlpha * lv.rain * fade;
+          if (a <= 0.003) continue;
+          ctx.globalAlpha = a;
+          ctx.drawImage(sprites.rain[1]![dr.variant]! as CanvasImageSource, dr.x - ww / 2, dr.y - len, ww, len);
+        }
+      }
+
       // photosynthesis motes
       if (sim.motes.length) {
         ctx.globalCompositeOperation = 'source-over';
@@ -317,7 +346,7 @@ export function createAmbience(opts: AmbienceOptions): Ambience {
         levels: { ...env.value },
         hour,
         time: timeName(hour),
-        counts: { rain: sim.rain.length, ripples: sim.ripples.length, glints: sim.glints.length, motes: sim.motes.length },
+        counts: { rain: sim.rain.length, ripples: sim.ripples.length, glints: sim.glints.length, motes: sim.motes.length, drips: sim.drips.length },
         lightingPaints: paints,
         lightingMs: paintMs,
         reducedMotion,

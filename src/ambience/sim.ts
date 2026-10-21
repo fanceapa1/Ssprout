@@ -25,9 +25,9 @@ export interface RainLayer {
 /** Far → near. Near strokes are longer and faster (parallax), all faint. */
 export const RAIN = {
   layers: [
-    { count: 70, speed: 300, len: [7, 12], life: [0.35, 0.6] },
-    { count: 42, speed: 470, len: [13, 21], life: [0.3, 0.5] },
-    { count: 16, speed: 720, len: [24, 38], life: [0.25, 0.4] },
+    { count: 84, speed: 300, len: [7, 12], life: [0.35, 0.6] },
+    { count: 50, speed: 470, len: [13, 21], life: [0.3, 0.5] },
+    { count: 20, speed: 720, len: [24, 38], life: [0.25, 0.4] },
   ] as readonly RainLayer[],
   /** base slant from vertical (rad, + = falling toward +x) */
   slant: 0.2,
@@ -36,6 +36,18 @@ export const RAIN = {
 } as const;
 
 export const RIPPLE = { rate: 2.4, life: [1.8, 2.9] as const, size: [16, 36] as const, max: 16 } as const;
+/** Drips off the pavilion eave while it rains (falling under gravity to the ground below). */
+export const DRIP = {
+  /** spacing of drip points along the eave (world units) */
+  spacing: 30,
+  /** drops per second per drip point at full rain */
+  rate: 0.6,
+  /** initial speed and gravity (world units / s, / s²) */
+  v0: 30,
+  gravity: 1300,
+  max: 24,
+} as const;
+
 export const GLINT = { rate: 1.2, life: [1.3, 2.4] as const, len: [8, 18] as const, max: 5 } as const;
 
 export interface RainDrop {
@@ -77,10 +89,29 @@ export interface Mote {
   life: number;
 }
 
+/** The eave line drops fall from (`a` → `b`) and the ground they fall to. */
+export interface Eave {
+  a: Pt;
+  b: Pt;
+  ground: number;
+}
+
 export interface SimWorld {
   pond: readonly Pt[];
   /** world rectangle particles are spawned in (the visible part of the world) */
   area: Rect;
+  /** pavilion eave for the rain drip line (none when the scene has no eave) */
+  eave?: Eave | null;
+}
+
+export interface Drip {
+  x: number;
+  y: number;
+  vy: number;
+  variant: number;
+  /** y where it lands */
+  ground: number;
+  age: number;
 }
 
 export interface Sim {
@@ -91,6 +122,9 @@ export interface Sim {
   ripples: Ripple[];
   glints: Glint[];
   motes: Mote[];
+  drips: Drip[];
+  /** drip points along the eave */
+  dripPoints: Pt[];
   /** seconds until the next spawn per stream (Infinity = idle) */
   timers: Record<string, number>;
   /** ambience time (s) — advances with dt × motion */
@@ -108,7 +142,32 @@ export const SPRITE_VARIANTS = 6;
 const WORLD_AREA = 1600 * 1000;
 
 export function createSim(rng: Rng, world: SimWorld): Sim {
-  return { rng, world, pondBox: bounds([...world.pond]), rain: [], ripples: [], glints: [], motes: [], timers: {}, t: 0 };
+  return {
+    rng,
+    world,
+    pondBox: bounds([...world.pond]),
+    rain: [],
+    ripples: [],
+    glints: [],
+    motes: [],
+    drips: [],
+    dripPoints: dripPoints(world.eave ?? null, rng.fork('drip-points')),
+    timers: {},
+    t: 0,
+  };
+}
+
+/** Evenly spaced (jittered) points along the eave where drops gather. */
+export function dripPoints(eave: Eave | null, rng: Rng): Pt[] {
+  if (!eave) return [];
+  const len = Math.hypot(eave.b.x - eave.a.x, eave.b.y - eave.a.y);
+  const n = Math.max(1, Math.floor(len / DRIP.spacing));
+  const out: Pt[] = [];
+  for (let i = 0; i < n; i++) {
+    const t = Math.min(1, Math.max(0, (i + 0.5 + rng.range(-0.3, 0.3)) / n));
+    out.push({ x: eave.a.x + (eave.b.x - eave.a.x) * t, y: eave.a.y + (eave.b.y - eave.a.y) * t });
+  }
+  return out;
 }
 
 export function setSimArea(sim: Sim, area: Rect): void {
@@ -176,6 +235,12 @@ export function stepSim(sim: Sim, dt: number, input: SimInputs): void {
     m.x += (w.sway * MOTE.windDrift + Math.sin(m.phase + m.age * 0.6) * 2.2) * d;
   }
   sim.motes = sim.motes.filter((m) => m.age < m.life);
+  for (const dr of sim.drips) {
+    dr.age += d;
+    dr.vy += DRIP.gravity * d;
+    dr.y += dr.vy * d;
+  }
+  sim.drips = sim.drips.filter((dr) => dr.y < dr.ground);
 
   // rain: keep each layer near its target count (rate = target / mean life)
   RAIN.layers.forEach((L, li) => {
@@ -220,6 +285,17 @@ export function stepSim(sim: Sim, dt: number, input: SimInputs): void {
     if (!p) return;
     sim.glints.push({ ...p, len: range(rng, GLINT.len), variant: rng.int(0, SPRITE_VARIANTS - 1), age: off, life: range(rng, GLINT.life) });
   });
+
+  // drips off the eave
+  if (sim.dripPoints.length && sim.world.eave) {
+    const ground = sim.world.eave.ground;
+    poisson(sim, 'drip', DRIP.rate * sim.dripPoints.length * levels.rain, d, (off) => {
+      if (sim.drips.length >= DRIP.max) return;
+      const p = sim.dripPoints[rng.int(0, sim.dripPoints.length - 1)]!;
+      const vy = DRIP.v0 + DRIP.gravity * off;
+      sim.drips.push({ x: p.x + rng.range(-1.5, 1.5), y: p.y + DRIP.v0 * off + 0.5 * DRIP.gravity * off * off, vy, variant: rng.int(0, SPRITE_VARIANTS - 1), ground, age: off });
+    });
+  }
 
   // motes from the plants
   poisson(sim, 'mote', moteRate(input.emitters, levels.motes), d, (off) => {

@@ -189,3 +189,27 @@ describe('sim', () => {
     expect(JSON.stringify(a.rain)).toBe(JSON.stringify(b.rain));
   });
 });
+
+describe('eave drips', () => {
+  const eave = { a: { x: 1300, y: 255 }, b: { x: 1600, y: 215 }, ground: 618 };
+  it('fall from the eave to the ground only while it rains', () => {
+    const sim = createSim(createRng(11), { ...world, eave });
+    expect(sim.dripPoints.length).toBe(10);
+    warmSim(sim, 4, inputs());
+    expect(sim.drips.length).toBeGreaterThan(0);
+    for (const d of sim.drips) {
+      expect(d.x).toBeGreaterThan(1290);
+      expect(d.y).toBeLessThan(618);
+      expect(d.vy).toBeGreaterThan(0);
+    }
+    const dry = createSim(createRng(11), { ...world, eave });
+    warmSim(dry, 4, inputs(settleEnvelope(targetsFor('focus', 'sun')).value));
+    expect(dry.drips).toHaveLength(0);
+  });
+  it('no eave, no drips', () => {
+    const sim = createSim(createRng(12), world);
+    warmSim(sim, 4, inputs());
+    expect(sim.dripPoints).toHaveLength(0);
+    expect(sim.drips).toHaveLength(0);
+  });
+});
