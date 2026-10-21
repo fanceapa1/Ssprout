@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createViewport, DEFAULT_FOCUS, WORLD_H, WORLD_W } from './viewport';
+import { createViewport, DEFAULT_FOCUS, MIN_VISIBLE_W, WORLD_H, WORLD_W } from './viewport';
 
 describe('createViewport', () => {
   it('maps the whole world exactly when the aspect matches', () => {
@@ -23,12 +23,23 @@ describe('createViewport', () => {
   });
 
   it('crops the sides on portrait screens and keeps the focus centred', () => {
+    // a tablet in portrait: plain cover, the full height, the sides cropped
+    const t = createViewport(1024, 1366, 2);
+    expect(t.scale).toBeCloseTo(1366 / WORLD_H);
+    expect(t.offsetY).toBe(0);
+    expect(t.worldToScreen(DEFAULT_FOCUS).x).toBeCloseTo(512);
+    expect(t.visible.w).toBeLessThan(WORLD_W);
+  });
+
+  it('shows tall phones at least MIN_VISIBLE_W of the world, with paper above and below', () => {
     const v = createViewport(390, 844, 3);
-    expect(v.scale).toBeCloseTo(844 / WORLD_H);
-    expect(v.offsetY).toBe(0);
-    const f = v.worldToScreen(DEFAULT_FOCUS);
-    expect(f.x).toBeCloseTo(195);
-    expect(v.visible.w).toBeLessThan(WORLD_W);
+    expect(v.visible.w).toBeCloseTo(MIN_VISIBLE_W);
+    expect(v.scale).toBeCloseTo(390 / MIN_VISIBLE_W);
+    expect(v.worldToScreen(DEFAULT_FOCUS).x).toBeCloseTo(195);
+    // the painting sits in the middle: equal paper above and below
+    expect(v.offsetY).toBeGreaterThan(0);
+    expect(v.visible.y).toBeLessThan(0);
+    expect(v.visible.y + v.visible.h - WORLD_H).toBeCloseTo(-v.visible.y);
   });
 
   it('clamps the focus so the world edge is never passed', () => {

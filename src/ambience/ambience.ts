@@ -128,6 +128,8 @@ export function createAmbience(opts: AmbienceOptions): Ambience {
   const sprites: Sprites = spritesFor(scene, seed, { pondTop: pondBox.y, pondBottom: pondBox.y + pondBox.h });
   const lighting: LightingCache = createLightingCache(scene, `${seed}-light`);
   const area0 = opts.area ?? { x: 0, y: 0, w: WORLD_W, h: WORLD_H };
+  /** the visible area: on tall phones it reaches above and below the world (bare paper there) */
+  let view: Rect = area0;
   let sim: Sim = createSim(createRng(seed).fork('sim'), { pond: scene.pond, area: area0, eave: opts.eave ?? eaveOf(scene) });
   let env: EnvelopeState = createEnvelope({ motion: 1 });
   let pendingSettle = true;
@@ -159,6 +161,7 @@ export function createAmbience(opts: AmbienceOptions): Ambience {
   const api: Ambience = {
     preview: null,
     setArea(area) {
+      view = area;
       setSimArea(sim, area);
     },
     settle() {
@@ -330,6 +333,11 @@ export function createAmbience(opts: AmbienceOptions): Ambience {
       ctx.imageSmoothingEnabled = true;
       ctx.imageSmoothingQuality = 'low';
       ctx.drawImage(lighting.canvas as CanvasImageSource, 0, 0, WORLD_W, WORLD_H);
+      // paper shown beyond the world's top/bottom (tall phones) takes the light of the nearest edge
+      const lc = lighting.canvas as CanvasImageSource & { width: number; height: number };
+      if (view.y < 0) ctx.drawImage(lc, 0, 0, lc.width, 1, 0, view.y, WORLD_W, -view.y);
+      const below = view.y + view.h - WORLD_H;
+      if (below > 0) ctx.drawImage(lc, 0, lc.height - 1, lc.width, 1, 0, WORLD_H, WORLD_W, below);
       if (grade.lantern > 0.02) {
         const L = scene.pavilion.lantern;
         const flicker = 0.88 + 0.12 * (0.5 + 0.5 * Math.sin(flameT * 2.3) * Math.sin(flameT * 3.7 + 1));

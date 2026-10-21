@@ -19,7 +19,7 @@ describe('scene paint view', () => {
     const v = paintViewFor(vp, 1.5, 60);
     expect(v.rect.x).toBeLessThanOrEqual(vp.visible.x - 59);
     expect(v.rect.x + v.rect.w).toBeGreaterThanOrEqual(vp.visible.x + vp.visible.w + 59);
-    expect(v.rect.w).toBeLessThan(700);
+    expect(v.rect.w).toBeLessThan(800); // MIN_VISIBLE_W (600) + margins
     expect(v.rect.h).toBe(1000);
   });
 });
@@ -38,8 +38,8 @@ describe('scene repaint rule', () => {
   });
 
   it('repaints when the view leaves the painted area', () => {
-    const phone = paintViewFor(createViewport(390, 844, 1), 4, 60);
-    const wider = paintViewFor(createViewport(560, 844, 1), 4, 0);
+    const phone = paintViewFor(createViewport(1024, 1366, 1), 4, 60);
+    const wider = paintViewFor(createViewport(1300, 1366, 1), 4, 0);
     expect(wider.scale / phone.scale).toBeCloseTo(1);
     expect(canReuse(phone, wider, 0.1)).toBe(false);
   });

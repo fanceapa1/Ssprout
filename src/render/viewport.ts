@@ -1,13 +1,18 @@
 /**
  * World ↔ screen mapping. The world is a fixed 1600×1000 logical canvas; the screen shows it
  * with "cover" scaling (fills the canvas, crops overflow) centred on a focus point, clamped so
- * we never show outside the world. Screen coordinates are CSS pixels relative to the canvas.
+ * we never show outside the world's width. Exception (ADR 0123): a tall portrait screen shows at
+ * least `MIN_VISIBLE_W` of the world's width, so phones see the pond's banks and the plants on
+ * them; the painting then sits in the middle of the screen with bare paper above and below
+ * (the world's own margins already dissolve into paper). Screen coordinates are CSS pixels.
  */
 export const WORLD_W = 1600;
 export const WORLD_H = 1000;
 export const MAX_DPR = 2;
 /** Pond centre: what stays in view when portrait screens crop the sides. */
 export const DEFAULT_FOCUS: Pt = { x: 800, y: 560 };
+/** Narrowest slice of the world a portrait screen shows (world units). */
+export const MIN_VISIBLE_W = 600;
 
 export interface Pt {
   x: number;
@@ -63,7 +68,8 @@ export function createViewport(
   const w = Math.max(1, cssW);
   const h = Math.max(1, cssH);
   const dpr = clamp(Number.isFinite(devicePixelRatio) && devicePixelRatio > 0 ? devicePixelRatio : 1, 1, MAX_DPR);
-  const scale = Math.max(w / WORLD_W, h / WORLD_H);
+  // cover, but never narrower than MIN_VISIBLE_W (tall phones: paper above and below instead)
+  const scale = Math.min(Math.max(w / WORLD_W, h / WORLD_H), Math.max(w / MIN_VISIBLE_W, w / WORLD_W));
   const offsetX = axisOffset(w, WORLD_W * scale, focus.x, scale);
   const offsetY = axisOffset(h, WORLD_H * scale, focus.y, scale);
   const pixelScale = scale * dpr;
