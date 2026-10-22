@@ -10,6 +10,8 @@ declare module '../dev/debug' {
     sceneStats(): SceneStats;
     /** Resolves when no background repaint is pending. */
     scenePainted(): Promise<void>;
+    /** Daylight skies: plates painted, composites built, ms spent painting skies. */
+    skyStats(): ReturnType<SceneSystem['skyStats']>;
   }
 }
 
@@ -19,5 +21,6 @@ export function installSceneDebug(system: SceneSystem, scene: SceneGeometry): vo
     slots: () => scene.slots.map((s) => ({ ...s })),
     sceneStats: () => system.stats(),
     scenePainted: () => system.whenPainted(),
+    skyStats: () => system.skyStats(),
   });
 }

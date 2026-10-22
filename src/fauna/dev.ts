@@ -36,7 +36,9 @@ export interface FaunaDebug {
   clear(): void;
   /** Advance the simulation by `seconds` in fixed steps (default 1/30 s) without rendering. */
   step(seconds: number, dt?: number): void;
-  /** Pin the local hour (0–24) for day/night behaviour; null follows the clock. */
+  /** Whether the creatures are in their night rest (from the daylight phases, or the pinned hour). */
+  night(): boolean;
+  /** Pin the local hour (0–24) for day/night behaviour; null follows the daylight. */
   setHour(hour: number | null): void;
   /** Resident counts and visiting kinds currently enabled by the garden. */
   roster(): { koi: number; striders: boolean; frog: boolean; visitors: string[] };
@@ -81,6 +83,7 @@ export function installFaunaDebug(system: FaunaSystem): void {
       const s = sim();
       for (let t = 0; t < seconds; t += dt) s.update(dt, system.now());
     },
+    night: () => sim().world.mode.night,
     setHour(hour) {
       sim().hourOverride = hour;
     },

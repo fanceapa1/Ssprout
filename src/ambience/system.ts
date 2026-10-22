@@ -27,6 +27,8 @@ export interface AmbienceSystem extends System {
   debug(): (AmbienceDebug & { ms: number; timeOverride: string | null; location: { lat: number; lon: number; source: string; zone: string | null }; sunTimes: Record<string, string | null> | null }) | null;
   /** the daylight this system paints with (shared with the scene, plants and fauna) */
   readonly daylight: DaylightSource;
+  /** the clock time (epoch ms) of the last frame */
+  now(): number;
   /** called with the time-of-day grade whenever the lighting repaints (e.g. to tint the DOM UI) */
   onLight(fn: (grade: Grade) => void): () => void;
   /**
@@ -77,6 +79,7 @@ export function createAmbienceSystem(opts: AmbienceSystemOptions = {}): Ambience
   return {
     id: 'ambience',
     daylight,
+    now: () => lastNow,
     init(ctx) {
       store = ctx.store;
       reducedMotion = ctx.reducedMotion;

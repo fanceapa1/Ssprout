@@ -127,7 +127,8 @@ interface WitherRec {
 export interface PlantDebugState {
   ready: boolean;
   resolution: number;
-  finished: Array<{ id: string; slotId: string; speciesId: string; alpha: number; drawn: boolean; blooming: boolean }>;
+  /** `shown`: how far its appearance fade has come (0 = waiting for its sprite, 1 = fully shown) */
+  finished: Array<{ id: string; slotId: string; speciesId: string; alpha: number; shown: number; drawn: boolean; blooming: boolean }>;
   growing: { id: string; slotId: string; speciesId: string; growth: number; shown: number; lo: number; hi: number; weight: number; drawn: boolean } | null;
   withering: Array<{ slotId: string; progress: number }>;
   watering: { progress: number; wet: number; active: boolean } | null;
@@ -811,6 +812,7 @@ export function createPlantSystem(opts: PlantSystemOptions): PlantSystem {
           alpha: fadeValue(r.presence, t),
           drawn: drawnThisFrame.has(r.plant.id),
           blooming: r.bloom !== null,
+          shown: r.appear === null ? 1 : r.appear === 'waiting' ? 0 : fadeValue(r.appear, t),
         })),
         growing: grow,
         withering: withering.map((w) => ({ slotId: w.inst.slot.id, progress: Math.min(1, (t - w.start) / WITHER_SECONDS) })),
