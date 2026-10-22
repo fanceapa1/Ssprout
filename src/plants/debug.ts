@@ -7,9 +7,11 @@ import { usingAmbienceWind } from './wind-adapter';
 declare module '../dev/debug' {
   interface SproutDebug {
     /**
-     * Resolves once every plant sprite the garden needs right now is painted (sprites paint in
-     * workers, asynchronously). Unlike `plants.settle()` it does not snap growth or blooms —
-     * use it before a screenshot: `sprout.addPlants(25); await sprout.plantsReady()`.
+     * Resolves once the plant system has picked up the latest store change (even one made just
+     * before, without a frame in between), every sprite the garden needs is painted (sprites
+     * paint in workers, asynchronously) and the plants that just appeared have faded in. Unlike
+     * `plants.settle()` it does not snap growth or blooms — use it before a screenshot:
+     * `sprout.addPlants(25); await sprout.plantsReady()`.
      */
     plantsReady(): Promise<void>;
     plants: {

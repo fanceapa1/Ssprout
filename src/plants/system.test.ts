@@ -9,7 +9,7 @@ import type { SceneGeometry, Slot } from '../scene/geometry';
 import { plantWorldBounds } from './bounds';
 import { dabAlpha } from './highlight';
 import { spriteKey, type Sprite, type SpriteCache, type SpriteSpec } from './sprites';
-import { createPlantSystem, DISPLACE_IN_SECONDS, DISPLACE_OUT_SECONDS, type PlantSystem } from './system';
+import { APPEAR_SECONDS, createPlantSystem, DISPLACE_IN_SECONDS, DISPLACE_OUT_SECONDS, type PlantSystem } from './system';
 import { FakeCanvas, installFakeOffscreenCanvas } from './test-canvas';
 import type { SpeciesDef } from './types';
 import { GARDEN_PLANT_SCALE } from '../scene/slots';
@@ -92,13 +92,13 @@ const plant = (id: string, slotId: string, speciesId = 'small'): PlantInstance =
   completedAt: 1,
 });
 
-function setup(opts: { plants?: PlantInstance[]; scene?: SceneGeometry; reducedMotion?: boolean } = {}) {
+function setup(opts: { plants?: PlantInstance[]; scene?: SceneGeometry; reducedMotion?: boolean; cache?: ReturnType<typeof instantCache> } = {}) {
   const clock = createManualClock(1_000_000);
   const state: GardenState = { ...createDefaultState(clock.now()), plants: opts.plants ?? [] };
   const store = createStore(state, reducer);
   const bus = createEventBus();
   const scene = opts.scene ?? placeholderScene;
-  const cache = instantCache();
+  const cache = opts.cache ?? instantCache();
   const system = createPlantSystem({ getSpecies, cache, wind: (t) => ({ sway: Math.sin(t), gust: 0 }) });
   const ctx: SystemContext = { viewport: createViewport(1600, 1000, 1), store, bus, clock, scene, reducedMotion: !!opts.reducedMotion };
   let t = 0;
@@ -308,6 +308,64 @@ describe('plant system', () => {
     expect(still1).toBe(still2);
     const [sway1, sway2] = await twoFrames(false);
     expect(sway1).not.toBe(sway2);
+  });
+
+  it('ready() waits for a store change it has not seen, the sprites and the fade-in (plantsReady)', async () => {
+    // a cache that paints only when told to, like the worker pool
+    const inner = instantCache();
+    const pending: SpriteSpec[] = [];
+    let idle: Array<() => void> = [];
+    const painted = new Set<string>();
+    const cache: ReturnType<typeof instantCache> = {
+      ...inner,
+      get: (s) => (painted.has(spriteKey(s)) ? inner.get(s) : undefined),
+      has: (s) => painted.has(spriteKey(s)),
+      best: () => undefined,
+      request: (s) => {
+        if (!painted.has(spriteKey(s)) && !pending.some((p) => spriteKey(p) === spriteKey(s))) pending.push(s);
+      },
+      whenIdle: () => (pending.length ? new Promise<void>((r) => idle.push(r)) : Promise.resolve()),
+    };
+    const paintAll = () => {
+      for (const s of pending.splice(0)) {
+        inner.request(s, 0);
+        painted.add(spriteKey(s));
+      }
+      for (const r of idle.splice(0)) r();
+    };
+    const env = setup({ cache });
+    const sys = await ready(env);
+    let resolved = false;
+    // like `sprout.addPlants(2); await sprout.plantsReady()` with no frame in between
+    env.store.dispatch({ type: 'state/replace', state: { ...env.store.get(), plants: [plant('a', 'meadow-1'), plant('b', 'path-2')] } });
+    const done = sys.ready().then(() => (resolved = true));
+    await Promise.resolve();
+    expect(pending.length).toBeGreaterThan(0); // it asked for the new plants' sprites itself
+    await new Promise((r) => setTimeout(r, 0));
+    expect(resolved).toBe(false); // nothing painted yet
+    paintAll();
+    await new Promise((r) => setTimeout(r, 0));
+    expect(resolved).toBe(false); // painted, but not yet shown (they fade in when first drawn)
+    const target = new FakeCanvas(1600, 1000).ctx as unknown as CanvasRenderingContext2D;
+    for (let t = 0; t <= APPEAR_SECONDS + 0.2; t += 0.1) {
+      const f = env.frame(0.1);
+      for (const d of sys.entities!(f)) d.draw(target, f);
+    }
+    env.frame(0.1);
+    await done;
+    expect(resolved).toBe(true);
+    expect(sys.debugState().finished.map((p) => p.id).sort()).toEqual(['a', 'b']);
+  });
+
+  it('ready() before the first init waits for it instead of resolving empty', async () => {
+    const env = setup({ plants: [plant('a', 'meadow-1')] });
+    let resolved = false;
+    const done = env.system.ready().then(() => (resolved = true));
+    await new Promise((r) => setTimeout(r, 0));
+    expect(resolved).toBe(false);
+    await env.system.init!(env.ctx);
+    await done;
+    expect(env.cache.requested.length).toBeGreaterThan(0);
   });
 
   it('stays within 2 ms a frame with 50 plants and a growing one (CPU side)', async () => {

@@ -200,6 +200,37 @@ export function createPlantSystem(opts: PlantSystemOptions): PlantSystem {
   let rim: RimLight = rimLight(light);
   const rims = createRimCache();
 
+  // readiness (plantsReady): the first init, then "every plant that should show is fully shown"
+  let markInit: () => void = () => {};
+  const initDone = new Promise<void>((r) => (markInit = r));
+  const shownWaiters: Array<() => void> = [];
+  /** no visible finished plant is still waiting for its sprite or fading in */
+  const allShown = (): boolean => {
+    for (const rec of finished.values()) {
+      if (rec.appear === null || !visible(rec.inst.box) || rec.presence.to === 0) continue;
+      if (rec.appear === 'waiting' && !cache.has(specFor(rec.inst, FINAL_STEP))) continue; // unpaintable
+      return false;
+    }
+    return true;
+  };
+  const checkShown = (): void => {
+    if (shownWaiters.length && allShown()) for (const fn of shownWaiters.splice(0)) fn();
+  };
+  const whenShown = (maxMs: number): Promise<void> =>
+    allShown()
+      ? Promise.resolve()
+      : new Promise<void>((resolve) => {
+          const done = () => {
+            clearTimeout(timer);
+            resolve();
+          };
+          const timer = setTimeout(() => {
+            const i = shownWaiters.indexOf(done);
+            if (i >= 0) shownWaiters.splice(i, 1);
+            resolve();
+          }, maxMs);
+          shownWaiters.push(done);
+        });
 
   // perf
   let perfAcc = 0;
@@ -605,6 +636,7 @@ export function createPlantSystem(opts: PlantSystemOptions): PlantSystem {
       await Promise.race([cache.whenIdle(), new Promise<void>((r) => (timer = setTimeout(r, initWait)))]);
       if (timer !== undefined) clearTimeout(timer);
       ready = true;
+      markInit();
     },
     update(f: FrameInfo) {
       if (perfFrame > 0 || perfFrames > 0) {
@@ -642,6 +674,7 @@ export function createPlantSystem(opts: PlantSystemOptions): PlantSystem {
         for (let i = withering.length - 1; i >= 0; i--) {
           if ((f.t - withering[i]!.start) / WITHER_SECONDS >= 1) withering.splice(i, 1);
         }
+        checkShown();
       });
     },
     draw(layer: LayerId, ctx: CanvasRenderingContext2D, f: FrameInfo) {
@@ -732,14 +765,20 @@ export function createPlantSystem(opts: PlantSystemOptions): PlantSystem {
       }
       return cache.whenIdle();
     },
-    ready() {
+    async ready() {
+      // before the first init there is nothing to sync with yet: wait for it
+      await initDone;
       const state = sys?.store.get();
       if (state && sys) {
+        // pick up a store change the frame loop has not seen yet (e.g. a non-awaited addPlants)
         sync(state, sys.clock.now(), false);
         requestAll();
         requestAhead();
       }
-      return cache.whenIdle();
+      await cache.whenIdle();
+      // and let the plants that just got their sprites finish fading in, so a screenshot taken
+      // now shows them (bounded: a frozen frame loop never advances the fade)
+      await whenShown(APPEAR_SECONDS * 1000 + 1500);
     },
     debugState() {
       const t = lastT;
