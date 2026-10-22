@@ -30,6 +30,10 @@ export default defineConfig({
     // The fs module cache does not invalidate import.meta.glob results when new files are
     // added (e.g. a new species), which made the registry miss species (ADR 0004).
     fsModuleCache: false,
+    // A few tests simulate hours of garden time or paint every species step by step; they take
+    // 1–4 s on an idle laptop and several times that when other agents load the machine.
+    // A generous ceiling keeps a slow machine from failing them (docs/TESTING.md).
+    testTimeout: 20_000,
     // DOM tests opt in per file with: // @vitest-environment jsdom
   },
 });
