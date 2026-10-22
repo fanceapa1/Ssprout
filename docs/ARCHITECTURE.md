@@ -4,7 +4,8 @@
 > update this file in the same commit and add an ADR.
 
 ## Stack
-- Vite + TypeScript (strict, ES2022, no framework). `npm run dev | build | test | e2e | shots`.
+- Vite + TypeScript (strict, ES2022, no framework). `npm run dev | build | preview | typecheck | test |
+  test:watch | e2e | shots`. Testing layers and conventions: `docs/TESTING.md`.
 - Canvas 2D for the garden; plain DOM (+ CSS) for UI overlays.
 - Vitest (`src/**/*.test.ts`, jsdom where DOM needed), Playwright (`tests/e2e/*.spec.ts`, Chromium).
 - Vite `base: '/Ssprout/'` for GitHub Pages.
@@ -14,7 +15,7 @@
 src/
   main.ts                 bootstrap: load state, create renderer + systems + UI
   core/                   pure, framework-free, fully unit-tested logic (no DOM, no canvas)
-    clock.ts              Clock interface; real clock + dev speed clock (?speed=N)
+    clock.ts              Clock interface; real clock + dev speed clock (?dev&speed=N)
     rng.ts                seeded RNG (mulberry32) + helpers; string seeds hashed
     events.ts             typed event bus
     state.ts              GardenState types, defaults, createReducer(world)/actions, store
@@ -26,26 +27,32 @@ src/
     fauna-unlocks.ts      which creatures are unlocked for a given state
     tips.ts               tooltip registry + seen/retired logic
     controller.ts         session controller: the single API the UI/widget call (no DOM)
+    testing.ts            unit-test helpers (fixtures for states and sessions)
   paint/                  watercolour engine (pure canvas drawing utilities) — see docs/systems/paint.md
   scene/                  the static painted landscape, scene geometry, slots — docs/systems/scene.md
   plants/
     types.ts              SpeciesDef contract (below)
-    registry.ts           auto-discovers species via import.meta.glob('./species/*.ts')
-    species/<id>.ts       one file per species, default export SpeciesDef
+    registry.ts           auto-discovers species via import.meta.glob('./species/*.ts') (not *.test/*.studio)
+    species/<id>.ts       one file per species, default export SpeciesDef (25 real species)
+    lib/                  shared species helpers (small-*, shrub-*, tree-*)
     sprites.ts            renders + caches plant sprites per instance & growth step (workers, LRU)
+    sprite-worker.ts      the module worker that paints sprites
     system.ts             PlantSystem: garden drawables, growth, sway, bloom, wither, watering, reflections
+    draw.ts · watering.ts · wither.ts · reflection.ts · highlight.ts · bounds.ts · wind-adapter.ts
     view.ts               renderPlantView (widget, previews) — docs/systems/plants.md
+    debug.ts              ?dev hooks (window.sprout.plants, plantsReady)
   fauna/                  creatures (one file each) + FaunaSystem — docs/systems/fauna.md
-  ambience/               session weather (sun/rain/mist), motes, time-of-day lighting
+  ambience/               session weather (sun/rain/mist), motes, wind field, time-of-day lighting
   render/                 Renderer, layers, viewport (world↔screen), System interface, frame loop
-  ui/                     DOM components: timer panel, reward picker, placement, menu, tips, herbarium
+  ui/                     DOM components: timer panel, planting sheet, placement, menu, tips, herbarium
   widget/                 Document PiP widget, title/favicon fallback, notifications, timer worker
   audio/                  procedural Web Audio ambience + chime
-  dev/                    ?dev debug API (window.sprout) used by e2e tests
+  dev/                    ?dev debug API (window.sprout) used by e2e tests; fixture species (fx-*,
+                          placeholder-sprout for unit tests); fill-garden (addPlants)
   studio/                 studio.html page: discovers every *.studio.ts and shows all sprites/animations
-tests/e2e/                Playwright specs
-tests/visual/             screenshot specs (tolerant thresholds)
-scripts/                  e.g. shots.ts — capture screenshots to artifacts/ (gitignored) for review
+tests/e2e/                Playwright specs + helpers (fixtures.ts, ui-helpers.ts) — docs/TESTING.md
+scripts/                  shots.ts — capture screenshots to artifacts/ (gitignored) for review
+public/sw.js              notifications-only service worker (ADR 0092)
 studio.html               second Vite entry (deployed at /Ssprout/studio.html)
 docs/                     SPEC, ARCHITECTURE, ART_DIRECTION, ROADMAP, adr/, systems/, devlog/
 ```
@@ -54,19 +61,21 @@ docs/                     SPEC, ARCHITECTURE, ART_DIRECTION, ROADMAP, adr/, syst
 - Logical world is **1600 × 1000** units (`WORLD_W`, `WORLD_H` in `src/render/viewport.ts`).
   All scene geometry, slots and creature positions are in world units.
 - Viewport uses **cover** scaling with a focus point (pond centre) so portrait screens crop the
-  sides rather than squash. `viewport.worldToScreen(p)`, `screenToWorld(p)`, `scale`.
+  sides rather than squash, but never shows less than `MIN_VISIBLE_W` = 600 world units of width:
+  tall phones get paper above and below instead (ADR 0123). `viewport.worldToScreen(p)`,
+  `screenToWorld(p)`, `scale`, `visible` (the world rect on screen).
 - Device pixel ratio capped at 2. Static layers are re-rendered on resize (debounced 200 ms).
 
 ## Rendering pipeline (back → front)
 | # | Layer | Contents | Redraw |
 |---|---|---|---|
 | 0 | `background` | sky, hills, far trees, pavilion, banks, pond base, path | once per resize (cached canvas) |
-| 1 | `underwater` | koi, pond depth shimmer — clipped to pond shape | per frame |
-| 2 | `waterSurface` | reflections (trees, rocks, plants near shore), ripples, lily pads' reflections | per frame (reflections cached) |
+| 1 | `underwater` | koi — clipped to pond shape | per frame |
+| 2 | `waterSurface` | water shimmer, reflections (trees, rocks, plants near shore), rain rings, glints, eave drips, water striders, floating leaves | per frame (reflections cached) |
 | 3 | `entities` | depth-sorted (by base y): foreground rocks/tufts from scene, plants, ground fauna (birds on rocks, frog, heron) | per frame (sprites cached) |
-| 4 | `air` | bees, butterflies, dragonflies, flying birds, drifting petals | per frame |
+| 4 | `air` | bees, butterflies, dragonflies, flying birds, swallows, falling leaves, the watering can | per frame |
 | 5 | `ambience` | sun shafts, rain strokes, mist, light motes | per frame |
-| 6 | `lighting` | time-of-day colour grade (multiply/soft-light washes), lantern glow | throttled (every few s) |
+| 6 | `lighting` | time-of-day grade: one multiply wash with paper reserved around the lantern (ADR 0082); the `?dev&slots` overlay | throttled (every few s) |
 | 7 | `paper` | static washi grain + vignette over everything (multiply) | once per resize |
 
 The renderer (`createRenderer` in `src/render/renderer.ts`) owns the frame loop, the cached
@@ -75,12 +84,12 @@ The renderer (`createRenderer` in `src/render/renderer.ts`) owns the frame loop,
 in `docs/systems/render.md`.
 
 Scene systems (`src/scene/system.ts`, docs/systems/scene.md): `createPaperSystem()` draws the
-`paper` layer (ADR 0040); `createSceneSystem({ invalidate: renderer.invalidate })` paints the
+`paper` layer (ADR 0040); `createSceneSystem({ invalidate: renderer.invalidate, showSlots? })` paints the
 cached `background` (repainted only when the scale changes > 10 %, cross-faded, ADR 0041),
 animates `waterSurface` and contributes the boulders and foreground tufts to `entities` with
 depth = base y (ADR 0042).
 
-Slot markers, the reward picker and all controls are **DOM** above the canvas (accessible,
+Slot markers, the planting sheet and all controls are **DOM** above the canvas (accessible,
 e2e-clickable: `[data-slot-id="..."]`).
 
 ### System contract (`src/render/types.ts`)
@@ -136,8 +145,9 @@ and not touch the DOM (it runs in a worker). Runtime sway = horizontal skew (a b
 and trees) about the base, driven by the garden wind (ADR 0113). Details: `docs/systems/plants.md`.
 
 ### Plant view (`src/plants/view.ts`, ADRs 0003, 0094)
-One species at an arbitrary growth, optionally mid-watering or wilting — shared by the widget,
-start-sheet previews and the garden:
+One species at an arbitrary growth, optionally mid-watering or wilting — used by the widget card,
+the planting-sheet previews and the studio (the garden draws through the plant system, with the
+same growth steps, watering and wither):
 ```ts
 export interface PlantViewOptions { speciesId: string; seed: number; growth: number; watering: number | null /* 0..1 */; wilt?: number /* 0..1 */ }
 export function renderPlantView(canvas: HTMLCanvasElement | OffscreenCanvas, opts: PlantViewOptions): boolean; // false: unknown species
@@ -162,10 +172,12 @@ export interface SceneGeometry {
 }
 ```
 
-The garden instance is `gardenScene` (`geometry.ts`): 52 slots, 11 rocks, 5 stepping stones.
+The garden instance is `gardenScene` (`geometry.ts`): 52 slots, 11 rocks, 6 stepping stones
+(the engawa stands on the bank, the path winds up to the water — ADR 0122).
 Every slot's `scale` is `perspectiveScale(y)` (0.55 at y 400 → 1.15 at y 960) and
-`PLANT_SIZES` gives the canonical plant box per size class at scale 1 — small 70×70,
-medium 120×160, large 200×220, tree 380×460 (`slots.ts`, ADR 0043).
+`PLANT_SIZES` gives the canonical plant box per size class at scale 1 — small 86×86 (tier-1
+plants draw in a 70-unit design box scaled up, ADR 0125), medium 120×160, large 200×220,
+tree 380×460 (`slots.ts`, ADR 0043).
 
 ### State (`src/core/state.ts`, ADR 0003, ADR 0036)
 Each session is one plant, chosen at start, growing live in its slot.
@@ -224,14 +236,16 @@ deterministic. `type Action =`
 | `state/replace` | `state` | import / load a whole state |
 | `state/reset` | `now` | fresh default state |
 
-Types exported alongside: `Settings`, `GardenStats`, `Reducer<S, A>`, `Listener<S, A>`,
-`createDefaultState(now)`, `STATE_VERSION`, `DEFAULT_GOAL_MINUTES`, `createReducer`, `ReducerWorld`,
-`mergeSettings`.
+Types exported alongside: `Settings`, `GardenStats`, `Action`, `ActionType`, `Reducer<S, A>`,
+`Listener<S, A>`, `Store`, `createStore`, `createDefaultState(now)`, `STATE_VERSION`,
+`DEFAULT_GOAL_MINUTES`, `createReducer`, `reducer`, `ReducerWorld`, `mergeSettings`.
 
 ### Study plans (`src/core/plans.ts`, ADR 0036)
 `recommendPlans(totalMinutes): StudyPlan[]` — 2–4 plans (only `unbroken` below 30 min), each summing
-exactly to the total and ending with focus; `unbroken` always first. Ids: `unbroken`, `pomodoro`,
-`long-focus`, `deep-work`, `two-deep`. Also `findPlan`, `planProblem`, `focusMinutes`, `hasBreaks`.
+exactly to the total and ending with focus; `unbroken` always first; plans with the same blocks are
+offered once. Ids: `unbroken`, `pomodoro`, `long-focus`, `deep-work`, `two-deep`. Also `findPlan`,
+`planProblem` (sum, ends with focus, positive blocks), `focusMinutes`, `planMinutes`, `hasBreaks`,
+`unbrokenPlan`.
 
 ### Session maths (`src/core/session.ts`)
 Session time `elapsedMs(s, now) = max(0, (pausedAt ?? now) − startedAt − pausedTotalMs)`; plan
@@ -256,24 +270,30 @@ API the UI and widget use**: `start({ taskName, goalMinutes, planId?, speciesId,
 `selectableSpecies(min) => { species, locked, requiredMinutes, earned }[]`,
 `placementOptions(speciesId) => { slot, occupiedBy? }[]`, `retireTip(id)`, `updateSettings(patch)`,
 `announceFauna(id)`, `status() => { phase, session, timeline, pausedForMs, longPause }`, `onTick(fn)`,
-`setTicker(t)`, `setSeed(s)`, `dispose()`. It supplies time/ids/seeds/weather, emits the bus events
+`setTicker(t)`, `setSeed(s)`, `dispose()`. The action methods (`pause` … `announceFauna`) return
+`boolean` (false = nothing changed). It supplies time/ids/seeds/weather, emits the bus events
 (including block transitions), completes due sessions on every tick and once at creation
-(closed-app completion), and retires tips automatically. `Ticker = { start(tick): stop }` (default
-`setInterval` 1 s). Full table in `docs/systems/core.md`.
+(closed-app completion), and retires tips automatically. It ticks **only while a session exists**.
+`Ticker = { start(tick): stop }` (default `createIntervalTicker`, 1 s). Full table in
+`docs/systems/core.md`.
 
 ### Persistence (`src/core/persistence.ts`, ADRs 0033–0034)
 Key `studysprout:v1` (stable; the document's `version` drives `MIGRATIONS`). `loadState(storage,
 now, opts)` never throws (`fresh | loaded | migrated | recovered | unavailable`; corrupt data is
 copied to `studysprout:corrupt:<ts>`). `createSaver(storage)` debounces saves (300 ms; `main.ts`
-flushes on `pagehide`). `exportState`/`exportFileName`/`importState` (typed errors; unknown species
+flushes on `pagehide` and when the page becomes hidden). `exportState`/`exportFileName`/`importState` (typed errors; unknown species
 kept and flagged).
 
 ### Events (`src/core/events.ts`)
 `session:start | session:pause | session:resume | session:cancel | session:break | session:focus |
 session:water | session:complete | plant:placed | plant:swapped | fauna:arrived | tip:retired |
 settings:changed`. Payloads are typed in `EventMap`: `'session:break' | 'session:focus' |
-'session:water': { blockIndex }`, `'session:complete': { sessionId, plant }`, `'plant:placed': { plant }`
-and `'plant:swapped': { plant, removed }` (both on completion; swapped first).
+'session:water': { blockIndex }`, `'session:start': { session }`, `'session:pause' | 'session:resume' |
+'session:cancel': { sessionId, at }`, `'session:complete': { sessionId, plant }`, `'plant:placed': { plant }`
+and `'plant:swapped': { plant, removed }` (both on completion; swapped first), `'fauna:arrived': { id }`,
+`'tip:retired': { id }`, `'settings:changed': { settings }`. `fauna:arrived` is emitted by the fauna
+system the first time a newly unlocked creature is actually in view (ADR 0120); the UI's quiet line
+announces it and records it with `controller.announceFauna(id)`.
 `createEventBus()` → `{ on, once, off, emit, clear }`; `on` returns an unsubscribe function;
 delivery is synchronous to a snapshot of handlers; a throwing handler does not stop the others.
 
@@ -290,34 +310,63 @@ export function wind(t: number, x: number, y: number, boost?: number /* 0..1 */)
 export function windBoost(phase: SessionPhase): number; // focus 1, break 0.5, else 0
 ```
 Pure, fixed seed (`createWind(seed)` for others); gust fronts travel toward +x. Plants use `sway`
-for their skew, fauna may use both. Ambience/lighting dev hooks and internals:
+for their skew; fauna could use both (not wired). Ambience/lighting dev hooks and internals:
 `docs/systems/ambience.md` (`setTime`, `setWeather`, `settleAmbience()`, `ambience()`).
+
+### Ambience system (`src/ambience/system.ts`, ADRs 0080–0084, 0121)
+`addAmbience(renderer, { dev })` registers the system and returns it. Besides the `System` hooks it
+has `setTime(v)`, `setWeather(w)`, `settle()`, `debug()`, `onLight(fn)` (the time-of-day grade,
+each time the lighting repaints) and `revealLightAfter(promise)` (the lighting is drawn at alpha 0
+until the promise resolves, then eases in over 1.4 s, at once under reduced motion or on a frozen
+frame). `main.ts` passes `renderer.whenReady()`, so the wash never lies on bare paper.
+
+### Audio (`src/audio/`, ADRs 0100–0103)
+`createGardenAudio({ bus, getState, clock })` → `{ unlock(), setMuted(), isMuted(), setWeather(),
+setActivity(), setFauna(), setTimeOfDay(), playBloom(), playComplete(), dispose() }`. Muted by
+default; it follows `settings:changed` and the session/plant/fauna events on the bus. The UI calls
+`unlock()` inside a user gesture. Details: `docs/systems/audio.md`.
 
 ### Shared helpers
 `Pt` lives in `src/render/viewport.ts` (re-exported from `scene/geometry.ts`).
-`src/plants/types.ts` also exports `TIERS`, `HABITATS`, `SIZE_CLASSES`, `fitsSize()`, `reflects()`.
+`src/plants/types.ts` also exports `SpeciesDrawOptions`, `TIERS`, `HABITATS`, `SIZE_CLASSES`, `fitsSize()`, `reflects()`.
 
 ## Dev / test hooks (`src/dev/`)
-Enabled by `?dev` query param. `?speed=60` → clock runs 60× (also `window.sprout.setSpeed`).
-`window.sprout` exposes: `state()`, `reset()`, `seed(n)`, `completeSession()`,
-`addPlants(n, tier?)`, `setTime('morning'|'noon'|'evening'|'dusk'|'night'|hour|null)`,
-`setWeather('sun'|'rain'|'mist'|null)`, `freeze()` (stop animation for stable screenshots).
-E2E tests must use these instead of sleeping.
+Enabled by the `?dev` query param (without it `window.sprout` does not exist). `?dev&speed=60` runs
+the app clock 60× (also `window.sprout.setSpeed`). E2E tests and screenshots use these hooks
+instead of sleeping (docs/TESTING.md). Modules add methods with `extendDebug({...})` from
+`src/dev/debug.ts` and augment the `SproutDebug` interface via declaration merging.
 
-Implemented by the foundation: `state()`, `ready()` (resolves when all systems are
-initialised), `freeze()` (async; resolves after a stable frame is drawn), `unfreeze()`,
-`setSpeed(n)`, `now()`. Others add methods with `extendDebug({...})` from `src/dev/debug.ts` and
-augment the `SproutDebug` interface via declaration merging.
+Foundation (`src/dev/debug.ts`): `state()`, `ready()` (resolves when all systems are initialised),
+`freeze()` (async; resolves after a stable frame is drawn), `unfreeze()`, `setSpeed(n)`, `now()`,
+`frameStats()` (`{ frames, workAvg, workP95, workMax, intervalAvg, intervalP95 }`: renderer main-thread
+ms per frame and rAF intervals over the last 600 frames), `resetFrameStats()`.
+
+Core logic (`src/dev/core-debug.ts`): `reset()`, `seed(n)`, `start(min?, { taskName?, planId?,
+speciesId?, slotId? })` (`min` defaults to `settings.lastGoalMinutes`; returns the session or null),
+`pause()`, `resume()`, `water()`, `skipBreak()`, `cancel()`, `toBreak()`, `skipToBlock(i)`,
+`completeSession()` (these jump the dev clock), `plans(min)`, `selectableSpecies(min)`,
+`placementOptions(speciesId?)`, `addPlants(n, tier?)` (finished plants with task names),
+`setState(partial)` (validated), `status()`, `flush()`, `exportState()`, `importState(json)`.
 
 Scene (`src/scene/debug.ts`): `slots()`, `sceneStats()` (paints, rescales, per-step timings),
 `scenePainted()` (resolves when no background repaint is pending). `?dev&slots` draws the slot
 overlay.
 
-Core logic (`src/dev/core-debug.ts`): `reset()`, `seed(n)`, `start(min?, { taskName?, planId?,
-speciesId?, slotId? })`, `pause()`, `resume()`, `water()`, `skipBreak()`, `cancel()`, `toBreak()`,
-`skipToBlock(i)`, `completeSession()` (these jump the dev clock), `plans(min)`,
-`selectableSpecies(min)`, `placementOptions(speciesId?)`, `addPlants(n, tier?)` (finished plants with
-task names), `setState(partial)` (validated), `status()`, `flush()`, `exportState()`, `importState(json)`.
+Plants (`src/plants/debug.ts`): `plantsReady()` (resolves once every sprite the garden needs is
+painted, without snapping growth or blooms — use before screenshots) and `window.sprout.plants` —
+`state()`, `settle()` (snap growth/fades and resolve once their sprites are painted), `whenIdle()`,
+`bounds(plantId)`, `boundsFor(speciesId, slotId)`, `toDevice(rect)`, `perf()`, `resetPerf()`,
+`ambienceWind()`.
+
+Ambience (`src/ambience/dev.ts`): `setTime('morning'|'noon'|'evening'|'dusk'|'night'|hour|null)`,
+`setWeather('sun'|'rain'|'mist'|null)` (preview without a session), `settleAmbience()` (jump
+transitions to steady state), `ambience()` (phase, levels, hour, particle counts, ms/frame).
+`setTime` drives the lighting only (fauna uses `fauna.setHour`, audio the real clock).
+
+Fauna (`src/fauna/dev.ts`, installed by `createFauna({ debug })`): `window.sprout.fauna` —
+`kinds()`, `spawn(id, count?)` (returns creature ids), `list()`, `clear()`, `step(seconds, dt?)`,
+`setHour(h)`, `roster()`, `schedule()`, `pond()`, `view()`, `targets()`, `bench(frames?)`
+(docs/systems/fauna.md).
 
 Widget (`src/widget/dev.ts`, `installWidgetDebug`): `window.sprout.widget` — `supported()`,
 `isOpen()`, `open()`, `close()`, `tickerMode()`, `title()`, `favicon()`, `bloomed()`,
@@ -330,27 +379,25 @@ dialogs, tips, markers, line, plantLabel, draft), `refresh()`, `setTimeScale(n)`
 Query flags: `?fixtures` (dev `fx-*` species, ADR 0055), `?uitime=0.05` (UI delays),
 `?widget=fake`.
 
-Plants (`src/plants/debug.ts`): `window.sprout.plants` — `state()`, `settle()` (snap growth/fades and
-resolve once their sprites are painted), `whenIdle()`, `bounds(plantId)`, `boundsFor(speciesId, slotId)`,
-`toDevice(rect)`, `perf()`, `resetPerf()`, `ambienceWind()`.
-
-## UI (`src/ui/`, ADRs 0050–0055)
+## UI (`src/ui/`, ADRs 0050–0055, 0121, 0124, 0127)
 `createUI({ root, controller, store, bus, clock, getSpecies, slots, viewport, audio?, widget?,
 notifications?, isKnownSpecies?, reducedMotion?, timeScale? })` → `{ placement: { current(),
 subscribe(fn) }, state(), refresh(), setTimeScale(), showPlantLabel(), dispose() }`. DOM only,
-drives the app through the controller. `widget` is the `WidgetIntegration`
-(`{ supported, open(), isOpen(), onChange?() }`, satisfied by `surfaces.widget`).
-`ui.placement.subscribe` gives the renderer the placement markers (world units); `main.ts` connects it
-to the plant system (`plants.connectPlacement(ui.placement)`) for the in-canvas highlight (ADR 0117).
-Plant labels hit-test with `plantWorldBounds` (`src/plants/bounds.ts`). Details: `docs/systems/ui.md`.
-`ui.placement.subscribe` gives the renderer the placement markers (world units) for an optional
-in-canvas highlight. Details: `docs/systems/ui.md`.
-Fauna (`src/fauna/dev.ts`): `window.sprout.fauna` — `spawn(id)`, `list()`, `clear()`, `step(s)`,
-`setHour(h)`, `roster()`, `schedule()`, `pond()`, `view()`, `targets()`, `bench()` (docs/systems/fauna.md).
+drives the app through the controller. `viewport` is a function returning the renderer's current
+`Viewport`. `widget` is the `WidgetIntegration` (`{ supported, open(), isOpen(), onChange?() }`,
+satisfied by `surfaces.widget`). `main.ts` passes no `notifications`: the widget surfaces ask for
+permission inside `session:start`.
+`ui.placement.subscribe` gives the placement markers (world units); `main.ts` connects it to the
+plant system (`plants.connectPlacement(ui.placement)`) for the in-canvas highlight (ADR 0117).
+Plant labels hit-test with `plantWorldBounds` (`src/plants/bounds.ts`). The DOM slips follow the
+garden's light: `main.ts` subscribes `applyUiLight` to `ambience.onLight` once the painting is ready
+(ADR 0121). Details: `docs/systems/ui.md`.
 
 ## Timer surfaces (`src/widget/`, ADRs 0090–0094)
-`createTimerSurfaces({ controller, store, bus, clock })` → `{ widget: { supported, open(), isOpen(),
-close(), onChange(fn) }, requestPermissionFromGesture(), dispose() }`. It installs a Web Worker
+`createTimerSurfaces({ controller, store, bus, clock, win?, notificationEnv?, openHost? })` →
+`{ widget: { supported, open(), isOpen(), close(), onChange(fn), dispose() },
+requestPermissionFromGesture(), dispose(), internals }` (`internals` = ticker, tab, notifier, widget
+for the dev hooks). It installs a Web Worker
 `Ticker` on the controller (`setTicker`), keeps the tab title/favicon in sync, sends break / focus /
 bloom notifications (service worker `public/sw.js` → `${BASE_URL}sw.js`) and opens the Document
 Picture-in-Picture card. It reads the controller through the structural `WidgetController`
@@ -372,8 +419,10 @@ export interface StudioEntry {
 `render` fills `canvas.width × canvas.height` pixels (the studio clears the canvas and resets
 the transform before each call; `pixelRatio = canvas.width / w`). Animated entries render every
 frame, static ones once per seed/scale. Section ids are unique; entry ids are unique per section
-and addressed as `<section>/<entry>`. URL: `#<section>`, `?entry=<id>`, `?seed=n`, `?t=sec`
-(start paused), `?scale=2`, `?bg=paper|white|dark`. All species automatically get a section
+and addressed as `<section>/<entry>`; sections sort by `order` (default 100), then title. URL:
+`#<section>`, `?entry=<id>` (a bare entry id works when unique), `?seed=n` (default 1), `?t=sec`
+(start paused), `?scale=2`, `?bg=paper|white|dark`. `window.studio` = `{ ready, entries, errors,
+renders(), pause(), setT(t) }` for tests and screenshots. All species automatically get a section
 (growth stages + grow loop) from `src/plants/species.studio.ts`. See `docs/systems/studio.md`.
 
 ## Conventions
