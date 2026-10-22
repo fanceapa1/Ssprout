@@ -7,17 +7,24 @@ import { defineConfig, devices } from '@playwright/test';
  * E2E_PORT overrides the port (use it when several checkouts run e2e at the same time).
  * E2E_REUSE=1 reuses an already running server on that port (fast local iteration; make sure
  * it serves a fresh build).
+ *
+ * Timeouts are sized for a loaded machine (several agents, CI runners): the garden paints in
+ * workers and the planting sheet paints every species preview synchronously, which can take
+ * seconds under CPU contention. Tests never sleep; they wait for explicit readiness signals
+ * (docs/TESTING.md). CI retries once and keeps traces, screenshots and the HTML report.
  */
 const port = Number(process.env.E2E_PORT ?? 4173);
 const ci = !!process.env.CI;
 
 export default defineConfig({
   testDir: 'tests/e2e',
+  timeout: 60_000,
+  expect: { timeout: 10_000 },
   fullyParallel: true,
   forbidOnly: ci,
   retries: ci ? 1 : 0,
   workers: ci ? 2 : undefined,
-  reporter: ci ? [['github'], ['html', { open: 'never' }]] : 'list',
+  reporter: ci ? [['github'], ['list'], ['html', { open: 'never' }]] : 'list',
   use: {
     baseURL: `http://127.0.0.1:${port}/Ssprout/`,
     trace: 'retain-on-failure',
