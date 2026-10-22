@@ -13,6 +13,8 @@ import { installScheduleDebug } from './dev/schedule-debug';
 import { withFixtures } from './dev/fixture-species';
 import { createFakeWidget, installUiDebug } from './dev/ui-debug';
 import { installPlantsDebug } from './plants/debug';
+import { installCameraDebug } from './dev/camera-debug';
+import { plantWorldBounds } from './plants/bounds';
 import { allSpecies } from './plants/registry';
 import { createPlantSystem } from './plants/system';
 import { setPlantViewSpecies } from './plants/view';
@@ -109,6 +111,8 @@ function boot(): void {
     reducedMotion,
     timeScale: dev && Number.isFinite(uiTime) && params.has('uitime') ? uiTime : 1,
     schedules: scheduler,
+    // the camera over the garden: gestures, focus on the growing plant, plant cards (docs/systems/camera.md)
+    camera: { camera: renderer.camera, hitTest: (p, tolerance) => plants.hitTest(p, tolerance) },
   });
   plants.connectPlacement(ui.placement);
 
@@ -120,6 +124,23 @@ function boot(): void {
     installSceneDebug(sceneSystem, scene);
     installPlantsDebug(plants);
     installScheduleDebug({ store, scheduler, clock: speedClock, ui, species });
+    installCameraDebug({
+      renderer,
+      ui,
+      slots: scene.slots,
+      // a small plant's box at the slot (PLANT_SIZES.small)
+      boundsForSlot: (slotId) => {
+        const slot = scene.slots.find((s) => s.id === slotId);
+        return slot ? plantWorldBounds({ size: { w: 86, h: 86 }, anchor: { x: 0.5, y: 0.92 } }, slot) : null;
+      },
+      plantBounds: (id) => plants.plantBounds(id),
+      whenDetail: async () => {
+        await sceneSystem.whenPainted();
+        await plants.ready();
+        // the light plate's detail paints in idle callbacks, a phase at a time
+        for (let i = 0; i < 300 && ambience.lightDetail() && !ambience.lightDetail()!.ready; i++) await new Promise((r) => setTimeout(r, 20));
+      },
+    });
   }
   const ambience = addAmbience(renderer, { dev: speedClock !== null, daylight });
   // the time-of-day wash eases in once the landscape is painted (never on bare paper), and the
