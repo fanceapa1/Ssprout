@@ -17,7 +17,8 @@ import { drawSlotOverlay } from './overlay';
 import { createWaterSurface, type WaterSurface } from './water';
 import { pinnedSource, type DaylightSource } from '../ambience/daylight-source';
 import { nextPhase, whenIdle, type DaylightState } from '../ambience/daylight';
-import { createSkyLight, type SkyLight } from './sky-light';
+import { covers, createSkyLight, intersect, type SkyLight } from './sky-light';
+import type { CameraView } from '../render/camera';
 import { createRimCache, drawRim, type RimCache } from '../paint/rim';
 import { rimLight } from '../ambience/sky-layout';
 
@@ -30,8 +31,14 @@ export interface SceneSystemOptions {
   showSlots?: boolean;
   /** fade-in duration of a new painting, seconds (default 1.2) */
   fadeSeconds?: number;
-  /** cap on bitmap pixels per world unit (default 2.2); above it the painting is upscaled */
+  /** cap on bitmap pixels per world unit (default 1.5); above it the painting is upscaled */
   maxPaintScale?: number;
+  /**
+   * cap for the detail painting of a zoomed-in view (default 3.2): once the camera rests closer
+   * than the overview painting resolves, the visible part is painted again at the view's scale
+   * and cross-fades in (ADR 0163)
+   */
+  maxDetailScale?: number;
   /** repaint when the scale changes by more than this fraction (default 0.1) */
   rescaleTolerance?: number;
   /** extra world units painted around the visible area so small resizes need no repaint */
@@ -65,7 +72,11 @@ export interface SceneSystem extends System {
   stats(): SceneStats;
   /** sky plates painted, composites built, ms spent painting skies */
   skyStats(): ReturnType<SkyLight['stats']> | null;
+  /** the detail painting for the camera's resting view: its view, whether it is painting, how far it has faded in */
+  detailStats(): { view: PaintView | null; painting: boolean; fade: number; paints: number; lastPaintMs: number };
 }
+
+const WORLD: Rect = { x: 0, y: 0, w: WORLD_W, h: WORLD_H };
 
 const macrotask = () => new Promise<void>((r) => setTimeout(r, 0));
 
@@ -95,6 +106,7 @@ export function createSceneSystem(opts: SceneSystemOptions = {}): SceneSystem {
   const quality = opts.quality ?? 'normal';
   const fadeSeconds = opts.fadeSeconds ?? 1.2;
   const maxScale = opts.maxPaintScale ?? 1.5;
+  const maxDetail = opts.maxDetailScale ?? 3.2;
   const tolerance = opts.rescaleTolerance ?? 0.1;
   const margin = opts.margin ?? 60;
   const yieldTo = opts.yieldTo ?? macrotask;
@@ -115,17 +127,27 @@ export function createSceneSystem(opts: SceneSystemOptions = {}): SceneSystem {
   let sinceSky = Infinity;
   let preparing = false;
   const rims: RimCache = createRimCache();
+  // the camera's detail painting (ADR 0163)
+  let camera: CameraView | null = null;
+  let seenDetail = -1;
+  let detailWanted: PaintView | null = null;
+  let detail: PaintResult | null = null;
+  let detailFade = 1;
+  let detailJobId = 0;
+  let detailJob: Promise<void> | null = null;
+  const detailCounts = { paints: 0, lastPaintMs: 0 };
   const stats: SceneStats = { paints: 0, rescales: 0, lastPaintMs: 0, lastCpuMs: 0, lastView: null, timings: [], painting: false };
 
-  const startPaint = (view: PaintView): Promise<void> => {
+  /** `swap`: the same painting over a larger area — replace it at once (a cross-fade would pulse) */
+  const startPaint = (view: PaintView, swap = false): Promise<void> => {
     const id = ++jobId;
     stats.painting = true;
     const run = paintScene(art, view, { quality, yieldTo, now, cancelled: () => id !== jobId })
       .then((res) => {
         if (id !== jobId) return;
-        previous = current;
+        previous = swap ? null : current;
         current = res;
-        fade = 0;
+        fade = swap ? 1 : 0;
         stats.paints++;
         stats.lastPaintMs = res.totalMs;
         stats.lastCpuMs = res.cpuMs;
@@ -146,6 +168,65 @@ export function createSceneSystem(opts: SceneSystemOptions = {}): SceneSystem {
     return run;
   };
 
+  /** the detail view wanted for the camera's resting view, or null when the overview painting resolves it */
+  const detailFor = (cam: CameraView): PaintView | null => {
+    if (cam.isOverview() && cam.detailView() === cam.view()) return null;
+    const v = cam.detailView();
+    const want = paintViewFor(v, maxDetail, 40);
+    if (!current || want.scale <= current.view.scale * 1.15) return null;
+    return want;
+  };
+
+  const startDetail = (view: PaintView): void => {
+    const id = ++detailJobId;
+    const t0 = now();
+    detailJob = paintScene(art, view, { quality, yieldTo, now, cancelled: () => id !== detailJobId })
+      .then((res) => {
+        if (id !== detailJobId) return;
+        detail = res;
+        detailFade = 0;
+        detailCounts.paints++;
+        detailCounts.lastPaintMs = now() - t0;
+        invalidate('background');
+      })
+      .catch((err: unknown) => {
+        if (!(err instanceof PaintCancelled)) throw err;
+      })
+      .finally(() => {
+        if (id === detailJobId) detailJob = null;
+      });
+  };
+
+  /** follow the camera's resting view: paint its detail once the camera stops moving */
+  const followCamera = (): void => {
+    const cam = camera;
+    if (!cam || !current) return;
+    if (cam.detailVersion === seenDetail || cam.moving()) return;
+    seenDetail = cam.detailVersion;
+    const want = detailFor(cam);
+    detailWanted = want;
+    if (!want) {
+      // back at the overview: drop the detail (and its memory)
+      detailJobId++;
+      detailJob = null;
+      if (detail) {
+        detail = null;
+        invalidate('background');
+      }
+      return;
+    }
+    if (detail && canReuse(detail.view, { ...want, rect: intersect(want.rect, WORLD) ?? want.rect }, tolerance)) return;
+    startDetail(want);
+  };
+
+  /** whether this draw (its world → screen view) is for a zoomed view the detail painting covers */
+  const detailCovers = (view: Viewport | undefined): boolean => {
+    if (!detail || !view || !current) return false;
+    if (view.pixelScale <= current.view.scale * 1.15) return false;
+    const inWorld = intersect(view.visible, WORLD);
+    return !!inWorld && covers(detail.view.rect, inWorld);
+  };
+
   const drawPainting = (ctx: CanvasRenderingContext2D, res: PaintResult, alpha: number) => {
     if (alpha <= 0) return;
     const { rect } = res.view;
@@ -159,6 +240,8 @@ export function createSceneSystem(opts: SceneSystemOptions = {}): SceneSystem {
     id: 'scene',
     async init(ctx: SystemContext) {
       reducedMotion = ctx.reducedMotion;
+      camera = ctx.camera ?? null;
+      seenDetail = -1;
       water ??= createWaterSurface(ctx.scene, { seed: art.seed, still: ctx.reducedMotion });
       if (!sky) {
         sky = createSkyLight({ pond: art.scene.pond, seed: art.seed });
@@ -176,9 +259,20 @@ export function createSceneSystem(opts: SceneSystemOptions = {}): SceneSystem {
         stats.rescales++;
         return;
       }
-      const p = startPaint(paintViewFor(ctx.viewport, maxScale, margin));
+      const first = !current;
+      const view = paintViewFor(ctx.viewport, maxScale, margin);
+      const p = startPaint(view);
       // first paint: block init so ready() means painted; afterwards repaint in the background
-      if (!current) await p;
+      if (first) {
+        await p;
+        // with a camera, a closer look may go beyond the overview's crop (a phone's sides): paint
+        // the whole world at the same scale behind the scenes (it cross-fades in invisibly)
+        if (camera && current && !contains(current.view.rect, WORLD)) {
+          void (job ?? Promise.resolve()).then(() => {
+            if (current && !contains(current.view.rect, WORLD) && !job) startPaint({ rect: { ...WORLD }, scale: current.view.scale }, true);
+          });
+        }
+      }
     },
     update(f) {
       // the sky follows the daylight: checked every couple of seconds (at once after setTime)
@@ -200,6 +294,15 @@ export function createSceneSystem(opts: SceneSystemOptions = {}): SceneSystem {
           });
         }
       }
+      followCamera();
+      if (sky && camera) {
+        const v = camera.detailView();
+        sky.setDetail(camera.isOverview() && !camera.moving() ? null : v.visible, v.pixelScale);
+      }
+      if (detailFade < 1) {
+        detailFade = f.dt === 0 || reducedMotion ? 1 : Math.min(1, detailFade + f.dt / fadeSeconds);
+        invalidate('background');
+      }
       if (fade >= 1) return;
       // a still frame (freeze / renderOnce) or reduced motion settles the fade at once
       fade = f.dt === 0 || reducedMotion ? 1 : Math.min(1, fade + f.dt / fadeSeconds);
@@ -208,9 +311,16 @@ export function createSceneSystem(opts: SceneSystemOptions = {}): SceneSystem {
     },
     draw(layer: LayerId, ctx: CanvasRenderingContext2D, f) {
       if (layer === 'background') {
-        if (previous) drawPainting(ctx, previous, 1);
-        if (current) drawPainting(ctx, current, easeInOut(fade));
-        if (current && sky) sky.drawSky(ctx);
+        if (detailCovers(f.view) && detail) {
+          // the detail painting fades in over the overview painting (a crossfade: no darker pulse)
+          const e = easeInOut(detailFade);
+          if (e < 1 && current) drawPainting(ctx, current, 1 - e);
+          drawPainting(ctx, detail, e);
+        } else {
+          if (previous) drawPainting(ctx, previous, 1);
+          if (current) drawPainting(ctx, current, easeInOut(fade));
+        }
+        if (current && sky) sky.drawSky(ctx, f.view?.visible);
       } else if (layer === 'waterSurface') {
         if (current && water) {
           ctx.globalAlpha = easeInOut(fade);
@@ -222,10 +332,11 @@ export function createSceneSystem(opts: SceneSystemOptions = {}): SceneSystem {
         drawSlotOverlay(ctx, art.scene);
       }
     },
-    entities(): Drawable[] {
-      const res = current;
+    entities(f): Drawable[] {
+      // zoomed in with a detail painting: its sharper boulders and tufts
+      const res = detail && f && f.view && current && f.view.pixelScale > current.view.scale * 1.15 ? detail : current;
       if (!res) return [];
-      const alpha = previous ? 1 : easeInOut(fade);
+      const alpha = res === detail ? 1 : previous ? 1 : easeInOut(fade);
       const rim = light ? rimLight(light) : null;
       return res.sprites.map((s) => ({
         depth: s.depth,
@@ -239,10 +350,18 @@ export function createSceneSystem(opts: SceneSystemOptions = {}): SceneSystem {
     },
     dispose() {
       jobId++;
+      detailJobId++;
       current = null;
       previous = null;
+      detail = null;
     },
-    whenPainted: () => job ?? Promise.resolve(),
+    whenPainted: async () => {
+      // a camera that just came to rest starts its detail painting on the next frame: let it
+      await (job ?? Promise.resolve());
+      if (camera && camera.detailVersion !== seenDetail && !camera.moving()) followCamera();
+      await (detailJob ?? Promise.resolve());
+    },
+    detailStats: () => ({ view: detail?.view ?? detailWanted, painting: detailJob !== null, fade: detailFade, paints: detailCounts.paints, lastPaintMs: detailCounts.lastPaintMs }),
     stats: () => ({ ...stats, timings: [...stats.timings] }),
     skyStats: () => sky?.stats() ?? null,
   };

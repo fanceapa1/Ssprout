@@ -7,7 +7,7 @@
  */
 import { createRng } from '../core/rng';
 import { PHASES, type DayPhase, type DaylightState, type PhaseWeights } from '../ambience/daylight';
-import { moonDisc, sunDisc, type Disc } from '../ambience/sky-layout';
+import { moonDisc, reserveStar, stars, sunDisc, type Disc } from '../ambience/sky-layout';
 import { bounds, createPainter, makeCanvas, type AnyCanvas } from '../paint';
 import type { Pt, Rect } from '../render/viewport';
 import { SKY_RECT, SKY_SCALE, paintSkyPlate, paintWaterSkyPlate, skyShape } from './paint-sky';
@@ -18,20 +18,44 @@ type Ctx = CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
 export const WATER_SKY_ALPHA: Readonly<Record<DayPhase, number>> = { sunrise: 0.34, midday: 0.22, sunset: 0.42, night: 0.36 };
 /** Water plates are painted at this many px per world unit. */
 const WATER_SCALE = 0.5;
+/** A zoomed-in view composes its own sky at up to this many px per world unit (ADR 0163). */
+export const SKY_DETAIL_MAX = 3;
 
 export interface SkyLight {
   /** recompose for this state if it changed enough (or `force`); true when it did */
   update(state: DaylightState, force?: boolean): boolean;
-  /** multiply the sky over the landscape (world-unit context) */
-  drawSky(ctx: Ctx): void;
+  /**
+   * Multiply the sky over the landscape (world-unit context). With the visible world rect of a
+   * zoomed view that the detail covers, the sharp detail composite is drawn instead.
+   */
+  drawSky(ctx: Ctx, visible?: Rect): void;
+  /**
+   * Keep a sharp composite for a zoomed view (its visible world rect and device px per unit), or
+   * none (null). Composed lazily: the plates' part under the view upscaled, then the sun, moon
+   * and stars punched at full resolution — the hard edges are what looks soft when zoomed.
+   */
+  setDetail(visible: Rect | null, pixelScale: number): void;
   /** lay the mirrored sky on the pond (world-unit context; clips itself) */
   drawWater(ctx: Ctx): void;
   /** whether a phase's plates are painted */
   has(phase: DayPhase): boolean;
   /** paint the plates for these phases now (otherwise they paint when first needed) */
   prepare(phases: readonly DayPhase[]): void;
-  stats(): { plates: number; composes: number; paintMs: number };
+  stats(): { plates: number; composes: number; paintMs: number; detail: { rect: Rect; scale: number } | null };
 }
+
+/** The intersection of two rects, or null when they do not overlap. */
+export function intersect(a: Rect, b: Rect): Rect | null {
+  const x = Math.max(a.x, b.x);
+  const y = Math.max(a.y, b.y);
+  const r = Math.min(a.x + a.w, b.x + b.w);
+  const bt = Math.min(a.y + a.h, b.y + b.h);
+  return r > x && bt > y ? { x, y, w: r - x, h: bt - y } : null;
+}
+
+/** Whether `outer` contains `inner` (half a unit of slack). */
+export const covers = (outer: Rect, inner: Rect): boolean =>
+  inner.x >= outer.x - 0.5 && inner.y >= outer.y - 0.5 && inner.x + inner.w <= outer.x + outer.w + 0.5 && inner.y + inner.h <= outer.y + outer.h + 0.5;
 
 interface Plate {
   sky: AnyCanvas;
@@ -70,6 +94,9 @@ export function createSkyLight(opts: { pond: readonly Pt[]; seed: number }): Sky
   const wctx = waterComposite.getContext('2d') as Ctx;
   let waterAlpha = 0;
   let key = '';
+  let last: { state: DaylightState; sun: Disc; moon: Disc } | null = null;
+  let detailWant: { rect: Rect; scale: number } | null = null;
+  let detail: { rect: Rect; scale: number; canvas: AnyCanvas; key: string } | null = null;
   let composes = 0;
   let paintMs = 0;
   let pondPath: Path2D | null = null;
@@ -136,6 +163,40 @@ export function createSkyLight(opts: { pond: readonly Pt[]; seed: number }): Sky
     composes++;
   };
 
+  /** the detail composite for the wanted view and the current light (rebuilt when either changed) */
+  const composeDetail = () => {
+    if (!detailWant || !last) return (detail = null);
+    const { rect, scale } = detailWant;
+    const dkey = `${key}|${rect.x},${rect.y},${rect.w},${rect.h}@${scale}`;
+    if (detail?.key === dkey) return detail;
+    const w = Math.max(1, Math.ceil(rect.w * scale));
+    const h = Math.max(1, Math.ceil(rect.h * scale));
+    const canvas = detail && detail.canvas.width === w && detail.canvas.height === h ? detail.canvas : makeCanvas(w, h);
+    const dctx = canvas.getContext('2d') as Ctx;
+    dctx.setTransform(1, 0, 0, 1, 0, 0);
+    dctx.globalCompositeOperation = 'source-over';
+    dctx.globalAlpha = 1;
+    dctx.clearRect(0, 0, w, h);
+    dctx.imageSmoothingEnabled = true;
+    // the plates' part under the view (soft washes upscale well)
+    const sx = (rect.x - SKY_RECT.x) * SKY_SCALE;
+    const sy = (rect.y - SKY_RECT.y) * SKY_SCALE;
+    for (const { phase, alpha } of blendOrder(last.state.weights)) {
+      dctx.globalAlpha = alpha;
+      dctx.drawImage(paint(phase).sky as CanvasImageSource, sx, sy, rect.w * SKY_SCALE, rect.h * SKY_SCALE, 0, 0, w, h);
+    }
+    dctx.globalAlpha = 1;
+    dctx.setTransform(scale, 0, 0, scale, -rect.x * scale, -rect.y * scale);
+    // the hard edges at full resolution: the stars' paper flecks, the sun and the moon
+    const night = last.state.weights.night;
+    if (night > 0.01) for (const st of stars()) if (st.x > rect.x - 6 && st.x < rect.x + rect.w + 6 && st.y > rect.y - 6 && st.y < rect.y + rect.h + 6) reserveStar(dctx, st, night);
+    if (last.sun.alpha > 0.01) punchSun(dctx, last.sun, skyClip());
+    if (last.moon.alpha > 0.01) punchMoon(dctx, last.moon, last.state.moonPhase);
+    dctx.setTransform(1, 0, 0, 1, 0, 0);
+    detail = { rect, scale, canvas, key: dkey };
+    return detail;
+  };
+
   return {
     update(state, force = false) {
       const sun = sunDisc(state);
@@ -143,15 +204,33 @@ export function createSkyLight(opts: { pond: readonly Pt[]; seed: number }): Sky
       const k = skyKey(state.weights, sun, moon);
       if (!force && k === key) return false;
       key = k;
+      last = { state, sun, moon };
       compose(state, sun, moon);
       return true;
     },
-    drawSky(ctx) {
+    setDetail(visible, pixelScale) {
+      const rect = visible ? intersect(visible, SKY_RECT) : null;
+      const scale = Math.min(SKY_DETAIL_MAX, Math.max(SKY_SCALE, pixelScale));
+      if (!rect || scale <= SKY_SCALE * 1.3) {
+        detailWant = null;
+        detail = null;
+        return;
+      }
+      // whole units, a little margin: small pans reuse it
+      const m = 24;
+      const r = { x: Math.floor(rect.x - m), y: Math.floor(rect.y - m), w: Math.ceil(rect.w + 2 * m), h: Math.ceil(rect.h + 2 * m) };
+      const clipped = intersect(r, SKY_RECT)!;
+      detailWant = { rect: clipped, scale: Math.round(scale * 100) / 100 };
+    },
+    drawSky(ctx, visible) {
       if (!key) return;
       ctx.save();
       ctx.globalCompositeOperation = 'multiply';
       ctx.imageSmoothingEnabled = true;
-      ctx.drawImage(composite as CanvasImageSource, SKY_RECT.x, SKY_RECT.y, SKY_RECT.w, SKY_RECT.h);
+      const inSky = visible ? intersect(visible, SKY_RECT) : null;
+      const d = visible && detailWant && (!inSky || covers(detailWant.rect, inSky)) ? composeDetail() : null;
+      if (d && inSky) ctx.drawImage(d.canvas as CanvasImageSource, d.rect.x, d.rect.y, d.rect.w, d.rect.h);
+      else if (!visible || inSky) ctx.drawImage(composite as CanvasImageSource, SKY_RECT.x, SKY_RECT.y, SKY_RECT.w, SKY_RECT.h);
       ctx.restore();
     },
     drawWater(ctx) {
@@ -172,7 +251,7 @@ export function createSkyLight(opts: { pond: readonly Pt[]; seed: number }): Sky
       for (const p of phases) paint(p);
     },
     has: (p) => plates.has(p),
-    stats: () => ({ plates: plates.size, composes, paintMs }),
+    stats: () => ({ plates: plates.size, composes, paintMs, detail: detail ? { rect: { ...detail.rect }, scale: detail.scale } : null }),
   };
 }
 
