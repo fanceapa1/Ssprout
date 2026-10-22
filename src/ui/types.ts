@@ -1,6 +1,12 @@
 import type { Clock } from '../core/clock';
 import type { SessionController } from '../core/controller';
 import type { EventBus } from '../core/events';
+import type { OccurrenceRef } from '../core/schedule';
+import type { Scheduler } from '../core/schedule-controller';
+import type { CalendarState } from './calendar';
+import type { CalendarView } from './calendar-model';
+import type { ScheduleSheetState } from './schedule-sheet';
+import type { DueCardsState } from './schedule-card';
 import type { Store } from '../core/state';
 import type { SpeciesDef } from '../plants/types';
 import type { Viewport } from '../render/viewport';
@@ -78,6 +84,11 @@ export interface UIDeps {
   reducedMotion?: boolean;
   /** Multiplies every UI delay (idle fade, fauna line). Dev/tests only; default 1. */
   timeScale?: number;
+  /**
+   * Scheduled sessions (src/core/schedule-controller.ts): with it the UI fills the dock's
+   * Calendar section, shows the waiting card and links a session started from it (ADRs 0173–0177).
+   */
+  schedules?: Scheduler;
 }
 
 /** What the renderer may draw in-canvas while the gardener is choosing a spot. */
@@ -98,6 +109,8 @@ export interface PlantingDraft {
   planId: string | null;
   speciesId: string | null;
   slotId: string | null;
+  /** the scheduled occurrence this start was prefilled from (linked on Begin, ADR 0173) */
+  link?: OccurrenceRef | null;
 }
 
 export type UIMode = 'garden' | 'planting' | 'placement';
@@ -131,6 +144,12 @@ export interface UIState {
   plantLabel: string | null;
   /** the planting draft */
   draft: PlantingDraft;
+  /** the Calendar section (null without schedules) */
+  calendar: CalendarState | null;
+  /** scheduled sessions waiting for one-tap Start */
+  due: DueCardsState | null;
+  /** the schedule editor */
+  scheduleSheet: ScheduleSheetState | null;
 }
 
 /** The page's scrolling, as the UI exposes it (custom smooth scroll, ADR 0131). */
@@ -154,6 +173,8 @@ export interface UI {
   readonly scroll: UIScroll;
   /** the dock's live plant view: `water()` plays the watering animation (automatic watering hook) */
   readonly plantView: { water(): boolean; state(): PlantViewState };
+  /** the Calendar section (null without a scheduler): what it shows, its view, its day */
+  readonly calendar: { state(): CalendarState; setView(view: CalendarView): void; go(date: string | number): void } | null;
   readonly placement: {
     current(): PlacementHighlight;
     /** called whenever markers appear/disappear/move or focus changes */

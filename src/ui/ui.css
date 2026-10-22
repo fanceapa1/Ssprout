@@ -275,6 +275,7 @@ dialog :focus-visible {
   border: 0;
   background: none;
   cursor: pointer;
+  white-space: nowrap;
   display: inline-flex;
   align-items: center;
   gap: 10px;

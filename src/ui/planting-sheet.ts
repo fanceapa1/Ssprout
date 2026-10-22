@@ -1,3 +1,4 @@
+import type { StartPrefill } from '../core/schedule';
 import type { UIContext } from './context';
 import { clear, h, setText } from './dom';
 import { createDurationControl } from './duration';
@@ -21,6 +22,30 @@ export interface PlantingActions {
 }
 
 export const TASK_MAX = 40;
+
+/**
+ * Prefill the shared draft from a scheduled session (the waiting card's one-tap Start, ADR 0173):
+ * the name always; the total only when the schedule has one (else the remembered total stays);
+ * the plan only when given and offered for that total (else the sheet's usual first plan). Plant
+ * and spot are chosen now. `link` ties the session that begins to its occurrence.
+ */
+export function applyPrefill(draft: PlantingDraft, p: StartPrefill, plansFor: (minutes: number) => readonly { id: string }[]): void {
+  draft.taskName = p.taskName.slice(0, TASK_MAX);
+  if (p.goalMinutes !== null) draft.goalMinutes = p.goalMinutes;
+  const offered = plansFor(draft.goalMinutes);
+  if (p.planId !== null && offered.some((x) => x.id === p.planId)) draft.planId = p.planId;
+  else if (p.goalMinutes !== null || !offered.some((x) => x.id === draft.planId)) draft.planId = null;
+  draft.speciesId = null;
+  draft.slotId = null;
+  draft.link = p.link;
+}
+
+/** A normal start after a prefilled one: drop the link and the scheduled name. */
+export function clearPrefill(draft: PlantingDraft): void {
+  if (!draft.link) return;
+  draft.link = null;
+  draft.taskName = '';
+}
 const PREVIEW = { w: 96, h: 92 };
 const TASK_SUGGESTIONS = ['Biology, chapter 4', 'Essay draft', 'Japanese vocabulary', 'Problem set 3', 'Reading for seminar'];
 

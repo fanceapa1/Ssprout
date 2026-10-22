@@ -3,11 +3,13 @@ import { createGardenAudio } from './audio';
 import { addAmbience, createDaylightSource } from './ambience';
 import { createSpeedClock, realClock, type Clock } from './core/clock';
 import { createSessionController } from './core/controller';
+import { createScheduler } from './core/schedule-controller';
 import { createEventBus } from './core/events';
 import { createSaver, loadState, type StorageLike } from './core/persistence';
 import { createReducer, createStore } from './core/state';
 import { installCoreDebug } from './dev/core-debug';
 import { installDebug, isDev } from './dev/debug';
+import { installScheduleDebug } from './dev/schedule-debug';
 import { withFixtures } from './dev/fixture-species';
 import { createFakeWidget, installUiDebug } from './dev/ui-debug';
 import { installPlantsDebug } from './plants/debug';
@@ -84,6 +86,8 @@ function boot(): void {
   // Timer surfaces: worker ticker, tab title/favicon, notifications (asked inside session:start),
   // the floating widget (docs/systems/widget.md).
   const surfaces = createTimerSurfaces({ controller, store, bus, clock });
+  // scheduled sessions tick on the same worker, so a background tab notices them (ADR 0174)
+  const scheduler = createScheduler({ store, clock, bus, ticker: surfaces.internals.ticker });
 
   // UI over the canvas (docs/systems/ui.md).
   const audio = createGardenAudio({ bus, getState: store.get, clock });
@@ -104,6 +108,7 @@ function boot(): void {
     isKnownSpecies,
     reducedMotion,
     timeScale: dev && Number.isFinite(uiTime) && params.has('uitime') ? uiTime : 1,
+    schedules: scheduler,
   });
   plants.connectPlacement(ui.placement);
 
@@ -114,6 +119,7 @@ function boot(): void {
     installWidgetDebug({ surfaces, controller, store, bus });
     installSceneDebug(sceneSystem, scene);
     installPlantsDebug(plants);
+    installScheduleDebug({ store, scheduler, clock: speedClock, ui, species });
   }
   const ambience = addAmbience(renderer, { dev: speedClock !== null, daylight });
   // the time-of-day wash eases in once the landscape is painted (never on bare paper), and the

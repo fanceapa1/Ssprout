@@ -10,9 +10,11 @@ import '@fontsource/cormorant-garamond/latin-ext-400-italic.css';
 import '@fontsource/cormorant-garamond/latin-ext-500.css';
 import '@fontsource/cormorant-garamond/latin-ext-500-italic.css';
 import './ui.css';
+import { startPrefill, type OccurrenceView, type StartPrefill } from '../core/schedule';
 import { clampGoalMinutes } from '../core/session';
 import type { TipId } from '../core/tips';
 import type { UIContext } from './context';
+import { createCalendar, type Calendar } from './calendar';
 import { createDock } from './dock';
 import { h } from './dom';
 import { createGardenData } from './garden-data';
@@ -24,9 +26,11 @@ import { createPill } from './pill';
 import { createPlacement } from './placement';
 import { createPlantLabels } from './plant-labels';
 import { createPlantSection } from './plant-section';
-import { createPlantingSheet } from './planting-sheet';
+import { applyPrefill, clearPrefill, createPlantingSheet } from './planting-sheet';
 import { createPreviewCache } from './previews';
 import { createQuietLine } from './quiet-line';
+import { createDueCards, type DueCards } from './schedule-card';
+import { createScheduleSheet, type ScheduleSheet } from './schedule-sheet';
 import { createScrollbar } from './scrollbar';
 import { createSessionList } from './session-list';
 import { createSmoothScroll } from './smooth-scroll';
@@ -55,7 +59,7 @@ export { renderPlantPreview } from './previews';
 /**
  * The app page around the garden (ADR 0130): the garden stage at the top (canvas + what sits on
  * the painting: timer pill, corner tool icons, quiet line, placement markers, plant labels), the
- * dock of sections below it (session controls, your plant, a calendar placeholder, garden tools),
+ * dock of sections below it (session controls, your plant, the calendar, garden tools),
  * the planting sheet and other sheets, tooltips, custom smooth scrolling and scrollbar.
  * The session controller is the only API it drives. See docs/systems/ui.md.
  */
@@ -198,9 +202,39 @@ export function createUI(deps: UIDeps): UI {
   // the session controls, then the sessions in progress (ADR 0156)
   dock.addSection({ id: 'session', title: 'Study', order: 10, mount: (body) => void body.append(panel.el, sessions.el) });
   dock.addSection({ id: 'plant', title: 'Your plant', order: 20, mount: (body) => plantView.mount(body) });
-  // the calendar task fills this (`ui.dock.fill('calendar', mount)`); hidden until then (ADR 0130)
+  // filled below when the app has a scheduler (ADR 0175); hidden until then (ADR 0130)
   dock.addSection({ id: 'calendar', title: 'Calendar', order: 30, span: 'full' });
   dock.addSection({ id: 'tools', title: 'Garden tools', order: 90, span: 'full', mount: (body) => void body.append(tools.dock) });
+
+  // ── scheduled sessions: the calendar, its editor, the waiting card (ADRs 0173–0177) ─────────
+  let calendar: Calendar | null = null;
+  let scheduleSheet: ScheduleSheet | null = null;
+  let dueCards: DueCards | null = null;
+  const offSchedules: Array<() => void> = [];
+  if (deps.schedules) {
+    const scheduler = deps.schedules;
+    const startFrom = (o: OccurrenceView, opener: HTMLElement | null) => openPlanting(opener, startPrefill(o));
+    scheduleSheet = createScheduleSheet(ctx, { scheduler, startNow: startFrom });
+    const sheet = scheduleSheet;
+    calendar = createCalendar(ctx, {
+      scheduler,
+      edit: (target, opener) => ('occurrence' in target ? sheet.openEdit(target.occurrence, opener) : sheet.openNew(target, opener)),
+    });
+    const cal = calendar;
+    dock.fill('calendar', (body) => {
+      body.append(cal.el);
+      return () => cal.dispose();
+    });
+    dueCards = createDueCards(ctx, { scheduler, start: startFrom, showSessions: (opener) => openPlanting(opener) });
+    dock.get('session')?.body.prepend(dueCards.el);
+    const cards = dueCards;
+    offSchedules.push(
+      scheduler.onChange(() => {
+        cards.render();
+        cal.render();
+      }),
+    );
+  }
 
   const scrollbar = createScrollbar(scroller, { delay: (ms) => ctx.delay(ms) });
   const offDock = dock.onChange(() => scrollbar.update());
@@ -231,8 +265,10 @@ export function createUI(deps: UIDeps): UI {
   });
 
   stage.layer.append(line.el, labels.el, placement.layer, pill.el, tools.corner, placement.bar);
+  if (dueCards) stage.layer.append(dueCards.slip);
   stageEl.after(dock.el);
   root.append(tips.el, scrollbar.el, live, planting.el, herbarium.el, data.el, hints.el);
+  if (scheduleSheet) root.append(scheduleSheet.el);
   root.dataset.mode = mode;
   for (const d of allDialogs()) {
     d.addEventListener('close', () => {
@@ -251,7 +287,8 @@ export function createUI(deps: UIDeps): UI {
   let lastOpener: HTMLElement | null = null;
   /** the active session when the planting sheet opened (another session may be running) */
   let plantingOver: string | null = null;
-  function openPlanting(opener?: HTMLElement | null): void {
+  /** Open the planting sheet; `prefill` from a scheduled session (the waiting card, ADR 0173). */
+  function openPlanting(opener?: HTMLElement | null, prefill?: StartPrefill): void {
     const st = controller.status();
     if (!st.canStart) {
       // up to three grow at once: say so gently and offer to switch instead (ADR 0156)
@@ -261,6 +298,8 @@ export function createUI(deps: UIDeps): UI {
     }
     plantingOver = st.session?.id ?? null;
     lastOpener = opener ?? null;
+    if (prefill) applyPrefill(draft, prefill, (m) => controller.recommendPlans(m));
+    else clearPrefill(draft);
     ctx.setMode('planting');
     planting.open(opener);
   }
@@ -276,6 +315,10 @@ export function createUI(deps: UIDeps): UI {
       slotId: draft.slotId,
     });
     if (!ok) return;
+    // started from a scheduled session: link it back, so the calendar shows it done (ADR 0173)
+    const startedId = store.get().session?.id;
+    if (draft.link && startedId) deps.schedules?.link(draft.link, startedId);
+    draft.link = null;
     const name = deps.getSpecies(draft.speciesId)?.name ?? 'Your seedling';
     placement.close();
     ctx.setMode('garden');
@@ -328,6 +371,8 @@ export function createUI(deps: UIDeps): UI {
     pill.render();
     plantView.render();
     tools.render();
+    dueCards?.render();
+    calendar?.render();
     line.check();
     ctx.changed();
   };
@@ -384,6 +429,9 @@ export function createUI(deps: UIDeps): UI {
     line: line.current(),
     plantLabel: labels.current(),
     draft: { ...draft },
+    calendar: calendar?.state() ?? null,
+    due: dueCards?.state() ?? null,
+    scheduleSheet: scheduleSheet?.state() ?? null,
   });
 
   return {
@@ -398,6 +446,9 @@ export function createUI(deps: UIDeps): UI {
       },
     },
     plantView: { water: () => plantView.water(), state: () => plantView.state() },
+    calendar: calendar
+      ? { state: () => calendar!.state(), setView: (v) => calendar!.setView(v), go: (d) => calendar!.go(d) }
+      : null,
     placement: placement.highlight,
     state,
     refresh: () => refresh(),
@@ -423,6 +474,7 @@ export function createUI(deps: UIDeps): UI {
       tips.dispose();
       line.dispose();
       labels.dispose();
+      for (const off of offSchedules) off();
       root.replaceChildren();
     },
   };
