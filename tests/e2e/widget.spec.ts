@@ -3,8 +3,7 @@ import { expect, openDev, test } from './fixtures';
 
 /**
  * Timer surfaces: tab title countdown, favicon, notifications, floating widget (src/widget).
- * Needs `createTimerSurfaces` + `installWidgetDebug` wired in main.ts (docs/systems/widget.md);
- * every test skips itself while `window.sprout.widget` is missing.
+ * `createTimerSurfaces` + `installWidgetDebug` are wired in main.ts (docs/systems/widget.md).
  *
  * Page visibility / focus and the notification APIs are stubbed with an init script so the tests
  * can play "the tab is in the background" without real waiting.
@@ -58,11 +57,10 @@ async function stubPageAndNotifications(page: Page, perm: NotificationPermission
   }, perm);
 }
 
-/** Open ?dev and skip when the widget is not wired yet. */
+/** Open ?dev on a fresh, seeded garden (the widget surfaces are wired in main.ts). */
 async function openWidgetDev(page: Page, query = ''): Promise<void> {
   await openDev(page, query);
-  const wired = await page.evaluate(() => !!window.sprout?.widget);
-  test.skip(!wired, 'src/widget is not wired into main.ts yet (see docs/systems/widget.md)');
+  expect(await page.evaluate(() => !!window.sprout?.widget), 'window.sprout.widget is installed').toBe(true);
   await page.evaluate(() => {
     window.sprout!.reset();
     window.sprout!.seed(42);
@@ -270,9 +268,16 @@ test.describe('floating widget', () => {
     const i = await page.evaluate(() => window.sprout!.toBreak());
     await expect(card.locator('.ss-card')).toHaveAttribute('data-mode', 'break');
     await expect(card.locator('.ss-state')).toHaveText(/^Break — your .+ is thirsty/);
-    await card.locator('button[data-action="water"]').click();
+    await expect(card.locator('button[data-action="water"]')).toBeVisible();
+    // The watering animation is presentation-only and lasts 2.5 s of rAF time, so read it in the
+    // same task as the click: a separate round trip can land after it ended on a loaded machine.
+    const watering = await page.evaluate(() => {
+      const frame = document.querySelector<HTMLIFrameElement>('#sprout-widget-harness')!;
+      frame.contentDocument!.querySelector<HTMLButtonElement>('button[data-action="water"]')!.click();
+      return window.sprout!.widget.harnessWatering();
+    });
+    expect(watering).toBe(0);
     expect(await page.evaluate(() => window.sprout!.state().session?.waterings)).toEqual([i]);
-    expect(await page.evaluate(() => window.sprout!.widget.harnessWatering())).not.toBeNull();
     await expect(card.locator('.ss-state')).toHaveText(/^Watered — your .+ is resting/);
     await expect(card.locator('button[data-action="water"]')).toHaveCount(0);
     await card.locator('button[data-action="skip"]').click();
