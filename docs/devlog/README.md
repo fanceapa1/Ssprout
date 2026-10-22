@@ -26,3 +26,4 @@ ADRs), *Tests*, *Left / for others*; add a row here in the same commit.
 | 15 | [QA & docs](15-qa-docs.md) | Requirements → tests matrix, gap tests, deterministic e2e under load, CI gating of Pages, docs audit, README | 0014–0015 |
 | 16 | [App shell](16-app-shell.md) | Scrolling page: garden stage with a dissolving edge, dock of sections, smooth scroll + brush scrollbar, timer pill, Your plant, tools twice, bigger darker type | 0130–0136 |
 | 17 | [Daylight & colour](17-daylight-and-colour.md) | Real sun times, four painted daylight phases (skies, light plates, shadows, rims, mist, moon), richer pigments, plants 1.25×, plantsReady fix | 0140–0149 |
+| 18 | [Parallel sessions & focus watering](18-parallel-sessions.md) | Up to three sessions (one active, others waiting), switch, session log, schema v2 migration, automatic focus watering, sessions in the Study section, pill "+N", widget switch | 0150–0157 |

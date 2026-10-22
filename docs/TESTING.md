@@ -18,7 +18,7 @@ Helpers:
 - `tests/e2e/fixtures.ts` — the `test` used by every spec. It **fails a test on any console error
   or uncaught page error**. Also `openDev(page, query)`, `waitFrames(page, n)`, `canvasStats(page)`.
 - `tests/e2e/ui-helpers.ts` — `openUi` (garden with `?dev&fixtures&uitime=0.02`, reset, seeded),
-  `plantSession` (the full start flow through the UI, from the dock's Start studying),
+  `plantSession` (the full start flow through the UI, from the dock's Start studying, or with `another: true` from the Study section's "Plant another"),
   `setMinutes`, `reloadUi`, `calmUiMotion`.
 - Controls that exist twice since the app shell (ADR 0130) are scoped: `.panel` (the dock's session
   controls), `.pill` (the timer pill on the garden), `.menu` (corner tools), `.tool-list` (dock
@@ -67,6 +67,9 @@ tests (`test-results/`).
 - **Sample transient animations inside the page.** Watering lasts 2.5 s. A one-shot read in
   a later round trip can miss it on a loaded machine. Read it in the same task as the action
   (`widget.spec.ts`), or record it on every `requestAnimationFrame` (`plants.spec.ts`).
+- **A reload restarts the dev clock at real time.** Jumps made with `sprout.advance` before a reload
+  are lost (the saved timestamps are ahead of the new clock), so a reload test jumps only after it
+  (`parallel-sessions › a reload continues every session…`).
 - **Pin what is not under test.** Lighting follows the app clock: advancing the dev clock moves
   the time of day. Use `sprout.setTime('noon')` and `settleAmbience()` for pixel comparisons. Use
   `reducedMotion: 'reduce'` when sway would add noise. Clear fauna before reading a region.
@@ -158,6 +161,27 @@ Legend: unit tests as `folder/file › test`, under `src/` (`.test.ts` omitted).
 | 2.17 | Complete: full bloom, notification + chime (if unmuted), quiet line, permanent plant with task/minutes/date; a replaced plant is pressed into the herbarium | core/reducer › session/complete (all); core/controller › completion (all); plants/system › blooms the completed plant in place…; audio/garden-audio › plays a bloom chime on plant:placed…; › plays nothing while muted… | ui-session › completion: the plant blooms, a quiet line names it…; › swap … pressed into the herbarium; plants › a completed plant blooms in place and persists…; widget › completion notifies… | ✔ (chime: unit only) |
 | 2.18 | Persistence: timestamp-based; reload continues; completes if the plan ended while away | core/controller › completes on startup a session that finished while the app was closed; › on startup mid-break…; core/persistence › round-trips an active session… | ui-session › a session survives a reload mid-way; core-loop › … persisted across reloads; session-rules › a session that ended while the app was closed has bloomed on return | ✔ |
 
+### §2 Parallel sessions & focus watering (ADRs 0150–0157)
+
+| # | Rule | Unit | E2E | Status |
+|---|---|---|---|---|
+| 2.23 | Up to three in progress; a fourth start is refused | core/parallel › allows up to three in progress…; core/controller-parallel › up to three in progress: a fourth start is refused quietly… | parallel-sessions › three can grow at once; a fourth is refused gently… | ✔ |
+| 2.24 | Starting another makes it active and pauses the previous one | core/parallel › makes the new session the active one and pauses the previous one…; › keeps a session the gardener had already paused…; core/controller-parallel › starting another session pauses the active one… | parallel-sessions › start two, switch between them… | ✔ |
+| 2.25 | Switching pauses the current one and resumes the chosen one; paused time never counts | core/parallel › session/switch (all); core/controller-parallel › switchTo pauses the current one…; › switchTo the active session resumes it… | parallel-sessions › start two, switch between them; the waiting one’s time does not advance | ✔ |
+| 2.26 | Each session keeps its plant, spot, plan position, break/watering state and pause time | core/parallel › each session keeps its own plant, spot, plan position…; core/controller-parallel › switching into a session mid-break does not announce that break again… | parallel-sessions › start two… | ✔ |
+| 2.27 | At the limit, a gentle explanation and an offer to switch; no guilt copy | — | parallel-sessions › three can grow at once… (note text, focus on Switch, no sheet) | ✔ |
+| 2.28 | Cancelling one leaves the others untouched | core/parallel › cancelling the active session leaves the waiting ones untouched…; › a waiting session can be ended by id…; core/controller-parallel › cancel() ends the active session only…; plants/system › cancelling the waiting session withers only its seedling… | — (unit only) | ✔ |
+| 2.29 | Completing one blooms it; the others stay paused; nothing resumes on its own; the dock suggests the one left last | core/parallel › completing the active session blooms it…; core/controller-parallel › completion blooms the active session…; widget/view › none active: says who is waiting and offers Resume… | parallel-sessions › a bloom leaves the others paused; the dock offers Resume… | ✔ |
+| 2.30 | Spots of sessions in progress are occupied (no planting, no swap) | core/parallel › treats the spots of sessions in progress as occupied…; core/controller-parallel › placementOptions leaves out the spots… | parallel-sessions › three can grow at once… (placement options) | ✔ |
+| 2.31 | Every seedling grows at its own growth; waiting ones look calm | plants/system › several sessions in progress (all) | — (screenshots: `three-*`, devlog 18) | ✔ |
+| 2.32 | "Still with us?" only for the active session the gardener paused | core/parallel › "Still with us?" and waiting sessions (all); core/controller-parallel › “Still with us?” is only for the active session… | parallel-sessions › start two… (no long pause after switching) | ✔ |
+| 2.33 | Reload continues every session; only the active one ran while away | core/controller-parallel › reload with several sessions…; plants/system › after a reload every seedling shows at its own growth | parallel-sessions › a reload continues every session… | ✔ |
+| 2.34 | Automatic focus watering every 4–10 focused minutes, seeded; in the garden, Your plant and the widget; nothing to tap | core/focus-watering (all); core/controller-parallel › waters the active plant when focused time reaches each scheduled moment…; › several due at once (a long gap) water once; core/parallel › session/focusWater (all); plants/system › waters the seedling the event names… | parallel-sessions › plays in Your plant and the garden…; › the floating card and the tab title follow the active session… (card watering) | ✔ (silent: no pour sound yet) |
+| 2.35 | Never while paused or in a break; breaks keep tap-to-water | core/focus-watering › a pause holds…; › a break holds them too…; core/controller-parallel › never while paused…; › never during a break… | parallel-sessions › never while paused or during a break | ✔ |
+| 2.36 | Pill shows the active session and "+N"; Your plant, widget, title, favicon, notifications follow the active session; the widget can switch | widget/view › several sessions in progress (all); widget/pip › with other sessions in progress the card offers Switch… | parallel-sessions › start two… (pill "+1"); › three… (pill "+2"); › the floating card and the tab title follow the active session… | ✔ |
+| 2.37 | One quiet switch tip | core/tips › has the contract ids… (`switch`) | — (tip ordering covered by polish › one tip at a time) | ◐ e2e by review |
+| 2.38 | Session log of completed and cancelled sessions, day/week/month queries | core/session-log (all); core/parallel › log ids; core/migration-v2 › back-fills the log… | parallel-sessions › a bloom leaves the others paused… (`log()`) | ✔ |
+
 ### §2 Active-session ambience
 
 | # | Rule | Unit | E2E | Status |
@@ -233,6 +257,7 @@ Legend: unit tests as `folder/file › test`, under `src/` (`.test.ts` omitted).
 |---|---|---|---|---|
 | 9.1 | localStorage `studysprout:v1`, versioned schema, migrations, safe recovery | core/persistence › migrate (all); › validateState (all); › loadState (all); › saveState / createSaver (all) | core-loop › a corrupt save is backed up and the garden starts fresh | ✔ |
 | 9.2 | Export `study-sprout-garden-YYYY-MM-DD.json`; validated import | core/persistence › export / import (all) | ui-menu › export downloads the garden; import validates, confirms and restores | ✔ |
+| 9.4 | Schema v2: a v1 garden and a v1 session in progress (running or paused) survive; history back-filled; v1 exports still import | core/migration-v2 (all); core/persistence › migrate (all) | smoke › ?dev exposes window.sprout… (version 2) | ✔ |
 | 9.3 | `?dev` debug API and `?speed` | core/clock › createSpeedClock (all) | smoke › app loads… (no API without ?dev); › ?dev exposes window.sprout…; › ?speed accelerates the app clock… | ✔ |
 
 ### §10 Platforms
@@ -286,3 +311,4 @@ daylight › plantsReady waits for plants added just before it…).
 2. **Cross-browser**: no Firefox/WebKit e2e run (10.2).
 3. **Audio** is verified as data (unit) only (8.1); **real PiP** is faked (6.1). Both are headless
    limits.
+4. **Automatic focus watering is silent**: no soft pour sound in `src/audio` yet (2.34).

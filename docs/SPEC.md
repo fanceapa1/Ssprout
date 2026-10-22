@@ -65,6 +65,31 @@ grows live from seed to full bloom while you study. (Revised 2026-10-21, see ADR
 | Cancel | Light confirmation ("End this session? Your <plant> won't bloom this time."). The seedling gently withers and fades. A plant it was replacing returns. No penalty, counted in stats only. |
 | Complete | When the plan finishes: the plant reaches full bloom, notification + chime (if unmuted), a quiet line "Your Japanese Iris for “Biology ch. 4” has bloomed." It becomes a permanent plant carrying its task name, minutes and date (shown on hover/tap). If it replaced a plant, the old one is pressed into the herbarium. |
 | Persistence | Timestamp-based and saved. Reload/close and return → continues correctly (or completes if the plan ended while away). |
+| Focus watering | During focus the plant is watered on its own **every 4–10 minutes of focus time** (random, but the same for a session wherever it is opened): the painted watering can visits it in the garden, in Your plant and in the floating widget. Nothing to tap, no notification, no tip, no sound spike. Never while paused or in a break — breaks keep tap-to-water — and not in the last minute of focus. After time away, missed waterings make one quiet watering, not a burst. *Status:* done (ADR 0153); the audio has no pour sound yet, so it is silent. |
+
+### Parallel sessions (v2, ADR 0005; ADRs 0150–0157)
+Up to **three** sessions can be in progress — say, an essay, a problem set and some reading — each
+with its own plant growing in its own spot. **Exactly one is active**: the timer, the garden's
+weather, Your plant, the widget, the tab title and notifications follow it.
+
+| Rule | Behaviour |
+|---|---|
+| Start another | While a session runs, "Plant another" (in the Study section) opens the same start flow. On Begin the new session becomes active and the one that was active waits, paused. |
+| Switch | Each session in progress is listed under the controls: a tiny live painting of its plant, the task, its progress and time left, and **Switch**. Switching pauses the active session and resumes the chosen one. The floating widget can switch too (next session in turn). |
+| Paused time | Never counts, whether the pause came from switching or from Pause. A waiting session's plant holds its growth. |
+| Own state | Each session keeps its plant, spot, plan position, break and watering state and paused-at time. |
+| Limit | At three, "Plant another" / "Start studying" say gently: "Three seedlings are growing — as many as can grow at once. Switch to one of them, or let one bloom first." — and offer the rows' Switch. No guilt copy. |
+| Spots | The spots of sessions in progress are taken: another session cannot be planted there, not even as a swap. |
+| End one | Ending a session (End, or "Still with us?" → End session) ends only that one; the others are untouched. |
+| Bloom | Completing a session blooms it; the others stay paused and **nothing resumes on its own**. The Study section then says who is waiting and offers **Resume** on each, the one left last as a small seal (ADR 0152). |
+| In the garden | Every seedling in progress grows in its spot at its own growth; the waiting ones stand calm (no session breeze, a gentler sway). |
+| On the garden | The timer pill shows the active session and a quiet "+2" when others are in progress (it leads down to them). |
+| "Still with us?" | Only for the active session, when the gardener paused it. Sessions left by switching wait without asking. |
+| Reload | Every session continues: only the active one ran while away; the waiting ones stayed paused. |
+| History | Every completed and cancelled session is kept in a session log (times, focused minutes, plan, plant, task) for the calendar (ADR 0151). |
+
+*Status:* done (phase 7). The camera's glide to the active plant on start and switch comes with the
+camera task.
 
 ### Active-session ambience (subtle!)
 While a session runs, the garden visibly "works with you":
@@ -217,8 +242,9 @@ toggle in the garden's corner and in the dock's Garden tools (one shared state);
 remembered.
 
 ## 9. Persistence
-- `localStorage` only (key `studysprout:v1`), versioned schema with migrations (the chain is
-  in place; v1 is the only version so far).
+- `localStorage` only (key `studysprout:v1`), versioned schema with migrations: schema v2 (parallel
+  sessions, the session log); a v1 garden — and a v1 session in progress — is migrated on load and on
+  import, its history back-filled from its plants (ADR 0154).
 - Export garden → downloads `study-sprout-garden-YYYY-MM-DD.json`; Import restores (validated).
 - Hidden dev mode `?dev` exposes speed-up (`?dev&speed=60`; `?speed` alone is ignored) and a
   debug API for tests (`window.sprout`, docs/ARCHITECTURE.md › Dev / test hooks).
@@ -242,7 +268,8 @@ The page is no longer only a canvas. It scrolls as a normal document:
 - **Dock.** Below the garden, sections registered by features, in a calm two-column layout on wide
   screens and one column on phones:
   - **Study** — the session controls: Start studying; task, block and total time, plan line,
-    Pause/Resume, End with its gentle question, Water and Skip break in breaks, "Still with us?".
+    Pause/Resume, End with its gentle question, Water and Skip break in breaks, "Still with us?";
+    below them the sessions in progress (§2 › Parallel sessions) and "Plant another".
     The planting sheet is still a sheet over the page; choosing a spot brings the garden back
     into view.
   - **Your plant** — a large painted view of the session's plant, growing live, with the watering

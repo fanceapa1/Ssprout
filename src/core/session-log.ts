@@ -7,7 +7,7 @@ import type { PlantInstance, SessionLogEntry } from './state';
  *
  * Queries are pure. Ranges are half-open `[from, to)` in epoch ms; the day / week / month helpers
  * use the **local** calendar of the runtime (the user's own days), like the plant labels.
- * An entry belongs to a range when its wall-clock span `[startedAt, endedAt]` overlaps it, so a
+ * An entry belongs to a range when its wall-clock span `[startedAt, endedAt)` overlaps it, so a
  * session across midnight shows on both days; `dayKey(entry.startedAt)` is "the day it started"
  * (SPEC §3 plant labels) when a single day is needed.
  */
