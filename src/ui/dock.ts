@@ -1,0 +1,196 @@
+import { h, setText } from './dom';
+
+/**
+ * The dock (ADR 0130): the part of the page below the garden where features live as sections.
+ * A feature registers a section; the dock owns the order, the layout (two calm columns on wide
+ * screens, one on phones) and the headings. Later features (calendar, session switcher, …) plug
+ * in with `addSection` without touching the page. Contract: docs/ARCHITECTURE.md › Dock.
+ *
+ *   ui.dock.addSection({ id: 'calendar', title: 'Calendar', order: 30, span: 'full', mount(body) { … } });
+ *
+ * A section registered without `mount` is a placeholder: it holds its place in the order but
+ * stays hidden until `fill(id, mount)` gives it content.
+ */
+export type DockSpan = 'half' | 'full';
+
+export interface DockSectionDef {
+  /** unique, kebab-case; also `data-section` and the heading id (`dock-<id>`) */
+  id: string;
+  /** the section heading */
+  title: string;
+  /** lower first (default 100); ties keep registration order */
+  order?: number;
+  /** wide screens: one column (`half`, default) or the whole row (`full`); phones: always full */
+  span?: DockSpan;
+  /**
+   * Build the section's content into `body`. May return a cleanup, called on `removeSection`.
+   * Omit to register a hidden placeholder (see `fill`).
+   */
+  mount?: DockMount;
+}
+
+export type DockMount = (body: HTMLElement, section: DockSection) => void | (() => void);
+
+export interface DockSection {
+  readonly id: string;
+  /** the `<section>` */
+  readonly el: HTMLElement;
+  /** where content goes */
+  readonly body: HTMLElement;
+  /** the heading (`h2`, focusable with tabindex -1 for jumps) */
+  readonly heading: HTMLElement;
+  setTitle(title: string): void;
+  /** hide or show the whole section (e.g. nothing to show yet) */
+  setHidden(hidden: boolean): void;
+}
+
+export interface DockSectionInfo {
+  id: string;
+  title: string;
+  order: number;
+  span: DockSpan;
+  /** has content (mounted) */
+  filled: boolean;
+  /** shown on the page */
+  visible: boolean;
+}
+
+export interface Dock {
+  readonly el: HTMLElement;
+  /** register a section; throws on a duplicate or malformed id */
+  addSection(def: DockSectionDef): DockSection;
+  /** give a placeholder its content (or replace a section's content) */
+  fill(id: string, mount: DockMount): DockSection;
+  removeSection(id: string): void;
+  get(id: string): DockSection | null;
+  /** sections in page order */
+  sections(): DockSectionInfo[];
+  /** called after a section is added, filled, removed or hidden */
+  onChange(fn: () => void): () => void;
+  dispose(): void;
+}
+
+const ID = /^[a-z][a-z0-9-]*$/;
+
+interface Entry {
+  def: Required<Pick<DockSectionDef, 'id' | 'title' | 'order' | 'span'>>;
+  index: number;
+  section: DockSection;
+  filled: boolean;
+  hidden: boolean;
+  cleanup: (() => void) | null;
+}
+
+/** Page order: by `order`, then registration. Pure, exported for tests. */
+export function orderSections<T extends { order: number; index: number }>(list: readonly T[]): T[] {
+  return [...list].sort((a, b) => a.order - b.order || a.index - b.index);
+}
+
+export function createDock(opts: { label?: string } = {}): Dock {
+  const el = h('div.dock', { role: 'region', 'aria-label': opts.label ?? 'Study tools', 'data-dock': '' });
+  const entries = new Map<string, Entry>();
+  const listeners = new Set<() => void>();
+  let counter = 0;
+
+  const changed = () => {
+    for (const fn of [...listeners]) fn();
+  };
+
+  const visibleOf = (e: Entry) => e.filled && !e.hidden;
+  const sync = (e: Entry) => {
+    e.section.el.hidden = !visibleOf(e);
+    e.section.el.dataset.filled = String(e.filled);
+  };
+
+  function arrange(): void {
+    for (const e of orderSections([...entries.values()].map((x) => ({ ...x, order: x.def.order })))) el.appendChild(e.section.el);
+  }
+
+  function mountInto(e: Entry, mount: DockMount): void {
+    e.cleanup?.();
+    e.section.body.replaceChildren();
+    const out = mount(e.section.body, e.section);
+    e.cleanup = typeof out === 'function' ? out : null;
+    e.filled = true;
+    sync(e);
+  }
+
+  const dock: Dock = {
+    el,
+    addSection(def) {
+      if (!ID.test(def.id)) throw new Error(`dock: section id "${def.id}" must be kebab-case`);
+      if (entries.has(def.id)) throw new Error(`dock: section "${def.id}" already exists`);
+      const headingId = `dock-${def.id}`;
+      const heading = h('h2.dock-title', { id: headingId, tabindex: -1 }, def.title);
+      const body = h('div.dock-body');
+      const sectionEl = h('section.dock-section', { 'data-section': def.id, 'data-span': def.span ?? 'half', 'aria-labelledby': headingId }, heading, body);
+      const entry: Entry = {
+        def: { id: def.id, title: def.title, order: def.order ?? 100, span: def.span ?? 'half' },
+        index: counter++,
+        filled: false,
+        hidden: false,
+        cleanup: null,
+        section: {
+          id: def.id,
+          el: sectionEl,
+          body,
+          heading,
+          setTitle(title) {
+            entry.def.title = title;
+            setText(heading, title);
+          },
+          setHidden(hidden) {
+            if (entry.hidden === hidden) return;
+            entry.hidden = hidden;
+            sync(entry);
+            changed();
+          },
+        },
+      };
+      entries.set(def.id, entry);
+      sync(entry);
+      arrange();
+      if (def.mount) mountInto(entry, def.mount);
+      changed();
+      return entry.section;
+    },
+    fill(id, mount) {
+      const e = entries.get(id);
+      if (!e) throw new Error(`dock: no section "${id}"`);
+      mountInto(e, mount);
+      changed();
+      return e.section;
+    },
+    removeSection(id) {
+      const e = entries.get(id);
+      if (!e) return;
+      e.cleanup?.();
+      e.section.el.remove();
+      entries.delete(id);
+      changed();
+    },
+    get: (id) => entries.get(id)?.section ?? null,
+    sections: () =>
+      orderSections([...entries.values()].map((x) => ({ ...x, order: x.def.order }))).map((e) => ({
+        id: e.def.id,
+        title: e.def.title,
+        order: e.def.order,
+        span: e.def.span,
+        filled: e.filled,
+        visible: visibleOf(e),
+      })),
+    onChange(fn) {
+      listeners.add(fn);
+      return () => {
+        listeners.delete(fn);
+      };
+    },
+    dispose() {
+      for (const e of entries.values()) e.cleanup?.();
+      entries.clear();
+      listeners.clear();
+      el.replaceChildren();
+    },
+  };
+  return dock;
+}
