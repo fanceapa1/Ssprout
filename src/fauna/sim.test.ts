@@ -52,18 +52,22 @@ describe('FaunaSim', () => {
 
   it('koi and striders never leave the pond, and visitors never exceed the cap', () => {
     let maxVisitors = 0;
+    // collect problems and assert once: an expect() per creature per step made this test slow
+    // enough to time out on a loaded machine
+    const problems: string[] = [];
     run({
       seconds: 1800,
       each(sim) {
         let visitors = 0;
         for (const c of sim.creatures) {
-          if (c.kind === 'koi' || c.kind === 'strider') expect(pointInPolygon(c, gardenScene.pond), `${c.kind} at ${c.x},${c.y}`).toBe(true);
+          if ((c.kind === 'koi' || c.kind === 'strider') && !pointInPolygon(c, gardenScene.pond)) problems.push(`${c.kind} at ${c.x},${c.y}`);
           if (c.visitor) visitors++;
-          expect(Number.isFinite(c.x) && Number.isFinite(c.y)).toBe(true);
+          if (!Number.isFinite(c.x) || !Number.isFinite(c.y)) problems.push(`${c.kind} not finite`);
         }
         maxVisitors = Math.max(maxVisitors, visitors);
       },
     });
+    expect(problems.slice(0, 5)).toEqual([]);
     expect(maxVisitors).toBeLessThanOrEqual(FAUNA_TUNING.maxVisitors);
   });
 
