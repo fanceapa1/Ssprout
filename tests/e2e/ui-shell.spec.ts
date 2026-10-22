@@ -73,7 +73,13 @@ test.describe('app shell · page', () => {
 
   test('wheel over the garden scrolls the page with an eased glide; ctrl+wheel is left to the zoom hook', async ({ page }) => {
     await openUi(page);
+    await page.evaluate(() => window.sprout!.scenePainted());
+    const scene = await page.evaluate(() => window.sprout!.sceneStats());
     const run = await wheelAndSample(page, 300);
+    // scrolling moves the canvas element; the painted landscape is neither repainted nor rescaled
+    const after = await page.evaluate(() => window.sprout!.sceneStats());
+    expect(after.paints).toBe(scene.paints);
+    expect(after.rescales).toBe(scene.rescales);
     expect(run.prevented).toBe(true);
     expect(run.immediately).toBe(0); // nothing jumps
     expect(run.final).toBeCloseTo(Math.min(300, run.state.max), 0);
