@@ -228,7 +228,7 @@ export function paintSkyPlate(p: Painter, rng: Rng, phase: DayPhase): void {
         angle: Math.PI / 2,
         split: 0.5,
         softness: 0.65,
-        opacity: 0.42,
+        opacity: 0.3,
         deform: 0.03,
         edge: 0.1,
         centreLift: 0.04,
@@ -236,7 +236,7 @@ export function paintSkyPlate(p: Painter, rng: Rng, phase: DayPhase): void {
         flow: 0.4,
         flowScale: 300,
       });
-      p.glaze(band(-240, 160), mix(PIGMENTS.indigo, PIGMENTS.violet, 0.2), { rng, opacity: 0.3, fade: { angle: Math.PI / 2, start: 0.3, amount: 1, ragged: 0.4 } });
+      p.glaze(band(-240, 160), mix(PIGMENTS.indigo, PIGMENTS.violet, 0.2), { rng, opacity: 0.16, fade: { angle: Math.PI / 2, start: 0.3, amount: 1, ragged: 0.4 } });
       // the hills: darker indigo shapes against the lighter horizon
       p.glaze(hillsShape(), mix(PIGMENTS.indigo, PIGMENTS.violet, 0.2), { rng, opacity: 0.36, fade: { angle: Math.PI / 2, start: 0.4, amount: 1 } });
       // a few faint stars: tiny flecks of paper left in the wash (the light plate leaves them too)

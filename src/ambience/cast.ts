@@ -261,7 +261,7 @@ export function createCastLight(scene: SceneGeometry, art: LightArt, seed = 'cas
     // the light's broken path on the water, under its reflection
     const path = pond();
     if (path) {
-      if (moon.alpha > 0.01) waterPath(ctx, path, scene, moon, 0.5 * moon.alpha, [232, 238, 255]);
+      if (moon.alpha > 0.01) waterPath(ctx, path, scene, moon, 0.65 * moon.alpha, [232, 238, 255]);
       if (sun.alpha > 0.01) waterPath(ctx, path, scene, sun, 0.5 * sun.alpha, [255, 232, 196]);
     }
     ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -300,20 +300,22 @@ function liftGlow(ctx: Ctx, x: number, y: number, r: number, a: number, rgb: rea
 /** Broken horizontal lifts down the water below a light's mirror image. */
 function waterPath(ctx: Ctx, pond: Path2D, scene: SceneGeometry, light: Disc, a: number, rgb: readonly number[]): void {
   const top = scene.waterline + 4;
+  // a high moon mirrors below the near shore: its broken path then starts near the far shore, as
+  // a painter would put it (a low sun starts it at its own mirror image)
   const mirror = 2 * scene.waterline - light.y;
-  const y0 = Math.max(top, mirror - 30);
+  const y0 = Math.max(top, Math.min(mirror - 30, top + 50));
   const rng = createRng(`path:${Math.round(light.x / 4)}`);
   ctx.save();
   ctx.clip(pond);
   const c = `${rgb[0]},${rgb[1]},${rgb[2]}`;
-  for (let y = y0; y < WORLD_H; y += rng.range(5, 11)) {
+  for (let y = y0; y < WORLD_H; y += rng.range(8, 15)) {
     const d = (y - y0) / 260;
     if (d > 1) break;
     const half = light.r * (0.6 + d * 2.4) * rng.range(0.5, 1.2);
     const x = light.x + rng.range(-1, 1) * light.r * 0.4 * (1 + d);
     ctx.fillStyle = `rgba(${c},${a * (1 - d) ** 1.5 * rng.range(0.5, 1)})`;
     ctx.beginPath();
-    ctx.ellipse(x, y, half, rng.range(1, 2.4), 0, 0, Math.PI * 2);
+    ctx.ellipse(x, y, half, rng.range(2.6, 4.6), 0, 0, Math.PI * 2);
     ctx.fill();
   }
   ctx.restore();
