@@ -18,6 +18,10 @@ slot are chosen at start; the seedling grows live in its slot; breaks are option
 | `tips.ts` | tip registry, `activeTips`, `allTips`, `tipsRetiredBy` |
 | `persistence.ts` | localStorage load/save, migrations, validation, export/import |
 | `controller.ts` | `createSessionController` — **the API the UI and widget use** |
+| `clock.ts` | `Clock`, `realClock`, `createSpeedClock` (`SpeedClock`, ADR 0035), `createManualClock` |
+| `rng.ts` | `Rng`, `createRng(seed)`, `hashString`, `toSeed` |
+| `events.ts` | `EventMap`, `EVENT_NAMES`, `createEventBus` |
+| `testing.ts` | test fixtures: `MIN`, `T0`, `plan(shape)`, `makeSession`, `makePlant`, `makePressed` |
 
 ## State machine
 
@@ -61,14 +65,16 @@ the current block (`focus` / `break`).
 | Plan id | Name | Offered for | Shape | Examples |
 |---|---|---|---|---|
 | `unbroken` | Unbroken | always, first | one focus block | 25 → 25 |
-| `pomodoro` | Pomodoro | 30–180 | ~25 focus / 5 break, ≥ 2 focus blocks | 30 → 15·(5)·10 · 90 → 30·(5)·25·(5)·25 |
+| `pomodoro` | Pomodoro | 30–180 | ~25 focus / 5 break, ≥ 2 focus blocks | 30 → 15·(5)·10 · 60 → 30·(5)·25 · 90 → 30·(5)·25·(5)·25 |
 | `long-focus` | Long focus | 60–180 | ~50 focus / 10 break | 60 → 25·(10)·25 · 90 → 40·(10)·40 |
 | `deep-work` | Deep work | 75–115 | long block · 15 break · shorter block (2 : 1) | 90 → 50·(15)·25 |
 | `two-deep` | Two deep blocks | 120–180 | two halves around 20 | 150 → 65·(20)·65 |
 
-Focus minutes are split on the 5-minute grid, larger blocks first. Every plan sums exactly to the
-total, starts and ends with focus, has no back-to-back breaks; duplicates are dropped. < 30 min →
-only Unbroken; otherwise 2–4 plans. `planProblem(plan, total)` explains why a plan is unusable.
+Focus minutes are split on the 5-minute grid, larger blocks first. Every recommended plan sums
+exactly to the total, starts and ends with focus, has no back-to-back breaks; a plan whose blocks
+are identical to an earlier one's is dropped. < 30 min → only Unbroken; otherwise 2–4 plans.
+`planProblem(plan, total)` explains why a plan is unusable; it checks only non-empty id/name, ≥ 1
+block, known kinds with positive finite minutes, the sum and ending with focus.
 
 ## Tiers and species (`rewards.ts`)
 - `tierForMinutes(total)`: 10–24 → 1, 25–49 → 2, 50–89 → 3, 90+ → 4.
@@ -111,15 +117,16 @@ plants · `koi-1` 3 · `butterflies` 4 pollinator flowers · `bees` 6 pollinator
 `small-birds` 8 · `frog` a water plant + 10 plants · `swallows` 14 · `heron` 20 · `koi-3` 25.
 Counts use finished plants only (the growing seedling does not count). "Pollinator flower" =
 species with `pollinators: true`; "water plant" = species whose habitats include `water`.
-`unlockedFauna(state, lookup)`; `newlyArrived(state, lookup)` = unlocked − `faunaSeen`.
+`unlockedFauna(state, lookup)`; `newlyArrived(state, lookup)` = unlocked − `faunaSeen` (kept and
+tested, but the UI no longer uses it: arrivals come from the fauna system on first sight, ADR 0120).
 
 ## Tips (`tips.ts`)
 
 | Tip | Copy (short) | Shown when (and not retired) | Retired by |
 |---|---|---|---|
-| `task` | Name what you are studying… | idle (start sheet) | `session/start` (auto) |
-| `duration` | Slide to choose how long you'll study… | idle | `session/start` (auto) |
-| `plan` | Breaks are watering moments — your plant will be glad of them. | idle | a start with a plan that has breaks (auto) |
+| `task` | Name what you are studying… | idle (start sheet) | naming a task (UI) or `session/start` (auto) |
+| `duration` | Slide to choose how long you'll study… | idle | committing a time (UI) or `session/start` (auto) |
+| `plan` | Breaks are watering moments — your plant will be glad of them. | idle | picking a plan (UI) or a start with a plan that has breaks (auto) |
 | `placement` | Choose one of the softly glowing spots… | idle | `session/start` (auto) |
 | `swap` | A glowing spot already in bloom can be replanted… | idle and `ctx.swapAvailable` (default: garden has plants) | a start into an occupied slot (auto) |
 | `notifications` | …we'll ask once if we may chime softly… | idle and `notifications === 'unasked'` | `settings/update` answering it (auto) |
@@ -129,7 +136,7 @@ species with `pollinators: true`; "water plant" = species whose habitats include
 | `sound` | Tap the speaker for quiet garden sounds… | always | `settings/update` toggling `muted` (auto) |
 
 `activeTips(state, { now?, swapAvailable?, widgetSupported? })` in registry order (the UI shows
-each next to its `anchor`), `allTips(state)` for the ⓘ list, `tipsRetiredBy(action, prev, next)`.
+one at a time, by priority, next to its `anchor`; ADR 0124), `allTips(state)` for the ⓘ list, `tipsRetiredBy(action, prev, next)`.
 
 ## Controller API (`controller.ts`)
 
@@ -167,8 +174,9 @@ const controller = createSessionController({
   `session:start`; after a reload the current block is announced once if it is not block 0. Use
   `session:break` for "Time for a break — your <plant> is thirsty." and `session:focus` for the
   next-block notification.
-- **Closed-app completion**: at creation `check()` completes a session whose plan has ended, stamping
-  `completedAt` with the real moment (`completionTime`).
+- **Completion time**: every completion stamps `completedAt = min(now, completionTime)`, the real
+  moment; this matters for closed-app completion, where `check()` at creation completes a session
+  whose plan has ended.
 - **Determinism**: session ids (`session-…`, also the finished plant's id), plant seeds and weather come
   from the controller's rng.
 - Long pause: `status().longPause`; "End session" = `cancel()`, "Resume" = `resume()`.
@@ -182,7 +190,8 @@ const controller = createSessionController({
   status `fresh | loaded | migrated | recovered | unavailable`. Never throws.
   - `migrated`: upgraded via `MIGRATIONS[n]: (vN) => vN+1` (none yet; tested with a fake v0) and re-saved.
   - `recovered`: invalid JSON, invalid shape or a newer/unknown version → raw text copied to
-    `studysprout:corrupt:<now>`, the main key reset to a default garden.
+    `studysprout:corrupt:<now>`, and only if that backup write succeeded is the main key reset to a
+    default garden (and `backupKey` set); otherwise the original stays in place.
   - `unavailable`: no storage / reading throws → default state, nothing persists.
 - Saving: `createSaver(storage, { delayMs: 300 })` (debounced, latest wins), `flush()`, `cancel()`.
   `main.ts` schedules on every store change and flushes on `pagehide` and when the tab is hidden.
@@ -238,7 +247,7 @@ The stored `studysprout:v1` value is the bare `state` object.
 |---|---|
 | `reset()` | fresh default garden (saved immediately) |
 | `seed(n)` | seeds the controller rng (ids, weather, plant seeds) and `addPlants` |
-| `start(min?, { taskName?, planId?, speciesId?, slotId? })` | start with defaults: task "Test task", plan `unbroken`, the first selectable (unlocked) species that fits a slot, its first free compatible slot (else first compatible); returns the session or null |
+| `start(min?, { taskName?, planId?, speciesId?, slotId? })` | start with defaults: `min` = `settings.lastGoalMinutes`, task "Test task", plan `unbroken`, the first selectable (unlocked) species that fits a slot, its first free compatible slot (else first compatible); returns the session or null |
 | `pause()`, `resume()`, `water()`, `skipBreak()`, `cancel()` | controller calls |
 | `toBreak()` | jumps the dev clock to the start of the next break; returns its block index or −1 |
 | `skipToBlock(i)` | jumps the dev clock forward to block `i`'s start (resuming if paused) |
@@ -256,3 +265,10 @@ await page.evaluate(() => { sprout.toBreak(); sprout.water(); sprout.skipBreak()
 const plant = await page.evaluate(() => sprout.completeSession());
 await page.reload(); // saved on pagehide
 ```
+
+## Tests
+- Unit: 13 files, `src/core/*.test.ts` (clock, controller, events, fauna-unlocks, persistence,
+  placement, plans, reducer, rewards, rng, session, state, tips).
+- E2E: `tests/e2e/core-loop.spec.ts` (plant → break → water → skip → complete across reloads; cancel;
+  corrupt save backed up; `addPlants`/`setState`) and `tests/e2e/session-rules.spec.ts` (timer and
+  plan line, unwatered breaks, "Still with us?", closed-app completion, phone ink labels).
