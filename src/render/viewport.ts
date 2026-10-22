@@ -72,8 +72,17 @@ export function createViewport(
   const scale = Math.min(Math.max(w / WORLD_W, h / WORLD_H), Math.max(w / MIN_VISIBLE_W, w / WORLD_W));
   const offsetX = axisOffset(w, WORLD_W * scale, focus.x, scale);
   const offsetY = axisOffset(h, WORLD_H * scale, focus.y, scale);
-  const pixelScale = scale * dpr;
+  return viewportFrom({ cssW: w, cssH: h, dpr, scale, offsetX, offsetY, focus });
+}
 
+/**
+ * A viewport from its raw numbers (CSS size, DPR, CSS px per world unit, the world origin's CSS
+ * position). `createViewport` derives them by cover scaling; the camera composes zoomed views
+ * with the same shape (src/render/camera.ts).
+ */
+export function viewportFrom(v: { cssW: number; cssH: number; dpr: number; scale: number; offsetX: number; offsetY: number; focus: Pt }): Viewport {
+  const { cssW: w, cssH: h, dpr, scale, offsetX, offsetY, focus } = v;
+  const pixelScale = scale * dpr;
   return {
     cssW: w,
     cssH: h,
