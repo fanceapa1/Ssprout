@@ -7,7 +7,9 @@ ADR numbering ranges (to avoid collisions in parallel work):
 0001–0009 orchestrator · 0010–0019 foundation · 0020–0029 paint · 0030–0039 core logic ·
 0040–0049 scene · 0050–0059 UI · 0060–0069 plants (0060–0063 A, 0064–0066 B, 0067–0069 C) ·
 0070–0079 fauna · 0080–0089 ambience/lighting · 0090–0099 widget/notifications ·
-0100–0109 audio · 0110–0119 plant view/growth/watering · 0120+ integration/polish.
+0100–0109 audio · 0110–0119 plant view/growth/watering · 0120–0129 integration/polish ·
+0130–0139 app shell & dock · 0140–0149 daylight & colour · 0150–0159 parallel sessions & watering ·
+0160–0169 camera & plant descriptions · 0170–0179 calendar & scheduling · 0180–0189 v2 QA/polish.
 
 | Phase | Task | Area (owned paths) | Status |
 |---|---|---|---|
@@ -27,3 +29,14 @@ ADR numbering ranges (to avoid collisions in parallel work):
 | 4 | Ambience (weather, motes) + time-of-day lighting | `src/ambience` | done |
 | 5 | Polish: mobile, reduced motion, tooltips pass, art review loop | `src/**` | done |
 | 5 | QA: requirements→tests matrix, gap tests, flakiness, docs audit, README | `tests/**`, `docs/**` | done |
+
+## v2 — app around the garden (ADR 0005)
+
+| Phase | Task | Area (owned paths) | Status |
+|---|---|---|---|
+| 6 | App shell: scrollable page, top margin, ~88 vh garden stage fading into the UI dock, custom smooth scroll + scrollbar, section dock, controls moved below + canvas timer pill, plant view section, redesigned + duplicated tool icons, bigger/contrastier type | `index.html`, `src/style.css`, `src/ui/**`, `src/render/viewport.ts`, `tests/e2e/ui-*` | in progress |
+| 6 | Daylight & colour: solar times from timezone, 4 painted phases (sunrise, midday, sunset, night), more saturated pigments and species, plants 1.25×, slot spacing | `src/ambience/**`, `src/scene/**`, `src/paint/pigments.ts`, `src/plants/**` (scale, palettes) | in progress |
+| 7 | Parallel sessions (≤ 3, one active, switch pauses) + session log + v1→v2 migration + automatic focus watering every 4–10 min | `src/core/**`, `src/widget/**`, `src/plants/system.ts`, dock session switcher | queued |
+| 7 | Camera: focus zoom on start / click, gentle pinch/ctrl-wheel zoom and pan, Whole-garden control, sharp sprites when zoomed, plant description card (species notes for every species) | `src/render/**` (camera), `src/plants/**` (hit-test, notes), `src/ui/plant-card*` | queued |
+| 8 | Calendar & scheduling: day/week/month (default day), history + scheduled sessions, one-off/daily/weekdays/weekly repeats, notify + one-tap prefilled start, missed state | `src/core/schedule*`, `src/ui/calendar*` | queued |
+| 8 | v2 QA & docs: SPEC/ARCHITECTURE/TESTING audit, gap tests, flakiness, performance on a busy page | `tests/**`, `docs/**` | queued |
