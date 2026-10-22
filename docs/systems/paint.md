@@ -160,10 +160,18 @@ once (or `discard()`).
 ### Pigments (`pigments.ts`)
 `PIGMENTS` — the ART_DIRECTION palette: `washi washiDeep sap sage sageLight olive celadon
 celadonMid celadonDeep stone stoneDark stoneWarm sumi wood woodLight sakura sakuraLight iris
-irisLight bellflower petalWhite petalShade vermilion gold shadow`. A `Pigment` is a hex string.
+irisLight bellflower petalWhite petalShade vermilion gold shadow` and the sky pigments `cerulean
+ultramarine indigo rose crimson ochre apricot violet` (ADR 0144: ~1.4× the v1 chroma, still well
+below neon). A `Pigment` is a hex string.
 Helpers work in OKLab: `mix(a, b, t)`, `lighten(p, k)` (also thins chroma, like water),
 `darken(p, k)`, `saturate(p, f)`, `shade(p, k)` (darker + cooler — use instead of black),
 `jitter(p, rng, k)` (per-stroke variation), `rgba(p, a)`, `lightness`, `chroma`.
+
+### Rim light (`rim.ts`, ADR 0146)
+`rimMask(image, side, rgb)` → the sprite's sun-facing edge (its alpha minus a copy shifted
+`rimWidth(w, h)` ≈ 4 % away from the sun), coloured; `createRimCache()` keeps one per image, side
+and quantised colour; `drawRim(ctx, cache, image, box, rim, alpha)` draws it with `screen`. Used by
+the plant system (in the plant's pose) and the scene's boulders.
 
 ### Paper, noise, geometry
 - `paperTexture(w, h, seed, { tint, base, grain, mottle, vignette, grainScale })` → canvas.

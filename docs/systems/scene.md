@@ -13,7 +13,7 @@ Look at it: studio → **Scene · painted garden** (`npm run shots -- --studio s
 | File | What |
 |---|---|
 | `geometry.ts` | `SceneGeometry` contract types and `gardenScene`: `POND`, `ROCKS`, `PATH`, `PAVILION`, `WATERLINE`, sky band |
-| `slots.ts` | `GARDEN_SLOTS` (52), `perspectiveScale(y)`, `PLANT_SIZES` (canonical plant sizes) |
+| `slots.ts` | `GARDEN_SLOTS` (52), `perspectiveScale(y)`, `PLANT_SIZES` (canonical plant sizes), `GARDEN_PLANT_SCALE` / `plantScale(slot)` |
 | `layout.ts` | painting-only composition: trees, shrubs, tufts, foreground tufts, hill ridges (not a contract) |
 | `paint-land.ts` | sky, hills, far tree line, banks, path, background tufts, pond reserve, paper margins |
 | `paint-pond.ts` | water body, static reflections, water detail (sky band, ripples, far-shore ink) |
@@ -21,10 +21,13 @@ Look at it: studio → **Scene · painted garden** (`npm run shots -- --studio s
 | `paint-pavilion.ts` | engawa corner: roof, eave, posts, wall, shoji, deck, hanging lantern |
 | `sprites.ts` | foreground sprites: boulders (+ moss, base tufts, contact shadow) and tufts |
 | `background.ts` | `GARDEN_ART`, ordered `backgroundSteps`, `paintJob` generator, `paintSceneSync`, cooperative `paintScene` |
-| `water.ts` | `createWaterSurface`: shimmer bands, ripple rings, glints (per frame) |
+| `water.ts` | `createWaterSurface`: shimmer bands, ripple rings, glints following the sun (per frame) |
+| `paint-sky.ts` | the four painted daylight skies and their mirrored water plates (ADR 0145) |
+| `sky-light.ts` | `createSkyLight`: phase plates blended, sun and moon punched out; sky + water composites |
+| `daylight.studio.ts` | studio section `daylight`: each phase and blend over the garden, each plate, the moon |
 | `overlay.ts` | `drawSlotOverlay` (dev) |
 | `system.ts` | `createSceneSystem` (background + entities + water + overlay), `createPaperSystem`, `paintViewFor`, `canReuse` |
-| `debug.ts` | `?dev` hooks: `sprout.slots()`, `sprout.sceneStats()`, `sprout.scenePainted()` |
+| `debug.ts` | `?dev` hooks: `sprout.slots()`, `sprout.sceneStats()`, `sprout.scenePainted()`, `sprout.skyStats()` |
 | `scene.studio.ts` | studio section `scene` |
 
 ## Composition map (world 1600 × 1000)
@@ -63,9 +66,9 @@ y    0 ┌───────────────────────�
 ## Layers
 | Layer | What the scene draws |
 |---|---|
-| `background` | the cached painting (everything except boulders and foreground tufts), cross-faded in |
-| `waterSurface` | `water.ts`, clipped to the pond, every frame (still under reduced motion) |
-| `entities` | 11 boulders + 6 tufts as `Drawable`s, **depth = base y** (`Rock.y`, tuft base) |
+| `background` | the cached painting (everything except boulders and foreground tufts), cross-faded in, with the daylight sky plate multiplied over it (sun and moon left as paper; rebuilt when the sky moves) |
+| `waterSurface` | the mirrored daylight sky, then `water.ts`, clipped to the pond, every frame (still under reduced motion) |
+| `entities` | 11 boulders + 6 tufts as `Drawable`s, **depth = base y** (`Rock.y`, tuft base); boulders take the sunrise/sunset rim light (ADR 0146) |
 | `lighting` | the slot overlay, only with `?dev&slots` |
 | `paper` | `createPaperSystem`: `paperTexture(pixelW, pixelH)` multiplied over the frame (ADR 0040) |
 
@@ -104,8 +107,12 @@ don't collide. Plants in `rock`/`shore` slots sort against the boulder sprites b
 | large | 200 × 220 |
 | tree | 380 × 460 |
 
-Plant agents: use these for `SpeciesDef.size` (± ~15 % for character); the slot's `scale` is
-applied on top. The overlay draws each slot's max-size box so you can check fit.
+Plant agents: use these for `SpeciesDef.size` (± ~15 % for character); in the garden
+`plantScale(slot)` = the slot's `scale` × **`GARDEN_PLANT_SCALE` (1.25)** is applied on top
+(ADR 0148) — a full-size tree at the far bank is ≈ 275 units wide. The overlay draws each slot's
+max-size box at that scale so you can check fit. At 1.25× two slots moved: `meadow-11`
+(1490, 772, now **medium**: a large plant hid the engawa's deck) and `meadow-7` (528, 796: it
+crowded `meadow-8`).
 
 ## Caching, repaint and fade (ADR 0041)
 - The painting covers `paintViewFor(viewport)`: the visible world rect + 60 units margin, at
@@ -149,7 +156,11 @@ and rejected (granulation and rims wash out). `sprout.sceneStats()` returns per-
   perspective, tree-slot spacing, slot spacing, path slots beside (not on) the stones, "never
   plants on a stepping stone or inside a boulder", rock slots at a boulder's foot, simple pond
   polygon, 8–12 boulders with perches, stepping stones, lantern and sky band, "keeps the painted
-  trees and foreground tufts inside the world".
+  trees and foreground tufts inside the world"; at the 1.25× garden scale: no plant stands on a
+  stepping stone, no plant box lies more than a fifth over the engawa or over the lantern,
+  neighbours at the same depth overlap by at most half their footprint.
 - `system.test.ts`: paint view (cap, portrait strip) and the 10 % repaint rule.
-- `tests/e2e/scene.spec.ts`: painted (pale sky, celadon pond, many colours), 50–60 slots across
-  all habitats, `?dev&slots` overlay, rescale vs repaint on resize.
+- `sky-light.test.ts`: blend order (exact convex mix), recompose key, sky band, water opacity.
+- `tests/e2e/scene.spec.ts`: painted (a pale clear midday sky, celadon pond, many colours), 50–60
+  slots across all habitats, `?dev&slots` overlay, rescale vs repaint on resize.
+- The daylight (skies, phases): docs/systems/daylight.md › Tests.

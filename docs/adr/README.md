@@ -38,7 +38,7 @@ commit, and when it replaces or changes an earlier decision, update that ADR's S
 | [0040](0040-scene-owns-the-paper-layer.md) | Scene owns the paper layer | accepted | `createPaperSystem` draws the washi texture, composited last |
 | [0041](0041-background-paint-cache-and-fade.md) | Background paint cache and fade | accepted | Cached painting, rescale ≤ 10 %, repaint in 20 ms slices, 1.2 s cross-fade |
 | [0042](0042-boulders-and-tufts-as-entity-sprites.md) | Boulders and tufts as entity sprites | accepted | Foreground rocks and tufts depth-sorted with plants by base y |
-| [0043](0043-slot-perspective-and-plant-sizes.md) | Slot perspective and plant sizes | accepted | Scale 0.55 → 1.15 with y; `PLANT_SIZES` per size class; trees only on the far bank |
+| [0043](0043-slot-perspective-and-plant-sizes.md) | Slot perspective and plant sizes | accepted; plants drawn 1.25× by 0148 | Scale 0.55 → 1.15 with y; `PLANT_SIZES` per size class; trees only on the far bank |
 | [0050](0050-dom-ui-over-canvas.md) | DOM UI over the canvas | accepted | DOM in `#ui`, controller only; slot markers are buttons |
 | [0051](0051-dialog-strategy.md) | Dialog strategy | accepted | Native `<dialog>` sheets; placement is a non-modal mode |
 | [0052](0052-washi-slips-as-generated-svg.md) | Washi slips as generated SVG | accepted | Seeded deckled SVG backgrounds, grain, ink icons |
@@ -62,7 +62,7 @@ commit, and when it replaces or changes an earlier decision, update that ADR's S
 | [0074](0074-perched-creature-depth.md) | Perched creature depth | accepted | Depth = the support's base y + ε |
 | [0080](0080-ambience-engine-behind-a-thin-system.md) | Ambience engine behind a thin system | accepted | Engine plus adapter; `addAmbience` registers it |
 | [0081](0081-critically-damped-envelopes-and-ambience-time.md) | Critically damped envelopes | accepted | Spring channels per phase; particles run on `dt × motion` |
-| [0082](0082-lighting-as-a-reserved-multiply-wash.md) | Lighting as a reserved multiply wash | accepted | Cached multiply wash, paper reserved around the lantern, repaint ≤ every 3 s |
+| [0082](0082-lighting-as-a-reserved-multiply-wash.md) | Lighting as a reserved multiply wash | accepted; the wash is now the base of each phase's light plate (0141, 0147) | Cached multiply wash, paper reserved around the lantern, repaint ≤ every 3 s |
 | [0083](0083-wind-field-contract.md) | Wind field contract | accepted | Pure seeded `wind(t, x, y, boost)` with travelling gust fronts; `windBoost` |
 | [0084](0084-particles-as-poisson-spawns-with-prepainted-sprites.md) | Poisson particles, pre-painted sprites | accepted | Rain, ripples, glints, motes; still frame under reduced motion |
 | [0090](0090-worker-ticker.md) | Worker ticker | accepted | Inline Blob worker with interval fallback, installed via `setTicker` |
@@ -98,3 +98,13 @@ commit, and when it replaces or changes an earlier decision, update that ADR's S
 | [0134](0134-your-plant-view.md) | Your plant view | accepted | Live `renderPlantView` in the dock; plays watering on `session:water` or `water()`; latest bloom when idle |
 | [0135](0135-garden-tools-twice-one-state.md) | Garden tools twice, one state | accepted | One tool set rendered in the corner and the dock; bigger, clearer ink icons on paper chips |
 | [0136](0136-bigger-darker-type.md) | Bigger, darker type | accepted | Base 21 px, weight 500, ink tokens ≥ 4.5:1 checked by a test |
+| [0140](0140-sun-times-from-the-time-zone.md) | Sun times from the time zone | accepted | NOAA sunrise/sunset/civil twilight for the solar day around now, location from a zone table or the UTC offset; no prompt |
+| [0141](0141-four-daylight-phases.md) | Four daylight phases | accepted | Night/sunrise/midday/sunset on civil dawn, sunrise + 60, sunset − 60, civil dusk; 40-min blends; setTime phases, blends, aliases; fauna rests by phase |
+| [0142](0142-one-sun-for-every-painted-thing.md) | One sun for every painted thing | accepted | Sky layout: sun over the right/left hills, moon arc, stars, cast shadow and rim light from one state |
+| [0143](0143-one-shared-daylight-source.md) | One shared daylight source | accepted | `createDaylightSource` in main, passed to scene, plants, fauna and ambience |
+| [0144](0144-richer-pigments.md) | Richer pigments | accepted | ~1.4× chroma for shared pigments, 1.3× for species colours, eight sky pigments; never neon |
+| [0145](0145-painted-sky-plates.md) | Painted sky plates | accepted | One watercolour sky per phase multiplied in the background layer, sun and moon punched out, mirrored on the pond |
+| [0146](0146-rim-light-and-cast-shadows-on-sprites.md) | Rim light and cast shadows on sprites | accepted | Cached edge masks drawn with screen; one painted shadow blot stretched under each plant |
+| [0147](0147-painted-light-plates.md) | Painted light plates | accepted | Per-phase plate (grade wash, long shadows, crown lights, lamp light) blended with moving lights; night desaturates |
+| [0148](0148-plants-1-25x-in-the-garden.md) | Plants 1.25× in the garden | accepted | `GARDEN_PLANT_SCALE` on every garden plant box; sprites painted larger; two slots moved |
+| [0149](0149-plants-ready-means-shown.md) | plantsReady means shown | accepted | Waits for init, the store change, the sprites and the fade-in |

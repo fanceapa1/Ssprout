@@ -180,6 +180,7 @@ Legend: unit tests as `folder/file › test`, under `src/` (`.test.ts` omitted).
 | 3.7 | Upgrades = a higher tier into an occupied slot | core/reducer › records the finished plant in the chosen slot as displaced… | ui-session › swap into an occupied spot… | ✔ |
 | 3.8 | Finished plants sway gently | plants/draw › sway maths (all); plants/system › finished plants sway with the wind, and hold still under reduced motion | — | ✔ |
 | 3.9 | Hover/tap a finished plant → ink label: task · minutes · date | ui/plant-labels (all) | ui-session › completion… (hover); plants › plant bounds drive the hover label…; session-rules · phone › tapping a finished plant shows its ink label | ✔ |
+| 3.10 | Plants 1.25× bigger in the garden, painted at that size; neighbours read; nothing on the stones or over the engawa | scene/geometry › plants at the garden scale (all); plants/system › sizes sprites by species size × slot scale × viewport pixel scale (× the garden scale); › reports world bounds…; ui/plant-labels › computes sprite boxes… | plants › plant bounds drive the hover label… | ✔ |
 
 ### §4 Wildlife
 
@@ -194,8 +195,13 @@ Legend: unit tests as `folder/file › test`, under `src/` (`.test.ts` omitted).
 
 | # | Rule | Unit | E2E | Status |
 |---|---|---|---|---|
-| 5.1 | Follows the local clock: cool morning, neutral noon, warm evening, blue dusk, indigo night with lantern glow | ambience/timeofday (all); ambience/lighting › paintGradeWash (all); › pondMask / lanternReflection (all) | ambience › … every weather and night render… (night darker and blue); › setTime accepts names, hours and null… | ✔ |
-| 5.2 | Plants readable at all times | ambience/timeofday › noon is neutral; night is the darkest but plants stay readable | — | ✔ |
+| 5.1 | Real sun times for today at a location guessed from the time zone; no prompt | ambience/solar (all: London, New York, Tokyo, Sydney ±3 min; polar day, polar twilight, deep polar night, poles; moon phase); ambience/zones (all) | daylight › follows the clock: the location is guessed from the time zone, sun times are real | ✔ |
+| 5.2 | Four phases (sunrise, midday, sunset, night) on civil dawn, sunrise + 60, sunset − 60, civil dusk; 40-min blends | ambience/daylight › phase windows (all); › unusual days (all); › weights always sum to 1 and change smoothly…; ambience/daylight-source (all) | daylight › each phase paints its own light…; › blends sit between their phases… | ✔ |
+| 5.3 | Each phase painted: sunrise (peach horizon, cool hills, mist on the pond, long shadows, dew), midday (clear, most saturated, short shadows, sparkle), sunset (amber/crimson, rim light, long shadows the other way, warm pond, lantern), night (indigo, moon, stars, moonlit water, lantern and window) | ambience/sky-layout (all: sun side and height, moon arc, shadows away from the sun, rims, stars); ambience/timeofday › phase grades (all); scene/sky-light (all); plants/shadow (all); paint/rim (all) | daylight › each phase paints its own light: night darkest and blue, sunset warm, midday richest; › the moon is a light in the night sky and the sun a light low over the hills | ◐ look by review (studio `daylight`, shots) |
+| 5.4 | Plants readable at all times | ambience/timeofday › night is the darkest but plants stay readable… | daylight › each phase… (night luminance ≥ 45 % of midday) | ✔ |
+| 5.5 | `setTime` phases, blends, v1 aliases, hours, null | ambience/daylight › setTime overrides (all) | ambience › setTime accepts phases, v1 names, blends, hours and null…; daylight › blends sit between their phases and the sky follows setTime at once | ✔ |
+| 5.6 | Fauna follows the phases (diurnal creatures rest at night) | fauna/schedule › rests diurnal creatures at night but not leaves | daylight › fauna rests at night by the daylight phases | ✔ |
+| 5.7 | No per-frame repainting of large layers; frame budget | — | daylight › stays inside the frame budget at night with the full light; ambience › stays inside the frame budget | ✔ |
 
 ### §6 Timer visibility & notifications
 
@@ -269,7 +275,10 @@ Rendering contracts (render/renderer), paint engine (paint/*), species growth co
 (plants/lib/*), sprite workers and LRU (plants/sprites), reflections (plants/reflection),
 UI light under the garden's lighting (ui/ambient-light), canvas edges (polish › the canvas edges
 dissolve into paper), keyboard flow (polish › keyboard…, ui-session › keyboard…), frame budgets
-(plants, ambience, fauna e2e).
+(plants, ambience, fauna e2e), richer pigments (paint/pigments › is richer than v1 but stays
+watercolour…; › raised the chroma…), `sprout.plantsReady()` waits for a just-made store change, the
+sprites and the fade-in (plants/system › ready() waits…; › ready() before the first init…;
+daylight › plantsReady waits for plants added just before it…).
 
 ### Open gaps (for the orchestrator)
 1. **Lotus is offered but cannot be planted** (src code: size class vs water slots). Tracked by

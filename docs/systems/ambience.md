@@ -1,7 +1,7 @@
 # Ambience & lighting
 
 `src/ambience/` — the garden "working with you" during a session (sun / rain / mist, photosynthesis
-motes), the shared wind field, and time-of-day lighting. **Subtlety is the whole brief**: low
+motes), the shared wind field, and the light of the four daylight phases (docs/systems/daylight.md). **Subtlety is the whole brief**: low
 contrast, slow, never competing with the plants. Look at it in the studio (**Ambience · session
 weather**, **· photosynthesis motes & wind**, **· time of day**) or with `npm run shots`.
 
@@ -10,17 +10,19 @@ weather**, **· photosynthesis motes & wind**, **· time of day**) or with `npm 
 |---|---|
 | `wind.ts` | pure seeded wind field `wind(t, x, y, boost?)` (shared contract, ADR 0083) |
 | `envelope.ts` | pure: phase → channel targets, critically damped easing (ADR 0081) |
-| `timeofday.ts` | pure: keyframes, `gradeAt(hour)`, `localHour`, `parseTimeOverride` (ADR 0082) |
+| `timeofday.ts` | `PHASE_GRADES` per daylight phase, `gradeFor(weights)`, `TYPICAL_DAY` / `gradeAt(hour)` for hour callers (ADRs 0082, 0141) |
 | `motes.ts` | pure: mote emitters from plants + session slot, spawn rate |
 | `sim.ts` | pure: particles (rain ×3 depths, ripples, glints, motes) as Poisson spawns (ADR 0084) |
-| `lighting.ts` | per-pixel multiply wash (`paintGradeWash`, pure) + its cached canvas |
+| `lighting.ts` | per-pixel grade wash (`paintGradeWash`, pure), `washField`, `gradePlate`; lantern reserve |
+| `cast.ts` | the painted light plate of each daylight phase and their blended composite (ADR 0147) |
+| `solar.ts`, `zones.ts`, `daylight.ts`, `daylight-source.ts`, `sky-layout.ts` | the daylight: sun times, location, phases, the shared source, where the light falls — docs/systems/daylight.md |
 | `sprites.ts` | pre-painted textures: shafts, rain strokes, ripple rings, glints, motes, mist bands, flame |
 | `ambience.ts` | the engine: update + draw into world-unit contexts (no store, no renderer — ADR 0080) |
 | `system.ts` | render `System` adapter (store, Clock, dev overrides, cost metering) |
-| `dev.ts`, `index.ts` | `window.sprout` methods; `addAmbience(renderer, { dev })` |
+| `dev.ts`, `index.ts` | `window.sprout` methods; `addAmbience(renderer, { dev, daylight })` |
 | `ambience.studio.ts` | studio entries over a painted test garden |
 
-Registered in `main.ts`: `const ambience = addAmbience(renderer, { dev: speedClock !== null })`, then
+Registered in `main.ts`: `const ambience = addAmbience(renderer, { dev: speedClock !== null, daylight })` (the shared daylight source), then
 (ADR 0121) `ambience.revealLightAfter(renderer.whenReady())` and, once painted,
 `ambience.onLight((grade) => applyUiLight(uiRoot, grade))`.
 - `revealLightAfter(promise)`: the lighting draws with alpha 0 until the promise resolves (never a
@@ -33,8 +35,8 @@ Registered in `main.ts`: `const ambience = addAmbience(renderer, { dev: speedClo
 | Layer | Draws |
 |---|---|
 | `waterSurface` | ripple rings (rain) and glints (sun), clipped to `scene.pond` |
-| `ambience` | weather grades (multiply), mist bands + veil, light shafts (screen), rain strokes (multiply), motes |
-| `lighting` | the cached time-of-day wash (multiply) + a tiny lantern flame (screen) |
+| `ambience` | weather grades (multiply), mist bands + veil, dawn mist and dew (sunrise), light shafts (screen), rain strokes (multiply), motes |
+| `lighting` | night desaturation (saturation glaze), the daylight light plate composite (multiply) + a tiny lantern flame (screen) |
 
 Inputs come only from the `SceneGeometry` contract (`pond`, `waterline`, `pavilion.lantern`, `slots`)
 and the store (`session.weather`, phase via `sessionPhase`, `plants`, session slot + growth).
@@ -83,24 +85,25 @@ everything to stillness rather than cutting it. Reduced motion: motion 0 and mot
 weather's strokes are laid down once (static, faint) and fade with the envelope; lighting unchanged.
 On load and on dev previews the envelope snaps to steady state and particles are pre-simulated.
 
-## Time-of-day keyframes (`timeofday.ts`)
-Local hour from `Clock.now()` (or `setTime`). Smoothstep between neighbours, wrapping at midnight.
+## Daylight light (`cast.ts`, `timeofday.ts`; ADRs 0141, 0147)
+The v1 hour keyframes are gone: the engine gets the shared `DaylightState` every frame (from the
+`DaylightSource` main creates) and multiplies the **light plate** of the current phase blend in
+the `lighting` layer. Each phase's plate is painted once (on demand; the next phase in idle time):
 
-| Hour | Name | Tint (multiply) | Amount | Glow | Lantern |
-|---|---|---|---|---|---|
-| 5:00 | night (moonlit) | indigo `100,114,182` | 0.47 (+0.2 sky, ×0.66 ground) | — | 1 |
-| 6:30 | dawn | blue-grey `178,184,210` | 0.34 | pink, right | 0.2 |
-| 8:00 | morning | cool `208,220,230` | 0.20 | pale, right | 0 |
-| 11:00–15:30 | noon | neutral | 0.03 | — | 0 |
-| 17:45 | evening | golden `238,196,146` | 0.30 | warm, low left | 0.12 |
-| 19:30 | dusk | blue `146,158,206` | 0.34 | rose, low left | 0.6 |
-| 21:15 | night | indigo | 0.47 | — | 1 |
+| Phase | Grade (multiply) | Amount | Painted on top | Lantern |
+|---|---|---|---|---|
+| sunrise | lavender `204,202,234`, peach glow right | 0.20 | long cool shadows to the left, light on the crowns' right sides | 0.08 |
+| midday | near paper `252,248,236` | 0.03 | short pools under boulders, trees, shrubs, the deck | 0 |
+| sunset | amber `242,186,128`, gold glow left | 0.34 | long violet shadows to the right, light on the crowns' left sides, lamp light in the shoji | 0.45 |
+| night | indigo `92,106,184` (+0.26 toward the sky) | 0.50 | lamp light in the shoji and on the deck, stars left as paper | 1 |
 
-`setTime` names jump to: morning 8, noon 13, evening 17.75, dusk 19.5, night 23. The wash is painted
-per pixel into a 480×300 world cache (`LIGHT.cacheScale` 0.3) and blitted every frame; it is repainted
-on demand (override change) or, following the clock, at most every 3 s and only when the grade moved
-perceptibly (`LIGHT.redrawEps`). A repaint costs ~5 ms. `setTime` affects the ambience lighting
-only: fauna night (`sprout.fauna.setHour`) and audio do not follow it.
+The composite lifts the moving lights (a warm glow round the low sun, the moon and its halo, the
+broken light path on the pond, the lantern's pool) and is rebuilt when the light moved (checked
+every `LIGHT.redrawS` 3 s, at once after `setTime`). At night a saturation glaze takes some colour
+out first (`LOOK.nightDesaturate` 0.38). Sunrise also lays **dawn mist** on the far bank and the
+water (bands 1–3, rising `dawnMistRise` 26 units and thinning as the sun climbs) and twinkles 16
+**dew glints** on the near grass. Sun shafts and glints fade with the night weight. Details, the
+phase windows and the sky: docs/systems/daylight.md.
 
 ## Wind API (`wind.ts`)
 ```ts
@@ -119,15 +122,16 @@ near-white cream), breath 13 s / 0.35, rain alpha per depth 0.30/0.36/0.42 and w
 `mistNight` 0.45, `rippleAlpha` 0.75, squash 0.3, `glintAlpha` 0.65, `dripAlpha` 0.6, `dripMaxLen` 30, flame 0.22.
 `RAIN` (sim.ts): strokes per depth 84/50/20 per full world, speeds 300/470/720, slant 0.2 rad +
 0.14 × sway. `RIPPLE` 2.4/s, max 16. `GLINT` 1.2/s, max 5. `DRIP` spacing 30, 0.6/s per point,
-v0 30, gravity 1300, max 24. `LIGHT.reflectLift` 0.45.
+v0 30, gravity 1300, max 24. `LIGHT.reflectLift` 0.45, `lanternR` 78, `lanternLift` 0.8. `LOOK.nightDesaturate` 0.38, `dawnMist` 1.25, `dawnMistRise` 26, `dewCount` 16, `dewAlpha` 0.75.
 `MOTE` (motes.ts): 0.15/s + 0.06/s per weight, ≤ 0.6/s, ≤ 7 alive. `ENVELOPE`, `LIGHT` as above.
 
 ## Dev (`?dev`)
-`sprout.setTime('morning'|'noon'|'evening'|'dusk'|'night'|hour|null)`,
+`sprout.setTime('sunrise'|'midday'|'sunset'|'night'|{ from, to, t }|hour|null)` (v1 names kept as aliases;
+moves the sky, light, shadows, rims and fauna — docs/systems/daylight.md), `sprout.daylight()`,
 `sprout.setWeather('sun'|'rain'|'mist'|null)` (preview without a session; snaps to steady state),
 `sprout.settleAmbience()` (skip running transitions — call before `freeze()` for screenshots),
-`sprout.ambience()` → `{ phase, weather, preview, levels, hour, time, counts, lightingPaints,
-lightingMs, reducedMotion, ms, timeOverride }` (`ms` = moving average of update + draw per frame).
+`sprout.ambience()` → `{ phase, weather, preview, levels, time (daylight phase), weights, counts, lightingPaints,
+lightingMs, reducedMotion, ms, timeOverride, location, sunTimes }` (`ms` = moving average of update + draw per frame).
 ```
 npm run shots -- --name night-rain --eval "sprout.setTime('night'); sprout.start(25); sprout.setWeather('rain')"
 ```
@@ -142,8 +146,8 @@ asserted in `tests/e2e/ambience.spec.ts`. Sprites are painted once per scene (~1
 
 ## Tests
 Vitest: `wind.test.ts`, `envelope.test.ts` (start / end / pause / resume / break / weather change,
-frame-rate independence), `timeofday.test.ts` (keyframes, smooth wrap, readability at night),
+frame-rate independence), `timeofday.test.ts` (phase grades, blends, readability at night, the typical day),
 `motes.test.ts` (emitters, rates, sim bounds, reduced-motion stillness, determinism),
 `lighting.test.ts` (wash ordering, lantern reserve and reflection, mottling, glow).
 Playwright: `tests/e2e/ambience.spec.ts` (session weather, each preview, night, pause/end fades,
-setTime parsing, frame budget, reduced-motion emulation).
+setTime phases, blends and aliases, frame budget, reduced-motion emulation); the daylight tests are listed in docs/systems/daylight.md.

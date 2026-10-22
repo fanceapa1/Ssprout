@@ -42,7 +42,8 @@ src/
     view.ts               renderPlantView (widget, previews) — docs/systems/plants.md
     debug.ts              ?dev hooks (window.sprout.plants, plantsReady)
   fauna/                  creatures (one file each) + FaunaSystem — docs/systems/fauna.md
-  ambience/               session weather (sun/rain/mist), motes, wind field, time-of-day lighting
+  ambience/               session weather (sun/rain/mist), motes, wind field, the daylight (sun times,
+                          four phases, the shared source, light plates) — docs/systems/daylight.md
   render/                 Renderer, layers, viewport (world↔screen), System interface, frame loop
   ui/                     the page: garden stage overlay (pill, corner tools, markers, labels), dock of
                           sections (session controls, your plant, tools), planting sheet, tips, herbarium,
@@ -76,13 +77,13 @@ docs/                     SPEC, ARCHITECTURE, ART_DIRECTION, ROADMAP, adr/, syst
 ## Rendering pipeline (back → front)
 | # | Layer | Contents | Redraw |
 |---|---|---|---|
-| 0 | `background` | sky, hills, far trees, pavilion, banks, pond base, path | once per resize (cached canvas) |
+| 0 | `background` | sky, hills, far trees, pavilion, banks, pond base, path; then the daylight sky plate multiplied over it, sun and moon left as paper (ADR 0145) | once per resize and when the sky moves (cached canvas) |
 | 1 | `underwater` | koi — clipped to pond shape | per frame |
-| 2 | `waterSurface` | water shimmer, reflections (trees, rocks, plants near shore), rain rings, glints, eave drips, water striders, floating leaves | per frame (reflections cached) |
-| 3 | `entities` | depth-sorted (by base y): foreground rocks/tufts from scene, plants, ground fauna (birds on rocks, frog, heron) | per frame (sprites cached) |
+| 2 | `waterSurface` | the mirrored daylight sky, water shimmer and glints, reflections (trees, rocks, plants near shore), rain rings, eave drips, water striders, floating leaves | per frame (reflections cached) |
+| 3 | `entities` | depth-sorted (by base y): foreground rocks/tufts from scene (+ rim light), plants (cast shadow, plant, rim light — ADR 0146), ground fauna (birds on rocks, frog, heron) | per frame (sprites cached) |
 | 4 | `air` | bees, butterflies, dragonflies, flying birds, swallows, falling leaves, the watering can | per frame |
 | 5 | `ambience` | sun shafts, rain strokes, mist, light motes | per frame |
-| 6 | `lighting` | time-of-day grade: one multiply wash with paper reserved around the lantern (ADR 0082); the `?dev&slots` overlay | throttled (every few s) |
+| 6 | `lighting` | the daylight light plate: the blended phase plates (grade wash, shadows, crown lights, lamp light) with the moving lights lifted out, a night desaturation glaze (ADRs 0082, 0147); the `?dev&slots` overlay | composite rebuilt when the light moves; one blit per frame |
 | 7 | `paper` | static washi grain + vignette over everything (multiply) | once per resize |
 
 The renderer (`createRenderer` in `src/render/renderer.ts`) owns the frame loop, the cached
@@ -91,10 +92,11 @@ The renderer (`createRenderer` in `src/render/renderer.ts`) owns the frame loop,
 in `docs/systems/render.md`.
 
 Scene systems (`src/scene/system.ts`, docs/systems/scene.md): `createPaperSystem()` draws the
-`paper` layer (ADR 0040); `createSceneSystem({ invalidate: renderer.invalidate, showSlots? })` paints the
+`paper` layer (ADR 0040); `createSceneSystem({ invalidate: renderer.invalidate, showSlots?, daylight? })` paints the
 cached `background` (repainted only when the scale changes > 10 %, cross-faded, ADR 0041),
 animates `waterSurface` and contributes the boulders and foreground tufts to `entities` with
-depth = base y (ADR 0042).
+depth = base y (ADR 0042). With the shared `daylight` it multiplies the phase's painted sky over the
+cached painting, lays the mirrored sky on the pond and rims the boulders (ADRs 0145, 0146).
 
 Slot markers, the timer pill, the corner tools and all other controls are **DOM** (accessible,
 e2e-clickable: `[data-slot-id="..."]`): on the painting inside the stage overlay, the rest in the
@@ -146,7 +148,7 @@ export interface SpeciesDef {
 }
 ```
 `sprites.ts` renders each placed plant at growth steps `k / 24` (`GROWTH_STEPS`; finished plants only
-step 24), cached per instance seed + step + pixel size (`size × slot.scale × resolution bucket`), painted
+step 24), cached per instance seed + step + pixel size (`size × plantScale(slot) × resolution bucket`), painted
 in module workers; the garden cross-fades (and morphs) between the two nearest steps, so live growth is
 continuous (ADRs 0110–0112). `draw` must be deterministic per (seed, growth, w, h), stay inside its box
 and not touch the DOM (it runs in a worker). Runtime sway = horizontal skew (a bend for large plants
@@ -185,7 +187,10 @@ The garden instance is `gardenScene` (`geometry.ts`): 52 slots, 11 rocks, 6 step
 Every slot's `scale` is `perspectiveScale(y)` (0.55 at y 400 → 1.15 at y 960) and
 `PLANT_SIZES` gives the canonical plant box per size class at scale 1 — small 86×86 (tier-1
 plants draw in a 70-unit design box scaled up, ADR 0125), medium 120×160, large 200×220,
-tree 380×460 (`slots.ts`, ADR 0043).
+tree 380×460 (`slots.ts`, ADR 0043). **Garden plants are drawn `GARDEN_PLANT_SCALE` (1.25) larger**:
+a plant's box is `size × plantScale(slot)` (`plantScale(slot) = slot.scale × 1.25`, ADR 0148) —
+`plantWorldBounds` (`src/plants/bounds.ts`) is the one place that computes it; `slot.scale` itself
+stays the ground's perspective (fauna uses it for creatures).
 
 ### State (`src/core/state.ts`, ADR 0003, ADR 0036)
 Each session is one plant, chosen at start, growing live in its slot.
@@ -321,12 +326,33 @@ Pure, fixed seed (`createWind(seed)` for others); gust fronts travel toward +x. 
 for their skew; fauna could use both (not wired). Ambience/lighting dev hooks and internals:
 `docs/systems/ambience.md` (`setTime`, `setWeather`, `settleAmbience()`, `ambience()`).
 
-### Ambience system (`src/ambience/system.ts`, ADRs 0080–0084, 0121)
-`addAmbience(renderer, { dev })` registers the system and returns it. Besides the `System` hooks it
-has `setTime(v)`, `setWeather(w)`, `settle()`, `debug()`, `onLight(fn)` (the time-of-day grade,
-each time the lighting repaints) and `revealLightAfter(promise)` (the lighting is drawn at alpha 0
-until the promise resolves, then eases in over 1.4 s, at once under reduced motion or on a frozen
-frame). `main.ts` passes `renderer.whenReady()`, so the wash never lies on bare paper.
+### Ambience system (`src/ambience/system.ts`, ADRs 0080–0084, 0121, 0147)
+`addAmbience(renderer, { dev, daylight })` registers the system and returns it. Besides the
+`System` hooks it has `setTime(v)` (sets the shared daylight's override), `setWeather(w)`,
+`settle()`, `debug()`, `daylight` (the source it paints with), `now()` (last frame's clock time),
+`onLight(fn)` (the blended phase grade, each time the light recomposes) and
+`revealLightAfter(promise)` (the lighting is drawn at alpha 0 until the promise resolves, then eases
+in over 1.4 s, at once under reduced motion or on a frozen frame). `main.ts` passes
+`renderer.whenReady()`, so the light never lies on bare paper.
+
+### Daylight (`src/ambience/daylight*.ts`, `solar.ts`, `zones.ts`, `sky-layout.ts`; ADRs 0140–0143)
+Four phases (`sunrise | midday | sunset | night`) on the real sun at a location guessed from the
+time zone, blended over 40 min around civil dawn, sunrise + 60 min, sunset − 60 min and civil dusk.
+```ts
+export type DayPhase = 'sunrise' | 'midday' | 'sunset' | 'night';
+export interface DaylightState { weights: Record<DayPhase, number> /* sum 1 */; phase: DayPhase;
+  blend: { from: DayPhase; to: DayPhase; t: number } | null; sunAltitude: number; sunRising: boolean;
+  moonProgress: number /* 0 dusk … 1 dawn */; moonPhase: number; times: SunTimes | null; night: number }
+export interface DaylightSource { at(now: number): DaylightState; setOverride(v: TimeOverride): void;
+  override(): ParsedOverride | null; location(now: number): Location; setLocation(p: GeoPoint | null): void;
+  readonly version: number /* bumps on every change */ }
+export type TimeOverride = DayPhase | 'morning' | 'noon' | 'evening' | 'dusk' | 'dawn' | number | { from: DayPhase; to: DayPhase; t: number } | null;
+```
+`main.ts` creates **one** `createDaylightSource()` and passes it as the `daylight` option to
+`createSceneSystem`, `createPlantSystem`, `createFauna` and `addAmbience` (each falls back to a
+pinned midday, or the ambience to its own source, without it). Where the light falls — sun and
+moon discs, stars, cast shadow, rim light — comes from `sky-layout.ts`, so every painted thing
+agrees. Time enters only as the frame's `now`. Details: `docs/systems/daylight.md`.
 
 ### Audio (`src/audio/`, ADRs 0100–0103)
 `createGardenAudio({ bus, getState, clock })` → `{ unlock(), setMuted(), isMuted(), setWeather(),
@@ -357,23 +383,29 @@ speciesId?, slotId? })` (`min` defaults to `settings.lastGoalMinutes`; returns t
 `setState(partial)` (validated), `status()`, `flush()`, `exportState()`, `importState(json)`.
 
 Scene (`src/scene/debug.ts`): `slots()`, `sceneStats()` (paints, rescales, per-step timings),
-`scenePainted()` (resolves when no background repaint is pending). `?dev&slots` draws the slot
+`scenePainted()` (resolves when no background repaint is pending), `skyStats()` (daylight sky plates painted,
+composites, paint ms). `?dev&slots` draws the slot
 overlay.
 
-Plants (`src/plants/debug.ts`): `plantsReady()` (resolves once every sprite the garden needs is
-painted, without snapping growth or blooms — use before screenshots) and `window.sprout.plants` —
-`state()`, `settle()` (snap growth/fades and resolve once their sprites are painted), `whenIdle()`,
+Plants (`src/plants/debug.ts`): `plantsReady()` (resolves once the plant system has picked up the
+latest store change, every sprite the garden needs is
+painted and new plants have faded in, without snapping growth or blooms — use before screenshots,
+ADR 0149) and `window.sprout.plants` —
+`state()` (each finished plant with `shown` 0…1), `settle()` (snap growth/fades and resolve once their sprites are painted), `whenIdle()`,
 `bounds(plantId)`, `boundsFor(speciesId, slotId)`, `toDevice(rect)`, `perf()`, `resetPerf()`,
 `ambienceWind()`.
 
-Ambience (`src/ambience/dev.ts`): `setTime('morning'|'noon'|'evening'|'dusk'|'night'|hour|null)`,
+Ambience (`src/ambience/dev.ts`): `setTime('sunrise'|'midday'|'sunset'|'night'|{ from, to, t }|hour|null)`
+(v1 names `morning`, `noon`, `evening`, `dusk`, `dawn` kept as aliases), `daylight()` (phase weights, sun,
+moon, shadow, rim, location, sun times),
 `setWeather('sun'|'rain'|'mist'|null)` (preview without a session), `settleAmbience()` (jump
-transitions to steady state), `ambience()` (phase, levels, hour, particle counts, ms/frame).
-`setTime` drives the lighting only (fauna uses `fauna.setHour`, audio the real clock).
+transitions to steady state), `ambience()` (phase, levels, daylight phase and weights, particle counts, ms/frame).
+`setTime` moves the shared daylight: sky, light, shadows, rims and fauna's night (`fauna.setHour` still pins an
+hour for fauna; audio keeps the real clock).
 
 Fauna (`src/fauna/dev.ts`, installed by `createFauna({ debug })`): `window.sprout.fauna` —
 `kinds()`, `spawn(id, count?)` (returns creature ids), `list()`, `clear()`, `step(seconds, dt?)`,
-`setHour(h)`, `roster()`, `schedule()`, `pond()`, `view()`, `targets()`, `bench(frames?)`
+`setHour(h)`, `night()`, `roster()`, `schedule()`, `pond()`, `view()`, `targets()`, `bench(frames?)`
 (docs/systems/fauna.md).
 
 Widget (`src/widget/dev.ts`, `installWidgetDebug`): `window.sprout.widget` — `supported()`,

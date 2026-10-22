@@ -29,7 +29,8 @@ outside the repo at `/Users/tudor/Downloads/image (1).png`; do not copy it, use 
   not the window.
   *Status:* cover scaling (`src/render/viewport.ts`) shows the whole 1600 × 1000 world only at
   16:10; other landscape aspects crop a little top/bottom or at the sides. Tall phones show at
-  least 600 world units of width with paper above and below (ADR 0123).
+  least 600 world units of width with paper above and below (ADR 0123). The sky above the hills
+  is painted per daylight phase (§5). Plants are drawn 1.25× their v1 size in the garden (§3).
 
 ## 2. Study sessions — "every task is a plant"
 
@@ -108,6 +109,10 @@ plum blossom. Not yet: moss and dianthus. **Bug:** the lotus (size class `large`
   (a small herbarium book view); on cancel it returns.
 - Choosing a higher-tier plant for an occupied slot is how "upgrades" happen.
 - Growth is live during the session (see §2); finished plants sway gently.
+- Plants in the garden are **1.25× their v1 size** (ADR 0148), painted at that size; slots are
+  spaced so neighbours still read and nothing stands on the stepping stones or hides the engawa.
+  The widget and the planting-sheet previews keep their own framing. Each plant casts a shadow
+  away from the sun and catches a rim of light at sunrise and sunset (§5).
 - Hover/tap a finished plant → tiny ink label: task name · minutes · date (the day the session
   started).
 
@@ -136,10 +141,45 @@ When a new creature first appears, a single quiet line may appear ("A koi has fo
 It is announced when it is first actually in view, not when it unlocks (ADR 0120); water striders
 are never announced.
 
-## 5. Time of day
-Lighting follows the user's local clock, very subtly: cool soft morning, neutral midday,
-warm golden evening, blue dusk; at night a deep indigo wash with a small lantern glow at the
-pavilion. Plants remain readable at all times. No seasons in v1.
+## 5. Time of day (daylight phases, ADR 0005)
+The garden follows the system clock in **four painted phases — sunrise, midday, sunset, night** —
+placed on **today's real sun** at a rough location guessed from the time zone (no permission
+prompt, no network; a table of common zones, else the UTC offset's longitude). Each change is a
+**40-minute blend** centred on its boundary:
+
+| Boundary | Change |
+|---|---|
+| civil dawn (sun 6° below the horizon) | night → sunrise |
+| sunrise + 60 min | sunrise → midday |
+| sunset − 60 min | midday → sunset |
+| civil dusk | sunset → night |
+
+Short winter days keep midday around noon; white nights blend sunset into sunrise at solar
+midnight; polar day stays midday, polar night stays night (with civil twilight: sunrise then
+sunset around noon).
+
+Each phase is painted (sky, light, shadows), not a filter:
+- **Sunrise**: cool violet-blue overhead into a peach and apricot glow behind the hills on the
+  right, rose-lit cloud banks, the hills cool and blue; the sun rises over the right-hand hills;
+  mist lying on the pond and the far bank, lifting as the sun climbs; long soft shadows to the
+  left; light on the right side of the crowns; dew glints on the near grass.
+- **Midday**: a clear graded cerulean with a few clouds left as paper; the painting at its most
+  saturated and crisp; short shadow pools under boulders, trees and plants; sparkle on the water.
+- **Sunset**: rose-violet into crimson into an amber-gold glow on the left where the sun sinks
+  behind the hills; crimson and gold cloud banks; warm rim light on crowns, boulders and plants;
+  long violet shadows to the right; the pond reflecting the warm sky; the lantern and the shoji
+  begin to glow.
+- **Night**: a deep, granulating indigo (readable, never black or muddy), a painted moon showing
+  its real phase arcing through the gap between the trees, a few faint stars, moonlight broken on
+  the water, the lantern and a warm window glow; colours fade before they darken; plants remain
+  readable.
+
+Diurnal creatures rest while it is night (§4). Plants remain readable at all times. No seasons.
+
+## 5a. Colour
+Colours are richer than v1 (ADR 0144): greens, water, stones and flowers carry about 1.4× the
+chroma, balanced by each phase's light so the painting stays coherent — still transparent
+watercolour, never neon.
 
 ## 6. Timer visibility & notifications
 - **In the page** (§12): the session controls live in the dock's Study section below the garden;

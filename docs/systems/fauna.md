@@ -61,7 +61,8 @@ third of the sprite box (slot position + `size` × `scale` + `anchor`). Pads: wa
 slots. Perches: rocks flagged `perch` (top of the rock, a little dome) and every stepping stone.
 Kinds without targets are not scheduled (no bees without pollinator flowers…).
 
-**Mode.** `night` (local hour from the Clock in [20, 5)): diurnal visitors are not scheduled and
+**Mode.** `night` (the shared daylight's night weight ≥ 0.5 — `FaunaSim.nightSource`, ADR 0141; without a
+daylight, or with `setHour`, the local hour in `nightHours` [20, 5)): diurnal visitors are not scheduled and
 those present leave; koi, striders, frog and leaves stay. `lively` (a session running, not paused):
 gaps × 0.75. `reduced` (prefers-reduced-motion): gaps × 3, speeds × 0.6, stays × 1.5, one visitor
 at a time, one strider, no swallows.
@@ -95,7 +96,7 @@ single wing (butterflies horizontally, heron vertically).
 ## Dev API (`window.sprout.fauna`, ?dev)
 `kinds()`, `spawn(id, count?)` (kinds or unlock ids; ignores schedule, cap and night; the frog needs
 a pad), `list()` (`{ id, kind, x, y, layer, state, visitor, inPond }`), `clear()`,
-`step(seconds, dt?)` (advance the sim without rendering), `setHour(h | null)`, `roster()`,
+`step(seconds, dt?)` (advance the sim without rendering), `setHour(h | null)` (pins an hour over the daylight), `night()`, `roster()`,
 `schedule()` (seconds until each visit), `pond()`, `view()`, `targets()` (flowers, pads, perches,
 heron stands), `bench(frames?)` (update + draw ms).
 ```js

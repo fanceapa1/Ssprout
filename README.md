@@ -34,8 +34,8 @@ There are no image assets. Nothing shouts: no confetti, no streaks, no badges.
 
 ## Features
 
-- A living garden: session weather (sun, soft rain or mist), light motes, wind, and time-of-day
-  lighting from morning to a lantern-lit night.
+- A living garden: session weather (sun, soft rain or mist), light motes, wind, and four painted
+  daylight phases on the real sun (sunrise, midday, sunset, a moonlit night with a lit lantern).
 - Wildlife that unlocks as the garden grows and behaves like animals. Each new creature gets one
   quiet line the first time it appears.
 - Hover or tap a plant to see its task, minutes and date. Replaced plants are kept in the
@@ -92,7 +92,7 @@ src/paint     the watercolour engine
 src/scene     the painted landscape and its 52 planting spots
 src/plants    25 species, growth, sway, watering, wither, reflections
 src/fauna     creatures and their schedules
-src/ambience  weather, motes, wind, time-of-day lighting
+src/ambience  weather, motes, wind, the daylight (sun times, phases, light plates)
 src/ui        DOM interface over the canvas
 src/widget    floating timer, tab title/favicon, notifications, worker ticks
 src/audio     procedural Web Audio

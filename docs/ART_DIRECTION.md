@@ -13,19 +13,36 @@ large areas (sky, path) are barely tinted. Detail is concentrated where the eye 
 | Pigment | Use | Approx |
 |---|---|---|
 | Washi paper | ground | `#f3ecd9` – `#efe6cf` |
-| Sap / sage green | grass, foliage | `#a9b386`, `#8d9a6c`, `#c3c79d` |
-| Olive shadow | foliage darks | `#6f7a52` |
-| Pond celadon | water | `#a9c3bb`, `#8fb0ab`, deep `#6f9690` |
-| Stone grey | rocks | `#9b978d`, `#7d7a72`, warm `#a39a8b` |
+| Sap / sage green | grass, foliage | `#a8b572`, `#8b9c5a`, `#c3c98a` |
+| Olive shadow | foliage darks | `#6d7c44` |
+| Pond celadon | water | `#9cc6ba`, `#7eb4ac`, deep `#5b9a91` |
+| Stone grey | rocks | `#9d9787`, `#7e7a6e`, warm `#a89882` |
 | Sumi ink | lines, trunks | `#4a443c` (never pure black) |
-| Wood | pavilion | `#8a7a68`, `#a69580` |
-| Sakura pink | flowers | `#e8a7a9`, `#f1c6c3` |
-| Iris violet | flowers | `#7b6ba8`, `#9a8cc4` |
-| Bellflower blue | flowers | `#7f97c8` |
+| Wood | pavilion | `#8e7960`, `#aa9478` |
+| Sakura pink | flowers | `#f49ea4`, `#fbc2be` |
+| Iris violet | flowers | `#7d65b9`, `#9c87d3` |
+| Bellflower blue | flowers | `#7596db` |
 | Off-white petals | anemone etc. | `#faf6ee` with grey-violet shading |
-| Accents (sparingly) | koi, lantern | vermilion `#d0694a`, gold `#d9b36c` |
+| Accents (sparingly) | koi, lantern | vermilion `#d9623d`, gold `#e1b152` |
+| Sky (daylight phases, thin washes) | skies, glows, night | cerulean `#5e98cc`, ultramarine `#4a59b0`, indigo `#2e3a6e`, rose `#d76a86`, crimson `#c2414f`, ochre `#e0a043`, apricot `#f2ad7e`, violet `#7c5fa8` |
 
-Saturation stays low; the brightest things in the scene are flower heads and koi.
+Colours are **rich but transparent** (v2, ADR 0144: about 1.4× the v1 chroma): watercolour pigment
+laid thinly, granulating, never digital neon (OKLab chroma < 0.135 for earth and plant pigments,
+< 0.17 for the crimson/vermilion accents). The brightest things in the scene are flower heads and
+koi; each daylight phase balances the whole (night takes colour out before it darkens).
+
+## Daylight phases (SPEC §5, docs/systems/daylight.md)
+Four lights, each painted — a sky plate under the garden and a light plate over it — never a
+filter:
+| Phase | Sky | Light on the garden |
+|---|---|---|
+| Sunrise | cool violet-blue overhead into peach/apricot behind the right-hand hills; rose-lit cloud banks with lost lower edges; hills cool blue | thin lavender, warmer toward the sun; mist lying on the pond and lifting; long cool shadows to the left; light caught on the right of the crowns; dew |
+| Midday | clear cerulean graded to warm paper at the horizon, a few clouds left as paper with a cool belly | almost bare paper — the most saturated, crisp moment; short pools of shadow; sparkle on the water |
+| Sunset | rose-violet → crimson band → ochre-gold glow on the left; dark violet clouds with burning undersides; hills as violet silhouettes; the sun a pale disc sinking behind the far ridge | warm amber, gold rim light from the left, long violet shadows to the right, the pond reflecting the warm sky, the lantern and shoji coming on |
+| Night | granulating indigo into a paler ultramarine horizon, darker hills, a few stars and the moon left as paper (its real phase) | a moonlit indigo glaze the paper breathes through — never black or muddy — colours faded first, the moon's broken path on the water, the lantern's pool and a warm window |
+Lights are **reserved paper**, not added glow: the sun, the moon, stars, the lamp light and the
+light on the crowns are where pigment was left out. Shadows are cool violet-blue glazes, soft at
+the tip, never grey drop shadows.
 
 ## Techniques the paint engine must provide
 - **Wet-edge washes**: each shape is many low-alpha layers of a jittered polygon; pigment
@@ -45,7 +62,8 @@ Saturation stays low; the brightest things in the scene are flower heads and koi
 
 ## Anti-tropes (do NOT do these)
 - Flat fills, hard vector outlines, perfect circles/ellipses, symmetric flowers.
-- Glossy gradients, drop shadows, glow/bloom filters, neon, high saturation.
+- Glossy gradients, drop shadows, glow/bloom filters, neon, digital (opaque) saturation; lens
+  flares, vector sunsets (concentric bands, a perfect sun disc with rays).
 - "Particle confetti", sparkle emojis, bouncy cartoon animations, lens flares.
 - Generic UI: pill buttons with gradients, glassmorphism, Inter font everywhere, emoji icons.
 - Visible repetition: every instance must be seeded-unique; clumps vary in count & angle.

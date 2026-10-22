@@ -33,7 +33,7 @@ Look at it: studio sections **Plants · watering**, **· wither**, **· growth t
 ## Wiring (`src/main.ts`)
 ```ts
 setPlantViewSpecies(getSpecies);               // the view also knows ?fixtures species
-const plants = createPlantSystem({ getSpecies });
+const plants = createPlantSystem({ getSpecies, daylight }); // the shared daylight (shadows, rims)
 void renderer.add(plants);
 …
 plants.connectPlacement(ui.placement);         // in-canvas placement highlight
@@ -62,7 +62,8 @@ store (plants, session) ──sync──▶ records ──requests──▶ spri
   requested and the nearest cached one is drawn instead (another resolution, or a lower step).
 
 ## Sprites (ADRs 0110–0112)
-- Key: `speciesId | seed | step | w×h`. `w×h = species.size × slot.scale × resolution`, where
+- Key: `speciesId | seed | step | w×h`. `w×h = species.size × plantScale(slot) × resolution` (the
+  garden plant scale 1.25 is painted in, never upscaled — ADR 0148), where
   `resolution = resolutionBucket(viewport.pixelScale)` — quarter-octave buckets (≈19 %), capped at
   2.4 px per world unit. A resize inside the bucket reuses everything; a significant one queues
   re-renders (priority `rescale`) while the old resolution keeps drawing scaled.
@@ -100,12 +101,24 @@ store (plants, session) ──sync──▶ records ──requests──▶ spri
   dried-ochre twin (`witherPixels`), droops it sideways (bend 2) and squashes it toward the base,
   dissolves it from the top (`destination-out` gradient) and fades it out; then it is dropped.
 
+## Light and shadow (ADR 0146)
+Each plant is drawn in the garden's daylight (the shared `DaylightSource`, docs/systems/daylight.md):
+1. its **cast shadow** (`shadow.ts`): one pre-painted watercolour blot stretched from the base away
+   from the sun — long and sideways at sunrise (to the left) and sunset (to the right), a pool
+   centred under the plant at midday, a whisper at night; ≤ 1.3× the plant's visible height,
+   about half its width thick, multiplied, `SHADOW_PLANT` 0.6; none for plants on open water;
+2. the plant itself (pose, sway, fades as before);
+3. its **rim light** at sunrise/sunset: the sprite's sun-facing edge (`src/paint/rim.ts`, cached
+   per sprite image, side and colour) drawn with `screen` in the same pose, `RIM_PLANT` 0.85.
+   The growing plant uses the nearer growth step's sprite for the shadow extent and the rim.
+Reflections are drawn over the mirrored sky the scene lays on the pond.
+
 ## Watering (ADR 0114)
 `session:water` (from the panel, the widget or the dev API) starts a 2.5 s animation at the growing
 plant. `wateringTimeline(u)`: glide in 0–0.26 · tilt 0.2–0.37 · pour 0.29–0.74 · soil darkens
 0.36–0.6 · leaves lift 0.42–0.62 (+4 % height, a small nudge) · straighten 0.68–0.84 · lift away
 0.8–1. The **rig** is measured from the sprite's content bounds (plant top and width); the can's
-body is `0.5 × visible height` (30–54 world units × slot scale, so it still reads on the far
+body is `0.5 × visible height` (30–54 world units × `plantScale(slot)`, so it still reads on the far
 bank), it comes from the right unless its path would cross the pavilion (`scene.pavilion.x`) or
 leave the world, then from the left, and pours from above the plant on its own side.
 - The **jōro**: copper drum with a domed shoulder, riveted hoops, a lifted highlight streak, a
@@ -146,7 +159,7 @@ kept inside the canvas with `fitRigToCanvas`), and the wither for `wilt`. Its ca
 24 MB main-thread `SpriteCache`. `setPlantViewSpecies(fn)` adds species the registry lacks.
 
 ## Bounds & labels
-`plantWorldBounds(def, slot)` — `species.size × slot.scale`, anchored on the slot point; the exact
+`plantWorldBounds(def, slot)` — `species.size × plantScale(slot)` (= slot scale × 1.25), anchored on the slot point; the exact
 rect sprites are drawn into. The UI's label hit-test (`src/ui/plant-labels.ts › plantBox`) uses
 it; `system.plantBounds(plantId)` returns it for finished plants and the growing one.
 
@@ -168,10 +181,12 @@ at growths `k / 24` only. Keep each call under ~100 ms at 600 px.
 - Memory: 64 MB garden + 24 MB view LRU; reflections ≤ 48 cached images at half resolution.
 
 ## Debug API (`?dev`, `window.sprout.plants`)
-`sprout.plantsReady()` resolves once every sprite the garden needs is painted, without snapping
+`sprout.plantsReady()` resolves once the system has picked up the latest store change (even one made
+just before, with no frame in between), every sprite the garden needs is painted and the plants that
+just appeared have faded in (ADR 0149), without snapping
 growth or blooms; use it before a screenshot (`sprout.addPlants(25); await sprout.plantsReady()`).
 `window.sprout.plants`:
-`state()` (ready, resolution, finished [id, slot, alpha, drawn, blooming], growing [growth, shown,
+`state()` (ready, resolution, finished [id, slot, alpha, shown, drawn, blooming], growing [growth, shown,
 lo, hi, weight, drawn], withering, watering [progress, wet, active], displaced, reflections,
 highlight, cache stats), `settle()` (snap growth/fades, paint what is needed, resolve when idle),
 `whenIdle()`, `bounds(id)`, `boundsFor(speciesId, slotId)`, `toDevice(rect)`, `perf()`,
@@ -182,8 +197,8 @@ Unit: `sprites.test.ts` (quantisation, stage pairs, cross-fade weights, buckets,
 bounds, LRU budget/epoch/best, scheduling, workers incl. fallback and death), `draw.test.ts`,
 `watering.test.ts`, `wither.test.ts`, `reflection.test.ts`, `system.test.ts` (drawables, sizing,
 growth + look-ahead, easing, displacement, wither, watering, bloom, bounds, reflections,
-highlight, 50-plant budget, "finished plants sway with the wind, and hold still under reduced
-motion"), `view.test.ts`, `registry.test.ts` (discovery, well-formed species, tiers, id/file
+highlight, 50-plant budget, plantsReady waits for the store change, sprites and fade-in, "finished plants sway with the wind, and hold still under reduced
+motion"), `shadow.test.ts` (cast shadow length, side, pool), `view.test.ts`, `registry.test.ts` (discovery, well-formed species, tiers, id/file
 match), `plantable.test.ts`. E2E: `tests/e2e/plants.spec.ts` (watering, wither, bloom + reload,
 reflection, placement highlight, bounds + budget; the growth test runs in a reduced-motion block
 with the light pinned to noon).
