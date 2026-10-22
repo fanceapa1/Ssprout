@@ -8,10 +8,11 @@ import { createRng } from '../core/rng';
 import { PAPER_WHITE, PIGMENTS, bounds, createPainter, insetPolygon, makeCanvas, mix, pointInPolygon, type AnyCanvas } from '../paint';
 import type { Pt, Rect } from '../render/viewport';
 import type { SceneGeometry } from './geometry';
+import type { DaylightState } from '../ambience/daylight';
 
 export interface WaterSurface {
   /** draw into a world-unit context; `t` = animation seconds */
-  draw(ctx: CanvasRenderingContext2D, t: number): void;
+  draw(ctx: CanvasRenderingContext2D, t: number, light?: DaylightState | null): void;
 }
 
 export interface WaterOptions {
@@ -91,7 +92,12 @@ export function createWaterSurface(scene: SceneGeometry, opts: WaterOptions = {}
   });
 
   return {
-    draw(ctx, t) {
+    draw(ctx, t, light) {
+      const w = light?.weights;
+      // sparkle follows the sun: brightest and busiest at midday, a few at sunrise/sunset, rare at night
+      const sparkle = w ? w.midday * 1.5 + w.sunrise * 0.8 + w.sunset * 0.9 + w.night * 0.12 : 1;
+      const glintAt = w ? 0.75 - 0.17 * w.midday : 0.75;
+      const outer = ctx.globalAlpha;
       if (!sprites) prepare();
       const s = sprites!;
       const time = opts.still ? 0 : t;
@@ -129,8 +135,8 @@ export function createWaterSurface(scene: SceneGeometry, opts: WaterOptions = {}
         // glints: brief, soft sparkles of reflected sky
         for (const g of glints) {
           const v = Math.sin(t * g.rate + g.ph);
-          if (v < 0.75) continue;
-          ctx.globalAlpha = ((v - 0.75) / 0.25) ** 2 * 0.5;
+          if (v < glintAt || sparkle <= 0.01) continue;
+          ctx.globalAlpha = Math.min(0.85, ((v - glintAt) / (1 - glintAt)) ** 2 * 0.5 * sparkle) * outer;
           ctx.drawImage(s.glint.canvas as CanvasImageSource, g.x - s.glint.w / 2, g.y - s.glint.h / 2, s.glint.w, s.glint.h);
         }
       }

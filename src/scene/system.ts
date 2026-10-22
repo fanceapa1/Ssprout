@@ -15,6 +15,11 @@ import { WORLD_H, WORLD_W, type Rect, type Viewport } from '../render/viewport';
 import { GARDEN_ART, PaintCancelled, paintScene, type PaintResult, type PaintView, type SceneArt } from './background';
 import { drawSlotOverlay } from './overlay';
 import { createWaterSurface, type WaterSurface } from './water';
+import { pinnedSource, type DaylightSource } from '../ambience/daylight-source';
+import type { DaylightState } from '../ambience/daylight';
+import { createSkyLight, type SkyLight } from './sky-light';
+import { createRimCache, drawRim, type RimCache } from '../paint/rim';
+import { rimLight } from '../ambience/sky-layout';
 
 export interface SceneSystemOptions {
   art?: SceneArt;
@@ -35,7 +40,12 @@ export interface SceneSystemOptions {
   yieldTo?: () => Promise<void>;
   /** monotonic ms clock used only for perf timings and slicing (default performance.now) */
   now?: () => number;
+  /** the garden's daylight (sky phases, rim light on the boulders); default: pinned midday */
+  daylight?: DaylightSource;
 }
+
+/** Seconds between checks whether the sky composite needs rebuilding (it changes over minutes). */
+const SKY_CHECK_S = 2;
 
 export interface SceneStats {
   paints: number;
@@ -53,6 +63,8 @@ export interface SceneSystem extends System {
   /** resolves when no paint job is pending (the current painting matches the viewport) */
   whenPainted(): Promise<void>;
   stats(): SceneStats;
+  /** sky plates painted, composites built, ms spent painting skies */
+  skyStats(): ReturnType<SkyLight['stats']> | null;
 }
 
 const macrotask = () => new Promise<void>((r) => setTimeout(r, 0));
@@ -96,6 +108,12 @@ export function createSceneSystem(opts: SceneSystemOptions = {}): SceneSystem {
   let jobId = 0;
   let water: WaterSurface | null = null;
   let reducedMotion = false;
+  const daylight = opts.daylight ?? pinnedSource('midday');
+  let sky: SkyLight | null = null;
+  let light: DaylightState | null = null;
+  let skyVersion = -1;
+  let sinceSky = Infinity;
+  const rims: RimCache = createRimCache();
   const stats: SceneStats = { paints: 0, rescales: 0, lastPaintMs: 0, lastCpuMs: 0, lastView: null, timings: [], painting: false };
 
   const startPaint = (view: PaintView): Promise<void> => {
@@ -141,6 +159,13 @@ export function createSceneSystem(opts: SceneSystemOptions = {}): SceneSystem {
     async init(ctx: SystemContext) {
       reducedMotion = ctx.reducedMotion;
       water ??= createWaterSurface(ctx.scene, { seed: art.seed, still: ctx.reducedMotion });
+      if (!sky) {
+        sky = createSkyLight({ pond: art.scene.pond, seed: art.seed });
+        light = daylight.at(ctx.clock.now());
+        sky.update(light, true);
+        skyVersion = daylight.version;
+        sinceSky = 0;
+      }
       if (current && canReuse(current.view, paintViewFor(ctx.viewport, maxScale, 0), tolerance)) {
         // close enough: keep the bitmap and let drawImage rescale it; drop any repaint that was
         // started for an intermediate size
@@ -155,6 +180,15 @@ export function createSceneSystem(opts: SceneSystemOptions = {}): SceneSystem {
       if (!current) await p;
     },
     update(f) {
+      // the sky follows the daylight: checked every couple of seconds (at once after setTime)
+      sinceSky += f.dt;
+      if (sky && (daylight.version !== skyVersion || sinceSky >= SKY_CHECK_S || f.dt === 0)) {
+        sinceSky = 0;
+        light = daylight.at(f.now);
+        const forced = daylight.version !== skyVersion;
+        skyVersion = daylight.version;
+        if (sky.update(light, forced)) invalidate('background');
+      }
       if (fade >= 1) return;
       // a still frame (freeze / renderOnce) or reduced motion settles the fade at once
       fade = f.dt === 0 || reducedMotion ? 1 : Math.min(1, fade + f.dt / fadeSeconds);
@@ -165,10 +199,12 @@ export function createSceneSystem(opts: SceneSystemOptions = {}): SceneSystem {
       if (layer === 'background') {
         if (previous) drawPainting(ctx, previous, 1);
         if (current) drawPainting(ctx, current, easeInOut(fade));
+        if (current && sky) sky.drawSky(ctx);
       } else if (layer === 'waterSurface') {
         if (current && water) {
           ctx.globalAlpha = easeInOut(fade);
-          water.draw(ctx, f.t);
+          sky?.drawWater(ctx);
+          water.draw(ctx, f.t, light);
           ctx.globalAlpha = 1;
         }
       } else if (layer === 'lighting' && opts.showSlots) {
@@ -179,11 +215,14 @@ export function createSceneSystem(opts: SceneSystemOptions = {}): SceneSystem {
       const res = current;
       if (!res) return [];
       const alpha = previous ? 1 : easeInOut(fade);
+      const rim = light ? rimLight(light) : null;
       return res.sprites.map((s) => ({
         depth: s.depth,
         draw(ctx) {
           ctx.globalAlpha = alpha;
           ctx.drawImage(s.canvas as CanvasImageSource, s.box.x, s.box.y, s.box.w, s.box.h);
+          // boulders catch the low sun on their lit side (tufts are too small to bother)
+          if (rim && rim.strength > 0.02 && s.id.startsWith('rock')) drawRim(ctx, rims, s.canvas, s.box, rim, RIM_ROCK);
         },
       }));
     },
@@ -194,8 +233,12 @@ export function createSceneSystem(opts: SceneSystemOptions = {}): SceneSystem {
     },
     whenPainted: () => job ?? Promise.resolve(),
     stats: () => ({ ...stats, timings: [...stats.timings] }),
+    skyStats: () => sky?.stats() ?? null,
   };
 }
+
+/** How strongly the boulders take the rim light (they are matte stone). */
+const RIM_ROCK = 0.7;
 
 const easeInOut = (t: number) => (t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t));
 
