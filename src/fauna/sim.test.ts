@@ -22,6 +22,9 @@ const plants: PlantInstance[] = gardenScene.slots.map((s, i) => ({
   completedAt: 1,
 }));
 
+/** Simulating hours of garden time takes seconds; give those tests room on a loaded machine. */
+const LONG_RUN_MS = 30_000;
+
 function run(opts: { seed?: number; seconds: number; reduced?: boolean; hour?: number; each?: (sim: FaunaSim) => void }) {
   const sim = new FaunaSim({ scene: gardenScene, seed: opts.seed ?? 7, reducedMotion: opts.reduced });
   sim.setGarden(plants, ALL, lookup);
@@ -69,14 +72,14 @@ describe('FaunaSim', () => {
     });
     expect(problems.slice(0, 5)).toEqual([]);
     expect(maxVisitors).toBeLessThanOrEqual(FAUNA_TUNING.maxVisitors);
-  });
+  }, LONG_RUN_MS);
 
   it('brings every visiting kind over a long afternoon, but rarely', () => {
     const { spawnedKinds } = run({ seconds: 3600 });
     for (const k of ['dragonfly', 'butterfly', 'bee', 'bird', 'leaf']) expect(spawnedKinds.get(k) ?? 0, k).toBeGreaterThan(0);
     expect(spawnedKinds.get('heron') ?? 0).toBeLessThanOrEqual(4);
     expect(spawnedKinds.get('dragonfly') ?? 0).toBeLessThan(40);
-  });
+  }, LONG_RUN_MS);
 
   it('is deterministic for a seed', () => {
     const a = run({ seed: 3, seconds: 300 }).sim.list();
@@ -97,7 +100,7 @@ describe('FaunaSim', () => {
     expect(total(spawnedKinds)).toBeLessThan(total(calm) / 2);
     expect(spawnedKinds.get('swallow') ?? 0).toBe(0);
     expect(sim.creatures.filter((c) => c.kind === 'strider')).toHaveLength(FAUNA_TUNING.reducedStriders);
-  });
+  }, LONG_RUN_MS);
 
   it('a garden that loses its plants lets the koi go', () => {
     const { sim } = run({ seconds: 2 });
