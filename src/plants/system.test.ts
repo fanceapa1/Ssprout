@@ -221,7 +221,7 @@ describe('plant system', () => {
     env.start('meadow-1');
     env.frame();
     expect(sys.debugState().watering).toBeNull();
-    env.bus.emit('session:water', { blockIndex: 1 });
+    env.bus.emit('session:water', { blockIndex: 1, sessionId: 'session-1', auto: false });
     env.frame();
     env.run(1.25);
     const w = sys.debugState().watering!;

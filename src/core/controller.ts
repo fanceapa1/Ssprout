@@ -9,8 +9,10 @@ import { createRng, type Rng } from './rng';
 import {
   clampGoalMinutes,
   completionTime,
+  dueFocusWaterings,
   isComplete,
   isLongPause,
+  nextFocusWateringIn,
   pausedFor,
   pickWeather,
   sessionPhase,
@@ -18,7 +20,18 @@ import {
   type SessionPhase,
   type SessionTimeline,
 } from './session';
-import type { Action, ActiveSession, GardenState, Settings, Store } from './state';
+import {
+  canStartSession,
+  heldSlotIds,
+  inProgressSessions,
+  lastLeftSession,
+  MAX_SESSIONS,
+  type Action,
+  type ActiveSession,
+  type GardenState,
+  type Settings,
+  type Store,
+} from './state';
 import { tipsRetiredBy } from './tips';
 
 /**
@@ -67,28 +80,68 @@ export interface StartOptions {
   slotId: string;
 }
 
+/** One session in progress, as the dock lists it (ADR 0150). */
+export interface SessionSummary {
+  session: ActiveSession;
+  timeline: SessionTimeline;
+  /** the session the timer, the garden and the widget follow */
+  active: boolean;
+  /** active and not paused */
+  running: boolean;
+  pausedForMs: number;
+  /** the waiting session left most recently (the one the dock offers first when none is active) */
+  lastLeft: boolean;
+}
+
 export interface SessionStatus {
+  /** phase of the active session ('idle' when none is active, even if others wait) */
   phase: SessionPhase;
+  /** the active session */
   session: ActiveSession | null;
   timeline: SessionTimeline | null;
   pausedForMs: number;
-  /** paused for 30 min or more → show "Still with us?" */
+  /**
+   * the active session has been paused for 30 min or more → show "Still with us?". Only the
+   * active session can be paused by the gardener; sessions left for another one wait without
+   * asking (ADR 0150).
+   */
   longPause: boolean;
+  /** every session in progress, oldest start first (the active one included) */
+  sessions: SessionSummary[];
+  /** another session may be started (fewer than `maxSessions` in progress) */
+  canStart: boolean;
+  maxSessions: number;
 }
 
 export interface SessionController {
-  /** Plant a seedling and start studying. False if a session exists or the choice is invalid. */
+  /**
+   * Plant a seedling and start studying; it becomes the active session and the one that was
+   * active waits, paused (ADR 0150). False at the limit of three or when the choice is invalid.
+   */
   start(opts: StartOptions): boolean;
   pause(): boolean;
   resume(): boolean;
+  /**
+   * Make another in-progress session the active one and resume it; the active one (if any)
+   * waits, paused. Switching to the active session itself resumes it. False if nothing changed.
+   */
+  switchTo(id: string): boolean;
   /** Water the current break (once per break). */
   water(): boolean;
   /** Skip the rest of the current break; the session ends that much sooner. */
   skipBreak(): boolean;
-  /** End without a plant: the seedling withers, a displaced plant stays. */
-  cancel(): boolean;
-  /** Announce block transitions and complete the plan when due. Runs on every tick. */
+  /**
+   * End without a plant (default: the active session; a waiting one by id): the seedling
+   * withers, a displaced plant stays, the other sessions are untouched.
+   */
+  cancel(id?: string): boolean;
+  /**
+   * Announce block transitions, water the active plant when focus time reaches the next
+   * automatic watering, and complete plans when due. Runs on every tick.
+   */
   check(): boolean;
+  /** Focused time until the active session's next automatic watering (ms), or null. */
+  nextFocusWatering(): number | null;
   recommendPlans(totalMinutes: number): StudyPlan[];
   selectableSpecies(totalMinutes: number): SelectableSpecies[];
   /** Slots this species fits, each with its finished occupant (a swap) if any. */
@@ -136,12 +189,23 @@ export function createSessionController(deps: SessionControllerDeps): SessionCon
     const state = store.get();
     const s = state.session;
     const now = clock.now();
+    const left = lastLeftSession(state);
     return {
       phase: sessionPhase(state, now),
       session: s,
       timeline: s ? sessionTimeline(s, now) : null,
       pausedForMs: s ? pausedFor(s, now) : 0,
       longPause: s ? isLongPause(s, now) : false,
+      sessions: inProgressSessions(state).map((x) => ({
+        session: x,
+        timeline: sessionTimeline(x, now),
+        active: x === s,
+        running: x === s && x.pausedAt === null,
+        pausedForMs: pausedFor(x, now),
+        lastLeft: x === left,
+      })),
+      canStart: canStartSession(state),
+      maxSessions: MAX_SESSIONS,
     };
   };
 
@@ -172,11 +236,11 @@ export function createSessionController(deps: SessionControllerDeps): SessionCon
 
   const complete = (s: ActiveSession, now: number): boolean => {
     const at = Math.min(now, completionTime(s) ?? now); // the real moment (matters after a reload)
-    const { changed, prev, next } = apply({ type: 'session/complete', now: at });
+    const { changed, prev, next } = apply({ type: 'session/complete', now: at, id: s.id });
     if (!changed) return false;
     const plant = next.plants.find((p) => p.id === s.id);
     if (!plant) return false;
-    announced = null;
+    if (announced?.sessionId === s.id) announced = null;
     for (const removed of next.pressed.slice(prev.pressed.length)) bus.emit('plant:swapped', { plant, removed });
     bus.emit('plant:placed', { plant });
     bus.emit('session:complete', { sessionId: s.id, plant });
@@ -186,11 +250,13 @@ export function createSessionController(deps: SessionControllerDeps): SessionCon
   const controller: SessionController = {
     start(opts) {
       const state = store.get();
-      if (state.session) return false;
+      if (!canStartSession(state)) return false;
       const goalMinutes = clampGoalMinutes(opts.goalMinutes);
       const plan = findPlan(goalMinutes, opts.planId ?? 'unbroken');
       if (!plan) return false;
       const id = newId('session');
+      const before = state.session;
+      const now = clock.now();
       const { changed, next } = apply({
         type: 'session/start',
         id,
@@ -200,12 +266,14 @@ export function createSessionController(deps: SessionControllerDeps): SessionCon
         speciesId: opts.speciesId,
         slotId: opts.slotId,
         seed: newSeed(),
-        now: clock.now(),
+        now,
         weather: pickWeather(rng),
       });
       if (!changed || !next.session) return false;
       announced = { sessionId: id, blockIndex: 0 };
-      bus.emit('session:start', { session: next.session });
+      // the session that was active now waits (announced as a pause when it was running)
+      if (before && before.pausedAt === null) bus.emit('session:pause', { sessionId: before.id, at: now, reason: 'switch' });
+      bus.emit('session:start', { session: next.session, pausedId: before?.id ?? null });
       return true;
     },
 
@@ -214,7 +282,7 @@ export function createSessionController(deps: SessionControllerDeps): SessionCon
       if (!s) return false;
       const at = clock.now();
       if (!apply({ type: 'session/pause', now: at }).changed) return false;
-      bus.emit('session:pause', { sessionId: s.id, at });
+      bus.emit('session:pause', { sessionId: s.id, at, reason: 'user' });
       return true;
     },
 
@@ -227,13 +295,27 @@ export function createSessionController(deps: SessionControllerDeps): SessionCon
       return true;
     },
 
+    switchTo(id) {
+      const before = store.get().session;
+      if (before?.id === id) return controller.resume();
+      const at = clock.now();
+      const { changed, next } = apply({ type: 'session/switch', id, now: at });
+      if (!changed || !next.session) return false;
+      // the chosen session's current block is not news: no break/focus announcement for it
+      announced = { sessionId: id, blockIndex: sessionTimeline(next.session, at).blockIndex };
+      if (before && before.pausedAt === null) bus.emit('session:pause', { sessionId: before.id, at, reason: 'switch' });
+      bus.emit('session:resume', { sessionId: id, at });
+      bus.emit('session:switch', { from: before?.id ?? null, to: id, at });
+      return true;
+    },
+
     water() {
       const s = store.get().session;
       if (!s) return false;
       const now = clock.now();
       const { blockIndex } = sessionTimeline(s, now);
       if (!apply({ type: 'session/water', blockIndex, now }).changed) return false;
-      bus.emit('session:water', { blockIndex });
+      bus.emit('session:water', { blockIndex, sessionId: s.id, auto: false });
       return true;
     },
 
@@ -243,30 +325,48 @@ export function createSessionController(deps: SessionControllerDeps): SessionCon
       return true;
     },
 
-    cancel() {
-      const s = store.get().session;
+    cancel(id) {
+      const state = store.get();
+      const s = id === undefined ? state.session : inProgressSessions(state).find((x) => x.id === id);
       if (!s) return false;
       const at = clock.now();
-      if (!apply({ type: 'session/cancel', now: at }).changed) return false;
-      announced = null;
+      if (!apply({ type: 'session/cancel', now: at, id: s.id }).changed) return false;
+      if (announced?.sessionId === s.id) announced = null;
       bus.emit('session:cancel', { sessionId: s.id, at });
       return true;
     },
 
     check() {
-      const s = store.get().session;
-      if (!s) return false;
       const now = clock.now();
-      if (isComplete(s, now)) return complete(s, now);
+      // a plan may have ended while the app was closed (only the active session runs, but one
+      // left exactly at its end is finished too)
+      let completed = false;
+      for (const x of inProgressSessions(store.get())) if (isComplete(x, now)) completed = complete(x, now) || completed;
+      const s = store.get().session;
+      if (!s) return completed;
       const { blockIndex, block } = sessionTimeline(s, now);
       const known = announced?.sessionId === s.id ? announced.blockIndex : null;
-      if (known === blockIndex) return false;
-      announced = { sessionId: s.id, blockIndex };
-      // first block of a fresh session is announced by session:start; after a reload the
-      // current block (only) is announced once
-      if (known === null && blockIndex === 0) return false;
-      bus.emit(block.kind === 'break' ? 'session:break' : 'session:focus', { blockIndex });
-      return false;
+      if (known !== blockIndex) {
+        announced = { sessionId: s.id, blockIndex };
+        // the first block of a fresh session is announced by session:start; after a reload the
+        // current block (only) is announced once
+        if (!(known === null && blockIndex === 0)) {
+          bus.emit(block.kind === 'break' ? 'session:break' : 'session:focus', { blockIndex, sessionId: s.id });
+        }
+      }
+      // automatic focus watering (ADR 0153): due ones are recorded together and shown once, and
+      // only while focusing (one that came due in the last tick of a focus block is let go)
+      if (s.pausedAt === null && dueFocusWaterings(s, now) > s.focusWaterings) {
+        if (apply({ type: 'session/focusWater', now }).changed && block.kind === 'focus') {
+          bus.emit('session:water', { blockIndex, sessionId: s.id, auto: true });
+        }
+      }
+      return completed;
+    },
+
+    nextFocusWatering() {
+      const s = store.get().session;
+      return s ? nextFocusWateringIn(s, clock.now()) : null;
     },
 
     recommendPlans: (totalMinutes) => recommendPlans(totalMinutes),
@@ -275,7 +375,8 @@ export function createSessionController(deps: SessionControllerDeps): SessionCon
 
     placementOptions(speciesId) {
       const def = speciesById.get(speciesId);
-      return def ? compatibleSlots(def, slots, store.get().plants) : [];
+      const state = store.get();
+      return def ? compatibleSlots(def, slots, state.plants, heldSlotIds(state)) : [];
     },
 
     retireTip(id) {

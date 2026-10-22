@@ -36,10 +36,10 @@ describe('event bus', () => {
     const bus = createEventBus();
     const fn = vi.fn();
     bus.once('session:water', fn);
-    bus.emit('session:water', { blockIndex: 1 });
-    bus.emit('session:water', { blockIndex: 3 });
+    bus.emit('session:water', { blockIndex: 1, sessionId: 's', auto: false });
+    bus.emit('session:water', { blockIndex: 3, sessionId: 's', auto: false });
     expect(fn).toHaveBeenCalledTimes(1);
-    expect(fn).toHaveBeenCalledWith({ blockIndex: 1 });
+    expect(fn).toHaveBeenCalledWith({ blockIndex: 1, sessionId: 's', auto: false });
   });
 
   it('handlers added or removed during emit do not affect the current delivery', () => {
@@ -76,6 +76,6 @@ describe('event bus', () => {
     bus.clear();
     bus.emit('fauna:arrived', { id: 'x' });
     expect(fn).not.toHaveBeenCalled();
-    expect(EVENT_NAMES).toHaveLength(13);
+    expect(EVENT_NAMES).toHaveLength(14);
   });
 });

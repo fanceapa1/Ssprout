@@ -5,16 +5,30 @@ import type { ActiveSession, PlantInstance, PressedFlower, Settings } from './st
  * Events announce things that happened; state changes go through the Store.
  */
 export interface EventMap {
-  'session:start': { session: ActiveSession };
-  'session:pause': { sessionId: string; at: number };
+  /**
+   * a session was planted and is now the active one; `pausedId` is the session that was active
+   * before (it now waits, paused), if any (ADR 0150)
+   */
+  'session:start': { session: ActiveSession; pausedId?: string | null };
+  /** `reason`: the gardener paused, or the session was left for another one (start / switch) */
+  'session:pause': { sessionId: string; at: number; reason?: 'user' | 'switch' };
   'session:resume': { sessionId: string; at: number };
+  /**
+   * another in-progress session became the active one (`from`: the one left, now paused, or null
+   * when none was active). Emitted after the matching pause/resume events (ADR 0152).
+   */
+  'session:switch': { from: string | null; to: string; at: number };
+  /** `sessionId` ended without a plant; the others in progress are untouched */
   'session:cancel': { sessionId: string; at: number };
-  /** a break block began (emitted once, from the tick; at most the current block) */
-  'session:break': { blockIndex: number };
+  /** a break block of the active session began (emitted once, from the tick; at most the current block) */
+  'session:break': { blockIndex: number; sessionId: string };
   /** a focus block after a break began */
-  'session:focus': { blockIndex: number };
-  /** the current break was watered */
-  'session:water': { blockIndex: number };
+  'session:focus': { blockIndex: number; sessionId: string };
+  /**
+   * the active session's plant was watered: in a break by the gardener (`auto: false`), or by the
+   * automatic focus watering every 4–10 focused minutes (`auto: true`, ADR 0153)
+   */
+  'session:water': { blockIndex: number; sessionId: string; auto: boolean };
   /** the plan ended; `plant` is the finalised plant */
   'session:complete': { sessionId: string; plant: PlantInstance };
   'plant:placed': { plant: PlantInstance };
@@ -46,6 +60,7 @@ export const EVENT_NAMES: readonly EventName[] = [
   'session:start',
   'session:pause',
   'session:resume',
+  'session:switch',
   'session:cancel',
   'session:break',
   'session:focus',

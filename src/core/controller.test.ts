@@ -102,7 +102,7 @@ describe('start', () => {
     expect(s.id).toMatch(/^session-/);
     expect(Number.isInteger(s.seed)).toBe(true);
     expect(['sun', 'rain', 'mist']).toContain(s.weather);
-    expect(payload('session:start')).toEqual([{ session: s }]);
+    expect(payload('session:start')).toEqual([{ session: s, pausedId: null }]);
   });
 
   it('defaults to the unbroken plan and clamps the total', () => {
@@ -177,17 +177,17 @@ describe('blocks: breaks, watering and skipping', () => {
     expect(names()).not.toContain('session:break');
     to(30);
     to(31);
-    expect(payload('session:break')).toEqual([{ blockIndex: 1 }]);
+    expect(payload('session:break')).toMatchObject([{ blockIndex: 1 }]);
     to(35);
     to(36);
-    expect(payload('session:focus')).toEqual([{ blockIndex: 2 }]);
+    expect(payload('session:focus')).toMatchObject([{ blockIndex: 2 }]);
   });
 
   it('after a long gap, only the current block is announced', () => {
     const { controller, to, payload } = setup();
     controller.start(POM);
     to(62); // blocks 1, 2, 3 passed / reached while "throttled": now in break 3
-    expect(payload('session:break')).toEqual([{ blockIndex: 3 }]);
+    expect(payload('session:break')).toMatchObject([{ blockIndex: 3 }]);
     expect(payload('session:focus')).toEqual([]);
   });
 
@@ -199,7 +199,7 @@ describe('blocks: breaks, watering and skipping', () => {
     expect(controller.water()).toBe(true);
     expect(controller.water()).toBe(false);
     expect(store.get().session!.waterings).toEqual([1]);
-    expect(payload('session:water')).toEqual([{ blockIndex: 1 }]);
+    expect(payload('session:water')).toEqual([{ blockIndex: 1, sessionId: store.get().session!.id, auto: false }]);
     expect(controller.status().timeline!.watered).toBe(true);
     expect(store.get().tips.water).toBe('seen');
   });
@@ -210,7 +210,7 @@ describe('blocks: breaks, watering and skipping', () => {
     to(31);
     expect(controller.skipBreak()).toBe(true);
     expect(store.get().session!.skippedMs).toBe(4 * MIN);
-    expect(payload('session:focus')).toEqual([{ blockIndex: 2 }]);
+    expect(payload('session:focus')).toMatchObject([{ blockIndex: 2 }]);
     expect(controller.skipBreak()).toBe(false); // now in focus
     clock.set(T0 + 86 * MIN - 1);
     controller.check();
@@ -247,7 +247,7 @@ describe('pause / resume / cancel', () => {
     expect(controller.resume()).toBe(false);
     expect(controller.status()).toMatchObject({ phase: 'focus', longPause: false });
     expect(controller.status().timeline!.totalRemainingMs).toBe(20 * MIN);
-    expect(payload('session:pause')).toEqual([{ sessionId: id, at: T0 + 5 * MIN }]);
+    expect(payload('session:pause')).toEqual([{ sessionId: id, at: T0 + 5 * MIN, reason: 'user' }]);
     expect(payload('session:resume')).toEqual([{ sessionId: id, at: T0 + 65 * MIN }]);
   });
 
@@ -325,7 +325,7 @@ describe('completion', () => {
       session: makeSession({ plan: plan([25, -5, 25, -5, 30]), startedAt: T0 - 57 * MIN }),
     };
     const { payload, ticker, controller } = setup(saved);
-    expect(payload('session:break')).toEqual([{ blockIndex: 3 }]);
+    expect(payload('session:break')).toMatchObject([{ blockIndex: 3 }]);
     ticker.tick();
     ticker.tick();
     expect(payload('session:break')).toHaveLength(1);
@@ -354,7 +354,7 @@ describe('completion', () => {
 describe('status', () => {
   it('idle → focus → break, with a live timeline', () => {
     const { controller, clock } = setup();
-    expect(controller.status()).toEqual({ phase: 'idle', session: null, timeline: null, pausedForMs: 0, longPause: false });
+    expect(controller.status()).toEqual({ phase: 'idle', session: null, timeline: null, pausedForMs: 0, longPause: false, sessions: [], canStart: true, maxSessions: 3 });
     controller.start(POM);
     clock.set(T0 + 15 * MIN);
     const st = controller.status();
