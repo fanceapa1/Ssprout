@@ -17,7 +17,8 @@ export type TipId =
   | 'widget'
   | 'water'
   | 'pressed'
-  | 'sound';
+  | 'sound'
+  | 'switch';
 
 /** Facts the state alone cannot tell (supplied by the UI). */
 export interface TipContext {
@@ -98,6 +99,12 @@ export const TIPS: readonly TipDef[] = [
     relevant: (s, ctx) => inBreak(s, ctx.now),
   },
   {
+    id: 'switch',
+    anchor: 'switch',
+    copy: 'Several seedlings can grow at once. Switch to another — the one you leave simply waits.',
+    relevant: (s) => s.waiting.length > 0,
+  },
+  {
     id: 'pressed',
     anchor: 'herbarium',
     copy: 'Plants you replace are pressed into your herbarium. Open the book to visit them.',
@@ -149,7 +156,7 @@ export function tipsRetiredBy(action: Action, prev: GardenState, next: GardenSta
   switch (action.type) {
     case 'session/start': {
       const s = next.session;
-      if (!s || prev.session) break;
+      if (!s || s.id === prev.session?.id) break;
       used.push('task', 'duration', 'placement');
       if (hasBreaks(s.plan)) used.push('plan');
       if (s.displacedPlantId !== null) used.push('swap');
@@ -157,6 +164,9 @@ export function tipsRetiredBy(action: Action, prev: GardenState, next: GardenSta
     }
     case 'session/water':
       used.push('water');
+      break;
+    case 'session/switch':
+      used.push('switch');
       break;
     case 'settings/update':
       if (next.settings.muted !== prev.settings.muted) used.push('sound');

@@ -4,10 +4,12 @@ import { createDefaultState, createStore, reducer, type Reducer } from './state'
 describe('createDefaultState', () => {
   it('builds an empty, muted garden', () => {
     const s = createDefaultState(1234);
-    expect(s.version).toBe(1);
+    expect(s.version).toBe(2);
     expect(s.createdAt).toBe(1234);
     expect(s.plants).toEqual([]);
     expect(s.session).toBeNull();
+    expect(s.waiting).toEqual([]);
+    expect(s.log).toEqual([]);
     expect('pendingReward' in s).toBe(false);
     expect(s.settings.muted).toBe(true);
     expect(s.settings.lastGoalMinutes).toBe(25);

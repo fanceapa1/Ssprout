@@ -1,0 +1,67 @@
+{
+  "version": 1,
+  "createdAt": 1761200000000,
+  "plants": [
+    {
+      "id": "session-mh2a1b2c-0f3k1",
+      "speciesId": "violet",
+      "slotId": "meadow-3",
+      "seed": 2840116201,
+      "plantedAt": 1761210000000,
+      "sessionMinutes": 25,
+      "taskName": "French verbs",
+      "completedAt": 1761211500000
+    },
+    {
+      "id": "session-mh3c9d0e-1a2b3",
+      "speciesId": "japanese-iris",
+      "slotId": "shore-2",
+      "seed": 991230477,
+      "plantedAt": 1761290000000,
+      "sessionMinutes": 60,
+      "taskName": "Biology ch. 4",
+      "completedAt": 1761293900000
+    },
+    {
+      "id": "session-mh1z0000-00001",
+      "speciesId": "white-clover",
+      "slotId": "path-1",
+      "seed": 12,
+      "plantedAt": 1761201000000,
+      "sessionMinutes": 10,
+      "taskName": "Study session",
+      "completedAt": 1761201600000
+    }
+  ],
+  "pressed": [
+    { "speciesId": "dandelion", "seed": 5, "plantedAt": 1761100000000, "removedAt": 1761290000000, "taskName": "Old notes" }
+  ],
+  "session": {
+    "id": "session-mh4f00aa-2c3d4",
+    "taskName": "Essay draft",
+    "goalMs": 3600000,
+    "plan": {
+      "id": "pomodoro",
+      "name": "Pomodoro",
+      "blocks": [
+        { "kind": "focus", "minutes": 30 },
+        { "kind": "break", "minutes": 5 },
+        { "kind": "focus", "minutes": 25 }
+      ]
+    },
+    "speciesId": "anemone",
+    "slotId": "meadow-7",
+    "seed": 3141592653,
+    "displacedPlantId": null,
+    "startedAt": 1761300000000,
+    "pausedAt": null,
+    "pausedTotalMs": 120000,
+    "skippedMs": 0,
+    "weather": "rain",
+    "waterings": [1]
+  },
+  "stats": { "totalMinutes": 85, "completed": 3, "cancelled": 2 },
+  "faunaSeen": ["striders", "dragonfly"],
+  "tips": { "task": "seen", "duration": "seen", "placement": "seen" },
+  "settings": { "muted": false, "lastGoalMinutes": 60, "notifications": "granted" }
+}

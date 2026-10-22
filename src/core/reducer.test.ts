@@ -73,6 +73,7 @@ describe('session/start', () => {
       skippedMs: 0,
       weather: 'rain',
       waterings: [],
+      focusWaterings: 0,
     });
     expect(s.settings.lastGoalMinutes).toBe(90);
     expect(s.plants).toEqual([]);
@@ -366,7 +367,7 @@ describe('state/replace and state/reset', () => {
 
   it('replace rejects other schema versions and the same state', () => {
     const s = fresh();
-    expectNoop(s, { type: 'state/replace', state: { ...s, version: 2 } as never });
+    expectNoop(s, { type: 'state/replace', state: { ...s, version: 1 } as never });
     expectNoop(s, { type: 'state/replace', state: null as never });
     expectNoop(s, { type: 'state/replace', state: s });
   });

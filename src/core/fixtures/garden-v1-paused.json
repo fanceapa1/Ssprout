@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "createdAt": 1761200000000,
+  "plants": [],
+  "pressed": [],
+  "session": {
+    "id": "session-mh4g11bb-3d4e5",
+    "taskName": "Maths problem set",
+    "goalMs": 1500000,
+    "plan": { "id": "unbroken", "name": "Unbroken", "blocks": [{ "kind": "focus", "minutes": 25 }] },
+    "speciesId": "violet",
+    "slotId": "rock-2",
+    "seed": 77,
+    "displacedPlantId": null,
+    "startedAt": 1761300000000,
+    "pausedAt": 1761300600000,
+    "pausedTotalMs": 0,
+    "skippedMs": 0,
+    "weather": "sun",
+    "waterings": []
+  },
+  "stats": { "totalMinutes": 0, "completed": 0, "cancelled": 0 },
+  "faunaSeen": [],
+  "tips": {},
+  "settings": { "muted": true, "lastGoalMinutes": 25, "notifications": "unasked" }
+}

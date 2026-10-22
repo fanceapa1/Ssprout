@@ -32,6 +32,7 @@ export function makeSession(over: Partial<ActiveSession> = {}): ActiveSession {
     skippedMs: 0,
     weather: 'sun',
     waterings: [],
+    focusWaterings: 0,
     ...over,
   };
 }

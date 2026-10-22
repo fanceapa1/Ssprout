@@ -1,6 +1,6 @@
 # ADR 0036 — Plan-based sessions in core: plan position, live growth, block events
 
-- Status: accepted (implements ADR 0003; supersedes ADR 0031, amends ADRs 0030 and 0032)
+- Status: accepted (implements ADR 0003; supersedes ADR 0031, amends ADRs 0030 and 0032); amended by ADR 0150 (several sessions in progress)
 - Date: 2026-10-22
 
 ## Context

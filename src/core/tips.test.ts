@@ -34,6 +34,7 @@ describe('tip registry', () => {
       'notifications',
       'widget',
       'water',
+      'switch',
       'pressed',
       'sound',
     ]);

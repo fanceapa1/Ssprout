@@ -21,24 +21,29 @@ export interface CompatibleSlot<S extends PlacementSlot = Slot> {
   occupiedBy?: PlantInstance;
 }
 
-/** Every slot this species may go into, in slot order, with its current occupant (if any). */
+/**
+ * Every slot this species may go into, in slot order, with its current occupant (if any).
+ * `held` slots — where another session's seedling is growing (ADR 0150) — are left out: they
+ * are occupied, not swappable.
+ */
 export function compatibleSlots<S extends PlacementSlot>(
   species: PlacementSpecies,
   slots: readonly S[],
   plants: readonly PlantInstance[],
+  held: ReadonlySet<string> = new Set(),
 ): CompatibleSlot<S>[] {
   const occupant = new Map(plants.map((p) => [p.slotId, p]));
   const out: CompatibleSlot<S>[] = [];
   for (const slot of slots) {
-    if (!isCompatible(species, slot)) continue;
+    if (held.has(slot.id) || !isCompatible(species, slot)) continue;
     const plant = occupant.get(slot.id);
     out.push(plant ? { slot, occupiedBy: plant } : { slot });
   }
   return out;
 }
 
-/** Ids of slots with nothing growing in them. */
-export function freeSlotIds(slots: readonly PlacementSlot[], plants: readonly PlantInstance[]): string[] {
-  const used = new Set(plants.map((p) => p.slotId));
+/** Ids of slots with nothing growing in them (finished plants, and `held` seedlings' slots). */
+export function freeSlotIds(slots: readonly PlacementSlot[], plants: readonly PlantInstance[], held: ReadonlySet<string> = new Set()): string[] {
+  const used = new Set([...plants.map((p) => p.slotId), ...held]);
   return slots.filter((s) => !used.has(s.id)).map((s) => s.id);
 }

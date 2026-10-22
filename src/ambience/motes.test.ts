@@ -33,6 +33,7 @@ const session = (slotId: string, startedAt: number): ActiveSession => ({
   skippedMs: 0,
   weather: 'sun',
   waterings: [],
+  focusWaterings: 0,
 });
 const garden = (plants: PlantInstance[], s: ActiveSession | null): GardenState => ({ ...createDefaultState(0), plants, session: s });
 

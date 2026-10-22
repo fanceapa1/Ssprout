@@ -20,7 +20,9 @@ src/
     events.ts             typed event bus
     state.ts              GardenState types, defaults, createReducer(world)/actions, store
     persistence.ts        localStorage load/save, schema version + migrations, export/import validation
-    session.ts            session phases (idle/focus/break/paused), timeline + growth maths, goal clamp, weather
+    session.ts            session phases (idle/focus/break/paused), timeline + growth maths, goal clamp, weather,
+                          the automatic focus-watering schedule
+    session-log.ts        history queries (day/week/month, local calendar) and the v1 back-fill
     rewards.ts            tier from minutes, selectable species per total
     plans.ts              study plans: recommendPlans(total), plan validation
     placement.ts          slot compatibility (habitat + size class), swap candidates
@@ -192,8 +194,11 @@ a plant's box is `size × plantScale(slot)` (`plantScale(slot) = slot.scale × 1
 `plantWorldBounds` (`src/plants/bounds.ts`) is the one place that computes it; `slot.scale` itself
 stays the ground's perspective (fauna uses it for creatures).
 
-### State (`src/core/state.ts`, ADR 0003, ADR 0036)
-Each session is one plant, chosen at start, growing live in its slot.
+### State (`src/core/state.ts`, ADR 0003, ADR 0036, ADRs 0150–0154)
+Each session is one plant, chosen at start, growing live in its slot. Up to three sessions are in
+progress: `session` is the **active** one (the timer, weather, motes, audio and widget follow it),
+`waiting` holds the others, all paused, in the order they were left (ADR 0150). Ended sessions go
+into the append-only `log` (ADR 0151).
 ```ts
 export type PlanBlock = { kind: 'focus' | 'break'; minutes: number };
 export interface StudyPlan { id: string; name: string; blocks: PlanBlock[] } // core/plans.ts
@@ -204,13 +209,18 @@ export type Weather = 'sun' | 'rain' | 'mist';
 export interface ActiveSession { id: string; taskName: string; goalMs: number /* total incl. breaks */; plan: StudyPlan;
   speciesId: string; slotId: string; seed: number; displacedPlantId: string | null;
   startedAt: number; pausedAt: number | null; pausedTotalMs: number; skippedMs: number; weather: Weather;
-  waterings: number[] /* watered break block indexes */; }
+  waterings: number[] /* watered break block indexes */; focusWaterings: number /* automatic ones done (ADR 0153) */; }
+export interface SessionLogEntry { id: string; outcome: 'completed' | 'cancelled'; taskName: string; speciesId: string;
+  slotId: string; seed: number; plan: StudyPlan | null /* null: back-filled */; goalMinutes: number; focusedMinutes: number;
+  startedAt: number; endedAt: number /* wall clock */; backfilled?: true; }
 export interface GardenState {
-  version: 1;
+  version: 2;
   createdAt: number;
   plants: PlantInstance[];      // finished plants only
   pressed: PressedFlower[];
-  session: ActiveSession | null;
+  session: ActiveSession | null; // the active session
+  waiting: ActiveSession[];     // other sessions in progress, all paused (≤ MAX_SESSIONS − 1)
+  log: SessionLogEntry[];       // ended sessions, oldest first
   stats: { totalMinutes: number /* focused */; completed: number; cancelled: number };
   faunaSeen: string[];          // creature ids already announced
   tips: Record<string, 'seen'>; // retired tips
@@ -236,13 +246,15 @@ deterministic. `type Action =`
 
 | type | payload | meaning |
 |---|---|---|
-| `session/start` | `id, taskName, goalMinutes, plan, speciesId, slotId, seed, now, weather` | plant a seedling and start (plan sums to the total; species tier ≤ earned; compatible slot; an occupant becomes `displacedPlantId`; sets `settings.lastGoalMinutes`) |
-| `session/pause` | `now` | pause (focus or break) |
-| `session/resume` | `now` | resume; adds the paused span to `pausedTotalMs` |
-| `session/water` | `blockIndex, now` | water the current break (once) |
+| `session/start` | `id, taskName, goalMinutes, plan, speciesId, slotId, seed, now, weather` | plant a seedling and make it the active session (fewer than 3 in progress; plan sums to the total; species tier ≤ earned; compatible slot not held by another session; an occupant becomes `displacedPlantId`; sets `settings.lastGoalMinutes`); the previous active one moves to `waiting`, paused at `now` |
+| `session/switch` | `id, now` | the waiting session `id` becomes active and resumes (its wait goes into `pausedTotalMs`); the active one waits, paused |
+| `session/pause` | `now` | pause the active session (focus or break) |
+| `session/resume` | `now` | resume it; adds the paused span to `pausedTotalMs` |
+| `session/water` | `blockIndex, now` | water the active session's current break (once) |
+| `session/focusWater` | `now` | record the automatic focus waterings now due (`focusWaterings = dueFocusWaterings`) |
 | `session/skipBreak` | `now` | skip the rest of the current break (`skippedMs +=` remainder) |
-| `session/cancel` | `now` | seedling withers, displaced plant stays (`stats.cancelled++`) |
-| `session/complete` | `now` | plan finished → finished plant (id = session id), displaced plant → `pressed` |
+| `session/cancel` | `now, id?` | (default: the active session) seedling withers, displaced plant stays, `stats.cancelled++`, a `cancelled` log entry; the others untouched |
+| `session/complete` | `now, id?` | plan finished → finished plant (id = session id), displaced plant → `pressed`, a `completed` log entry; nothing else resumes |
 | `tip/retire` | `id` | mark a tip as seen |
 | `settings/update` | `patch: Partial<Settings>` | merge settings |
 | `fauna/seen` | `id` | creature announced |
@@ -250,8 +262,18 @@ deterministic. `type Action =`
 | `state/reset` | `now` | fresh default state |
 
 Types exported alongside: `Settings`, `GardenStats`, `Action`, `ActionType`, `Reducer<S, A>`,
-`Listener<S, A>`, `Store`, `createStore`, `createDefaultState(now)`, `STATE_VERSION`,
-`DEFAULT_GOAL_MINUTES`, `createReducer`, `reducer`, `ReducerWorld`, `mergeSettings`.
+`Listener<S, A>`, `Store`, `createStore`, `createDefaultState(now)`, `STATE_VERSION` (2),
+`DEFAULT_GOAL_MINUTES`, `MAX_SESSIONS` (3), `createReducer`, `reducer`, `ReducerWorld`, `mergeSettings`,
+`logEntry`, and the selectors `inProgressSessions(state)` (oldest start first), `canStartSession`,
+`lastLeftSession`, `heldSlotIds`.
+
+### Session log (`src/core/session-log.ts`, ADR 0151)
+`state.log` is the history for the calendar: append-only, oldest first, written by the reducer on
+complete and cancel. Pure queries over it: `entriesBetween(log, { from, to }, { outcome? })`
+(half-open ranges; an entry is in a range when its `[startedAt, endedAt)` span overlaps it),
+`dayRange(t)`, `weekRange(t, weekStartsOn = 1)`, `monthRange(t)` (local calendar),
+`entriesOnDay | entriesInWeek | entriesInMonth(log, t, q?)`, `dayKey(t)` (`YYYY-MM-DD`),
+`groupByDay(entries)` (by start day), `focusedMinutes(entries, q?)`, `backfillLog(plants)`.
 
 ### Study plans (`src/core/plans.ts`, ADR 0036)
 `recommendPlans(totalMinutes): StudyPlan[]` — 2–4 plans (only `unbroken` below 30 min), each summing
@@ -270,39 +292,51 @@ export interface SessionTimeline { elapsedMs: number /* plan position */; blockI
   focusTotalMs: number; growth: number /* focusDone ÷ focusTotal */; progress: number; watered: boolean; complete: boolean }
 export function sessionTimeline(s: ActiveSession, now: number): SessionTimeline;
 ```
-Also: `sessionPhase(state, now)` → `'idle' | 'focus' | 'break' | 'paused'`, `remainingMs`, `progress`,
+Automatic focus watering (ADR 0153): `focusWateringTimes(seed, focusTotalMs)` (focused-time offsets,
+seeded 4–10 min apart, none in the last minute), `dueFocusWaterings(s, now)`, `nextFocusWateringIn(s, now)`.
+Also: `sessionPhase(state, now)` (of the active session) → `'idle' | 'focus' | 'break' | 'paused'`, `remainingMs`, `progress`,
 `growth`, `pausedFor`, `isLongPause` (≥ 30 min), `completionTime`, `blockStartMs`, `clampGoalMinutes`
 (10–180, step 5), `normalizeTaskName` (≤ 40 chars, empty → "Study session"), `pickWeather(rng)`
 (sun .6 / rain .25 / mist .15), `formatClock(ms)`. Tiers: `tierForMinutes`, `selectableSpecies`
 (`core/rewards.ts`).
 
-### Session controller (`src/core/controller.ts`, ADRs 0032, 0036)
+### Session controller (`src/core/controller.ts`, ADRs 0032, 0036, 0150–0153)
 `createSessionController({ store, clock, bus, species, slots?, ticker?, seed? })` is the **single
-API the UI and widget use**: `start({ taskName, goalMinutes, planId?, speciesId, slotId }) => boolean`,
-`pause()`, `resume()`, `water()`, `skipBreak()`, `cancel()`, `check()`, `recommendPlans(min)`,
+API the UI and widget use**: `start({ taskName, goalMinutes, planId?, speciesId, slotId }) => boolean`
+(the new session becomes active; the active one waits), `pause()`, `resume()`, `switchTo(id)`,
+`water()`, `skipBreak()`, `cancel(id?)`, `check()`, `nextFocusWatering()`, `recommendPlans(min)`,
 `selectableSpecies(min) => { species, locked, requiredMinutes, earned }[]`,
-`placementOptions(speciesId) => { slot, occupiedBy? }[]`, `retireTip(id)`, `updateSettings(patch)`,
-`announceFauna(id)`, `status() => { phase, session, timeline, pausedForMs, longPause }`, `onTick(fn)`,
-`setTicker(t)`, `setSeed(s)`, `dispose()`. The action methods (`pause` … `announceFauna`) return
-`boolean` (false = nothing changed). It supplies time/ids/seeds/weather, emits the bus events
-(including block transitions), completes due sessions on every tick and once at creation
-(closed-app completion), and retires tips automatically. It ticks **only while a session exists**.
+`placementOptions(speciesId) => { slot, occupiedBy? }[]` (held slots left out), `retireTip(id)`,
+`updateSettings(patch)`, `announceFauna(id)`,
+`status() => { phase, session, timeline, pausedForMs, longPause, sessions, canStart, maxSessions }`
+(`sessions`: every session in progress, oldest first, as `{ session, timeline, active, running,
+pausedForMs, lastLeft }`; `phase`/`session`/`timeline`/`longPause` are the active session's),
+`onTick(fn)`, `setTicker(t)`, `setSeed(s)`, `dispose()`. The action methods (`pause` … `announceFauna`)
+return `boolean` (false = nothing changed). It supplies time/ids/seeds/weather, emits the bus events
+(including block transitions of the active session and the automatic focus watering), completes due
+sessions on every tick and once at creation (closed-app completion), and retires tips automatically.
+It ticks **only while an active session exists** (waiting ones are paused).
 `Ticker = { start(tick): stop }` (default `createIntervalTicker`, 1 s). Full table in
 `docs/systems/core.md`.
 
-### Persistence (`src/core/persistence.ts`, ADRs 0033–0034)
-Key `studysprout:v1` (stable; the document's `version` drives `MIGRATIONS`). `loadState(storage,
+### Persistence (`src/core/persistence.ts`, ADRs 0033–0034, 0154)
+Key `studysprout:v1` (stable; the document's `version` drives `MIGRATIONS`). Schema v2;
+`MIGRATIONS = { 1: migrateV1toV2 }` (the v1 session stays the active one, `waiting: []`, `log`
+back-filled from the plants). `loadState(storage,
 now, opts)` never throws (`fresh | loaded | migrated | recovered | unavailable`; corrupt data is
 copied to `studysprout:corrupt:<ts>`). `createSaver(storage)` debounces saves (300 ms; `main.ts`
 flushes on `pagehide` and when the page becomes hidden). `exportState`/`exportFileName`/`importState` (typed errors; unknown species
 kept and flagged).
 
 ### Events (`src/core/events.ts`)
-`session:start | session:pause | session:resume | session:cancel | session:break | session:focus |
-session:water | session:complete | plant:placed | plant:swapped | fauna:arrived | tip:retired |
-settings:changed`. Payloads are typed in `EventMap`: `'session:break' | 'session:focus' |
-'session:water': { blockIndex }`, `'session:start': { session }`, `'session:pause' | 'session:resume' |
-'session:cancel': { sessionId, at }`, `'session:complete': { sessionId, plant }`, `'plant:placed': { plant }`
+`session:start | session:pause | session:resume | session:switch | session:cancel | session:break |
+session:focus | session:water | session:complete | plant:placed | plant:swapped | fauna:arrived |
+tip:retired | settings:changed`. Payloads are typed in `EventMap`: `'session:break' | 'session:focus':
+{ blockIndex, sessionId }`, `'session:water': { blockIndex, sessionId, auto }` (`auto`: the automatic
+focus watering, ADR 0153), `'session:start': { session, pausedId? }` (`pausedId`: the session that now
+waits), `'session:pause': { sessionId, at, reason? }` (`'user'` or `'switch'`), `'session:resume' |
+'session:cancel': { sessionId, at }`, `'session:switch': { from, to, at }` (after the pause/resume it
+implies; `from` null when nothing was active), `'session:complete': { sessionId, plant }`, `'plant:placed': { plant }`
 and `'plant:swapped': { plant, removed }` (both on completion; swapped first), `'fauna:arrived': { id }`,
 `'tip:retired': { id }`, `'settings:changed': { settings }`. `fauna:arrived` is emitted by the fauna
 system the first time a newly unlocked creature is actually in view (ADR 0120); the UI's quiet line

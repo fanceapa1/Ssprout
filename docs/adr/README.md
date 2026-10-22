@@ -30,11 +30,11 @@ commit, and when it replaces or changes an earlier decision, update that ADR's S
 | [0022](0022-organic-outline-families.md) | Organic outline families | accepted | Capped recursive deformation, median contour, `innerClip` for organic shapes |
 | [0030](0030-reducer-validates-with-injected-world.md) | Reducer validates with an injected world | accepted; amended by 0036 | Invalid actions are no-ops returning the same reference; tier/slot checks via `ReducerWorld` |
 | [0031](0031-offer-generation.md) | Reward offer generation | **superseded** by 0003/0036 | The old 3-species end-of-session offer (removed) |
-| [0032](0032-session-controller.md) | Session controller is the single UI API | accepted; API revised by 0036 | Only dispatcher of session actions; injectable ticker; completes due sessions on boot |
-| [0033](0033-persistence-format-and-recovery.md) | Persistence format and recovery | accepted | Stable key, chained migrations, corrupt data backed up, 300 ms debounced saves |
+| [0032](0032-session-controller.md) | Session controller is the single UI API | accepted; API revised by 0036, 0150 | Only dispatcher of session actions; injectable ticker; completes due sessions on boot |
+| [0033](0033-persistence-format-and-recovery.md) | Persistence format and recovery | accepted; first migration 0154 | Stable key, chained migrations, corrupt data backed up, 300 ms debounced saves |
 | [0034](0034-hand-written-validation.md) | Hand-written validation | accepted; amended by 0036 | Lenient on missing keys, strict on types; unknown species kept and flagged |
 | [0035](0035-dev-clock-jump.md) | Dev clock jump | accepted | `advance(ms)`; dev break/complete helpers jump time, then `check()` |
-| [0036](0036-plan-based-sessions-in-core.md) | Plan-based sessions in core | accepted | Plans, plan position, growth = focus fraction, water/skip, block events |
+| [0036](0036-plan-based-sessions-in-core.md) | Plan-based sessions in core | accepted; amended by 0150 | Plans, plan position, growth = focus fraction, water/skip, block events |
 | [0040](0040-scene-owns-the-paper-layer.md) | Scene owns the paper layer | accepted | `createPaperSystem` draws the washi texture, composited last |
 | [0041](0041-background-paint-cache-and-fade.md) | Background paint cache and fade | accepted | Cached painting, rescale ≤ 10 %, repaint in 20 ms slices, 1.2 s cross-fade |
 | [0042](0042-boulders-and-tufts-as-entity-sprites.md) | Boulders and tufts as entity sprites | accepted | Foreground rocks and tufts depth-sorted with plants by base y |
@@ -108,3 +108,8 @@ commit, and when it replaces or changes an earlier decision, update that ADR's S
 | [0147](0147-painted-light-plates.md) | Painted light plates | accepted | Per-phase plate (grade wash, long shadows, crown lights, lamp light) blended with moving lights; night desaturates |
 | [0148](0148-plants-1-25x-in-the-garden.md) | Plants 1.25× in the garden | accepted | `GARDEN_PLANT_SCALE` on every garden plant box; sprites painted larger; two slots moved |
 | [0149](0149-plants-ready-means-shown.md) | plantsReady means shown | accepted | Waits for init, the store change, the sprites and the fade-in |
+| [0150](0150-parallel-sessions-active-and-waiting.md) | Parallel sessions: active and waiting | accepted | `session` stays the active one, `waiting` holds up to two paused others; switch/start pause the active one; held slots |
+| [0151](0151-session-log.md) | Session log | accepted | Append-only `log` of completed/cancelled sessions with wall times, focused minutes, plan, plant; pure local-calendar queries |
+| [0152](0152-after-a-bloom-the-gardener-chooses.md) | After a bloom the gardener chooses | accepted | Completion/cancel leaves nothing active; the dock offers Resume on the session left last |
+| [0153](0153-automatic-focus-watering.md) | Automatic focus watering | accepted | Seeded 4–10 min intervals of focused time; one `session:water { auto: true }` per due batch, only in focus |
+| [0154](0154-schema-v2-migration.md) | Schema v2 and the v1 → v2 migration | accepted | v1 session stays active, nothing waits, log back-filled from plants; v2 validation rules |

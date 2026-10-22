@@ -1,5 +1,5 @@
 import type { PlanBlock, StudyPlan } from './plans';
-import type { Rng } from './rng';
+import { createRng, type Rng } from './rng';
 import type { ActiveSession, GardenState, Weather } from './state';
 
 /**
@@ -163,6 +163,51 @@ export function sessionTimeline(s: ActiveSession, now: number): SessionTimeline 
     watered: block.kind === 'break' && s.waterings.includes(index),
     complete: isComplete(s, now),
   };
+}
+
+// ---------------------------------------------------------------------------------------------
+// Automatic focus watering (SPEC §2, ADR 0153). The schedule lives on the focus-time axis: the
+// k-th watering happens once `k` seeded intervals of 4–10 focused minutes have passed, so
+// pauses and breaks never bring one closer. None falls in the last minute of focus (the bloom
+// comes then).
+// ---------------------------------------------------------------------------------------------
+
+export const FOCUS_WATER_MIN_MS = 4 * MINUTE_MS;
+export const FOCUS_WATER_MAX_MS = 10 * MINUTE_MS;
+/** no automatic watering this close to the end of the focus time */
+export const FOCUS_WATER_TAIL_MS = MINUTE_MS;
+
+/**
+ * Focus-time offsets (ms of focused time) of every automatic watering for a session with this
+ * seed and total focus time. Deterministic: the same seed always gives the same schedule.
+ */
+export function focusWateringTimes(seed: number, focusTotalMs: number): number[] {
+  const rng = createRng(seed >>> 0).fork('focus-water');
+  const out: number[] = [];
+  const end = focusTotalMs - FOCUS_WATER_TAIL_MS;
+  for (let t = rng.range(FOCUS_WATER_MIN_MS, FOCUS_WATER_MAX_MS); t < end; t += rng.range(FOCUS_WATER_MIN_MS, FOCUS_WATER_MAX_MS)) {
+    out.push(Math.round(t));
+  }
+  return out;
+}
+
+/** How many automatic waterings the focused time so far has reached (paused time excluded). */
+export function dueFocusWaterings(s: ActiveSession, now: number): number {
+  const t = sessionTimeline(s, now);
+  const times = focusWateringTimes(s.seed, t.focusTotalMs);
+  let n = 0;
+  while (n < times.length && times[n]! <= t.focusDoneMs) n++;
+  return n;
+}
+
+/**
+ * Focused time still to go before the next automatic watering (ms), or null when none is left.
+ * While focusing this is also wall time; breaks and pauses do not count down.
+ */
+export function nextFocusWateringIn(s: ActiveSession, now: number): number | null {
+  const t = sessionTimeline(s, now);
+  const next = focusWateringTimes(s.seed, t.focusTotalMs).find((x) => x > t.focusDoneMs);
+  return next === undefined ? null : next - t.focusDoneMs;
 }
 
 /** Live growth of the session's plant, 0..1. */

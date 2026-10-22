@@ -85,6 +85,7 @@ const session = (patch: Partial<ActiveSession> = {}): ActiveSession => ({
   skippedMs: 0,
   weather: 'sun',
   waterings: [],
+  focusWaterings: 0,
   ...patch,
 });
 const plant: PlantInstance = {

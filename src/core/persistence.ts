@@ -1,12 +1,15 @@
 import { planProblem, type StudyPlan } from './plans';
 import { clampGoalMinutes, DEFAULT_TASK_NAME, MINUTE_MS, normalizeTaskName } from './session';
+import { backfillLog } from './session-log';
 import {
   createDefaultState,
+  MAX_SESSIONS,
   STATE_VERSION,
   type ActiveSession,
   type GardenState,
   type PlantInstance,
   type PressedFlower,
+  type SessionLogEntry,
   type Settings,
   type Weather,
 } from './state';
@@ -61,8 +64,36 @@ type Json = Record<string, unknown>;
 export type Migration = (doc: Json) => Json;
 export type Migrations = Readonly<Record<number, Migration>>;
 
-/** v1 is the first schema, so there is nothing to migrate yet. Add `1: (v1) => v2` here. */
-export const MIGRATIONS: Migrations = {};
+/**
+ * v1 → v2 (ADRs 0150, 0151): parallel sessions and the session log. The single session stays
+ * the active one (it keeps running or stays paused exactly as it was) with no automatic
+ * watering done yet; nothing waits; the log is back-filled from the finished plants (v1 kept no
+ * history). Pure: no clock, never mutates its input; malformed parts are left for validation.
+ */
+export function migrateV1toV2(doc: Json): Json {
+  const plants = Array.isArray(doc.plants) ? doc.plants : [];
+  const readable = plants.flatMap((x): PlantInstance[] => {
+    if (!isObject(x)) return [];
+    const { id, speciesId, slotId, seed, plantedAt, sessionMinutes } = x;
+    if (typeof id !== 'string' || typeof speciesId !== 'string' || typeof slotId !== 'string') return [];
+    if (![seed, plantedAt, sessionMinutes].every((n) => typeof n === 'number' && Number.isFinite(n))) return [];
+    const completedAt = typeof x.completedAt === 'number' && Number.isFinite(x.completedAt) ? x.completedAt : (plantedAt as number);
+    return [{
+      id,
+      speciesId,
+      slotId,
+      seed: seed as number,
+      plantedAt: plantedAt as number,
+      sessionMinutes: sessionMinutes as number,
+      taskName: normalizeTaskName(x.taskName),
+      completedAt,
+    }];
+  });
+  const session = isObject(doc.session) ? { ...doc.session, focusWaterings: 0 } : (doc.session ?? null);
+  return { ...doc, version: 2, session, waiting: [], log: backfillLog(readable) };
+}
+
+export const MIGRATIONS: Migrations = { 1: migrateV1toV2 };
 
 export interface MigrateOptions {
   migrations?: Migrations;
@@ -217,6 +248,10 @@ function readPlan(v: unknown, path: string, goalMinutes: number): StudyPlan {
 
 function readSession(v: unknown, path: string): ActiveSession | null {
   if (v === null) return null;
+  return readInProgress(v, path);
+}
+
+function readInProgress(v: unknown, path: string): ActiveSession {
   const o = obj(v, path);
   const goalMs = num(o.goalMs, `${path}.goalMs`, 1);
   if (goalMs % MINUTE_MS !== 0) throw new Invalid(`${path}.goalMs`, 'expected whole minutes');
@@ -249,7 +284,46 @@ function readSession(v: unknown, path: string): ActiveSession | null {
     skippedMs: num(o.skippedMs ?? 0, `${path}.skippedMs`, 0),
     weather: oneOf(o.weather, WEATHERS, `${path}.weather`),
     waterings,
+    focusWaterings: opt(o, 'focusWaterings', 0, (x, p) => {
+      const n = num(x, p, 0);
+      if (!Number.isInteger(n)) throw new Invalid(p, 'expected a whole number');
+      return n;
+    }, `${path}.focusWaterings`),
   };
+}
+
+function readWaiting(v: unknown, path: string): ActiveSession[] {
+  return arr(v, path).map((x, i) => {
+    const s = readInProgress(x, `${path}[${i}]`);
+    if (s.pausedAt === null) throw new Invalid(`${path}[${i}].pausedAt`, 'a waiting session must be paused');
+    return s;
+  });
+}
+
+const OUTCOMES: readonly SessionLogEntry['outcome'][] = ['completed', 'cancelled'];
+
+function readLogEntry(v: unknown, path: string): SessionLogEntry {
+  const o = obj(v, path);
+  const goalMinutes = num(o.goalMinutes, `${path}.goalMinutes`, 0);
+  const startedAt = num(o.startedAt, `${path}.startedAt`);
+  const entry: SessionLogEntry = {
+    id: str(o.id, `${path}.id`),
+    outcome: oneOf(o.outcome, OUTCOMES, `${path}.outcome`),
+    taskName: taskName(o, `${path}.taskName`),
+    speciesId: str(o.speciesId, `${path}.speciesId`),
+    slotId: str(o.slotId, `${path}.slotId`),
+    seed: num(o.seed, `${path}.seed`),
+    plan: o.plan === null || o.plan === undefined ? null : readPlan(o.plan, `${path}.plan`, goalMinutes),
+    goalMinutes,
+    focusedMinutes: num(o.focusedMinutes, `${path}.focusedMinutes`, 0),
+    startedAt,
+    endedAt: num(o.endedAt, `${path}.endedAt`, startedAt),
+  };
+  if (o.backfilled !== undefined) {
+    if (o.backfilled !== true) throw new Invalid(`${path}.backfilled`, 'expected true');
+    entry.backfilled = true;
+  }
+  return entry;
 }
 
 function readState(raw: unknown, now: number): GardenState {
@@ -283,6 +357,8 @@ function readState(raw: unknown, now: number): GardenState {
     plants,
     pressed: opt(o, 'pressed', d.pressed, (v, p) => arr(v, p).map((x, i) => readPressed(x, `${p}[${i}]`)), 'pressed'),
     session: opt(o, 'session', null, readSession, 'session'),
+    waiting: opt(o, 'waiting', [] as ActiveSession[], readWaiting, 'waiting'),
+    log: opt(o, 'log', [] as SessionLogEntry[], (v, p) => arr(v, p).map((x, i) => readLogEntry(x, `${p}[${i}]`)), 'log'),
     stats: {
       totalMinutes: opt(statsRaw, 'totalMinutes', 0, (v, p) => num(v, p, 0), 'stats.totalMinutes'),
       completed: opt(statsRaw, 'completed', 0, (v, p) => num(v, p, 0), 'stats.completed'),
@@ -306,8 +382,22 @@ function readState(raw: unknown, now: number): GardenState {
       ),
     },
   };
-  if (state.session && ids.has(state.session.id)) {
-    throw new Invalid('session.id', 'the session id is already used by a finished plant');
+  // sessions in progress: at most MAX_SESSIONS, unique ids not used by a plant or the log, one per slot
+  const inProgress: Array<[ActiveSession, string]> = [
+    ...(state.session ? [[state.session, 'session'] as [ActiveSession, string]] : []),
+    ...state.waiting.map((w, i) => [w, `waiting[${i}]`] as [ActiveSession, string]),
+  ];
+  if (inProgress.length > MAX_SESSIONS) throw new Invalid('waiting', `at most ${MAX_SESSIONS} sessions in progress`);
+  const logged = new Set(state.log.map((e) => e.id));
+  const sessionIds = new Set<string>();
+  const heldSlots = new Set<string>();
+  for (const [s, path] of inProgress) {
+    if (ids.has(s.id)) throw new Invalid(`${path}.id`, 'the session id is already used by a finished plant');
+    if (logged.has(s.id)) throw new Invalid(`${path}.id`, 'the session id is already in the log (it has ended)');
+    if (sessionIds.has(s.id)) throw new Invalid(`${path}.id`, `duplicate session id "${s.id}"`);
+    if (heldSlots.has(s.slotId)) throw new Invalid(`${path}.slotId`, `two sessions in slot "${s.slotId}"`);
+    sessionIds.add(s.id);
+    heldSlots.add(s.slotId);
   }
   return state;
 }
@@ -318,6 +408,8 @@ export function unknownSpeciesIds(state: GardenState, isKnown: (id: string) => b
   for (const p of state.plants) ids.add(p.speciesId);
   for (const p of state.pressed) ids.add(p.speciesId);
   if (state.session) ids.add(state.session.speciesId);
+  for (const w of state.waiting) ids.add(w.speciesId);
+  for (const e of state.log) ids.add(e.speciesId);
   return [...ids].filter((id) => !isKnown(id)).sort();
 }
 
