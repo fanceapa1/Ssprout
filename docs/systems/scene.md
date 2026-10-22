@@ -35,17 +35,25 @@ y    0 ┌───────────────────────�
        │   + slim tree behind (100–240)                  (1000–1240,    │engawa
   300  │ ~~~~~ far hills 300–420 (two pale ridges) ~~~~~~ 100–450)       │ lantern (1352,300)
   400  │ ── far bank 400–470 · far tree line (470–1180) ─────────────────│posts
-  452  │  shrub    rocks·rocks  ╭──── pond (458–1364 × 452–713) ────╮ rocks│1322,1484
-       │  (146,470)            │ far edge ≈ y 455 (waterline 456)   │  ╭─┤deck 578–612
-  560  │ left bank             │      ripples · sky band            ╰──╯ │ lobe → engawa
-       │ (0–480, 450–800)  big rock (506,654)        big rock (1060,722)  │
-  713  │              ╰─────────── near edge ≈ y 711 ──────────╯           │ shrub (1548,694)
-  760  │  near mound (lip ~750)   ▒ stepping stones ▒   near mound (lip ~760)│
-       │                          ▒ (806,755)…(812,966)▒                   │
+  452  │  shrub    rocks·rocks  ╭──── pond (460–1256 × 452–713) ──╮  rocks │1322,1484
+       │  (146,470)            │ far edge ≈ y 455 (waterline 456) │ bay    │deck 578–612
+  560  │ left bank             │      ripples · sky band          │ x≈1256 │engawa on the bank
+       │ (0–480, 450–800)  big rock (506,654)        big rock (1060,722) │ (shadow, footings,
+  713  │              ╰─────────── near edge ≈ y 711 ──────────╯   step stone) shrub (1548,694)
+  760  │  near mound (lip ~750)  ▒ 6 stepping stones ▒  near mound (lip ~760)│
+       │                         ▒ (780,744)…(804,968) ▒                   │
  1000  └────────── paper margins: edges dissolve, bottom corners most ─────┘
 ```
-- **Focus**: the pond (renderer focus `(800, 560)`). Portrait phones show x ≈ 570–1030: the pond,
-  back boulders, the path and foliage edges of both tree groups framing the top.
+- **Focus**: the pond (renderer focus `(800, 560)`). Portrait phones show at least 600 world units
+  (x ≈ 500–1100, ADR 0123): the pond, back boulders, the path and foliage edges of both tree
+  groups framing the top.
+- **Engawa on the bank** (ADR 0122): the pond's right end turns back in a soft bay at x ≈ 1256,
+  short of the pavilion (x 1290+); the deck stands on dry bank with a crawl-space shadow, footing
+  stones under the posts, a cast shadow and a kutsunugi-ishi, and nothing of it reflects. The
+  lantern's light only reaches water within 70 units of its mirror image, so it has no reflection.
+- **Path**: six broad stepping stones (`PATH`, rx 92 → 45) winding gently from the bottom centre
+  up to the water, bedded in a worn earth path with grass-nibbled edges; painted after the paper
+  margins (`stones` step) so the near ones stay crisp.
 - **Depth**: far things are paler, cooler and smaller (`atmos(pigment, distance)` lightens and
   mixes toward a blue-grey haze); near banks are warmer; detail (ink, granulation) is spent on
   stones, trunks and the pavilion.
@@ -63,14 +71,14 @@ y    0 ┌───────────────────────�
 
 Paint order of the background (`backgroundSteps`): sky → hills (+ far tree line) → banks → far
 trees → pond reserve (thin rim far, wider near) → water → reflections → water detail → path →
-shrubs → near trees → tufts → margins → pavilion (after the margins so the engawa runs off the
-sheet crisply). Sky, hills, banks and margins are painted with a `draft` painter (soft washes:
+shrubs → near trees → tufts → margins → stones → pavilion (after the margins so the stones and the
+engawa stay crisp). Sky, hills, banks and margins are painted with a `draft` painter (soft washes:
 no visible difference, about half the cost).
 
 **Reflections** (static, in the background): the far-bank green band, tree pads and stems (about
 their shore line `reflectAbout`), the near shrub, boulders (their own silhouette — seeded by rock
 id via `rockOutline`, so sprite and reflection agree — flipped about the base and foreshortened
-×0.72) and the pavilion's deck beam and posts over the lobe. All in one soft clipped wet layer,
+×0.72); the pavilion stands on the bank and casts none. All in one soft clipped wet layer,
 then broken by ~26 horizontal lifted strokes.
 
 ## Slots
@@ -81,7 +89,7 @@ then broken by ~26 horizontal lifted strokes.
 | `water` | 7 | open water, ≥ 30 from the edge | medium (2 small) |
 | `shore` | 9 | pond rim between boulders, ≤ 45 from the edge | medium (2 large) |
 | `meadow` | 16 | left/right banks and the near mounds | large / medium |
-| `path` | 7 | beside the stepping stones | small (2 medium) |
+| `path` | 7 | on the grass beside the stepping stones, never on them | small (2 medium) |
 | `back` | 7 | far bank behind the pond | **tree ×3** (`back-1/4/6`), large, medium |
 | `rock` | 6 | at the feet of boulders | small |
 
@@ -91,7 +99,7 @@ don't collide. Plants in `rock`/`shore` slots sort against the boulder sprites b
 ### Canonical plant sizes (`PLANT_SIZES`, world units at slot scale 1)
 | sizeClass | w × h |
 |---|---|
-| small | 70 × 70 |
+| small | 86 × 86 (tier-1 flowers draw in a 70-unit box scaled up, ADR 0125) |
 | medium | 120 × 160 |
 | large | 200 × 220 |
 | tree | 380 × 460 |
@@ -138,8 +146,10 @@ and rejected (granulation and rims wash out). `sprout.sceneStats()` returns per-
 ## Tests
 - `geometry.test.ts`: slot counts per habitat, unique ids, world bounds (incl. max-size box),
   water slots inside the pond ≥ 30 from the edge, shore ≤ 45 from it, land slots off the water,
-  perspective, tree-slot spacing, slot spacing, path/rock slot placement, simple pond polygon,
-  8–12 boulders with perches, stepping stones, lantern and sky band.
+  perspective, tree-slot spacing, slot spacing, path slots beside (not on) the stones, "never
+  plants on a stepping stone or inside a boulder", rock slots at a boulder's foot, simple pond
+  polygon, 8–12 boulders with perches, stepping stones, lantern and sky band, "keeps the painted
+  trees and foreground tufts inside the world".
 - `system.test.ts`: paint view (cap, portrait strip) and the 10 % repaint rule.
 - `tests/e2e/scene.spec.ts`: painted (pale sky, celadon pond, many colours), 50–60 slots across
   all habitats, `?dev&slots` overlay, rescale vs repaint on resize.

@@ -17,7 +17,9 @@ edge (the *median* layer contour, so edges are organic but not spiky), finds the
 blur (edge − blur), pools pigment there and lifts the centre, modulates density with a flow
 noise and with the shared paper grain (granulation, dry brush, edge micro-texture), then
 composites onto the target with `multiply` by default — watercolour is subtractive. See
-ADR 0020–0022.
+ADR 0020–0022. Open sides (ADR 0126): a `WetLayer` records which of its sides were cut off by the
+canvas, and `boxBlur` / `edgeBlur` / `dryPixels` take `OpenSides` so the border value continues
+outward there — no false wet edge where a wash simply runs off the canvas.
 
 ## Pipeline convention (important)
 Paint **on white** (or transparent) and multiply `paperTexture` over the finished frame last —
