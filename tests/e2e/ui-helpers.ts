@@ -63,11 +63,14 @@ export interface PlantOptions {
   /** slot id, or 'free' / 'occupied' for the first marker of that kind */
   slot?: string | 'free' | 'occupied';
   begin?: boolean;
+  /** open the sheet from the Study section's "Plant another" (a session is already running) */
+  another?: boolean;
 }
 
 /** Drive the whole start flow through the UI: sheet → plan → plant → spot → Begin. */
 export async function plantSession(page: Page, o: PlantOptions): Promise<void> {
-  await page.locator('.panel').getByRole('button', { name: 'Start studying' }).click();
+  if (o.another) await page.locator('.session-list').getByRole('button', { name: 'Plant another' }).click();
+  else await page.locator('.panel').getByRole('button', { name: 'Start studying' }).click();
   const sheet = page.locator('dialog[data-dialog="planting"]');
   await expect(sheet).toBeVisible();
   if (o.task !== undefined) await sheet.getByLabel('What are you studying?').fill(o.task);
