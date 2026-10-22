@@ -1,0 +1,26 @@
+# Devlog
+
+One short entry per task: what was done, why, what is left. Numbered in the order the tasks
+landed. Entries are a historical record. They describe the code *as it was when the task ended*,
+so later entries and the system docs (`docs/systems/`) win where they disagree.
+
+**Adding an entry:** `NN-slug.md` with the next number, sections *What*, *Why/decisions* (link the
+ADRs), *Tests*, *Left / for others*; add a row here in the same commit.
+
+| # | Entry | Summary | ADRs |
+|---|---|---|---|
+| 01 | [Foundation](01-foundation.md) | Vite/TS/Vitest/Playwright scaffold, contract types, placeholder scene, studio, `npm run shots`, CI and Pages | 0010–0013 |
+| 02 | [Paint engine](02-paint-engine.md) | Noise, pigments, wet layers with a drying pass, primitives, recipes; critique rounds | 0020–0022 |
+| 03 | [Core logic](03-core-logic.md) | Reducer, session maths, rewards, persistence, controller; then revised to plan-based sessions | 0030–0036 |
+| 04 | [Procedural audio](04-audio.md) | Muted-by-default Web Audio soundscape driven by pure data | 0100–0103 |
+| 05 | [UI shell](05-ui.md) | Timer panel, planting sheet, placement, menu, tips, quiet line, herbarium, washi slips | 0050–0055 |
+| 06 | [Widget, tab surfaces & notifications](06-widget.md) | Worker ticker, tab title/favicon, notifications + service worker, PiP card, plant-view seam | 0090–0094 |
+| 07 | [Scene](07-scene.md) | The real painted garden: geometry, 52 slots, boulders as entities, paper layer | 0040–0043 |
+| 08 | [Plant species A (tiers 1–2)](08-plants-a.md) | 13 small species, shared helpers, the continuity test | 0060–0063 |
+| 09 | [Plant species B (tier 3)](09-plants-b.md) | Six shrubs and flowers, batched wet layers | 0064–0066 |
+| 10 | [Plant species C (tier 4)](10-plants-c.md) | Six trees, skeleton-first plans, batched layers | 0067–0069 |
+| 11 | [Fauna](11-fauna.md) | FaunaSim, residents and visitors, painted parts, frame cost | 0070–0074 |
+| 12 | [Ambience & lighting](12-ambience.md) | Weather, motes, wind field, time-of-day multiply wash, envelopes | 0080–0084 |
+| 13 | [Plant system](13-plant-system.md) | Worker sprite cache, growth morph, sway, wither, watering, reflections, placement highlight | 0110–0118 |
+| 14 | [Polish](14-polish.md) | End-to-end review rounds: placeholder out, tier-1 sizes, pond/engawa, path, tips one at a time, arrivals on sight, phone framing | 0120–0127 |
+| 15 | [QA & docs](15-qa-docs.md) | Requirements → tests matrix, gap tests, deterministic e2e under load, CI gating of Pages, docs audit, README | 0014–0015 |

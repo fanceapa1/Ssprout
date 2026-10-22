@@ -1,0 +1,92 @@
+# Architecture decision records
+
+One file per decision: `NNNN-slug.md` with Status, Date, Context, Decision, Consequences.
+Numbers are reserved in blocks by area so parallel agents never collide (see `docs/ROADMAP.md`):
+0001–0009 orchestrator · 0010–0019 foundation, tooling and tests · 0020–0029 paint ·
+0030–0039 core logic · 0040–0049 scene · 0050–0059 UI · 0060–0069 plant species ·
+0070–0079 fauna · 0080–0089 ambience/lighting · 0090–0099 widget/notifications ·
+0100–0109 audio · 0110–0119 plant view/growth/watering · 0120+ integration/polish.
+Gaps between blocks are expected.
+
+**Adding an ADR:** take the next free number in your area's block, add a row here in the same
+commit, and when it replaces or changes an earlier decision, update that ADR's Status line too
+("superseded by …" / "amended by …").
+
+| ADR | Title | Status | Summary |
+|---|---|---|---|
+| [0001](0001-founding-decisions.md) | Founding decisions | accepted; §2 superseded by 0003 | Procedural watercolour, 10–180 min sessions, 4 tiers, PiP/title timers, one fixed garden, localStorage, no server |
+| [0002](0002-pending-reward-blocks-new-session.md) | Pending reward blocks a new session | **superseded** by 0003 | A pending end-of-session reward blocked starting a new session |
+| [0003](0003-plant-chosen-at-start-with-study-plans.md) | Plant chosen at start; study plans with watering breaks | accepted | One plant per session, chosen up front, grows live; breaks are for watering; skipping allowed |
+| [0004](0004-disable-vitest-fs-module-cache.md) | Disable Vitest's fs module cache | accepted | `fsModuleCache: false` so `import.meta.glob` finds newly added species files |
+| [0010](0010-e2e-against-preview-build.md) | E2E against the preview build | accepted | Playwright tests the production build via `vite preview`; `E2E_PORT`, `E2E_REUSE`; console errors fail tests |
+| [0011](0011-store-design.md) | Tiny synchronous store | accepted | `createStore(initial, reducer, onChange?)`; same reference = no change; re-entrant dispatches queued |
+| [0012](0012-rng-forks-from-seed.md) | mulberry32; forks from the seed | accepted | Hashed string seeds; `fork(label)` depends only on seed and label, not stream position |
+| [0013](0013-studio-page.md) | Studio page | accepted | Second Vite entry; `*.studio.ts` sections discovered by glob; URL controls |
+| [0014](0014-deploy-pages-after-ci.md) | Deploy to Pages only after CI | accepted | `pages.yml` runs on a successful CI `workflow_run` for main and builds that exact commit |
+| [0015](0015-deterministic-e2e-under-load.md) | Deterministic e2e under load | accepted | Explicit readiness signals, in-page sampling and loops, pinned light, sharded studio, calm UI motion |
+| [0020](0020-wet-layers-and-pixel-drying-pass.md) | Wet layers and a pixel drying pass | accepted | Pooled CPU wet layers; `dryPixels` adds edge darkening, granulation and flow |
+| [0021](0021-paint-on-white-paper-multiplied-last.md) | Paint on white; paper multiplied last | accepted | Everything is painted on white; washi texture is multiplied over the frame at the end |
+| [0022](0022-organic-outline-families.md) | Organic outline families | accepted | Capped recursive deformation, median contour, `innerClip` for organic shapes |
+| [0030](0030-reducer-validates-with-injected-world.md) | Reducer validates with an injected world | accepted; amended by 0036 | Invalid actions are no-ops returning the same reference; tier/slot checks via `ReducerWorld` |
+| [0031](0031-offer-generation.md) | Reward offer generation | **superseded** by 0003/0036 | The old 3-species end-of-session offer (removed) |
+| [0032](0032-session-controller.md) | Session controller is the single UI API | accepted; API revised by 0036 | Only dispatcher of session actions; injectable ticker; completes due sessions on boot |
+| [0033](0033-persistence-format-and-recovery.md) | Persistence format and recovery | accepted | Stable key, chained migrations, corrupt data backed up, 300 ms debounced saves |
+| [0034](0034-hand-written-validation.md) | Hand-written validation | accepted; amended by 0036 | Lenient on missing keys, strict on types; unknown species kept and flagged |
+| [0035](0035-dev-clock-jump.md) | Dev clock jump | accepted | `advance(ms)`; dev break/complete helpers jump time, then `check()` |
+| [0036](0036-plan-based-sessions-in-core.md) | Plan-based sessions in core | accepted | Plans, plan position, growth = focus fraction, water/skip, block events |
+| [0040](0040-scene-owns-the-paper-layer.md) | Scene owns the paper layer | accepted | `createPaperSystem` draws the washi texture, composited last |
+| [0041](0041-background-paint-cache-and-fade.md) | Background paint cache and fade | accepted | Cached painting, rescale ≤ 10 %, repaint in 20 ms slices, 1.2 s cross-fade |
+| [0042](0042-boulders-and-tufts-as-entity-sprites.md) | Boulders and tufts as entity sprites | accepted | Foreground rocks and tufts depth-sorted with plants by base y |
+| [0043](0043-slot-perspective-and-plant-sizes.md) | Slot perspective and plant sizes | accepted | Scale 0.55 → 1.15 with y; `PLANT_SIZES` per size class; trees only on the far bank |
+| [0050](0050-dom-ui-over-canvas.md) | DOM UI over the canvas | accepted | DOM in `#ui`, controller only; slot markers are buttons |
+| [0051](0051-dialog-strategy.md) | Dialog strategy | accepted | Native `<dialog>` sheets; placement is a non-modal mode |
+| [0052](0052-washi-slips-as-generated-svg.md) | Washi slips as generated SVG | accepted | Seeded deckled SVG backgrounds, grain, ink icons |
+| [0053](0053-planting-sheet.md) | Planting sheet | accepted | One sheet (task, time, plan, plant) → placement → Begin → `controller.start` |
+| [0054](0054-quiet-line-and-fauna-announcements.md) | Quiet line and fauna announcements | accepted; trigger changed by 0120 | One quiet line at a time for completions and arrivals |
+| [0055](0055-dev-fixture-species.md) | Dev fixture species | accepted | 12 `fx-*` species under `?dev&fixtures` for stable UI tests |
+| [0060](0060-plan-then-render-growth.md) | Plan, then render growth | accepted | Pure species plan from `rng.fork('plan')`; growth only transforms it |
+| [0061](0061-continuous-growth-test.md) | Continuous growth test | accepted | Recording painter + 200-step continuity test for every small species |
+| [0062](0062-bud-dissolves-into-flower.md) | Bud dissolves into flower | accepted | Cross-dissolve inside one render, no threshold switch |
+| [0063](0063-opaque-light-marks-on-sprites.md) | Opaque light marks on sprites | accepted | Light marks dried source-over; small overlaps merged |
+| [0064](0064-build-then-reveal-growth.md) | Build, then reveal growth | accepted | Shrubs built once from the rng; elements have growth windows |
+| [0065](0065-batched-wet-layers-for-shrubs.md) | Batched wet layers for shrubs | accepted | 14–18 drying passes per shrub, 26–57 ms |
+| [0066](0066-projected-petal-rings.md) | Projected petal rings | accepted | 3-D petal rings with an opening parameter; buds are folded flowers |
+| [0067](0067-tree-skeleton-first-growth-reveals.md) | Tree skeleton first | accepted | Full skeleton with growth windows; `treeView` maps growth |
+| [0068](0068-stable-rng-per-mark-and-drying-pass.md) | Stable rng per mark and drying pass | accepted | One fork per mark; drying passes get their own stream |
+| [0069](0069-batched-tree-layers-and-soft-resolution.md) | Batched tree layers, soft resolution | accepted | Shared layers; soft passes at 0.6 resolution |
+| [0070](0070-fauna-sim-behind-the-system.md) | Fauna sim behind the system | accepted | `FaunaSim` owns behaviour and time; thin System wrapper (`createFauna`) |
+| [0071](0071-painted-parts-composed-per-frame.md) | Painted parts composed per frame | accepted | Creature parts painted once, composed per frame with transforms |
+| [0072](0072-pond-plane-coordinates.md) | Pond-plane coordinates | accepted | Water creatures simulate in an unsquashed pond plane |
+| [0073](0073-visit-scheduling.md) | Visit scheduling | accepted | Residents kept alive; visitors with long gaps, cap 3, retries |
+| [0074](0074-perched-creature-depth.md) | Perched creature depth | accepted | Depth = the support's base y + ε |
+| [0080](0080-ambience-engine-behind-a-thin-system.md) | Ambience engine behind a thin system | accepted | Engine plus adapter; `addAmbience` registers it |
+| [0081](0081-critically-damped-envelopes-and-ambience-time.md) | Critically damped envelopes | accepted | Spring channels per phase; particles run on `dt × motion` |
+| [0082](0082-lighting-as-a-reserved-multiply-wash.md) | Lighting as a reserved multiply wash | accepted | Cached multiply wash, paper reserved around the lantern, repaint ≤ every 3 s |
+| [0083](0083-wind-field-contract.md) | Wind field contract | accepted | Pure seeded `wind(t, x, y, boost)` with travelling gust fronts; `windBoost` |
+| [0084](0084-particles-as-poisson-spawns-with-prepainted-sprites.md) | Poisson particles, pre-painted sprites | accepted | Rain, ripples, glints, motes; still frame under reduced motion |
+| [0090](0090-worker-ticker.md) | Worker ticker | accepted | Inline Blob worker with interval fallback, installed via `setTicker` |
+| [0091](0091-notification-policy.md) | Notification policy | accepted | Ask at the first start; notify only when unattended; one tag |
+| [0092](0092-notifications-only-service-worker.md) | Notifications-only service worker | accepted | `public/sw.js` handles clicks only |
+| [0093](0093-floating-card-dom-over-canvas.md) | Floating card: DOM over canvas | accepted | `mountCard(window)`, `HostOpener`, `WidgetController` |
+| [0094](0094-plant-view-seam.md) | Plant view seam | accepted; internals replaced by 0118 | Fixed `renderPlantView` signature for widget and previews |
+| [0100](0100-procedural-audio-as-data.md) | Procedural audio as data | accepted | Pure planner and recipes over a thin Web Audio backend |
+| [0101](0101-audio-gating-and-fades.md) | Audio gating and fades | accepted | Muted by default, gesture unlock, 2 s fades, suspend when muted |
+| [0102](0102-audio-clock.md) | Audio clock | accepted | Scheduling on the AudioContext clock; `Clock` only gives the hour |
+| [0103](0103-audio-levels.md) | Audio levels | accepted | Gains ≤ 0.12, master 0.8, compressor; chimes outside the mist filter |
+| [0110](0110-growth-steps-cross-fade-and-morph.md) | Growth steps: cross-fade and morph | accepted | 24 growth steps; neighbour cross-fade with a clamped morph |
+| [0111](0111-sprites-painted-in-workers.md) | Sprites painted in workers | accepted | Priority queue, up to 2 module workers, idle-callback fallback |
+| [0112](0112-sprite-lru-and-resolution-buckets.md) | Sprite LRU and resolution buckets | accepted | Quarter-octave buckets; byte-budgeted LRU |
+| [0113](0113-sway-skew-bend-and-wind-adapter.md) | Sway: skew, bend, wind adapter | accepted | Skew small plants, 6-slice bend for large ones; driven by the ambience wind |
+| [0114](0114-watering-animation.md) | Watering animation | accepted | Pure 2.5 s timeline; painted can and droplets on `air`; damp soil lingers |
+| [0115](0115-wither-from-store-actions.md) | Wither from store actions | accepted | Cancel → 3 s wither; completion hands the growth over without a gap |
+| [0116](0116-reflections-about-the-local-shoreline.md) | Reflections about the local shoreline | accepted | Mirror about the plant's base or the nearby pond edge |
+| [0117](0117-placement-highlight-in-canvas.md) | Placement highlight in the canvas | accepted | The plant system echoes `ui.placement` with dabs and a ghost plant |
+| [0118](0118-plant-view-on-the-plant-system.md) | Plant view on the plant system | accepted | View uses its own sprite cache plus the shared watering and wither |
+| [0120](0120-fauna-arrival-on-first-sight.md) | Creature announced on first sight | accepted | `fauna:arrived` comes from the fauna system when a creature is first in view, not on unlock |
+| [0121](0121-ui-under-the-gardens-light.md) | UI under the garden's light | accepted | DOM slips dim with the lighting; the light eases in only once the painting is ready |
+| [0122](0122-engawa-on-the-bank.md) | Engawa on the bank; a walked stone path | accepted | Pond pulled back from the pavilion; six broad stones winding to the water |
+| [0123](0123-portrait-minimum-visible-width.md) | Tall phones see ≥ 600 world units | accepted | Portrait viewport shows at least 600 units of width, paper above and below |
+| [0124](0124-one-tip-at-a-time.md) | One tip at a time | accepted | Tips by priority, one visible; they wait while the quiet line speaks |
+| [0125](0125-small-plant-design-box.md) | Small-plant design box | accepted | Tier-1 plants draw in a 70-unit design box scaled into a larger garden box (86) |
+| [0126](0126-open-sides-in-the-drying-pass.md) | Open sides in the drying pass | accepted | No false wet edge where a wash is cut off by the canvas |
+| [0127](0127-timer-slip-in-the-corner.md) | Timer slip in the corner | accepted | The timer panel lies in the lower-left corner on wide screens |

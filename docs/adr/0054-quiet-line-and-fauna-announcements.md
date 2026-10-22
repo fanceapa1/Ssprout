@@ -1,6 +1,6 @@
 # ADR 0054 — One quiet line for completion and fauna arrivals; the UI announces on unlock
 
-- Status: accepted
+- Status: accepted; the arrival trigger changed by ADR 0120 (first sight, from the fauna system)
 - Date: 2026-10-21
 
 ## Decision
