@@ -1,6 +1,6 @@
 # ADR 0034 — Hand-written structural validation; lenient on absence, strict on type
 
-- Status: accepted
+- Status: accepted; amended by ADR 0036 (the session invariants are plan-based; no pending reward, `chosen` or `options`)
 - Date: 2026-10-21
 
 ## Context

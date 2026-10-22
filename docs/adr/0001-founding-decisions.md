@@ -1,6 +1,6 @@
 # ADR 0001 — Founding decisions
 
-- Status: accepted
+- Status: accepted; §2 (end-of-session reward picker) superseded by ADR 0003; the Pages deploy now waits for CI (docs/TESTING.md › CI)
 - Date: 2026-10-21
 - Decided by: project owner (interview), recorded by the orchestrator
 
@@ -35,4 +35,4 @@ Japanese watercolour garden. Before building, the owner answered six scoping que
 - Vite + TypeScript (strict), no UI framework: canvas 2D for the garden, small DOM layer for UI.
 - Vitest for logic, Playwright (Chromium) for behaviour + screenshots.
 - GitHub Actions: test → build → deploy to Pages on every push to `main`.
-- Conventional Commits; **no AI/Claude attribution anywhere** (commits, PRs, docs, code).
+- Conventional Commits; **no tool or assistant attribution anywhere** (commits, PRs, docs, code).
