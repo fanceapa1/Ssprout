@@ -18,11 +18,11 @@ npm run shots -- --entry plants-a-review/strip-balloon-flower --seed 3
 
 | id | name · native | tier | habitats | size (w×h) · anchor | bloom colour | pollinators | signature |
 |---|---|---|---|---|---|---|---|
-| `violet` | Violet · Sumire | 1 | meadow, path, rock | 70×70 · .5/.9 | `#6f5f9f` | yes | heart leaves on stalks; hooked stems; 5 petals, pale veined lip |
-| `white-clover` | White Clover · Shirotsumekusa | 1 | meadow, path | 70×70 · .5/.88 | `#f4f0e4` | yes | trifoliate leaves on runners; ball heads, old florets droop blush |
-| `forget-me-not` | Forget-me-not · Wasurenagusa | 1 | shore, meadow | 70×70 · .5/.88 | `#93a9d6` | yes | curled sprays, open from the bottom, pink buds at the tip |
-| `wild-strawberry` | Wild Strawberry · No-ichigo | 1 | meadow, path, rock | 70×70 · .5/.86 | `#f6f1e6` | yes | toothed trifoliate leaves, runner + plantlet, white flowers, a berry |
-| `dandelion` | Dandelion · Tanpopo | 1 | meadow, path | 70×70 · .5/.88 | `#dfbe5c` | yes | runcinate rosette; ringed gold heads; 40 % of seeds hold a seed clock |
+| `violet` | Violet · Sumire | 1 | meadow, path, rock | 86×86 · .5/.9 | `#6f5f9f` | yes | heart leaves on stalks; hooked stems; 5 petals, pale veined lip |
+| `white-clover` | White Clover · Shirotsumekusa | 1 | meadow, path | 86×86 · .5/.88 | `#f4f0e4` | yes | trifoliate leaves on runners; ball heads, old florets droop blush |
+| `forget-me-not` | Forget-me-not · Wasurenagusa | 1 | shore, meadow | 86×86 · .5/.88 | `#93a9d6` | yes | curled sprays, open from the bottom, pink buds at the tip |
+| `wild-strawberry` | Wild Strawberry · No-ichigo | 1 | meadow, path, rock | 86×86 · .5/.86 | `#f6f1e6` | yes | toothed trifoliate leaves, runner + plantlet, white flowers, a berry |
+| `dandelion` | Dandelion · Tanpopo | 1 | meadow, path | 86×86 · .5/.88 | `#dfbe5c` | yes | runcinate rosette; ringed gold heads; 40 % of seeds hold a seed clock |
 | `maidenhair-fern` | Maidenhair Fern · Kujakushida | 1 | rock, shore | 70×70 · .5/.88 | `#a8b47e` | no | near-black wiry stipes, fan leaflets in tiers; fiddleheads uncurl |
 | `japanese-iris` | Japanese Iris · Hanashōbu | 2 | shore | 120×160 · .5/.94 | `#7b6ba8` | yes | sword-leaf fan; 3 broad falls with gold signal + veins, small standards; 4 colourways |
 | `anemone` | Anemone · Shūmeigiku | 2 | meadow, path | 120×160 · .5/.94 | `#f6f0ea` | yes | cut-leaf mound, tall wiry stems with a ruff; white/blush with dark eye, or pink with gold |
@@ -33,8 +33,12 @@ npm run shots -- --entry plants-a-review/strip-balloon-flower --seed 3
 | `susuki-grass` | Silver Grass · Susuki | 2 | back, meadow, shore | 120×160 · .5/.94 | `#cdbfa6` | no | arching fountain with pale midribs; russet spikes open into silver tassels downwind |
 
 Medium sprites share the 120×160 box except the water lily, which is wide and flat (it lies on
-the water; anchor = the centre of its pad group on the surface). `placeholder-sprout` is kept:
-the registry test and the studio e2e still reference it (owned by the foundation).
+the water; anchor = the centre of its pad group on the surface). The five tier-1 flowers use
+`SMALL_SIZE` = `PLANT_SIZES.small` (86×86) as their garden box but still draw in the 70-unit
+`SMALL_DESIGN` box, scaled up by `plantFrame(p, def, opts, SMALL_DESIGN)` (`lib/small-size.ts`,
+ADR 0125); maidenhair fern keeps 70×70. The species list is `SPECIES_A` in
+`lib/small-species-list.ts`. `placeholder-sprout` is no longer a registered species: it is a
+dev/test fixture in `src/dev/placeholder-sprout.ts` (used by unit tests; not offered to players).
 
 ## Growth staging (how every species is built)
 
@@ -104,8 +108,8 @@ for another seed; paints at every growth; and **continuous growth**: 200 growth 
 seeds, no mark may move more than 5 % of the sprite between neighbouring steps, and marks may
 only appear/vanish below 1.2 % of the sprite in size × opacity.
 
-Gotcha: Vitest caches the transformed `registry.ts` with its `import.meta.glob` result — after
-adding a species file, `rm -rf node_modules/.vitest-cache` if the new id is "missing".
+Vitest's file-system module cache is off (`fsModuleCache: false`, ADR 0004), so a new species
+file is picked up by the registry's `import.meta.glob` without clearing any cache.
 
 ## Performance
 Headless Chromium (Apple M-series), 300×400 px canvas, `quality: 'normal'`, median of 7 seeds

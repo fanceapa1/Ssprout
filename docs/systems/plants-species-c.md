@@ -34,7 +34,9 @@ depends on `growth`. Rendering then reveals the plan:
 | 0.75 – 1 | colour arrives: blossoms open (staggered from the old wood outward), maple and ginkgo turn, racemes open top-down |
 | 0.96 – 1 | falling petals / fallen leaves |
 
-`treeView(g, base)` returns `{ tau, scale, thick }` — all smooth, monotonic functions of `g`.
+`treeView(g, base, timing = {})` (`timing`: `structureEnd`, default 0.5; `minScale`, default
+0.32) returns `{ growth, tau, scale, thick, base }`; `tau`, `scale`, `thick` are smooth, monotonic
+functions of `g`.
 Each branch has a growth window `[t0, t1]` in τ; a child's window opens when its parent's growth
 front passes its attach point, so branches unfurl outward. Wisteria uses `minScale: 1` (the
 trellis is full size from the start; only the vine grows).

@@ -19,10 +19,16 @@ Look at it: studio sections **Plants · watering**, **· wither**, **· growth t
 | `reflection.ts` | shoreline axis maths, cached reflection images, wavering draw |
 | `highlight.ts` | placement dabs and their breathing; the `PlacementSource` shape |
 | `bounds.ts` | `plantWorldBounds` / `plantWorldEdges` — world box of a placed plant |
-| `view.ts` | `renderPlantView` (widget, previews, studio), `plantLayout`, `setPlantViewSpecies` |
-| `wind-adapter.ts` | the garden wind for sway; falls back to a local field until `src/ambience/wind.ts` exists |
+| `view.ts` | `renderPlantView` (widget, previews, studio; returns `false` for an unknown species or no 2D context), `plantLayout`, `setPlantViewSpecies` |
+| `wind-adapter.ts` | the garden wind for sway: `src/ambience/wind.ts`'s `wind`/`windBoost` (picked up by glob; a local `createFallbackWind` stays as a stand-in if that module is absent) |
 | `debug.ts` | `window.sprout.plants` (?dev) |
 | `plants.studio.ts` | studio sections |
+| `registry.ts` | auto-discovery of `species/<id>.ts` (file name = id): `getSpecies`, `allSpecies`, `speciesByTier`, `buildRegistry` |
+| `types.ts` | `SpeciesDef`, `Tier`, `Habitat`, `SizeClass`, `TIERS`, `HABITATS`, `SIZE_CLASSES` |
+| `species.studio.ts` | one studio section per registered species (`GROWTH_STAGES` + grow loop) |
+| `test-canvas.ts` | test-only fake canvases (`FakeCanvas`, `fakeContext`, `installFakeOffscreenCanvas`) |
+| `lib/` | shared species painting: `small-*` (tier 1–2 plants, `small-species-list.ts`), `shrub-*` (tier 3), `tree-*` (tier 4) |
+| `plantable.test.ts` | every species has a compatible garden slot (tracked bug: `lotus`, size class `large`, while water slots are medium/small) |
 
 ## Wiring (`src/main.ts`)
 ```ts
@@ -152,7 +158,7 @@ outside is clipped). `draw` must not touch `document`/`window` (it runs in worke
 at growths `k / 24` only. Keep each call under ~100 ms at 600 px.
 
 ## Budgets
-- Species: all 26 registered species (incl. the 12 shrubs/trees and 13 tier 1–2 plants) paint in
+- Species: all 25 registered species (the 12 shrubs/trees and 13 tier 1–2 plants) paint in
   the worker, deterministically, without touching the box's sides or top, in 4–127 ms at 1.6×.
 - Frame: < 2 ms for the plant system (update + all draws). Measured: 0.54 ms avg / 1.8 ms max in
   headless Chromium on the painted scene with 31 plants + 1 growing (e2e); the unit benchmark with 50 plants + 1
@@ -162,6 +168,9 @@ at growths `k / 24` only. Keep each call under ~100 ms at 600 px.
 - Memory: 64 MB garden + 24 MB view LRU; reflections ≤ 48 cached images at half resolution.
 
 ## Debug API (`?dev`, `window.sprout.plants`)
+`sprout.plantsReady()` resolves once every sprite the garden needs is painted, without snapping
+growth or blooms; use it before a screenshot (`sprout.addPlants(25); await sprout.plantsReady()`).
+`window.sprout.plants`:
 `state()` (ready, resolution, finished [id, slot, alpha, drawn, blooming], growing [growth, shown,
 lo, hi, weight, drawn], withering, watering [progress, wet, active], displaced, reflections,
 highlight, cache stats), `settle()` (snap growth/fades, paint what is needed, resolve when idle),
@@ -173,4 +182,8 @@ Unit: `sprites.test.ts` (quantisation, stage pairs, cross-fade weights, buckets,
 bounds, LRU budget/epoch/best, scheduling, workers incl. fallback and death), `draw.test.ts`,
 `watering.test.ts`, `wither.test.ts`, `reflection.test.ts`, `system.test.ts` (drawables, sizing,
 growth + look-ahead, easing, displacement, wither, watering, bloom, bounds, reflections,
-highlight, 50-plant budget), `view.test.ts`. E2E: `tests/e2e/plants.spec.ts`.
+highlight, 50-plant budget, "finished plants sway with the wind, and hold still under reduced
+motion"), `view.test.ts`, `registry.test.ts` (discovery, well-formed species, tiers, id/file
+match), `plantable.test.ts`. E2E: `tests/e2e/plants.spec.ts` (watering, wither, bloom + reload,
+reflection, placement highlight, bounds + budget; the growth test runs in a reduced-motion block
+with the light pinned to noon).
