@@ -246,7 +246,11 @@ export function createCastLight(scene: SceneGeometry, art: LightArt, seed = 'cas
     ctx.globalAlpha = 1;
     ctx.setTransform(CAST_SCALE, 0, 0, CAST_SCALE, 0, 0);
     if (sun.alpha > 0.01) liftGlow(ctx, sun.x, sun.y, sun.r * 7, 0.36 * sun.alpha, [255, 222, 168]);
-    if (moon.alpha > 0.01) liftGlow(ctx, moon.x, moon.y, moon.r * 3.2, 0.7 * moon.alpha, [236, 240, 255]);
+    if (moon.alpha > 0.01) {
+      // the moon itself left as paper, then a soft halo of moonlight round it
+      liftGlow(ctx, moon.x, moon.y, moon.r * 1.3, 0.95 * moon.alpha, [252, 252, 255]);
+      liftGlow(ctx, moon.x, moon.y, moon.r * 3.4, 0.55 * moon.alpha, [232, 238, 255]);
+    }
     // the lantern's own warm pool of light (the wash already reserves paper round it)
     let lantern = 0;
     for (const p of PHASES) lantern += state.weights[p] * PHASE_GRADES[p].lantern;

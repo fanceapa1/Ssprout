@@ -126,7 +126,7 @@ const moons: StudioEntry = {
     phases.forEach((mp, i) => {
       drawGarden(tmp, seed, { ...pinnedState(only('night')), moonPhase: mp });
       // crop around the moon's place in the sky
-      ctx.drawImage(tmp, (812 - 90) * 0.5, (112 - 70) * 0.5, 90, 70, i * cw, 0, cw, canvas.height);
+      ctx.drawImage(tmp, (806 - 90) * 0.5, (182 - 70) * 0.5, 90, 70, i * cw, 0, cw, canvas.height);
     });
   },
 };

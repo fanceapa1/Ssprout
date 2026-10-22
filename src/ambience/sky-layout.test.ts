@@ -52,7 +52,9 @@ describe('the moon', () => {
     for (const d of [start, mid, end]) {
       expect(d.x).toBeGreaterThan(680);
       expect(d.x).toBeLessThan(960);
-      expect(d.y).toBeLessThan(260);
+      // below the band a wide canvas crops (cover scaling around the pond: top ≈ 120 at 2:1)
+      expect(d.y).toBeGreaterThan(165);
+      expect(d.y).toBeLessThan(290);
     }
   });
 
@@ -96,8 +98,9 @@ describe('stars', () => {
     expect(s).toEqual(stars());
     expect(s.length).toBe(30);
     for (const st of s) {
-      expect(st.y).toBeLessThan(280);
-      expect(Math.abs(st.x - 812) < 120 && st.y > 60 && st.y < 260).toBe(false);
+      expect(st.y).toBeLessThan(300);
+      expect(st.y).toBeGreaterThan(20);
+      expect(Math.abs(st.x - 806) < 130 && st.y > 140 && st.y < 300).toBe(false);
     }
   });
 });

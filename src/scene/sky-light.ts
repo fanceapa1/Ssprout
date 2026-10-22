@@ -218,7 +218,7 @@ function punchMoon(ctx: Ctx, moon: Disc, phase: number): void {
   for (let i = 0; i < 5; i++) {
     const a = rng.range(0, Math.PI * 2);
     const d = rng.range(0.1, 0.55) * r;
-    ctx.globalAlpha = 0.16 * moon.alpha;
+    ctx.globalAlpha = 0.11 * moon.alpha;
     ctx.fillStyle = 'rgb(150,160,190)';
     ctx.beginPath();
     ctx.ellipse(x + Math.cos(a) * d, y + Math.sin(a) * d, r * rng.range(0.16, 0.3), r * rng.range(0.12, 0.24), rng.range(0, 3), 0, Math.PI * 2);

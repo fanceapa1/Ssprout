@@ -17,7 +17,7 @@ describe('phase grades', () => {
     const night = washed(PHASE_GRADES.night);
     for (const p of ['sunrise', 'midday', 'sunset'] as const) expect(night).toBeLessThan(washed(PHASE_GRADES[p]));
     expect(night).toBeGreaterThan(255 * 0.42);
-    expect(PHASE_GRADES.night.ground).toBeLessThan(1);
+    expect(PHASE_GRADES.night.ground).toBeLessThanOrEqual(1);
     expect(PHASE_GRADES.night.sky).toBeGreaterThan(0);
   });
 

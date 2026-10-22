@@ -38,9 +38,9 @@ export function sunDisc(s: DaylightState): Disc {
 
 /** The moon's arc (dusk → dawn), east (right) to west (left), through the gap in the trees. */
 const MOON_ARC: readonly Pt[] = [
-  { x: 918, y: 236 },
-  { x: 812, y: 112 },
-  { x: 716, y: 196 },
+  { x: 902, y: 270 },
+  { x: 806, y: 182 },
+  { x: 708, y: 252 },
 ];
 
 export function moonDisc(s: DaylightState): Disc {
@@ -68,8 +68,8 @@ export function stars(count = 30, seed = 'stars'): Star[] {
   const out: Star[] = [];
   for (let i = 0; out.length < count && i < count * 10; i++) {
     const x = rng.range(20, 1580);
-    const y = -200 + rng.next() ** 1.6 * 470;
-    if (Math.abs(x - 812) < 120 && y > 60 && y < 260) continue;
+    const y = 30 + rng.next() ** 1.25 * 270;
+    if (Math.abs(x - 806) < 130 && y > 140 && y < 300) continue;
     out.push({ x, y, r: rng.range(1.2, 2.4) * (rng.chance(0.15) ? 1.5 : 1), a: rng.range(0.5, 1) });
   }
   return out;
