@@ -90,4 +90,37 @@ test.describe('studio', () => {
     expect(box!.width).toBeGreaterThan(800);
     expect(await blankCanvases(page)).toEqual([]);
   });
+
+  test('?seed and ?t start paused at that seed; Play animates, Pause holds the frame', async ({ page }) => {
+    await openStudio(page, '?seed=7&t=0#scene');
+    await expect(page.locator('#seed')).toHaveValue('7');
+    await expect(page.locator('#play')).toHaveText('Play');
+    // the animated water must be on screen to animate (off-screen cards are skipped)
+    await page.locator('canvas[data-entry="scene/water"]').scrollIntoViewIfNeeded();
+    const frames = () =>
+      page.evaluate(async () => {
+        const r0 = window.studio!.renders();
+        for (let i = 0; i < 6; i++) await new Promise((r) => requestAnimationFrame(r));
+        return window.studio!.renders() - r0;
+      });
+    expect(await frames(), 'paused: nothing re-renders').toBe(0);
+    await page.locator('#play').click();
+    await expect(page.locator('#play')).toHaveText('Pause');
+    expect(await frames(), 'playing: animated entries render every frame').toBeGreaterThan(0);
+    await page.locator('#play').click();
+    expect(await frames()).toBe(0);
+  });
+
+  test('speed, background and scale controls', async ({ page }) => {
+    await openStudio(page, '?t=0#scene');
+    await page.locator('#speed').fill('1');
+    await expect(page.locator('label:has(#speed) output')).toHaveText('2×');
+    await page.locator('#bg').selectOption('dark');
+    await expect(page.locator('body')).toHaveAttribute('data-bg', 'dark');
+    const canvas = page.locator('canvas[data-entry="scene/water"]');
+    const w1 = (await canvas.boundingBox())!.width;
+    await page.locator('#scale').selectOption('2');
+    await expect.poll(async () => (await canvas.boundingBox())!.width).toBeCloseTo(w1 * 2, 0);
+    expect(await blankCanvases(page)).toEqual([]);
+  });
 });
