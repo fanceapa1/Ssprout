@@ -1,6 +1,6 @@
 import './style.css';
 import { createGardenAudio } from './audio';
-import { addAmbience } from './ambience';
+import { addAmbience, createDaylightSource } from './ambience';
 import { createSpeedClock, realClock, type Clock } from './core/clock';
 import { createSessionController } from './core/controller';
 import { createEventBus } from './core/events';
@@ -69,14 +69,16 @@ function boot(): void {
   const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
 
   const renderer = createRenderer({ canvas, store, bus, clock, scene, reducedMotion });
-  const sceneSystem = createSceneSystem({ invalidate: (layer) => renderer.invalidate(layer), showSlots: dev && params.has('slots') });
+  // one daylight for every system that paints or behaves with it (docs/systems/daylight.md)
+  const daylight = createDaylightSource();
+  const sceneSystem = createSceneSystem({ invalidate: (layer) => renderer.invalidate(layer), showSlots: dev && params.has('slots'), daylight });
   void renderer.add(createPaperSystem());
   void renderer.add(sceneSystem);
   // plants: finished + growing sprites, wither, watering, reflections (docs/systems/plants.md)
   setPlantViewSpecies(getSpecies);
-  const plants = createPlantSystem({ getSpecies });
+  const plants = createPlantSystem({ getSpecies, daylight });
   void renderer.add(plants);
-  void renderer.add(createFauna({ species: getSpecies, debug: dev }));
+  void renderer.add(createFauna({ species: getSpecies, debug: dev, daylight }));
   renderer.start();
 
   // Timer surfaces: worker ticker, tab title/favicon, notifications (asked inside session:start),
@@ -113,7 +115,7 @@ function boot(): void {
     installSceneDebug(sceneSystem, scene);
     installPlantsDebug(plants);
   }
-  const ambience = addAmbience(renderer, { dev: speedClock !== null });
+  const ambience = addAmbience(renderer, { dev: speedClock !== null, daylight });
   // the time-of-day wash eases in once the landscape is painted (never on bare paper), and the
   // DOM slips and paper dabs follow the garden's light from then on (ADR 0121)
   const painted = renderer.whenReady();
