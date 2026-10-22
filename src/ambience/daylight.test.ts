@@ -15,6 +15,7 @@ import {
   phaseAt,
   pinnedState,
   weightDistance,
+  nextPhase,
   type Boundary,
 } from './daylight';
 import { sunTimes, type SunTimes } from './solar';
@@ -182,5 +183,11 @@ describe('setTime overrides', () => {
     expect(s.times).not.toBeNull();
     expect(atLocalHour(now, 13) - atLocalHour(now, 12)).toBe(60 * MIN);
     expect(daylightFor(now, LONDON, parseTimeOverride('night')).weights.night).toBe(1);
+  });
+});
+
+describe('painting ahead', () => {
+  it('the next phase follows the day round', () => {
+    expect(PHASES.map((p) => nextPhase(p))).toEqual(['midday', 'sunset', 'night', 'sunrise']);
   });
 });

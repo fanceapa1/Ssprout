@@ -26,6 +26,8 @@ export interface SkyLight {
   drawSky(ctx: Ctx): void;
   /** lay the mirrored sky on the pond (world-unit context; clips itself) */
   drawWater(ctx: Ctx): void;
+  /** whether a phase's plates are painted */
+  has(phase: DayPhase): boolean;
   /** paint the plates for these phases now (otherwise they paint when first needed) */
   prepare(phases: readonly DayPhase[]): void;
   stats(): { plates: number; composes: number; paintMs: number };
@@ -169,6 +171,7 @@ export function createSkyLight(opts: { pond: readonly Pt[]; seed: number }): Sky
     prepare(phases) {
       for (const p of phases) paint(p);
     },
+    has: (p) => plates.has(p),
     stats: () => ({ plates: plates.size, composes, paintMs }),
   };
 }

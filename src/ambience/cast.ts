@@ -36,6 +36,7 @@ export interface CastLight {
   /** recompose for a state if the light moved (or `force`); true when it did */
   update(state: DaylightState, force?: boolean): boolean;
   readonly canvas: AnyCanvas;
+  has(phase: DayPhase): boolean;
   prepare(phases: readonly DayPhase[]): void;
   stats(): { plates: number; composes: number; paintMs: number };
 }
@@ -282,6 +283,7 @@ export function createCastLight(scene: SceneGeometry, art: LightArt, seed = 'cas
     prepare(phases) {
       for (const p of phases) plate(p);
     },
+    has: (p) => plates.has(p),
     stats: () => ({ plates: plates.size, composes, paintMs }),
   };
 }

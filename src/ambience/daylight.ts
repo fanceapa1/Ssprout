@@ -274,6 +274,21 @@ export function daylightFor(now: number, at: GeoPoint, override: ParsedOverride 
 }
 
 /** Squared distance between two weight sets (repaint thresholds). */
+/** The phase that follows `p` in a normal day (what to paint ahead of time). */
+export function nextPhase(p: DayPhase): DayPhase {
+  return PHASES[(PHASES.indexOf(p) + 1) % PHASES.length]!;
+}
+
+/**
+ * Run `fn` when the browser is idle (or soon, without requestIdleCallback): painting the next
+ * phase's plates ahead of its blend so the change never costs a frame.
+ */
+export function whenIdle(fn: () => void): void {
+  const ric = (globalThis as { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number }).requestIdleCallback;
+  if (ric) ric(fn, { timeout: 20_000 });
+  else setTimeout(fn, 1500);
+}
+
 export function weightDistance(a: PhaseWeights, b: PhaseWeights): number {
   let d = 0;
   for (const p of PHASES) d += (a[p] - b[p]) ** 2;

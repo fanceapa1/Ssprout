@@ -16,7 +16,7 @@ import { GARDEN_ART, PaintCancelled, paintScene, type PaintResult, type PaintVie
 import { drawSlotOverlay } from './overlay';
 import { createWaterSurface, type WaterSurface } from './water';
 import { pinnedSource, type DaylightSource } from '../ambience/daylight-source';
-import type { DaylightState } from '../ambience/daylight';
+import { nextPhase, whenIdle, type DaylightState } from '../ambience/daylight';
 import { createSkyLight, type SkyLight } from './sky-light';
 import { createRimCache, drawRim, type RimCache } from '../paint/rim';
 import { rimLight } from '../ambience/sky-layout';
@@ -113,6 +113,7 @@ export function createSceneSystem(opts: SceneSystemOptions = {}): SceneSystem {
   let light: DaylightState | null = null;
   let skyVersion = -1;
   let sinceSky = Infinity;
+  let preparing = false;
   const rims: RimCache = createRimCache();
   const stats: SceneStats = { paints: 0, rescales: 0, lastPaintMs: 0, lastCpuMs: 0, lastView: null, timings: [], painting: false };
 
@@ -188,6 +189,16 @@ export function createSceneSystem(opts: SceneSystemOptions = {}): SceneSystem {
         const forced = daylight.version !== skyVersion;
         skyVersion = daylight.version;
         if (sky.update(light, forced)) invalidate('background');
+        // paint the coming phase's sky while the browser is idle, before its blend begins
+        const next = nextPhase(light.phase);
+        if (!sky.has(next) && !preparing) {
+          preparing = true;
+          const s = sky;
+          whenIdle(() => {
+            s.prepare([next]);
+            preparing = false;
+          });
+        }
       }
       if (fade >= 1) return;
       // a still frame (freeze / renderOnce) or reduced motion settles the fade at once

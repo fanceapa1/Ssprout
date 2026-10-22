@@ -12,7 +12,7 @@ import type { SceneGeometry } from '../scene/geometry';
 import { createEnvelope, settleEnvelope, stepEnvelope, targetsFor, type Channel, type EnvelopeState, type Levels } from './envelope';
 import { createCastLight, type CastLight, type LightArt } from './cast';
 import { LIGHT } from './lighting';
-import { pinnedState, only, type DayPhase, type DaylightState } from './daylight';
+import { nextPhase, pinnedState, only, whenIdle, type DayPhase, type DaylightState } from './daylight';
 import { MOTE, type Emitter } from './motes';
 import { pavilionFrame } from '../scene/paint-pavilion';
 import { createSim, lifeAlpha, setSimArea, stepSim, warmSim, type Eave, type Sim } from './sim';
@@ -158,6 +158,7 @@ export function createAmbience(opts: AmbienceOptions): Ambience {
   let light: DaylightState = pinnedState(only('midday'));
   let grade: Grade = gradeFor(light.weights);
   let paints = 0;
+  let preparing = false;
   let phase: SessionPhase = 'idle';
   let weather: Weather | null = null;
   let staticKey = '';
@@ -239,6 +240,15 @@ export function createAmbience(opts: AmbienceOptions): Ambience {
           paints++;
         }
         lightDirty = false;
+        // paint the coming phase's light plate while the browser is idle
+        const next = nextPhase(light.phase);
+        if (!cast.has(next) && !preparing) {
+          preparing = true;
+          whenIdle(() => {
+            cast.prepare([next]);
+            preparing = false;
+          });
+        }
       }
     },
     drawWater(ctx) {
