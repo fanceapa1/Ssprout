@@ -8,7 +8,7 @@ test.describe('polish', () => {
       window.sprout!.reset();
       window.sprout!.setTime('noon');
     });
-    await page.getByRole('button', { name: 'Start studying' }).click();
+    await page.locator('.panel').getByRole('button', { name: 'Start studying' }).click();
     const sheet = page.locator('dialog[data-dialog="planting"]');
     await expect(sheet.locator('.plant-card').first()).toBeVisible();
     await expect(sheet.locator('.plant-card[data-species-id="placeholder-sprout"]')).toHaveCount(0);
@@ -24,7 +24,7 @@ test.describe('polish', () => {
     await expect(page.locator('.tip[data-tip-id="notifications"]')).toBeVisible();
     await expect(page.locator('.tip')).toHaveCount(1);
 
-    await page.getByRole('button', { name: 'Start studying' }).click();
+    await page.locator('.panel').getByRole('button', { name: 'Start studying' }).click();
     const sheet = page.locator('dialog[data-dialog="planting"]');
     await expect(sheet.locator('.tip[data-tip-id="task"]')).toBeVisible();
     await expect(sheet.locator('.tip.is-in')).toHaveCount(1);
@@ -41,7 +41,7 @@ test.describe('polish', () => {
       window.sprout!.reset();
       window.sprout!.ui.refresh();
     });
-    await page.getByRole('button', { name: 'Start studying' }).focus();
+    await page.locator('.panel').getByRole('button', { name: 'Start studying' }).focus();
     await page.keyboard.press('Enter');
     const sheet = page.locator('dialog[data-dialog="planting"]');
     await sheet.locator('.plant-card[data-species-id="violet"]').focus();
@@ -52,7 +52,8 @@ test.describe('polish', () => {
     await page.keyboard.press('Enter');
     await page.locator('.placement-bar').getByRole('button', { name: 'Begin' }).focus();
     await page.keyboard.press('Enter');
-    await expect(page.locator('.panel button.pause')).toBeFocused();
+    // focus lands on the pill's Pause, on the garden (the page stays where the seedling appeared)
+    await expect(page.locator('.pill button.pause')).toBeFocused();
     await page.locator('.panel button.end').focus();
     await page.keyboard.press('Enter');
     await expect(page.locator('.panel button.keep')).toBeFocused();

@@ -42,7 +42,10 @@ test.describe('scene', () => {
     });
     const stats = await canvasStats(page);
     expect(stats.distinctColours).toBeGreaterThan(200); // a painting, not flat fills
-    const sky = await pixelAtWorld(page, 800, 120);
+    // a sky point in view: the garden stage is ~88 % of the window (ADR 0130), so a short
+    // landscape window crops a little more of the sky's top
+    const top = await page.evaluate(() => window.sprout!.fauna.view().y);
+    const sky = await pixelAtWorld(page, 800, Math.max(120, top + 40));
     const centre = await pondCentre(page);
     const pond = await pixelAtWorld(page, centre.x, centre.y);
     // sky stays close to washi paper; the pond is cooler (green/blue above red) and darker

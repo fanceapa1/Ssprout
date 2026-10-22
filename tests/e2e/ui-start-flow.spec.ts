@@ -9,7 +9,7 @@ import { openUi, plantSession, reloadUi, setMinutes } from './ui-helpers';
 test.describe('ui · start flow details', () => {
   test('an empty task name plants a “Study session”; the field suggests a task', async ({ page }) => {
     await openUi(page);
-    await page.getByRole('button', { name: 'Start studying' }).click();
+    await page.locator('.panel').getByRole('button', { name: 'Start studying' }).click();
     const sheet = page.locator('dialog[data-dialog="planting"]');
     const task = sheet.getByLabel('What are you studying?');
     await expect(task).toHaveValue('');
@@ -23,7 +23,7 @@ test.describe('ui · start flow details', () => {
 
   test('total time: a 10–180 slider in 5-minute steps with quick picks 25/50/90', async ({ page }) => {
     await openUi(page);
-    await page.getByRole('button', { name: 'Start studying' }).click();
+    await page.locator('.panel').getByRole('button', { name: 'Start studying' }).click();
     const sheet = page.locator('dialog[data-dialog="planting"]');
     const slider = sheet.locator('input.duration');
     await expect(slider).toHaveAttribute('min', '10');
@@ -45,19 +45,19 @@ test.describe('ui · start flow details', () => {
     await page.locator('.panel').getByRole('button', { name: 'End', exact: true }).click();
     await page.locator('.panel .confirm-cancel').getByRole('button', { name: 'End' }).click();
     await expect(page.locator('.panel')).toHaveAttribute('data-view', 'idle');
-    await page.getByRole('button', { name: 'Start studying' }).click();
+    await page.locator('.panel').getByRole('button', { name: 'Start studying' }).click();
     await expect(slider).toHaveValue('65');
     await page.keyboard.press('Escape');
 
     await page.evaluate(() => window.sprout!.flush());
     await reloadUi(page);
-    await page.getByRole('button', { name: 'Start studying' }).click();
+    await page.locator('.panel').getByRole('button', { name: 'Start studying' }).click();
     await expect(page.locator('dialog[data-dialog="planting"] input.duration')).toHaveValue('65');
   });
 
   test('plant cards: painted preview, name, native name, poetic line and habitat; locked ones say what they need', async ({ page }) => {
     await openUi(page);
-    await page.getByRole('button', { name: 'Start studying' }).click();
+    await page.locator('.panel').getByRole('button', { name: 'Start studying' }).click();
     await setMinutes(page, 25);
     const sheet = page.locator('dialog[data-dialog="planting"]');
 

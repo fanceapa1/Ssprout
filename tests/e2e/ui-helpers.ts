@@ -67,7 +67,7 @@ export interface PlantOptions {
 
 /** Drive the whole start flow through the UI: sheet → plan → plant → spot → Begin. */
 export async function plantSession(page: Page, o: PlantOptions): Promise<void> {
-  await page.getByRole('button', { name: 'Start studying' }).click();
+  await page.locator('.panel').getByRole('button', { name: 'Start studying' }).click();
   const sheet = page.locator('dialog[data-dialog="planting"]');
   await expect(sheet).toBeVisible();
   if (o.task !== undefined) await sheet.getByLabel('What are you studying?').fill(o.task);

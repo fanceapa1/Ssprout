@@ -15,17 +15,17 @@ test.describe('ui · menu, tips and data', () => {
     await expect(page.locator('.tips')).toHaveCSS('pointer-events', 'none');
 
     // using the speaker retires its tip, even while it was still waiting its turn
-    await page.getByRole('button', { name: 'Garden sounds' }).click();
+    await page.locator('.menu').getByRole('button', { name: 'Garden sounds' }).click();
     await expect(soundTip).toHaveCount(0);
     expect(await page.evaluate(() => window.sprout!.state().tips.sound)).toBe('seen');
 
     // inside the planting sheet, sheet tips appear next to their controls
-    await page.getByRole('button', { name: 'Start studying' }).click();
+    await page.locator('.panel').getByRole('button', { name: 'Start studying' }).click();
     const sheetTips = page.locator('dialog[data-dialog="planting"] .tip');
     await expect(sheetTips.first()).toBeVisible();
     await page.keyboard.press('Escape');
 
-    await page.getByRole('button', { name: 'Hints' }).click();
+    await page.locator('.menu').getByRole('button', { name: 'Hints' }).click();
     const hints = page.locator('dialog[data-dialog="hints"]');
     await expect(hints).toBeVisible();
     await expect(hints.locator('.hint[data-tip-id="sound"]')).toHaveAttribute('data-retired', 'true');
@@ -35,15 +35,15 @@ test.describe('ui · menu, tips and data', () => {
 
   test('sound toggle persists across reloads', async ({ page }) => {
     await openUi(page);
-    const sound = page.getByRole('button', { name: 'Garden sounds' });
+    const sound = page.locator('.menu').getByRole('button', { name: 'Garden sounds' });
     await expect(sound).toHaveAttribute('aria-pressed', 'false');
     await sound.click();
     await expect(sound).toHaveAttribute('aria-pressed', 'true');
     expect(await page.evaluate(() => window.sprout!.state().settings.muted)).toBe(false);
     await page.evaluate(() => window.sprout!.flush());
     await reloadUi(page);
-    await expect(page.getByRole('button', { name: 'Garden sounds' })).toHaveAttribute('aria-pressed', 'true');
-    await page.getByRole('button', { name: 'Garden sounds' }).click();
+    await expect(page.locator('.menu').getByRole('button', { name: 'Garden sounds' })).toHaveAttribute('aria-pressed', 'true');
+    await page.locator('.menu').getByRole('button', { name: 'Garden sounds' }).click();
     expect(await page.evaluate(() => window.sprout!.state().settings.muted)).toBe(true);
   });
 
@@ -51,10 +51,10 @@ test.describe('ui · menu, tips and data', () => {
     await openUi(page);
     // the real widget (Document PiP): the button exists exactly when it is supported
     const supported = await page.evaluate(() => window.sprout!.widget!.supported());
-    await expect(page.getByRole('button', { name: 'Floating timer' })).toHaveCount(supported ? 1 : 0);
+    await expect(page.locator('.menu').getByRole('button', { name: 'Floating timer' })).toHaveCount(supported ? 1 : 0);
     // the fake integration: opening from the button and retiring the tip
     await openUi(page, 'widget=fake');
-    const btn = page.getByRole('button', { name: 'Floating timer' });
+    const btn = page.locator('.menu').getByRole('button', { name: 'Floating timer' });
     await expect(btn).toBeVisible();
     await expect(btn).toHaveAttribute('aria-pressed', 'false');
     await btn.click();
@@ -68,7 +68,7 @@ test.describe('ui · menu, tips and data', () => {
     await page.evaluate(() => window.sprout!.addPlants(4));
     const before = await page.evaluate(() => window.sprout!.state().plants);
 
-    await page.getByRole('button', { name: 'Garden data' }).click();
+    await page.locator('.menu').getByRole('button', { name: 'Garden data' }).click();
     const sheet = page.locator('dialog[data-dialog="data"]');
     await expect(sheet.locator('.data-summary')).toContainText('4 plants growing');
     const [download] = await Promise.all([page.waitForEvent('download'), sheet.getByRole('button', { name: 'Export garden' }).click()]);
@@ -106,13 +106,18 @@ test.describe('ui · menu, tips and data', () => {
     await expect.poll(() => page.evaluate(() => window.sprout!.state().faunaSeen)).toEqual(expect.arrayContaining(['koi-1']));
   });
 
-  test('the panel rests while studying and wakes on pointer movement', async ({ page }) => {
+  test('the controls on the painting rest while studying and wake on pointer movement', async ({ page }) => {
     await openUi(page);
     await plantSession(page, { minutes: 25, species: 'fx-violet' });
     await page.evaluate(() => window.sprout!.ui.setTimeScale(0.01));
-    await page.mouse.move(10, 10);
+    // focus out of the pill (Begin put it on Pause), pointer away from it
+    await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+    await page.mouse.move(600, 300);
     await expect.poll(() => page.evaluate(() => window.sprout!.ui.state().resting)).toBe(true);
-    await expect(page.locator('.panel')).toHaveCSS('opacity', '0.26');
+    await expect(page.locator('.pill')).toHaveCSS('opacity', '0.42');
+    await expect(page.locator('.menu')).toHaveCSS('opacity', '0.32');
+    // the session controls below the garden never fade: they are read on paper, not over the painting
+    await expect(page.locator('.panel')).toHaveCSS('opacity', '1');
     await page.evaluate(() => window.sprout!.ui.setTimeScale(100));
     await page.mouse.move(200, 200);
     await expect.poll(() => page.evaluate(() => window.sprout!.ui.state().resting)).toBe(false);
@@ -122,17 +127,32 @@ test.describe('ui · menu, tips and data', () => {
 test.describe('ui · phone', () => {
   test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
 
-  test('panel spans the bottom, menu reachable, planting works by touch', async ({ page }) => {
+  test('the garden fills the screen, the controls stack below it, menu reachable, planting works by touch', async ({ page }) => {
     await openUi(page);
+    // the stage: ~88 % of the height below an 8 px margin; none of the session controls covers it
+    const stage = (await page.locator('#stage').boundingBox())!;
+    expect(stage.y).toBeCloseTo(8, 0);
+    expect(stage.x).toBeCloseTo(8, 0);
+    expect(stage.height / 844).toBeGreaterThan(0.85);
+    expect(stage.height / 844).toBeLessThan(0.9);
     const panel = page.locator('.panel');
     const box = (await panel.boundingBox())!;
-    expect(box.width).toBeGreaterThan(380);
-    expect(box.y + box.height).toBeGreaterThan(840);
+    expect(box.y).toBeGreaterThan(stage.y + stage.height);
+    // one column: the plant view comes after the session controls, at the same left edge
+    const session = (await page.locator('[data-section="session"]').boundingBox())!;
+    const plant = (await page.locator('[data-section="plant"]').boundingBox())!;
+    expect(plant.y).toBeGreaterThan(session.y + session.height - 1);
+    expect(Math.abs(plant.x - session.x)).toBeLessThan(2);
     for (const name of ['Garden sounds', 'Pressed flowers', 'Garden data', 'Hints']) {
-      const b = (await page.getByRole('button', { name }).boundingBox())!;
+      const b = (await page.locator('.menu').getByRole('button', { name }).boundingBox())!;
       expect(b.width).toBeGreaterThanOrEqual(44);
       expect(b.x + b.width).toBeLessThanOrEqual(390);
     }
+    // the pill sits on the garden, inside the screen
+    const pill = (await page.locator('.pill').boundingBox())!;
+    expect(pill.y + pill.height).toBeLessThanOrEqual(stage.y + stage.height);
+    expect(pill.x).toBeGreaterThanOrEqual(0);
+    expect(pill.x + pill.width).toBeLessThanOrEqual(390);
     await plantSession(page, { task: 'Vocab', minutes: 25, species: 'fx-violet' });
     await expect(panel.locator('.task-name')).toHaveText('Vocab');
   });
