@@ -21,7 +21,7 @@ test.describe('ui · start flow details', () => {
     await expect(page.locator('.panel .task-name')).toHaveText('Study session');
   });
 
-  test('total time: a 10–180 slider in 5-minute steps, quick picks 25/50/90, and the last total is remembered', async ({ page }) => {
+  test('total time: a 10–180 slider in 5-minute steps with quick picks 25/50/90', async ({ page }) => {
     await openUi(page);
     await page.getByRole('button', { name: 'Start studying' }).click();
     const sheet = page.locator('dialog[data-dialog="planting"]');
@@ -34,8 +34,11 @@ test.describe('ui · start flow details', () => {
     await sheet.getByRole('button', { name: '50 minutes' }).click();
     await expect(slider).toHaveValue('50');
     await expect(sheet.getByRole('button', { name: '50 minutes' })).toHaveAttribute('aria-pressed', 'true');
-    await page.keyboard.press('Escape');
+  });
 
+  test('the last total is remembered for the next session, also after a reload', async ({ page }) => {
+    await openUi(page);
+    const slider = page.locator('dialog[data-dialog="planting"] input.duration');
     // a session of 65 minutes: the sheet opens on 65 next time, also after a reload
     await plantSession(page, { minutes: 65, species: 'fx-violet' });
     expect(await page.evaluate(() => window.sprout!.state().settings.lastGoalMinutes)).toBe(65);
