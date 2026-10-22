@@ -25,6 +25,18 @@ type Ctx = CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
 
 /** Plate resolution (px per world unit): the light is soft, the paper adds the grain. */
 export const CAST_SCALE = 0.4;
+/**
+ * A zoomed-in view repaints the plates' marks (shadows, crown lights, window light, stars) for its
+ * part of the world at up to this many px per unit, over the upscaled grade wash (ADR 0163).
+ */
+export const CAST_DETAIL_MAX = 2;
+
+interface Rect {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
 
 /** What the plates need to know about the painting besides the shared geometry. */
 export interface LightArt {
@@ -38,7 +50,17 @@ export interface CastLight {
   readonly canvas: AnyCanvas;
   has(phase: DayPhase): boolean;
   prepare(phases: readonly DayPhase[]): void;
-  stats(): { plates: number; composes: number; paintMs: number };
+  /**
+   * Keep a sharp plate for a zoomed view: its visible world rect and device px per unit (null:
+   * none). The marks are repainted for that part of the world one phase at a time
+   * (`paintDetailStep`, from idle callbacks); until they are, `detail()` is null.
+   */
+  setDetail(visible: Rect | null, pixelScale: number): void;
+  /** paint one missing detail plate; true when there is more to do */
+  paintDetailStep(): boolean;
+  /** the detail composite for the current light, when it is ready */
+  detail(): { canvas: AnyCanvas; rect: Rect } | null;
+  stats(): { plates: number; composes: number; paintMs: number; detail: { rect: Rect; scale: number; ready: boolean } | null; detailMs: number };
 }
 
 const SHADOW = mix(PIGMENTS.shadow, PIGMENTS.ultramarine, 0.38);
@@ -201,7 +223,14 @@ export function createCastLight(scene: SceneGeometry, art: LightArt, seed = 'cas
   const field = washField(scene, `${seed}-wash`, CAST_SCALE);
   const { w, h } = field;
   const plates = new Map<DayPhase, AnyCanvas>();
+  /** each phase's grade wash before its marks (the detail plates start from it) */
+  const grades = new Map<DayPhase, AnyCanvas>();
   const canvas = makeCanvas(w, h);
+  let lastState: DaylightState | null = null;
+  let want: { rect: Rect; scale: number; key: string } | null = null;
+  const detailPlates = new Map<DayPhase, { key: string; canvas: AnyCanvas }>();
+  let detailComp: { key: string; canvas: AnyCanvas; rect: Rect } | null = null;
+  let detailMs = 0;
   const ctx = canvas.getContext('2d') as Ctx;
   let last = '';
   let composes = 0;
@@ -214,6 +243,9 @@ export function createCastLight(scene: SceneGeometry, art: LightArt, seed = 'cas
     if (known) return known;
     const t0 = now();
     const c = gradePlate(PHASE_GRADES[phase], field);
+    const g = makeCanvas(w, h);
+    (g.getContext('2d') as Ctx).drawImage(c as CanvasImageSource, 0, 0);
+    grades.set(phase, g);
     const p = createPainter(c, { seed: `${seed}:${phase}` });
     p.ctx.setTransform(CAST_SCALE, 0, 0, CAST_SCALE, 0, 0);
     paintCastPlate(p, createRng(`${seed}:${phase}`), phase, scene, art);
@@ -231,21 +263,78 @@ export function createCastLight(scene: SceneGeometry, art: LightArt, seed = 'cas
     return pondPath;
   };
 
-  const compose = (state: DaylightState, sun: Disc, moon: Disc) => {
-    const list = PHASES.filter((p) => state.weights[p] > 0.002).sort((a, b) => state.weights[b] - state.weights[a]);
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.globalCompositeOperation = 'source-over';
-    ctx.globalAlpha = 1;
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, w, h);
+  const phasesOf = (state: DaylightState) => PHASES.filter((p) => state.weights[p] > 0.002).sort((a, b) => state.weights[b] - state.weights[a]);
+
+  /** a phase's plate repainted for the detail rect: the grade wash upscaled, the marks at full resolution */
+  const paintDetailPlate = (phase: DayPhase, d: { rect: Rect; scale: number; key: string }): AnyCanvas => {
+    const t0 = now();
+    plate(phase);
+    const dw = Math.max(1, Math.ceil(d.rect.w * d.scale));
+    const dh = Math.max(1, Math.ceil(d.rect.h * d.scale));
+    const c = makeCanvas(dw, dh);
+    const cx = c.getContext('2d') as Ctx;
+    cx.imageSmoothingEnabled = true;
+    cx.drawImage(grades.get(phase)! as CanvasImageSource, d.rect.x * CAST_SCALE, d.rect.y * CAST_SCALE, d.rect.w * CAST_SCALE, d.rect.h * CAST_SCALE, 0, 0, dw, dh);
+    const p = createPainter(c, { seed: `${seed}:${phase}` });
+    p.ctx.setTransform(d.scale, 0, 0, d.scale, -d.rect.x * d.scale, -d.rect.y * d.scale);
+    paintCastPlate(p, createRng(`${seed}:${phase}`), phase, scene, art);
+    detailMs += now() - t0;
+    return c;
+  };
+
+  /** blend plates by the phase weights, then lift the moving lights (world transform `t`) */
+  const composeInto = (
+    cx: Ctx,
+    cw: number,
+    ch: number,
+    state: DaylightState,
+    sun: Disc,
+    moon: Disc,
+    plateOf: (p: DayPhase) => AnyCanvas,
+    t: [number, number, number],
+  ) => {
+    const list = phasesOf(state);
+    cx.setTransform(1, 0, 0, 1, 0, 0);
+    cx.globalCompositeOperation = 'source-over';
+    cx.globalAlpha = 1;
+    cx.fillStyle = '#ffffff';
+    cx.fillRect(0, 0, cw, ch);
     let acc = 0;
     for (const p of list) {
       acc += state.weights[p];
-      ctx.globalAlpha = state.weights[p] / acc;
-      ctx.drawImage(plate(p) as CanvasImageSource, 0, 0);
+      cx.globalAlpha = state.weights[p] / acc;
+      cx.drawImage(plateOf(p) as CanvasImageSource, 0, 0);
     }
-    ctx.globalAlpha = 1;
-    ctx.setTransform(CAST_SCALE, 0, 0, CAST_SCALE, 0, 0);
+    cx.globalAlpha = 1;
+    cx.setTransform(t[0], 0, 0, t[0], t[1], t[2]);
+    liftLights(cx, state, sun, moon);
+    cx.setTransform(1, 0, 0, 1, 0, 0);
+  };
+
+  const compose = (state: DaylightState, sun: Disc, moon: Disc) => {
+    composeInto(ctx, w, h, state, sun, moon, plate, [CAST_SCALE, 0, 0]);
+    composes++;
+  };
+
+  /** the detail composite, if every phase in the blend has its detail plate */
+  const composeDetail = () => {
+    if (!want || !lastState) return null;
+    const list = phasesOf(lastState);
+    if (list.some((p) => detailPlates.get(p)?.key !== want!.key)) return null;
+    const sun = sunDisc(lastState);
+    const moon = moonDisc(lastState);
+    const k = `${want.key}|${key(lastState.weights, sun, moon)}`;
+    if (detailComp?.key === k) return detailComp;
+    const dw = Math.max(1, Math.ceil(want.rect.w * want.scale));
+    const dh = Math.max(1, Math.ceil(want.rect.h * want.scale));
+    const c = detailComp && detailComp.canvas.width === dw && detailComp.canvas.height === dh ? detailComp.canvas : makeCanvas(dw, dh);
+    const d = want;
+    composeInto(c.getContext('2d') as Ctx, dw, dh, lastState, sun, moon, (p) => detailPlates.get(p)!.canvas, [d.scale, -d.rect.x * d.scale, -d.rect.y * d.scale]);
+    detailComp = { key: k, canvas: c, rect: d.rect };
+    return detailComp;
+  };
+
+  const liftLights = (ctx: Ctx, state: DaylightState, sun: Disc, moon: Disc) => {
     if (sun.alpha > 0.01) liftGlow(ctx, sun.x, sun.y, sun.r * 7, 0.36 * sun.alpha, [255, 222, 168]);
     if (moon.alpha > 0.01) {
       // the moon itself left as paper, then a soft halo of moonlight round it
@@ -265,8 +354,6 @@ export function createCastLight(scene: SceneGeometry, art: LightArt, seed = 'cas
       if (moon.alpha > 0.01) waterPath(ctx, path, scene, moon, 0.65 * moon.alpha, [232, 238, 255]);
       if (sun.alpha > 0.01) waterPath(ctx, path, scene, sun, 0.5 * sun.alpha, [255, 232, 196]);
     }
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-    composes++;
   };
 
   return {
@@ -277,6 +364,7 @@ export function createCastLight(scene: SceneGeometry, art: LightArt, seed = 'cas
       const k = key(state.weights, sun, moon);
       if (!force && k === last) return false;
       last = k;
+      lastState = state;
       compose(state, sun, moon);
       return true;
     },
@@ -284,7 +372,48 @@ export function createCastLight(scene: SceneGeometry, art: LightArt, seed = 'cas
       for (const p of phases) plate(p);
     },
     has: (p) => plates.has(p),
-    stats: () => ({ plates: plates.size, composes, paintMs }),
+    setDetail(visible, pixelScale) {
+      const scale = Math.round(Math.min(CAST_DETAIL_MAX, pixelScale) * 100) / 100;
+      if (!visible || scale <= CAST_SCALE * 1.5) {
+        want = null;
+        detailComp = null;
+        detailPlates.clear();
+        return;
+      }
+      const m = 30;
+      const x0 = Math.max(0, Math.floor(visible.x - m));
+      const y0 = Math.max(0, Math.floor(visible.y - m));
+      const x1 = Math.min(WORLD_W, Math.ceil(visible.x + visible.w + m));
+      const y1 = Math.min(WORLD_H, Math.ceil(visible.y + visible.h + m));
+      if (x1 <= x0 || y1 <= y0) {
+        want = null;
+        return;
+      }
+      const rect = { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
+      const k = `${x0},${y0},${x1},${y1}@${scale}`;
+      if (want?.key === k) return;
+      want = { rect, scale, key: k };
+      for (const [p, d] of detailPlates) if (d.key !== k) detailPlates.delete(p);
+    },
+    paintDetailStep() {
+      if (!want || !lastState) return false;
+      const missing = phasesOf(lastState).filter((p) => detailPlates.get(p)?.key !== want!.key);
+      const next = missing[0];
+      if (!next) return false;
+      detailPlates.set(next, { key: want.key, canvas: paintDetailPlate(next, want) });
+      return missing.length > 1;
+    },
+    detail() {
+      const d = composeDetail();
+      return d ? { canvas: d.canvas, rect: d.rect } : null;
+    },
+    stats: () => ({
+      plates: plates.size,
+      composes,
+      paintMs,
+      detail: want ? { rect: { ...want.rect }, scale: want.scale, ready: composeDetail() !== null } : null,
+      detailMs,
+    }),
   };
 }
 

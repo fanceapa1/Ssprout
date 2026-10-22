@@ -112,8 +112,15 @@ export interface Ambience {
   light(): { grade: Grade; paints: number };
   drawWater(ctx: Ctx): void;
   drawAir(ctx: Ctx): void;
-  /** `alpha` fades the whole grade (the app reveals it once the painting is there) */
-  drawLighting(ctx: Ctx, alpha?: number): void;
+  /**
+   * `alpha` fades the whole grade (the app reveals it once the painting is there); `visible` is
+   * the world rect this draw shows — a zoomed view the detail plate covers gets the sharp plate.
+   */
+  drawLighting(ctx: Ctx, alpha?: number, visible?: Rect): void;
+  /** keep a sharp light plate for a zoomed view (null: the overview), painted in idle time (ADR 0163) */
+  setDetail(visible: Rect | null, pixelScale: number): void;
+  /** the wanted detail plate and whether it is painted (null: none wanted) */
+  lightDetail(): { rect: Rect; scale: number; ready: boolean; ms: number } | null;
   /** current eased level of one channel */
   level(channel: Channel): number;
   debug(): AmbienceDebug;
@@ -164,6 +171,21 @@ export function createAmbience(opts: AmbienceOptions): Ambience {
   let staticKey = '';
   let flameT = 0;
   let pondPath: Path2D | null = null;
+  let detailing = false;
+  const idleSoon = (fn: () => void) => {
+    const ric = (globalThis as { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number }).requestIdleCallback;
+    if (ric) ric(fn, { timeout: 600 });
+    else setTimeout(fn, 30);
+  };
+  /** paint the detail plates one phase per idle callback */
+  const scheduleDetail = () => {
+    if (detailing) return;
+    detailing = true;
+    idleSoon(() => {
+      detailing = false;
+      if (cast.paintDetailStep()) scheduleDetail();
+    });
+  };
 
   const pond = () => {
     if (!pondPath && typeof Path2D !== 'undefined') {
@@ -197,6 +219,14 @@ export function createAmbience(opts: AmbienceOptions): Ambience {
     setArea(area) {
       view = area;
       setSimArea(sim, area);
+    },
+    lightDetail() {
+      const st = cast.stats();
+      return st.detail ? { ...st.detail, ms: st.detailMs } : null;
+    },
+    setDetail(visible, pixelScale) {
+      cast.setDetail(visible, pixelScale);
+      if (visible) scheduleDetail();
     },
     settle() {
       pendingSettle = true;
@@ -238,6 +268,8 @@ export function createAmbience(opts: AmbienceOptions): Ambience {
         if (cast.update(light, lightDirty)) {
           grade = gradeFor(light.weights);
           paints++;
+          // a new phase in the blend needs its detail plate too
+          if (cast.stats().detail) scheduleDetail();
         }
         lightDirty = false;
         // paint the coming phase's light plate while the browser is idle
@@ -406,7 +438,7 @@ export function createAmbience(opts: AmbienceOptions): Ambience {
         }
       }
     },
-    drawLighting(ctx, alpha = 1) {
+    drawLighting(ctx, alpha = 1, visible) {
       if (alpha <= 0.002) return;
       // colours fade at night before they darken (the eye's night vision): a cool desaturating glaze
       const desat = LOOK.nightDesaturate * light.weights.night * alpha;
@@ -420,7 +452,10 @@ export function createAmbience(opts: AmbienceOptions): Ambience {
       ctx.globalCompositeOperation = 'multiply';
       ctx.imageSmoothingEnabled = true;
       ctx.imageSmoothingQuality = 'low';
-      ctx.drawImage(cast.canvas as CanvasImageSource, 0, 0, WORLD_W, WORLD_H);
+      const inWorld = visible ? clip(visible) : null;
+      const d = inWorld ? cast.detail() : null;
+      if (d && inWorld && contains(d.rect, inWorld)) ctx.drawImage(d.canvas as CanvasImageSource, d.rect.x, d.rect.y, d.rect.w, d.rect.h);
+      else ctx.drawImage(cast.canvas as CanvasImageSource, 0, 0, WORLD_W, WORLD_H);
       // paper shown beyond the world's top/bottom (tall phones) takes the light of the nearest edge
       const lc = cast.canvas as CanvasImageSource & { width: number; height: number };
       if (view.y < 0) ctx.drawImage(lc, 0, 0, lc.width, 1, 0, view.y, WORLD_W, -view.y);
@@ -456,6 +491,17 @@ export function createAmbience(opts: AmbienceOptions): Ambience {
 }
 
 const NO_ART: LightArt = { trees: [], shrubs: [] };
+
+/** the part of a rect inside the world, or null */
+function clip(r: Rect): Rect | null {
+  const x = Math.max(0, r.x);
+  const y = Math.max(0, r.y);
+  const x1 = Math.min(WORLD_W, r.x + r.w);
+  const y1 = Math.min(WORLD_H, r.y + r.h);
+  return x1 > x && y1 > y ? { x, y, w: x1 - x, h: y1 - y } : null;
+}
+
+const contains = (o: Rect, i: Rect) => i.x >= o.x - 0.5 && i.y >= o.y - 0.5 && i.x + i.w <= o.x + o.w + 0.5 && i.y + i.h <= o.y + o.h + 0.5;
 
 const castCache = new WeakMap<SceneGeometry, Map<string, CastLight>>();
 

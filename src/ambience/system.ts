@@ -7,6 +7,7 @@
 import { sessionPhase } from '../core/session';
 import type { Store, Weather } from '../core/state';
 import type { LayerId, System } from '../render/types';
+import type { CameraView } from '../render/camera';
 import type { SceneGeometry } from '../scene/geometry';
 import { createAmbience, type Ambience, type AmbienceDebug } from './ambience';
 import { moteEmitters, type Emitter } from './motes';
@@ -29,6 +30,8 @@ export interface AmbienceSystem extends System {
   readonly daylight: DaylightSource;
   /** the clock time (epoch ms) of the last frame */
   now(): number;
+  /** the sharp light plate for the camera's resting view: wanted rect, scale, painted yet (null: none) */
+  lightDetail(): ReturnType<Ambience['lightDetail']>;
   /** called with the time-of-day grade whenever the lighting repaints (e.g. to tint the DOM UI) */
   onLight(fn: (grade: Grade) => void): () => void;
   /**
@@ -68,6 +71,8 @@ export function createAmbienceSystem(opts: AmbienceSystemOptions = {}): Ambience
   let reveal = 1;
   let revealing = false;
   let reducedMotion = false;
+  let camera: CameraView | null = null;
+  let seenDetail = -1;
   const now = () => (typeof performance !== 'undefined' ? performance.now() : 0);
 
   const timed = (fn: () => void) => {
@@ -80,9 +85,12 @@ export function createAmbienceSystem(opts: AmbienceSystemOptions = {}): Ambience
     id: 'ambience',
     daylight,
     now: () => lastNow,
+    lightDetail: () => engine?.lightDetail() ?? null,
     init(ctx) {
       store = ctx.store;
       reducedMotion = ctx.reducedMotion;
+      camera = ctx.camera ?? null;
+      seenDetail = -1;
       if (!engine || engineScene !== ctx.scene) {
         engine = createAmbience({ scene: ctx.scene, reducedMotion: ctx.reducedMotion, seed: opts.seed, area: ctx.viewport.visible, lightArt: opts.lightArt });
         engine.preview = preview;
@@ -112,6 +120,12 @@ export function createAmbienceSystem(opts: AmbienceSystemOptions = {}): Ambience
       }));
       seenVersion = daylight.version;
       lastNow = f.now;
+      // the camera came to rest somewhere new: a sharp light plate for that view (ADR 0163)
+      if (camera && camera.detailVersion !== seenDetail && !camera.moving()) {
+        seenDetail = camera.detailVersion;
+        const v = camera.detailView();
+        e.setDetail(camera.isOverview() ? null : v.visible, v.pixelScale);
+      }
       if (lightListeners.size) {
         const { grade, paints } = e.light();
         if (paints !== lightPaints) {
@@ -120,12 +134,12 @@ export function createAmbienceSystem(opts: AmbienceSystemOptions = {}): Ambience
         }
       }
     },
-    draw(layer: LayerId, ctx) {
+    draw(layer: LayerId, ctx, f) {
       const e = engine;
       if (!e) return;
       if (layer === 'waterSurface') timed(() => e.drawWater(ctx));
       else if (layer === 'ambience') timed(() => e.drawAir(ctx));
-      else if (layer === 'lighting') timed(() => e.drawLighting(ctx, reveal * reveal * (3 - 2 * reveal)));
+      else if (layer === 'lighting') timed(() => e.drawLighting(ctx, reveal * reveal * (3 - 2 * reveal), f?.view?.visible));
     },
     setTime(value) {
       daylight.setOverride(value);
