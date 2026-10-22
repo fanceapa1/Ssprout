@@ -71,8 +71,10 @@ export function stageEdgeAlpha(o: EdgeOptions): Float32Array {
       let bottom = 1;
       if (y > s) {
         const t = (y - s) / Math.max(1, H - s);
-        // thinning wash: soft, a little streaky where the brush ran dry
-        const streak = dry((x * k) / 9, (y * k) / 40) * 0.5 * 0.5 * t;
+        // thinning wash: uneven pools where it lingered, a faint slanting grain where the brush ran dry
+        const cx = x * k;
+        const cy = y * k;
+        const streak = (0.2 * broad(cx / 70, cy / 36 + 20) + 0.07 * dry((cx + cy * 0.6) / 15, (cy - cx * 0.3) / 24)) * t;
         bottom = 1 - smooth(Math.min(1, t * 1.2 + streak));
       }
       out[y * W + x] = Math.max(0, Math.min(1, top * side * bottom));

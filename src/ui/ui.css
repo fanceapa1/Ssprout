@@ -861,6 +861,7 @@ dialog :focus-visible {
 .plant-view-task {
   font-size: 20px;
   font-style: italic;
+  text-wrap: balance;
   margin-top: 2px !important;
 }
 .plant-view-stage {

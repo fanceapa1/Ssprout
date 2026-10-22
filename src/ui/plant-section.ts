@@ -81,13 +81,13 @@ export function paintRoundWindow(canvas: HTMLCanvasElement, seed = 1): void {
   const H = canvas.height;
   const p = createPainter(canvas, { seed: `window-${seed}` });
   const rng = createRng(`window-${seed}`);
-  const r = Math.min(W, H) * 0.44;
+  const r = Math.min(W, H) * 0.41;
   p.wash({ cx: W / 2, cy: H * 0.5, rx: r, ry: r * 0.98 }, mix(PIGMENTS.celadon, PIGMENTS.sageLight, 0.55), {
     rng,
     opacity: 0.2,
     edge: 0.55,
     centreLift: 0.45,
-    deform: 0.18,
+    deform: 0.06,
     granulation: 0.25,
     fade: { angle: Math.PI / 2, start: 0.35, amount: 0.85, ragged: 0.7 },
   });
