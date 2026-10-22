@@ -76,6 +76,6 @@ describe('event bus', () => {
     bus.clear();
     bus.emit('fauna:arrived', { id: 'x' });
     expect(fn).not.toHaveBeenCalled();
-    expect(EVENT_NAMES).toHaveLength(14);
+    expect(EVENT_NAMES).toHaveLength(15);
   });
 });

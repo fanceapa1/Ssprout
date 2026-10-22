@@ -1,3 +1,4 @@
+import type { OccurrenceView } from './schedule';
 import type { ActiveSession, PlantInstance, PressedFlower, Settings } from './state';
 
 /**
@@ -36,6 +37,11 @@ export interface EventMap {
   'fauna:arrived': { id: string };
   'tip:retired': { id: string };
   'settings:changed': { settings: Settings };
+  /**
+   * a scheduled occurrence's time has come: it waits for one-tap Start (emitted once per
+   * occurrence per page, from the scheduler's tick; ADR 0172)
+   */
+  'schedule:due': { occurrence: OccurrenceView };
 }
 
 export type EventName = keyof EventMap;
@@ -71,6 +77,7 @@ export const EVENT_NAMES: readonly EventName[] = [
   'fauna:arrived',
   'tip:retired',
   'settings:changed',
+  'schedule:due',
 ];
 
 export function createEventBus(
