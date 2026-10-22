@@ -344,6 +344,27 @@ dialog :focus-visible {
   border-left: 1px solid var(--ui-ink-ghost);
   border-radius: 0 50% 50% 0;
 }
+/* "+2": other sessions in progress, a quiet note in the pill's margin (ADR 0156) */
+.pill-more {
+  appearance: none;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  min-width: 44px;
+  height: 46px;
+  padding: 0 10px 0 8px;
+  margin-left: 2px;
+  border-left: 1px solid var(--ui-ink-ghost);
+  font-family: var(--ui-display);
+  font-size: 17px;
+  letter-spacing: 0.04em;
+  color: var(--ui-ink-soft);
+  font-variant-numeric: lining-nums;
+  transition: color var(--ui-mid);
+}
+.pill-more:hover {
+  color: var(--ui-ink);
+}
 
 /*
  * Wide screens: the pill lies in the lower-left corner where the painting has dissolved into
@@ -815,6 +836,136 @@ dialog :focus-visible {
   font-family: var(--ui-display);
   font-style: normal;
   font-size: 23px;
+}
+
+/* the sessions in progress, under the controls (ADR 0156) */
+.session-list {
+  margin-top: 34px;
+  max-width: 460px;
+}
+.session-list-title {
+  margin: 0 0 6px;
+  font-family: var(--ui-body);
+  font-style: italic;
+  font-weight: 500;
+  font-size: 19.5px;
+  letter-spacing: 0.03em;
+  color: var(--ui-ink-soft);
+}
+.session-rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.session-row {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 16px;
+  padding: 8px 0;
+}
+.session-thumb-frame {
+  position: relative;
+  width: 64px;
+  height: 64px;
+}
+.session-thumb,
+.session-thumb-window {
+  position: absolute;
+  inset: 0;
+  width: 64px;
+  height: 64px;
+  display: block;
+  /* the plant lies on the page's paper (ADR 0021) */
+  mix-blend-mode: multiply;
+  transition: filter var(--ui-slow) var(--ui-breath), opacity var(--ui-slow) var(--ui-breath);
+}
+.session-row[data-running='false'] .session-thumb {
+  /* waiting: held still, a little quieter */
+  filter: saturate(0.72);
+  opacity: 0.86;
+}
+.session-row-text > p {
+  margin: 0;
+}
+.session-row-task {
+  font-family: var(--ui-display);
+  font-size: 20px;
+  letter-spacing: 0.03em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.session-row-plan {
+  max-width: 180px;
+  height: 12px;
+  margin: 5px 0 3px;
+}
+.session-row-meta {
+  font-style: italic;
+  font-size: 18px;
+  color: var(--ui-ink-soft);
+  font-variant-numeric: lining-nums tabular-nums;
+}
+.session-row-act {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  justify-self: end;
+}
+.session-row-now {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-style: italic;
+  font-size: 18px;
+  color: var(--ui-ink-soft);
+  padding-right: 6px;
+}
+.now-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 46% 54% 40% 60% / 58% 44% 56% 42%;
+  background: var(--ui-vermilion);
+  opacity: 0.85;
+}
+.session-switch.quiet {
+  font-size: 19.5px;
+}
+.session-switch.seal {
+  /* the suggested one: a small seal, not a call to arms */
+  padding: 7px 18px 8px;
+  min-height: 44px;
+  font-size: 16.5px;
+  letter-spacing: 0.06em;
+}
+.session-list-foot {
+  margin-top: 10px;
+  margin-left: -13px;
+}
+.session-list[data-state='waiting'] .session-list-foot {
+  margin-top: 0;
+}
+.plant-another {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 20px;
+}
+.plant-another-seal {
+  width: 9px;
+  height: 9px;
+  border-radius: 46% 54% 40% 60% / 58% 44% 56% 42%;
+  background: var(--ui-vermilion);
+  opacity: 0.8;
+}
+.limit-note {
+  margin: 4px 0 0 13px;
+  max-width: 26em;
+  font-style: italic;
+  font-size: 19.5px;
+  line-height: 1.35;
+  color: var(--ui-ink);
 }
 
 /* your plant (ADR 0134) */

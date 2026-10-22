@@ -28,6 +28,7 @@ import { createPlantingSheet } from './planting-sheet';
 import { createPreviewCache } from './previews';
 import { createQuietLine } from './quiet-line';
 import { createScrollbar } from './scrollbar';
+import { createSessionList } from './session-list';
 import { createSmoothScroll } from './smooth-scroll';
 import { createStage } from './stage';
 import { createTimerPanel } from './timer-panel';
@@ -156,6 +157,7 @@ export function createUI(deps: UIDeps): UI {
 
   // ── components ────────────────────────────────────────────────────────────────────────
   const panel = createTimerPanel(ctx, { plant: (opener) => openPlanting(opener) });
+  const sessions = createSessionList(ctx, { plantAnother: (opener) => openPlanting(opener) });
   const pill = createPill(ctx, {
     start: (opener) => openPlanting(opener),
     jump: () => void jumpToControls(),
@@ -193,7 +195,8 @@ export function createUI(deps: UIDeps): UI {
   const labels = createPlantLabels(ctx, stage.canvas);
 
   // ── the dock: features plug in as sections (docs/ARCHITECTURE.md › Dock) ──────────────────
-  dock.addSection({ id: 'session', title: 'Study', order: 10, mount: (body) => void body.append(panel.el) });
+  // the session controls, then the sessions in progress (ADR 0156)
+  dock.addSection({ id: 'session', title: 'Study', order: 10, mount: (body) => void body.append(panel.el, sessions.el) });
   dock.addSection({ id: 'plant', title: 'Your plant', order: 20, mount: (body) => plantView.mount(body) });
   // the calendar task fills this (`ui.dock.fill('calendar', mount)`); hidden until then (ADR 0130)
   dock.addSection({ id: 'calendar', title: 'Calendar', order: 30, span: 'full' });
@@ -206,7 +209,7 @@ export function createUI(deps: UIDeps): UI {
   async function jumpToControls(): Promise<void> {
     const section = dock.get('session');
     if (!section) return;
-    const target = panel.focusTarget();
+    const target = sessions.focusTarget() ?? panel.focusTarget();
     await scroller.scrollToElement(section.el, { offset: 24 });
     (target ?? section.heading).focus({ preventScroll: true });
   }
@@ -246,8 +249,17 @@ export function createUI(deps: UIDeps): UI {
 
   // ── flows ─────────────────────────────────────────────────────────────────────────────
   let lastOpener: HTMLElement | null = null;
+  /** the active session when the planting sheet opened (another session may be running) */
+  let plantingOver: string | null = null;
   function openPlanting(opener?: HTMLElement | null): void {
-    if (controller.status().phase !== 'idle') return;
+    const st = controller.status();
+    if (!st.canStart) {
+      // up to three grow at once: say so gently and offer to switch instead (ADR 0156)
+      sessions.showLimit();
+      if (opener && !dock.el.contains(opener)) void jumpToControls();
+      return;
+    }
+    plantingOver = st.session?.id ?? null;
     lastOpener = opener ?? null;
     ctx.setMode('planting');
     planting.open(opener);
@@ -305,13 +317,14 @@ export function createUI(deps: UIDeps): UI {
   const refresh = () => {
     refreshQueued = false;
     if (disposed) return;
-    if (controller.status().phase !== 'idle' && mode !== 'garden') {
-      // a session started elsewhere (widget, dev tools, import): step out of planting
+    if (mode !== 'garden' && (controller.status().session?.id ?? null) !== plantingOver) {
+      // a session started or switched elsewhere (widget, dev tools, import): step out of planting
       if (planting.isOpen()) closeNow(planting.el);
       placement.close();
       ctx.setMode('garden');
     }
     panel.render();
+    sessions.render();
     pill.render();
     plantView.render();
     tools.render();
@@ -327,6 +340,7 @@ export function createUI(deps: UIDeps): UI {
   const offTick = controller.onTick(() => {
     const before = panel.view();
     panel.render();
+    sessions.render();
     pill.render();
     plantView.render();
     if (panel.view() !== before) ctx.changed();
@@ -360,6 +374,8 @@ export function createUI(deps: UIDeps): UI {
     panel: panel.view(),
     pill: pill.view(),
     plantView: plantView.state(),
+    sessions: sessions.state(),
+    pillMore: pill.more(),
     confirm: panel.confirm(),
     resting: panel.resting(),
     dialogs: ctx.openDialogs(),

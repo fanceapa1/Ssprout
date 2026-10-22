@@ -34,8 +34,9 @@ the widget surfaces — the UI then asks in the Begin click itself.
 | `smooth-scroll.ts` · `scroll-math.ts` | custom smooth scrolling (wheel/keys/jumps, native adoption, reduced motion) and its pure maths (ADR 0131) |
 | `scrollbar.ts` · `brush-path.ts` | the brush-stroke scrollbar; seeded vertical brush strokes |
 | `timer-panel.ts` | session controls in the dock's "Study" section: idle "Start studying"; studying: task, block label, block + total remaining, plan line with progress, Pause/End, break Water/Skip, cancel confirm, long-pause prompt; `resting` drives the root's `is-resting` |
-| `pill.ts` | the timer pill on the garden: idle "Start studying"; block time, Pause/Resume, "Session controls" (glide down + focus) (ADR 0133) |
-| `plant-section.ts` | "Your plant": live `renderPlantView`, watering on `session:water` / `water()`, wilt on cancel, latest bloom or an empty bed when idle; `paintRoundWindow`, `paintEmptyBed` (ADR 0134) |
+| `pill.ts` | the timer pill on the garden: idle "Start studying"; block time, Pause/Resume, "Session controls" (glide down + focus) (ADR 0133); "+N" when other sessions are in progress (ADR 0156) |
+| `session-list.ts` | the sessions in progress under the controls (ADR 0156): rows with a live 64 px plant, task, plan line, time left and Switch / Resume ("growing now" on the active one); "Plant another"; the gentle limit note |
+| `plant-section.ts` | "Your plant": the **active** session's plant, live `renderPlantView`, watering on `session:water` (tap or automatic, ADR 0153) / `water()`, wilt on cancel of that session, latest bloom or an empty bed when nothing is active; `paintRoundWindow`, `paintEmptyBed` (ADR 0134) |
 | `tools.ts` | garden tools, one implementation rendered twice: corner chips (`nav.menu`) and the dock list (`ul.tool-list`) (ADR 0135) |
 | `session-view.ts` | the one adapter from `controller.status()` to what the panel shows |
 | `planting-sheet.ts` | `<dialog>`: task name (≤ 40), total time, recommended plans, plant grid → "Choose a spot" (ADR 0053) |
@@ -66,7 +67,7 @@ the widget surfaces — the UI then asks in the Begin click itself.
 ```
 #ui (page, .ui-root) ─ section#stage ─ canvas#garden (masked edge)
                      │                └ .stage-ui: quiet line · plant label · markers · pill · nav.menu · placement bar
-                     ├ .dock: [Study | Your plant] · (Calendar, hidden placeholder) · Garden tools
+                     ├ .dock: [Study (controls + sessions in progress) | Your plant] · (Calendar, hidden placeholder) · Garden tools
                      └ fixed: .tips · .scrollbar · live region · dialogs (top layer)
 ```
 - Desktop: two columns (Study, Your plant), tools across; under 860 px one column; phones (≤ 600 px)
@@ -85,7 +86,16 @@ idle ── Start studying ──▶ planting sheet ── Choose a spot ──�
   └── End → "End this session? Your <plant> won’t bloom this time." Keep studying / End
   └── complete → quiet line "Your <Plant> for “<task>” has bloomed."
 paused ≥ 30 min → "Still with us?" Resume / End session
+
+several sessions (ADRs 0150–0156):
+focus ── Plant another ──▶ planting sheet ── … ── Begin ──▶ new session active, the previous one waits
+  ⇅ Switch (a row)                    at 3 in progress: the limit note, focus on the first Switch
+bloom / End ──▶ nothing active: rows offer Resume (the one left last as a small seal)
 ```
+- Starting while a session runs: the sheet opens over it (the session keeps running until Begin);
+  the planting flow steps out only if the active session changes elsewhere meanwhile.
+- "Still with us?" only ever concerns the active session the gardener paused; a waiting session
+  never asks (ADR 0150).
 - The `PlantingDraft` (task, minutes, plan, species, slot) is shared by the sheet and placement,
   so Back keeps everything. Changing the time re-reads plans and selectable species.
 - Begin is in the placement bar; markers select a spot (aria-pressed), double-click begins.
@@ -102,8 +112,9 @@ paused ≥ 30 min → "Still with us?" Resume / End session
 
 ## States (`window.sprout.ui.state()`)
 `{ mode, panel: 'idle'|'focus'|'break'|'paused'|'longPause', pill (same values), plantView: { mode:
-'growing'|'bloom'|'empty', speciesId, growth, watering, wilting }, confirm, resting, dialogs, tips,
-markers, line, plantLabel, draft }`.
+'growing'|'bloom'|'empty', speciesId, growth, watering, wilting }, sessions: { visible, rows: [{ id,
+taskName, active, running, action: 'switch'|'resume'|null, suggested, totalRemainingMs, growth }],
+limit }, pillMore, confirm, resting, dialogs, tips, markers, line, plantLabel, draft }`.
 
 ## Accessibility
 Real buttons with labels; `role=radiogroup` for plans; locked plants `aria-disabled`; ink focus
@@ -115,7 +126,7 @@ no fades.
 ## Tooltips
 Tips come from the core registry (`activeTips(state, ctx)`); the UI only decides placement.
 **One note at a time** (ADR 0124): `pickTips` (format.ts) takes the highest `TIP_PRIORITY`
-(placement, swap, water, task, duration, plan, notifications, widget, pressed, sound) whose control
+(placement, swap, water, task, duration, plan, notifications, switch, widget, pressed, sound) whose control
 is in view; the rest wait their turn. On first load that is the note by Start studying. A control
 that exists twice (Start studying on the pill and in the dock; the tools in the corner and the dock)
 is resolved to the dock's copy when it is in view, else the one on the garden, so notes follow the
@@ -179,7 +190,9 @@ clock and refreshes the UI (e.g. into a break or a long pause).
 ## Tests
 Unit: `format.test.ts`, `plan-line.test.ts`, `plant-labels.test.ts`, `previews.test.ts`,
 `ambient-light.test.ts`, `scroll-math.test.ts`, `dock.test.ts`, `stage-edge.test.ts`, `ink.test.ts`.
-E2E: `tests/e2e/ui-shell.spec.ts` (page and stage sizing, wheel/keys/reduced-motion scrolling,
+E2E: `tests/e2e/parallel-sessions.spec.ts` (start two, switch, waiting time frozen, limit of three,
+automatic watering in Your plant, the widget and title follow the active session, reload),
+`tests/e2e/ui-shell.spec.ts` (page and stage sizing, wheel/keys/reduced-motion scrolling,
 scrollbar drag, pointer mapping when scrolled, dock order and columns, dock controls + pill,
 duplicated tools, Your plant, tips in their new homes), `tests/e2e/ui-session.spec.ts` (sheet, begin, cancel, breaks/watering, long pause, completion,
 swap → herbarium, reload mid-session, keyboard), `ui-menu.spec.ts` (tips + hints, sound persistence,

@@ -107,6 +107,8 @@ export function createPlantSection(ctx: UIContext): PlantSection {
   const root = h('div.plant-view', { 'data-mode': 'empty' }, h('div.plant-frame', {}, backdrop, canvas), caption);
 
   let mode: PlantViewMode = 'empty';
+  /** the session shown (the active one), or null */
+  let sessionId: string | null = null;
   let speciesId: string | null = null;
   let seed = 1;
   let growth = 0;
@@ -196,10 +198,13 @@ export function createPlantSection(ctx: UIContext): PlantSection {
     const s = st.session;
     if (s && st.timeline) {
       mode = 'growing';
+      if (sessionId !== s.id && wateringStart !== null) wateringStart = null; // switched plants
+      sessionId = s.id;
       speciesId = s.speciesId;
       seed = s.seed;
       growth = st.timeline.growth;
     } else {
+      sessionId = null;
       const last = lastBloom();
       mode = last ? 'bloom' : 'empty';
       speciesId = last?.speciesId ?? null;
@@ -256,9 +261,13 @@ export function createPlantSection(ctx: UIContext): PlantSection {
     return true;
   }
 
-  const offWater = bus.on('session:water', () => void water());
-  const offCancel = bus.on('session:cancel', () => {
-    if (mode !== 'growing' || !speciesId) return;
+  // the shown (active) session's plant only: another session's events are not about this plant
+  const offWater = bus.on('session:water', (e) => {
+    update();
+    if (!e.sessionId || e.sessionId === sessionId) void water();
+  });
+  const offCancel = bus.on('session:cancel', (e) => {
+    if (mode !== 'growing' || !speciesId || e.sessionId !== sessionId) return;
     if (reducedMotion) return;
     wateringStart = null;
     wilt = { start: performance.now(), speciesId, seed, growth };

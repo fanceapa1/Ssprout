@@ -149,6 +149,144 @@ const section: StudioSection = {
       },
     },
     {
+      id: 'pill-more',
+      label: 'timer pill with other sessions in progress: focus “+2”, idle “+1” (ADR 0156)',
+      w: 330,
+      h: 140,
+      render(canvas, { pixelRatio }) {
+        const ctx = canvas.getContext('2d')!;
+        ctx.scale(pixelRatio, pixelRatio);
+        const rule = (x: number, y: number) => {
+          ctx.globalAlpha = 0.16;
+          ctx.fillStyle = INK;
+          ctx.fillRect(x, y + 10, 1, 34);
+          ctx.globalAlpha = 1;
+        };
+        // focus, two waiting
+        slip(ctx, 'dense-1', 10, 10, 292, 54);
+        text(ctx, '24:13', 28, 38, '24px "Shippori Mincho", serif');
+        text(ctx, 'focus', 102, 40, 'italic 16px "Cormorant Garamond", serif', '#5c5449');
+        drawIcon(ctx, 'pause', 150, 26, 22, INK);
+        rule(190, 10);
+        drawIcon(ctx, 'down', 204, 26, 22, INK);
+        rule(244, 10);
+        text(ctx, '+2', 256, 38, '16px "Shippori Mincho", serif', '#5c5449');
+        // idle, one waiting (after a bloom)
+        slip(ctx, 'dense-1', 10, 76, 250, 52);
+        ctx.fillStyle = VERMILION;
+        ctx.beginPath();
+        ctx.ellipse(34, 102, 5.5, 5, 0.4, 0, Math.PI * 2);
+        ctx.fill();
+        text(ctx, 'Start studying', 48, 103, '18px "Shippori Mincho", serif');
+        rule(200, 75);
+        text(ctx, '+1', 214, 103, '16px "Shippori Mincho", serif', '#5c5449');
+      },
+    },
+    {
+      id: 'session-thumbs',
+      label: 'session thumbnails: growing (0.1 / 0.45 / 0.85), then the same waiting (held, quieter)',
+      w: 420,
+      h: 160,
+      render(canvas, { seed, pixelRatio }) {
+        const def = species();
+        if (!def) return;
+        const ctx = canvas.getContext('2d')!;
+        const size = Math.round(64 * pixelRatio);
+        [0.1, 0.45, 0.85].forEach((g, i) => {
+          for (const waiting of [false, true]) {
+            const c = document.createElement('canvas');
+            c.width = size;
+            c.height = size;
+            paintRoundWindow(c, 2);
+            const p = document.createElement('canvas');
+            p.width = size;
+            p.height = size;
+            renderPlantView(p, { speciesId: def.id, seed, growth: g, watering: null });
+            c.getContext('2d')!.drawImage(p, 0, 0);
+            ctx.save();
+            if (waiting) {
+              ctx.filter = 'saturate(0.72)';
+              ctx.globalAlpha = 0.86;
+            }
+            ctx.drawImage(c, (14 + i * 136 + (waiting ? 66 : 0)) * pixelRatio, (waiting ? 84 : 12) * pixelRatio);
+            ctx.restore();
+          }
+        });
+      },
+    },
+    {
+      id: 'session-rows',
+      label: 'Study › sessions in progress: a waiting row (Switch), the active row, and none active (Resume, the one left last as a seal)',
+      w: 480,
+      h: 330,
+      render(canvas, { seed, pixelRatio }) {
+        const def = species();
+        if (!def) return;
+        const ctx = canvas.getContext('2d')!;
+        ctx.scale(pixelRatio, pixelRatio);
+        const thumb = (x: number, y: number, g: number, waiting: boolean) => {
+          const size = Math.round(64 * pixelRatio);
+          const c = document.createElement('canvas');
+          c.width = size;
+          c.height = size;
+          paintRoundWindow(c, 2);
+          const p = document.createElement('canvas');
+          p.width = size;
+          p.height = size;
+          renderPlantView(p, { speciesId: def.id, seed, growth: g, watering: null });
+          c.getContext('2d')!.drawImage(p, 0, 0);
+          ctx.save();
+          if (waiting) {
+            ctx.filter = 'saturate(0.72)';
+            ctx.globalAlpha = 0.86;
+          }
+          ctx.drawImage(c, x, y, 64, 64);
+          ctx.restore();
+        };
+        const line = (x: number, y: number, w: number, done: number) => {
+          ctx.strokeStyle = 'rgba(59, 53, 46, 0.38)';
+          ctx.lineWidth = 1.4;
+          ctx.beginPath();
+          ctx.moveTo(x, y);
+          ctx.lineTo(x + w, y);
+          ctx.stroke();
+          ctx.strokeStyle = 'rgba(59, 53, 46, 0.85)';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(x, y);
+          ctx.lineTo(x + w * done, y);
+          ctx.stroke();
+        };
+        const row = (y: number, task: string, meta: string, g: number, act: 'switch' | 'now' | 'resume' | 'seal') => {
+          thumb(10, y, g, act !== 'now');
+          text(ctx, task, 90, y + 14, '19px "Shippori Mincho", serif');
+          line(90, y + 32, 170, g);
+          text(ctx, meta, 90, y + 50, 'italic 16px "Cormorant Garamond", serif', '#5c5449');
+          if (act === 'switch' || act === 'resume') text(ctx, act === 'switch' ? 'Switch' : 'Resume', 390, y + 32, '18px "Cormorant Garamond", serif');
+          if (act === 'now') {
+            ctx.fillStyle = VERMILION;
+            ctx.beginPath();
+            ctx.ellipse(352, y + 32, 4, 3.6, 0.4, 0, Math.PI * 2);
+            ctx.fill();
+            text(ctx, 'growing now', 362, y + 33, 'italic 16px "Cormorant Garamond", serif', '#5c5449');
+          }
+          if (act === 'seal') {
+            ctx.fillStyle = VERMILION;
+            ctx.fillRect(374, y + 14, 92, 38);
+            ctx.strokeStyle = 'rgba(247, 240, 225, 0.42)';
+            ctx.strokeRect(378, y + 18, 84, 30);
+            text(ctx, 'Resume', 390, y + 33, '15px "Shippori Mincho", serif', '#f7f0e1');
+          }
+        };
+        text(ctx, 'Growing now', 10, 12, 'italic 17px "Cormorant Garamond", serif', '#5c5449');
+        row(26, 'Biology ch. 4', '18:40 left · waiting', 0.3, 'switch');
+        row(98, 'Essay draft', '32:05 left', 0.55, 'now');
+        text(ctx, 'Waiting for you', 10, 186, 'italic 17px "Cormorant Garamond", serif', '#5c5449');
+        row(200, 'Biology ch. 4', '18:40 left · waiting', 0.3, 'resume');
+        row(264, 'Maths set', '9:12 left · waiting', 0.8, 'seal');
+      },
+    },
+    {
       id: 'plant-view-empty',
       label: 'Your plant: an empty bed (idle, no blooms yet)',
       w: 220,

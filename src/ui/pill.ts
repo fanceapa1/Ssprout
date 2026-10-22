@@ -18,6 +18,8 @@ export interface Pill {
   readonly el: HTMLElement;
   render(): void;
   view(): PillView;
+  /** the "+N" shown: other sessions in progress (0 = none, hidden) */
+  more(): number;
   /** the pause button (keyboard focus lands here after Begin) */
   readonly pause: HTMLButtonElement;
 }
@@ -51,8 +53,11 @@ export function createPill(ctx: UIContext, actions: PillActions): Pill {
     fragment(ICONS.down),
   );
   const session = h('div.pill-session', {}, timer, sr, pause, resume, jump);
+  // other sessions in progress: a small "+2" that leads down to them (ADR 0156)
+  const moreBtn = h('button.pill-more', { type: 'button', onclick: () => actions.jump() });
 
-  const el = h('div.pill.slip', { 'data-ui': 'pill', 'data-view': 'idle', role: 'group', 'aria-label': 'Timer' }, startBtn, session);
+  const el = h('div.pill.slip', { 'data-ui': 'pill', 'data-view': 'idle', role: 'group', 'aria-label': 'Timer' }, startBtn, session, moreBtn);
+  let more = 0;
 
   function render(): void {
     const v = sessionView(ctx);
@@ -61,6 +66,16 @@ export function createPill(ctx: UIContext, actions: PillActions): Pill {
     el.dataset.view = view;
     show(startBtn, view === 'idle');
     show(session, view !== 'idle');
+    const st = controller.status();
+    more = st.sessions.length - (st.session ? 1 : 0);
+    show(moreBtn, more > 0);
+    el.dataset.more = String(more);
+    if (more > 0) {
+      setText(moreBtn, `+${more}`);
+      const label = `${more === 1 ? 'One more session is' : `${more} more sessions are`} waiting — show them`;
+      moreBtn.setAttribute('aria-label', label);
+      moreBtn.title = label;
+    }
     if (!v) return;
     setText(time, formatTimer(v.blockRemainingMs));
     setText(word, view === 'break' ? 'break' : view === 'focus' ? 'focus' : 'paused');
@@ -74,6 +89,7 @@ export function createPill(ctx: UIContext, actions: PillActions): Pill {
     el,
     render,
     view: () => current,
+    more: () => more,
     pause,
   };
 }

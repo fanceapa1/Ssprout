@@ -152,7 +152,21 @@ export function createTimerPanel(ctx: UIContext, actions: TimerPanelActions): Ti
 
     if (!v) {
       const n = ctx.deps.store.get().plants.length;
-      setText(idleLine, n === 0 ? 'Name a task, choose a plant, and watch it grow while you work.' : n === 1 ? 'One plant is growing in your garden.' : `${n} plants are growing in your garden.`);
+      const waiting = controller.status().sessions;
+      // others wait (after a bloom): the list below offers Resume, so starting anew steps back
+      plantBtn.className = `${waiting.length > 0 ? 'quiet ink' : 'seal'} plant-session`;
+      setText(
+        idleLine,
+        waiting.length === 1
+          ? `“${waiting[0]!.session.taskName}” is waiting for you.`
+          : waiting.length > 1
+            ? `${waiting.length === 2 ? 'Two' : 'Three'} sessions are waiting for you.`
+            : n === 0
+              ? 'Name a task, choose a plant, and watch it grow while you work.'
+              : n === 1
+                ? 'One plant is growing in your garden.'
+                : `${n} plants are growing in your garden.`,
+      );
     } else {
       setText(taskName, v.taskName);
       const plantLower = inSentence(v.plantName);

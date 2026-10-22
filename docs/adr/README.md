@@ -91,10 +91,10 @@ commit, and when it replaces or changes an earlier decision, update that ADR's S
 | [0125](0125-small-plant-design-box.md) | Small-plant design box | accepted | Tier-1 plants draw in a 70-unit design box scaled into a larger garden box (86) |
 | [0126](0126-open-sides-in-the-drying-pass.md) | Open sides in the drying pass | accepted | No false wet edge where a wash is cut off by the canvas |
 | [0127](0127-timer-slip-in-the-corner.md) | Timer slip in the corner | superseded by 0133 | The timer panel lies in the lower-left corner on wide screens |
-| [0130](0130-page-shell-stage-and-dock.md) | Page shell: stage and dock | accepted | Garden stage 88svh under a small margin; a registry of dock sections below; calendar placeholder hidden |
+| [0130](0130-page-shell-stage-and-dock.md) | Page shell: stage and dock | accepted; amended by 0156 | Garden stage 88svh under a small margin; a registry of dock sections below; calendar placeholder hidden |
 | [0131](0131-custom-smooth-scroll-and-scrollbar.md) | Custom smooth scroll and scrollbar | accepted | Native document scroll, eased wheel/keys, glided jumps, touch native, reduced motion instant; brush scrollbar |
 | [0132](0132-garden-edge-mask-and-page-paper.md) | Garden edge mask, page paper | accepted | The canvas dissolves into the page through a CSS mask; the page tile is the garden's own washi |
-| [0133](0133-timer-pill-on-the-garden.md) | Timer pill on the garden | accepted | Only a small pill (time, pause/resume, go to controls) stays on the painting |
+| [0133](0133-timer-pill-on-the-garden.md) | Timer pill on the garden | accepted; amended by 0156 | Only a small pill (time, pause/resume, go to controls) stays on the painting |
 | [0134](0134-your-plant-view.md) | Your plant view | accepted | Live `renderPlantView` in the dock; plays watering on `session:water` or `water()`; latest bloom when idle |
 | [0135](0135-garden-tools-twice-one-state.md) | Garden tools twice, one state | accepted | One tool set rendered in the corner and the dock; bigger, clearer ink icons on paper chips |
 | [0136](0136-bigger-darker-type.md) | Bigger, darker type | accepted | Base 21 px, weight 500, ink tokens ≥ 4.5:1 checked by a test |
@@ -114,4 +114,5 @@ commit, and when it replaces or changes an earlier decision, update that ADR's S
 | [0153](0153-automatic-focus-watering.md) | Automatic focus watering | accepted | Seeded 4–10 min intervals of focused time; one `session:water { auto: true }` per due batch, only in focus |
 | [0154](0154-schema-v2-migration.md) | Schema v2 and the v1 → v2 migration | accepted | v1 session stays active, nothing waits, log back-filled from plants; v2 validation rules |
 | [0155](0155-several-seedlings-in-the-garden.md) | Several seedlings in the garden | accepted | One growing record per session in progress; waiting seedlings hold their growth and sway calm; water by `sessionId` |
+| [0156](0156-sessions-in-progress-in-the-study-section.md) | Sessions in progress in the Study section | accepted | Rows with a live thumbnail, plan line, time left, Switch/Resume; "Plant another"; a gentle limit note; the pill's "+N"; a switch tip |
 | [0157](0157-widget-follows-the-active-session-and-switches.md) | Widget follows the active session and switches | accepted | Title, favicon, notifications, card follow the active session; Switch cycles in start order; Resume when none is active |

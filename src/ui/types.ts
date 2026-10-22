@@ -7,6 +7,7 @@ import type { Viewport } from '../render/viewport';
 import type { Slot } from '../scene/geometry';
 import type { Dock } from './dock';
 import type { PlantViewState } from './plant-section';
+import type { SessionListState } from './session-list';
 import type { ScrollOptions, ScrollState } from './smooth-scroll';
 
 /**
@@ -110,6 +111,10 @@ export interface UIState {
   pill: 'idle' | 'focus' | 'break' | 'paused' | 'longPause';
   /** the dock's "Your plant" view */
   plantView: PlantViewState;
+  /** the sessions in progress listed under the controls (ADR 0156) */
+  sessions: SessionListState;
+  /** the pill's "+N": how many other sessions are in progress (0: not shown) */
+  pillMore: number;
   /** inline confirmation currently shown in the panel */
   confirm: 'cancel' | null;
   /** the controls on the painting (pill, corner icons) rest while focusing */

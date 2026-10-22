@@ -410,8 +410,12 @@ Foundation (`src/dev/debug.ts`): `state()`, `ready()` (resolves when all systems
 ms per frame and rAF intervals over the last 600 frames), `resetFrameStats()`.
 
 Core logic (`src/dev/core-debug.ts`): `reset()`, `seed(n)`, `start(min?, { taskName?, planId?,
-speciesId?, slotId? })` (`min` defaults to `settings.lastGoalMinutes`; returns the session or null),
-`pause()`, `resume()`, `water()`, `skipBreak()`, `cancel()`, `toBreak()`, `skipToBlock(i)`,
+speciesId?, slotId? })` (`min` defaults to `settings.lastGoalMinutes`; returns the session or null;
+with others in progress the new one becomes active, null at the limit), `startSessions(n, min?, gapMs?)`
+(ids), `sessions()` (every session in progress: id, task, species, slot, active, running, elapsedMs,
+totalRemainingMs, growth, pausedAt, focusWaterings), `switchTo(id)`, `log()`, `nextFocusWatering()`,
+`focusWater()` (jump to the next automatic watering and play it),
+`pause()`, `resume()`, `water()`, `skipBreak()`, `cancel(id?)`, `toBreak()`, `skipToBlock(i)`,
 `completeSession()` (these jump the dev clock), `plans(min)`, `selectableSpecies(min)`,
 `placementOptions(speciesId?)`, `addPlants(n, tier?)` (finished plants with task names),
 `setState(partial)` (validated), `status()`, `flush()`, `exportState()`, `importState(json)`.
@@ -490,7 +494,8 @@ interface Dock { el; addSection(def): DockSection /* throws on duplicate/malform
   removeSection(id); get(id): DockSection | null; sections(): { id, title, order, span, filled, visible }[]; onChange(fn): () => void }
 ```
 Order: by `order`, then registration. A section without `mount` is a hidden placeholder until
-`fill`. Registered by the UI: `session` "Study" (10), `plant` "Your plant" (20), `calendar`
+`fill`. Registered by the UI: `session` "Study" (10; the controls, then the sessions in progress,
+ADR 0156), `plant` "Your plant" (20), `calendar`
 "Calendar" (30, full, **placeholder**), `tools` "Garden tools" (90, full). Wide screens: two
 columns (`half` sections side by side); under 860 px one column.
 
@@ -498,8 +503,9 @@ columns (`half` sections side by side); under 860 px one column.
 (ADR 0131). Wheel and arrow keys ease, page keys/Home/End/jumps glide, touch is native, reduced
 motion lands at once; native scrolls are adopted. The custom scrollbar is `aria-hidden` decoration.
 
-**Plant view** — `ui.plantView = { water(): boolean, state() }` (ADR 0134). It also plays on every
-`session:water` bus event; the automatic focus watering (phase 7) emits that event.
+**Plant view** — `ui.plantView = { water(): boolean, state() }` (ADR 0134). It shows the active
+session's plant and plays on every `session:water` bus event for it — the tap in a break and the
+automatic focus watering (`auto: true`, ADR 0153).
 
 ## Timer surfaces (`src/widget/`, ADRs 0090–0094)
 `createTimerSurfaces({ controller, store, bus, clock, win?, notificationEnv?, openHost? })` →
