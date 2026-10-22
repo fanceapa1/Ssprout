@@ -11,7 +11,7 @@ import { allSpecies } from './registry';
  * docs/devlog/15-qa-docs.md): the test fails both when a new species cannot be planted and when
  * a listed one becomes plantable, so the list is kept honest.
  */
-const KNOWN_UNPLANTABLE = ['lotus']; // size class `large`, but every water slot is medium or small
+const KNOWN_UNPLANTABLE: string[] = [];
 
 describe('every species can be planted in the garden', () => {
   it('has a compatible slot for each species (except the tracked bugs)', () => {

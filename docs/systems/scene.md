@@ -86,7 +86,7 @@ then broken by ~26 horizontal lifted strokes.
 
 | Habitat | n | Where | maxSize |
 |---|---|---|---|
-| `water` | 7 | open water, ≥ 30 from the edge | medium (2 small) |
+| `water` | 7 | open water, ≥ 30 from the edge | 2 large (lotus), 3 medium, 2 small |
 | `shore` | 9 | pond rim between boulders, ≤ 45 from the edge | medium (2 large) |
 | `meadow` | 16 | left/right banks and the near mounds | large / medium |
 | `path` | 7 | on the grass beside the stepping stones, never on them | small (2 medium) |

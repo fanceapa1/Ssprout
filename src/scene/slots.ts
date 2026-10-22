@@ -36,9 +36,9 @@ type SlotSpec = [id: string, x: number, y: number, maxSize: SizeClass];
 const SPECS: Record<Habitat, SlotSpec[]> = {
   // on the open water, clear of the edges and of each other (lilies, lotus)
   water: [
-    ['water-1', 600, 560, 'medium'],
+    ['water-1', 600, 560, 'large'],
     ['water-2', 716, 612, 'medium'],
-    ['water-3', 850, 520, 'medium'],
+    ['water-3', 850, 520, 'large'],
     ['water-4', 952, 612, 'medium'],
     ['water-5', 1064, 548, 'medium'],
     ['water-6', 1160, 600, 'small'],
