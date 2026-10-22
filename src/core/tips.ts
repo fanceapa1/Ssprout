@@ -18,7 +18,8 @@ export type TipId =
   | 'water'
   | 'pressed'
   | 'sound'
-  | 'switch';
+  | 'switch'
+  | 'schedule';
 
 /** Facts the state alone cannot tell (supplied by the UI). */
 export interface TipContext {
@@ -111,6 +112,13 @@ export const TIPS: readonly TipDef[] = [
     relevant: (s) => s.pressed.length > 0,
   },
   {
+    id: 'schedule',
+    anchor: 'schedule-add',
+    copy: 'Plan a study time ahead. When it comes, a card will wait here to start it.',
+    // once the gardener knows a session (a first bloom), and only while nothing is planned
+    relevant: (s) => s.schedules.length === 0 && s.log.some((e) => e.outcome === 'completed'),
+  },
+  {
     id: 'sound',
     anchor: 'sound',
     copy: 'Tap the speaker for quiet garden sounds. It starts muted.',
@@ -167,6 +175,9 @@ export function tipsRetiredBy(action: Action, prev: GardenState, next: GardenSta
       break;
     case 'session/switch':
       used.push('switch');
+      break;
+    case 'schedule/add':
+      used.push('schedule');
       break;
     case 'settings/update':
       if (next.settings.muted !== prev.settings.muted) used.push('sound');

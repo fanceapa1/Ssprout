@@ -102,6 +102,7 @@ export const TIP_GROUP: Readonly<Record<string, string>> = {
   swap: 'garden',
   pressed: 'menu',
   sound: 'menu',
+  schedule: 'calendar',
 };
 
 /** Which relevant tips win when more are active than fit (first = most important); unknown ids last. */
@@ -116,6 +117,7 @@ export const TIP_PRIORITY: readonly string[] = [
   'switch',
   'widget',
   'pressed',
+  'schedule',
   'sound',
 ];
 
@@ -132,6 +134,7 @@ const TIP_SIDES: Readonly<Record<string, Side[]>> = {
   swap: ['above', 'below', 'right', 'left'],
   pressed: ['below', 'left'],
   sound: ['below', 'left'],
+  schedule: ['below', 'left', 'above'],
 };
 
 /** Preferred sides for a tip's note around its control, best first. */

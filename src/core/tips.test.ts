@@ -36,6 +36,7 @@ describe('tip registry', () => {
       'water',
       'switch',
       'pressed',
+      'schedule',
       'sound',
     ]);
     for (const t of TIPS) {
@@ -110,6 +111,21 @@ describe('tipsRetiredBy', () => {
   it('toggling sound retires sound; answering permission retires notifications', () => {
     expect(step(idle(), { type: 'settings/update', patch: { muted: false } })).toEqual(['sound']);
     expect(step(idle(), { type: 'settings/update', patch: { notifications: 'granted' } })).toEqual(['notifications']);
+  });
+
+  it('planning a session retires schedule', () => {
+    const s: GardenState = {
+      ...idle(),
+      log: [{ id: 'a', outcome: 'completed', taskName: 't', speciesId: 'violet', slotId: 'meadow-1', seed: 1, plan: null, goalMinutes: 25, focusedMinutes: 25, startedAt: T0, endedAt: T0 + 25 * MIN }],
+    };
+    expect(ids(idle())).not.toContain('schedule'); // not before a first bloom
+    expect(ids(s)).toContain('schedule');
+    const add: Action = {
+      type: 'schedule/add',
+      schedule: { id: 'x', name: 'n', date: '2026-10-23', time: '09:00', lengthMinutes: null, planId: null, repeat: 'none', until: null, notes: {}, createdAt: 0 },
+    };
+    expect(step(s, add)).toEqual(['schedule']);
+    expect(ids(reducer(s, add))).not.toContain('schedule');
   });
 
   it('nothing for no-op actions, already retired tips or unrelated actions', () => {
