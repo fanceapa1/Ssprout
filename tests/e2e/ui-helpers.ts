@@ -3,8 +3,33 @@ import { expect, openDev } from './fixtures';
 
 export const MIN = 60_000;
 
+/**
+ * Turn off the UI's CSS animations and shorten its transitions to 1 ms, exactly as the app's own
+ * `prefers-reduced-motion` stylesheet does for the UI (src/ui/ui.css), without switching the
+ * garden into reduced motion. `?uitime` scales the UI's JS delays, but CSS keeps its real
+ * durations: the planting sheet rises for 900 ms and Playwright waits for a clicked element to stop
+ * moving, which stretches to seconds on a loaded machine. Nothing in the UI listens for
+ * transition/animation events, so this changes timing only. Installed as an init script, so it
+ * survives reloads and also applies inside the widget iframes.
+ */
+export async function calmUiMotion(page: Page): Promise<void> {
+  await page.addInitScript(() => {
+    const css = `.ui-root *, .ui-root *::before, dialog.sheet, dialog.sheet *, dialog.sheet::backdrop {
+      animation: none !important; transition-duration: 1ms !important; }`;
+    const add = () => {
+      const style = document.createElement('style');
+      style.dataset.test = 'calm-ui-motion';
+      style.textContent = css;
+      document.head.append(style);
+    };
+    if (document.head) add();
+    else document.addEventListener('DOMContentLoaded', add, { once: true });
+  });
+}
+
 /** Open the garden with fixture species and fast UI delays, on a fresh seeded garden. */
 export async function openUi(page: Page, query = ''): Promise<void> {
+  await calmUiMotion(page);
   await openDev(page, `fixtures&uitime=0.02${query ? `&${query}` : ''}`);
   await page.evaluate(() => {
     window.sprout!.reset();

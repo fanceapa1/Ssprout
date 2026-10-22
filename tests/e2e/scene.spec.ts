@@ -1,21 +1,35 @@
 import type { Page } from '@playwright/test';
 import { canvasStats, expect, openDev, test } from './fixtures';
 
-/** Colour of the garden canvas at a world point (after the frame is frozen). */
+/** Mean colour of the garden canvas around a world point (after the frame is frozen), via the live viewport. */
 function pixelAtWorld(page: Page, x: number, y: number) {
   return page.evaluate(
     ([wx, wy]) => {
       const c = document.querySelector<HTMLCanvasElement>('#garden')!;
-      const ctx = c.getContext('2d')!;
-      // cover scaling around the pond focus, like the viewport (landscape test screens show all)
-      const scale = Math.max(c.width / 1600, c.height / 1000);
-      const ox = (c.width - 1600 * scale) / 2;
-      const oy = Math.min(0, Math.max(c.height - 1000 * scale, c.height / 2 - 560 * scale));
-      const d = ctx.getImageData(Math.round(wx! * scale + ox), Math.round(wy! * scale + oy), 1, 1).data;
-      return { r: d[0]!, g: d[1]!, b: d[2]! };
+      const d = window.sprout!.plants.toDevice({ x: wx!, y: wy!, w: 1, h: 1 })!;
+      // a 9×9 device-pixel average, so a passing water strider cannot decide the colour
+      const px = c.getContext('2d')!.getImageData(Math.round(d.x) - 4, Math.round(d.y) - 4, 9, 9).data;
+      let r = 0;
+      let g = 0;
+      let b = 0;
+      for (let i = 0; i < px.length; i += 4) {
+        r += px[i]!;
+        g += px[i + 1]!;
+        b += px[i + 2]!;
+      }
+      const n = px.length / 4;
+      return { r: r / n, g: g / n, b: b / n };
     },
     [x, y],
   );
+}
+
+/** A point of open water: the pond polygon's vertex average (the scene keeps boulders on its rim). */
+function pondCentre(page: Page) {
+  return page.evaluate(() => {
+    const pond = window.sprout!.fauna.pond();
+    return { x: pond.reduce((a, p) => a + p.x, 0) / pond.length, y: pond.reduce((a, p) => a + p.y, 0) / pond.length };
+  });
 }
 
 test.describe('scene', () => {
@@ -29,7 +43,8 @@ test.describe('scene', () => {
     const stats = await canvasStats(page);
     expect(stats.distinctColours).toBeGreaterThan(200); // a painting, not flat fills
     const sky = await pixelAtWorld(page, 800, 120);
-    const pond = await pixelAtWorld(page, 830, 600);
+    const centre = await pondCentre(page);
+    const pond = await pixelAtWorld(page, centre.x, centre.y);
     // sky stays close to washi paper; the pond is cooler (green/blue above red) and darker
     expect(sky.r).toBeGreaterThan(215);
     expect(sky.r).toBeGreaterThanOrEqual(sky.b);

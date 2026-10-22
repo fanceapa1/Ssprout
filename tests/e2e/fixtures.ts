@@ -28,6 +28,15 @@ export async function openDev(page: Page, query = ''): Promise<void> {
   await page.evaluate(() => window.sprout!.ready());
 }
 
+/**
+ * Wait for `n` rendered garden frames (the renderer's own frame counter, `sprout.frameStats()`),
+ * instead of sleeping for a wall-clock time: on a loaded machine frames simply arrive later.
+ */
+export async function waitFrames(page: Page, n: number): Promise<void> {
+  await page.evaluate(() => window.sprout!.resetFrameStats());
+  await page.waitForFunction((count) => window.sprout!.frameStats().frames >= count, n, { polling: 'raf' });
+}
+
 /** Average RGB + spread of the garden canvas, read back from the page. */
 export async function canvasStats(page: Page, selector = '#garden') {
   return page.evaluate((sel) => {

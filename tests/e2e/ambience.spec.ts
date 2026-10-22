@@ -1,4 +1,4 @@
-import { canvasStats, expect, openDev, test } from './fixtures';
+import { canvasStats, expect, openDev, test, waitFrames } from './fixtures';
 
 /** Mean absolute RGB difference between two canvas readouts. */
 const delta = (a: { r: number; g: number; b: number }, b: { r: number; g: number; b: number }) =>
@@ -118,9 +118,9 @@ test.describe('ambience & lighting', () => {
       window.sprout!.setTime('night');
       window.sprout!.setWeather('rain');
     });
-    // let the moving average settle over real frames
+    // let the moving average (α 0.05) settle over 90 real frames: the start value weighs < 1 %
     await page.waitForFunction(() => (window.sprout!.ambience()!.lightingPaints ?? 0) > 0);
-    await page.evaluate(() => new Promise((r) => setTimeout(r, 1500)));
+    await waitFrames(page, 90);
     const ms = (await page.evaluate(() => window.sprout!.ambience()!)).ms;
     expect(ms).toBeGreaterThan(0);
     expect(ms).toBeLessThan(1.5);
