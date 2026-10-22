@@ -10,12 +10,14 @@ import { bounds, type Rect } from '../paint/geometry';
 import { WORLD_H, WORLD_W } from '../render/viewport';
 import type { SceneGeometry } from '../scene/geometry';
 import { createEnvelope, settleEnvelope, stepEnvelope, targetsFor, type Channel, type EnvelopeState, type Levels } from './envelope';
-import { createLightingCache, LIGHT, type LightingCache } from './lighting';
+import { createCastLight, type CastLight, type LightArt } from './cast';
+import { LIGHT } from './lighting';
+import { pinnedState, only, type DayPhase, type DaylightState } from './daylight';
 import { MOTE, type Emitter } from './motes';
 import { pavilionFrame } from '../scene/paint-pavilion';
 import { createSim, lifeAlpha, setSimArea, stepSim, warmSim, type Eave, type Sim } from './sim';
 import { buildSprites, type Sprites } from './sprites';
-import { gradeAt, gradeDistance, timeName, type Grade, type TimeName } from './timeofday';
+import { gradeFor, type Grade } from './timeofday';
 import { wind as defaultWind, type WindFn } from './wind';
 
 type Ctx = CanvasRenderingContext2D;
@@ -44,6 +46,8 @@ export const LOOK = {
   dripMaxLen: 30,
   flameAlpha: 0.22,
   flameSize: 5,
+  /** how much colour the night takes out before its indigo glaze (saturation blend) */
+  nightDesaturate: 0.38,
 } as const;
 
 export interface AmbienceFrame {
@@ -54,8 +58,10 @@ export interface AmbienceFrame {
   weather: Weather | null;
   /** mote sources (plants) */
   emitters: readonly Emitter[];
-  /** local hour, 0–24 */
-  hour: number;
+  /** the garden's daylight now (phase weights, sun, moon) */
+  light: DaylightState;
+  /** force the light to recompose now (e.g. after `setTime`) */
+  lightChanged?: boolean;
 }
 
 export interface AmbienceOptions {
@@ -67,6 +73,8 @@ export interface AmbienceOptions {
   /** eave for the rain drip line (default: from the scene's pavilion; null = none) */
   eave?: Eave | null;
   wind?: WindFn;
+  /** painting-only layout the light plates throw shadows from (default: none but the geometry's) */
+  lightArt?: LightArt;
 }
 
 export interface AmbienceDebug {
@@ -74,11 +82,12 @@ export interface AmbienceDebug {
   weather: Weather | null;
   preview: Weather | null;
   levels: Levels;
-  hour: number;
-  time: TimeName;
+  /** the dominant daylight phase and the weights of all four */
+  time: DayPhase;
+  weights: DaylightState['weights'];
   counts: { rain: number; ripples: number; glints: number; motes: number; drips: number };
   lightingPaints: number;
-  /** cost of the last lighting repaint (ms; repaints happen every few seconds at most) */
+  /** cost of the light plates painted so far (ms; each phase is painted once) */
   lightingMs: number;
   reducedMotion: boolean;
 }
@@ -130,7 +139,7 @@ export function createAmbience(opts: AmbienceOptions): Ambience {
   const seed = opts.seed ?? 'ambience';
   const pondBox = bounds(scene.pond);
   const sprites: Sprites = spritesFor(scene, seed, { pondTop: pondBox.y, pondBottom: pondBox.y + pondBox.h });
-  const lighting: LightingCache = createLightingCache(scene, `${seed}-light`);
+  const cast: CastLight = castFor(scene, opts.lightArt ?? NO_ART, `${seed}-cast`);
   const area0 = opts.area ?? { x: 0, y: 0, w: WORLD_W, h: WORLD_H };
   /** the visible area: on tall phones it reaches above and below the world (bare paper there) */
   let view: Rect = area0;
@@ -138,13 +147,10 @@ export function createAmbience(opts: AmbienceOptions): Ambience {
   let env: EnvelopeState = createEnvelope({ motion: 1 });
   let pendingSettle = true;
   let lightDirty = true;
-  let sinceLight = 0;
-  let painted: Grade | null = null;
-  let grade: Grade = gradeAt(12);
+  let sinceLight = Infinity;
+  let light: DaylightState = pinnedState(only('midday'));
+  let grade: Grade = gradeFor(light.weights);
   let paints = 0;
-  let paintMs = 0;
-  const perfNow = () => (typeof performance !== 'undefined' ? performance.now() : 0);
-  let hour = 12;
   let phase: SessionPhase = 'idle';
   let weather: Weather | null = null;
   let staticKey = '';
@@ -160,7 +166,8 @@ export function createAmbience(opts: AmbienceOptions): Ambience {
     return pondPath;
   };
 
-  const daylight = () => 1 - 0.85 * Math.min(1, grade.lantern);
+  /** how much daylight there is for sunny effects (shafts, glints): none at night */
+  const daylight = () => 1 - 0.85 * Math.min(1, light.weights.night);
   const pondTop = pondBox.y;
   let mistVeil: { top: number; to: number; fill: CanvasGradient } | null = null;
 
@@ -180,7 +187,8 @@ export function createAmbience(opts: AmbienceOptions): Ambience {
     update(frame) {
       phase = frame.phase;
       weather = frame.weather;
-      hour = frame.hour;
+      light = frame.light;
+      if (frame.lightChanged) lightDirty = true;
       const targets = targetsFor(frame.phase, frame.weather, { preview: api.preview, reducedMotion });
       const input = { levels: targets, wind: windFn, emitters: frame.emitters };
       const key = `${targets.sun}|${targets.rain}|${targets.mist}`;
@@ -202,18 +210,15 @@ export function createAmbience(opts: AmbienceOptions): Ambience {
       }
       if (!reducedMotion) flameT += frame.dt;
 
-      // lighting: repaint on demand, else every few seconds if the grade moved
+      // lighting: recompose on demand, else every few seconds if the light moved
       sinceLight += frame.dt;
-      const next = gradeAt(hour);
-      if (lightDirty || (sinceLight >= LIGHT.redrawS && (!painted || gradeDistance(next, painted) > LIGHT.redrawEps))) {
-        grade = next;
-        const t0 = perfNow();
-        lighting.paint(grade);
-        paintMs = perfNow() - t0;
-        painted = grade;
-        paints++;
-        lightDirty = false;
+      if (lightDirty || frame.dt === 0 || sinceLight >= LIGHT.redrawS) {
         sinceLight = 0;
+        if (cast.update(light, lightDirty)) {
+          grade = gradeFor(light.weights);
+          paints++;
+        }
+        lightDirty = false;
       }
     },
     drawWater(ctx) {
@@ -347,14 +352,21 @@ export function createAmbience(opts: AmbienceOptions): Ambience {
     },
     drawLighting(ctx, alpha = 1) {
       if (alpha <= 0.002) return;
-      if (grade.amount <= 0.004 && grade.lantern <= 0.004 && grade.glow <= 0.004) return;
+      // colours fade at night before they darken (the eye's night vision): a cool desaturating glaze
+      const desat = LOOK.nightDesaturate * light.weights.night * alpha;
+      if (desat > 0.004) {
+        ctx.globalCompositeOperation = 'saturation';
+        ctx.globalAlpha = desat;
+        ctx.fillStyle = 'rgb(120,124,138)';
+        ctx.fillRect(view.x, view.y, view.w, view.h);
+      }
       ctx.globalAlpha = alpha;
       ctx.globalCompositeOperation = 'multiply';
       ctx.imageSmoothingEnabled = true;
       ctx.imageSmoothingQuality = 'low';
-      ctx.drawImage(lighting.canvas as CanvasImageSource, 0, 0, WORLD_W, WORLD_H);
+      ctx.drawImage(cast.canvas as CanvasImageSource, 0, 0, WORLD_W, WORLD_H);
       // paper shown beyond the world's top/bottom (tall phones) takes the light of the nearest edge
-      const lc = lighting.canvas as CanvasImageSource & { width: number; height: number };
+      const lc = cast.canvas as CanvasImageSource & { width: number; height: number };
       if (view.y < 0) ctx.drawImage(lc, 0, 0, lc.width, 1, 0, view.y, WORLD_W, -view.y);
       const below = view.y + view.h - WORLD_H;
       if (below > 0) ctx.drawImage(lc, 0, lc.height - 1, lc.width, 1, 0, WORLD_H, WORLD_W, below);
@@ -368,22 +380,35 @@ export function createAmbience(opts: AmbienceOptions): Ambience {
       }
     },
     level: (c) => env.value[c],
-    light: () => ({ grade: painted ?? grade, paints }),
+    light: () => ({ grade, paints }),
     debug() {
       return {
         phase,
         weather,
         preview: api.preview,
         levels: { ...env.value },
-        hour,
-        time: timeName(hour),
+        weights: { ...light.weights },
+        time: light.phase,
         counts: { rain: sim.rain.length, ripples: sim.ripples.length, glints: sim.glints.length, motes: sim.motes.length, drips: sim.drips.length },
         lightingPaints: paints,
-        lightingMs: paintMs,
+        lightingMs: cast.stats().paintMs,
         reducedMotion,
       };
     },
   };
   return api;
+}
+
+const NO_ART: LightArt = { trees: [], shrubs: [] };
+
+const castCache = new WeakMap<SceneGeometry, Map<string, CastLight>>();
+
+/** Light plates are painted once per scene + seed and shared by every engine (the studio runs several). */
+function castFor(scene: SceneGeometry, art: LightArt, seed: string): CastLight {
+  let bySeed = castCache.get(scene);
+  if (!bySeed) castCache.set(scene, (bySeed = new Map()));
+  let c = bySeed.get(seed);
+  if (!c) bySeed.set(seed, (c = createCastLight(scene, art, seed)));
+  return c;
 }
 

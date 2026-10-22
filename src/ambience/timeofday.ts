@@ -1,10 +1,10 @@
 /**
- * Time-of-day keyframes — pure. The local hour picks a colour grade: cool soft morning,
- * neutral noon, warm golden evening, blue dusk, deep indigo night with the lantern lit.
- * Grades are interpolated smoothly (smoothstep between neighbouring keyframes, wrapping at
- * midnight). The lighting layer paints them as noise-mottled multiply washes (lighting.ts).
- * docs/systems/ambience.md › Time of day, ADR 0082.
+ * The light grade of each daylight phase — pure. A grade is the colour cast the lighting layer
+ * paints as a noise-mottled multiply wash (lighting.ts) underneath the painted shadows, rims and
+ * glows of each phase's plate (cast.ts). The UI dims its paper slips with the same grade
+ * (ADR 0121). Grades blend by the phase weights (daylight.ts). ADRs 0082, 0141.
  */
+import { PHASES, phaseAt, type DayPhase, type PhaseWeights } from './daylight';
 
 export type Rgb = readonly [number, number, number];
 
@@ -29,113 +29,66 @@ export interface Grade {
   mottle: number;
 }
 
-export type TimeName = 'night' | 'dawn' | 'morning' | 'noon' | 'evening' | 'dusk';
-
-export interface Keyframe {
-  hour: number;
-  name: TimeName;
-  grade: Grade;
-}
-
-// moonlit watercolour, not a veil: a cool indigo glaze the paper still breathes through, deeper
-// in the sky, lighter over the garden so the plants stay readable (SPEC §5)
-const NIGHT: Grade = {
-  tint: [100, 114, 182],
-  amount: 0.47,
-  sky: 0.2,
-  ground: 0.66,
-  glow: 0,
-  warm: [236, 214, 170],
-  glowX: 0.5,
-  glowY: 0.3,
-  lantern: 1,
-  mottle: 0.1,
-};
-const DAWN: Grade = {
-  tint: [178, 184, 210],
-  amount: 0.34,
-  sky: 0.08,
-  ground: 0.9,
-  glow: 0.3,
-  warm: [244, 206, 196],
-  glowX: 0.86,
-  glowY: 0.3,
-  lantern: 0.2,
-  mottle: 0.16,
-};
-const MORNING: Grade = {
-  tint: [208, 220, 230],
-  amount: 0.2,
-  sky: 0.04,
-  ground: 0.9,
-  glow: 0.22,
-  warm: [252, 246, 232],
-  glowX: 0.86,
-  glowY: 0.22,
-  lantern: 0,
-  mottle: 0.14,
-};
-const NOON: Grade = {
-  tint: [244, 240, 228],
-  amount: 0.03,
-  sky: 0,
-  ground: 1,
-  glow: 0,
-  warm: [252, 246, 232],
-  glowX: 0.5,
-  glowY: 0.1,
-  lantern: 0,
-  mottle: 0.1,
-};
-const EVENING: Grade = {
-  tint: [238, 196, 146],
-  amount: 0.3,
-  sky: -0.04,
-  ground: 1,
-  glow: 0.5,
-  warm: [252, 220, 160],
-  glowX: 0.1,
-  glowY: 0.36,
-  lantern: 0.12,
-  mottle: 0.16,
-};
-const DUSK: Grade = {
-  tint: [146, 158, 206],
-  amount: 0.34,
-  sky: 0.1,
-  ground: 0.82,
-  glow: 0.22,
-  warm: [230, 178, 166],
-  glowX: 0.1,
-  glowY: 0.4,
-  lantern: 0.6,
-  mottle: 0.18,
-};
-
-/** Keyframes by local hour (sorted). Between 21:15 and 05:00 it is night. */
-export const KEYFRAMES: readonly Keyframe[] = [
-  { hour: 5, name: 'night', grade: NIGHT },
-  { hour: 6.5, name: 'dawn', grade: DAWN },
-  { hour: 8, name: 'morning', grade: MORNING },
-  { hour: 11, name: 'noon', grade: NOON },
-  { hour: 15.5, name: 'noon', grade: NOON },
-  { hour: 17.75, name: 'evening', grade: EVENING },
-  { hour: 19.5, name: 'dusk', grade: DUSK },
-  { hour: 21.25, name: 'night', grade: NIGHT },
-];
-
-/** The hours `window.sprout.setTime(name)` jumps to (each sits on its keyframe). */
-export const NAMED_HOURS: Readonly<Record<Exclude<TimeName, 'dawn'>, number>> = {
-  morning: 8,
-  noon: 13,
-  evening: 17.75,
-  dusk: 19.5,
-  night: 23,
+/**
+ * The four casts. Midday is almost bare paper (the painting at its most saturated and crisp);
+ * sunrise a thin cool lavender warmed toward the rising sun on the right; sunset a warm amber,
+ * glowing toward the setting sun on the left, the lantern coming on; night a moonlit indigo
+ * glaze the paper still breathes through — lighter over the garden so the plants stay readable
+ * (SPEC §5; an over-heavy veil was a problem before, ADR 0121).
+ */
+export const PHASE_GRADES: Readonly<Record<DayPhase, Grade>> = {
+  sunrise: {
+    tint: [204, 202, 234],
+    amount: 0.2,
+    sky: 0.02,
+    ground: 0.85,
+    glow: 0.5,
+    warm: [255, 218, 190],
+    glowX: 0.7,
+    glowY: 0.36,
+    lantern: 0.08,
+    mottle: 0.16,
+  },
+  midday: {
+    tint: [252, 248, 236],
+    amount: 0.03,
+    sky: 0,
+    ground: 1,
+    glow: 0,
+    warm: [252, 246, 232],
+    glowX: 0.5,
+    glowY: 0.1,
+    lantern: 0,
+    mottle: 0.1,
+  },
+  sunset: {
+    tint: [242, 186, 128],
+    amount: 0.34,
+    sky: -0.04,
+    ground: 1,
+    glow: 0.55,
+    warm: [255, 216, 150],
+    glowX: 0.35,
+    glowY: 0.36,
+    lantern: 0.45,
+    mottle: 0.16,
+  },
+  night: {
+    tint: [92, 106, 184],
+    amount: 0.48,
+    sky: 0.16,
+    ground: 0.94,
+    glow: 0,
+    warm: [236, 214, 170],
+    glowX: 0.5,
+    glowY: 0.3,
+    lantern: 1,
+    mottle: 0.1,
+  },
 };
 
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 const lerpRgb = (a: Rgb, b: Rgb, t: number): Rgb => [lerp(a[0], b[0], t), lerp(a[1], b[1], t), lerp(a[2], b[2], t)];
-const smooth = (t: number) => t * t * (3 - 2 * t);
 
 export function mixGrade(a: Grade, b: Grade, t: number): Grade {
   return {
@@ -152,56 +105,55 @@ export function mixGrade(a: Grade, b: Grade, t: number): Grade {
   };
 }
 
+/** The grade for a weight set (a weighted mix of the phase grades). */
+export function gradeFor(weights: PhaseWeights): Grade {
+  let g: Grade | null = null;
+  let acc = 0;
+  for (const p of PHASES) {
+    const w = weights[p];
+    if (w <= 0) continue;
+    acc += w;
+    g = g ? mixGrade(g, PHASE_GRADES[p], w / acc) : PHASE_GRADES[p];
+  }
+  return g ?? PHASE_GRADES.midday;
+}
+
+/**
+ * A typical equinox day's boundaries (local hours) for hour-based callers that have no sun
+ * times: civil dawn 5:30, midday from 7:30, sunset light from 17:30, night from 19:30.
+ */
+export const TYPICAL_DAY: ReadonlyArray<{ hour: number; from: DayPhase; to: DayPhase }> = [
+  { hour: 5.5, from: 'night', to: 'sunrise' },
+  { hour: 7.5, from: 'sunrise', to: 'midday' },
+  { hour: 17.5, from: 'midday', to: 'sunset' },
+  { hour: 19.5, from: 'sunset', to: 'night' },
+];
+
+/** v1 names → an hour of the typical day (kept for hour-based callers). */
+export const NAMED_HOURS = { morning: 6.5, noon: 13, evening: 18.5, dusk: 19.5, night: 23 } as const;
+
+/** Phase weights at a local hour of the typical day. */
+export function weightsAtHour(hour: number): PhaseWeights {
+  const H = 3_600_000;
+  const list = [-24, 0, 24].flatMap((d) => TYPICAL_DAY.map((b) => ({ at: (b.hour + d) * H, from: b.from, to: b.to })));
+  return phaseAt(wrapHour(hour) * H, list, 'night').weights;
+}
+
+/** The grade at a local hour of the typical day. */
+export function gradeAt(hour: number): Grade {
+  return gradeFor(weightsAtHour(hour));
+}
+
 /** Wrap any hour into [0, 24). */
 export function wrapHour(hour: number): number {
   if (!Number.isFinite(hour)) return 12;
   return ((hour % 24) + 24) % 24;
 }
 
-/** The two keyframes around `hour` and the (unsmoothed) position between them. */
-export function bracket(hour: number): { a: Keyframe; b: Keyframe; t: number } {
-  const h = wrapHour(hour);
-  const n = KEYFRAMES.length;
-  for (let i = 0; i < n; i++) {
-    const a = KEYFRAMES[i]!;
-    const b = KEYFRAMES[(i + 1) % n]!;
-    const end = i + 1 < n ? b.hour : b.hour + 24;
-    const hh = h < a.hour ? h + 24 : h;
-    if (hh >= a.hour && hh < end) return { a, b, t: (hh - a.hour) / (end - a.hour) };
-  }
-  // unreachable with a sorted, wrapping table
-  return { a: KEYFRAMES[0]!, b: KEYFRAMES[0]!, t: 0 };
-}
-
-/** Interpolated grade at a local hour (smoothstep between keyframes). */
-export function gradeAt(hour: number): Grade {
-  const { a, b, t } = bracket(hour);
-  return mixGrade(a.grade, b.grade, smooth(t));
-}
-
-/** The keyframe name nearest to `hour` (debug readout). */
-export function timeName(hour: number): TimeName {
-  const { a, b, t } = bracket(hour);
-  return t < 0.5 ? a.name : b.name;
-}
-
 /** Local fractional hour of an epoch-ms timestamp (from the injected Clock). */
 export function localHour(epochMs: number): number {
   const d = new Date(epochMs);
   return d.getHours() + d.getMinutes() / 60 + d.getSeconds() / 3600;
-}
-
-export type TimeOverride = TimeName | number | null;
-
-/**
- * Validate a `setTime` argument: a name (`'morning' | 'noon' | 'evening' | 'dusk' | 'night'`),
- * an hour number (wrapped into 0–24) or null (follow the clock). Throws on anything else.
- */
-export function parseTimeOverride(value: unknown): number | null {
-  if (value === null || value === undefined) return null;
-  if (typeof value === 'number' && Number.isFinite(value)) return wrapHour(value);
-  if (typeof value === 'string' && value in NAMED_HOURS) return NAMED_HOURS[value as keyof typeof NAMED_HOURS];
-  throw new TypeError(`setTime expects ${Object.keys(NAMED_HOURS).join('|')}|hour|null, got ${String(value)}`);
 }
 
 /** Squared distance between grades (used to skip redundant lighting redraws). */

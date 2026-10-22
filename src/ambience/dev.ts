@@ -2,7 +2,7 @@
 import type { Weather } from '../core/state';
 import { extendDebug } from '../dev/debug';
 import type { AmbienceSystem } from './system';
-import type { TimeOverride } from './timeofday';
+import type { TimeOverride } from './daylight';
 
 declare module '../dev/debug' {
   interface SproutDebug {

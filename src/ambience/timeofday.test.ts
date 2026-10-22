@@ -1,71 +1,73 @@
 import { describe, expect, it } from 'vitest';
-import { bracket, gradeAt, gradeDistance, KEYFRAMES, localHour, NAMED_HOURS, parseTimeOverride, timeName, wrapHour } from './timeofday';
+import { blendWeights, only, PHASES } from './daylight';
+import { gradeAt, gradeDistance, gradeFor, localHour, NAMED_HOURS, PHASE_GRADES, TYPICAL_DAY, weightsAtHour, wrapHour } from './timeofday';
 
 const lum = (rgb: readonly number[]) => 0.2126 * rgb[0]! + 0.7152 * rgb[1]! + 0.0722 * rgb[2]!;
 /** luminance a white pixel ends up with after the multiply wash */
-const washed = (hour: number) => {
-  const g = gradeAt(hour);
-  return 255 * (1 - g.amount) + lum(g.tint) * g.amount;
-};
+const washed = (g: ReturnType<typeof gradeFor>) => 255 * (1 - g.amount) + lum(g.tint) * g.amount;
+const warmth = (g: ReturnType<typeof gradeFor>) => g.tint[0] - g.tint[2];
 
-describe('keyframes', () => {
-  it('are sorted and inside one day', () => {
-    for (let i = 1; i < KEYFRAMES.length; i++) expect(KEYFRAMES[i]!.hour).toBeGreaterThan(KEYFRAMES[i - 1]!.hour);
-    expect(KEYFRAMES[0]!.hour).toBeGreaterThanOrEqual(0);
-    expect(KEYFRAMES.at(-1)!.hour).toBeLessThan(24);
+describe('phase grades', () => {
+  it('midday is almost bare paper: the painting at its most saturated and crisp', () => {
+    expect(PHASE_GRADES.midday.amount).toBeLessThan(0.05);
+    expect(PHASE_GRADES.midday.lantern).toBe(0);
   });
 
-  it('each named hour sits exactly on its keyframe', () => {
-    for (const [name, hour] of Object.entries(NAMED_HOURS)) {
-      expect(timeName(hour)).toBe(name);
-      const kf = KEYFRAMES.find((k) => k.name === name)!;
-      expect(gradeDistance(gradeAt(hour), kf.grade)).toBeLessThan(1e-9);
-    }
+  it('night is the darkest but plants stay readable, lighter over the garden than the sky', () => {
+    const night = washed(PHASE_GRADES.night);
+    for (const p of ['sunrise', 'midday', 'sunset'] as const) expect(night).toBeLessThan(washed(PHASE_GRADES[p]));
+    expect(night).toBeGreaterThan(255 * 0.42);
+    expect(PHASE_GRADES.night.ground).toBeLessThan(1);
+    expect(PHASE_GRADES.night.sky).toBeGreaterThan(0);
+  });
+
+  it('sunset is warm, sunrise cool with a warm glow on the right, night blue', () => {
+    expect(warmth(PHASE_GRADES.sunset)).toBeGreaterThan(80);
+    expect(warmth(PHASE_GRADES.night)).toBeLessThan(-60);
+    expect(warmth(PHASE_GRADES.sunrise)).toBeLessThan(0);
+    expect(PHASE_GRADES.sunrise.glowX).toBeGreaterThan(0.5); // the sun rises on the right
+    expect(PHASE_GRADES.sunset.glowX).toBeLessThan(0.5); // and sets on the left
+  });
+
+  it('the lantern is lit at night, coming on at sunset, dark by day', () => {
+    expect(PHASE_GRADES.night.lantern).toBe(1);
+    expect(PHASE_GRADES.sunset.lantern).toBeGreaterThan(0.2);
+    expect(PHASE_GRADES.midday.lantern).toBe(0);
   });
 });
 
-describe('gradeAt', () => {
-  it('is exactly the keyframe at a keyframe hour', () => {
-    for (const k of KEYFRAMES) expect(gradeDistance(gradeAt(k.hour), k.grade)).toBeLessThan(1e-12);
+describe('gradeFor', () => {
+  it('is exactly the phase grade for a pure phase', () => {
+    for (const p of PHASES) expect(gradeDistance(gradeFor(only(p)), PHASE_GRADES[p])).toBeLessThan(1e-12);
   });
 
-  it('interpolates smoothly (no jumps minute to minute, across midnight too)', () => {
+  it('blends linearly between two phases', () => {
+    const mid = gradeFor(blendWeights('sunset', 'night', 0.5));
+    expect(mid.amount).toBeCloseTo((PHASE_GRADES.sunset.amount + PHASE_GRADES.night.amount) / 2, 9);
+    expect(mid.lantern).toBeCloseTo((PHASE_GRADES.sunset.lantern + PHASE_GRADES.night.lantern) / 2, 9);
+  });
+});
+
+describe('the typical day (hour-based callers)', () => {
+  it('has the four phases in order', () => {
+    expect(TYPICAL_DAY.map((b) => b.to)).toEqual(['sunrise', 'midday', 'sunset', 'night']);
+  });
+
+  it('gradeAt changes smoothly minute to minute, across midnight too', () => {
     let prev = gradeAt(0);
     for (let m = 1; m <= 24 * 60; m++) {
       const g = gradeAt(m / 60);
-      expect(gradeDistance(g, prev)).toBeLessThan(0.002);
+      expect(gradeDistance(g, prev)).toBeLessThan(0.003);
       prev = g;
     }
   });
 
-  it('eases in and out of keyframes (smoothstep): slower near the keyframe than mid-way', () => {
-    const near = gradeDistance(gradeAt(17.75), gradeAt(17.8));
-    const mid = gradeDistance(gradeAt(18.6), gradeAt(18.65));
-    expect(near).toBeLessThan(mid);
-  });
-
-  it('noon is neutral; night is the darkest but plants stay readable', () => {
-    expect(gradeAt(13).amount).toBeLessThan(0.05);
-    const night = washed(23);
-    expect(night).toBeLessThan(washed(19.5));
-    expect(night).toBeLessThan(washed(8));
-    expect(night).toBeGreaterThan(255 * 0.42); // readable: still well above half-dark
-    expect(gradeAt(23).ground).toBeLessThan(1); // foreground kept lighter than the sky
-  });
-
-  it('evening is warm, dusk and night are blue, morning is cool', () => {
-    const warmth = (h: number) => gradeAt(h).tint[0] - gradeAt(h).tint[2];
-    expect(warmth(17.75)).toBeGreaterThan(60);
-    expect(warmth(19.5)).toBeLessThan(-40);
-    expect(warmth(23)).toBeLessThan(-40);
-    expect(warmth(8)).toBeLessThan(0);
-  });
-
-  it('the lantern is lit at dusk and night, not by day', () => {
-    expect(gradeAt(23).lantern).toBe(1);
-    expect(gradeAt(19.5).lantern).toBeGreaterThan(0.4);
-    expect(gradeAt(13).lantern).toBe(0);
-    expect(gradeAt(9).lantern).toBe(0);
+  it('the named hours land in their phases', () => {
+    expect(weightsAtHour(NAMED_HOURS.noon).midday).toBe(1);
+    expect(weightsAtHour(NAMED_HOURS.night).night).toBe(1);
+    expect(weightsAtHour(NAMED_HOURS.morning).sunrise).toBe(1);
+    expect(weightsAtHour(NAMED_HOURS.evening).sunset).toBe(1);
+    expect(weightsAtHour(NAMED_HOURS.dusk).night).toBeCloseTo(0.5, 6);
   });
 });
 
@@ -76,25 +78,8 @@ describe('helpers', () => {
     expect(wrapHour(Number.NaN)).toBe(12);
   });
 
-  it('bracket wraps around midnight', () => {
-    const b = bracket(2);
-    expect(b.a.name).toBe('night');
-    expect(b.b.name).toBe('night');
-    expect(b.t).toBeGreaterThan(0);
-    expect(b.t).toBeLessThan(1);
-  });
-
   it('localHour reads the local clock of a timestamp', () => {
     const d = new Date(2026, 9, 22, 18, 30, 0);
     expect(localHour(d.getTime())).toBeCloseTo(18.5, 6);
-  });
-
-  it('parseTimeOverride accepts names, hours and null; rejects junk', () => {
-    expect(parseTimeOverride('night')).toBe(NAMED_HOURS.night);
-    expect(parseTimeOverride('dusk')).toBe(19.5);
-    expect(parseTimeOverride(30)).toBe(6);
-    expect(parseTimeOverride(null)).toBeNull();
-    expect(() => parseTimeOverride('teatime')).toThrow(TypeError);
-    expect(() => parseTimeOverride(Number.NaN)).toThrow(TypeError);
   });
 });

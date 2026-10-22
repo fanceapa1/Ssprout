@@ -11,7 +11,8 @@ import { gardenScene } from '../scene/geometry';
 import type { StudioEntry, StudioSection } from '../studio/types';
 import { createAmbience, type Ambience } from './ambience';
 import type { Emitter } from './motes';
-import { NAMED_HOURS } from './timeofday';
+import { NAMED_HOURS, weightsAtHour } from './timeofday';
+import { pinnedState } from './daylight';
 import { wind } from './wind';
 
 const scene = gardenScene;
@@ -195,7 +196,7 @@ function entry(id: string, label: string, sc: Scenario, opts: { animated?: boole
     animated: opts.animated ?? true,
     render(canvas, { t, dt, seed, frame }) {
       const amb = engineFor(id, seed, frame, sc, opts.reducedMotion);
-      amb.update({ dt, phase: sc.phase(t), weather: sc.weather, emitters: EMITTERS, hour: sc.hour(t) });
+      amb.update({ dt, phase: sc.phase(t), weather: sc.weather, emitters: EMITTERS, light: pinnedState(weightsAtHour(sc.hour(t))) });
       composite(canvas, amb, seed, opts.view);
     },
   };
@@ -223,7 +224,7 @@ function strip(id: string, label: string, cells: Cell[], cols = 3): StudioEntry 
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       cells.forEach((c, i) => {
         const amb = engineFor(`${id}-${i}`, seed, 0, c, c.reducedMotion);
-        amb.update({ dt: 0, phase: c.phase(0), weather: c.weather, emitters: EMITTERS, hour: c.hour(0) });
+        amb.update({ dt: 0, phase: c.phase(0), weather: c.weather, emitters: EMITTERS, light: pinnedState(weightsAtHour(c.hour(0))) });
         const x = (i % cols) * cw * pixelRatio;
         const y = Math.floor(i / cols) * (chh + gap) * pixelRatio;
         composite(canvas, amb, seed, WHOLE, { x, y, w: cw * pixelRatio, h: chh * pixelRatio });

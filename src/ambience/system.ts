@@ -10,18 +10,23 @@ import type { LayerId, System } from '../render/types';
 import type { SceneGeometry } from '../scene/geometry';
 import { createAmbience, type Ambience, type AmbienceDebug } from './ambience';
 import { moteEmitters, type Emitter } from './motes';
-import { localHour, parseTimeOverride, type Grade, type TimeOverride } from './timeofday';
+import type { Grade } from './timeofday';
+import type { TimeOverride } from './daylight';
+import { createDaylightSource, type DaylightSource } from './daylight-source';
+import type { LightArt } from './cast';
 
 export const WEATHER_PREVIEWS: readonly (Weather | null)[] = ['sun', 'rain', 'mist', null];
 
 export interface AmbienceSystem extends System {
-  /** dev: 'morning' | 'noon' | 'evening' | 'dusk' | 'night' | hour | null (follow the clock) */
+  /** dev: 'sunrise' | 'midday' | 'sunset' | 'night' (+ v1 aliases), a blend {from,to,t}, an hour, or null (follow the clock) */
   setTime(value: TimeOverride): void;
   /** dev: preview a weather without a session (null = back to the session's) */
   setWeather(weather: Weather | null): void;
   /** dev/tests: jump every transition to its steady state */
   settle(): void;
-  debug(): (AmbienceDebug & { ms: number; timeOverride: number | null }) | null;
+  debug(): (AmbienceDebug & { ms: number; timeOverride: string | null; location: { lat: number; lon: number; source: string; zone: string | null }; sunTimes: Record<string, string | null> | null }) | null;
+  /** the daylight this system paints with (shared with the scene, plants and fauna) */
+  readonly daylight: DaylightSource;
   /** called with the time-of-day grade whenever the lighting repaints (e.g. to tint the DOM UI) */
   onLight(fn: (grade: Grade) => void): () => void;
   /**
@@ -36,6 +41,10 @@ const LIGHT_REVEAL_S = 1.4;
 
 export interface AmbienceSystemOptions {
   seed?: string;
+  /** the garden's daylight (default: its own, following the clock at the zone's location) */
+  daylight?: DaylightSource;
+  /** painting-only layout the light plates throw shadows from */
+  lightArt?: LightArt;
 }
 
 const NO_EMITTERS: readonly Emitter[] = [];
@@ -44,7 +53,9 @@ export function createAmbienceSystem(opts: AmbienceSystemOptions = {}): Ambience
   let engine: Ambience | null = null;
   let engineScene: SceneGeometry | null = null;
   let store: Store | null = null;
-  let timeOverride: number | null = null;
+  const daylight = opts.daylight ?? createDaylightSource();
+  let seenVersion = -1;
+  let lastNow = 0;
   let preview: Weather | null = null;
   /** moving average of the per-frame draw cost (ms), and the current frame's running sum */
   let ms = 0;
@@ -65,11 +76,12 @@ export function createAmbienceSystem(opts: AmbienceSystemOptions = {}): Ambience
 
   return {
     id: 'ambience',
+    daylight,
     init(ctx) {
       store = ctx.store;
       reducedMotion = ctx.reducedMotion;
       if (!engine || engineScene !== ctx.scene) {
-        engine = createAmbience({ scene: ctx.scene, reducedMotion: ctx.reducedMotion, seed: opts.seed, area: ctx.viewport.visible });
+        engine = createAmbience({ scene: ctx.scene, reducedMotion: ctx.reducedMotion, seed: opts.seed, area: ctx.viewport.visible, lightArt: opts.lightArt });
         engine.preview = preview;
         engineScene = ctx.scene;
       } else {
@@ -92,8 +104,11 @@ export function createAmbienceSystem(opts: AmbienceSystemOptions = {}): Ambience
         phase,
         weather: state.session?.weather ?? null,
         emitters: phase === 'focus' || e.level('motes') > 0.001 ? moteEmitters(state, engineScene!.slots, f.now) : NO_EMITTERS,
-        hour: timeOverride ?? localHour(f.now),
+        light: daylight.at(f.now),
+        lightChanged: daylight.version !== seenVersion,
       }));
+      seenVersion = daylight.version;
+      lastNow = f.now;
       if (lightListeners.size) {
         const { grade, paints } = e.light();
         if (paints !== lightPaints) {
@@ -110,7 +125,7 @@ export function createAmbienceSystem(opts: AmbienceSystemOptions = {}): Ambience
       else if (layer === 'lighting') timed(() => e.drawLighting(ctx, reveal * reveal * (3 - 2 * reveal)));
     },
     setTime(value) {
-      timeOverride = parseTimeOverride(value);
+      daylight.setOverride(value);
       engine?.invalidateLighting();
     },
     setWeather(weather) {
@@ -131,7 +146,17 @@ export function createAmbienceSystem(opts: AmbienceSystemOptions = {}): Ambience
       }
     },
     debug() {
-      return engine ? { ...engine.debug(), ms, timeOverride } : null;
+      if (!engine) return null;
+      const loc = daylight.location(lastNow);
+      const times = daylight.at(lastNow).times;
+      const iso = (t: number | null | undefined) => (t == null ? null : new Date(t).toISOString());
+      return {
+        ...engine.debug(),
+        ms,
+        timeOverride: daylight.override()?.label ?? null,
+        location: { lat: loc.lat, lon: loc.lon, source: loc.source, zone: loc.zone },
+        sunTimes: times ? { dawn: iso(times.dawn), sunrise: iso(times.sunrise), noon: iso(times.noon), sunset: iso(times.sunset), dusk: iso(times.dusk) } : null,
+      };
     },
     revealLightAfter(ready) {
       reveal = 0;

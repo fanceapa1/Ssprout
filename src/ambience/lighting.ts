@@ -1,10 +1,9 @@
 /**
- * Time-of-day lighting as a painted multiply wash. The wash is computed per pixel into a small
- * world-sized cache (LIGHT.cacheScale px per world unit) — noise-mottled, with soft backruns,
- * a sky that deepens first, a lighter foreground so plants stay readable, a warm low-sun glow
- * and, at dusk and night, paper *reserved* around the pavilion lantern and its reflection on
- * the pond (watercolour lights are left unpainted, not added). The cache is blitted with
- * `multiply` each frame and only repainted every few seconds. ADR 0082.
+ * The grade wash under each daylight phase's light plate: computed per pixel into a small
+ * world-sized plate — noise-mottled, with soft backruns, a sky that deepens first, a lighter
+ * foreground so plants stay readable, a warm low-sun glow and, at sunset and night, paper
+ * *reserved* around the pavilion lantern and its reflection on the pond (watercolour lights are
+ * left unpainted, not added). cast.ts paints shadows and rims over it. ADRs 0082, 0147.
  */
 import { createRng } from '../core/rng';
 import { makeCanvas, type AnyCanvas } from '../paint/canvas';
@@ -22,8 +21,8 @@ export const LIGHT = {
   /** …and only when the grade moved perceptibly (squared grade distance; a repaint costs ~5 ms) */
   redrawEps: 2e-5,
   /** lantern reserve radius (world units) and how much of the wash it lifts */
-  lanternR: 62,
-  lanternLift: 0.62,
+  lanternR: 78,
+  lanternLift: 0.8,
   /** warm paper colour inside the reserve */
   lanternWarm: [238, 218, 178] as Rgb,
   /** reflection streak half-size on the pond (world units) */
@@ -102,7 +101,7 @@ export function paintGradeWash(out: Uint8ClampedArray, g: Grade, f: WashField): 
         const dx = fx - g.glowX;
         const dy = (fy - g.glowY) * 1.5;
         const k = g.glow * Math.exp(-(dx * dx + dy * dy) / 0.12) * (0.8 + 0.4 * n);
-        a *= 1 - 0.7 * k;
+        a *= 1 - 0.25 * k;
         const m = clamp01(k * 1.5);
         r += (g.warm[0] - r) * m;
         gg += (g.warm[1] - gg) * m;
@@ -249,23 +248,18 @@ export function awayFromShore(p: Pt, pond: readonly Pt[], clearance = LIGHT.refl
   return out;
 }
 
-export interface LightingCache {
-  readonly canvas: AnyCanvas;
-  readonly w: number;
-  readonly h: number;
-  /** repaint the cache for a grade */
-  paint(g: Grade): void;
-}
-
 const fields = new WeakMap<SceneGeometry, Map<string, WashField>>();
 
-/** Noise grids and pond mask for a scene + seed (built once, shared by every cache). */
-function washField(scene: SceneGeometry, seed: string): WashField {
+/**
+ * Noise grids and pond mask for a scene + seed at `scale` px per world unit (built once, shared
+ * by every plate painted at that scale).
+ */
+export function washField(scene: SceneGeometry, seed: string, scale: number = LIGHT.cacheScale): WashField {
   let bySeed = fields.get(scene);
   if (!bySeed) fields.set(scene, (bySeed = new Map()));
-  const known = bySeed.get(seed);
+  const id = `${seed}@${scale}`;
+  const known = bySeed.get(id);
   if (known) return known;
-  const scale = LIGHT.cacheScale;
   const w = Math.ceil(WORLD_W * scale);
   const h = Math.ceil(WORLD_H * scale);
   const rng = createRng(seed);
@@ -283,24 +277,25 @@ function washField(scene: SceneGeometry, seed: string): WashField {
     lantern: scene.pavilion.lantern,
     reflection: lanternReflection(scene),
   };
-  bySeed.set(seed, field);
+  bySeed.set(id, field);
   return field;
 }
 
-/** A lighting cache canvas for a scene (the noise field is shared per scene + seed). Browser only. */
-export function createLightingCache(scene: SceneGeometry, seed = 'lighting'): LightingCache {
-  const field = washField(scene, seed);
+/**
+ * The grade wash as an opaque plate: white paper with the wash laid over it (so it can be
+ * multiplied whole, and painted on with the watercolour engine afterwards). Browser only.
+ */
+export function gradePlate(g: Grade, field: WashField): AnyCanvas {
   const { w, h } = field;
-  const canvas = makeCanvas(w, h);
-  const ctx = canvas.getContext('2d') as CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
-  const img = ctx.createImageData(w, h);
-  return {
-    canvas,
-    w,
-    h,
-    paint(g) {
-      paintGradeWash(img.data, g, field);
-      ctx.putImageData(img, 0, 0);
-    },
-  };
+  const wash = makeCanvas(w, h);
+  const wctx = wash.getContext('2d') as CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
+  const img = wctx.createImageData(w, h);
+  paintGradeWash(img.data, g, field);
+  wctx.putImageData(img, 0, 0);
+  const plate = makeCanvas(w, h);
+  const ctx = plate.getContext('2d') as CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, w, h);
+  ctx.drawImage(wash as CanvasImageSource, 0, 0);
+  return plate;
 }
