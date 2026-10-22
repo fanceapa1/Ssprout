@@ -128,11 +128,12 @@ export function paintSkyPlate(p: Painter, rng: Rng, phase: DayPhase): void {
   const sky = skyShape(40);
   switch (phase) {
     case 'midday': {
-      // a clear graded cerulean, deepest at the zenith, dying into warm paper at the horizon
-      p.wetInWet(sky, mix(PIGMENTS.cerulean, PIGMENTS.bellflower, 0.25), lighten(PIGMENTS.cerulean, 0.55), {
+      // a clear graded cerulean, deepest at the zenith, still blue low over the hills (wide canvases
+      // only show the sky band above them), warming to paper just above the ridge
+      p.wetInWet(sky, mix(PIGMENTS.cerulean, PIGMENTS.bellflower, 0.25), lighten(PIGMENTS.cerulean, 0.32), {
         rng,
         angle: Math.PI / 2,
-        split: 0.42,
+        split: 0.5,
         softness: 0.7,
         opacity: 0.5,
         deform: 0.03,
@@ -141,14 +142,14 @@ export function paintSkyPlate(p: Painter, rng: Rng, phase: DayPhase): void {
         granulation: 0.08,
         flow: 0.35,
         flowScale: 200,
-        fade: { angle: Math.PI / 2, start: 0.55, amount: 1, ragged: 0.4 },
+        fade: { angle: Math.PI / 2, start: 0.8, amount: 0.9, ragged: 0.4 },
       });
       // a little warmth low down, and a few fair-weather clouds left as paper
-      p.glaze(band(250, 380), lighten(PIGMENTS.gold, 0.4), { rng, opacity: 0.1, fade: { angle: -Math.PI / 2, start: 0.3, amount: 1 } });
+      p.glaze(band(300, 390), lighten(PIGMENTS.gold, 0.4), { rng, opacity: 0.1, fade: { angle: -Math.PI / 2, start: 0.3, amount: 1 } });
       const belly = mix(PIGMENTS.shadow, PIGMENTS.cerulean, 0.35);
-      cumulus(p, rng, 800, 236, 230, belly);
+      cumulus(p, rng, 728, 150, 170, belly);
       cumulus(p, rng, 1420, 96, 300, belly);
-      cumulus(p, rng, 610, 30, 190, belly);
+      cumulus(p, rng, 300, 40, 200, belly);
       break;
     }
     case 'sunrise': {
@@ -177,7 +178,7 @@ export function paintSkyPlate(p: Painter, rng: Rng, phase: DayPhase): void {
         flowScale: 140,
         fade: { angle: Math.PI, start: 0.25, amount: 1, ragged: 0.5 },
       });
-      p.glaze(skyGlow(1150, 345, 380, 130), lighten(PIGMENTS.ochre, 0.3), { rng, opacity: 0.35, deform: 0.1, fade: { angle: Math.PI, start: 0.45, amount: 0.9, ragged: 0.5 } });
+      p.glaze(skyGlow(1000, 335, 400, 130), lighten(PIGMENTS.ochre, 0.3), { rng, opacity: 0.35, deform: 0.1, fade: { angle: Math.PI, start: 0.45, amount: 0.9, ragged: 0.5 } });
       // a few long cloud banks catching the dawn on their undersides
       streak(p, rng, 1220, 252, 560, 10, mix(PIGMENTS.violet, PIGMENTS.bellflower, 0.45), 0.4, mix(PIGMENTS.rose, PIGMENTS.apricot, 0.5));
       streak(p, rng, 960, 300, 420, 7, mix(PIGMENTS.rose, PIGMENTS.violet, 0.35), 0.36, PIGMENTS.apricot);

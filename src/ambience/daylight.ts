@@ -152,9 +152,9 @@ export interface DaylightState {
 
 /** Typical sky for a pinned phase: sun altitude and side, moon position. */
 const PINNED: Record<DayPhase, { sunAltitude: number; sunRising: boolean; moonProgress: number }> = {
-  sunrise: { sunAltitude: 3, sunRising: true, moonProgress: 1 },
+  sunrise: { sunAltitude: 5.5, sunRising: true, moonProgress: 1 },
   midday: { sunAltitude: 58, sunRising: false, moonProgress: 0 },
-  sunset: { sunAltitude: 3, sunRising: false, moonProgress: 0 },
+  sunset: { sunAltitude: 4.5, sunRising: false, moonProgress: 0 },
   night: { sunAltitude: -24, sunRising: false, moonProgress: 0.42 },
 };
 

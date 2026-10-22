@@ -9,7 +9,8 @@ describe('the sun', () => {
   it('rises low over the right-hand hills and sets over the left-hand ones', () => {
     const rise = sunDisc(state('sunrise'));
     const set = sunDisc(state('sunset'));
-    expect(rise.x).toBeGreaterThan(1000);
+    expect(rise.x).toBeGreaterThan(900);
+    expect(rise.x).toBeGreaterThan(set.x + 300);
     expect(set.x).toBeLessThan(700);
     for (const d of [rise, set]) {
       expect(d.y).toBeLessThan(HORIZON_Y);

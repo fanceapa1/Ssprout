@@ -30,7 +30,8 @@ that ignored the season and the place.
   neighbour so blends never overlap. Weights always sum to 1.
 - **State** (`DaylightState`): weights, dominant phase, the blend in progress, the sun's altitude
   and side (rising/setting), the moon's progress across the night (dusk → dawn) and the lunar
-  phase. A pinned phase (`pinnedState`) uses a typical sky (low sun at 3°, the moon high).
+  phase. A pinned phase (`pinnedState`) uses a typical sky (the sun half behind the far ridge: 5.5° at sunrise, 4.5° at sunset; the
+  moon high).
 - **`setTime`** accepts `'sunrise' | 'midday' | 'sunset' | 'night'`, a blend
   `{ from, to, t }`, an hour of today (run through the real sun times) or null. The v1 names stay
   as aliases: `morning` → sunrise, `noon` → midday, `evening` → sunset, `dusk` → sunset/night

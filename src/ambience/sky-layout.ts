@@ -17,7 +17,7 @@ export const SUN_R = 22;
 export const MOON_R = 17;
 
 /** Sun x at the horizon and its drift per degree of altitude (rising sun moves left, setting right). */
-const SUNRISE_X = 1130;
+const SUNRISE_X = 966;
 const SUNSET_X = 556;
 const DRIFT = 2.2;
 

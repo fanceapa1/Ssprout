@@ -9,7 +9,8 @@ where the light comes from, or the painting falls apart.
 
 ## Decision
 `src/ambience/sky-layout.ts` (pure) maps a `DaylightState` to the garden's world:
-- **Sun**: rises over the right-hand hills (x ≈ 1130, the engawa side) and sets over the left-hand
+- **Sun**: rises over the right-hand hills (x ≈ 966, where the far ridge dips between the right-hand
+  trees) and sets over the left-hand
   ones (x ≈ 556), so its mirror image lands on the pond. y = `HORIZON_Y` (368) − 8.5 units per
   degree of altitude; drawn only while low (−3° … 15°) and in sunrise/sunset light. The sky plate
   clips it to the sky above the far ridge, so it sinks behind the hills.

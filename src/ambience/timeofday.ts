@@ -44,7 +44,7 @@ export const PHASE_GRADES: Readonly<Record<DayPhase, Grade>> = {
     ground: 0.85,
     glow: 0.5,
     warm: [255, 218, 190],
-    glowX: 0.7,
+    glowX: 0.61,
     glowY: 0.36,
     lantern: 0.08,
     mottle: 0.16,
