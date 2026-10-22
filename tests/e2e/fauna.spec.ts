@@ -18,19 +18,31 @@ async function plantGarden(page: Page, n: number) {
   }, n);
 }
 
-/** Every creature within the world (generous margin for entering / leaving); pond dwellers in the pond. */
-async function checkBounds(page: Page) {
-  return page.evaluate(() => {
-    const f = window.sprout!.fauna;
-    const v = f.view();
-    const bad: string[] = [];
-    for (const c of f.list()) {
-      const out = c.x < v.x - 400 || c.x > v.x + v.w + 400 || c.y < v.y - 400 || c.y > v.y + v.h + 200;
-      if (out || !Number.isFinite(c.x) || !Number.isFinite(c.y)) bad.push(`${c.kind}#${c.id} at ${c.x.toFixed(0)},${c.y.toFixed(0)}`);
-      if ((c.kind === 'koi' || c.kind === 'strider') && !c.inPond) bad.push(`${c.kind}#${c.id} left the pond`);
-    }
-    return bad;
-  });
+/**
+ * Step the simulation `steps` × `seconds` inside the page (one round trip, not one per step) and
+ * report every kind seen plus any creature out of bounds: outside the world (generous margin for
+ * entering / leaving), non-finite, or a pond dweller outside the pond.
+ */
+function walkFauna(page: Page, steps: number, seconds: number) {
+  return page.evaluate(
+    ([n, dt]) => {
+      const f = window.sprout!.fauna;
+      const v = f.view();
+      const kinds = new Set<string>();
+      const bad: string[] = [];
+      for (let s = 0; s < n!; s++) {
+        for (const c of f.list()) {
+          kinds.add(c.kind);
+          const out = c.x < v.x - 400 || c.x > v.x + v.w + 400 || c.y < v.y - 400 || c.y > v.y + v.h + 200;
+          if (out || !Number.isFinite(c.x) || !Number.isFinite(c.y)) bad.push(`${c.kind}#${c.id} at ${c.x.toFixed(0)},${c.y.toFixed(0)} (step ${s})`);
+          if ((c.kind === 'koi' || c.kind === 'strider') && !c.inPond) bad.push(`${c.kind}#${c.id} left the pond (step ${s})`);
+        }
+        f.step(dt!);
+      }
+      return { kinds: [...kinds], bad };
+    },
+    [steps, seconds],
+  );
 }
 
 test.describe('fauna', () => {
@@ -77,6 +89,8 @@ test.describe('fauna', () => {
 
   test('every creature can be spawned and stays within bounds while it lives', async ({ page }) => {
     await openDev(page);
+    // the test drives the simulation with fauna.step(); stop the frame loop so it does not compete
+    await page.evaluate(() => window.sprout!.freeze());
     await plantGarden(page, 25);
     const spawned = await page.evaluate(() => {
       const f = window.sprout!.fauna;
@@ -89,36 +103,35 @@ test.describe('fauna', () => {
     });
     expect(spawned).toMatchObject({ dragonfly: 1, butterflies: 1, bees: 1, 'small-birds': 1, swallows: 3, heron: 1, leaf: 1 });
     expect(spawned.frog).toBe(0); // no water plant in the garden, so nowhere to sit
-    const kinds = new Set<string>();
-    for (let s = 0; s < 40; s++) {
-      for (const c of await page.evaluate(() => window.sprout!.fauna.list())) kinds.add(c.kind);
-      expect(await checkBounds(page)).toEqual([]);
-      await page.evaluate(() => window.sprout!.fauna.step(2));
-    }
-    for (const k of ['koi', 'strider', 'dragonfly', 'butterfly', 'bee', 'bird', 'swallow', 'heron', 'leaf']) expect(kinds.has(k), k).toBe(true);
+    const walk = await walkFauna(page, 40, 2);
+    expect(walk.bad).toEqual([]);
+    for (const k of ['koi', 'strider', 'dragonfly', 'butterfly', 'bee', 'bird', 'swallow', 'heron', 'leaf']) expect(walk.kinds, k).toContain(k);
   });
 
   test('birds land on perches as depth-sorted entities, then fly away', async ({ page }) => {
     await openDev(page);
+    await page.evaluate(() => window.sprout!.freeze());
     await plantGarden(page, 8);
-    await page.evaluate(() => {
+    // follow this bird only (by id): with 8 plants the schedule may send another bird meanwhile
+    const trip = await page.evaluate(() => {
       const f = window.sprout!.fauna;
       f.setHour(10);
       f.clear();
-      f.spawn('bird');
+      const [id] = f.spawn('bird');
+      const layers = new Set<string>();
+      let landed = false;
+      for (let s = 0; s < 70; s++) {
+        const bird = f.list().find((c) => c.id === id);
+        if (!bird) return { layers: [...layers], landed, gone: true };
+        layers.add(bird.layer);
+        if (bird.state === 'ground') landed = true;
+        f.step(1);
+      }
+      return { layers: [...layers], landed, gone: false };
     });
-    const layers = new Set<string>();
-    let landed = false;
-    for (let s = 0; s < 70; s++) {
-      const bird = await page.evaluate(() => window.sprout!.fauna.list().find((c) => c.kind === 'bird'));
-      if (!bird) break;
-      layers.add(bird.layer);
-      if (bird.state === 'ground') landed = true;
-      await page.evaluate(() => window.sprout!.fauna.step(1));
-    }
-    expect(landed).toBe(true);
-    expect([...layers].sort()).toEqual(['air', 'entities']);
-    expect(await page.evaluate(() => window.sprout!.fauna.list().some((c) => c.kind === 'bird'))).toBe(false);
+    expect(trip.landed).toBe(true);
+    expect(trip.layers.sort()).toEqual(['air', 'entities']);
+    expect(trip.gone, 'the bird flew away').toBe(true);
   });
 
   test('at night birds, bees and butterflies rest while the koi stay', async ({ page }) => {
