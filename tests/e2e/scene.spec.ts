@@ -45,7 +45,7 @@ test.describe('scene', () => {
     // a sky point in view: the garden stage is ~88 % of the window (ADR 0130), so a short
     // landscape window crops a little more of the sky's top
     const top = await page.evaluate(() => window.sprout!.fauna.view().y);
-    const sky = await pixelAtWorld(page, 800, Math.max(120, top + 40));
+    const sky = await pixelAtWorld(page, 800, Math.max(250, top + 40)); // below the paper cloud, in the tree gap
     const centre = await pondCentre(page);
     const pond = await pixelAtWorld(page, centre.x, centre.y);
     // the midday sky is a light, clear wash of blue (ADR 0145); the pond is cooler (green above
