@@ -6,6 +6,7 @@ import {
   GROWTH_STEPS,
   growthStep,
   MAX_SPRITE_RES,
+  MAX_SPRITE_SIDE,
   PRIORITY,
   quantiseGrowth,
   resolutionBucket,
@@ -85,6 +86,16 @@ describe('sprite sizing', () => {
     expect(spritePixelSize({ w: 0.1, h: 0.1 }, 0.1, 0.25)).toEqual({ w: 1, h: 1 });
   });
 
+  it('follows the zoomed scale up to the closest camera view, then caps the long side of a sprite', () => {
+    // 3× zoom at DPR 2 on a desktop stage ≈ 5.4 device px per world unit
+    expect(resolutionBucket(5.4)).toBeGreaterThan(4.5);
+    expect(MAX_SPRITE_RES).toBeGreaterThanOrEqual(5.4);
+    // a tree at full zoom would be ~3500 px tall: shrunk to the cap, aspect kept
+    const tree = spritePixelSize({ w: 380, h: 460 }, 1.44, 5.6);
+    expect(Math.max(tree.w, tree.h)).toBe(MAX_SPRITE_SIDE);
+    expect(tree.w / tree.h).toBeCloseTo(380 / 460, 2);
+  });
+
   it('keys by species, seed, step and pixel size', () => {
     const k = spriteKey(spec(3, 20, 30, 7));
     expect(k).toBe('sp|7|3|20x30');
@@ -142,6 +153,19 @@ describe('SpriteLru', () => {
     expect(lru.best('sp', 2, 5, 45)).toBeUndefined();
     lru.remove(spriteKey(spec(5, 40, 40)));
     expect(lru.best('sp', 1, 5, 45)?.spec.w).toBe(100);
+  });
+
+  it('evicts what a predicate picks (far-off high-resolution sprites), but not what this frame used', () => {
+    const lru = new SpriteLru(1e9);
+    lru.set(sprite(spec(5, 40, 40)));
+    lru.set(sprite(spec(5, 400, 400)));
+    lru.set(sprite(spec(6, 400, 400)));
+    lru.epoch++;
+    lru.get(spriteKey(spec(6, 400, 400)));
+    expect(lru.evictWhere((s) => s.w > 100)).toBe(1);
+    expect(lru.has(spriteKey(spec(5, 400, 400)))).toBe(false);
+    expect(lru.has(spriteKey(spec(6, 400, 400)))).toBe(true);
+    expect(lru.has(spriteKey(spec(5, 40, 40)))).toBe(true);
   });
 });
 

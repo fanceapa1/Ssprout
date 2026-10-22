@@ -64,8 +64,14 @@ export function crossFadeAlphas(weight: number): { lo: number; hi: number } {
   return { lo: 1 - w, hi: w };
 }
 
-/** Upper bound for sprite resolution (device px per world unit); beyond this sprites upscale. */
-export const MAX_SPRITE_RES = 2.4;
+/**
+ * Upper bound for sprite resolution (device px per world unit); beyond this sprites upscale.
+ * High enough for the camera's closest view (3× at DPR 2 ≈ 5.4 px/unit, ADR 0165): the bucket
+ * follows the zoomed scale for the plants in view, the rest stay at the overview's.
+ */
+export const MAX_SPRITE_RES = 6;
+/** No sprite side grows past this many pixels (a tree at full zoom would be ~3500 px tall). */
+export const MAX_SPRITE_SIDE = 2048;
 export const MIN_SPRITE_RES = 0.25;
 /** resolution buckets per octave: re-render only when the scale moves by ≥ ~19 % */
 export const RES_BUCKETS_PER_OCTAVE = 4;
@@ -80,9 +86,15 @@ export function resolutionBucket(pixelScale: number): number {
 /** True when sprites rendered for `from` should be re-rendered for `to`. */
 export const significantScaleChange = (from: number, to: number): boolean => resolutionBucket(from) !== resolutionBucket(to);
 
-/** Pixel size of a sprite: species box (world units at slot scale 1) × slot scale × resolution. */
+/**
+ * Pixel size of a sprite: species box (world units at slot scale 1) × slot scale × resolution,
+ * shrunk to fit `MAX_SPRITE_SIDE` on its long side (memory: a 2048² sprite is 16 MB).
+ */
 export function spritePixelSize(size: { w: number; h: number }, slotScale: number, res: number): { w: number; h: number } {
-  return { w: Math.max(1, Math.round(size.w * slotScale * res)), h: Math.max(1, Math.round(size.h * slotScale * res)) };
+  const w = size.w * slotScale * res;
+  const h = size.h * slotScale * res;
+  const k = Math.min(1, MAX_SPRITE_SIDE / Math.max(w, h, 1));
+  return { w: Math.max(1, Math.round(w * k)), h: Math.max(1, Math.round(h * k)) };
 }
 
 export interface SpriteSpec {
@@ -267,6 +279,18 @@ export class SpriteLru {
   clear(): void {
     for (const k of [...this.map.keys()]) this.remove(k);
   }
+
+  /** Drop every entry the predicate picks (except ones used this epoch); returns how many. */
+  evictWhere(pick: (spec: SpriteSpec) => boolean): number {
+    let n = 0;
+    for (const [k, e] of [...this.map]) {
+      if (e.epoch === this.epoch || !pick(e.spec)) continue;
+      this.remove(k);
+      this.evicted++;
+      n++;
+    }
+    return n;
+  }
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -339,6 +363,10 @@ export interface SpriteCache {
   whenIdle(): Promise<void>;
   stats(): SpriteCacheStats;
   setBudget(bytes: number): void;
+  /** drop cached sprites the predicate picks (not ones drawn this frame), e.g. far-off high-res ones */
+  evictWhere(pick: (spec: SpriteSpec) => boolean): number;
+  /** forget queued (not yet started) renders the predicate picks */
+  dropQueued(pick: (spec: SpriteSpec) => boolean): void;
   clear(): void;
   dispose(): void;
 }
@@ -358,7 +386,8 @@ interface WorkerSlot {
   dead: boolean;
 }
 
-export const DEFAULT_BUDGET = 64 * 1024 * 1024;
+/** Byte budget (the camera's close views need sharper sprites for the plants in view). */
+export const DEFAULT_BUDGET = 96 * 1024 * 1024;
 
 /** Message protocol of `sprite-worker.ts`. */
 export type WorkerRequest = { type: 'render'; id: number } & SpriteSpec;
@@ -564,6 +593,11 @@ export function createSpriteCache(opts: SpriteCacheOptions): SpriteCache {
     setBudget(bytes) {
       lru.budget = bytes;
       lru.trim();
+    },
+    evictWhere: (pick) => lru.evictWhere(pick),
+    dropQueued(pick) {
+      for (const [k, j] of [...queue]) if (pick(j.spec)) queue.delete(k);
+      settleIdle();
     },
     clear() {
       queue.clear();
