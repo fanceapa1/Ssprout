@@ -1911,6 +1911,254 @@ input.duration:focus-visible {
 }
 
 /* ── reduced motion ─────────────────────────────────────────────────────────────────────── */
+/* ── the camera on the stage (ADRs 0162–0168) ───────────────────────────────────────────── */
+/* + / − chips and "Whole garden", bottom right; above the centred pill on narrow stages */
+.zoom-controls {
+  position: absolute;
+  right: 12px;
+  bottom: 22px;
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  transition: opacity var(--ui-slow) var(--ui-breath);
+}
+.zoom-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.zoom-btn {
+  width: 48px;
+  height: 48px;
+}
+.zoom-btn::before {
+  inset: 0;
+  border-radius: 0;
+  background: var(--grain), var(--slip-chip-1);
+  background-size: auto, 100% 100%;
+  background-repeat: repeat, no-repeat;
+  opacity: 1;
+  filter: brightness(var(--ui-dim));
+}
+.zoom-btn[data-zoom='out']::before {
+  background-image: var(--grain), var(--slip-chip-2);
+}
+.zoom-btn:hover::before {
+  transform: rotate(2deg) scale(1.04);
+}
+.zoom-btn:disabled {
+  cursor: default;
+}
+.zoom-btn:disabled .ink-icon {
+  opacity: 0.32;
+}
+.zoom-btn:disabled:hover::before {
+  transform: none;
+}
+.zoom-btn .ink-icon {
+  width: 22px;
+  height: 22px;
+}
+.zoom-whole {
+  appearance: none;
+  border: 0;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 46px;
+  padding: 6px 16px 7px 12px;
+  font-size: 18px;
+  font-style: italic;
+  color: var(--ui-ink);
+  background-image: var(--grain), var(--slip-dense-0);
+  background-size: auto, 100% 100%;
+  background-repeat: repeat, no-repeat;
+  filter: brightness(var(--ui-dim));
+  transition: transform var(--ui-mid) var(--ui-breath);
+}
+.zoom-whole:hover {
+  transform: rotate(-1deg);
+}
+.zoom-whole .ink-icon {
+  width: 22px;
+  height: 22px;
+}
+@media (max-width: 899px), (max-aspect-ratio: 5/4) {
+  .zoom-controls {
+    bottom: 86px;
+  }
+}
+@media (max-width: 600px) {
+  .zoom-controls {
+    right: 6px;
+    bottom: 78px;
+    gap: 4px;
+  }
+  .zoom-btn {
+    width: 46px;
+    height: 46px;
+  }
+}
+.ui-root.is-resting .zoom-controls:not(:hover):not(:focus-within) {
+  opacity: 0.32;
+}
+.ui-root.has-plant-story .plant-label {
+  opacity: 0;
+}
+/* a card docked at the bottom of a phone's stage covers the pill and the zoom chips: they step back */
+@media (max-width: 660px) {
+  .ui-root.has-plant-story .pill,
+  .ui-root.has-plant-story .zoom-controls {
+    opacity: 0;
+    visibility: hidden;
+  }
+}
+.stage canvas:focus-visible {
+  outline: 1.6px solid var(--ui-ink);
+  outline-offset: -6px;
+}
+
+/* the plant card: a washi slip beside the plant, docked at the bottom on phones (ADR 0167) */
+.plant-story {
+  position: absolute;
+  text-align: left;
+  top: 50%;
+  right: 22px;
+  transform: translateY(-50%);
+  box-sizing: border-box;
+  width: min(390px, 40%);
+  max-height: calc(100% - 44px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 20px 26px 22px 28px;
+  background-image: var(--grain), var(--slip-dense-1);
+  background-size: auto, 100% 100%;
+  background-repeat: repeat, no-repeat;
+  filter: brightness(var(--ui-dim));
+  animation: plant-story-in var(--ui-slow) var(--ui-breath);
+}
+.plant-story[data-placement='left'] {
+  right: auto;
+  left: 22px;
+}
+.plant-story[data-placement='docked'] {
+  top: auto;
+  bottom: 8px;
+  left: 8px;
+  right: 8px;
+  width: auto;
+  max-height: 50%;
+  transform: none;
+  padding: 14px 18px 16px 20px;
+}
+@keyframes plant-story-in {
+  from {
+    opacity: 0;
+  }
+}
+.plant-story:focus {
+  outline: none;
+}
+.plant-story-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+.plant-story-titles {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 12px;
+  padding-top: 4px;
+}
+.plant-story-name {
+  margin: 0;
+  font-family: var(--ui-display);
+  font-size: 25px;
+  font-weight: 500;
+  letter-spacing: 0.03em;
+}
+.plant-story-native {
+  margin: 0;
+  font-style: italic;
+  font-size: 19.5px;
+  color: var(--ui-ink-soft);
+}
+.plant-story-close {
+  flex: none;
+  margin: -6px -12px 0 0;
+}
+.plant-story-close::before {
+  opacity: 0;
+}
+.plant-story-close:hover::before {
+  opacity: 0.85;
+}
+.plant-story-line {
+  margin: 8px 0 0;
+  font-style: italic;
+  font-size: 20px;
+  text-wrap: balance;
+}
+.plant-story-note {
+  margin: 12px 0 0;
+  font-size: 18.5px;
+  line-height: 1.45;
+  color: var(--ui-ink);
+}
+.plant-story-history {
+  margin-top: 14px;
+  padding-top: 12px;
+  background: var(--brush-rule) top left / 100% 6px no-repeat;
+}
+.plant-story-history-head {
+  margin: 0;
+  font-family: var(--ui-display);
+  font-size: 16px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  color: var(--ui-ink-soft);
+}
+.plant-story-task {
+  margin: 4px 0 0;
+  font-size: 19.5px;
+}
+.plant-story-taskname {
+  font-style: italic;
+}
+.plant-story-facts {
+  margin: 2px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 18.5px;
+  color: var(--ui-ink-soft);
+}
+.plant-story-facts li + li::before {
+  content: '';
+}
+.plant-story-replaced {
+  margin: 8px 0 0;
+  font-size: 18px;
+  font-style: italic;
+  color: var(--ui-ink-soft);
+}
+@media (max-width: 600px) {
+  .plant-story-name {
+    font-size: 23px;
+  }
+  .plant-story-native,
+  .plant-story-line {
+    font-size: 18.5px;
+  }
+  .plant-story-note,
+  .plant-story-facts,
+  .plant-story-task {
+    font-size: 17.5px;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .ui-root *,
   .ui-root *::before,

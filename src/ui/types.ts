@@ -9,7 +9,8 @@ import type { ScheduleSheetState } from './schedule-sheet';
 import type { DueCardsState } from './schedule-card';
 import type { Store } from '../core/state';
 import type { SpeciesDef } from '../plants/types';
-import type { Viewport } from '../render/viewport';
+import type { Camera } from '../render/camera';
+import type { Pt, Rect, Viewport } from '../render/viewport';
 import type { Slot } from '../scene/geometry';
 import type { Dock } from './dock';
 import type { PlantViewState } from './plant-section';
@@ -56,6 +57,26 @@ export interface NotificationIntegration {
   request(): Promise<NotificationAnswer>;
 }
 
+/** A plant under a point, as the plant system reports it (src/plants/system.ts › PlantHit). */
+export interface PlantHitInfo {
+  /** the plant id, or the session id of a seedling */
+  id: string;
+  kind: 'finished' | 'growing';
+  speciesId: string;
+  slotId: string;
+  box: Rect;
+}
+
+/**
+ * The camera over the garden (ADRs 0160–0168), as the stage's controls, gestures and the plant
+ * card use it. `main.ts` passes the renderer's camera and the plant system's hit-test.
+ */
+export interface CameraIntegration {
+  camera: Camera;
+  /** front-most plant painted at a world point, with `tolerance` world units of slack */
+  hitTest(world: Pt, tolerance: number): PlantHitInfo | null;
+}
+
 export interface UIDeps {
   /**
    * The page (`#ui`): the garden stage, the dock below it, and the fixed layers (tips, scrollbar,
@@ -89,6 +110,8 @@ export interface UIDeps {
    * Calendar section, shows the waiting card and links a session started from it (ADRs 0173–0177).
    */
   schedules?: Scheduler;
+  /** zoom controls, gestures, focus on the growing plant and plant cards (without: none) */
+  camera?: CameraIntegration;
 }
 
 /** What the renderer may draw in-canvas while the gardener is choosing a spot. */
@@ -140,8 +163,10 @@ export interface UIState {
   markers: string[];
   /** quiet line currently shown at the top (completion or fauna arrival) */
   line: string | null;
-  /** finished-plant label currently shown (hover/tap) */
+  /** finished-plant label currently shown (hover) */
   plantLabel: string | null;
+  /** the plant card that is open: the plant (or seedling's session) id */
+  plantCard: { id: string; kind: 'finished' | 'growing' } | null;
   /** the planting draft */
   draft: PlantingDraft;
   /** the Calendar section (null without schedules) */
@@ -186,5 +211,14 @@ export interface UI {
   setTimeScale(scale: number): void;
   /** show the finished-plant label for the plant at a world point (as a hover would); returns its text */
   showPlantLabel(world: { x: number; y: number }): string | null;
+  /** the camera's controls on the stage and the plant card (null without a camera integration) */
+  readonly camera: {
+    /** open a plant's card (plant or session id) and glide onto it, as a click would */
+    openCard(id: string): boolean;
+    closeCard(): void;
+    /** follow session starts and switches (dev/tests; default on) */
+    setAutoFocus(on: boolean): void;
+    state(): { touchAction: string; cursor: string; autoFocus: boolean };
+  } | null;
   dispose(): void;
 }

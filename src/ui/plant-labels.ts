@@ -9,7 +9,9 @@ import { formatDay } from './format';
 
 /**
  * Hover (or tap) a finished plant → a tiny ink label: task name · minutes · date (SPEC §3).
- * A DOM hit-test over the slot positions and species sprite boxes; never blocks the canvas.
+ * Never blocks the canvas. With the camera (ADR 0167) the label stays the quick hover glance and
+ * uses the plant system's painted-pixel hit-test; a tap (and a click) opens the plant card instead,
+ * and no label shows while a card is open. Without it: a hit-test over the sprite boxes, tap labels.
  */
 export interface PlantLabels {
   readonly el: HTMLElement;
@@ -62,7 +64,14 @@ export function createPlantLabels(ctx: UIContext, canvas: HTMLElement | null): P
   let shown: string | null = null;
   let shownId: string | null = null;
 
-  const calm = () => ctx.mode() === 'garden' && ctx.openDialogs().length === 0;
+  const calm = () => ctx.mode() === 'garden' && ctx.openDialogs().length === 0 && !ctx.deps.root.classList.contains('has-plant-story');
+  const cam = ctx.deps.camera;
+  /** the finished plant under a world point: painted pixels with the camera, sprite boxes without */
+  const hit = (p: Pt): PlantInstance | null => {
+    if (!cam) return hitPlant(p, store.get().plants, slotById, getSpecies);
+    const h = cam.hitTest(p, 6 / ctx.deps.viewport().scale);
+    return h && h.kind === 'finished' ? store.get().plants.find((x) => x.id === h.id) ?? null : null;
+  };
 
   function showFor(plant: PlantInstance | null): string | null {
     if (!plant) {
@@ -95,7 +104,7 @@ export function createPlantLabels(ctx: UIContext, canvas: HTMLElement | null): P
   const at = (e: PointerEvent): PlantInstance | null => {
     const r = canvas?.getBoundingClientRect();
     const p = ctx.deps.viewport().screenToWorld({ x: e.clientX - (r?.left ?? 0), y: e.clientY - (r?.top ?? 0) });
-    return hitPlant(p, store.get().plants, slotById, getSpecies);
+    return hit(p);
   };
 
   const onMove = (e: PointerEvent) => {
@@ -105,7 +114,7 @@ export function createPlantLabels(ctx: UIContext, canvas: HTMLElement | null): P
     if (p?.id !== shownId) showFor(p);
   };
   const onDown = (e: PointerEvent) => {
-    if (e.pointerType !== 'touch') return;
+    if (e.pointerType !== 'touch' || cam) return;
     if (!calm() || e.target !== canvas) return hide();
     const p = at(e);
     if (!p || p.id === shownId) hide();
@@ -117,7 +126,7 @@ export function createPlantLabels(ctx: UIContext, canvas: HTMLElement | null): P
   return {
     el,
     current: () => shown,
-    showAt: (p) => showFor(hitPlant(p, store.get().plants, slotById, getSpecies)),
+    showAt: (p) => showFor(hit(p)),
     hide,
     dispose() {
       window.removeEventListener('pointermove', onMove);

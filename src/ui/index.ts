@@ -24,6 +24,7 @@ import { installPagePaper } from './page-paper';
 import { installPaper } from './paper';
 import { createPill } from './pill';
 import { createPlacement } from './placement';
+import { createPlantCard } from './plant-card';
 import { createPlantLabels } from './plant-labels';
 import { createPlantSection } from './plant-section';
 import { applyPrefill, clearPrefill, createPlantingSheet } from './planting-sheet';
@@ -35,6 +36,7 @@ import { createScrollbar } from './scrollbar';
 import { createSessionList } from './session-list';
 import { createSmoothScroll } from './smooth-scroll';
 import { createStage } from './stage';
+import { createStageCamera } from './stage-camera';
 import { createTimerPanel } from './timer-panel';
 import { createTips } from './tips';
 import { createTools } from './tools';
@@ -118,7 +120,10 @@ export function createUI(deps: UIDeps): UI {
       dock.el.inert = next === 'placement';
       tools.corner.inert = next === 'placement';
       pill.el.inert = next === 'placement';
-      if (next !== 'garden') labels.hide();
+      if (next !== 'garden') {
+        labels.hide();
+        plantCard?.close({ restoreFocus: false });
+      }
       ctx.changed();
       if (next === 'garden') line.check();
     },
@@ -197,6 +202,10 @@ export function createUI(deps: UIDeps): UI {
   });
   const line = createQuietLine(ctx);
   const labels = createPlantLabels(ctx, stage.canvas);
+  // the camera: zoom controls and gestures, focus on the growing plant, plant cards (ADRs 0162–0168)
+  const plantCard = deps.camera ? createPlantCard(ctx) : null;
+  const stageCamera =
+    deps.camera && plantCard ? createStageCamera(ctx, { stage, integration: deps.camera, card: plantCard, labels, placement: placement.highlight }) : null;
 
   // ── the dock: features plug in as sections (docs/ARCHITECTURE.md › Dock) ──────────────────
   // the session controls, then the sessions in progress (ADR 0156)
@@ -266,6 +275,7 @@ export function createUI(deps: UIDeps): UI {
 
   stage.layer.append(line.el, labels.el, placement.layer, pill.el, tools.corner, placement.bar);
   if (dueCards) stage.layer.append(dueCards.slip);
+  if (stageCamera && plantCard) stage.layer.append(stageCamera.controls, plantCard.el);
   stageEl.after(dock.el);
   root.append(tips.el, scrollbar.el, live, planting.el, herbarium.el, data.el, hints.el);
   if (scheduleSheet) root.append(scheduleSheet.el);
@@ -428,6 +438,7 @@ export function createUI(deps: UIDeps): UI {
     markers: placement.isOpen() ? placement.markers() : [],
     line: line.current(),
     plantLabel: labels.current(),
+    plantCard: plantCard?.current() ?? null,
     draft: { ...draft },
     calendar: calendar?.state() ?? null,
     due: dueCards?.state() ?? null,
@@ -456,6 +467,14 @@ export function createUI(deps: UIDeps): UI {
       timeScale = Math.max(0, scale);
     },
     showPlantLabel: (p) => labels.showAt(p),
+    camera: stageCamera
+      ? {
+          openCard: (id) => stageCamera.openCard(id),
+          closeCard: () => plantCard?.close(),
+          setAutoFocus: (on) => stageCamera.setAutoFocus(on),
+          state: () => stageCamera.state(),
+        }
+      : null,
     dispose() {
       disposed = true;
       offStore();
@@ -475,6 +494,8 @@ export function createUI(deps: UIDeps): UI {
       line.dispose();
       labels.dispose();
       for (const off of offSchedules) off();
+      stageCamera?.dispose();
+      plantCard?.dispose();
       root.replaceChildren();
     },
   };
