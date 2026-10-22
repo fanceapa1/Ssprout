@@ -21,7 +21,6 @@ import { createViewport, WORLD_W } from './viewport';
 const desk = createViewport(1440, 880, 2);
 const phone = createViewport(390, 742, 3);
 
-const close = (a: number, b: number, eps = 1e-6) => Math.abs(a - b) <= eps;
 
 describe('composeView', () => {
   it('is the base viewport at the overview pose', () => {

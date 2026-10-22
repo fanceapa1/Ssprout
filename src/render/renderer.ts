@@ -2,12 +2,16 @@ import type { Clock } from '../core/clock';
 import type { EventBus } from '../core/events';
 import type { Store } from '../core/state';
 import type { SceneGeometry } from '../scene/geometry';
+import { createCamera, MAX_ZOOM, type Camera } from './camera';
 import { CACHED_LAYERS, LAYERS, type Drawable, type FrameInfo, type LayerId, type System, type SystemContext } from './types';
 import { createViewport, DEFAULT_FOCUS, type Pt, type Viewport } from './viewport';
 
 /**
  * One visible canvas. `background` and `paper` are painted once per resize into offscreen
- * canvases; every other layer is redrawn each frame, in LAYERS order. See docs/systems/render.md.
+ * canvases; every other layer is redrawn each frame, in LAYERS order. A camera (camera.ts) zooms
+ * and pans over the overview: every world layer is drawn through its view; the background is
+ * cached twice — at the overview, blitted as a sub-rect while the camera moves, and at the
+ * resting view once it settles (ADR 0161). The paper stays screen-fixed. See docs/systems/render.md.
  */
 export interface RendererOptions {
   canvas: HTMLCanvasElement;
@@ -20,6 +24,8 @@ export interface RendererOptions {
   focus?: Pt;
   /** debounce for resize-triggered re-init (ms, default 200) */
   resizeDebounceMs?: number;
+  /** camera zoom limit (default MAX_ZOOM) */
+  maxZoom?: number;
   /** upper bound for FrameInfo.dt in seconds (default 0.1) */
   maxDt?: number;
   /** canvas size in CSS px + device pixel ratio (default: canvas client rect + window.devicePixelRatio) */
@@ -33,7 +39,11 @@ export interface RendererOptions {
 }
 
 export interface Renderer {
+  /** what the stage shows this frame: the overview composed with the camera (world ↔ stage CSS px) */
   readonly viewport: Viewport;
+  /** the overview (cover) viewport, zoom 1: what systems size their caches from */
+  readonly baseViewport: Viewport;
+  readonly camera: Camera;
   readonly frozen: boolean;
   readonly running: boolean;
   /** Resolves once every system has initialised for the current size and caches are built. */
@@ -123,6 +133,10 @@ export function createRenderer(opts: RendererOptions): Renderer {
   const dirty = new Set<LayerId>(CACHED_LAYERS);
 
   let viewport = createViewport(1, 1, 1, focus);
+  const camera = createCamera({ base: viewport, reducedMotion, maxZoom: opts.maxZoom ?? MAX_ZOOM });
+  /** the resting-view background cache: valid for this view object while not dirty */
+  let viewCacheFor: Viewport | null = null;
+  let viewCacheDirty = true;
   let sized = false;
   let generation = 0;
   let readyPromise: Promise<void> = Promise.resolve();
@@ -136,6 +150,7 @@ export function createRenderer(opts: RendererOptions): Renderer {
 
   const systemContext = (): SystemContext => ({
     viewport,
+    camera,
     store: opts.store,
     bus: opts.bus,
     clock: opts.clock,
@@ -161,14 +176,14 @@ export function createRenderer(opts: RendererOptions): Renderer {
     }
   };
 
-  const ensureCache = (layer: LayerId) => {
-    let c = caches.get(layer);
+  const ensureCache = (layer: LayerId | 'background:view') => {
+    let c = caches.get(layer as LayerId);
     if (!c) {
       const cv = createCanvas();
       const cx = cv.getContext('2d');
       if (!cx) throw new Error('2D canvas context unavailable');
       c = { canvas: cv, ctx: cx };
-      caches.set(layer, c);
+      caches.set(layer as LayerId, c);
     }
     if (c.canvas.width !== viewport.pixelW || c.canvas.height !== viewport.pixelH) {
       c.canvas.width = viewport.pixelW;
@@ -177,32 +192,47 @@ export function createRenderer(opts: RendererOptions): Renderer {
     return c;
   };
 
-  const frameInfo = (dt: number): FrameInfo => ({ t, dt, now: opts.clock.now() });
+  const frameInfo = (dt: number): FrameInfo => ({ t, dt, now: opts.clock.now(), view: camera.view() });
 
-  const rebuildCaches = (f: FrameInfo) => {
-    for (const layer of CACHED_LAYERS) {
+  /** the paper (and the overview background) — both drawn at the overview */
+  const rebuildCaches = (f: FrameInfo, layers: readonly LayerId[]) => {
+    for (const layer of layers) {
       if (!dirty.has(layer)) continue;
       const { ctx: cx } = ensureCache(layer);
       cx.setTransform(1, 0, 0, 1, 0, 0);
       cx.clearRect(0, 0, viewport.pixelW, viewport.pixelH);
-      drawLayer(cx, layer, f);
+      drawLayer(cx, layer, { ...f, view: viewport }, viewport);
       dirty.delete(layer);
     }
   };
 
-  const drawLayer = (cx: CanvasRenderingContext2D, layer: LayerId, f: FrameInfo) => {
+  /** the background at the camera's resting view (rebuilt when the view or the painting changes) */
+  const viewCache = (f: FrameInfo, view: Viewport) => {
+    const c = ensureCache('background:view');
+    if (viewCacheDirty || viewCacheFor !== view) {
+      c.ctx.setTransform(1, 0, 0, 1, 0, 0);
+      c.ctx.clearRect(0, 0, view.pixelW, view.pixelH);
+      drawLayer(c.ctx, 'background', { ...f, view }, view);
+      viewCacheFor = view;
+      viewCacheDirty = false;
+    }
+    return c;
+  };
+
+  const drawLayer = (cx: CanvasRenderingContext2D, layer: LayerId, f: FrameInfo, vp: Viewport = camera.view()) => {
     for (const e of entries) {
       const s = e.system;
       if (!e.ready || !s.draw) continue;
       cx.save();
-      viewport.applyTo(cx);
+      vp.applyTo(cx);
       guard(s.id, `draw:${layer}`, () => s.draw!(layer, cx, f));
       cx.restore();
     }
   };
 
   const drawEntities = (cx: CanvasRenderingContext2D, f: FrameInfo) => {
-    drawLayer(cx, 'entities', f);
+    const view = camera.view();
+    drawLayer(cx, 'entities', f, view);
     const items: { d: Drawable; id: string; i: number }[] = [];
     for (const e of entries) {
       if (!e.ready || !e.system.entities) continue;
@@ -213,22 +243,55 @@ export function createRenderer(opts: RendererOptions): Renderer {
     items.sort((a, b) => a.d.depth - b.d.depth || a.i - b.i);
     for (const { d, id } of items) {
       cx.save();
-      viewport.applyTo(cx);
+      view.applyTo(cx);
       guard(id, 'draw:entity', () => d.draw(cx, f));
       cx.restore();
     }
   };
 
+  /**
+   * The background: at the overview its cache as is; while the camera moves, the overview cache's
+   * sub-rect under the view, scaled up (one blit, no repaint); once it rests, the cache built at
+   * the resting view (sharp: the scene may have painted detail for it).
+   */
+  const overviewBackground = () => camera.view() === viewport || camera.moving();
+  const drawBackground = (f: FrameInfo) => {
+    const view = camera.view();
+    if (overviewBackground()) {
+      const c = caches.get('background');
+      if (!c) return;
+      if (view === viewport) {
+        ctx.drawImage(c.canvas, 0, 0);
+        return;
+      }
+      const v = view.visible;
+      const k = viewport.scale * viewport.dpr;
+      ctx.imageSmoothingEnabled = true;
+      ctx.drawImage(
+        c.canvas,
+        (v.x * viewport.scale + viewport.offsetX) * viewport.dpr,
+        (v.y * viewport.scale + viewport.offsetY) * viewport.dpr,
+        v.w * k,
+        v.h * k,
+        0,
+        0,
+        view.pixelW,
+        view.pixelH,
+      );
+      return;
+    }
+    ctx.drawImage(viewCache(f, view).canvas, 0, 0);
+  };
+
   const composite = (f: FrameInfo) => {
-    rebuildCaches(f);
+    rebuildCaches(f, overviewBackground() ? CACHED_LAYERS : ['paper']);
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.globalAlpha = 1;
     ctx.globalCompositeOperation = 'source-over';
     ctx.clearRect(0, 0, viewport.pixelW, viewport.pixelH);
     for (const layer of LAYERS) {
       if (layer === 'background') {
-        const c = caches.get('background');
-        if (c) ctx.drawImage(c.canvas, 0, 0);
+        drawBackground(f);
       } else if (layer === 'paper') {
         const c = caches.get('paper');
         if (c) {
@@ -250,6 +313,7 @@ export function createRenderer(opts: RendererOptions): Renderer {
   const frame = (dt: number) => {
     if (!sized) return;
     const t0 = perfNow();
+    camera.update(dt);
     const f = frameInfo(dt);
     for (const e of entries) {
       if (e.ready && e.system.update) guard(e.system.id, 'update', () => e.system.update!(f));
@@ -282,6 +346,8 @@ export function createRenderer(opts: RendererOptions): Renderer {
     if (disposed) return;
     const m = measure();
     viewport = createViewport(m.w, m.h, m.dpr, focus);
+    camera.setBase(viewport);
+    viewCacheDirty = true;
     if (canvas.width !== viewport.pixelW) canvas.width = viewport.pixelW;
     if (canvas.height !== viewport.pixelH) canvas.height = viewport.pixelH;
     sized = true;
@@ -290,6 +356,7 @@ export function createRenderer(opts: RendererOptions): Renderer {
     readyPromise = Promise.all(entries.map((e) => initEntry(e, gen))).then(() => {
       if (gen !== generation || disposed) return;
       for (const l of CACHED_LAYERS) dirty.add(l);
+      viewCacheDirty = true;
       // the backing store was cleared by the resize: repaint even when frozen
       if (frozen || !running) frame(0);
     });
@@ -312,8 +379,12 @@ export function createRenderer(opts: RendererOptions): Renderer {
 
   const renderer: Renderer = {
     get viewport() {
+      return camera.view();
+    },
+    get baseViewport() {
       return viewport;
     },
+    camera,
     get frozen() {
       return frozen;
     },
@@ -331,6 +402,7 @@ export function createRenderer(opts: RendererOptions): Renderer {
       const gen = generation;
       const p = initEntry(entry, gen).then(() => {
         for (const l of CACHED_LAYERS) dirty.add(l);
+        viewCacheDirty = true;
         if (frozen || !running) frame(0);
       });
       readyPromise = Promise.all([readyPromise, p]).then(() => undefined);
@@ -342,6 +414,7 @@ export function createRenderer(opts: RendererOptions): Renderer {
       const [entry] = entries.splice(i, 1);
       if (entry) guard(id, 'dispose', () => entry.system.dispose?.());
       for (const l of CACHED_LAYERS) dirty.add(l);
+      viewCacheDirty = true;
     },
     systems: () => entries.map((e) => e.system),
     start() {
@@ -394,6 +467,7 @@ export function createRenderer(opts: RendererOptions): Renderer {
     invalidate(layer) {
       if (layer) dirty.add(layer);
       else for (const l of CACHED_LAYERS) dirty.add(l);
+      if (!layer || layer === 'background') viewCacheDirty = true;
     },
     dispose() {
       renderer.stop();
