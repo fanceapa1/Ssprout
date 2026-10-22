@@ -1,6 +1,8 @@
 # UI system
 
-`src/ui/` — the DOM layer over the garden canvas: calm paper and ink (ART_DIRECTION › UI style).
+`src/ui/` — the app page around the garden canvas: calm paper and ink (ART_DIRECTION › UI style).
+The page scrolls as a document: the garden **stage** on top (~88 % of the window under a small
+margin), the **dock** of sections below it on the same washi (ADRs 0130–0136).
 It drives the app **only** through the session controller (`src/core/controller.ts`) and reads
 `controller.status()`; it never dispatches session actions or recomputes session maths (ADR 0050).
 
@@ -24,14 +26,22 @@ the widget surfaces — the UI then asks in the Begin click itself.
 ## Components
 | File | What |
 |---|---|
-| `index.ts` | `createUI` — composition, modes (`garden` / `planting` / `placement`), dialog management, flows, store/tick/bus wiring |
-| `timer-panel.ts` | timer slip (bottom-centre; a 360 px slip in the lower-left corner on wide landscape screens, ADR 0127): idle "Start studying"; studying: task, block label, block + total remaining, plan line with progress, Pause/End, break Water/Skip, cancel confirm, long-pause prompt; fades while focusing |
+| `index.ts` | `createUI` — composition (stage overlay, dock sections, fixed layers), modes (`garden` / `planting` / `placement`), dialog management, flows, store/tick/bus wiring |
+| `stage.ts` | the garden stage: `.stage-ui` overlay, the edge mask, the zoom-gesture hook (ADR 0130, 0132) |
+| `stage-edge.ts` | pure alpha mask for the dissolving edge (`stageEdgeAlpha`, `fadeHeight`, `featherWidth`) |
+| `page-paper.ts` | the page's paper tile from `paperTexture` (same washi as the garden, ADR 0132) |
+| `dock.ts` | the dock section registry (`createDock`, `orderSections`; contract in ARCHITECTURE › Dock) |
+| `smooth-scroll.ts` · `scroll-math.ts` | custom smooth scrolling (wheel/keys/jumps, native adoption, reduced motion) and its pure maths (ADR 0131) |
+| `scrollbar.ts` · `brush-path.ts` | the brush-stroke scrollbar; seeded vertical brush strokes |
+| `timer-panel.ts` | session controls in the dock's "Study" section: idle "Start studying"; studying: task, block label, block + total remaining, plan line with progress, Pause/End, break Water/Skip, cancel confirm, long-pause prompt; `resting` drives the root's `is-resting` |
+| `pill.ts` | the timer pill on the garden: idle "Start studying"; block time, Pause/Resume, "Session controls" (glide down + focus) (ADR 0133) |
+| `plant-section.ts` | "Your plant": live `renderPlantView`, watering on `session:water` / `water()`, wilt on cancel, latest bloom or an empty bed when idle; `paintRoundWindow`, `paintEmptyBed` (ADR 0134) |
+| `tools.ts` | garden tools, one implementation rendered twice: corner chips (`nav.menu`) and the dock list (`ul.tool-list`) (ADR 0135) |
 | `session-view.ts` | the one adapter from `controller.status()` to what the panel shows |
 | `planting-sheet.ts` | `<dialog>`: task name (≤ 40), total time, recommended plans, plant grid → "Choose a spot" (ADR 0053) |
 | `duration.ts` | numeral + slider 10–180/5 + chips 25/50/90 + tier words |
 | `plan-line.ts` | plan as a segmented brush line (focus strokes, water-drop breaks); pure geometry `planSegments`, `xAtMinutes`, `planSummary` |
 | `placement.ts` | markers `button[data-slot-id]` for `controller.placementOptions(speciesId)`, swap markers, Back/Begin bar, `highlight` observable |
-| `menu.ts` | top-right ink icons: sound, floating timer (only with a supported widget), pressed flowers, garden data, hints |
 | `herbarium.ts` | Pressed Flowers book: each pressed plant's own sprite, desaturated and laid flat, with dates |
 | `garden-data.ts` | export (`study-sprout-garden-YYYY-MM-DD.json`) / import (validated, errors inline, confirm before replacing) |
 | `hints.ts` | ⓘ list of every tip incl. learned (retired) ones |
@@ -40,7 +50,7 @@ the widget surfaces — the UI then asks in the Begin click itself.
 | `plant-labels.ts` | hover/tap a finished plant → "task · minutes · date" (DOM hit-test, `hitPlant`) |
 | `previews.ts` | `renderPlantPreview(canvas, species, seed, growth?, createCanvas?)`, `createPreviewCache(getSpecies, createCanvas?)`, pressed-flower pixels |
 | `paper.ts` | seeded deckled washi slips + grain as CSS custom properties (ADR 0052) |
-| `icons.ts` | inline SVG ink icons (no emoji, no icon fonts) |
+| `icons.ts` | ink icons as stroke data: inline SVG (`ICONS`) and Path2D (`drawIcon`) (no emoji, no icon fonts) |
 | `format.ts` | pure copy helpers: tiers, habitats, spoken durations, milestones, tip priorities |
 | `ambient-light.ts` | `uiLight(grade)`, `applyUiLight(root, grade)`: `--ui-dab` / `--ui-dim` so the slips and paper dabs dim with the garden's light (ADR 0121) |
 | `context.ts` | `UIContext`: state shared by the components (internal) |
@@ -49,7 +59,22 @@ the widget surfaces — the UI then asks in the Begin click itself.
 | `types.ts` | `UIDeps`, `UI`, `UIState`, `PlantingDraft`, `PlacementHighlight`, widget/audio/notification integrations |
 | `notifications.ts` | `browserNotifications()`: the Notification API as a `NotificationIntegration` |
 | `ui.studio.ts` | studio section: plant previews at a few growth values, pressed-flower treatment |
-| `ui.css` | all UI styles; tokens on `:root` (`--ui-ink`, `--ui-paper`, `--ui-vermilion`, fonts) |
+| `shell.studio.ts` | studio section `ui-shell`: icons, corner chips, scrollbar, pill states, plant-view states, the garden's edge |
+| `ui.css` | all UI styles; tokens on `:root` (`--ui-ink`, `--ui-ink-soft`, `--ui-ink-mute`, `--ui-paper`, `--ui-vermilion`, fonts); base 21 px (ADR 0136, checked by `ink.test.ts`) |
+
+## Page layout
+```
+#ui (page, .ui-root) ─ section#stage ─ canvas#garden (masked edge)
+                     │                └ .stage-ui: quiet line · plant label · markers · pill · nav.menu · placement bar
+                     ├ .dock: [Study | Your plant] · (Calendar, hidden placeholder) · Garden tools
+                     └ fixed: .tips · .scrollbar · live region · dialogs (top layer)
+```
+- Desktop: two columns (Study, Your plant), tools across; under 860 px one column; phones (≤ 600 px)
+  an 8 px margin and a 20 px base.
+- Session controls exist in the dock; the pill keeps time, pause/resume and the way down. While
+  focusing, the pill and the corner tools rest; the dock never fades.
+- **Add a dock section:** `ui.dock.addSection({ id, title, order, span, mount(body) { … } })` from
+  `src/ui` (or `main.ts`); fill the reserved calendar with `ui.dock.fill('calendar', mount)`.
 
 ## Flows
 ```
@@ -70,10 +95,14 @@ paused ≥ 30 min → "Still with us?" Resume / End session
   `controller.updateSettings({ notifications })`.
 - Plant previews use the shared `renderPlantView` (src/plants/view.ts, same renderer as the
   widget); species it doesn't know (the dev fixtures) fall back to `renderPlantPreview`.
-- Placement makes the panel and menu `inert` and dim; markers follow the renderer's viewport.
+- Placement makes the dock, pill and corner tools `inert` (dock faded, pill hidden), glides the page
+  to the top so the whole garden is the map; markers follow the renderer's viewport.
+- After Begin, focus lands on the pill's Pause (the page stays on the garden). The pill's
+  "Session controls" glides to the Study section and focuses Water (dry break), Resume or Pause.
 
 ## States (`window.sprout.ui.state()`)
-`{ mode, panel: 'idle'|'focus'|'break'|'paused'|'longPause', confirm, resting, dialogs, tips,
+`{ mode, panel: 'idle'|'focus'|'break'|'paused'|'longPause', pill (same values), plantView: { mode:
+'growing'|'bloom'|'empty', speciesId, growth, watering, wilting }, confirm, resting, dialogs, tips,
 markers, line, plantLabel, draft }`.
 
 ## Accessibility
@@ -87,7 +116,10 @@ no fades.
 Tips come from the core registry (`activeTips(state, ctx)`); the UI only decides placement.
 **One note at a time** (ADR 0124): `pickTips` (format.ts) takes the highest `TIP_PRIORITY`
 (placement, swap, water, task, duration, plan, notifications, widget, pressed, sound) whose control
-is in view; the rest wait their turn. On first load that is the note by Start studying. Sheet notes
+is in view; the rest wait their turn. On first load that is the note by Start studying. A control
+that exists twice (Start studying on the pill and in the dock; the tools in the corner and the dock)
+is resolved to the dock's copy when it is in view, else the one on the garden, so notes follow the
+page as it scrolls (`resolveAnchor` returns candidates, `tips.ts` takes the first visible). Sheet notes
 retire when their control is used (task named, time committed, plan picked); a control in a sheet
 counts as in view only while scrolled into it, and notes follow on scroll. Notes wait while the
 quiet line speaks. `format.ts` also holds `TIP_GROUP` (sheet / panel / menu / garden) and
@@ -127,7 +159,9 @@ in-canvas highlight of the hovered/selected slot (ADR 0117).
 
 ## Ambient light
 `main.ts`: once the painting is ready, `ambience.onLight((grade) => applyUiLight(uiRoot, grade))`
-dims the DOM slips and paper dabs with the garden's light (ADR 0121).
+dims the DOM slips and paper dabs with the garden's light (ADR 0121): on the stage the pill,
+placement bar, plant label, the corner chips and their labels, and the tips. The dock is not dimmed:
+it is read on the page, like a sheet.
 
 ## Audio
 `createGardenAudio` is created in `main.ts` and passed as `audio`. The sound button toggles
@@ -137,13 +171,17 @@ dims the DOM slips and paper dabs with the garden's light (ADR 0121).
 ## Debug API (`?dev`)
 `?fixtures` adds the `fx-*` species (ADR 0055); `?uitime=0.05` scales UI delays; `?widget=fake`.
 `window.sprout.ui`: `state()`, `refresh()`, `setTimeScale(n)`, `placement()`, `widget`
-(fake only), `showPlantLabel(world)`, `slotScreen(id)`. `window.sprout.advance(ms)` jumps the dev
+(fake only), `showPlantLabel(world)`, `slotScreen(id)` (client pixels), `scroll()`,
+`scrollTo(y | sectionId, { instant? })`, `dock()`, `dockReady()`, `waterPlantView()`,
+`onZoomGesture(fn)`. `window.sprout.advance(ms)` jumps the dev
 clock and refreshes the UI (e.g. into a break or a long pause).
 
 ## Tests
 Unit: `format.test.ts`, `plan-line.test.ts`, `plant-labels.test.ts`, `previews.test.ts`,
-`ambient-light.test.ts`.
-E2E: `tests/e2e/ui-session.spec.ts` (sheet, begin, cancel, breaks/watering, long pause, completion,
+`ambient-light.test.ts`, `scroll-math.test.ts`, `dock.test.ts`, `stage-edge.test.ts`, `ink.test.ts`.
+E2E: `tests/e2e/ui-shell.spec.ts` (page and stage sizing, wheel/keys/reduced-motion scrolling,
+scrollbar drag, pointer mapping when scrolled, dock order and columns, dock controls + pill,
+duplicated tools, Your plant, tips in their new homes), `tests/e2e/ui-session.spec.ts` (sheet, begin, cancel, breaks/watering, long pause, completion,
 swap → herbarium, reload mid-session, keyboard), `ui-menu.spec.ts` (tips + hints, sound persistence,
 widget button, export/import, creature line, resting panel, mobile), `ui-start-flow.spec.ts` (task
 name, total time, plant cards), `session-rules.spec.ts`, `polish.spec.ts` (one tip at a time,

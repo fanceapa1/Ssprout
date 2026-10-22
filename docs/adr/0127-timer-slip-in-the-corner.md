@@ -1,6 +1,6 @@
 # ADR 0127 — The timer slip lies in the lower-left corner on wide screens
 
-- Status: accepted
+- Status: superseded by ADR 0133 (the controls moved below the garden; the pill keeps the corner)
 - Date: 2026-10-22
 
 ## Context

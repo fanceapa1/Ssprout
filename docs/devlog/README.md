@@ -24,3 +24,4 @@ ADRs), *Tests*, *Left / for others*; add a row here in the same commit.
 | 13 | [Plant system](13-plant-system.md) | Worker sprite cache, growth morph, sway, wither, watering, reflections, placement highlight | 0110–0118 |
 | 14 | [Polish](14-polish.md) | End-to-end review rounds: placeholder out, tier-1 sizes, pond/engawa, path, tips one at a time, arrivals on sight, phone framing | 0120–0127 |
 | 15 | [QA & docs](15-qa-docs.md) | Requirements → tests matrix, gap tests, deterministic e2e under load, CI gating of Pages, docs audit, README | 0014–0015 |
+| 16 | [App shell](16-app-shell.md) | Scrolling page: garden stage with a dissolving edge, dock of sections, smooth scroll + brush scrollbar, timer pill, Your plant, tools twice, bigger darker type | 0130–0136 |

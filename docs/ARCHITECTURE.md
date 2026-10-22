@@ -44,7 +44,9 @@ src/
   fauna/                  creatures (one file each) + FaunaSystem — docs/systems/fauna.md
   ambience/               session weather (sun/rain/mist), motes, wind field, time-of-day lighting
   render/                 Renderer, layers, viewport (world↔screen), System interface, frame loop
-  ui/                     DOM components: timer panel, planting sheet, placement, menu, tips, herbarium
+  ui/                     the page: garden stage overlay (pill, corner tools, markers, labels), dock of
+                          sections (session controls, your plant, tools), planting sheet, tips, herbarium,
+                          smooth scroll + scrollbar
   widget/                 Document PiP widget, title/favicon fallback, notifications, timer worker
   audio/                  procedural Web Audio ambience + chime
   dev/                    ?dev debug API (window.sprout) used by e2e tests; fixture species (fx-*,
@@ -65,6 +67,11 @@ docs/                     SPEC, ARCHITECTURE, ART_DIRECTION, ROADMAP, adr/, syst
   tall phones get paper above and below instead (ADR 0123). `viewport.worldToScreen(p)`,
   `screenToWorld(p)`, `scale`, `visible` (the world rect on screen).
 - Device pixel ratio capped at 2. Static layers are re-rendered on resize (debounced 200 ms).
+- **The viewport is the stage, not the window** (ADR 0130): the canvas fills `#stage` (~88 % of
+  the window's height under a small margin) and the renderer measures the canvas's own box
+  (`getBoundingClientRect`, observed with a `ResizeObserver`). Viewport CSS pixels are stage
+  pixels; client (window) coordinates = viewport coordinates + the canvas's client rect, whatever
+  the page's scroll.
 
 ## Rendering pipeline (back → front)
 | # | Layer | Contents | Redraw |
@@ -89,8 +96,9 @@ cached `background` (repainted only when the scale changes > 10 %, cross-faded, 
 animates `waterSurface` and contributes the boulders and foreground tufts to `entities` with
 depth = base y (ADR 0042).
 
-Slot markers, the planting sheet and all controls are **DOM** above the canvas (accessible,
-e2e-clickable: `[data-slot-id="..."]`).
+Slot markers, the timer pill, the corner tools and all other controls are **DOM** (accessible,
+e2e-clickable: `[data-slot-id="..."]`): on the painting inside the stage overlay, the rest in the
+dock below the garden (see Page, stage and dock).
 
 ### System contract (`src/render/types.ts`)
 ```ts
@@ -373,18 +381,21 @@ Widget (`src/widget/dev.ts`, `installWidgetDebug`): `window.sprout.widget` — `
 `lastNotification()`, `mountHarness()` (the floating card in `iframe#sprout-widget-harness`),
 `closeHarness()`, `harnessMode()`, `harnessWatering()`.
 
-UI (`src/dev/ui-debug.ts`): `window.sprout.ui` — `state()` (mode, panel view, confirm, resting,
-dialogs, tips, markers, line, plantLabel, draft), `refresh()`, `setTimeScale(n)`, `placement()`,
-`showPlantLabel(world)`, `slotScreen(id)`, `widget` (fake only); `window.sprout.advance(ms)`.
+UI (`src/dev/ui-debug.ts`): `window.sprout.ui` — `state()` (mode, panel view, pill view, plantView,
+confirm, resting, dialogs, tips, markers, line, plantLabel, draft), `refresh()`, `setTimeScale(n)`,
+`placement()`, `showPlantLabel(world)`, `slotScreen(id)` (client pixels: stage offset and scroll
+included), `scroll()`, `scrollTo(y | sectionId, { instant? })`, `dock()`, `dockReady()`,
+`waterPlantView()`, `onZoomGesture(fn)`, `widget` (fake only); `window.sprout.advance(ms)`.
 Query flags: `?fixtures` (dev `fx-*` species, ADR 0055), `?uitime=0.05` (UI delays),
 `?widget=fake`.
 
-## UI (`src/ui/`, ADRs 0050–0055, 0121, 0124, 0127)
-`createUI({ root, controller, store, bus, clock, getSpecies, slots, viewport, audio?, widget?,
-notifications?, isKnownSpecies?, reducedMotion?, timeScale? })` → `{ placement: { current(),
-subscribe(fn) }, state(), refresh(), setTimeScale(), showPlantLabel(), dispose() }`. DOM only,
-drives the app through the controller. `viewport` is a function returning the renderer's current
-`Viewport`. `widget` is the `WidgetIntegration` (`{ supported, open(), isOpen(), onChange?() }`,
+## UI (`src/ui/`, ADRs 0050–0055, 0121, 0124, 0130–0136)
+`createUI({ root, stage?, controller, store, bus, clock, getSpecies, slots, viewport, audio?, widget?,
+notifications?, isKnownSpecies?, reducedMotion?, timeScale? })` → `{ dock, stage, scroll, plantView,
+placement: { current(), subscribe(fn) }, state(), refresh(), setTimeScale(), showPlantLabel(),
+dispose() }`. DOM only, drives the app through the controller. `root` is the page (`#ui`), `stage`
+the element holding the canvas (default: `root`'s `.stage`). `viewport` is a function returning the
+renderer's current `Viewport`. `widget` is the `WidgetIntegration` (`{ supported, open(), isOpen(), onChange?() }`,
 satisfied by `surfaces.widget`). `main.ts` passes no `notifications`: the widget surfaces ask for
 permission inside `session:start`.
 `ui.placement.subscribe` gives the placement markers (world units); `main.ts` connects it to the
@@ -392,6 +403,37 @@ plant system (`plants.connectPlacement(ui.placement)`) for the in-canvas highlig
 Plant labels hit-test with `plantWorldBounds` (`src/plants/bounds.ts`). The DOM slips follow the
 garden's light: `main.ts` subscribes `applyUiLight` to `ambience.onLight` once the painting is ready
 (ADR 0121). Details: `docs/systems/ui.md`.
+
+## Page, stage and dock (`src/ui/`, ADRs 0130–0135)
+The page scrolls as a document. `index.html`: `#ui` > `section#stage` > `canvas#garden`; `createUI`
+adds the stage overlay and puts the dock after the stage.
+
+**Stage** — `ui.stage = { el, onZoomGesture(fn) => unsubscribe }`. Things on the painting live in
+`.stage-ui` (absolute, viewport CSS pixels). ctrl/⌘ + wheel over the stage (trackpad pinch arrives
+so) never scrolls the page; with a zoom handler registered it gets the event (default prevented),
+otherwise the browser zooms the page as usual. One-finger touch scrolls the page natively
+(`touch-action: manipulation` on the canvas); a camera that pans or pinches must change that.
+The canvas edge dissolves into the page's paper through a CSS mask (ADR 0132).
+
+**Dock** — `ui.dock` (`src/ui/dock.ts`), the contract for features below the garden:
+```ts
+interface DockSectionDef { id: string /* kebab-case, unique */; title: string; order?: number /* default 100 */;
+  span?: 'half' | 'full' /* wide screens; phones: one column */; mount?(body: HTMLElement, section: DockSection): void | (() => void) }
+interface DockSection { id; el /* <section data-section=id> */; body; heading /* h2#dock-<id>, tabindex -1 */; setTitle(t); setHidden(b) }
+interface Dock { el; addSection(def): DockSection /* throws on duplicate/malformed id */; fill(id, mount): DockSection;
+  removeSection(id); get(id): DockSection | null; sections(): { id, title, order, span, filled, visible }[]; onChange(fn): () => void }
+```
+Order: by `order`, then registration. A section without `mount` is a hidden placeholder until
+`fill`. Registered by the UI: `session` "Study" (10), `plant` "Your plant" (20), `calendar`
+"Calendar" (30, full, **placeholder**), `tools` "Garden tools" (90, full). Wide screens: two
+columns (`half` sections side by side); under 860 px one column.
+
+**Scroll** — `ui.scroll = { state(): { y, max, target, animating, smooth }, to(y | sectionId, { instant? }) }`
+(ADR 0131). Wheel and arrow keys ease, page keys/Home/End/jumps glide, touch is native, reduced
+motion lands at once; native scrolls are adopted. The custom scrollbar is `aria-hidden` decoration.
+
+**Plant view** — `ui.plantView = { water(): boolean, state() }` (ADR 0134). It also plays on every
+`session:water` bus event; the automatic focus watering (phase 7) emits that event.
 
 ## Timer surfaces (`src/widget/`, ADRs 0090–0094)
 `createTimerSurfaces({ controller, store, bus, clock, win?, notificationEnv?, openHost? })` →

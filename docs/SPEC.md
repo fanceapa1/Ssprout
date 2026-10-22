@@ -25,7 +25,8 @@ outside the repo at `/Users/tudor/Downloads/image (1).png`; do not copy it, use 
   with boulders around it, a stepping-stone path from the bottom-centre to the pond.
 - Barren but serene: a few grass tufts, a couple of shrubs. No flowers.
 - Scene composition is responsive: landscape shows the full scene; portrait crops around
-  the pond (focus point) without distorting.
+  the pond (focus point) without distorting. The garden is framed by the page's stage (§12),
+  not the window.
   *Status:* cover scaling (`src/render/viewport.ts`) shows the whole 1600 × 1000 world only at
   16:10; other landscape aspects crop a little top/bottom or at the sides. Tall phones show at
   least 600 world units of width with paper above and below (ADR 0123).
@@ -141,6 +142,10 @@ warm golden evening, blue dusk; at night a deep indigo wash with a small lantern
 pavilion. Plants remain readable at all times. No seasons in v1.
 
 ## 6. Timer visibility & notifications
+- **In the page** (§12): the session controls live in the dock's Study section below the garden;
+  on the garden a small **timer pill** shows the current block's time left with pause/resume and
+  a way down to the controls (idle: a small "Start studying"). The tab title and favicon below
+  keep the time when the page is elsewhere.
 - **Floating widget** (Chrome/Edge): Document Picture-in-Picture window — a small painted
   card whose focus is **the session's plant**, rendered with its real species artwork and
   growing live from seed to bloom; below it the task name, remaining time, a progress line
@@ -156,7 +161,8 @@ pavilion. Plants remain readable at all times. No seasons in v1.
   completion.
 
 ## 7. Tooltips / onboarding
-- Very subtle, small handwritten-feel hints near the relevant control, only for non-obvious
+- Very subtle, small handwritten-feel hints near the relevant control (its home in the dock or
+  on the garden, whichever is in view; §12), only for non-obvious
   features: duration slider/presets, the floating widget, placement (choose a glowing spot),
   swapping, pressed flowers, sound toggle. (Also: the task name, the study plan, watering and the
   notification question — 10 tips in `src/core/tips.ts`.)
@@ -167,7 +173,8 @@ pavilion. Plants remain readable at all times. No seasons in v1.
 ## 8. Sound
 Procedural Web Audio ambience (no audio files): soft water, wind in leaves, occasional distant
 bird; light rain during rain sessions; a gentle bloom chime. **Muted by default**, speaker
-toggle in the corner; setting remembered.
+toggle in the garden's corner and in the dock's Garden tools (one shared state); setting
+remembered.
 
 ## 9. Persistence
 - `localStorage` only (key `studysprout:v1`), versioned schema with migrations (the chain is
@@ -177,12 +184,43 @@ toggle in the corner; setting remembered.
   debug API for tests (`window.sprout`, docs/ARCHITECTURE.md › Dev / test hooks).
 
 ## 10. Platforms
-Desktop-first; works on phones (touch, portrait crop, controls reachable). Modern evergreen
+Desktop-first; works on phones (touch, portrait crop, controls reachable: the dock stacks in one
+column below the garden, so no panel covers the painting). Modern evergreen
 browsers. Respects `prefers-reduced-motion` (ambience/fauna reduced, no sway).
 
 ## 11. Developer tools
 - **Studio** (`/Ssprout/studio.html`): a review page showing every sprite, creature, effect and
   paint primitive with seed/reseed, play/pause, speed, background and scale controls.
+
+## 12. The app page (v2, ADR 0005; ADRs 0130–0136)
+The page is no longer only a canvas. It scrolls as a normal document:
+
+- **Stage.** The garden sits at the top with a small margin to the window's edges (14 px; 8 px on
+  phones) and is ~88 % of the window's height on first load, so the top of the UI peeks out below.
+  Its edges dissolve into the page's paper like a wash thinning out — broadly at the bottom, where
+  the UI begins, and softly at the top and sides. The page is the same washi as the painting.
+- **Dock.** Below the garden, sections registered by features, in a calm two-column layout on wide
+  screens and one column on phones:
+  - **Study** — the session controls: Start studying; task, block and total time, plan line,
+    Pause/Resume, End with its gentle question, Water and Skip break in breaks, "Still with us?".
+    The planting sheet is still a sheet over the page; choosing a spot brings the garden back
+    into view.
+  - **Your plant** — a large painted view of the session's plant, growing live, with the watering
+    animation whenever it is watered; idle, the most recent bloom with its task, or an empty bed
+    waiting for a first session. No guilt copy.
+  - **Calendar** — reserved for the calendar (phase 8); hidden until it exists.
+  - **Garden tools** — sound, floating timer, pressed flowers, garden data, hints, with icons and
+    visible names; the same tools stay as icons in the garden's corner and share their state.
+- **Timer pill** on the garden: time left in the block, pause/resume, and a way down to the
+  controls; "Start studying" when idle. It and the corner icons rest (fade) while you focus.
+- **Corner icons** are ~24 px ink glyphs on soft paper chips with ≥ 44 px targets, readable over
+  any part of the painting at any time of day, labelled on hover and focus.
+- **Scrolling.** Wheel (also over the garden), keyboard and in-page jumps move the page with a
+  calm eased motion; touch scrolling is the platform's own; with `prefers-reduced-motion` there is
+  no smoothing. A hand-made brush scrollbar on the right shows the position, can be dragged and
+  fades when idle; it is decoration over normal scrolling (keyboard scrolling and focus are the
+  browser's). ctrl/⌘ + wheel and pinch over the garden never scroll the page (reserved for zoom).
+- **Type.** Bigger (base 21 px) and darker: body text ≥ 4.5:1 against the paper.
 
 ## Non-goals (v1)
 Accounts, sync, server push, seasons, social features, streaks/penalties.

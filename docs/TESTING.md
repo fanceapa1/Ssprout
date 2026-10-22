@@ -18,7 +18,12 @@ Helpers:
 - `tests/e2e/fixtures.ts` — the `test` used by every spec. It **fails a test on any console error
   or uncaught page error**. Also `openDev(page, query)`, `waitFrames(page, n)`, `canvasStats(page)`.
 - `tests/e2e/ui-helpers.ts` — `openUi` (garden with `?dev&fixtures&uitime=0.02`, reset, seeded),
-  `plantSession` (the full start flow through the UI), `setMinutes`, `reloadUi`, `calmUiMotion`.
+  `plantSession` (the full start flow through the UI, from the dock's Start studying),
+  `setMinutes`, `reloadUi`, `calmUiMotion`.
+- Controls that exist twice since the app shell (ADR 0130) are scoped: `.panel` (the dock's session
+  controls), `.pill` (the timer pill on the garden), `.menu` (corner tools), `.tool-list` (dock
+  tools). Scrolling is read in-page, frame by frame (`ui-shell.spec` › `wheelAndSample`), and
+  `sprout.ui.scrollTo(…, { instant: true })` puts the page where a test needs it.
 - `src/core/testing.ts`, `src/widget/test-helpers.ts`, `src/plants/test-canvas.ts` — unit fakes.
 
 ## Running
@@ -228,7 +233,7 @@ Legend: unit tests as `folder/file › test`, under `src/` (`.test.ts` omitted).
 
 | # | Rule | Unit | E2E | Status |
 |---|---|---|---|---|
-| 10.1 | Phones: touch, portrait crop, controls reachable | render/viewport (portrait cases) | ui-menu · phone › panel spans the bottom, menu reachable, planting works by touch; polish · phones; session-rules · phone › tapping a finished plant… | ✔ |
+| 10.1 | Phones: touch, portrait crop, controls reachable | render/viewport (portrait cases) | ui-menu · phone › the garden fills the screen, the controls stack below it…; polish · phones; session-rules · phone › tapping a finished plant… | ✔ |
 | 10.2 | Modern evergreen browsers | — | Chromium only | ✘ **gap:** Firefox/WebKit are not run (the title/favicon fallback matters most there). Adding Playwright `firefox`/`webkit` projects needs the widget specs to skip PiP outside Chromium. |
 | 10.3 | `prefers-reduced-motion`: ambience/fauna reduced, no sway | ambience/envelope › reduced motion keeps the weather but freezes motion…; fauna/sim › reduced motion…; fauna/schedule › reduced motion…; widget/pip › skips the watering animation with reduced motion; plants/system › … hold still under reduced motion | ambience with reduced motion › rain is still…, no motes… | ✔ |
 
@@ -238,6 +243,26 @@ Legend: unit tests as `folder/file › test`, under `src/` (`.test.ts` omitted).
 |---|---|---|---|---|
 | 11.1 | Studio shows every sprite, creature, effect and paint primitive | studio/registry › discovers the real *.studio.ts files; › flattens…; › rejects duplicate…; › finds entries… | studio › lists every section in the nav…; › every entry renders without errors and paints something (4 shards) | ◐ "every sprite has an entry" is a convention (AGENTS.md), not machine-checked |
 | 11.2 | Seed/reseed, play/pause, speed, background, scale; URL `#section`, `?entry`, `?seed`, `?t` | — | studio › reseed re-renders with a new seed; › #section shows only that section; › ?entry shows a single entry large; › ?seed and ?t start paused…; › speed, background and scale controls | ✔ |
+
+### §12 The app page
+
+| # | Rule | Unit | E2E | Status |
+|---|---|---|---|---|
+| 12.1 | Stage ~88 % of the window under a small margin; the dock peeks out; the renderer sizes to the stage | stage-edge › sizes the dissolve to the stage… | ui-shell › the garden stage fills ~88 %…; ui-menu · phone › the garden fills the screen… | ✔ |
+| 12.2 | The garden dissolves into the page's paper (no hard line); the page is the garden's washi | ui/stage-edge (all) | ui-shell › the garden stage fills… (`data-edge="masked"`) | ◐ look by shots + studio `ui-shell/stage-edge` |
+| 12.3 | Smooth scroll: wheel (also over the garden) and keys ease, jumps glide; no repaint on scroll | ui/scroll-math (all) | ui-shell › wheel over the garden scrolls the page with an eased glide…; › keyboard scrolls the page… | ✔ |
+| 12.4 | ctrl/⌘ + wheel and pinch over the garden never scroll the page (zoom hook) | — | ui-shell › wheel over the garden… (ctrl+wheel part) | ✔ |
+| 12.5 | Touch native; reduced motion: no smoothing | — | ui-shell · reduced motion › no smoothing… | ◐ touch momentum is the platform's (not asserted) |
+| 12.6 | Custom scrollbar: shows the position, drags, fades, native bar hidden, not a focus stop | ui/scroll-math › scrollbar thumb (all) | ui-shell › the custom scrollbar shows the position and drags… | ✔ |
+| 12.7 | Pointer mapping stays right when scrolled | — | ui-shell › pointer mapping stays right on a scrolled page… | ✔ |
+| 12.8 | Dock: sections in order, two columns on wide screens, one on phones; calendar placeholder hidden | ui/dock (all) | ui-shell › sections in order…; ui-menu · phone › the garden fills the screen… | ✔ |
+| 12.9 | Session controls work from the dock; the pill shows the same session | — | ui-shell › the session controls work from the dock…; ui-session (all flows); session-rules (all) | ✔ |
+| 12.10 | Pill: pause/resume, glide to the controls; idle Start studying | — | ui-shell › the pill pauses and resumes…; › idle, the pill is a small Start studying… | ✔ |
+| 12.11 | Your plant: live growth, watering animation (hook), latest bloom / empty bed when idle | — | ui-shell › "Your plant" shows the session plant growing… | ◐ look by studio `ui-shell/plant-view-*` |
+| 12.12 | Tools twice (corner + dock), visible names, one shared state; icons ≥ 22 px, targets ≥ 44 px, labelled | — | ui-shell › garden tools exist twice…; ui-menu (sound, widget, data, hints) | ◐ night legibility by shots |
+| 12.13 | Bigger, darker type: base ≥ 20 px, text ink ≥ 4.5:1 | ui/ink (all) | — | ✔ |
+| 12.14 | Tips point at the controls' new homes | ui/format › pickTips (all) | ui-shell › tips point at the controls in their new homes | ✔ |
+| 12.15 | The controls on the painting rest while focusing; the dock does not | — | ui-menu › the controls on the painting rest while studying… | ✔ |
 
 ### Beyond the SPEC (covered, listed for completeness)
 Rendering contracts (render/renderer), paint engine (paint/*), species growth continuity
