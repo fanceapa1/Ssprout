@@ -90,15 +90,34 @@ test.describe('ambience & lighting', () => {
     expect(after.levels[w]).toBe(0);
   });
 
-  test('setTime accepts names, hours and null; bad input throws', async ({ page }) => {
+  test('setTime accepts phases, v1 names, blends, hours and null; bad input throws', async ({ page }) => {
     await openDev(page);
-    for (const [v, name] of [['morning', 'morning'], ['evening', 'evening'], ['dusk', 'dusk'], [13, 'noon'], [2, 'night']] as const) {
+    const cases = [
+      ['sunrise', 'sunrise'],
+      ['midday', 'midday'],
+      ['sunset', 'sunset'],
+      ['night', 'night'],
+      ['morning', 'sunrise'],
+      ['noon', 'midday'],
+      ['evening', 'sunset'],
+      [{ from: 'sunset', to: 'night', t: 0.8 }, 'night'],
+      [13, 'midday'],
+    ] as const;
+    for (const [v, name] of cases) {
       await page.evaluate((x) => {
-        window.sprout!.setTime(x);
+        window.sprout!.setTime(x as never);
         return window.sprout!.freeze();
       }, v);
-      expect((await page.evaluate(() => window.sprout!.ambience()!)).time).toBe(name);
+      expect((await page.evaluate(() => window.sprout!.ambience()!)).time, JSON.stringify(v)).toBe(name);
     }
+    // the v1 'dusk' is the sunset → night blend, halfway
+    await page.evaluate(() => {
+      window.sprout!.setTime('dusk');
+      return window.sprout!.freeze();
+    });
+    const dusk = await page.evaluate(() => window.sprout!.ambience()!);
+    expect(dusk.weights.sunset).toBeCloseTo(0.5, 5);
+    expect(dusk.weights.night).toBeCloseTo(0.5, 5);
     await page.evaluate(() => window.sprout!.setTime(null));
     expect((await page.evaluate(() => window.sprout!.ambience()!)).timeOverride).toBeNull();
     const err = await page.evaluate(() => {
@@ -144,7 +163,7 @@ test.describe('ambience with reduced motion', () => {
     expect(a.levels.motes).toBe(0);
     expect(a.counts.motes).toBe(0);
     expect(a.counts.rain).toBeGreaterThan(20);
-    expect(a.time).toBe('dusk');
+    expect(a.weights.night).toBeCloseTo(0.5, 5);
 
     // nothing moves between frames
     const before = await canvasStats(page);

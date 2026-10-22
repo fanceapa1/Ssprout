@@ -33,7 +33,7 @@ function pondCentre(page: Page) {
 }
 
 test.describe('scene', () => {
-  test('paints the garden: pale paper sky, celadon pond, varied painted marks', async ({ page }) => {
+  test('paints the garden: a pale clear midday sky, celadon pond, varied painted marks', async ({ page }) => {
     await openDev(page);
     // lighting follows the local clock: pin daylight so the colours do not depend on when tests run
     await page.evaluate(() => {
@@ -48,11 +48,12 @@ test.describe('scene', () => {
     const sky = await pixelAtWorld(page, 800, Math.max(120, top + 40));
     const centre = await pondCentre(page);
     const pond = await pixelAtWorld(page, centre.x, centre.y);
-    // sky stays close to washi paper; the pond is cooler (green/blue above red) and darker
-    expect(sky.r).toBeGreaterThan(215);
-    expect(sky.r).toBeGreaterThanOrEqual(sky.b);
+    // the midday sky is a light, clear wash of blue (ADR 0145); the pond is cooler (green above
+    // red) and darker than bare paper
+    expect(sky.r + sky.g + sky.b).toBeGreaterThan(500);
+    expect(sky.b).toBeGreaterThanOrEqual(sky.r);
     expect(pond.g).toBeGreaterThan(pond.r);
-    expect(pond.r + pond.g + pond.b).toBeLessThan(sky.r + sky.g + sky.b - 60);
+    expect(pond.r + pond.g + pond.b).toBeLessThan(650);
     const scene = await page.evaluate(() => window.sprout!.sceneStats());
     expect(scene.paints).toBe(1);
     expect(scene.painting).toBe(false);
