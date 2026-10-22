@@ -36,6 +36,10 @@ npx playwright show-trace test-results/<test>/trace.zip
 To reuse a server: `npm run build && npx vite preview --host 127.0.0.1 --port 4187 --strictPort`,
 then `E2E_REUSE=1`. Rebuild after every `src/` change, or you test the old build.
 
+Vitest (`vite.config.ts`): 20 s per test. A few tests simulate hours of garden time or paint
+every growth step and take 1–4 s on an idle laptop. Long loops collect problems and assert once
+instead of calling `expect` per step (`src/fauna/sim.test.ts`).
+
 `playwright.config.ts`: 60 s per test, 10 s per `expect`, fully parallel. In CI (`CI=true`): one
 retry, 2 workers, `github` + `list` + HTML reporters. Traces and screenshots are kept for failed
 tests (`test-results/`).
@@ -95,6 +99,7 @@ causes and fixes:
 | Birds "fly away" saw a bird at the end | With 8 plants a scheduled bird visited during the 70 simulated seconds. | Follow the spawned bird by id. Run the loop in-page with the renderer frozen. |
 | Fauna bounds walk timed out | 80 round trips while the page also rendered at 60 fps. | One in-page loop, renderer frozen. |
 | Ambience budget slept 1.5 s | Fixed sleep. | `waitFrames(page, 90)`. |
+| Unit: fauna "never leave the pond" timed out (12 s) | One `expect` per creature per simulated step (≈ 1 M calls), with the 5 s default timeout. | Problems are collected and asserted once; Vitest gets a 20 s ceiling. |
 
 ## CI
 
