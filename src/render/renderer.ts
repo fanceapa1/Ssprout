@@ -254,7 +254,13 @@ export function createRenderer(opts: RendererOptions): Renderer {
    * sub-rect under the view, scaled up (one blit, no repaint); once it rests, the cache built at
    * the resting view (sharp: the scene may have painted detail for it).
    */
-  const overviewBackground = () => camera.view() === viewport || camera.moving();
+  /** the view lies inside the overview (its cache can serve it) */
+  const insideOverview = (view: Viewport) => {
+    const v = view.visible;
+    const o = viewport.visible;
+    return v.x >= o.x - 0.01 && v.y >= o.y - 0.01 && v.x + v.w <= o.x + o.w + 0.01 && v.y + v.h <= o.y + o.h + 0.01;
+  };
+  const overviewBackground = () => camera.view() === viewport || (camera.moving() && insideOverview(camera.view()));
   const drawBackground = (f: FrameInfo) => {
     const view = camera.view();
     if (overviewBackground()) {
@@ -278,6 +284,13 @@ export function createRenderer(opts: RendererOptions): Renderer {
         view.pixelW,
         view.pixelH,
       );
+      return;
+    }
+    if (camera.moving()) {
+      // moving outside the overview's crop (a phone looking at the garden's sides): draw it directly
+      ctx.save();
+      drawLayer(ctx, 'background', { ...f, view }, view);
+      ctx.restore();
       return;
     }
     ctx.drawImage(viewCache(f, view).canvas, 0, 0);

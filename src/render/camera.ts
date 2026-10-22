@@ -14,7 +14,7 @@
  * the stateful controller (`createCamera`) below; time enters only as frame `dt` (animation
  * seconds), never the app clock.
  */
-import { viewportFrom, type Pt, type Rect, type Viewport } from './viewport';
+import { viewportFrom, WORLD_H, WORLD_W, type Pt, type Rect, type Viewport } from './viewport';
 
 /** Zoom limits: the overview is the floor (you can never see less than the whole painting's frame). */
 export const MIN_ZOOM = 1;
@@ -26,6 +26,8 @@ export const GLIDE_MAX_S = 1.9;
 export const GLIDE_RHO = 1.35;
 /** Time constant (s) of the zoom-gesture follow (wheel steps ease in instead of jumping). */
 export const FOLLOW_TAU = 0.075;
+/** Zoom by which a view may reach the whole painted world (not only the overview's crop). */
+export const FULL_REACH_ZOOM = 1.25;
 /** Seconds without camera movement after which the view counts as resting (detail repaints start). */
 export const REST_S = 0.25;
 
@@ -46,16 +48,48 @@ export function overviewPose(base: Viewport): CameraPose {
   return { zoom: 1, x: v.x + v.w / 2, y: v.y + v.h / 2 };
 }
 
-/** Keep a pose inside the limits: zoom in [1, maxZoom], the view inside the overview's visible rect. */
-export function clampPose(base: Viewport, pose: CameraPose, maxZoom = MAX_ZOOM): CameraPose {
+/** CSS px of the stage a panel covers (a card): the view may reach that far past the painting's edge there. */
+export type Inset = Partial<Record<'top' | 'right' | 'bottom' | 'left', number>>;
+
+/**
+ * Where a view at `zoom` may go: the overview's visible rect at zoom 1 (so the overview is one
+ * view), widening to the overview's rect ∪ the world by `FULL_REACH_ZOOM` — a phone's overview
+ * crops the garden's sides, a wide stage its top and bottom, and a closer look may go there. On
+ * tall phones the overview's rect includes the lit paper rows beyond the world.
+ */
+export function reachRect(base: Viewport, zoom: number): Rect {
   const v = base.visible;
+  const x0 = Math.min(v.x, 0);
+  const y0 = Math.min(v.y, 0);
+  const x1 = Math.max(v.x + v.w, WORLD_W);
+  const y1 = Math.max(v.y + v.h, WORLD_H);
+  const t = clamp((zoom - 1) / (FULL_REACH_ZOOM - 1), 0, 1);
+  const lerp = (a: number, b: number) => a + (b - a) * t;
+  const x = lerp(v.x, x0);
+  const y = lerp(v.y, y0);
+  return { x, y, w: lerp(v.x + v.w, x1) - x, h: lerp(v.y + v.h, y1) - y };
+}
+
+/**
+ * Keep a pose inside the limits: zoom in [1, maxZoom], the view inside `reachRect` — or, by
+ * `slack` (CSS px), past its edge on a side a card covers, so a plant near the edge can still be
+ * framed beside the card (what lies under the card is not seen).
+ */
+export function clampPose(base: Viewport, pose: CameraPose, maxZoom = MAX_ZOOM, slack: Inset = {}): CameraPose {
   const zoom = clamp(finite(pose.zoom, 1), MIN_ZOOM, Math.max(MIN_ZOOM, maxZoom));
-  const hw = v.w / zoom / 2;
-  const hh = v.h / zoom / 2;
+  const o = base.visible;
+  const v = reachRect(base, zoom);
+  const k = 1 / (base.scale * zoom);
+  const hw = o.w / zoom / 2;
+  const hh = o.h / zoom / 2;
+  const l = v.x - (slack.left ?? 0) * k;
+  const r = v.x + v.w + (slack.right ?? 0) * k;
+  const t = v.y - (slack.top ?? 0) * k;
+  const b = v.y + v.h + (slack.bottom ?? 0) * k;
   return {
     zoom,
-    x: clamp(finite(pose.x, v.x + v.w / 2), v.x + hw, v.x + v.w - hw),
-    y: clamp(finite(pose.y, v.y + v.h / 2), v.y + hh, v.y + v.h - hh),
+    x: clamp(finite(pose.x, o.x + o.w / 2), l + hw, Math.max(l + hw, r - hw)),
+    y: clamp(finite(pose.y, o.y + o.h / 2), t + hh, Math.max(t + hh, b - hh)),
   };
 }
 
@@ -135,7 +169,7 @@ export function framePose(base: Viewport, rect: Rect, opts: FrameOptions = {}): 
   const sx = inset.left + fw * (opts.anchorX ?? side);
   const sy = inset.top + fh * (opts.anchorY ?? 0.54);
   const scale = base.scale * zoom;
-  return clampPose(base, { zoom, x: cx - (sx - base.cssW / 2) / scale, y: cy - (sy - base.cssH / 2) / scale }, maxZoom);
+  return clampPose(base, { zoom, x: cx - (sx - base.cssW / 2) / scale, y: cy - (sy - base.cssH / 2) / scale }, maxZoom, inset);
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -272,6 +306,11 @@ export interface Camera extends CameraView {
   panBy(dx: number, dy: number): void;
   /** finish the current glide or follow now (tests, screenshots) */
   settle(): void;
+  /**
+   * A card covers this much of the stage (CSS px per side): the view may reach past the painting
+   * there. `null` when it closes: a view that relied on it glides back inside.
+   */
+  setInset(inset: Inset | null): void;
   /** stop a glide or follow where it is (user input takes over) */
   interrupt(): void;
   /** called after every pose change (and when a move starts or rests) */
@@ -312,8 +351,9 @@ export function createCamera(opts: CameraOptions): Camera {
   let detailVersion = 0;
   let detailViewCache: { pose: CameraPose; base: Viewport; view: Viewport } | null = null;
   const listeners = new Set<(s: CameraSnapshot) => void>();
+  let inset: Inset = {};
 
-  const clampP = (p: CameraPose) => clampPose(base, p, maxZoom);
+  const clampP = (p: CameraPose) => clampPose(base, p, maxZoom, inset);
 
   const followTarget = (f: Follow): CameraPose => zoomAbout(base, pose, f.zoom, f.about, maxZoom);
 
@@ -479,6 +519,14 @@ export function createCamera(opts: CameraOptions): Camera {
       quiet = REST_S;
       refreshDetail();
       notify();
+    },
+    setInset(next) {
+      inset = next ? { ...next } : {};
+      if (next) return;
+      const inside = clampP(pose);
+      const goal = glide ? clampP(glide.to) : null;
+      if (goal && !samePose(goal, glide!.to, 1e-6)) startGlide(goal, { reason });
+      else if (!glide && !samePose(inside, pose, 1e-6)) startGlide(inside, { reason });
     },
     interrupt() {
       if (!glide && !follow) return;

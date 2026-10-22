@@ -13,6 +13,7 @@ import {
   MAX_ZOOM,
   overviewPose,
   panBy,
+  reachRect,
   REST_S,
   zoomAbout,
 } from './camera';
@@ -64,23 +65,37 @@ describe('clampPose', () => {
     expect(clampPose(desk, { zoom: NaN, x: 800, y: 500 }).zoom).toBe(1);
   });
 
-  it('never lets the view leave the overview frame', () => {
+  it('never lets the view leave the painting: the overview frame and the world', () => {
     for (const base of [desk, phone]) {
-      for (const zoom of [1, 1.7, 3]) {
+      const o = base.visible;
+      const bx0 = Math.min(o.x, 0);
+      const by0 = Math.min(o.y, 0);
+      const bx1 = Math.max(o.x + o.w, WORLD_W);
+      const by1 = Math.max(o.y + o.h, 1000);
+      for (const zoom of [1, 1.1, 1.7, 3]) {
         for (const [x, y] of [
           [-500, -500],
           [3000, 3000],
           [0, 1000],
         ] as const) {
           const v = composeView(base, clampPose(base, { zoom, x, y })).visible;
-          const o = base.visible;
-          expect(v.x).toBeGreaterThanOrEqual(o.x - 1e-6);
-          expect(v.y).toBeGreaterThanOrEqual(o.y - 1e-6);
-          expect(v.x + v.w).toBeLessThanOrEqual(o.x + o.w + 1e-6);
-          expect(v.y + v.h).toBeLessThanOrEqual(o.y + o.h + 1e-6);
+          expect(v.x).toBeGreaterThanOrEqual(bx0 - 1e-6);
+          expect(v.y).toBeGreaterThanOrEqual(by0 - 1e-6);
+          expect(v.x + v.w).toBeLessThanOrEqual(bx1 + 1e-6);
+          expect(v.y + v.h).toBeLessThanOrEqual(by1 + 1e-6);
         }
       }
+      // zoom 1 is the overview, wherever it is asked to look
+      expect(isOverview(base, clampPose(base, { zoom: 1, x: 0, y: 0 }))).toBe(true);
     }
+  });
+
+  it("zoomed in, a phone can look at the garden's sides its overview crops", () => {
+    expect(phone.visible.x).toBeGreaterThan(100);
+    const v = composeView(phone, clampPose(phone, { zoom: 2, x: 0, y: 600 })).visible;
+    expect(v.x).toBeCloseTo(0);
+    expect(reachRect(phone, 1).x).toBeCloseTo(phone.visible.x);
+    expect(reachRect(phone, 1.25).x).toBeCloseTo(0);
   });
 
   it('on a tall phone the zoomed view may reach the paper rows beyond the world (they are lit)', () => {
@@ -88,6 +103,29 @@ describe('clampPose', () => {
     const top = composeView(phone, clampPose(phone, { zoom: 1.2, x: 300, y: -1000 })).visible;
     expect(top.y).toBeLessThan(0);
     expect(top.y).toBeCloseTo(phone.visible.y);
+  });
+});
+
+describe('inset slack (a card covers part of the stage)', () => {
+  it('lets the view reach past the painting by the covered part, no further', () => {
+    const z = 2;
+    const plain = clampPose(phone, { zoom: z, x: 800, y: 5000 });
+    const slack = clampPose(phone, { zoom: z, x: 800, y: 5000 }, MAX_ZOOM, { bottom: 300 });
+    expect(slack.y - plain.y).toBeCloseTo(300 / (phone.scale * z));
+  });
+
+  it('frames a plant near the bottom above a docked card; closing the card glides back inside', () => {
+    const cam = createCamera({ base: phone });
+    const plant = { x: 760, y: phone.visible.y + phone.visible.h - 120, w: 70, h: 80 };
+    cam.setInset({ bottom: 340 });
+    cam.focusRect(plant, { inset: { bottom: 340 }, animate: false });
+    const y = cam.view().worldToScreen({ x: 795, y: plant.y + 40 }).y;
+    expect(y).toBeLessThan(742 - 340);
+    cam.setInset(null);
+    expect(cam.state().gliding).toBe(true);
+    cam.settle();
+    const v = cam.view().visible;
+    expect(v.y + v.h).toBeLessThanOrEqual(phone.visible.y + phone.visible.h + 1e-6);
   });
 });
 
