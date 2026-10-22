@@ -1,60 +1,131 @@
 /**
- * Minimal ink icons as inline SVG (no icon fonts, no emoji). Hand-drawn feel: slightly uneven
- * curves, round caps, a single sumi stroke colour (`currentColor`). 24×24 viewBox.
+ * Ink icons (no icon fonts, no emoji): slightly uneven sumi strokes in a 24×24 box, round caps,
+ * one colour (`currentColor`), sometimes a pale wash under the line. Kept as data so the same
+ * glyph is inline SVG in the page (`ICONS`) and a Path2D drawing in the studio (`drawIcon`).
+ * Redrawn for the app shell (ADR 0135): bolder lines and clearer metaphors for the garden tools.
  */
-const svg = (body: string, extra = '') =>
-  `<svg class="ink-icon" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round"${extra}>${body}</svg>`;
+export interface IconStroke {
+  d: string;
+  /** opacity of this stroke (default 1) */
+  o?: number;
+  /** stroke width in the 24 box (default STROKE) */
+  w?: number;
+  /** a wash fill under the line, as an opacity (default none) */
+  fill?: number;
+}
 
-export const ICONS = {
-  soundOn: svg(
-    '<path d="M4.2 9.6c1.4-.1 2.6 0 3.6-.2l4.1-3.6c.3 3.9.4 8.4.1 12.5L7.8 14.7c-1.1-.3-2.3-.2-3.6-.3-.3-1.6-.3-3.2 0-4.8z"/>' +
-      '<path d="M15 9.3c.9.9 1.2 1.9 1.1 2.9-.1 1-.5 1.8-1.1 2.5"/>' +
-      '<path d="M17.3 6.9c1.6 1.4 2.4 3.2 2.4 5.2 0 2-.8 3.7-2.3 5.1" opacity=".75"/>',
-  ),
-  soundOff: svg(
-    '<path d="M4.2 9.6c1.4-.1 2.6 0 3.6-.2l4.1-3.6c.3 3.9.4 8.4.1 12.5L7.8 14.7c-1.1-.3-2.3-.2-3.6-.3-.3-1.6-.3-3.2 0-4.8z"/>' +
-      '<path d="M15.6 10.1c1.2 1.1 2.4 2.5 3.5 3.9" opacity=".8"/><path d="M19.2 9.8c-1.3 1.3-2.4 2.7-3.4 4.3" opacity=".8"/>',
-  ),
-  floating: svg(
-    '<path d="M3.6 6.1c4.9-.3 10.3-.3 16.6.1.3 3.9.3 7.9 0 11.8-5.6.3-11.1.3-16.5 0-.3-4-.3-8 0-11.9z" opacity=".7"/>' +
-      '<path d="M12.4 11.6c2.3-.1 4.6-.1 6.1.1.1 1.6.1 3.2 0 4.7-2.1.1-4.1.1-6.1 0-.2-1.6-.2-3.2 0-4.8z"/>' +
-      '<path d="M15.4 12.8v1.5l1 .7"/>',
-  ),
-  book: svg(
-    '<path d="M12 6.9c-2.4-1.5-5.1-2-8.3-1.6.2 4.2.2 8.4 0 12.6 3.1-.3 5.9.1 8.3 1.5 2.4-1.4 5.2-1.8 8.3-1.5-.2-4.2-.2-8.4 0-12.6-3.2-.4-5.9.1-8.3 1.6z"/>' +
-      '<path d="M12 7.1c.1 3.8.1 7.7 0 11.4" opacity=".7"/>' +
-      '<path d="M15.2 14.6c.4-1.8 1.4-3.3 3-4.3" opacity=".8"/><path d="M16.1 12.6c-.8-.4-1.2-1-1.3-1.8.9 0 1.5.5 1.8 1.2" opacity=".8"/>',
-  ),
-  data: svg(
-    '<path d="M6.2 3.9c2.9-.1 5.7-.1 8.4 0l3.4 3.4c.2 4.3.2 8.6 0 12.8-4 .2-7.9.2-11.8 0-.3-5.4-.3-10.8 0-16.2z"/>' +
-      '<path d="M14.5 4c-.1 1.2 0 2.3.1 3.4 1.1.1 2.2.1 3.3 0" opacity=".7"/>' +
-      '<path d="M12 9.6c.1 2.4.1 4.7 0 7"/><path d="M9.6 14.4c.9.8 1.7 1.6 2.4 2.3.8-.8 1.6-1.6 2.4-2.3"/>',
-  ),
-  info: svg(
-    '<path d="M12 3.6c4.7-.1 8.4 3.5 8.4 8.3 0 4.7-3.7 8.5-8.4 8.5-4.6 0-8.3-3.6-8.4-8.3C3.5 7.6 7 3.7 11.4 3.6" opacity=".8"/>' +
-      '<path d="M12.1 10.8c.1 1.9.1 3.7 0 5.5"/><path d="M12 7.6h.1" stroke-width="2"/>',
-  ),
-  close: svg('<path d="M6.6 6.7c3.6 3.4 7.2 7 10.7 10.6"/><path d="M17.3 6.6c-3.7 3.4-7.2 7-10.6 10.7"/>'),
-  back: svg('<path d="M14.8 6.2c-2.1 1.9-4.1 3.8-5.9 5.8 1.9 2 3.9 3.9 5.9 5.8"/>'),
-  swap: svg(
-    '<path d="M6.3 9.4c1.3-2.6 3.9-4 6.6-3.7 2 .2 3.7 1.3 4.6 3"/><path d="M17.8 5.9c0 1.1-.1 2.3-.3 3.3-1.1 0-2.1-.1-3.2-.3"/>' +
-      '<path d="M17.7 14.6c-1.3 2.6-3.9 4-6.6 3.7-2-.2-3.7-1.3-4.6-3"/><path d="M6.2 18.1c0-1.1.1-2.3.3-3.3 1.1 0 2.1.1 3.2.3"/>',
-  ),
-  sprout: svg(
-    '<path d="M12 20.2c-.1-3.1.1-6 .7-8.6"/><path d="M12.6 12.4c1.5-2.6 3.9-3.6 6.2-3.3-.8 2.6-3.2 4-6.2 3.3z"/>' +
-      '<path d="M12.3 14.3c-1.4-1.9-3.4-2.6-5.4-2.2.8 2 2.9 3 5.4 2.2z" opacity=".85"/><path d="M8.3 20.3c2.4-.4 5-.4 7.6 0" opacity=".6"/>',
-  ),
-  wateringCan: svg(
-    '<path d="M9.2 10.1c2.9-.3 5.8-.3 8.7 0 .3 2.9.2 5.9-.2 8.8-2.8.3-5.6.3-8.3 0-.4-2.9-.5-5.9-.2-8.8z"/>' +
-      '<path d="M9.3 12.3c-1.9-.9-3.6-2.3-5-4.1" /><path d="M2.9 7.2c.6-.6 1.4-.9 2.2-.7.1.8-.2 1.6-.8 2.1-.6-.3-1.1-.8-1.4-1.4z"/>' +
-      '<path d="M17.8 11.4c1.6-.2 2.6.8 2.6 2.4 0 1.5-1 2.5-2.7 2.4" opacity=".85"/>' +
-      '<path d="M10.6 10c.4-2.1 1.7-3.3 3-3.3 1.4 0 2.6 1.2 2.9 3.3" opacity=".8"/>',
-  ),
-  drops: svg(
-    '<path d="M8.4 6.2c1.3 1.9 2.2 3.2 2.2 4.4 0 1.3-1 2.2-2.2 2.2-1.2 0-2.2-.9-2.2-2.2 0-1.2.9-2.5 2.2-4.4z"/>' +
-      '<path d="M15.6 10.2c1.3 1.9 2.2 3.2 2.2 4.4 0 1.3-1 2.2-2.2 2.2s-2.2-.9-2.2-2.2c0-1.2.9-2.5 2.2-4.4z" opacity=".75"/>',
-  ),
-  tick: svg('<path d="M5.8 12.6c1.3 1.1 2.5 2.4 3.6 3.8 2.6-3.6 5.4-6.8 8.8-9.6"/>'),
-} as const;
+export const STROKE = 1.65;
 
-export type IconName = keyof typeof ICONS;
+const SPEAKER = 'M3.8 9.4c1.5-.1 2.9-.1 4.1-.3l4.6-3.9c.4 4.4.4 9.2.1 13.6l-4.7-3.6c-1.3-.2-2.7-.2-4.1-.3-.3-1.8-.3-3.7 0-5.5z';
+
+export const ICON_STROKES = {
+  soundOn: [
+    { d: SPEAKER, fill: 0.14 },
+    { d: 'M15.4 9.1c1 .9 1.5 1.9 1.5 3 0 1.1-.5 2.1-1.4 2.9' },
+    { d: 'M17.9 6.6c1.7 1.5 2.6 3.4 2.6 5.5 0 2.1-.9 4-2.5 5.4', o: 0.8 },
+  ],
+  soundOff: [
+    { d: SPEAKER, fill: 0.08 },
+    { d: 'M15.6 9.6c1.4 1.3 2.7 2.8 3.9 4.6', o: 0.85 },
+    { d: 'M19.6 9.4c-1.4 1.4-2.7 3-3.8 4.8', o: 0.85 },
+  ],
+  floating: [
+    { d: 'M2.9 5.6c5.9-.3 12-.3 18.2.1.3 4.2.3 8.5 0 12.7-6.1.3-12.1.3-18.1 0-.4-4.3-.4-8.6-.1-12.8z', o: 0.6 },
+    { d: 'M11.6 11.2c2.6-.1 5.2-.1 7.4.1.2 1.9.2 3.8 0 5.6-2.5.1-5 .1-7.4 0-.2-1.9-.2-3.8 0-5.7z', fill: 0.22 },
+    { d: 'M15.3 12.6v1.7l1.2.8', w: 1.4 },
+  ],
+  book: [
+    { d: 'M12 6.6c-2.6-1.6-5.5-2-8.8-1.6.2 4.4.2 8.8 0 13.2 3.3-.3 6.2.1 8.8 1.6 2.6-1.5 5.5-1.9 8.8-1.6-.2-4.4-.2-8.8 0-13.2-3.3-.4-6.2 0-8.8 1.6z' },
+    { d: 'M12 6.8c.1 4.1.1 8.2 0 12.3', o: 0.55 },
+    { d: 'M5.7 9.4c1.5-.1 2.8.1 4.1.6', o: 0.4, w: 1.2 },
+    { d: 'M5.7 12.2c1.5-.1 2.8.1 4.1.6', o: 0.4, w: 1.2 },
+    { d: 'M16.6 16.6c-.2-1.7-.1-3.2.4-4.6', w: 1.3 },
+    { d: 'M16.9 12.1c-1-.3-1.6-1-1.6-1.9.9-.1 1.5.5 1.8 1.2', fill: 0.3, w: 1.3 },
+    { d: 'M17.1 12c.2-1 .8-1.7 1.7-1.8.2.9-.3 1.6-1.3 2', fill: 0.3, w: 1.3 },
+    { d: 'M16.9 11.6c-.4-.9-.2-1.9.4-2.5.6.6.6 1.6-.2 2.4', fill: 0.3, w: 1.3 },
+    { d: 'M16.8 14.8c.7-.6 1.5-.8 2.3-.6-.4.7-1.2 1-2.1.8', fill: 0.3, w: 1.2 },
+  ],
+  data: [
+    { d: 'M4.2 14.9c.1 1.6.1 3.1.1 4.6 5.2.2 10.4.2 15.5 0 .1-1.6.1-3 0-4.6' },
+    { d: 'M12 3.9c.1 3.6.1 7.1 0 10.6' },
+    { d: 'M8.4 11.1c1.3 1.2 2.5 2.4 3.6 3.6 1.1-1.2 2.3-2.4 3.6-3.6' },
+  ],
+  info: [
+    { d: 'M12 3.4c4.9-.1 8.7 3.7 8.7 8.6 0 4.9-3.8 8.7-8.7 8.7-4.8 0-8.6-3.8-8.7-8.5-.1-4.6 3.5-8.6 8-8.8', fill: 0.08 },
+    { d: 'M12.1 10.6c.1 2 .1 3.9 0 5.8', w: 1.9 },
+    { d: 'M12 7.4h.1', w: 2.6 },
+  ],
+  close: [{ d: 'M6.6 6.7c3.6 3.4 7.2 7 10.7 10.6' }, { d: 'M17.3 6.6c-3.7 3.4-7.2 7-10.6 10.7' }],
+  back: [{ d: 'M14.8 6.2c-2.1 1.9-4.1 3.8-5.9 5.8 1.9 2 3.9 3.9 5.9 5.8' }],
+  swap: [
+    { d: 'M6.3 9.4c1.3-2.6 3.9-4 6.6-3.7 2 .2 3.7 1.3 4.6 3' },
+    { d: 'M17.8 5.9c0 1.1-.1 2.3-.3 3.3-1.1 0-2.1-.1-3.2-.3' },
+    { d: 'M17.7 14.6c-1.3 2.6-3.9 4-6.6 3.7-2-.2-3.7-1.3-4.6-3' },
+    { d: 'M6.2 18.1c0-1.1.1-2.3.3-3.3 1.1 0 2.1.1 3.2.3' },
+  ],
+  sprout: [
+    { d: 'M12 20.2c-.1-3.1.1-6 .7-8.6' },
+    { d: 'M12.6 12.4c1.5-2.6 3.9-3.6 6.2-3.3-.8 2.6-3.2 4-6.2 3.3z', fill: 0.18 },
+    { d: 'M12.3 14.3c-1.4-1.9-3.4-2.6-5.4-2.2.8 2 2.9 3 5.4 2.2z', o: 0.85, fill: 0.14 },
+    { d: 'M8.3 20.3c2.4-.4 5-.4 7.6 0', o: 0.6 },
+  ],
+  wateringCan: [
+    { d: 'M9.2 10.1c2.9-.3 5.8-.3 8.7 0 .3 2.9.2 5.9-.2 8.8-2.8.3-5.6.3-8.3 0-.4-2.9-.5-5.9-.2-8.8z', fill: 0.12 },
+    { d: 'M9.3 12.3c-1.9-.9-3.6-2.3-5-4.1' },
+    { d: 'M2.9 7.2c.6-.6 1.4-.9 2.2-.7.1.8-.2 1.6-.8 2.1-.6-.3-1.1-.8-1.4-1.4z' },
+    { d: 'M17.8 11.4c1.6-.2 2.6.8 2.6 2.4 0 1.5-1 2.5-2.7 2.4', o: 0.85 },
+    { d: 'M10.6 10c.4-2.1 1.7-3.3 3-3.3 1.4 0 2.6 1.2 2.9 3.3', o: 0.8 },
+  ],
+  drops: [
+    { d: 'M8.4 6.2c1.3 1.9 2.2 3.2 2.2 4.4 0 1.3-1 2.2-2.2 2.2-1.2 0-2.2-.9-2.2-2.2 0-1.2.9-2.5 2.2-4.4z' },
+    { d: 'M15.6 10.2c1.3 1.9 2.2 3.2 2.2 4.4 0 1.3-1 2.2-2.2 2.2s-2.2-.9-2.2-2.2c0-1.2.9-2.5 2.2-4.4z', o: 0.75 },
+  ],
+  tick: [{ d: 'M5.8 12.6c1.3 1.1 2.5 2.4 3.6 3.8 2.6-3.6 5.4-6.8 8.8-9.6' }],
+  pause: [
+    { d: 'M9.3 6.6c.2 3.6.2 7.2 0 10.8', w: 2.3 },
+    { d: 'M14.8 6.5c.2 3.7.1 7.3-.1 10.9', w: 2.3 },
+  ],
+  play: [{ d: 'M8.6 6.3c3.4 1.7 6.6 3.6 9.3 5.7-2.8 2.1-5.9 4-9.3 5.7-.3-3.8-.3-7.6 0-11.4z', fill: 0.3 }],
+  down: [
+    { d: 'M12 5.2c.1 4.4.1 8.8 0 13.2' },
+    { d: 'M7.4 13.8c1.6 1.5 3.1 3 4.6 4.6 1.5-1.6 3-3.1 4.6-4.6' },
+  ],
+} satisfies Record<string, IconStroke[]>;
+
+export type IconName = keyof typeof ICON_STROKES;
+
+const pathSvg = (s: IconStroke) =>
+  `<path d="${s.d}"${s.o !== undefined ? ` opacity="${s.o}"` : ''}${s.w !== undefined ? ` stroke-width="${s.w}"` : ''}${
+    s.fill ? ` fill="currentColor" fill-opacity="${s.fill}"` : ''
+  }/>`;
+
+const svg = (strokes: readonly IconStroke[]) =>
+  `<svg class="ink-icon" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="${STROKE}" stroke-linecap="round" stroke-linejoin="round">${strokes
+    .map(pathSvg)
+    .join('')}</svg>`;
+
+/** Inline SVG markup for every icon. */
+export const ICONS = Object.fromEntries(Object.entries(ICON_STROKES).map(([k, v]) => [k, svg(v)])) as Record<IconName, string>;
+
+/** Draw an icon into a 2D context (studio): `size` px square with its top-left at (x, y). */
+export function drawIcon(ctx: CanvasRenderingContext2D, name: IconName, x: number, y: number, size: number, color: string): void {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.scale(size / 24, size / 24);
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.strokeStyle = color;
+  ctx.fillStyle = color;
+  for (const s of ICON_STROKES[name] as readonly IconStroke[]) {
+    const p = new Path2D(s.d);
+    const o = s.o ?? 1;
+    if (s.fill) {
+      ctx.globalAlpha = s.fill * o;
+      ctx.fill(p);
+    }
+    ctx.globalAlpha = o;
+    ctx.lineWidth = s.w ?? STROKE;
+    ctx.stroke(p);
+  }
+  ctx.restore();
+}
