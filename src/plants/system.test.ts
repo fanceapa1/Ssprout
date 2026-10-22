@@ -286,6 +286,29 @@ describe('plant system', () => {
     expect(dabAlpha(1, 0, 'idle', true)).toBe(dabAlpha(2, 0, 'idle', true)); // reduced motion: still
   });
 
+  it('finished plants sway with the wind, and hold still under reduced motion (SPEC §3, §10)', async () => {
+    /** the geometry of two frames' draws (transforms and image placement), at different wind */
+    const twoFrames = async (reducedMotion: boolean) => {
+      const env = setup({ plants: [plant('a', 'meadow-1')], reducedMotion });
+      const sys = await ready(env);
+      const snap = (dt: number) => {
+        const f = env.frame(dt);
+        const c = new FakeCanvas(1600, 1000).ctx;
+        for (const d of sys.entities!(f)) d.draw(c as unknown as CanvasRenderingContext2D, f);
+        const geometry = c.calls
+          .filter((k) => ['transform', 'setTransform', 'translate', 'scale', 'rotate', 'drawImage'].includes(k.name))
+          .map((k) => [k.name, ...k.args.filter((a): a is number => typeof a === 'number').map((n) => Math.round(n * 1000) / 1000)]);
+        expect(geometry.some((g) => g[0] === 'drawImage')).toBe(true);
+        return JSON.stringify(geometry);
+      };
+      return [snap(0.4), snap(0.7)];
+    };
+    const [still1, still2] = await twoFrames(true);
+    expect(still1).toBe(still2);
+    const [sway1, sway2] = await twoFrames(false);
+    expect(sway1).not.toBe(sway2);
+  });
+
   it('stays within 2 ms a frame with 50 plants and a growing one (CPU side)', async () => {
     const slots: Slot[] = Array.from({ length: 51 }, (_, i) => ({ id: `s${i}`, x: 100 + (i % 10) * 140, y: 300 + Math.floor(i / 10) * 120, habitat: i % 7 === 0 ? 'shore' : 'meadow', maxSize: 'tree', scale: 0.6 + (i % 5) * 0.12 }));
     const scene = { ...placeholderScene, slots, pond: [{ x: 80, y: 900 }, { x: 1500, y: 900 }, { x: 1500, y: 990 }, { x: 80, y: 990 }] };
