@@ -212,7 +212,7 @@ const waterLily: SpeciesDef = {
   size: { w: 130, h: 80 },
   anchor: { x: 0.5, y: 0.62 },
   description: 'Water lily — opening slowly, as if the pond were thinking.',
-  bloomColor: '#f4e6e4',
+  bloomColor: '#f7e5e2',
   pollinators: true,
   draw(p, rng, opts) {
     const plan = planWaterLily(rng.fork('plan'));

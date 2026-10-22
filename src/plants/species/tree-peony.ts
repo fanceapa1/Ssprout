@@ -7,10 +7,10 @@ import type { SpeciesDef } from '../types';
 
 /** Flower colourways: outer petals, inner petals, the flare deep in the cup. */
 const COLOURWAYS: { outer: Pigment; inner: Pigment; flare: Pigment }[] = [
-  { outer: '#f4d2d0', inner: '#eab0b6', flare: '#c06a86' }, // shell pink
-  { outer: '#eeb5bd', inner: '#e0939f', flare: '#a64f74' }, // rose
-  { outer: '#fbf5ee', inner: '#f5e4e2', flare: '#b2577c' }, // white with a magenta flare
-  { outer: '#e7a3b3', inner: '#d6869c', flare: '#8f3f63' }, // deep peony
+  { outer: '#fbcfcd', inner: '#f5aab3', flare: '#ce5e85' }, // shell pink
+  { outer: '#f9afba', inner: '#ee8a9b', flare: '#b34075' }, // rose
+  { outer: '#fdf5ec', inner: '#f9e3e0', flare: '#c0487d' }, // white with a magenta flare
+  { outer: '#f39bb1', inner: '#e47c9a', flare: '#9b3064' }, // deep peony
 ];
 
 /** Matte blue-green peony foliage; new leaves blush bronze. */
@@ -76,7 +76,7 @@ export function buildPeony(rng: Rng): Peony {
       rot: rng.range(0, Math.PI * 2),
       cupped: true,
       opaque: true,
-      bud: mix('#b5c08e', colour.inner, 0.25),
+      bud: mix('#b4c27f', colour.inner, 0.25),
       sepals: 3,
       throat: { pigment: colour.flare, size: 8 * big, alpha: 0.35 },
       seed: rng.int(1, 0x7fffffff),
@@ -143,7 +143,7 @@ const treePeony: SpeciesDef = {
   size: { w: 200, h: 220 },
   anchor: { x: 0.5, y: 0.93 },
   description: 'The king of flowers, opening one silk layer at a time.',
-  bloomColor: '#e6a2b0',
+  bloomColor: '#f29aae',
   pollinators: true,
   draw(p, rng, opts) {
     const plant = buildPeony(rng);

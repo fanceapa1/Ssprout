@@ -195,7 +195,7 @@ const balloonFlower: SpeciesDef = {
   size: { w: 120, h: 160 },
   anchor: { x: 0.5, y: 0.94 },
   description: 'Balloon flower — a held breath, then a blue star.',
-  bloomColor: '#7d84bd',
+  bloomColor: '#7a82cc',
   pollinators: true,
   draw(p, rng, opts) {
     const plan = planBalloonFlower(rng.fork('plan'));

@@ -470,7 +470,7 @@ const BUD_OPEN = 0.16;
 /** Petal geometry of one flower in a given state (pure; fixed rng order at every growth). */
 export function bloomMarks(b: Bloom, s: BloomState): PetalMark[] {
   const rng = createRng(b.seed);
-  const bud = b.bud ?? '#b5c08e';
+  const bud = b.bud ?? '#b4c27f';
   const marks: PetalMark[] = [];
   b.rings.forEach((ring, ri) => {
     const lenVar = ring.lengthVar ?? 0.12;

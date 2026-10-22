@@ -125,7 +125,7 @@ export function planJapaneseMaple(rng: Rng): JapaneseMaplePlan {
 
 const BARK = mix(PIGMENTS.sumi, PIGMENTS.wood, 0.45);
 const SPRING: FoliagePigments = { light: mix(PIGMENTS.sageLight, PIGMENTS.gold, 0.25), mid: mix(PIGMENTS.sap, PIGMENTS.gold, 0.2), shadow: PIGMENTS.sage, dark: PIGMENTS.olive };
-const CRIMSON = '#b4474a';
+const CRIMSON = '#c5303d';
 const AUTUMN_TOP: FoliagePigments = { light: saturate(mix(PIGMENTS.vermilion, PIGMENTS.gold, 0.42), 1.15), mid: mix(PIGMENTS.vermilion, CRIMSON, 0.3), shadow: CRIMSON, dark: darken(CRIMSON, 0.22) };
 const AUTUMN_LOW: FoliagePigments = { light: mix(PIGMENTS.vermilion, CRIMSON, 0.25), mid: mix(PIGMENTS.vermilion, CRIMSON, 0.7), shadow: darken(CRIMSON, 0.08), dark: mix(darken(CRIMSON, 0.28), PIGMENTS.sumi, 0.2) };
 

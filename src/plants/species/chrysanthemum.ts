@@ -8,14 +8,14 @@ import type { SpeciesDef } from '../types';
 
 /** Colourways: [ray florets, deeper inner rays, disc]. */
 const COLOURWAYS: { ray: Pigment; inner: Pigment; disc: Pigment; opaque: boolean }[] = [
-  { ray: '#e8c477', inner: '#d4a24f', disc: '#b98a3c', opaque: true }, // gold
-  { ray: '#d99a6e', inner: '#bf774f', disc: '#9a5e3a', opaque: true }, // rust / bronze
-  { ray: '#faf5ec', inner: '#efe6d6', disc: '#c9c48a', opaque: true }, // white, green-gold eye
-  { ray: '#e0aabb', inner: '#c98aa0', disc: '#b38a5a', opaque: true }, // mauve pink
+  { ray: '#f1c255', inner: '#df9e13', disc: '#c48600', opaque: true }, // gold
+  { ray: '#e69458', inner: '#cd6f36', disc: '#a55723', opaque: true }, // rust / bronze
+  { ray: '#fbf5e9', inner: '#f1e6d1', disc: '#ccc577', opaque: true }, // white, green-gold eye
+  { ray: '#eaa4bb', inner: '#d483a0', disc: '#bc8744', opaque: true }, // mauve pink
 ];
 
 /** Grey-green, deeply lobed foliage. */
-const LEAF = { light: mix(PIGMENTS.sap, '#a4b07c', 0.5), mid: mix(PIGMENTS.sage, '#7f8f5c', 0.4), shadow: mix(PIGMENTS.sage, PIGMENTS.olive, 0.7), dark: mix(PIGMENTS.olive, PIGMENTS.sumi, 0.25) };
+const LEAF = { light: mix(PIGMENTS.sap, '#a3b26d', 0.5), mid: mix(PIGMENTS.sage, '#7d914c', 0.4), shadow: mix(PIGMENTS.sage, PIGMENTS.olive, 0.7), dark: mix(PIGMENTS.olive, PIGMENTS.sumi, 0.25) };
 
 export interface MumBloom {
   x: number;
@@ -187,7 +187,7 @@ const chrysanthemum: SpeciesDef = {
   size: { w: 125, h: 110 },
   anchor: { x: 0.5, y: 0.92 },
   description: 'An autumn cushion of small suns, kept for the long year.',
-  bloomColor: '#e3bc6c',
+  bloomColor: '#edb946',
   pollinators: true,
   draw(p, rng, opts) {
     const plant = buildChrysanthemum(rng);

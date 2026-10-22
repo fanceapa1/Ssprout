@@ -166,7 +166,7 @@ const spiderLily: SpeciesDef = {
   size: { w: 120, h: 160 },
   anchor: { x: 0.5, y: 0.94 },
   description: 'Spider lily — it blooms at the equinox, when the far shore feels near.',
-  bloomColor: '#c0573f',
+  bloomColor: '#c94d33',
   pollinators: true,
   draw(p, rng, opts) {
     const plan = planSpiderLily(rng.fork('plan'));

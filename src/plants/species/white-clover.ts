@@ -45,7 +45,7 @@ export interface CloverPlan {
   spread: number;
 }
 
-const FLORET = '#fbf8f0';
+const FLORET = '#fcf8ee';
 const OLD = mix(PIGMENTS.sakuraLight, PIGMENTS.woodLight, 0.55);
 
 export function planWhiteClover(rng: Rng): CloverPlan {
@@ -189,7 +189,7 @@ const whiteClover: SpeciesDef = {
   size: { w: SMALL_SIZE, h: SMALL_SIZE },
   anchor: { x: 0.5, y: 0.88 },
   description: 'White clover — three leaves for patience, a fourth for luck.',
-  bloomColor: '#f4f0e4',
+  bloomColor: '#f5f0e0',
   pollinators: true,
   draw(p, rng, opts) {
     const plan = planWhiteClover(rng.fork('plan'));

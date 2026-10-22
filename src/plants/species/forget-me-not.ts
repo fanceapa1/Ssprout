@@ -201,7 +201,7 @@ const forgetMeNot: SpeciesDef = {
   size: { w: SMALL_SIZE, h: SMALL_SIZE },
   anchor: { x: 0.5, y: 0.88 },
   description: 'Forget-me-not — a little sky kept close to the water.',
-  bloomColor: '#93a9d6',
+  bloomColor: '#8ca9e3',
   pollinators: true,
   draw(p, rng, opts) {
     const plan = planForgetMeNot(rng.fork('plan'));

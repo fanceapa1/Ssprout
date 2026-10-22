@@ -7,7 +7,7 @@ import type { SpeciesDef } from '../types';
 /** Lotus leaves: waxy blue-green, paler at the rim. */
 const PAD = { light: mix(PIGMENTS.sageLight, PIGMENTS.celadon, 0.45), mid: mix(PIGMENTS.sap, PIGMENTS.celadonMid, 0.5), deep: mix(PIGMENTS.sage, PIGMENTS.celadonDeep, 0.5) };
 const STALK = mix(PIGMENTS.sage, PIGMENTS.olive, 0.5);
-const PINK = { tip: '#e7a3b6', base: '#faeae6', bud: '#d98aa2' };
+const PINK = { tip: '#f39bb5', base: '#fee9e4', bud: '#e680a1' };
 
 export interface Pad {
   x: number;
@@ -89,7 +89,7 @@ export function buildLotus(rng: Rng): Lotus {
         { count: 6, length: 22 * big, width: 0.5, open: 0.62, pigment: PINK.base, tip: PINK.tip, offset: 0.05, curve: 0.1, lengthVar: 0.1, angleVar: 0.2, basePool: 0.1, variant: 'petal' },
         { count: 4, length: 16 * big, width: 0.5, open: 0.3, pigment: PINK.base, tip: lighten(PINK.tip, 0.15), offset: 0.03, curve: 0.08, lengthVar: 0.1, angleVar: 0.25, basePool: 0.1, variant: 'petal' },
       ],
-      centre: { kind: 'stamens', pigment: mix(PIGMENTS.gold, '#c9c66a', 0.5), size: 7 * big, count: 12 },
+      centre: { kind: 'stamens', pigment: mix(PIGMENTS.gold, '#ccc743', 0.5), size: 7 * big, count: 12 },
     };
     return { base, bend, height, bloom, bud: [b0, b1] as [number, number], open: [o0, o1] as [number, number], closed, seed: rng.int(1, 0x7fffffff) };
   });
@@ -200,7 +200,7 @@ function paintPod(p: Painter, pod: NonNullable<Lotus['pod']>, g: number): void {
   const top = stalkPath(pod.base, h, pod.bend * k)[3]!;
   const r = pod.r * (0.4 + 0.6 * k);
   // inverted cone, flat top; green turning to olive-ochre as it ripens
-  const body = mix('#b6b57c', '#a9945f', ramp(g, 0.8, 1));
+  const body = mix('#b8b669', '#af934a', ramp(g, 0.8, 1));
   const cone: Pt[] = [
     { x: top.x - r, y: top.y - r * 0.55 },
     { x: top.x + r, y: top.y - r * 0.6 },
@@ -231,7 +231,7 @@ const lotus: SpeciesDef = {
   size: { w: 200, h: 220 },
   anchor: { x: 0.5, y: 0.84 },
   description: 'It rises clean from the mud and opens at dawn.',
-  bloomColor: '#e9a7b8',
+  bloomColor: '#f5a0b7',
   pollinators: true,
   draw(p, rng, opts) {
     const plant = buildLotus(rng);

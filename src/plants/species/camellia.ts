@@ -7,17 +7,17 @@ import type { SpeciesDef } from '../types';
 
 /** Flower colourways: petal, deeper petal base, and whether petals are opaque light paint. */
 const COLOURWAYS: { petal: Pigment; deep: Pigment; opaque: boolean }[] = [
-  { petal: '#cc6467', deep: '#a9444f', opaque: true }, // yabutsubaki red
-  { petal: '#cc6467', deep: '#a9444f', opaque: true },
-  { petal: '#e8a9b0', deep: '#cf7e8c', opaque: true }, // pink
-  { petal: '#fbf6ef', deep: '#e9dfdc', opaque: true }, // white
+  { petal: '#dd535c', deep: '#b82f46', opaque: true }, // yabutsubaki red
+  { petal: '#dd535c', deep: '#b82f46', opaque: true },
+  { petal: '#f4a2ac', deep: '#dd7488', opaque: true }, // pink
+  { petal: '#fcf6ed', deep: '#ebdeda', opaque: true }, // white
 ];
 
 /** Glossy, dark evergreen leaves. */
 const LEAF = {
-  light: mix(PIGMENTS.sage, '#8f9f68', 0.5),
-  mid: mix(PIGMENTS.olive, '#5f7048', 0.4),
-  shadow: mix(PIGMENTS.olive, '#46523a', 0.55),
+  light: mix(PIGMENTS.sage, '#8da157', 0.5),
+  mid: mix(PIGMENTS.olive, '#5c723c', 0.4),
+  shadow: mix(PIGMENTS.olive, '#445334', 0.55),
   dark: mix(PIGMENTS.olive, PIGMENTS.sumi, 0.45),
 };
 
@@ -119,7 +119,7 @@ export function buildCamellia(rng: Rng): Camellia {
       rot: rng.range(0, Math.PI * 2),
       cupped: true,
       opaque: colour.opaque,
-      bud: mix('#9fae76', colour.deep, 0.3),
+      bud: mix('#9db065', colour.deep, 0.3),
       sepals: 2,
       seed: rng.int(1, 0x7fffffff),
       rings: [
@@ -154,7 +154,7 @@ const camellia: SpeciesDef = {
   size: { w: 180, h: 220 },
   anchor: { x: 0.5, y: 0.94 },
   description: 'Winter red among glossy leaves; it lets go of whole flowers.',
-  bloomColor: '#c95f63',
+  bloomColor: '#da4d58',
   pollinators: true,
   draw(p, rng, opts) {
     const plant = buildCamellia(rng);

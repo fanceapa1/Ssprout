@@ -8,15 +8,15 @@ import type { SpeciesDef } from '../types';
 
 /** Blossom colourways: [lit, deep] — the classic magenta, soft pink, coral and a white form. */
 const COLOURWAYS: [Pigment, Pigment][] = [
-  ['#e7a2bd', '#cc7aa0'], // magenta-pink
-  ['#e7a2bd', '#cc7aa0'],
-  ['#efbcc4', '#de97a8'], // soft pink
-  ['#eeb2a4', '#d98c80'], // coral
-  ['#f8f1ec', '#e7c5d0'], // white, flushed pink
+  ['#f39abe', '#d96fa2'], // magenta-pink
+  ['#f39abe', '#d96fa2'],
+  ['#f9b7c2', '#eb8fa6'], // soft pink
+  ['#faac9a', '#e78375'], // coral
+  ['#faf1ea', '#eec2d0'], // white, flushed pink
 ];
 
 /** Small, dark, glossy evergreen leaves. */
-const LEAF = { light: mix(PIGMENTS.sap, '#9fae6c', 0.4), mid: mix(PIGMENTS.sage, PIGMENTS.olive, 0.25), shadow: PIGMENTS.olive, dark: mix(PIGMENTS.olive, PIGMENTS.sumi, 0.35) };
+const LEAF = { light: mix(PIGMENTS.sap, '#9db056', 0.4), mid: mix(PIGMENTS.sage, PIGMENTS.olive, 0.25), shadow: PIGMENTS.olive, dark: mix(PIGMENTS.olive, PIGMENTS.sumi, 0.35) };
 
 export interface Azalea {
   twigs: Branch[];
@@ -70,7 +70,7 @@ const azalea: SpeciesDef = {
   size: { w: 140, h: 120 },
   anchor: { x: 0.5, y: 0.9 },
   description: 'A clipped green cloud that turns to blossom overnight.',
-  bloomColor: '#d987a8',
+  bloomColor: '#e77ca9',
   pollinators: true,
   draw(p, rng, opts) {
     const plant = buildAzalea(rng);

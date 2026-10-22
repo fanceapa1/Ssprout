@@ -43,7 +43,7 @@ export interface IrisPlan {
 
 const VARIETIES: { colour: Pigment; veins: Pigment }[] = [
   { colour: PIGMENTS.iris, veins: mix(PIGMENTS.iris, PIGMENTS.sumi, 0.45) },
-  { colour: mix(PIGMENTS.iris, '#4f3f86', 0.4), veins: mix('#4f3f86', PIGMENTS.sumi, 0.4) },
+  { colour: mix(PIGMENTS.iris, '#513796', 0.4), veins: mix('#513796', PIGMENTS.sumi, 0.4) },
   { colour: PIGMENTS.irisLight, veins: mix(PIGMENTS.iris, PIGMENTS.sumi, 0.3) },
   { colour: mix(PIGMENTS.petalWhite, PIGMENTS.irisLight, 0.18), veins: mix(PIGMENTS.iris, PIGMENTS.irisLight, 0.4) },
 ];
@@ -215,7 +215,7 @@ const japaneseIris: SpeciesDef = {
   size: { w: 120, h: 160 },
   anchor: { x: 0.5, y: 0.94 },
   description: 'Japanese iris — standing straight, speaking softly, by still water.',
-  bloomColor: '#7b6ba8',
+  bloomColor: '#7d66b6',
   pollinators: true,
   draw(p, rng, opts) {
     const plan = planJapaneseIris(rng.fork('plan'));

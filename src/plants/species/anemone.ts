@@ -102,7 +102,7 @@ export function planAnemone(rng: Rng): AnemonePlan {
     flowers,
     petal,
     blush: mix(PIGMENTS.sakura, PIGMENTS.irisLight, 0.35),
-    eye: darkEye ? mix(PIGMENTS.sumi, '#3f3a63', 0.45) : mix(PIGMENTS.sageLight, PIGMENTS.gold, 0.35),
+    eye: darkEye ? mix(PIGMENTS.sumi, '#3f376d', 0.45) : mix(PIGMENTS.sageLight, PIGMENTS.gold, 0.35),
     ring: darkEye ? mix(PIGMENTS.sumi, PIGMENTS.iris, 0.3) : PIGMENTS.gold,
   };
 }
@@ -187,7 +187,7 @@ const anemone: SpeciesDef = {
   size: { w: 120, h: 160 },
   anchor: { x: 0.5, y: 0.94 },
   description: 'Anemone — a windflower, turning its face to every passing breeze.',
-  bloomColor: '#f6f0ea',
+  bloomColor: '#f7f0e8',
   pollinators: true,
   draw(p, rng, opts) {
     const plan = planAnemone(rng.fork('plan'));

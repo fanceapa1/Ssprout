@@ -38,7 +38,7 @@ export interface FernPlan {
   fronds: Frond[];
 }
 
-const STIPE = mix(PIGMENTS.sumi, '#5b3e4a', 0.4);
+const STIPE = mix(PIGMENTS.sumi, '#603b4b', 0.4);
 const BRONZE = mix(PIGMENTS.sakura, PIGMENTS.woodLight, 0.5);
 
 export function planMaidenhairFern(rng: Rng): FernPlan {
@@ -152,7 +152,7 @@ const maidenhairFern: SpeciesDef = {
   size: { w: 70, h: 70 },
   anchor: { x: 0.5, y: 0.88 },
   description: 'Maidenhair fern — green lace in the cool of the stones.',
-  bloomColor: '#a8b47e',
+  bloomColor: '#a7b66e',
   pollinators: false,
   draw(p, rng, opts) {
     const plan = planMaidenhairFern(rng.fork('plan'));

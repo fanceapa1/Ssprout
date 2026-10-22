@@ -102,7 +102,7 @@ export function planGinkgo(rng: Rng): GinkgoPlan {
 
 const BARK = mix(PIGMENTS.sumi, PIGMENTS.stoneWarm, 0.38);
 /** butter yellow: the gold accent pushed toward lemon, kept watery */
-const BUTTER = saturate(lighten(mix(PIGMENTS.gold, '#e8cf52', 0.6), 0.06), 1.1);
+const BUTTER = saturate(lighten(mix(PIGMENTS.gold, '#f0ce00', 0.6), 0.06), 1.1);
 const GOLD_LIGHT = lighten(BUTTER, 0.06);
 const OCHRE = mix(PIGMENTS.gold, PIGMENTS.wood, 0.22);
 const GOLD: FoliagePigments = { light: GOLD_LIGHT, mid: BUTTER, shadow: OCHRE, dark: darken(mix(OCHRE, PIGMENTS.olive, 0.25), 0.08) };

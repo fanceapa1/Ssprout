@@ -124,4 +124,4 @@ export function paintHeads(p: Painter, heads: readonly HeadPaint[], groups = 2):
 }
 
 /** Bud-green for a head that has not coloured yet. */
-export const HEAD_BUD = mix(PIGMENTS.sageLight, '#d7dba8', 0.5);
+export const HEAD_BUD = mix(PIGMENTS.sageLight, '#d8dc99', 0.5);

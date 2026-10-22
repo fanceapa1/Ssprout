@@ -50,10 +50,10 @@ export interface CosmosPlan {
 }
 
 const VARIETIES = [
-  { colour: PIGMENTS.sakura, ring: mix(PIGMENTS.sakura, '#b0506e', 0.45) },
+  { colour: PIGMENTS.sakura, ring: mix(PIGMENTS.sakura, '#bf3f6c', 0.45) },
   { colour: mix(PIGMENTS.sakuraLight, PIGMENTS.petalWhite, 0.35), ring: PIGMENTS.sakura },
   { colour: PIGMENTS.petalWhite, ring: mix(PIGMENTS.sakuraLight, PIGMENTS.petalWhite, 0.4) },
-  { colour: mix(PIGMENTS.sakura, '#b0506e', 0.22), ring: mix('#b0506e', PIGMENTS.sakura, 0.3) },
+  { colour: mix(PIGMENTS.sakura, '#bf3f6c', 0.22), ring: mix('#bf3f6c', PIGMENTS.sakura, 0.3) },
 ];
 
 export function planCosmos(rng: Rng): CosmosPlan {
@@ -203,7 +203,7 @@ const cosmos: SpeciesDef = {
   size: { w: 120, h: 160 },
   anchor: { x: 0.5, y: 0.94 },
   description: 'Cosmos — autumn’s cherry blossom, nodding in every wind.',
-  bloomColor: '#e8a7a9',
+  bloomColor: '#f4a0a4',
   pollinators: true,
   draw(p, rng, opts) {
     const plan = planCosmos(rng.fork('plan'));

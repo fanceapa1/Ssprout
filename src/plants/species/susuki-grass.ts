@@ -171,7 +171,7 @@ const susukiGrass: SpeciesDef = {
   size: { w: 120, h: 160 },
   anchor: { x: 0.5, y: 0.94 },
   description: 'Silver grass — the autumn moon’s own brush, combing the wind.',
-  bloomColor: '#cdbfa6',
+  bloomColor: '#d1be9e',
   pollinators: false,
   draw(p, rng, opts) {
     const plan = planSusukiGrass(rng.fork('plan'));

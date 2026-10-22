@@ -40,7 +40,7 @@ export interface VioletPlan {
   spread: number;
 }
 
-const DEEP = mix(PIGMENTS.iris, '#4f3f86', 0.35);
+const DEEP = mix(PIGMENTS.iris, '#513796', 0.35);
 
 export function planViolet(rng: Rng): VioletPlan {
   const lean = rng.range(-0.2, 0.2);
@@ -176,7 +176,7 @@ const violet: SpeciesDef = {
   size: { w: SMALL_SIZE, h: SMALL_SIZE },
   anchor: { x: 0.5, y: 0.9 },
   description: 'Violet — small courage at the foot of stones.',
-  bloomColor: '#6f5f9f',
+  bloomColor: '#715aae',
   pollinators: true,
   draw(p, rng, opts) {
     const plan = planViolet(rng.fork('plan'));

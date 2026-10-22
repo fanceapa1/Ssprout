@@ -44,7 +44,7 @@ export interface DandelionPlan {
 
 export function planDandelion(rng: Rng): DandelionPlan {
   const green = jitter(mix(PIGMENTS.sage, PIGMENTS.sap, 0.4), rng, 0.03);
-  const gold = jitter(mix(PIGMENTS.gold, '#e2b93e', 0.6), rng, 0.02);
+  const gold = jitter(mix(PIGMENTS.gold, '#edb600', 0.6), rng, 0.02);
   const n = rng.int(6, 9);
   const rot = rng.range(0, 1);
   const leaves: Leaf[] = [];
@@ -204,7 +204,7 @@ const dandelion: SpeciesDef = {
   size: { w: SMALL_SIZE, h: SMALL_SIZE },
   anchor: { x: 0.5, y: 0.88 },
   description: 'Dandelion — a small sun, and later, a hundred wishes.',
-  bloomColor: '#dfbe5c',
+  bloomColor: '#e8bc1f',
   pollinators: true,
   draw(p, rng, opts) {
     const plan = planDandelion(rng.fork('plan'));

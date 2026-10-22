@@ -7,10 +7,10 @@ import { domeLeaves, domeScatter, growOutward, growSkeleton, type Branch, type C
 import type { SpeciesDef } from '../types';
 
 /** Mophead colours from acid (blue) through violet to alkaline (pink) soil. */
-const BLUE = '#8ea3d2';
-const VIOLET = '#a395cc';
-const PINK = '#d9a3bd';
-const ROSE = '#c98aa9';
+const BLUE = '#87a2df';
+const VIOLET = '#a591d9';
+const PINK = '#e39dbf';
+const ROSE = '#d482ac';
 
 function headColours(soil: number, rng: Rng): [Pigment, Pigment] {
   const s = Math.max(0, Math.min(1, soil + rng.gaussian(0, 0.12)));
@@ -20,8 +20,8 @@ function headColours(soil: number, rng: Rng): [Pigment, Pigment] {
 }
 
 const LEAF = {
-  light: mix(PIGMENTS.sageLight, '#b8c27f', 0.5),
-  mid: mix(PIGMENTS.sap, '#93a35f', 0.35),
+  light: mix(PIGMENTS.sageLight, '#b8c469', 0.5),
+  mid: mix(PIGMENTS.sap, '#91a548', 0.35),
   shadow: mix(PIGMENTS.sage, PIGMENTS.olive, 0.35),
 };
 
@@ -113,7 +113,7 @@ const hydrangea: SpeciesDef = {
   size: { w: 200, h: 210 },
   anchor: { x: 0.5, y: 0.93 },
   description: 'Rain-season clouds that change colour with the soil.',
-  bloomColor: '#9a9fd0',
+  bloomColor: '#989ddd',
   pollinators: true,
   draw(p, rng, opts) {
     const plant = buildHydrangea(rng);

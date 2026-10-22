@@ -214,7 +214,7 @@ const wildStrawberry: SpeciesDef = {
   size: { w: SMALL_SIZE, h: SMALL_SIZE },
   anchor: { x: 0.5, y: 0.86 },
   description: 'Wild strawberry — sweetness found by looking down.',
-  bloomColor: '#f6f1e6',
+  bloomColor: '#f7f1e3',
   pollinators: true,
   draw(p, rng, opts) {
     const plan = planWildStrawberry(rng.fork('plan'));
