@@ -4,7 +4,7 @@ import type { BlockKind, WidgetPlanBlock, WidgetSession, WidgetStatus } from './
 /** What the floating widget card shows, derived purely from the controller status. */
 
 export type WidgetMode = 'idle' | 'focus' | 'break' | 'paused' | 'complete';
-export type WidgetActionKind = 'pause' | 'resume' | 'water' | 'skip' | 'open';
+export type WidgetActionKind = 'pause' | 'resume' | 'water' | 'skip' | 'open' | 'switch';
 
 export interface WidgetButton {
   kind: WidgetActionKind;
@@ -38,6 +38,8 @@ export interface WidgetView {
   buttons: WidgetButton[];
   speciesId: string | null;
   seed: number;
+  /** the session the 'switch' button makes active (ADR 0157), or null */
+  switchTo: string | null;
 }
 
 export const IDLE_TEXT = 'No session running';
@@ -49,9 +51,26 @@ export const LABEL: Record<WidgetActionKind, string> = {
   water: 'Water',
   skip: 'Skip break',
   open: 'Open garden',
+  switch: 'Switch',
 };
 
-const button = (kind: WidgetActionKind, primary = false): WidgetButton => ({ kind, label: LABEL[kind], primary });
+const button = (kind: WidgetActionKind, primary = false, label = LABEL[kind]): WidgetButton => ({ kind, label, primary });
+
+/** "“Essay” is waiting" / "2 sessions are waiting" — the idle card's line when others wait. */
+export const waitingText = (tasks: readonly string[]): string =>
+  tasks.length === 1 ? `“${tasks[0]}” is waiting` : `${tasks.length} sessions are waiting`;
+
+/**
+ * Which session the card's switch goes to: with one active, the next one in progress after it
+ * (cycling through all of them in start order); with none active, the one left last.
+ */
+export function switchTarget(st: WidgetStatus): string | null {
+  const list = st.sessions ?? [];
+  if (list.length === 0) return null;
+  const i = list.findIndex((x) => x.active);
+  if (i < 0) return (list.find((x) => x.lastLeft) ?? list[list.length - 1]!).session.id;
+  return list.length > 1 ? list[(i + 1) % list.length]!.session.id : null;
+}
 
 export const breakText = (plant: string, watered: boolean): string =>
   watered ? `Watered — your ${plant} is resting` : `Break — your ${plant} is thirsty`;
@@ -75,14 +94,19 @@ export interface WidgetViewOptions {
   completed?: WidgetSession | null;
   /** display name of a species (default: "plant") */
   speciesName?: (id: string) => string | undefined;
+  /** the controller can switch sessions (default true) */
+  canSwitch?: boolean;
 }
 
 export function widgetView(st: WidgetStatus, opts: WidgetViewOptions = {}): WidgetView {
   const name = (id: string) => opts.speciesName?.(id) ?? 'plant';
   const s = st.session;
   const tl = st.timeline;
+  const target = opts.canSwitch === false ? null : switchTarget(st);
   if (st.phase === 'idle' || !s || !tl) {
     const done = st.phase === 'idle' ? opts.completed : null;
+    // others wait (none active): offer to resume the one left last, never on its own (ADR 0152)
+    const resume = target ? [button('switch', !done, 'Resume')] : [];
     if (done) {
       return {
         mode: 'complete',
@@ -93,23 +117,26 @@ export function widgetView(st: WidgetStatus, opts: WidgetViewOptions = {}): Widg
         growth: 1,
         progress: 1,
         segments: planSegments(done.plan.blocks),
-        buttons: [button('open', true)],
+        buttons: [button('open', true), ...resume],
         speciesId: done.speciesId,
         seed: done.seed,
+        switchTo: target,
       };
     }
+    const waiting = (st.sessions ?? []).map((x) => x.session.taskName);
     return {
       mode: 'idle',
       task: '',
       time: '',
       total: '',
-      state: IDLE_TEXT,
+      state: waiting.length > 0 ? waitingText(waiting) : IDLE_TEXT,
       growth: 0,
       progress: 0,
       segments: [],
-      buttons: [button('open')],
+      buttons: [...resume, button('open')],
       speciesId: null,
       seed: 0,
+      switchTo: target,
     };
   }
 
@@ -123,7 +150,9 @@ export function widgetView(st: WidgetStatus, opts: WidgetViewOptions = {}): Widg
     segments: planSegments(s.plan.blocks),
     speciesId: s.speciesId,
     seed: s.seed,
+    switchTo: target,
   };
+  const sw = target ? [button('switch')] : [];
   switch (st.phase) {
     case 'break':
       return {
@@ -133,7 +162,7 @@ export function widgetView(st: WidgetStatus, opts: WidgetViewOptions = {}): Widg
         buttons: tl.watered ? [button('skip'), button('pause')] : [button('water', true), button('skip'), button('pause')],
       };
     case 'paused':
-      return { ...base, mode: 'paused', state: PAUSED_TEXT, buttons: [button('resume')] };
+      return { ...base, mode: 'paused', state: PAUSED_TEXT, buttons: [button('resume'), ...sw] };
     default: {
       const focusBlocks = s.plan.blocks.filter((b) => b.kind === 'focus').length;
       const n = s.plan.blocks.slice(0, tl.blockIndex + 1).filter((b) => b.kind === 'focus').length;
@@ -141,7 +170,7 @@ export function widgetView(st: WidgetStatus, opts: WidgetViewOptions = {}): Widg
         ...base,
         mode: 'focus',
         state: focusBlocks > 1 ? `focus ${n} of ${focusBlocks}` : 'growing quietly',
-        buttons: [button('pause')],
+        buttons: [button('pause'), ...sw],
       };
     }
   }

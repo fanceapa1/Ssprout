@@ -46,11 +46,19 @@ if (speedClock) installWidgetDebug({ surfaces, controller, store, bus }); // win
 Shippori Mincho 500 latin). `surfaces.dispose()` restores the interval ticker, title and icon.
 
 **Controller requirements** (`contract.ts`, from ADR 0003): `status()` returning
-`{ phase: 'idle'|'focus'|'break'|'paused', timeline, session }` with
+`{ phase: 'idle'|'focus'|'break'|'paused', timeline, session, sessions? }` (`session`/`phase`/`timeline`
+are the **active** session's; `sessions` lists every session in progress as `{ session: { id, taskName },
+active, lastLeft? }`, ADR 0150) with
 `timeline = { blockIndex, block, blockRemainingMs, totalRemainingMs, growth, progress, watered, complete }`
 and `session = { id, taskName, plan: { id, name, blocks }, speciesId, seed }`; `onTick`, `pause`, `resume`,
-`water`, `skipBreak`, `setTicker`, `updateSettings`. Bus events used: `session:start | break |
-focus | water | complete | cancel` (payloads read defensively; `sessionId` used when present).
+`water`, `skipBreak`, `switchTo?(id)` (optional: without it the card offers no switch), `setTicker`,
+`updateSettings`. Bus events used: `session:start | break | focus | water | complete | cancel |
+switch` (payloads read defensively; `sessionId` used when present).
+
+**Several sessions** (ADRs 0150, 0157): every surface follows the **active** session — the title and
+favicon, the notifications (only the active session has breaks, focus blocks and completions) and
+the card. With none active (after a bloom, others waiting) the title and icon rest (or say
+`Bloomed` until seen).
 If core's `status()` names differ, adapt in `contract.ts` only.
 
 ## Surfaces
@@ -86,8 +94,13 @@ restores title, href and type.
   line with plan segments (breaks are gaps holding a water drop), one state line
   (`focus 1 of 2 · 52:10 in all`, `Break — your Japanese Iris is thirsty`, `paused`,
   `Your Japanese Iris has bloomed — return to your garden`, `No session running`);
-- buttons: Pause / Resume; in breaks **Water** (vermilion seal, `controller.water()` + a 2.5 s
-  watering animation, also played on `session:water` from the garden), **Skip break**, Pause;
+- buttons: Pause / Resume, and **Switch** when another session is in progress (focus or paused;
+  not in breaks, where the row is full): it makes the next session in start order active
+  (`controller.switchTo`), cycling through all of them; with none active the idle card says who is
+  waiting ("“Essay” is waiting" / "2 sessions are waiting") and offers **Resume** on the one left
+  last — it never resumes on its own (ADR 0152); in breaks **Water** (vermilion seal, `controller.water()` + a 2.5 s
+  watering animation, also played on every `session:water` — from the garden, and the automatic
+  focus watering every 4–10 focused minutes, ADR 0153 — with nothing to tap), **Skip break**, Pause;
   after completion **Open garden** (focuses the opener — best effort — and closes the widget).
 
 Updates every tick and on store changes; growth eases toward its target (0.6 s), and a freshly
@@ -149,5 +162,5 @@ Policy (ADR 0091):
   installs `window.sprout.widget` under `?dev`). Headless Chromium reports `Notification.permission === 'denied'`
   even after `grantPermissions`, so the spec's init script owns the permission value.
 - Studio: section **Widget** (`#widget`): card at focus growth 0 / 0.3 / 0.7, break, watering
-  mid-animation, paused, bloom, idle, unknown-species fallback, favicons (enlarged + tab size on
+  mid-animation, paused, bloom, idle, another session waiting (Switch), two waiting (Resume), unknown-species fallback, favicons (enlarged + tab size on
   light/dark strips) and a 12 s loop of a whole session.

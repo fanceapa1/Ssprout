@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { session, status } from './test-helpers';
-import { planSegments, widgetView } from './view';
+import { planSegments, switchTarget, widgetView } from './view';
 
 const speciesName = (id: string) => (id === 'japanese-iris' ? 'Japanese Iris' : undefined);
 
@@ -18,6 +18,7 @@ describe('widgetView', () => {
       buttons: [{ kind: 'open', label: 'Open garden', primary: false }],
       speciesId: null,
       seed: 0,
+      switchTo: null,
     });
   });
 
@@ -107,5 +108,46 @@ describe('planSegments', () => {
       { kind: 'focus', start: 35 / 60, end: 1 },
     ]);
     expect(planSegments([])).toEqual([]);
+  });
+});
+
+describe('several sessions in progress (ADR 0157)', () => {
+  const summary = (id: string, active: boolean, lastLeft = false) => ({ session: { id, taskName: `Task ${id}` }, active, lastLeft });
+
+  it('follows the active session and offers a Switch to the next one in start order (cycling)', () => {
+    const st = { ...status('focus'), sessions: [summary('a', false), summary('session-test', true), summary('c', false, true)] };
+    const v = widgetView(st);
+    expect(v.task).toBe('Biology ch. 4');
+    expect(v.buttons.map((b) => b.kind)).toEqual(['pause', 'switch']);
+    expect(switchTarget(st)).toBe('c');
+    expect(switchTarget({ ...st, sessions: [summary('a', false), summary('c', false), summary('session-test', true)] })).toBe('a');
+    expect(widgetView({ ...status('paused'), sessions: st.sessions }).buttons.map((b) => b.kind)).toEqual(['resume', 'switch']);
+  });
+
+  it('no Switch alone, in a break (the buttons stay few), or without a controller that can switch', () => {
+    expect(widgetView({ ...status('focus'), sessions: [summary('session-test', true)] }).buttons.map((b) => b.kind)).toEqual(['pause']);
+    const two = [summary('a', false), summary('session-test', true)];
+    expect(widgetView({ ...status('break', { block: { kind: 'break', minutes: 5 } }), sessions: two }).buttons.map((b) => b.kind)).toEqual(['water', 'skip', 'pause']);
+    expect(widgetView({ ...status('focus'), sessions: two }, { canSwitch: false }).buttons.map((b) => b.kind)).toEqual(['pause']);
+  });
+
+  it('none active: says who is waiting and offers Resume on the one left last — never resumes on its own', () => {
+    const st = { ...status(), sessions: [summary('a', false), summary('b', false, true)] };
+    const v = widgetView(st);
+    expect(v.mode).toBe('idle');
+    expect(v.state).toBe('2 sessions are waiting');
+    expect(v.buttons).toEqual([
+      { kind: 'switch', label: 'Resume', primary: true },
+      { kind: 'open', label: 'Open garden', primary: false },
+    ]);
+    expect(v.switchTo).toBe('b');
+    expect(widgetView({ ...status(), sessions: [summary('a', false, true)] }).state).toBe('“Task a” is waiting');
+    // right after a bloom the bloom keeps the stage; Resume waits beside "Open garden"
+    const done = widgetView(st, { completed: session() });
+    expect(done.mode).toBe('complete');
+    expect(done.buttons.map((b) => [b.kind, b.primary])).toEqual([
+      ['open', true],
+      ['switch', false],
+    ]);
   });
 });

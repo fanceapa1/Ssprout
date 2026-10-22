@@ -13,7 +13,8 @@ import { widgetView } from './view';
 
 /**
  * Studio · Widget: the floating card through a session (growth 0 / 0.3 / 0.7, break, watering,
- * paused, bloom, idle), the generic-sprout fallback, the favicon ring, and an animated loop of a
+ * paused, bloom, idle), with other sessions in progress (Switch; none active: Resume), the
+ * generic-sprout fallback, the favicon ring, and an animated loop of a
  * whole two-pomodoro session with its watering break. Card text is painted with the widget's web
  * fonts, so card entries are animated (they repaint once the fonts have loaded).
  */
@@ -158,6 +159,22 @@ const section: StudioSection = {
     card('card-paused', 'paused · growth 0.45', (seed) => statusAt(22.5, { seed, paused: true })),
     card('card-bloom', 'complete · growth 1', (seed) => statusAt(60, { seed }), {}, true),
     card('card-idle', 'idle', () => ({ phase: 'idle', timeline: null, session: null })),
+    card('card-switch', 'focus · another session waiting (Switch)', (seed) => ({
+      ...statusAt(15, { seed }),
+      sessions: [
+        { session: { id: 'session-test', taskName: 'Biology ch. 4' }, active: true },
+        { session: { id: 'essay', taskName: 'Essay draft' }, active: false, lastLeft: true },
+      ],
+    })),
+    card('card-waiting', 'idle · two sessions waiting (Resume)', () => ({
+      phase: 'idle',
+      timeline: null,
+      session: null,
+      sessions: [
+        { session: { id: 'essay', taskName: 'Essay draft' }, active: false },
+        { session: { id: 'maths', taskName: 'Maths set' }, active: false, lastLeft: true },
+      ],
+    })),
     card('card-fallback', 'unknown species → generic sprout (growth 0.7)', (seed) => statusAt(45, { seed, speciesId: 'not-a-species' })),
     favicons,
     sessionLoop,

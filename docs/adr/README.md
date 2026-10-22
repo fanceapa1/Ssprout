@@ -68,7 +68,7 @@ commit, and when it replaces or changes an earlier decision, update that ADR's S
 | [0090](0090-worker-ticker.md) | Worker ticker | accepted | Inline Blob worker with interval fallback, installed via `setTicker` |
 | [0091](0091-notification-policy.md) | Notification policy | accepted | Ask at the first start; notify only when unattended; one tag |
 | [0092](0092-notifications-only-service-worker.md) | Notifications-only service worker | accepted | `public/sw.js` handles clicks only |
-| [0093](0093-floating-card-dom-over-canvas.md) | Floating card: DOM over canvas | accepted | `mountCard(window)`, `HostOpener`, `WidgetController` |
+| [0093](0093-floating-card-dom-over-canvas.md) | Floating card: DOM over canvas | accepted; amended by 0157 | `mountCard(window)`, `HostOpener`, `WidgetController` |
 | [0094](0094-plant-view-seam.md) | Plant view seam | accepted; internals replaced by 0118 | Fixed `renderPlantView` signature for widget and previews |
 | [0100](0100-procedural-audio-as-data.md) | Procedural audio as data | accepted | Pure planner and recipes over a thin Web Audio backend |
 | [0101](0101-audio-gating-and-fades.md) | Audio gating and fades | accepted | Muted by default, gesture unlock, 2 s fades, suspend when muted |
@@ -114,3 +114,4 @@ commit, and when it replaces or changes an earlier decision, update that ADR's S
 | [0153](0153-automatic-focus-watering.md) | Automatic focus watering | accepted | Seeded 4–10 min intervals of focused time; one `session:water { auto: true }` per due batch, only in focus |
 | [0154](0154-schema-v2-migration.md) | Schema v2 and the v1 → v2 migration | accepted | v1 session stays active, nothing waits, log back-filled from plants; v2 validation rules |
 | [0155](0155-several-seedlings-in-the-garden.md) | Several seedlings in the garden | accepted | One growing record per session in progress; waiting seedlings hold their growth and sway calm; water by `sessionId` |
+| [0157](0157-widget-follows-the-active-session-and-switches.md) | Widget follows the active session and switches | accepted | Title, favicon, notifications, card follow the active session; Switch cycles in start order; Resume when none is active |

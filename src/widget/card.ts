@@ -193,7 +193,7 @@ export function mountCard(win: Window, deps: CardDeps): CardHandle {
       setText(task, next.task);
       setText(time, next.time);
       setText(state, stateLine(next));
-      const key = next.buttons.map((b) => `${b.kind}${b.primary ? '*' : ''}`).join(',');
+      const key = next.buttons.map((b) => `${b.kind}:${b.label}${b.primary ? '*' : ''}`).join(',');
       if (key !== buttonsKey) {
         buttonsKey = key;
         actions.replaceChildren(

@@ -148,6 +148,27 @@ describe('createFloatingWidget', () => {
     expect(controller.calls).toContain('skipBreak');
   });
 
+  it('with other sessions in progress the card offers Switch, which makes the next one active', async () => {
+    const { widget, controller, bus } = setup();
+    widget.open();
+    await flush();
+    expect($('button[data-action="switch"]')).toBeNull();
+    const sessions = [
+      { session: { id: 'session-test', taskName: 'Biology ch. 4' }, active: true },
+      { session: { id: 'other', taskName: 'Essay' }, active: false, lastLeft: true },
+    ];
+    controller.set({ ...status('focus', {}, { speciesId: 'japanese-iris' }), sessions });
+    controller.tick();
+    $('button[data-action="switch"]')!.click();
+    expect(controller.calls).toContain('switchTo:other');
+    // the card follows the new active session; a bloom shown before is dropped on a switch
+    controller.set(status());
+    bus.emit('session:complete', { sessionId: 'session-test' });
+    expect(widget.view().mode).toBe('complete');
+    bus.emit('session:switch', { from: null, to: 'other', at: 0 });
+    expect(widget.view().mode).toBe('idle');
+  });
+
   it('a water event from the garden plays the animation in the widget too', async () => {
     const { widget, bus } = setup();
     widget.open();

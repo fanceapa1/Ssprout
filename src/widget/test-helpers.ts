@@ -70,6 +70,10 @@ export function fakeController(initial: WidgetStatus = status()) {
     resume: record('resume'),
     water: record('water'),
     skipBreak: record('skipBreak'),
+    switchTo: (id: string) => {
+      calls.push(`switchTo:${id}`);
+      return true;
+    },
     setTicker: () => {
       calls.push('setTicker');
     },

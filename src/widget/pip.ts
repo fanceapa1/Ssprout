@@ -48,7 +48,7 @@ export function pipHostOpener(win: Window): HostOpener {
 }
 
 export interface FloatingWidgetDeps {
-  controller: Pick<WidgetController, 'status' | 'onTick' | 'pause' | 'resume' | 'water' | 'skipBreak'>;
+  controller: Pick<WidgetController, 'status' | 'onTick' | 'pause' | 'resume' | 'water' | 'skipBreak' | 'switchTo'>;
   store: { subscribe(fn: () => void): () => void };
   bus: WidgetBus;
   /** the app window (opener) */
@@ -90,7 +90,8 @@ export function createFloatingWidget(deps: FloatingWidgetDeps): FloatingWidget &
     if (s) lastSession = s;
   };
 
-  const view = (): WidgetView => widgetView(controller.status(), { completed, speciesName: deps.speciesName });
+  const view = (): WidgetView =>
+    widgetView(controller.status(), { completed, speciesName: deps.speciesName, canSwitch: typeof controller.switchTo === 'function' });
   const render = () => {
     remember();
     card?.update(view());
@@ -108,6 +109,10 @@ export function createFloatingWidget(deps: FloatingWidgetDeps): FloatingWidget &
       render();
     }),
     deps.bus.on('session:cancel', () => {
+      completed = null;
+      render();
+    }),
+    deps.bus.on('session:switch', () => {
       completed = null;
       render();
     }),
@@ -143,6 +148,11 @@ export function createFloatingWidget(deps: FloatingWidgetDeps): FloatingWidget &
       case 'skip':
         controller.skipBreak();
         break;
+      case 'switch': {
+        const id = view().switchTo;
+        if (id) controller.switchTo?.(id);
+        break;
+      }
       case 'open': {
         const wasComplete = view().mode === 'complete';
         focusApp();

@@ -38,10 +38,22 @@ export interface WidgetSession {
   seed: number;
 }
 
+/** A session in progress, as the widget lists it (ADR 0150). */
+export interface WidgetSessionSummary {
+  session: Pick<WidgetSession, 'id' | 'taskName'>;
+  /** the session the card follows */
+  active: boolean;
+  /** the waiting session left most recently */
+  lastLeft?: boolean;
+}
+
 export interface WidgetStatus {
   phase: WidgetPhase;
   timeline: WidgetTimeline | null;
+  /** the active session */
   session: WidgetSession | null;
+  /** every session in progress, oldest start first (absent: only `session`) */
+  sessions?: readonly WidgetSessionSummary[];
 }
 
 export interface WidgetController {
@@ -51,12 +63,21 @@ export interface WidgetController {
   resume(): unknown;
   water(): unknown;
   skipBreak(): unknown;
+  /** make another session in progress the active one (optional: without it the card offers no switch) */
+  switchTo?(id: string): unknown;
   setTicker(ticker: Ticker): void;
   updateSettings(patch: Partial<Settings>): unknown;
 }
 
 /** Event names the widget listens to (payloads are read defensively). */
-export type WidgetEvent = 'session:start' | 'session:break' | 'session:focus' | 'session:water' | 'session:complete' | 'session:cancel';
+export type WidgetEvent =
+  | 'session:start'
+  | 'session:break'
+  | 'session:focus'
+  | 'session:water'
+  | 'session:complete'
+  | 'session:cancel'
+  | 'session:switch';
 
 /** A bus as the widget uses it. The app's EventBus satisfies it (see `looseBus`). */
 export interface WidgetBus {

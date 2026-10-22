@@ -1,6 +1,6 @@
 # ADR 0093 — Floating card: DOM text over a painted canvas, mountable in any window
 
-- Status: accepted
+- Status: accepted; amended by ADR 0157 (Switch / Resume with several sessions)
 - Date: 2026-10-22
 
 ## Context
