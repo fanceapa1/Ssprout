@@ -5,6 +5,7 @@ import type { StudyPlan } from '../core/plans';
 import { createDefaultState, createStore, reducer, type GardenState, type PlantInstance } from '../core/state';
 import type { FrameInfo, SystemContext } from '../render/types';
 import { createViewport } from '../render/viewport';
+import { createCamera } from '../render/camera';
 import type { SceneGeometry, Slot } from '../scene/geometry';
 import { plantWorldBounds } from './bounds';
 import { dabAlpha } from './highlight';
@@ -67,6 +68,12 @@ function instantCache(): SpriteCache & { requested: SpriteSpec[] } {
     whenIdle: () => Promise.resolve(),
     stats: () => ({ entries: store.size, bytes: 0, budget: 0, queued: 0, inFlight: 0, rendered: store.size, evicted: 0, workers: 0, failed: 0 }),
     setBudget() {},
+    evictWhere: (pick) => {
+      let n = 0;
+      for (const [k, sp] of [...store]) if (pick(sp.spec)) (store.delete(k), n++);
+      return n;
+    },
+    dropQueued() {},
     clear: () => store.clear(),
     dispose() {},
   };
@@ -93,7 +100,7 @@ const plant = (id: string, slotId: string, speciesId = 'small'): PlantInstance =
   completedAt: 1,
 });
 
-function setup(opts: { plants?: PlantInstance[]; scene?: SceneGeometry; reducedMotion?: boolean; cache?: ReturnType<typeof instantCache> } = {}) {
+function setup(opts: { plants?: PlantInstance[]; scene?: SceneGeometry; reducedMotion?: boolean; cache?: ReturnType<typeof instantCache>; camera?: boolean } = {}) {
   const clock = createManualClock(1_000_000);
   const state: GardenState = { ...createDefaultState(clock.now()), plants: opts.plants ?? [] };
   const store = createStore(state, reducer);
@@ -101,7 +108,9 @@ function setup(opts: { plants?: PlantInstance[]; scene?: SceneGeometry; reducedM
   const scene = opts.scene ?? placeholderScene;
   const cache = opts.cache ?? instantCache();
   const system = createPlantSystem({ getSpecies, cache, wind: (t) => ({ sway: Math.sin(t), gust: 0 }) });
-  const ctx: SystemContext = { viewport: createViewport(1600, 1000, 1), store, bus, clock, scene, reducedMotion: !!opts.reducedMotion };
+  const viewport = createViewport(1600, 1000, 1);
+  const camera = opts.camera ? createCamera({ base: viewport }) : undefined;
+  const ctx: SystemContext = { viewport, camera, store, bus, clock, scene, reducedMotion: !!opts.reducedMotion };
   let t = 0;
   const frame = (dt = 1 / 60): FrameInfo => {
     t += dt;
@@ -111,7 +120,7 @@ function setup(opts: { plants?: PlantInstance[]; scene?: SceneGeometry; reducedM
   };
   const start = (slotId: string, speciesId = 'small') =>
     store.dispatch({ type: 'session/start', id: 'session-1', taskName: 'Task', goalMinutes: 60, plan: PLAN, speciesId, slotId, seed: 42, now: clock.now(), weather: 'sun' });
-  return { clock, store, bus, scene, cache, system, ctx, frame, start, run: (seconds: number) => {
+  return { clock, store, bus, scene, cache, system, ctx, camera, frame, start, run: (seconds: number) => {
     for (let s = 0; s < seconds; s += 0.1) frame(0.1);
   } };
 }
@@ -468,3 +477,65 @@ describe('several sessions in progress (ADRs 0150, 0155)', () => {
     expect(by.b).toBeCloseTo(5 / 50, 6);
   });
 });
+
+describe('the camera (ADRs 0165, 0166)', () => {
+  it('plants in the zoomed view get sprites at the zoomed resolution; the rest keep the overview resolution', async () => {
+    const env = setup({ plants: [plant('near', 'meadow-1'), plant('far', 'path-2')], camera: true });
+    await ready(env);
+    const widthOf = (id: string) => Math.max(...env.cache.requested.filter((r) => r.seed === id.length * 97 && r.speciesId === 'small').map((r) => r.w));
+    const before = widthOf('near');
+    // frame the meadow plant closely (cut: no glide)
+    env.camera!.focusRect(env.system.plantBounds('near')!, { animate: false });
+    env.frame();
+    const after = Math.max(...env.cache.requested.filter((r) => r.seed === 4 * 97).map((r) => r.w));
+    expect(after).toBeGreaterThan(before * 1.8);
+    // 'far' (seed 3 × 97) is out of the zoomed view: no larger sprite asked for it
+    expect(Math.max(...env.cache.requested.filter((r) => r.seed === 3 * 97).map((r) => r.w))).toBe(widthOf('far'));
+    expect(env.system.debugState().resolution).toBe(1);
+  });
+
+  it('drops high-resolution sprites of plants left behind once the camera rests at the overview', async () => {
+    const env = setup({ plants: [plant('near', 'meadow-1')], camera: true });
+    await ready(env);
+    env.camera!.focusRect(env.system.plantBounds('near')!, { animate: false });
+    env.frame();
+    const big = env.cache.requested.filter((r) => r.seed === 4 * 97).reduce((a, r) => Math.max(a, r.w), 0);
+    expect(env.cache.has({ speciesId: 'small', seed: 4 * 97, step: 24, w: big, h: big })).toBe(true);
+    env.camera!.overview({ animate: false });
+    env.frame();
+    env.frame();
+    expect(env.cache.has({ speciesId: 'small', seed: 4 * 97, step: 24, w: big, h: big })).toBe(false);
+  });
+
+  it('only plants in the camera view are drawn', async () => {
+    const env = setup({ plants: [plant('near', 'meadow-1'), plant('far', 'path-2')], camera: true });
+    const sys = await ready(env);
+    expect(sys.entities!(env.frame()).length).toBe(2);
+    env.camera!.focusRect(sys.plantBounds('near')!, { animate: false, maxZoom: 3 });
+    expect(sys.entities!(env.frame()).length).toBe(1);
+  });
+
+  it('hit-tests the front-most plant, finished or growing', async () => {
+    const env = setup({ plants: [plant('back', 'back-1', 'tree')] });
+    const sys = await ready(env);
+    env.start('meadow-1');
+    env.frame();
+    const tree = sys.plantBounds('back')!;
+    const hitTree = sys.hitTest({ x: tree.x + tree.w / 2, y: tree.y + tree.h * 0.5 });
+    expect(hitTree).toMatchObject({ id: 'back', kind: 'finished', speciesId: 'tree', slotId: 'back-1' });
+    const seed = sys.plantBounds('session-1')!;
+    expect(sys.hitTest({ x: seed.x + seed.w / 2, y: seed.y + seed.h * 0.6 })).toMatchObject({ id: 'session-1', kind: 'growing' });
+    expect(sys.hitTest({ x: 1500, y: 60 })).toBeNull();
+  });
+
+  it('toDevice follows the camera', async () => {
+    const env = setup({ camera: true });
+    const sys = await ready(env);
+    const r = { x: 800, y: 500, w: 10, h: 10 };
+    const at1 = sys.toDevice(r)!;
+    env.camera!.zoomTo(2, undefined, { animate: false });
+    const at2 = sys.toDevice(r)!;
+    expect(at2.w).toBeCloseTo(at1.w * 2);
+  });
+});
+

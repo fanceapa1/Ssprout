@@ -1,7 +1,8 @@
 import { inProgressSessions, type Action, type ActiveSession, type GardenState, type PlantInstance } from '../core/state';
 import { sessionPhase, sessionTimeline } from '../core/session';
 import type { Drawable, FrameInfo, LayerId, System, SystemContext } from '../render/types';
-import type { Rect } from '../render/viewport';
+import type { Pt, Rect, Viewport } from '../render/viewport';
+import { alphaMask, pickPlant, type HitCandidate } from './hit-test';
 import type { SceneGeometry, Slot } from '../scene/geometry';
 import { plantWorldBounds, type WorldRect } from './bounds';
 import { crossFade, drawPlant, morphBetween, scratch, type PlantPose } from './draw';
@@ -147,6 +148,16 @@ export interface PlantDebugState {
   cache: ReturnType<SpriteCache['stats']>;
 }
 
+export interface PlantHit {
+  /** the plant id, or the session id of a seedling */
+  id: string;
+  kind: 'finished' | 'growing';
+  speciesId: string;
+  slotId: string;
+  /** the world rect its sprite is drawn into */
+  box: Rect;
+}
+
 export interface PlantPerf {
   frames: number;
   avgMs: number;
@@ -161,8 +172,13 @@ export interface PlantSystem extends System {
   plantBounds(plantId: string): Rect | null;
   /** world rect a species would occupy in a slot */
   boundsFor(speciesId: string, slotId: string): Rect | null;
-  /** a world rect in canvas device pixels (current viewport) */
+  /** a world rect in canvas device pixels (the current camera view) */
   toDevice(rect: Rect): Rect | null;
+  /**
+   * The front-most plant painted at a world point — a finished plant or a session's seedling —
+   * with `tolerance` world units of slack (ADR 0166). Transparent parts of a sprite miss.
+   */
+  hitTest(p: Pt, tolerance?: number): PlantHit | null;
   /** resolves when no sprite is queued or being painted */
   whenIdle(): Promise<void>;
   /** tests/screenshots: snap growth and fades to their targets, paint what is needed, resolve when done */
@@ -185,7 +201,11 @@ export function createPlantSystem(opts: PlantSystemOptions): PlantSystem {
   let sys: SystemContext | null = null;
   let scene: SceneGeometry | null = null;
   let slotById = new Map<string, Slot>();
+  /** sprite resolution at the overview, and (zoomed in) for the plants in the camera's detail view (ADR 0165) */
   let res = 1;
+  let detail: { res: number; rect: Rect } | null = null;
+  let seenDetail = -1;
+  let evictPending = false;
   let reduced = false;
   let ready = false;
   let booted = false;
@@ -270,8 +290,16 @@ export function createPlantSystem(opts: PlantSystemOptions): PlantSystem {
     return { key, speciesId: def.id, seed: seed >>> 0, def, slot, box, axis, phase: (h / 997) * Math.PI * 2, side: h % 2 === 0 ? 1 : -1 };
   }
 
+  /** the camera's view this frame (the overview before a camera exists) */
+  const view = (): Viewport | null => sys?.camera?.view() ?? sys?.viewport ?? null;
+
+  const overlaps = (a: Rect, b: Rect) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+
+  /** a plant in the camera's detail view is painted at the zoomed resolution, the rest at the overview's */
+  const resFor = (inst: Inst): number => (detail && overlaps(inst.box, detail.rect) ? detail.res : res);
+
   const specFor = (inst: Inst, step: number): SpriteSpec => {
-    const px = spritePixelSize(inst.def.size, plantScale(inst.slot), res);
+    const px = spritePixelSize(inst.def.size, plantScale(inst.slot), resFor(inst));
     return { speciesId: inst.speciesId, seed: inst.seed, step, w: px.w, h: px.h };
   };
 
@@ -325,7 +353,7 @@ export function createPlantSystem(opts: PlantSystemOptions): PlantSystem {
   }
 
   const visible = (box: WorldRect): boolean => {
-    const v = sys?.viewport.visible;
+    const v = view()?.visible;
     if (!v) return true;
     return box.x + box.w * 1.2 >= v.x && box.x - box.w * 0.2 <= v.x + v.w && box.y + box.h * 1.1 >= v.y && box.y <= v.y + v.h + 40;
   };
@@ -450,6 +478,45 @@ export function createPlantSystem(opts: PlantSystemOptions): PlantSystem {
       if (hi + 1 <= FINAL_STEP) cache.request(specFor(g.inst, hi + 1), PRIORITY.next);
       if (hi + 2 <= FINAL_STEP) cache.request(specFor(g.inst, hi + 2), PRIORITY.ahead);
     }
+  }
+
+  // --- the camera's detail (ADR 0165) -----------------------------------------------------
+
+  /** every plant instance the garden draws */
+  const instances = (): Inst[] => [...[...finished.values()].map((r) => r.inst), ...[...growing.values()].map((g) => g.inst)];
+
+  /** the sprite width each instance wants now, by instance (species|seed) */
+  const wantedWidths = (): Map<string, number> => {
+    const m = new Map<string, number>();
+    for (const inst of instances()) m.set(`${inst.speciesId}|${inst.seed}`, specFor(inst, FINAL_STEP).w);
+    return m;
+  };
+
+  /** the camera's detail view moved: plants in it get sprites at its resolution (painted during the glide) */
+  function applyDetail(v: Viewport): void {
+    const r = resolutionBucket(v.pixelScale);
+    const margin = v.visible.w * 0.12;
+    const next = r > res * 1.01 ? { res: r, rect: { x: v.visible.x - margin, y: v.visible.y - margin, w: v.visible.w + margin * 2, h: v.visible.h + margin * 2 } } : null;
+    if (!next && !detail) return;
+    detail = next;
+    const want = wantedWidths();
+    // renders queued for a view we have left are no longer wanted
+    cache.dropQueued((spec) => {
+      const w = want.get(`${spec.speciesId}|${spec.seed}`);
+      return w !== undefined && spec.w !== w;
+    });
+    requestAll();
+    requestAhead();
+    evictPending = true;
+  }
+
+  /** once the camera rests: drop high-resolution sprites of plants now far out of view */
+  function evictStale(): void {
+    const want = wantedWidths();
+    cache.evictWhere((spec) => {
+      const w = want.get(`${spec.speciesId}|${spec.seed}`);
+      return w !== undefined && spec.w > w * 1.05;
+    });
   }
 
   // --- watering ----------------------------------------------------------------------------
@@ -682,6 +749,15 @@ export function createPlantSystem(opts: PlantSystemOptions): PlantSystem {
         shadow = castShadow(light);
         rim = rimLight(light);
         if (!sys) return;
+        const cam = sys.camera;
+        if (cam && cam.detailVersion !== seenDetail) {
+          seenDetail = cam.detailVersion;
+          applyDetail(cam.detailView());
+        }
+        if (evictPending && cam && !cam.moving()) {
+          evictPending = false;
+          evictStale();
+        }
         const state = sys.store.get();
         if (state.plants !== lastPlants || state.session !== lastSession || state.waiting !== lastWaiting) sync(state, f.now, false);
         const s = state.session;
@@ -701,7 +777,7 @@ export function createPlantSystem(opts: PlantSystemOptions): PlantSystem {
           waterPending = null;
           if (g) {
             watering = { id: g.id, start: f.t };
-            prewarmWatering(sys.viewport.pixelScale, wateringRig(g, undefined).size);
+            prewarmWatering((sys.camera?.detailView() ?? sys.viewport).pixelScale, wateringRig(g, undefined).size);
           }
         }
         if (watering?.start != null && f.t - watering.start > WATERING_SECONDS * 0.9 + WET_LINGER_SECONDS) watering = null;
@@ -778,8 +854,36 @@ export function createPlantSystem(opts: PlantSystemOptions): PlantSystem {
       const slot = slotById.get(slotId);
       return def && slot ? plantWorldBounds(def, slot) : null;
     },
+    hitTest(p, tolerance = 0) {
+      const list: Array<HitCandidate & { hit: PlantHit }> = [];
+      const t = lastT;
+      for (const rec of finished.values()) {
+        if (fadeValue(rec.presence, t) < 0.5 || rec.appear === 'waiting') continue;
+        const inst = rec.inst;
+        const sprite = cache.best(inst.speciesId, inst.seed, FINAL_STEP, specFor(inst, FINAL_STEP).w);
+        list.push({
+          id: rec.plant.id,
+          box: inst.box,
+          depth: inst.slot.y,
+          mask: sprite ? alphaMask(sprite.image) : null,
+          hit: { id: rec.plant.id, kind: 'finished', speciesId: inst.speciesId, slotId: inst.slot.id, box: { ...inst.box } },
+        });
+      }
+      for (const g of growing.values()) {
+        const imgs = growthImages(g.inst, g.shown, PRIORITY.now);
+        const sprite = imgs.weight >= 0.5 ? imgs.b ?? imgs.a : imgs.a ?? imgs.b;
+        list.push({
+          id: g.id,
+          box: g.inst.box,
+          depth: g.inst.slot.y,
+          mask: sprite ? alphaMask(sprite.image) : null,
+          hit: { id: g.id, kind: 'growing', speciesId: g.inst.speciesId, slotId: g.inst.slot.id, box: { ...g.inst.box } },
+        });
+      }
+      return pickPlant(list, p, tolerance)?.hit ?? null;
+    },
     toDevice(rect) {
-      const vp = sys?.viewport;
+      const vp = view();
       if (!vp) return null;
       const p = vp.worldToScreen(rect);
       return { x: p.x * vp.dpr, y: p.y * vp.dpr, w: rect.w * vp.pixelScale, h: rect.h * vp.pixelScale };
