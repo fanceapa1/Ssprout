@@ -4,11 +4,27 @@ import { exportState, importState, validateState, type ImportResult, type Saver 
 import type { StudyPlan } from '../core/plans';
 import { createRng, type Rng } from '../core/rng';
 import { blockStartMs, clampGoalMinutes, planPositionMs, sessionTimeline } from '../core/session';
-import type { ActiveSession, GardenState, PlantInstance, Store } from '../core/state';
+import type { ActiveSession, GardenState, PlantInstance, SessionLogEntry, Store } from '../core/state';
 import type { SpeciesDef, Tier } from '../plants/types';
 import type { Slot } from '../scene/geometry';
 import { extendDebug } from './debug';
 import { plantRandomly } from './fill-garden';
+
+/** One session in progress, as `sprout.sessions()` reports it. */
+export interface DebugSessionInfo {
+  id: string;
+  taskName: string;
+  speciesId: string;
+  slotId: string;
+  active: boolean;
+  running: boolean;
+  /** plan position (session time + skipped breaks), ms */
+  elapsedMs: number;
+  totalRemainingMs: number;
+  growth: number;
+  pausedAt: number | null;
+  focusWaterings: number;
+}
 
 export interface DebugStartOptions {
   /** default 'Test task' */
@@ -28,11 +44,30 @@ declare module './debug' {
     reset(): void;
     /** Seed the rng used for session ids, weather, plant seeds and `addPlants`. */
     seed(n: number): void;
-    /** Start a session with sensible defaults (total default: last goal). */
+    /**
+     * Start a session with sensible defaults (total default: last goal). With others in progress
+     * the new one becomes active and the active one waits; null at the limit of three.
+     */
     start(goalMinutes?: number, opts?: DebugStartOptions): ActiveSession | null;
+    /** Start `n` sessions one after another ("Task 1" …), each `gapMs` (default 0) of dev time apart; returns their ids. */
+    startSessions(n: number, goalMinutes?: number, gapMs?: number): string[];
+    /** Every session in progress, oldest start first. */
+    sessions(): DebugSessionInfo[];
+    /** Make another session in progress the active one (resumes it; the active one waits). */
+    switchTo(id: string): boolean;
+    /** The session log (ended sessions, oldest first). */
+    log(): SessionLogEntry[];
+    /** Focused time until the active session's next automatic watering (ms), or null. */
+    nextFocusWatering(): number | null;
+    /**
+     * Jump the dev clock to the active session's next automatic focus watering and run the check,
+     * so it plays now. Returns false when none is left or the session is paused / in a break.
+     */
+    focusWater(): boolean;
     pause(): boolean;
     resume(): boolean;
-    cancel(): boolean;
+    /** End the active session (or the one with `id`). */
+    cancel(id?: string): boolean;
     water(): boolean;
     skipBreak(): boolean;
     /** Jump the dev clock to the start of the next break. Returns its block index, or -1. */
@@ -89,6 +124,26 @@ export function installCoreDebug(deps: CoreDebugDeps): void {
     return true;
   };
 
+  const start = (goalMinutes?: number, opts: DebugStartOptions = {}): ActiveSession | null => {
+    const total = clampGoalMinutes(goalMinutes ?? store.get().settings.lastGoalMinutes);
+    const speciesId =
+      opts.speciesId ??
+      controller
+        .selectableSpecies(total)
+        .find((s) => !s.locked && firstSlot(s.species.id) !== undefined)?.species.id;
+    if (!speciesId) return null;
+    const slotId = opts.slotId ?? firstSlot(speciesId);
+    if (!slotId) return null;
+    const ok = controller.start({
+      taskName: opts.taskName ?? 'Test task',
+      goalMinutes: total,
+      planId: opts.planId ?? 'unbroken',
+      speciesId,
+      slotId,
+    });
+    return ok ? store.get().session : null;
+  };
+
   extendDebug({
     reset() {
       store.dispatch({ type: 'state/reset', now: clock.now() });
@@ -98,28 +153,47 @@ export function installCoreDebug(deps: CoreDebugDeps): void {
       controller.setSeed(n);
       fillRng = createRng(n).fork('dev-fill');
     },
-    start(goalMinutes, opts = {}) {
-      const total = clampGoalMinutes(goalMinutes ?? store.get().settings.lastGoalMinutes);
-      const speciesId =
-        opts.speciesId ??
-        controller
-          .selectableSpecies(total)
-          .find((s) => !s.locked && firstSlot(s.species.id) !== undefined)?.species.id;
-      if (!speciesId) return null;
-      const slotId = opts.slotId ?? firstSlot(speciesId);
-      if (!slotId) return null;
-      const ok = controller.start({
-        taskName: opts.taskName ?? 'Test task',
-        goalMinutes: total,
-        planId: opts.planId ?? 'unbroken',
-        speciesId,
-        slotId,
-      });
-      return ok ? store.get().session : null;
+    start,
+    startSessions(n, goalMinutes, gapMs = 0) {
+      const ids: string[] = [];
+      for (let i = 0; i < n; i++) {
+        if (i > 0 && gapMs > 0) clock.advance(gapMs);
+        const s = start(goalMinutes, { taskName: `Task ${i + 1}` });
+        if (!s) break;
+        ids.push(s.id);
+      }
+      return ids;
+    },
+    sessions: () =>
+      controller.status().sessions.map((x) => ({
+        id: x.session.id,
+        taskName: x.session.taskName,
+        speciesId: x.session.speciesId,
+        slotId: x.session.slotId,
+        active: x.active,
+        running: x.running,
+        elapsedMs: x.timeline.elapsedMs,
+        totalRemainingMs: x.timeline.totalRemainingMs,
+        growth: x.timeline.growth,
+        pausedAt: x.session.pausedAt,
+        focusWaterings: x.session.focusWaterings,
+      })),
+    switchTo: (id) => controller.switchTo(id),
+    log: () => store.get().log,
+    nextFocusWatering: () => controller.nextFocusWatering(),
+    focusWater() {
+      const st = controller.status();
+      if (!st.session || st.phase !== 'focus') return false;
+      const inMs = controller.nextFocusWatering();
+      if (inMs === null) return false;
+      const before = store.get().session!.focusWaterings;
+      if (inMs > 0) clock.advance(inMs);
+      controller.check();
+      return (store.get().session?.focusWaterings ?? before) > before;
     },
     pause: () => controller.pause(),
     resume: () => controller.resume(),
-    cancel: () => controller.cancel(),
+    cancel: (id) => controller.cancel(id),
     water: () => controller.water(),
     skipBreak: () => controller.skipBreak(),
     toBreak() {
