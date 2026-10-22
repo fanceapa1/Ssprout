@@ -21,44 +21,56 @@ export interface Oklab {
   b: number;
 }
 
-/** The project palette (ART_DIRECTION.md). Saturation is deliberately low. */
+/**
+ * The project palette (ART_DIRECTION.md). Richer since v2 (ADR 0144: greens, water, stones and
+ * flowers carry ~1.4× the chroma they had) but still transparent watercolour, far from neon.
+ */
 export const PIGMENTS = {
   /** washi paper ground */
   washi: '#f3ecd9',
   washiDeep: '#efe6cf',
   /** sap / sage greens — grass, foliage */
-  sap: '#a9b386',
-  sage: '#8d9a6c',
-  sageLight: '#c3c79d',
+  sap: '#a8b572',
+  sage: '#8b9c5a',
+  sageLight: '#c3c98a',
   /** foliage darks */
-  olive: '#6f7a52',
+  olive: '#6d7c44',
   /** pond */
-  celadon: '#a9c3bb',
-  celadonMid: '#8fb0ab',
-  celadonDeep: '#6f9690',
-  /** rocks */
-  stone: '#9b978d',
-  stoneDark: '#7d7a72',
-  stoneWarm: '#a39a8b',
+  celadon: '#9cc6ba',
+  celadonMid: '#7eb4ac',
+  celadonDeep: '#5b9a91',
+  /** rocks: warm and cool greys with a little colour in them */
+  stone: '#9d9787',
+  stoneDark: '#7e7a6e',
+  stoneWarm: '#a89882',
   /** sumi ink — lines, trunks (never pure black) */
   sumi: '#4a443c',
   /** pavilion wood */
-  wood: '#8a7a68',
-  woodLight: '#a69580',
+  wood: '#8e7960',
+  woodLight: '#aa9478',
   /** flowers */
-  sakura: '#e8a7a9',
-  sakuraLight: '#f1c6c3',
-  iris: '#7b6ba8',
-  irisLight: '#9a8cc4',
-  bellflower: '#7f97c8',
+  sakura: '#f49ea4',
+  sakuraLight: '#fbc2be',
+  iris: '#7d65b9',
+  irisLight: '#9c87d3',
+  bellflower: '#7596db',
   petalWhite: '#faf6ee',
   /** grey-violet shading for off-white petals */
-  petalShade: '#c9c3d1',
+  petalShade: '#cac2d4',
   /** accents, sparingly */
-  vermilion: '#d0694a',
-  gold: '#d9b36c',
+  vermilion: '#d9623d',
+  gold: '#e1b152',
   /** cool shadow glaze (violet-grey), for shadows over any colour */
-  shadow: '#8c8a9c',
+  shadow: '#8c89a1',
+  /** sky pigments for the daylight phases (ADR 0144): laid thinly, they granulate and glow */
+  cerulean: '#5e98cc',
+  ultramarine: '#4a59b0',
+  indigo: '#2e3a6e',
+  rose: '#d76a86',
+  crimson: '#c2414f',
+  ochre: '#e0a043',
+  apricot: '#f2ad7e',
+  violet: '#7c5fa8',
 } as const satisfies Record<string, Pigment>;
 
 export type PigmentName = keyof typeof PIGMENTS;

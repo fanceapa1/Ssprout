@@ -41,11 +41,22 @@ describe('the palette', () => {
     expect(lightness(PIGMENTS.sumi)).toBeGreaterThan(0.3);
   });
 
-  it('stays low in saturation (accents excepted)', () => {
-    const { vermilion, gold, ...rest } = PIGMENTS;
-    for (const p of Object.values(rest)) expect(chroma(p)).toBeLessThan(0.12);
-    expect(chroma(vermilion)).toBeLessThan(0.16);
-    expect(chroma(gold)).toBeLessThan(0.12);
+  it('is richer than v1 but stays watercolour, never neon (ADR 0144)', () => {
+    const { vermilion, gold, cerulean, ultramarine, indigo, rose, crimson, ochre, apricot, violet, ...rest } = PIGMENTS;
+    for (const p of Object.values(rest)) expect(chroma(p)).toBeLessThan(0.135);
+    for (const p of [vermilion, crimson]) expect(chroma(p)).toBeLessThan(0.17);
+    for (const p of [gold, cerulean, ultramarine, indigo, rose, ochre, apricot, violet]) expect(chroma(p)).toBeLessThan(0.145);
+  });
+
+  it('raised the chroma of greens, water, stones and flowers', () => {
+    // v1 values (ADR 0144 raised each by ~1.3–1.6×)
+    const v1: Record<string, string> = { sap: '#a9b386', sage: '#8d9a6c', celadon: '#a9c3bb', stone: '#9b978d', sakura: '#e8a7a9', iris: '#7b6ba8', bellflower: '#7f97c8' };
+    for (const [name, old] of Object.entries(v1)) {
+      const now = PIGMENTS[name as keyof typeof PIGMENTS];
+      expect(chroma(now), name).toBeGreaterThan(chroma(old) * 1.25);
+      // same family: lightness barely moves
+      expect(Math.abs(lightness(now) - lightness(old)), name).toBeLessThan(0.04);
+    }
   });
 });
 
