@@ -18,8 +18,23 @@ declare module './debug' {
       placement(): ReturnType<UI['placement']['current']>;
       /** show the finished-plant label for the plant at a world point; returns its text */
       showPlantLabel(world: Pt): string | null;
-      /** CSS-pixel screen position of a slot (for real pointer hovers in tests) */
+      /**
+       * Where a slot is in the browser window (client CSS pixels, for real pointer hovers and taps
+       * in tests): the stage's offset and the page's scroll included.
+       */
       slotScreen(slotId: string): Pt | null;
+      /** the page's scroll: position, furthest position, animation target, smoothing on/off */
+      scroll(): ReturnType<UI['scroll']['state']>;
+      /** glide (or `{ instant: true }` jump) to a scroll position or a dock section id; resolves on arrival */
+      scrollTo(target: number | string, opts?: { instant?: boolean }): Promise<void>;
+      /** the dock's sections in page order */
+      dock(): ReturnType<UI['dock']['sections']>;
+      /** resolves once every filled dock section is laid out (fonts loaded, a frame painted) */
+      dockReady(): Promise<void>;
+      /** play the "Your plant" watering animation (as the automatic focus watering will); false if nothing to water */
+      waterPlantView(): boolean;
+      /** the stage's zoom hook (ctrl/⌘ + wheel, pinch over the garden), for the camera and tests */
+      onZoomGesture(fn: (e: WheelEvent) => void): () => void;
       /** the fake widget (only with `?widget=fake`) */
       widget: { readonly opened: number; isOpen(): boolean; close(): void } | null;
     };
@@ -78,8 +93,20 @@ export function installUiDebug({ ui, clock, widget, viewport, slots }: UiDebugDe
       showPlantLabel: (p: Pt) => ui.showPlantLabel(p),
       slotScreen(id: string) {
         const s = slots.find((x) => x.id === id);
-        return s ? viewport().worldToScreen(s) : null;
+        if (!s) return null;
+        const p = viewport().worldToScreen(s);
+        const r = ui.stage.el.querySelector('canvas')?.getBoundingClientRect() ?? ui.stage.el.getBoundingClientRect();
+        return { x: p.x + r.left, y: p.y + r.top };
       },
+      scroll: () => ui.scroll.state(),
+      scrollTo: (target: number | string, opts?: { instant?: boolean }) => ui.scroll.to(target, opts),
+      dock: () => ui.dock.sections(),
+      async dockReady() {
+        await document.fonts?.ready;
+        await new Promise<void>((r) => requestAnimationFrame(() => r()));
+      },
+      waterPlantView: () => ui.plantView.water(),
+      onZoomGesture: (fn: (e: WheelEvent) => void) => ui.stage.onZoomGesture(fn),
       widget: widget
         ? {
             get opened() {

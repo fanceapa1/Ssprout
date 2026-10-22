@@ -12,8 +12,12 @@
     <title>Study Sprout</title>
   </head>
   <body>
-    <canvas id="garden" aria-label="A watercolour Japanese garden" role="img"></canvas>
-    <div id="ui"></div>
+    <!-- the page: the garden stage on top, the dock of sections below it (src/ui, ADR 0130) -->
+    <div id="ui">
+      <section id="stage" class="stage" aria-label="Your garden">
+        <canvas id="garden" aria-label="A watercolour Japanese garden" role="img"></canvas>
+      </section>
+    </div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

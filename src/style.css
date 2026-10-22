@@ -1,36 +1,75 @@
+/*
+ * The page (ADR 0130): a sheet of washi that scrolls as a normal document. The garden stage sits
+ * at the top with a small margin (~88 % of the viewport's height, so the dock peeks out below);
+ * the dock follows on the same paper. The paper tile is the garden's own texture
+ * (src/ui/page-paper.ts sets --page-paper); until it is generated the plain washi colour shows.
+ */
 :root {
   --paper: #f3ecd9;
-  --ink: #4a443c;
+  --ink: #3f3932;
+  --page-margin: 14px;
+  --stage-h: 88vh;
   color-scheme: light;
 }
 
-html,
+@supports (height: 1svh) {
+  :root {
+    /* the small viewport: stable while a phone's address bar shows and hides */
+    --stage-h: 88svh;
+  }
+}
+
+html {
+  background-color: var(--paper);
+  background-image: var(--page-paper, none);
+  background-size: 512px 512px;
+  /* the custom scrollbar (src/ui/scrollbar.ts) replaces the native one */
+  scrollbar-width: none;
+  overscroll-behavior-y: none;
+  scroll-behavior: auto;
+}
+
+html::-webkit-scrollbar {
+  display: none;
+}
+
 body {
   margin: 0;
-  height: 100%;
-  overflow: hidden;
-  background: var(--paper);
+  min-height: 100%;
   color: var(--ink);
-  overscroll-behavior: none;
+}
+
+#ui {
+  position: relative;
+  min-height: 100vh;
+  box-sizing: border-box;
+  padding: max(var(--page-margin), env(safe-area-inset-top)) max(var(--page-margin), env(safe-area-inset-right)) 0
+    max(var(--page-margin), env(safe-area-inset-left));
+}
+
+.stage {
+  position: relative;
+  height: var(--stage-h);
+  min-height: 320px;
 }
 
 #garden {
-  position: fixed;
+  position: absolute;
   inset: 0;
-  width: 100vw;
-  height: 100vh;
-  height: 100dvh;
+  width: 100%;
+  height: 100%;
   display: block;
+  /* one finger scrolls the page (native momentum), pinch stays the browser's until the camera
+     claims it (ADR 0005, docs/ARCHITECTURE.md › Stage) */
   touch-action: manipulation;
+  mask-size: 100% 100%;
+  -webkit-mask-size: 100% 100%;
+  mask-repeat: no-repeat;
+  -webkit-mask-repeat: no-repeat;
 }
 
-/* DOM overlay for controls; children opt back in to pointer events. */
-#ui {
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-}
-
-#ui > * {
-  pointer-events: auto;
+@media (max-width: 600px) {
+  :root {
+    --page-margin: 8px;
+  }
 }

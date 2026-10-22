@@ -48,7 +48,14 @@ function makeHost(): Host {
   return { el, leaders };
 }
 
-export function createTips(ctx: UIContext, opts: { tipContext(): TipContext; resolve(anchor: string, id: string): HTMLElement | null }): Tips {
+/**
+ * `resolve` may return several candidates for one anchor (a control that exists twice, e.g. on the
+ * garden and in the dock): the note goes to the first one currently in view, in the given order.
+ */
+export function createTips(
+  ctx: UIContext,
+  opts: { tipContext(): TipContext; resolve(anchor: string, id: string): HTMLElement | readonly HTMLElement[] | null },
+): Tips {
   const { store } = ctx.deps;
   const main = makeHost();
   const dialogHosts = new WeakMap<HTMLDialogElement, Host>();
@@ -198,8 +205,9 @@ export function createTips(ctx: UIContext, opts: { tipContext(): TipContext; res
     const active = anyClosing || lineSpeaking ? [] : activeTips(store.get(), opts.tipContext());
     const anchors = new Map<TipId, HTMLElement>();
     const next = pickTips(active, (anchor, id) => {
-      const a = opts.resolve(anchor, id);
-      if (!isVisible(a)) return false;
+      const found = opts.resolve(anchor, id);
+      const a = (Array.isArray(found) ? found : [found]).find((c): c is HTMLElement => isVisible(c as HTMLElement | null)) ?? null;
+      if (!a) return false;
       const inDialog = a.closest('dialog');
       if (openDialog ? inDialog !== openDialog : inDialog !== null) return false;
       anchors.set(id, a);

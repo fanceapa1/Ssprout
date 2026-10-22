@@ -8,14 +8,16 @@ import { sessionView, type SessionView } from './session-view';
 import type { UIState } from './types';
 
 /**
- * The timer panel (bottom centre). Idle: "Start studying". Studying: task name, the current
- * block ("Focus · 2 of 3" / "Break — water your iris"), block and total remaining, the plan as a
- * segmented brush line with progress, Pause / End; during a break a watering can (Water) and
- * Skip break. Every action goes through the session controller.
+ * The session controls, in the dock's "Study" section (ADR 0130; it was a slip on the painting
+ * before). Idle: "Start studying". Studying: task name, the current block ("Focus · 2 of 3" /
+ * "Break — water your iris"), block and total remaining, the plan as a segmented brush line with
+ * progress, Pause / End; during a break a watering can (Water) and Skip break; the end question and
+ * "Still with us?". Every action goes through the session controller. While focusing, the controls
+ * on the painting (pill, corner icons) rest: `resting` drives the root's `is-resting` class.
  */
 export type PanelView = UIState['panel'];
 
-export interface TimerPanel {
+export interface TimerPanel extends TimerPanelExtras {
   readonly el: HTMLElement;
   render(): void;
   view(): PanelView;
@@ -29,8 +31,13 @@ export interface TimerPanelActions {
   plant(opener: HTMLElement): void;
 }
 
+export interface TimerPanelExtras {
+  /** the control a jump to the controls should focus: Water in a dry break, Resume, Pause, Start */
+  focusTarget(): HTMLElement | null;
+}
+
 const REST_AFTER_MS = 4000;
-const PLAN_W = 320;
+const PLAN_W = 420;
 
 export function createTimerPanel(ctx: UIContext, actions: TimerPanelActions): TimerPanel {
   const { controller } = ctx.deps;
@@ -90,7 +97,7 @@ export function createTimerPanel(ctx: UIContext, actions: TimerPanelActions): Ti
   );
 
   const session = h('div.view.view-session', {}, taskName, blockLabel, time, total, timeSr, plan, breakActions, sessionActions, cancelConfirm, longPause);
-  const el = h('section.panel.slip', { 'aria-label': 'Study timer', 'data-ui': 'panel' }, idle, session);
+  const el = h('div.panel', { 'data-panel': '' }, idle, session);
 
   // ── behaviour ───────────────────────────────────────────────────────────────────────────
   function water(): void {
@@ -211,6 +218,15 @@ export function createTimerPanel(ctx: UIContext, actions: TimerPanelActions): Ti
     el,
     render,
     view: () => lastView ?? viewOf(sessionView(ctx)),
+    focusTarget() {
+      const view = lastView ?? 'idle';
+      if (view === 'idle') return plantBtn;
+      if (view === 'longPause') return longResume;
+      if (confirm === 'cancel') return keepBtn;
+      if (view === 'break' && !waterBtn.disabled) return waterBtn;
+      if (view === 'paused') return resumeBtn;
+      return pauseBtn;
+    },
     confirm: () => confirm,
     resting: () => resting && canRest(),
     dispose() {

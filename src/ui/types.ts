@@ -5,6 +5,9 @@ import type { Store } from '../core/state';
 import type { SpeciesDef } from '../plants/types';
 import type { Viewport } from '../render/viewport';
 import type { Slot } from '../scene/geometry';
+import type { Dock } from './dock';
+import type { PlantViewState } from './plant-section';
+import type { ScrollOptions, ScrollState } from './smooth-scroll';
 
 /**
  * Contracts between the DOM UI (`src/ui`) and the rest of the app. See docs/systems/ui.md.
@@ -47,8 +50,16 @@ export interface NotificationIntegration {
 }
 
 export interface UIDeps {
-  /** The overlay container (`#ui`). Dialogs are appended to it too. */
+  /**
+   * The page (`#ui`): the garden stage, the dock below it, and the fixed layers (tips, scrollbar,
+   * dialogs). The UI root class and the garden-light custom properties live on it.
+   */
   root: HTMLElement;
+  /**
+   * The garden stage: the element holding the canvas (`#stage`). Defaults to `root`'s `.stage`;
+   * without one, a stage is created at the top of `root`.
+   */
+  stage?: HTMLElement;
   controller: SessionController;
   /** read-only use + `state/replace` for imports (core.md › Persistence) */
   store: Store;
@@ -93,11 +104,15 @@ export type UIMode = 'garden' | 'planting' | 'placement';
 /** Snapshot for tests (`window.sprout.ui.state()`). */
 export interface UIState {
   mode: UIMode;
-  /** timer panel view */
+  /** session controls view (the dock's Study section) */
   panel: 'idle' | 'focus' | 'break' | 'paused' | 'longPause';
+  /** the timer pill on the garden */
+  pill: 'idle' | 'focus' | 'break' | 'paused' | 'longPause';
+  /** the dock's "Your plant" view */
+  plantView: PlantViewState;
   /** inline confirmation currently shown in the panel */
   confirm: 'cancel' | null;
-  /** panel faded while studying */
+  /** the controls on the painting (pill, corner icons) rest while focusing */
   resting: boolean;
   /** open dialogs by name */
   dialogs: string[];
@@ -113,7 +128,27 @@ export interface UIState {
   draft: PlantingDraft;
 }
 
+/** The page's scrolling, as the UI exposes it (custom smooth scroll, ADR 0131). */
+export interface UIScroll {
+  state(): ScrollState;
+  /** glide to a scroll position, or to a dock section by id; resolves on arrival */
+  to(target: number | string, opts?: ScrollOptions): Promise<void>;
+}
+
+/** The garden stage, as later features (the camera) see it. */
+export interface UIStage {
+  readonly el: HTMLElement;
+  /** reserve ctrl/⌘ + wheel and trackpad pinch over the garden (the page never scrolls on them) */
+  onZoomGesture(fn: (e: WheelEvent) => void): () => void;
+}
+
 export interface UI {
+  /** sections below the garden: `ui.dock.addSection({ id, title, order, span, mount })` */
+  readonly dock: Dock;
+  readonly stage: UIStage;
+  readonly scroll: UIScroll;
+  /** the dock's live plant view: `water()` plays the watering animation (automatic watering hook) */
+  readonly plantView: { water(): boolean; state(): PlantViewState };
   readonly placement: {
     current(): PlacementHighlight;
     /** called whenever markers appear/disappear/move or focus changes */

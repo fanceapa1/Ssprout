@@ -8,6 +8,8 @@
 export const FOLLOW_TAU_MS = 120;
 /** Below this distance (px) the approach snaps onto its target. */
 export const SNAP_PX = 0.5;
+/** Slowest the approach ever moves (px per ms) before it lands. */
+export const MIN_SPEED = 0.06;
 /** Arrow keys move this far (px). */
 export const ARROW_STEP = 72;
 /** Page keys and Space move this share of the viewport. */
@@ -29,8 +31,12 @@ export function clampScroll(y: number, max: number): number {
  */
 export function approach(current: number, target: number, dtMs: number, tauMs = FOLLOW_TAU_MS): number {
   if (!(tauMs > 0)) return target;
-  const k = 1 - Math.exp(-Math.max(0, dtMs) / tauMs);
-  const next = current + (target - current) * k;
+  const dt = Math.max(0, dtMs);
+  const k = 1 - Math.exp(-dt / tauMs);
+  const gap = target - current;
+  // at least ~1 px a frame: browsers round scroll offsets, so a sub-pixel creep would look stuck
+  const step = Math.sign(gap) * Math.min(Math.abs(gap), Math.max(Math.abs(gap) * k, dt * MIN_SPEED));
+  const next = current + step;
   return Math.abs(target - next) <= SNAP_PX ? target : next;
 }
 

@@ -3,28 +3,39 @@ import '@fontsource/shippori-mincho/latin-500.css';
 import '@fontsource/cormorant-garamond/latin-400.css';
 import '@fontsource/cormorant-garamond/latin-400-italic.css';
 import '@fontsource/cormorant-garamond/latin-500.css';
+import '@fontsource/cormorant-garamond/latin-500-italic.css';
 import '@fontsource/cormorant-garamond/latin-600.css';
 import '@fontsource/cormorant-garamond/latin-ext-400.css';
 import '@fontsource/cormorant-garamond/latin-ext-400-italic.css';
+import '@fontsource/cormorant-garamond/latin-ext-500.css';
+import '@fontsource/cormorant-garamond/latin-ext-500-italic.css';
 import './ui.css';
 import { clampGoalMinutes } from '../core/session';
 import type { TipId } from '../core/tips';
 import type { UIContext } from './context';
+import { createDock } from './dock';
 import { h } from './dom';
 import { createGardenData } from './garden-data';
 import { createHerbarium } from './herbarium';
 import { createHints } from './hints';
-import { createMenu } from './menu';
+import { installPagePaper } from './page-paper';
 import { installPaper } from './paper';
+import { createPill } from './pill';
 import { createPlacement } from './placement';
 import { createPlantLabels } from './plant-labels';
+import { createPlantSection } from './plant-section';
 import { createPlantingSheet } from './planting-sheet';
 import { createPreviewCache } from './previews';
 import { createQuietLine } from './quiet-line';
+import { createScrollbar } from './scrollbar';
+import { createSmoothScroll } from './smooth-scroll';
+import { createStage } from './stage';
 import { createTimerPanel } from './timer-panel';
 import { createTips } from './tips';
+import { createTools } from './tools';
 import type { PlantingDraft, UI, UIDeps, UIMode, UIState } from './types';
 
+export type { Dock, DockSection, DockSectionDef, DockSectionInfo, DockSpan } from './dock';
 export type {
   AudioIntegration,
   NotificationIntegration,
@@ -32,6 +43,8 @@ export type {
   PlantingDraft,
   UI,
   UIDeps,
+  UIScroll,
+  UIStage,
   UIState,
   WidgetIntegration,
 } from './types';
@@ -39,15 +52,31 @@ export { browserNotifications } from './notifications';
 export { renderPlantPreview } from './previews';
 
 /**
- * The DOM UI over the garden canvas: timer panel, planting sheet (task · time · plan · plant),
- * placement markers, corner menu (sound, floating timer, pressed flowers, garden data, hints),
- * tooltips, the quiet line (completion, fauna arrivals) and finished-plant labels.
+ * The app page around the garden (ADR 0130): the garden stage at the top (canvas + what sits on
+ * the painting: timer pill, corner tool icons, quiet line, placement markers, plant labels), the
+ * dock of sections below it (session controls, your plant, a calendar placeholder, garden tools),
+ * the planting sheet and other sheets, tooltips, custom smooth scrolling and scrollbar.
  * The session controller is the only API it drives. See docs/systems/ui.md.
  */
 export function createUI(deps: UIDeps): UI {
   const { root, controller, store, bus } = deps;
   installPaper();
   root.classList.add('ui-root');
+  // the page's paper: the garden's own washi, generated once the first frames are out of the way
+  const whenIdle = (fn: () => void) => (typeof requestIdleCallback === 'function' ? requestIdleCallback(fn, { timeout: 1500 }) : setTimeout(fn, 200));
+  whenIdle(() => installPagePaper());
+
+  const stageEl =
+    deps.stage ??
+    root.querySelector<HTMLElement>('.stage') ??
+    (() => {
+      const el = h('section.stage', { 'aria-label': 'Your garden' });
+      root.prepend(el);
+      return el;
+    })();
+  const stage = createStage(stageEl, stageEl.querySelector<HTMLCanvasElement>('canvas'));
+  const scroller = createSmoothScroll({ reducedMotion: deps.reducedMotion });
+  const dock = createDock({ label: 'Study tools' });
 
   let timeScale = deps.timeScale ?? 1;
   let mode: UIMode = 'garden';
@@ -81,8 +110,9 @@ export function createUI(deps: UIDeps): UI {
       mode = next;
       root.dataset.mode = next;
       // the rest of the UI steps back while the gardener chooses a spot
-      panel.el.inert = next === 'placement';
-      menu.el.inert = next === 'placement';
+      dock.el.inert = next === 'placement';
+      tools.corner.inert = next === 'placement';
+      pill.el.inert = next === 'placement';
       if (next !== 'garden') labels.hide();
       ctx.changed();
       if (next === 'garden') line.check();
@@ -126,6 +156,11 @@ export function createUI(deps: UIDeps): UI {
 
   // ── components ────────────────────────────────────────────────────────────────────────
   const panel = createTimerPanel(ctx, { plant: (opener) => openPlanting(opener) });
+  const pill = createPill(ctx, {
+    start: (opener) => openPlanting(opener),
+    jump: () => void jumpToControls(),
+  });
+  const plantView = createPlantSection(ctx);
 
   const planting = createPlantingSheet(ctx, draft, {
     chooseSpot: () => {
@@ -133,6 +168,8 @@ export function createUI(deps: UIDeps): UI {
       ctx.setMode('placement'); // before closing, so the sheet's close handler keeps this mode
       closeNow(planting.el);
       placement.open();
+      // the garden is the map: bring the whole stage into view
+      void scroller.scrollTo(0);
     },
   });
 
@@ -140,24 +177,46 @@ export function createUI(deps: UIDeps): UI {
     begin: () => begin(),
     back: () => {
       placement.close();
-      openPlanting(panel.el.querySelector('.plant-session'));
+      openPlanting(lastOpener?.isConnected ? lastOpener : pill.el.querySelector<HTMLElement>('.pill-start'));
     },
   });
 
   const herbarium = createHerbarium(ctx);
   const data = createGardenData(ctx);
   const hints = createHints(ctx);
-  const menu = createMenu(ctx, {
+  const tools = createTools(ctx, {
     openHerbarium: (b) => herbarium.open(b),
     openData: (b) => data.open(b),
     openHints: (b) => hints.open(b),
   });
   const line = createQuietLine(ctx);
-  const labels = createPlantLabels(ctx, document.querySelector<HTMLElement>('#garden'));
+  const labels = createPlantLabels(ctx, stage.canvas);
 
-  const resolveAnchor = (anchor: string, id: TipId): HTMLElement | null => {
+  // ── the dock: features plug in as sections (docs/ARCHITECTURE.md › Dock) ──────────────────
+  dock.addSection({ id: 'session', title: 'Study', order: 10, mount: (body) => void body.append(panel.el) });
+  dock.addSection({ id: 'plant', title: 'Your plant', order: 20, mount: (body) => plantView.mount(body) });
+  // the calendar task fills this (`ui.dock.fill('calendar', mount)`); hidden until then (ADR 0130)
+  dock.addSection({ id: 'calendar', title: 'Calendar', order: 30, span: 'full' });
+  dock.addSection({ id: 'tools', title: 'Garden tools', order: 90, span: 'full', mount: (body) => void body.append(tools.dock) });
+
+  const scrollbar = createScrollbar(scroller, { delay: (ms) => ctx.delay(ms) });
+  const offDock = dock.onChange(() => scrollbar.update());
+
+  /** Glide down to the session controls and put focus on the most useful one. */
+  async function jumpToControls(): Promise<void> {
+    const section = dock.get('session');
+    if (!section) return;
+    const target = panel.focusTarget();
+    await scroller.scrollToElement(section.el, { offset: 24 });
+    (target ?? section.heading).focus({ preventScroll: true });
+  }
+
+  // one control can live in two places (the pill and the dock, the corner and the dock): tips go
+  // to the dock's copy when it is in view (its new home), else to the one on the garden
+  const resolveAnchor = (anchor: string, id: TipId): HTMLElement | HTMLElement[] | null => {
     if (anchor === 'garden') return id === 'swap' ? placement.firstSwapMarker() : placement.isOpen() ? placement.bar : null;
-    return root.querySelector<HTMLElement>(`[data-anchor="${anchor}"]`);
+    const all = [...root.querySelectorAll<HTMLElement>(`[data-anchor="${anchor}"]`)];
+    return [...all.filter((a) => dock.el.contains(a)), ...all.filter((a) => !dock.el.contains(a))];
   };
   const tips = createTips(ctx, {
     tipContext: () => ({
@@ -168,7 +227,9 @@ export function createUI(deps: UIDeps): UI {
     resolve: resolveAnchor,
   });
 
-  root.append(line.el, labels.el, placement.layer, panel.el, menu.el, placement.bar, tips.el, live, planting.el, herbarium.el, data.el, hints.el);
+  stage.layer.append(line.el, labels.el, placement.layer, pill.el, tools.corner, placement.bar);
+  stageEl.after(dock.el);
+  root.append(tips.el, scrollbar.el, live, planting.el, herbarium.el, data.el, hints.el);
   root.dataset.mode = mode;
   for (const d of allDialogs()) {
     d.addEventListener('close', () => {
@@ -184,8 +245,10 @@ export function createUI(deps: UIDeps): UI {
   }
 
   // ── flows ─────────────────────────────────────────────────────────────────────────────
+  let lastOpener: HTMLElement | null = null;
   function openPlanting(opener?: HTMLElement | null): void {
     if (controller.status().phase !== 'idle') return;
+    lastOpener = opener ?? null;
     ctx.setMode('planting');
     planting.open(opener);
   }
@@ -209,9 +272,11 @@ export function createUI(deps: UIDeps): UI {
     draft.taskName = '';
     draft.speciesId = null;
     draft.slotId = null;
-    // keyboard users land on the running session's first control, not on <body>
+    // keyboard users land on the running session's first control on the garden (the pill's
+    // Pause), not on <body>; the page stays on the garden, where the seedling just appeared
     panel.render();
-    panel.el.querySelector<HTMLElement>('.pause')?.focus({ preventScroll: true });
+    pill.render();
+    pill.pause.focus({ preventScroll: true });
   }
 
   function beforeStart(): void {
@@ -247,7 +312,9 @@ export function createUI(deps: UIDeps): UI {
       ctx.setMode('garden');
     }
     panel.render();
-    menu.render();
+    pill.render();
+    plantView.render();
+    tools.render();
     line.check();
     ctx.changed();
   };
@@ -260,6 +327,8 @@ export function createUI(deps: UIDeps): UI {
   const offTick = controller.onTick(() => {
     const before = panel.view();
     panel.render();
+    pill.render();
+    plantView.render();
     if (panel.view() !== before) ctx.changed();
   });
   const offComplete = bus.on('session:complete', ({ plant }) => {
@@ -289,6 +358,8 @@ export function createUI(deps: UIDeps): UI {
   const state = (): UIState => ({
     mode,
     panel: panel.view(),
+    pill: pill.view(),
+    plantView: plantView.state(),
     confirm: panel.confirm(),
     resting: panel.resting(),
     dialogs: ctx.openDialogs(),
@@ -300,6 +371,17 @@ export function createUI(deps: UIDeps): UI {
   });
 
   return {
+    dock,
+    stage: { el: stage.el, onZoomGesture: (fn) => stage.onZoomGesture(fn) },
+    scroll: {
+      state: () => scroller.state(),
+      to(target, opts) {
+        if (typeof target === 'number') return scroller.scrollTo(target, opts);
+        const section = dock.get(target);
+        return section ? scroller.scrollToElement(section.el, { ...opts, offset: 24 }) : Promise.resolve();
+      },
+    },
+    plantView: { water: () => plantView.water(), state: () => plantView.state() },
     placement: placement.highlight,
     state,
     refresh: () => refresh(),
@@ -316,7 +398,12 @@ export function createUI(deps: UIDeps): UI {
       window.removeEventListener('keydown', unlockOnGesture, true);
       panel.dispose();
       placement.dispose();
-      menu.dispose();
+      tools.dispose();
+      offDock();
+      scrollbar.dispose();
+      scroller.dispose();
+      dock.dispose();
+      stage.dispose();
       tips.dispose();
       line.dispose();
       labels.dispose();
