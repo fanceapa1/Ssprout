@@ -8,9 +8,15 @@ import { MIN, openUi, plantSession, reloadUi } from './ui-helpers';
  * Sprites are painted in workers; `sprout.plants.settle()` waits for them (no sleeping).
  */
 
-/** Freeze, then store (or diff against) the canvas pixels inside a world rect. */
+/**
+ * Freeze, then store (or diff against) the canvas pixels inside a world rect. Creatures are
+ * cleared first so a passing visitor (a drifting leaf, a bird) cannot change the region.
+ */
 async function regionInk(page: Page, rect: { x: number; y: number; w: number; h: number }, mode: 'baseline' | 'diff'): Promise<number> {
-  await page.evaluate(() => window.sprout!.freeze());
+  await page.evaluate(() => {
+    window.sprout!.fauna.clear();
+    return window.sprout!.freeze();
+  });
   return page.evaluate(
     ({ rect, mode }) => {
       const c = document.querySelector<HTMLCanvasElement>('#garden')!;
@@ -39,49 +45,33 @@ async function regionInk(page: Page, rect: { x: number; y: number; w: number; h:
 const settle = (page: Page) => page.evaluate(() => window.sprout!.plants.settle());
 
 test.describe('plants · garden', () => {
-  test('the seedling appears at its slot and grows as focused time passes', async ({ page }) => {
-    await openUi(page);
-    await settle(page);
-    const rect = (await page.evaluate(() => window.sprout!.plants.boundsFor('fx-bellflower', 'meadow-1')))!;
-    expect(rect.w).toBeGreaterThan(10);
-    await regionInk(page, rect, 'baseline'); // the garden without the plant
-    await page.evaluate(() => window.sprout!.unfreeze());
-
-    await page.evaluate(() => window.sprout!.start(50, { speciesId: 'fx-bellflower', slotId: 'meadow-1' }));
-    await settle(page);
-    const st = await page.evaluate(() => window.sprout!.plants.state());
-    expect(st.growing).toMatchObject({ slotId: 'meadow-1', speciesId: 'fx-bellflower' });
-    expect(st.growing!.growth).toBeLessThan(0.01);
-    const seedling = await regionInk(page, rect, 'diff');
-    await page.evaluate(() => window.sprout!.unfreeze());
-
-    await page.evaluate((m) => window.sprout!.advance(15 * m), MIN);
-    await settle(page);
-    const mid = await regionInk(page, rect, 'diff');
-    const midState = await page.evaluate(() => window.sprout!.plants.state().growing!);
-    expect(midState.growth).toBeCloseTo(0.3, 2);
-    expect(midState.drawn).toBe(true);
-    await page.evaluate(() => window.sprout!.unfreeze());
-
-    await page.evaluate((m) => window.sprout!.advance(25 * m), MIN);
-    await settle(page);
-    const late = await regionInk(page, rect, 'diff');
-    expect(mid).toBeGreaterThan(seedling);
-    expect(late).toBeGreaterThan(mid);
-  });
-
   test('break → water plays the watering animation, then the soil dries', async ({ page }) => {
     await openUi(page);
     await page.evaluate(() => window.sprout!.start(60, { speciesId: 'fx-iris', slotId: 'shore-1', planId: 'pomodoro' }));
     expect(await page.evaluate(() => window.sprout!.toBreak())).toBe(1);
     await settle(page);
     expect(await page.evaluate(() => window.sprout!.plants.state().watering)).toBeNull();
-    expect(await page.evaluate(() => window.sprout!.water())).toBe(true);
-    await expect.poll(() => page.evaluate(() => window.sprout!.plants.state().watering?.progress ?? -1)).toBeGreaterThan(0.3);
-    const mid = await page.evaluate(() => window.sprout!.plants.state().watering!);
-    expect(mid.active).toBe(true);
-    await expect.poll(() => page.evaluate(() => window.sprout!.plants.state().watering?.active)).toBe(false);
-    expect(await page.evaluate(() => window.sprout!.plants.state().watering!.wet)).toBeGreaterThan(0);
+    // The animation runs on renderer time (2.5 s). Sample it on every frame inside the page, so
+    // a slow round trip on a loaded machine cannot skip the middle of it.
+    const samples = await page.evaluate(async () => {
+      const out: { progress: number; active: boolean; wet: number }[] = [];
+      if (!window.sprout!.water()) return out;
+      await new Promise<void>((resolve) => {
+        const step = () => {
+          const w = window.sprout!.plants.state().watering;
+          if (w) out.push(w);
+          if ((w && !w.active) || out.length > 2000) resolve();
+          else requestAnimationFrame(step);
+        };
+        requestAnimationFrame(step);
+      });
+      return out;
+    });
+    expect(samples.length).toBeGreaterThan(2);
+    expect(samples.some((w) => w.active && w.progress > 0.3 && w.progress < 1), 'seen mid-pour').toBe(true);
+    const last = samples.at(-1)!;
+    expect(last.active).toBe(false);
+    expect(last.wet).toBeGreaterThan(0);
     expect(await page.evaluate(() => window.sprout!.plants.state().growing?.drawn)).toBe(true);
   });
 
@@ -100,8 +90,9 @@ test.describe('plants · garden', () => {
     const st = await page.evaluate(() => window.sprout!.plants.state());
     expect(st.growing).toBeNull();
     expect(st.withering).toHaveLength(1);
-    await expect.poll(() => page.evaluate(() => window.sprout!.plants.state().withering.length)).toBe(0);
-    await expect.poll(() => page.evaluate(() => window.sprout!.plants.state().finished[0]?.alpha)).toBe(1);
+    // the wither and the fade back run on renderer time (~3 s); frames come slower under load
+    await expect.poll(() => page.evaluate(() => window.sprout!.plants.state().withering.length), { timeout: 30_000 }).toBe(0);
+    await expect.poll(() => page.evaluate(() => window.sprout!.plants.state().finished[0]?.alpha), { timeout: 30_000 }).toBe(1);
   });
 
   test('a completed plant blooms in place and persists after reload', async ({ page }) => {
@@ -148,6 +139,8 @@ test.describe('plants · garden', () => {
   });
 
   test('plant bounds drive the hover label and the plant system stays within budget', async ({ page }) => {
+    // paints 30+ sprites in workers before measuring: real work, so it gets the slow-test budget
+    test.slow();
     await openUi(page);
     const plant = await page.evaluate(() => {
       window.sprout!.start(25, { speciesId: 'fx-violet', slotId: 'meadow-6', taskName: 'Herbarium notes' });
@@ -162,9 +155,51 @@ test.describe('plants · garden', () => {
     expect(await page.evaluate(() => window.sprout!.start(50))).not.toBeNull();
     await settle(page);
     await page.evaluate(() => window.sprout!.plants.resetPerf());
-    await expect.poll(() => page.evaluate(() => window.sprout!.plants.perf().frames)).toBeGreaterThan(30);
+    await page.waitForFunction(() => window.sprout!.plants.perf().frames > 30, null, { polling: 'raf' });
     const perf = await page.evaluate(() => window.sprout!.plants.perf());
     console.log(`plant system: ${perf.avgMs.toFixed(3)} ms/frame avg, ${perf.maxMs.toFixed(2)} max over ${perf.frames} frames`);
     expect(perf.avgMs).toBeLessThan(2);
+  });
+});
+
+test.describe('plants · growth in a still garden', () => {
+  test.use({ reducedMotion: 'reduce' });
+
+  test('the seedling appears at its slot and grows as focused time passes', async ({ page }) => {
+    await openUi(page);
+    // Only the plant may change the region between captures: pin the light (advancing the dev
+    // clock would otherwise move the time of day) and settle the ambience. Reduced motion (this block)
+    // keeps the plant from swaying between captures.
+    await page.evaluate(() => {
+      window.sprout!.setTime('noon');
+      window.sprout!.settleAmbience();
+    });
+    await settle(page);
+    const rect = (await page.evaluate(() => window.sprout!.plants.boundsFor('fx-bellflower', 'meadow-1')))!;
+    expect(rect.w).toBeGreaterThan(10);
+    await regionInk(page, rect, 'baseline'); // the garden without the plant
+    await page.evaluate(() => window.sprout!.unfreeze());
+
+    await page.evaluate(() => window.sprout!.start(50, { speciesId: 'fx-bellflower', slotId: 'meadow-1' }));
+    await settle(page);
+    const st = await page.evaluate(() => window.sprout!.plants.state());
+    expect(st.growing).toMatchObject({ slotId: 'meadow-1', speciesId: 'fx-bellflower' });
+    expect(st.growing!.growth).toBeLessThan(0.01);
+    const seedling = await regionInk(page, rect, 'diff');
+    await page.evaluate(() => window.sprout!.unfreeze());
+
+    await page.evaluate((m) => window.sprout!.advance(15 * m), MIN);
+    await settle(page);
+    const mid = await regionInk(page, rect, 'diff');
+    const midState = await page.evaluate(() => window.sprout!.plants.state().growing!);
+    expect(midState.growth).toBeCloseTo(0.3, 2);
+    expect(midState.drawn).toBe(true);
+    await page.evaluate(() => window.sprout!.unfreeze());
+
+    await page.evaluate((m) => window.sprout!.advance(25 * m), MIN);
+    await settle(page);
+    const late = await regionInk(page, rect, 'diff');
+    expect(mid).toBeGreaterThan(seedling);
+    expect(late).toBeGreaterThan(mid);
   });
 });
