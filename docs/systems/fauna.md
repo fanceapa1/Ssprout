@@ -25,9 +25,9 @@ void renderer.add(createFauna({ species: getSpecies, debug: dev }));
 | `targets.ts` | flower heads, perches, lily pads, heron wading spots, perspective fit — from `SceneGeometry` |
 | `math.ts` | steering (`springStep`, `arrive`, `turnToward`), polygons, pond plane, cubic paths, hours |
 | `sim.ts` | `FaunaSim`: world, residents upkeep, visits, ripples, per-layer drawing, entities |
-| `system.ts` | render System wrapper: store → roster/targets, session → lively, clock → night |
+| `system.ts` | render System wrapper: store → roster/targets, session → lively, clock → night; first sightings → `fauna:arrived` (`sightedFauna`, ADR 0120) |
 | `sprite.ts` | `paintSprite` (engine-painted parts), `deepCopy` (under-water copy), `ArtCache`, scratch canvas |
-| `creatures/<kind>.ts` | art + behaviour per creature; `creatures/index.ts` spawns, `sheets.ts` studio sheets |
+| `creatures/<kind>.ts` | art + behaviour per creature; `creatures/index.ts` spawns, `sheets.ts` studio sheets, `flight.ts` shared flying-visitor helpers (entry/exit points off the view, flower choice) |
 | `stage.ts`, `fauna.studio.ts` | studio stages and entries |
 | `dev.ts` | `window.sprout.fauna` |
 
@@ -52,7 +52,7 @@ rock entity they stand on (feet are on its top, which is above its base).
 | `butterfly` (butterflies) | visitor (cabbage white 65 %, swallowtail). Erratic: heading wanders on a noise field around the way to a flower, bobbing lift per downstroke; swallowtails glide between flap bursts. Lands, wings slowly breathe open/closed, visits 2–4 flowers (nearby ones likelier), drifts away. |
 | `bee` (bees) | visitor, 1–2 staggered. Zips with a slight weave, hovers in front of a bloom, settles and crawls, short hops to nearby blooms (4–9 visits), leaves. |
 | `bird` (small-birds) | visitor, wagtail or sparrow. Bounding flight on a cubic path (flap bursts / folded glides), lands on a free perch (`choosePerch`: wagtails prefer rocks, sparrows stones), then hops along the perch, pecks, turns, stands; wagtails pump the tail; flies off after 16–45 s. |
-| `frog` | resident when a water plant grows in a water slot. Sits on the pad, throat pulses with breath, sometimes turns; every 4–12 min crouches and hops into open water (big ring), stays under 30–90 s, climbs back. |
+| `frog` | resident once `frog` unlocks (a water plant and 10 finished plants) **and** a lily pad exists (a water species in a water slot). Sits on the pad, throat pulses with breath, sometimes turns; every 240–700 s (`frogDive`) crouches and hops into open water (big ring), stays under 30–90 s (`frogAway`), climbs back. |
 | `swallow` (swallows) | visitor group of 1–3 sweeping one swooping cubic across the sky band, flap bursts and swept glides. Not in reduced motion. |
 | `heron` | rare visitor. Slow wingbeats in (the wing foreshortens through edge-on as it beats), glides down to a wading spot on the far edge of the pond, clear of boulders, pads and far-bank plants (`heronStands`, cached), stands 1.5–4 min: slow neck drift, craning forward, a rare step; crouches and leaves with slow beats. Faint reflection. |
 
@@ -63,8 +63,8 @@ Kinds without targets are not scheduled (no bees without pollinator flowers…).
 
 **Mode.** `night` (local hour from the Clock in [20, 5)): diurnal visitors are not scheduled and
 those present leave; koi, striders, frog and leaves stay. `lively` (a session running, not paused):
-gaps × 0.75. `reduced` (prefers-reduced-motion): gaps × 3, speeds × 0.6, one visitor at a time,
-one strider, no swallows.
+gaps × 0.75. `reduced` (prefers-reduced-motion): gaps × 3, speeds × 0.6, stays × 1.5, one visitor
+at a time, one strider, no swallows.
 
 ## Pacing table (`tuning.ts › VISITS`)
 | Kind | gap (s) | first visit (s) | stay (s) | group | max on screen |
@@ -121,12 +121,19 @@ dragonfly, 2 butterflies, 3 bees, 2 birds, 3 swallows, heron, leaves): **update 
 `math.test.ts`, `schedule.test.ts` (delays, caps, night, reduced, retries, roster mapping),
 `targets.test.ts` (flowers, pads, perches, perch choice, heron stands, perspective), `sim.test.ts`
 (long simulated afternoons: residents, pond containment, visitor cap, rarity, determinism, night,
-reduced motion). E2E `tests/e2e/fauna.spec.ts`: striders from the start, koi with plants, roster and
-schedule, every creature spawned stays in bounds, birds land as entities and leave, night rest,
-cost and a clean render.
+reduced motion), `arrivals.test.ts` (`sightedFauna`, `fauna:arrived` on first sight). E2E
+`tests/e2e/fauna.spec.ts`: striders from the start, koi with plants, roster and schedule, every
+creature spawned stays in bounds, birds land as entities and leave (the test follows the spawned
+bird by id), night rest, cost and a clean render. Simulation loops run in-page with the renderer
+frozen.
 
-## Left for integration
-- The "A koi has found your pond." line: the UI should call `controller.announceFauna(id)` for
-  `newlyArrived(state)`; the system does not emit it (it would duplicate `fauna:arrived`).
-- Time of day comes from the Clock's local hour; when the ambience task adds `sprout.setTime`,
-  route it to `sprout.fauna.setHour` too.
+## Arrivals (ADR 0120)
+Every 0.5 s the system maps the creatures inside `viewport.visible` to unlock ids (`sightedFauna`:
+koi are counted, so a second koi is `koi-2`; hand-spawned dev/studio creatures and leaving ones are
+ignored) and emits `fauna:arrived {id}` once per run for each unlocked, announceable id not yet in
+`state.faunaSeen`. The UI's quiet line shows it and records it with `controller.announceFauna(id)`.
+Unit test: `arrivals.test.ts`.
+
+## Time of day
+Night comes from the Clock's local hour. `sprout.setTime` (ambience) does not reach the fauna; use
+`sprout.fauna.setHour(h)`.

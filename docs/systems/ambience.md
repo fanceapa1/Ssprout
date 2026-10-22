@@ -20,7 +20,14 @@ weather**, **· photosynthesis motes & wind**, **· time of day**) or with `npm 
 | `dev.ts`, `index.ts` | `window.sprout` methods; `addAmbience(renderer, { dev })` |
 | `ambience.studio.ts` | studio entries over a painted test garden |
 
-Registered in `main.ts` with one line: `addAmbience(renderer, { dev: speedClock !== null })`.
+Registered in `main.ts`: `const ambience = addAmbience(renderer, { dev: speedClock !== null })`, then
+(ADR 0121) `ambience.revealLightAfter(renderer.whenReady())` and, once painted,
+`ambience.onLight((grade) => applyUiLight(uiRoot, grade))`.
+- `revealLightAfter(promise)`: the lighting draws with alpha 0 until the promise resolves (never a
+  wash on bare paper), then eases in over 1.4 s (`LIGHT_REVEAL_S`; at once under reduced motion, a
+  frozen frame or `settle()`).
+- `onLight(fn)` → unsubscribe: reports the grade whenever the lighting repaints (the UI dims its
+  slips with it, `src/ui/ambient-light.ts`).
 
 ## Layers
 | Layer | Draws |
@@ -42,8 +49,10 @@ and the store (`session.weather`, phase via `sessionPhase`, `plants`, session sl
   gather at points every ~30 units along the fascia (`eaveOf(scene)`, from the scene's own
   `pavilionFrame`) and fall straight down under gravity, stretching as they speed up, to the foot of
   the deck (`pavilion.y + h`).
-- **Mist**: four horizontally tileable painted bands (dense bottom, wispy top) drifting at different
-  speeds over the far bank, far water and one faint low band; a thin veil.
+- **Mist**: four horizontally tileable painted bands (dense bottom, wispy top) hugging the far bank
+  and far water, drifting at different speeds, plus one faint wisp low on the water; a thin veil over
+  the far half only (fades out above the plant zone). At night the mist is thinned (`mistNight`
+  0.45) so it does not read as fog under the indigo wash.
 - **Motes**: pale gold/green specks rising from plants (the growing plant weighs 3×), drifting with the
   wind, fading in and out over 7–11 s. Focus only; at most 7 alive.
 - **Lighting**: a noise-mottled multiply wash with rare soft backruns; the sky deepens first, the
@@ -79,18 +88,19 @@ Local hour from `Clock.now()` (or `setTime`). Smoothstep between neighbours, wra
 
 | Hour | Name | Tint (multiply) | Amount | Glow | Lantern |
 |---|---|---|---|---|---|
-| 5:00 | night | indigo `70,80,132` | 0.68 (+0.16 sky, ×0.8 ground) | — | 1 |
+| 5:00 | night (moonlit) | indigo `100,114,182` | 0.47 (+0.2 sky, ×0.66 ground) | — | 1 |
 | 6:30 | dawn | blue-grey `178,184,210` | 0.34 | pink, right | 0.2 |
 | 8:00 | morning | cool `208,220,230` | 0.20 | pale, right | 0 |
 | 11:00–15:30 | noon | neutral | 0.03 | — | 0 |
 | 17:45 | evening | golden `238,196,146` | 0.30 | warm, low left | 0.12 |
-| 19:30 | dusk | blue `124,140,200` | 0.40 | rose, low left | 0.6 |
-| 21:15 | night | indigo | 0.68 | — | 1 |
+| 19:30 | dusk | blue `146,158,206` | 0.34 | rose, low left | 0.6 |
+| 21:15 | night | indigo | 0.47 | — | 1 |
 
 `setTime` names jump to: morning 8, noon 13, evening 17.75, dusk 19.5, night 23. The wash is painted
 per pixel into a 480×300 world cache (`LIGHT.cacheScale` 0.3) and blitted every frame; it is repainted
 on demand (override change) or, following the clock, at most every 3 s and only when the grade moved
-perceptibly (`LIGHT.redrawEps`). A repaint costs ~6 ms.
+perceptibly (`LIGHT.redrawEps`). A repaint costs ~5 ms. `setTime` affects the ambience lighting
+only: fauna night (`sprout.fauna.setHour`) and audio do not follow it.
 
 ## Wind API (`wind.ts`)
 ```ts
@@ -100,13 +110,13 @@ const { sway, gust } = wind(f.t, x, y, windBoost(phase)); // sway -1..1 (+ = tow
 Pure and deterministic (fixed seed; `createWind(seed)` for others). Slow base lean + flutter + gust
 fronts travelling toward +x at 140 units/s (neighbouring plants lean one after another). `boost`
 0..1 multiplies the amplitude by up to 1.35 (`windBoost`: focus 1, break 0.5, otherwise 0) — "plants
-sway a touch more" during a session. The plant system should use `sway` for its skew; fauna may use
-both. Unit tests cover bounds, determinism, continuity, boost and the front direction.
+sway a touch more" during a session. The plant system uses `sway` for its skew (via
+`src/plants/wind-adapter.ts`); the fauna does not read the wind field. Unit tests cover bounds, determinism, continuity, boost and the front direction.
 
 ## Tuning constants
 `LOOK` (ambience.ts): grade alphas (sun 0.2, rain 0.2, mist veil 0.08), `shaftAlpha` 0.6 (screen,
 near-white cream), breath 13 s / 0.35, rain alpha per depth 0.30/0.36/0.42 and widths 0.9/1.2/1.5,
-`rippleAlpha` 0.75, squash 0.3, `glintAlpha` 0.65, `dripAlpha` 0.6, `dripMaxLen` 30, flame 0.22.
+`mistNight` 0.45, `rippleAlpha` 0.75, squash 0.3, `glintAlpha` 0.65, `dripAlpha` 0.6, `dripMaxLen` 30, flame 0.22.
 `RAIN` (sim.ts): strokes per depth 84/50/20 per full world, speeds 300/470/720, slant 0.2 rad +
 0.14 × sway. `RIPPLE` 2.4/s, max 16. `GLINT` 1.2/s, max 5. `DRIP` spacing 30, 0.6/s per point,
 v0 30, gravity 1300, max 24. `LIGHT.reflectLift` 0.45.

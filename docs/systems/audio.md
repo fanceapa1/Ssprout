@@ -78,36 +78,21 @@ complete also plays the phrase), `plant:placed` (bloom chime), `fauna:arrived` (
 Initial muted/weather/activity/fauna come from `getState()` (a reload mid-session sounds right).
 Setters and bus events write the same fields; the last write wins.
 
-## Integration (for `src/main.ts` / UI)
-```ts
-import { createGardenAudio } from './audio';
-
-const audio = createGardenAudio({ bus, getState: store.get, clock });
-
-// Autoplay policy: wake audio on the first gesture once the user has sound on (persisted).
-const unlockOnGesture = () => {
-  if (audio.isMuted()) return; // muted: the speaker toggle unlocks when it unmutes
-  audio.unlock();
-  window.removeEventListener('pointerdown', unlockOnGesture, true);
-  window.removeEventListener('keydown', unlockOnGesture, true);
-};
-window.addEventListener('pointerdown', unlockOnGesture, true);
-window.addEventListener('keydown', unlockOnGesture, true);
-
-// Speaker toggle (UI): flip the setting, then unlock inside the same click.
-speakerButton.addEventListener('click', () => {
-  const muted = !store.get().settings.muted;
-  store.dispatch({ type: 'settings/update', patch: { muted } });
-  audio.setMuted(muted); // or rely on whoever emits 'settings:changed'
-  audio.unlock();
-});
-
-// Optional: more birds as fauna unlocks (if fauna:arrived is not emitted for every creature).
-store.subscribe((s) => audio.setFauna(unlockedFaunaIds(s)));
-// Dev API (?dev): mirror setTime/setWeather overrides.
-extendDebug({ audio: { muted: () => audio.isMuted() } });
-```
-Order inside the toggle does not matter: unmute-then-unlock and unlock-then-unmute both fade in.
+## Integration (as wired)
+- `src/main.ts` builds `createGardenAudio({ bus, getState: store.get, clock })` and passes it to
+  `createUI({ audio })`.
+- Gesture unlock (`src/ui/index.ts`): with sound on (persisted), the first `pointerdown` / `keydown`
+  calls `audio.unlock()`; the Begin click unlocks too.
+- Mute toggle (`src/ui/menu.ts`): the speaker button calls `controller.updateSettings({ muted })`
+  (emits `settings:changed`, which audio follows), then `audio.setMuted(muted)` and
+  `audio.unlock()` inside the click. Order does not matter: unmute-then-unlock and
+  unlock-then-unmute both fade in.
+- Fauna: nothing calls `audio.setFauna`; creatures are added by `fauna:arrived` on the bus (emitted
+  by the fauna system on first sight and re-emitted by `controller.announceFauna`) and by the
+  initial `getState()`.
+- Not implemented: there is no `sprout.audio` dev hook, and the ambience's `sprout.setTime` /
+  `sprout.setWeather` do not reach audio (use `audio.setTimeOfDay` / `audio.setWeather` in code or
+  the studio's "Live soundscape").
 
 ## Tuning
 - **Rates and levels**: `params.ts` — `BASE_RATES` (events/min), `BED` levels, `MASTER_LEVEL`,
