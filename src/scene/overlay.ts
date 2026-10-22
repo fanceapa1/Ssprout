@@ -4,7 +4,7 @@
  */
 import type { Habitat } from '../plants/types';
 import type { SceneGeometry } from './geometry';
-import { PLANT_SIZES } from './slots';
+import { PLANT_SIZES, plantScale } from './slots';
 
 export const HABITAT_COLOURS: Record<Habitat, string> = {
   water: '#3f7f8f',
@@ -45,8 +45,8 @@ export function drawSlotOverlay(ctx: CanvasRenderingContext2D, scene: SceneGeome
     if (opts.boxes ?? true) {
       // the box a plant of the slot's max size would occupy (base at the slot)
       const size = PLANT_SIZES[s.maxSize];
-      const w = size.w * s.scale;
-      const h = size.h * s.scale;
+      const w = size.w * plantScale(s);
+      const h = size.h * plantScale(s);
       ctx.strokeStyle = c;
       ctx.globalAlpha = 0.28;
       ctx.strokeRect(s.x - w / 2, s.y - h, w, h);

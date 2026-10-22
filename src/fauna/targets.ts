@@ -8,6 +8,8 @@ import type { PlantInstance } from '../core/state';
 import type { SpeciesDef } from '../plants/types';
 import type { Pt } from '../render/viewport';
 import type { SceneGeometry, Slot } from '../scene/geometry';
+import { plantScale } from '../scene/slots';
+import { plantWorldBounds } from '../plants/bounds';
 import { clamp, closestOnPolygon, dist, polygonBounds, polygonCentroid } from './math';
 
 export type TargetSpecies = Pick<SpeciesDef, 'pollinators' | 'habitats' | 'size' | 'anchor' | 'bloomColor'>;
@@ -26,9 +28,7 @@ export interface FlowerTarget {
 
 /** Sprite box of a placed plant in world units (base at the slot, per the species anchor). */
 export function plantBox(slot: Pick<Slot, 'x' | 'y' | 'scale'>, def: Pick<SpeciesDef, 'size' | 'anchor'>) {
-  const w = def.size.w * slot.scale;
-  const h = def.size.h * slot.scale;
-  return { x: slot.x - def.anchor.x * w, y: slot.y - def.anchor.y * h, w, h };
+  return plantWorldBounds(def, slot);
 }
 
 /**
@@ -71,7 +71,7 @@ export function lilyPads(plants: readonly PlantInstance[], slots: readonly Slot[
     const def = lookup(p.speciesId);
     const slot = slotById.get(p.slotId);
     if (!def || !slot || slot.habitat !== 'water' || !def.habitats.includes('water')) continue;
-    out.push({ plantId: p.id, x: slot.x, y: slot.y, r: Math.max(8, def.size.w * slot.scale * 0.32), scale: slot.scale });
+    out.push({ plantId: p.id, x: slot.x, y: slot.y, r: Math.max(8, def.size.w * plantScale(slot) * 0.32), scale: slot.scale });
   }
   return out;
 }

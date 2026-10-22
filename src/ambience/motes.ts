@@ -6,6 +6,7 @@ import { sessionTimeline } from '../core/session';
 import type { GardenState } from '../core/state';
 import type { SizeClass } from '../plants/types';
 import type { Slot } from '../scene/geometry';
+import { plantScale } from '../scene/slots';
 
 export interface Emitter {
   /** base of the plant (world units) */
@@ -53,14 +54,14 @@ export function moteEmitters(state: Pick<GardenState, 'plants' | 'session'>, slo
     if (p.slotId === growingSlot) continue; // stepping aside for the session's plant
     const s = byId.get(p.slotId);
     if (!s) continue;
-    const h = PLANT_HEIGHT[s.maxSize] * s.scale;
+    const h = PLANT_HEIGHT[s.maxSize] * plantScale(s);
     out.push({ x: s.x, y: s.y, w: h * 0.6, h, weight: 1 });
   }
   if (state.session) {
     const s = byId.get(state.session.slotId);
     if (s) {
       const growth = sessionTimeline(state.session, now).growth;
-      const h = PLANT_HEIGHT[s.maxSize] * s.scale * Math.max(0.2, growth);
+      const h = PLANT_HEIGHT[s.maxSize] * plantScale(s) * Math.max(0.2, growth);
       out.push({ x: s.x, y: s.y, w: Math.max(10, h * 0.6), h: Math.max(10, h), weight: MOTE.growingWeight });
     }
   }

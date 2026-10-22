@@ -23,7 +23,8 @@ describe('plant hit-testing', () => {
   const get = (id: string) => species.get(id);
 
   it('computes sprite boxes from slot scale and anchor', () => {
-    expect(plantBox(def('x', 100, 200), slot('s', 300, 500, 0.5))).toEqual({ left: 275, top: 405, right: 325, bottom: 505 });
+    // the garden draws plants GARDEN_PLANT_SCALE (1.25×) larger than size × slot scale (ADR 0148)
+    expect(plantBox(def('x', 100, 200), slot('s', 300, 500, 0.5))).toEqual({ left: 268.75, top: 381.25, right: 331.25, bottom: 506.25 });
   });
 
   it('finds the plant under a point, preferring the frontmost', () => {

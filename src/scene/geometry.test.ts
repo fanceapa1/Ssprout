@@ -2,9 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { area, pointInPolygon } from '../paint/geometry';
 import { HABITATS, SIZE_CLASSES } from '../plants/types';
 import { WORLD_H, WORLD_W, type Pt } from '../render/viewport';
-import { gardenScene, PATH, POND, ROCKS } from './geometry';
+import { gardenScene, PATH, PAVILION, POND, ROCKS, type Slot } from './geometry';
 import { FOREGROUND_TUFTS, TREES } from './layout';
-import { FAR_SCALE, NEAR_SCALE, PLANT_SIZES, perspectiveScale } from './slots';
+import { FAR_SCALE, GARDEN_PLANT_SCALE, NEAR_SCALE, PLANT_SIZES, perspectiveScale, plantScale } from './slots';
 
 const { slots } = gardenScene;
 const byHabitat = (h: string) => slots.filter((s) => s.habitat === h);
@@ -101,7 +101,7 @@ describe('scene geometry', () => {
       for (let j = i + 1; j < trees.length; j++) {
         const a = trees[i]!;
         const b = trees[j]!;
-        const halfWidths = (PLANT_SIZES.tree.w * (a.scale + b.scale)) / 2;
+        const halfWidths = (PLANT_SIZES.tree.w * (plantScale(a) + plantScale(b))) / 2;
         // crowns may touch a little (×0.6) but trunks and most of the canopy stay apart
         expect(Math.abs(a.x - b.x), `${a.id}–${b.id}`).toBeGreaterThanOrEqual(halfWidths * 0.6);
       }
@@ -176,6 +176,67 @@ describe('scene geometry', () => {
       expect(PATH[i]!.rx).toBeLessThan(PATH[i - 1]!.rx);
     }
     expect(edgeDistance(PATH[PATH.length - 1]!, POND)).toBeLessThan(70);
+  });
+
+  describe('plants at the garden scale (1.25×, ADR 0148)', () => {
+    /** the box of the largest plant a slot takes, as the plant system draws it (anchor 0.5, 0.95) */
+    const box = (s: Slot) => {
+      const k = plantScale(s);
+      const w = PLANT_SIZES[s.maxSize].w * k;
+      const h = PLANT_SIZES[s.maxSize].h * k;
+      return { x: s.x - w / 2, y: s.y - 0.95 * h, w, h };
+    };
+    /** where a plant stands: the middle 60 % of its box, its lowest 15 % */
+    const footprint = (s: Slot) => {
+      const b = box(s);
+      return { x0: s.x - b.w * 0.3, x1: s.x + b.w * 0.3, y0: s.y - b.h * 0.15, y1: s.y };
+    };
+
+    it('draws plants 1.25× their v1 size', () => {
+      expect(GARDEN_PLANT_SCALE).toBe(1.25);
+      for (const s of slots) expect(plantScale(s)).toBeCloseTo(s.scale * 1.25, 9);
+    });
+
+    it('never stands a plant on a stepping stone', () => {
+      for (const s of slots) {
+        const f = footprint(s);
+        for (const st of PATH) {
+          // the footprint's closest point to the stone's centre stays outside the stone
+          const cx = Math.max(f.x0, Math.min(st.x, f.x1));
+          const cy = Math.max(f.y0, Math.min(st.y, f.y1));
+          expect(((cx - st.x) / st.rx) ** 2 + ((cy - st.y) / st.ry) ** 2, `${s.id} on the stone at ${st.x},${st.y}`).toBeGreaterThan(1);
+        }
+      }
+    });
+
+    it('never hides the engawa: at most a fifth of any plant box lies over its wall and deck', () => {
+      const body = { x0: PAVILION.x + 20, x1: WORLD_W, y0: PAVILION.y, y1: PAVILION.y + PAVILION.h - 40 };
+      for (const s of slots) {
+        const b = box(s);
+        const ox = Math.max(0, Math.min(b.x + b.w, body.x1) - Math.max(b.x, body.x0));
+        const oy = Math.max(0, Math.min(b.y + b.h, body.y1) - Math.max(b.y, body.y0));
+        expect((ox * oy) / (b.w * b.h), s.id).toBeLessThanOrEqual(0.2);
+        // and nothing grows over the lantern
+        const L = PAVILION.lantern;
+        expect(L.x >= b.x && L.x <= b.x + b.w && L.y >= b.y && L.y <= b.y + b.h, `${s.id} over the lantern`).toBe(false);
+      }
+    });
+
+    it('keeps neighbours readable: plants at the same depth overlap by at most half their footprint', () => {
+      // trees stand on a trunk (their crowns are spaced above), rock-crevice plants tuck in front by design
+      const open = slots.filter((s) => s.maxSize !== 'tree' && s.habitat !== 'rock');
+      for (let i = 0; i < open.length; i++) {
+        for (let j = i + 1; j < open.length; j++) {
+          const a = open[i]!;
+          const b = open[j]!;
+          if (Math.abs(a.y - b.y) > 40) continue;
+          const fa = footprint(a);
+          const fb = footprint(b);
+          const ov = Math.max(0, Math.min(fa.x1, fb.x1) - Math.max(fa.x0, fb.x0));
+          expect(ov / Math.min(fa.x1 - fa.x0, fb.x1 - fb.x0), `${a.id}–${b.id}`).toBeLessThanOrEqual(0.5);
+        }
+      }
+    });
   });
 
   it('keeps the lantern under the pavilion and the sky band in the sky', () => {

@@ -32,6 +32,7 @@ import {
   type WateringRig,
 } from './watering';
 import { gardenWind, windBoost, type WindFn } from './wind-adapter';
+import { plantScale } from '../scene/slots';
 import { drawWithering, WITHER_SECONDS } from './wither';
 
 /**
@@ -207,7 +208,7 @@ export function createPlantSystem(opts: PlantSystemOptions): PlantSystem {
   }
 
   const specFor = (inst: Inst, step: number): SpriteSpec => {
-    const px = spritePixelSize(inst.def.size, inst.slot.scale, res);
+    const px = spritePixelSize(inst.def.size, plantScale(inst.slot), res);
     return { speciesId: inst.speciesId, seed: inst.seed, step, w: px.w, h: px.h };
   };
 
@@ -384,7 +385,8 @@ export function createPlantSystem(opts: PlantSystemOptions): PlantSystem {
     const top = b ? box.y + b.top * box.h : slot.y - box.h * Math.max(0.25, g.shown) * 0.8;
     const half = b ? ((b.right - b.left) / 2) * box.w : box.w * 0.25;
     const visibleH = Math.max(8, slot.y - top);
-    const size = Math.max(30 * slot.scale, Math.min(54 * slot.scale, visibleH * 0.5));
+    const k = plantScale(slot);
+    const size = Math.max(30 * k, Math.min(54 * k, visibleH * 0.5));
     // the can comes from the open side: from the left when its path would cross the pavilion
     // (or run off the right edge of the world)
     const reach = slot.x + half * 0.6 + size * 3.2;

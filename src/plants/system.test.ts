@@ -12,6 +12,7 @@ import { spriteKey, type Sprite, type SpriteCache, type SpriteSpec } from './spr
 import { createPlantSystem, DISPLACE_IN_SECONDS, DISPLACE_OUT_SECONDS, type PlantSystem } from './system';
 import { FakeCanvas, installFakeOffscreenCanvas } from './test-canvas';
 import type { SpeciesDef } from './types';
+import { GARDEN_PLANT_SCALE } from '../scene/slots';
 
 const MIN = 60_000;
 
@@ -137,7 +138,7 @@ describe('plant system', () => {
     const env = setup({ plants: [plant('a', 'meadow-1')] });
     await ready(env);
     const r = env.cache.requested[0]!;
-    expect(r.w).toBe(Math.round(70 * slot('meadow-1').scale * 1));
+    expect(r.w).toBe(Math.round(70 * slot('meadow-1').scale * GARDEN_PLANT_SCALE * 1));
   });
 
   it('draws the growing plant at its slot, growing with focused time, cross-faded between steps', async () => {
@@ -254,7 +255,7 @@ describe('plant system', () => {
     const sys = await ready(env);
     expect(sys.plantBounds('a')).toEqual(plantWorldBounds(DEFS.get('tree')!, slot('back-1')));
     const b = sys.plantBounds('a')!;
-    expect(b.w).toBeCloseTo(380 * slot('back-1').scale, 9);
+    expect(b.w).toBeCloseTo(380 * slot('back-1').scale * GARDEN_PLANT_SCALE, 9);
     expect(b.y + b.h * 0.95).toBeCloseTo(slot('back-1').y, 9);
     env.start('meadow-1');
     env.frame();

@@ -31,7 +31,19 @@ export const PLANT_SIZES: Record<SizeClass, { w: number; h: number }> = {
   tree: { w: 380, h: 460 },
 };
 
-type SlotSpec = [id: string, x: number, y: number, maxSize: SizeClass];
+/**
+ * Plants in the garden are drawn this much larger than `size × slot.scale` (ADR 0148: the owner
+ * asked for plants ~1.25× bigger everywhere in the garden). Sprites are *painted* at the larger
+ * size, never upscaled. The widget and plant-view previews keep their own framing.
+ */
+export const GARDEN_PLANT_SCALE = 1.25;
+
+/** World units per species-box unit for a plant standing in `slot`. */
+export function plantScale(slot: Pick<Slot, 'scale'>): number {
+  return slot.scale * GARDEN_PLANT_SCALE;
+}
+
+type SlotSpec =[id: string, x: number, y: number, maxSize: SizeClass];
 
 const SPECS: Record<Habitat, SlotSpec[]> = {
   // on the open water, clear of the edges and of each other (lilies, lotus)
@@ -64,12 +76,13 @@ const SPECS: Record<Habitat, SlotSpec[]> = {
     ['meadow-4', 196, 668, 'large'],
     ['meadow-5', 330, 734, 'large'],
     ['meadow-6', 124, 822, 'large'],
-    ['meadow-7', 498, 802, 'medium'],
+    ['meadow-7', 528, 796, 'medium'],
     // (kept above the lower-left corner, where the timer slip sits on wide screens)
     ['meadow-8', 432, 812, 'large'],
     ['meadow-9', 1168, 792, 'medium'],
     ['meadow-10', 1324, 748, 'large'],
-    ['meadow-11', 1478, 700, 'large'],
+    // (in front of the engawa: kept low and medium so it never hides the deck or the wall)
+    ['meadow-11', 1490, 772, 'medium'],
     ['meadow-12', 1496, 838, 'large'],
     ['meadow-13', 1350, 900, 'large'],
     ['meadow-14', 1068, 878, 'medium'],
