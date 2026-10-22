@@ -25,5 +25,5 @@ ADR numbering ranges (to avoid collisions in parallel work):
 | 4 | Plant system: garden sprites, live growth, wither, painted watering animation, reflections, hover labels | `src/plants/{view,sprites,system}.ts` | done |
 | 4 | Fauna | `src/fauna` | done |
 | 4 | Ambience (weather, motes) + time-of-day lighting | `src/ambience` | done |
-| 5 | Polish: mobile, reduced motion, tooltips pass, art review loop | `src/**` | in progress |
-| 5 | QA: requirements→tests matrix, gap tests, flakiness, docs audit, README | `tests/**`, `docs/**` | in progress |
+| 5 | Polish: mobile, reduced motion, tooltips pass, art review loop | `src/**` | done |
+| 5 | QA: requirements→tests matrix, gap tests, flakiness, docs audit, README | `tests/**`, `docs/**` | done |
