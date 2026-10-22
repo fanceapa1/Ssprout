@@ -48,6 +48,13 @@ export const LOOK = {
   flameSize: 5,
   /** how much colour the night takes out before its indigo glaze (saturation blend) */
   nightDesaturate: 0.38,
+  /** sunrise mist: which mist bands lie on the pond and far bank, how dense, how far they rise */
+  dawnMistBands: [1, 2, 3] as readonly number[],
+  dawnMist: 1.25,
+  dawnMistRise: 26,
+  /** dew twinkles on the near grass at sunrise */
+  dewCount: 16,
+  dewAlpha: 0.75,
 } as const;
 
 export interface AmbienceFrame {
@@ -170,6 +177,19 @@ export function createAmbience(opts: AmbienceOptions): Ambience {
   const daylight = () => 1 - 0.85 * Math.min(1, light.weights.night);
   const pondTop = pondBox.y;
   let mistVeil: { top: number; to: number; fill: CanvasGradient } | null = null;
+  /** dew points on the near banks (seeded): where the sunrise twinkles */
+  const dewRng = createRng(seed).fork('dew');
+  const dew = Array.from({ length: LOOK.dewCount }, (_, i) => {
+    const left = i % 2 === 0;
+    return {
+      x: left ? dewRng.range(90, 560) : dewRng.range(980, 1500),
+      y: dewRng.range(760, 950),
+      len: dewRng.range(7, 12),
+      rate: dewRng.range(0.5, 1.1),
+      ph: dewRng.range(0, Math.PI * 2),
+      variant: dewRng.int(0, sprites.glints.length - 1),
+    };
+  });
 
   const api: Ambience = {
     preview: null,
@@ -287,6 +307,32 @@ export function createAmbience(opts: AmbienceOptions): Ambience {
         ctx.globalAlpha = LOOK.mistVeil.alpha * mist;
         ctx.fillStyle = mistVeil.fill;
         ctx.fillRect(area.x, area.y, area.w, veilTo - area.y);
+      }
+
+      // dawn: mist lying on the pond and the far bank, lifting and thinning as the sun climbs
+      const dawn = light.weights.sunrise;
+      if (dawn > 0.01) {
+        const lift = Math.max(0, Math.min(1, (light.sunAltitude + 4) / 14));
+        ctx.globalCompositeOperation = 'source-over';
+        for (const i of LOOK.dawnMistBands) {
+          const b = sprites.mist[i];
+          if (!b) continue;
+          ctx.globalAlpha = b.alpha * LOOK.dawnMist * dawn * (1 - 0.65 * lift);
+          const off = (((sim.t * b.speed * 0.6) % WORLD_W) + WORLD_W) % WORLD_W;
+          const y = b.y - b.h / 2 - LOOK.dawnMistRise * lift;
+          ctx.drawImage(b.canvas as CanvasImageSource, off - WORLD_W, y, WORLD_W, b.h);
+          ctx.drawImage(b.canvas as CanvasImageSource, off, y, WORLD_W, b.h);
+        }
+        // dew catching the first light on the near grass
+        if (!reducedMotion) {
+          ctx.globalCompositeOperation = 'screen';
+          for (const d of dew) {
+            const v = Math.sin(sim.t * d.rate + d.ph);
+            if (v < 0.78) continue;
+            ctx.globalAlpha = ((v - 0.78) / 0.22) ** 2 * LOOK.dewAlpha * dawn;
+            ctx.drawImage(sprites.glints[d.variant]! as CanvasImageSource, d.x - d.len / 2, d.y - d.len * 0.12, d.len, d.len * 0.24);
+          }
+        }
       }
 
       // light shafts, two groups breathing in turn
