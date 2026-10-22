@@ -69,6 +69,8 @@ export class FaunaSim {
   roster: Roster = rosterFor([]);
   /** null: follow the clock */
   hourOverride: number | null = null;
+  /** the garden's daylight phases decide when it is night (ADR 0141); null: `nightHours` on the clock */
+  nightSource: ((now: number) => boolean) | null = null;
   readonly auto: boolean;
   readonly reduced: boolean;
   private ripples: Ripple[] = [];
@@ -208,7 +210,8 @@ export class FaunaSim {
     this.time += step;
     const t = this.time;
     w.t = t;
-    w.mode = { reduced: this.reduced, lively: this.lively, night: isNight(this.hour(now)), birdBoost: this.roster.birdBoost };
+    const night = this.hourOverride === null && this.nightSource ? this.nightSource(now) : isNight(this.hour(now));
+    w.mode = { reduced: this.reduced, lively: this.lively, night, birdBoost: this.roster.birdBoost };
     if (step <= 0) return;
     if (this.auto) {
       this.upkeepResidents();

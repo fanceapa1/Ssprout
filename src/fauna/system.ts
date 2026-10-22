@@ -11,6 +11,7 @@ import type { Rect, Viewport } from '../render/viewport';
 import { FaunaSim } from './sim';
 import type { TargetLookup } from './targets';
 import type { Creature } from './types';
+import type { DaylightSource } from '../ambience/daylight-source';
 
 /** Creature kind → the unlock id it announces (koi are counted: koi-1, koi-2, koi-3). */
 const ARRIVAL_OF: Partial<Record<Creature['kind'], string>> = {
@@ -48,6 +49,8 @@ export interface FaunaSystemOptions {
   species: TargetLookup;
   /** rng seed (default: the clock at first init) */
   seed?: number;
+  /** the garden's daylight: diurnal creatures rest while its night phase dominates */
+  daylight?: Pick<DaylightSource, 'at'>;
 }
 
 export interface FaunaSystem extends System {
@@ -108,6 +111,8 @@ export function createFaunaSystem(opts: FaunaSystemOptions): FaunaSystem {
     init(ctx: SystemContext) {
       if (!sim) {
         sim = new FaunaSim({ scene: ctx.scene, seed: opts.seed ?? ctx.clock.now(), reducedMotion: ctx.reducedMotion });
+        const daylight = opts.daylight;
+        if (daylight) sim.nightSource = (now) => daylight.at(now).night >= 0.5;
         store = ctx.store;
         unsubscribe = ctx.store.subscribe((next, prev) => {
           if (next.plants !== prev.plants) follow(next);
