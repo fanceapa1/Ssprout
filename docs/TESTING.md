@@ -1,0 +1,249 @@
+# Testing
+
+How Study Sprout is tested, how to run the tests, the conventions every test follows, and a
+**requirements → tests matrix** that maps each rule in `docs/SPEC.md` to the tests that cover it.
+The owner's rule is "every behaviour is tested". When you add or change a behaviour, add the test
+**and** a row (or a test name) here in the same change.
+
+## The layers
+
+| Layer | Where | Runs with | What it is for |
+|---|---|---|---|
+| Unit | `src/**/*.test.ts`, colocated with the code | Vitest (`npm test`) | Pure logic: core rules, session maths, plans, persistence, schedules, envelopes, geometry, paint maths, widget/notification policy. Node by default. DOM tests opt in with `// @vitest-environment jsdom`. Canvas code is tested through recording fakes (`src/plants/test-canvas.ts`). |
+| End-to-end | `tests/e2e/*.spec.ts` | Playwright, Chromium (`npm run e2e`) | User-visible behaviour in the **production build** served by `vite preview` (ADR 0010), driven through the real UI or the `?dev` debug API (`window.sprout`, docs/ARCHITECTURE.md › Dev / test hooks). |
+| Studio smoke | `tests/e2e/studio.spec.ts` | Playwright | Every studio entry renders without errors and paints something; controls (seed, play/pause, speed, background, scale, `#section`, `?entry`). |
+| Visual review | `npm run shots`, the studio | a person (or agent) looking | Art quality: does it look like watercolour, is it subtle. Screenshots go to `artifacts/` (gitignored); nothing is asserted. |
+
+Helpers:
+- `tests/e2e/fixtures.ts` — the `test` used by every spec. It **fails a test on any console error
+  or uncaught page error**. Also `openDev(page, query)`, `waitFrames(page, n)`, `canvasStats(page)`.
+- `tests/e2e/ui-helpers.ts` — `openUi` (garden with `?dev&fixtures&uitime=0.02`, reset, seeded),
+  `plantSession` (the full start flow through the UI), `setMinutes`, `reloadUi`, `calmUiMotion`.
+- `src/core/testing.ts`, `src/widget/test-helpers.ts`, `src/plants/test-canvas.ts` — unit fakes.
+
+## Running
+
+```sh
+npm run typecheck                      # also type-checks tests/ and scripts/
+npm test                               # Vitest, all unit tests (a few seconds)
+npx vitest run src/core                # one folder
+npm run e2e                            # build + preview on :4173 + Playwright
+E2E_PORT=4187 npm run e2e              # another port (several checkouts at once)
+E2E_PORT=4187 E2E_REUSE=1 npx playwright test plants   # reuse a running preview (fresh build!)
+npx playwright test --repeat-each=3 --workers=8        # hunt flakiness under load
+npx playwright show-trace test-results/<test>/trace.zip
+```
+To reuse a server: `npm run build && npx vite preview --host 127.0.0.1 --port 4187 --strictPort`,
+then `E2E_REUSE=1`. Rebuild after every `src/` change, or you test the old build.
+
+`playwright.config.ts`: 60 s per test, 10 s per `expect`, fully parallel. In CI (`CI=true`): one
+retry, 2 workers, `github` + `list` + HTML reporters. Traces and screenshots are kept for failed
+tests (`test-results/`).
+
+## Conventions
+
+- **Never wait for wall-clock time.** Session time moves with the dev clock: `sprout.advance(ms)`,
+  `toBreak()`, `skipToBlock(i)`, `completeSession()` jump it (ADR 0035). Rendering is awaited with
+  explicit signals:
+  - `sprout.ready()`: every system initialised.
+  - `sprout.freeze()`: a stable frame is drawn.
+  - `sprout.plantsReady()`: plant sprites painted, nothing snapped.
+  - `sprout.plants.settle()`: growth and fades snapped, sprites painted.
+  - `sprout.scenePainted()`: no background repaint pending.
+  - `waitFrames(page, n)`: n renderer frames, via `sprout.frameStats().frames`.
+  - `window.studio.ready`: the studio is mounted.
+
+  The one deliberate `setTimeout` is the smoke test that *measures* the speed clock against real
+  time.
+- **Sample transient animations inside the page.** Watering lasts 2.5 s. A one-shot read in
+  a later round trip can miss it on a loaded machine. Read it in the same task as the action
+  (`widget.spec.ts`), or record it on every `requestAnimationFrame` (`plants.spec.ts`).
+- **Pin what is not under test.** Lighting follows the app clock: advancing the dev clock moves
+  the time of day. Use `sprout.setTime('noon')` and `settleAmbience()` for pixel comparisons. Use
+  `reducedMotion: 'reduce'` when sway would add noise. Clear fauna before reading a region.
+- **Drive simulations in one round trip.** Fauna loops run inside one `page.evaluate`, with the
+  renderer frozen, so the frame loop does not compete with `fauna.step()`.
+- **Prefer the dev fixture species** (`?fixtures`, `fx-*`, ADR 0055) for UI flows. Their names,
+  tiers and habitats are stable. Never assert on the `placeholder-sprout`; it is a unit-test fixture
+  only (`src/dev/placeholder-sprout.ts`). Real species appear in e2e tests only where the test is
+  about real species (e.g. white clover in the studio).
+- **Assert on SPEC behaviour, not tuning.** Tips: which tip is shown and when it retires, not
+  pixel positions or exact delays (ADR 0124 may be retuned). Slots: pick them through
+  `sprout.placementOptions(speciesId)` or geometry helpers rather than coordinates. Several older
+  plant tests still use stable ids such as `meadow-1` and `shore-1`.
+- **UI motion in tests.** `openUi` calls `calmUiMotion`. It applies the app's own reduced-motion
+  stylesheet to the DOM UI only: no CSS animations, 1 ms transitions. `?uitime` scales the UI's JS
+  delays, but CSS keeps real durations. Playwright also waits for a clicked element to stop
+  moving. The garden is not put into reduced motion.
+- **Heavy pages are scoped.** The studio is checked one section at a time in 4 parallel shards
+  (`#<section>`), never all at once. Tests that paint 30+ sprites call `test.slow()`.
+- Budgets (`plants.perf().avgMs < 2`, `ambience().ms < 1.5`, `fauna.bench().total < 8`) are
+  generous ceilings for CI. The real numbers live in the system docs.
+
+## Flakiness: what was fixed and why (2026-10-22)
+
+Under machine load (several agents, 8–16 Playwright workers, load average 50–70) these failed. Root
+causes and fixes:
+
+| Symptom | Root cause | Fix |
+|---|---|---|
+| Studio "every entry renders" timed out | One page rendered every entry of every section synchronously (all species stages, full scene, fauna sheets). 15 s idle, over 30 s under load. | One section at a time via `#<section>`, in 4 parallel shards. A separate test checks the nav lists every section. |
+| UI flows (cancel, breaks, …) timed out; every click took about 1 s | The planting sheet's 900 ms `sheet-rise` animation. Playwright waits for a clicked card to be stable, which stretches under load. The sheet also paints ~37 previews synchronously. | `calmUiMotion` (app's reduced-motion CSS for the UI); timeouts sized for load (60 s / 10 s). |
+| Widget "card waters the plant" read `null` | Read a 2.5 s rAF animation in a separate round trip after the click. | Click and read in the same task. |
+| Plants watering poll missed the middle of the pour | Same, polling a transient. | Per-frame sampling in the page. |
+| "the seedling grows" pixel diff inverted | `advance(15 min)` moved the time of day, so lighting changed between captures. Sway and passing creatures added noise. | Pin noon, settle the ambience, reduced motion, clear fauna before each capture. |
+| Birds "fly away" saw a bird at the end | With 8 plants a scheduled bird visited during the 70 simulated seconds. | Follow the spawned bird by id. Run the loop in-page with the renderer frozen. |
+| Fauna bounds walk timed out | 80 round trips while the page also rendered at 60 fps. | One in-page loop, renderer frozen. |
+| Ambience budget slept 1.5 s | Fixed sleep. | `waitFrames(page, 90)`. |
+
+## CI
+
+`.github/workflows/ci.yml` (push to main, pull requests) runs: typecheck → unit → build →
+install Chromium → e2e (`CI=true`: retries 1, 2 workers). The HTML report is uploaded on every run
+that was not cancelled. `test-results/` (traces, screenshots) is uploaded on failure.
+`.github/workflows/pages.yml` deploys to GitHub Pages **only after CI succeeded** for a push to
+`main` (`workflow_run`), building exactly that commit. It can also be run by hand
+(`workflow_dispatch`, deploys the current `main`).
+
+## Requirements → tests matrix
+
+Legend: unit tests as `folder/file › test`, under `src/` (`.test.ts` omitted). E2E as
+`spec › test`, under `tests/e2e/` (`.spec.ts` omitted). Test names are abbreviated where long.
+**Status:** ✔ covered · ◐ partly (the rest by visual/aural review or a stated limit) ·
+✘ gap.
+
+### §1 The garden
+
+| # | Rule | Unit | E2E | Status |
+|---|---|---|---|---|
+| 1.1 | One fixed scene: sky, hills, two tree groups, pavilion, banks, pond with boulders, stepping-stone path to the pond | scene/geometry › rings the pond with 8–12 boulders…; › runs the stepping stones from the bottom centre up to the pond…; › keeps the lantern under the pavilion and the sky band in the sky; › keeps the painted trees and foreground tufts inside the world; › has a simple … pond polygon | scene › paints the garden: pale paper sky, celadon pond, varied painted marks | ◐ look by studio `scene/full` + shots |
+| 1.2 | Barren start: a few tufts, a couple of shrubs, no flowers | core/state › builds an empty, muted garden | smoke › ?dev exposes window.sprout and renders a stable frame (no plants) | ◐ tufts/shrubs by review |
+| 1.3 | Responsive: landscape shows the scene, portrait crops around the pond without distortion | render/viewport › maps the whole world exactly…; › covers a wide screen…; › crops the sides on portrait screens…; › shows tall phones at least MIN_VISIBLE_W…; › clamps the focus… | polish · phones › a tall phone sees a wider slice…; scene › small resizes rescale…; big ones repaint | ✔ |
+
+### §2 Study sessions: planting
+
+| # | Rule | Unit | E2E | Status |
+|---|---|---|---|---|
+| 2.1 | Task name ≤ 40, suggestion placeholder, empty → "Study session", kept forever | core/session › normalizeTaskName (both); core/reducer › normalises the task name; › finalises the plant with its task name… | ui-start-flow › an empty task name plants a "Study session"…; ui-session › sheet… (maxlength 40); ui-session › completion… (label shows the task) | ✔ |
+| 2.2 | Total time 10–180 in 5-min steps, chips 25/50/90, remembers last value; total decides tier | core/session › clampGoalMinutes (all); core/rewards › tierForMinutes; core/reducer › plants a seedling session… | ui-start-flow › total time: a 10–180 slider…; ui-session › sheet… (tier words at 25 and 90) | ✔ |
+| 2.3 | 2–4 plans per total, breaks inside, always Unbroken, sums exactly, ends with focus, < 30 min only Unbroken; shown as a segmented brush line | core/plans › %i min: sums exactly…; › offers only Unbroken below 30…; › offers 2–4 plans…; › has the expected shapes…; ui/plan-line (all) | ui-session › sheet…; core-loop › plant at start → … (plans(60)); ui-session › begin → focus panel… (plan line) | ✔ |
+| 2.4 | Plant choice: tier ≤ earned selectable; higher tiers visible but locked ("needs 50 min+"); earned highlighted; card = preview, name, native name, poetic line, habitat | core/rewards › selectableSpecies (all); core/controller › selectableSpecies marks locked and earned species; core/reducer › only allows species whose tier is earned… | ui-session › sheet…; ui-start-flow › plant cards…; polish › the placeholder sprout is not a plant you can pick | ✔ |
+| 2.5 | Choose its spot (placement mode); occupied = swap | core/placement (all); core/controller › placementOptions lists compatible slots with occupants; plants/plantable › has a compatible slot for each species | ui-session › sheet… (only compatible markers); › swap into an occupied spot…; › keyboard: Tab to a marker…; plants › placement shows an in-canvas highlight… | ◐ **bug: lotus cannot be planted** (tracked by plants/plantable) |
+| 2.6 | Begin; first start asks gently for notification permission | widget/notifications › asks at the first session:start…; › stores a denial…; › a dismissed prompt leaves the setting unasked… | widget › completion notifies… (permission granted at start); widget › denied permission is respected | ✔ |
+
+### §2 During the session
+
+| # | Rule | Unit | E2E | Status |
+|---|---|---|---|---|
+| 2.7 | Seedling at the spot grows live (garden + widget); growth = focused ÷ total focus; breaks don't grow it | core/session › grows only during focus…; plants/system › draws the growing plant at its slot…; › eases the displayed growth…; widget/view › focus: … growth from the timeline; plants/sprites › growth quantisation (all) | plants · growth › the seedling appears at its slot and grows…; widget › the card renders the plant… | ✔ |
+| 2.8 | Timer shows block remaining and session remaining; plan segments show position | core/session › tracks the current block, its remaining time and the total remaining; ui/plan-line › maps elapsed minutes to x piecewise; widget/view › focus: block time big, session total small… | session-rules › the timer shows the current block and the whole session…; ui-session › begin → focus panel… | ✔ |
+| 2.9 | Break: soft notification "Time for a break — your <plant> is thirsty." | widget/notifications › notificationText names the plant and the task; › break, back to focus and bloom, while the page is not attended | widget › break and back-to-focus notify while the page is in the background | ✔ |
+| 2.10 | Watering: UI and widget show a can; tap → can tilts, droplets arc, soil darkens, leaves lift | plants/watering (all); plants/system › plays the watering animation on session:water…; plants/view › adds the watering can, droplets and damp soil…; widget/pip › plays a watering animation once at a time…; › a water event from the garden plays the animation in the widget too; core/reducer › session/water (all) | ui-session › breaks: water the plant…; plants › break → water plays the watering animation…; widget › in a break the card waters the plant… | ✔ |
+| 2.11 | Not watering has no penalty | core/reducer › not watering changes nothing about the outcome | session-rules › an unwatered break simply ends… | ✔ |
+| 2.12 | Skip break removes the rest of that break; ends sooner; tier unchanged | core/reducer › session/skipBreak (all); core/controller › skipBreak() jumps…; core/session › a skipped break jumps straight to the next focus block | ui-session › breaks: … skip the rest of the break; core-loop › plant at start → …; widget › in a break the card … skips the break | ✔ |
+| 2.13 | Next focus block starts automatically with a soft notification | core/controller › announces each block transition once from the tick; widget/notifications › break, back to focus and bloom… | session-rules › an unwatered break simply ends…; widget › break and back-to-focus notify… | ✔ |
+| 2.14 | Pause: unlimited; paused time doesn't count | core/session › excludes previous pauses…; › pauses freeze the timeline; core/reducer › pause/resume (all); core/controller › excludes paused time… | ui-session › begin → … pause/resume; widget › opens in a (faked) PiP window, updates, pauses… | ✔ |
+| 2.15 | After 30 min paused: "Still with us?" with Resume / End session | core/session › detects a long pause at 30 minutes | ui-session › long pause shows "Still with us?"; session-rules › "Still with us?" can end the session too | ✔ |
+| 2.16 | Cancel: light confirmation; seedling withers and fades; replaced plant returns; no penalty, counted in stats | core/reducer › session/cancel (all); core/controller › cancel withers the seedling; a displaced plant stays; plants/system › withers the seedling…; › fades a displaced plant out … and back in on cancel; plants/wither (all) | ui-session › cancel needs a gentle confirmation naming the plant; plants › cancel withers the seedling away and returns the plant it replaced; core-loop › cancel… | ✔ |
+| 2.17 | Complete: full bloom, notification + chime (if unmuted), quiet line, permanent plant with task/minutes/date; a replaced plant is pressed into the herbarium | core/reducer › session/complete (all); core/controller › completion (all); plants/system › blooms the completed plant in place…; audio/garden-audio › plays a bloom chime on plant:placed…; › plays nothing while muted… | ui-session › completion: the plant blooms, a quiet line names it…; › swap … pressed into the herbarium; plants › a completed plant blooms in place and persists…; widget › completion notifies… | ✔ (chime: unit only) |
+| 2.18 | Persistence: timestamp-based; reload continues; completes if the plan ended while away | core/controller › completes on startup a session that finished while the app was closed; › on startup mid-break…; core/persistence › round-trips an active session… | ui-session › a session survives a reload mid-way; core-loop › … persisted across reloads; session-rules › a session that ended while the app was closed has bloomed on return | ✔ |
+
+### §2 Active-session ambience
+
+| # | Rule | Unit | E2E | Status |
+|---|---|---|---|---|
+| 2.19 | Weather per session: sun (most common), soft rain, mist | core/session › pickWeather (all); ambience/envelope › focus: the session weather at full…; ambience/motes › rain: count tracks the level; ripples stay on the pond; › sun glints are rare and bounded… | ambience › a session brings its weather; every weather and night render… | ◐ look by review |
+| 2.20 | Photosynthesis motes rise from plants; plants sway a touch more | ambience/motes › moteEmitters (all); › motes: few at a time…; › no motes outside focus; ambience/wind › is a touch stronger during a session; › windBoost maps phases | ambience with reduced motion › … no motes (the negative case) | ✔ |
+| 2.21 | Paused: ambience fades to stillness, not off abruptly | ambience/envelope › paused: a faint still trace; › pause: motion eases to stillness…; › session end: fades out over 3–5 s | ambience › pause eases the weather to a still trace; ending the session fades it out | ✔ |
+| 2.22 | Low-contrast and slow; never competes with plants | ambience/envelope › session start: crossfades in over 3–5 s… | ambience › a session brings its weather… ("stays subtle": frame delta < 40) | ◐ by review |
+
+### §3 Rewards and placement
+
+| # | Rule | Unit | E2E | Status |
+|---|---|---|---|---|
+| 3.1 | Tier by total: 10–24 · 25–49 · 50–89 · 90–180 | core/rewards › %i min → tier %i; › TIER_MIN_MINUTES are the tier thresholds | ui-session › sheet… (perennial at 25, centrepiece at 90) | ✔ |
+| 3.2 | Species per tier (examples) | plants/registry › every species is well formed; › filters by tier | — | ◐ list differs from the examples (SPEC status note) |
+| 3.3 | Chosen at start; no end-of-session picker | core/reducer › session/start (all) | ui-session (all flows) | ✔ |
+| 3.4 | ~50–60 slots, each with a habitat | scene/geometry › has 50–60 slots with unique ids; › has %s slots in the planned range; › uses only known habitats and size classes; › puts every water slot on the pond…; › puts shore slots at the pond edge… | scene › exposes 50–60 slots across all habitats; › ?dev&slots draws the slot overlay | ✔ |
+| 3.5 | Only compatible slots shown (habitat + max size class) as glowing markers | core/placement › isCompatible (all); › compatibleSlots (all); scene/geometry › only offers tree-sized slots on the far bank…; plants/plantable | ui-session › sheet… (iris: shore/water markers only); plants › placement shows an in-canvas highlight… | ◐ lotus bug (2.5) |
+| 3.6 | Swap: old plant steps aside, pressed into the herbarium on completion, returns on cancel | plants/system › fades a displaced plant out…; core/reducer › records the finished plant in the chosen slot as displaced…; › presses the displaced plant… | ui-session › swap into an occupied spot…; plants › cancel withers … returns the plant it replaced; core-loop › cancel… | ✔ |
+| 3.7 | Upgrades = a higher tier into an occupied slot | core/reducer › records the finished plant in the chosen slot as displaced… | ui-session › swap into an occupied spot… | ✔ |
+| 3.8 | Finished plants sway gently | plants/draw › sway maths (all); plants/system › finished plants sway with the wind, and hold still under reduced motion | — | ✔ |
+| 3.9 | Hover/tap a finished plant → ink label: task · minutes · date | ui/plant-labels (all) | ui-session › completion… (hover); plants › plant bounds drive the hover label…; session-rules · phone › tapping a finished plant shows its ink label | ✔ |
+
+### §4 Wildlife
+
+| # | Rule | Unit | E2E | Status |
+|---|---|---|---|---|
+| 4.1 | Unlock table (always … 25 plants) | core/fauna-unlocks (all); fauna/schedule › roster (all) | fauna › a new garden has water striders…; koi arrive with plants; › the unlock table drives the roster… | ✔ |
+| 4.2 | Real behaviour: koi drift and turn, bees visit pollinator flowers, birds land then leave, dragonflies over water | fauna/sim › FaunaSim (all); fauna/targets (all); fauna/math (all) | fauna › every creature can be spawned and stays within bounds…; › birds land on perches … then fly away; › at night birds, bees and butterflies rest… | ◐ motion quality by studio review |
+| 4.3 | Rare at first, one at a time, never more than a handful | fauna/schedule › caps visitors and per-kind maxima; › nothing comes at once…; › later visits are separated by long quiet gaps; fauna/sim › … visitors never exceed the cap | fauna › … visits are scheduled, not immediate | ✔ |
+| 4.4 | First appearance → one quiet line (ADR 0120) | fauna/arrivals (all); core/fauna-unlocks › newlyArrived (all); ui/format › reads arrival lines… | ui-menu › a creature arrival gets one quiet line and is recorded | ✔ |
+
+### §5 Time of day
+
+| # | Rule | Unit | E2E | Status |
+|---|---|---|---|---|
+| 5.1 | Follows the local clock: cool morning, neutral noon, warm evening, blue dusk, indigo night with lantern glow | ambience/timeofday (all); ambience/lighting › paintGradeWash (all); › pondMask / lanternReflection (all) | ambience › … every weather and night render… (night darker and blue); › setTime accepts names, hours and null… | ✔ |
+| 5.2 | Plants readable at all times | ambience/timeofday › noon is neutral; night is the darkest but plants stay readable | — | ✔ |
+
+### §6 Timer visibility & notifications
+
+| # | Rule | Unit | E2E | Status |
+|---|---|---|---|---|
+| 6.1 | Floating widget (Document PiP): the session's plant growing live; task, remaining, plan progress, pause/resume, watering in breaks; opened by a button | widget/pip (all); widget/view (all); plants/view (all) | widget › support follows Document Picture-in-Picture; › opens in a (faked) PiP window…; › the card renders the plant and blooms…; › in a break the card waters…; ui-menu › floating timer button follows the widget integration | ◐ a real PiP window cannot open headless (faked `documentPictureInPicture`) |
+| 6.2 | Tab title countdown and filling favicon | widget/title (all); widget/tab (all); widget/favicon (all) | widget › tab title counts down, the favicon fills…; › breaks show in the title and favicon | ✔ |
+| 6.3 | Notifications via the service worker; background only; closed tab → none, the reward waits | widget/notifications › decideNotification (all); › session moments (all) | widget › completion notifies when the page is in the background (via sw); › no notification while the page is visible and focused; › denied permission is respected; session-rules › … ended while the app was closed… | ✔ |
+| 6.4 | Ticks from a Web Worker (no background throttling) | widget/ticker (all) | widget › ticks come from a Web Worker | ✔ |
+
+### §7 Tooltips / onboarding
+
+| # | Rule | Unit | E2E | Status |
+|---|---|---|---|---|
+| 7.1 | Subtle hints near non-obvious controls; one at a time (ADR 0124) | core/tips › tip registry; › activeTips (all); ui/format › pickTips (all) | ui-menu › tips show near their control…; polish › one tip at a time… | ✔ |
+| 7.2 | A tip retires when its mechanism is first used | core/tips › tipsRetiredBy (all); core/controller › retires the start-flow tips; core/reducer › tip/retire | ui-menu › tips … retire when used (sound); polish › one tip at a time… (task); ui-menu › floating timer button… (widget); ui-session › swap… (pressed); core-loop › … (task, duration, plan, water) | ✔ |
+| 7.3 | ⓘ lists every tip, the learned ones marked | core/tips › allTips lists every tip with its retired flag | ui-menu › tips … stay listed under ⓘ | ✔ |
+
+### §8 Sound
+
+| # | Rule | Unit | E2E | Status |
+|---|---|---|---|---|
+| 8.1 | Procedural Web Audio: water, wind, distant birds, rain in rain sessions, bloom chime | audio/recipes (all); audio/noise (all); audio/planner (all); audio/params › rain brings patter and drips…; audio/garden-audio › reacts to session events: rain during a session… | — | ◐ audible result by ear (headless output not asserted) |
+| 8.2 | Muted by default; speaker toggle; remembered | audio/garden-audio › is muted by default…; audio/gate (all); core/controller › updateSettings … retires the sound tip | ui-menu › sound toggle persists across reloads | ✔ |
+
+### §9 Persistence
+
+| # | Rule | Unit | E2E | Status |
+|---|---|---|---|---|
+| 9.1 | localStorage `studysprout:v1`, versioned schema, migrations, safe recovery | core/persistence › migrate (all); › validateState (all); › loadState (all); › saveState / createSaver (all) | core-loop › a corrupt save is backed up and the garden starts fresh | ✔ |
+| 9.2 | Export `study-sprout-garden-YYYY-MM-DD.json`; validated import | core/persistence › export / import (all) | ui-menu › export downloads the garden; import validates, confirms and restores | ✔ |
+| 9.3 | `?dev` debug API and `?speed` | core/clock › createSpeedClock (all) | smoke › app loads… (no API without ?dev); › ?dev exposes window.sprout…; › ?speed accelerates the app clock… | ✔ |
+
+### §10 Platforms
+
+| # | Rule | Unit | E2E | Status |
+|---|---|---|---|---|
+| 10.1 | Phones: touch, portrait crop, controls reachable | render/viewport (portrait cases) | ui-menu · phone › panel spans the bottom, menu reachable, planting works by touch; polish · phones; session-rules · phone › tapping a finished plant… | ✔ |
+| 10.2 | Modern evergreen browsers | — | Chromium only | ✘ **gap:** Firefox/WebKit are not run (the title/favicon fallback matters most there). Adding Playwright `firefox`/`webkit` projects needs the widget specs to skip PiP outside Chromium. |
+| 10.3 | `prefers-reduced-motion`: ambience/fauna reduced, no sway | ambience/envelope › reduced motion keeps the weather but freezes motion…; fauna/sim › reduced motion…; fauna/schedule › reduced motion…; widget/pip › skips the watering animation with reduced motion; plants/system › … hold still under reduced motion | ambience with reduced motion › rain is still…, no motes… | ✔ |
+
+### §11 Developer tools
+
+| # | Rule | Unit | E2E | Status |
+|---|---|---|---|---|
+| 11.1 | Studio shows every sprite, creature, effect and paint primitive | studio/registry › discovers the real *.studio.ts files; › flattens…; › rejects duplicate…; › finds entries… | studio › lists every section in the nav…; › every entry renders without errors and paints something (4 shards) | ◐ "every sprite has an entry" is a convention (AGENTS.md), not machine-checked |
+| 11.2 | Seed/reseed, play/pause, speed, background, scale; URL `#section`, `?entry`, `?seed`, `?t` | — | studio › reseed re-renders with a new seed; › #section shows only that section; › ?entry shows a single entry large; › ?seed and ?t start paused…; › speed, background and scale controls | ✔ |
+
+### Beyond the SPEC (covered, listed for completeness)
+Rendering contracts (render/renderer), paint engine (paint/*), species growth continuity
+(plants/lib/*), sprite workers and LRU (plants/sprites), reflections (plants/reflection),
+UI light under the garden's lighting (ui/ambient-light), canvas edges (polish › the canvas edges
+dissolve into paper), keyboard flow (polish › keyboard…, ui-session › keyboard…), frame budgets
+(plants, ambience, fauna e2e).
+
+### Open gaps (for the orchestrator)
+1. **Lotus is offered but cannot be planted** (src code: size class vs water slots). Tracked by
+   `src/plants/plantable.test.ts` (`KNOWN_UNPLANTABLE`). Remove it from the list when fixed.
+2. **Cross-browser**: no Firefox/WebKit e2e run (10.2).
+3. **Audio** is verified as data (unit) only (8.1); **real PiP** is faked (6.1). Both are headless
+   limits.
