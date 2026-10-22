@@ -23,8 +23,8 @@ agent) picks up the work next.
 
 ## How work is organised
 - An orchestrator splits work into tasks and runs them in parallel, one **git worktree per
-  task** (`.claude/worktrees/<agent>/`, branch `worktree-<agent>`; the folder is gitignored in the
-  main checkout).
+  task** (a folder under the main checkout's gitignored local-tooling directory, on a branch
+  named `worktree-<agent>`).
 - In your worktree: `npm install`, then work and commit there. Never push and never merge.
   Several agents run at once, so stay inside the paths you own (ROADMAP) and use a separate
   `E2E_PORT`.
