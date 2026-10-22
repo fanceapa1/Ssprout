@@ -1,4 +1,4 @@
-import type { Action, ActiveSession, GardenState, PlantInstance } from '../core/state';
+import { inProgressSessions, type Action, type ActiveSession, type GardenState, type PlantInstance } from '../core/state';
 import { sessionPhase, sessionTimeline } from '../core/session';
 import type { Drawable, FrameInfo, LayerId, System, SystemContext } from '../render/types';
 import type { Rect } from '../render/viewport';
@@ -41,10 +41,11 @@ import { drawPlantShadow } from './shadow';
 import { drawWithering, WITHER_SECONDS } from './wither';
 
 /**
- * PlantSystem (docs/systems/plants.md, ADRs 0110–0119): every finished plant and the session's
- * growing plant as depth-sorted `entities` drawables (depth = slot y), their reflections on the
- * `waterSurface` layer, the watering can on the `air` layer and the placement highlight under
- * the plants. Sprites come from the sprite cache (sprites.ts); nothing is painted in a frame.
+ * PlantSystem (docs/systems/plants.md, ADRs 0110–0119, 0155): every finished plant and the growing
+ * plant of each session in progress (the active one and the waiting ones, which stand calm) as
+ * depth-sorted `entities` drawables (depth = slot y), their reflections on the `waterSurface`
+ * layer, the watering can on the `air` layer and the placement highlight under the plants. Sprites
+ * come from the sprite cache (sprites.ts); nothing is painted in a frame.
  */
 
 export interface PlantSystemOptions {
@@ -78,6 +79,8 @@ export const GROWTH_EASE_SECONDS = 0.6;
 export const SHADOW_PLANT = 0.6;
 /** How strongly plants take the rim light. */
 export const RIM_PLANT = 0.85;
+/** sway of a waiting (paused) session's seedling, relative to a plant at rest (ADR 0155) */
+export const CALM_SWAY = 0.6;
 
 interface Fade {
   from: number;
@@ -114,6 +117,8 @@ interface GrowRec {
   id: string;
   inst: Inst;
   shown: number;
+  /** its session is waiting (paused, not the active one): no wind boost, a calmer sway */
+  calm: boolean;
 }
 
 interface WitherRec {
@@ -129,9 +134,13 @@ export interface PlantDebugState {
   resolution: number;
   /** `shown`: how far its appearance fade has come (0 = waiting for its sprite, 1 = fully shown) */
   finished: Array<{ id: string; slotId: string; speciesId: string; alpha: number; shown: number; drawn: boolean; blooming: boolean }>;
+  /** the active session's seedling */
   growing: { id: string; slotId: string; speciesId: string; growth: number; shown: number; lo: number; hi: number; weight: number; drawn: boolean } | null;
+  /** every seedling of a session in progress (the active one included) */
+  seedlings: Array<{ id: string; slotId: string; speciesId: string; growth: number; shown: number; active: boolean; calm: boolean; drawn: boolean }>;
   withering: Array<{ slotId: string; progress: number }>;
-  watering: { progress: number; wet: number; active: boolean } | null;
+  watering: { progress: number; wet: number; active: boolean; sessionId: string } | null;
+  /** the active session's displaced plant */
   displaced: { id: string; alpha: number } | null;
   reflections: string[];
   highlight: { active: boolean; slots: number; ghost: string | null };
@@ -183,13 +192,18 @@ export function createPlantSystem(opts: PlantSystemOptions): PlantSystem {
   const unsubs: Array<() => void> = [];
 
   const finished = new Map<string, FinishedRec>();
-  let growing: GrowRec | null = null;
+  /** seedlings of the sessions in progress, by session id */
+  const growing = new Map<string, GrowRec>();
+  let activeId: string | null = null;
   const withering: WitherRec[] = [];
-  let watering: { start: number | null } | null = null;
-  let waterPending = false;
+  let watering: { id: string; start: number | null } | null = null;
+  /** session id to water on the next frame */
+  let waterPending: string | null = null;
   let completing: { id: string; from: number } | null = null;
   let lastPlants: readonly PlantInstance[] | null = null;
   let lastSession: ActiveSession | null | undefined;
+  let lastWaiting: readonly ActiveSession[] | undefined;
+  const activeGrow = (): GrowRec | null => (activeId ? growing.get(activeId) ?? null : null);
   let lastT = 0;
   let boost = 0;
   let highlight: PlacementSnapshot = NO_PLACEMENT;
@@ -302,12 +316,12 @@ export function createPlantSystem(opts: PlantSystemOptions): PlantSystem {
     return { image: buf.canvas, w: spec.w, h: spec.h };
   }
 
-  function swayPose(inst: Inst, t: number): PlantPose {
+  function swayPose(inst: Inst, t: number, calm = false): PlantPose {
     if (reduced) return { lean: 0, bend: 1, scaleY: 1, alpha: 1 };
     const m = SWAY[inst.def.sizeClass] ?? SWAY.medium;
-    const w = wind(t, inst.slot.x, inst.slot.y - inst.box.h * 0.6, boost);
+    const w = wind(t, inst.slot.x, inst.slot.y - inst.box.h * 0.6, calm ? 0 : boost);
     const flutter = 0.18 * w.gust * Math.sin(t * 2.2 + inst.phase);
-    return { lean: m.amp * (w.sway + flutter), bend: m.bend, scaleY: 1, alpha: 1 };
+    return { lean: m.amp * (w.sway + flutter) * (calm ? CALM_SWAY : 1), bend: m.bend, scaleY: 1, alpha: 1 };
   }
 
   const visible = (box: WorldRect): boolean => {
@@ -342,16 +356,23 @@ export function createPlantSystem(opts: PlantSystemOptions): PlantSystem {
 
   function sync(state: GardenState, at: number, initial: boolean): void {
     const s = state.session;
-    // the growing plant
-    if (s) {
-      if (!growing || growing.id !== s.id) {
-        const def = getSpecies(s.speciesId);
-        const slot = slotById.get(s.slotId);
-        growing = def && slot ? { id: s.id, inst: makeInst(def, slot, s.seed, `session:${s.id}`), shown: initial ? growthTarget(s, at) : 0 } : null;
+    activeId = s?.id ?? null;
+    // the growing plants: one per session in progress; a new one starts from seed, a known one
+    // (after a reload: every one) at its own growth
+    const sessions = inProgressSessions(state);
+    for (const x of sessions) {
+      let g = growing.get(x.id);
+      if (!g) {
+        const def = getSpecies(x.speciesId);
+        const slot = slotById.get(x.slotId);
+        if (!def || !slot) continue;
+        const fresh = !initial && x === s && x.pausedAt === null;
+        g = { id: x.id, inst: makeInst(def, slot, x.seed, `session:${x.id}`), shown: fresh ? 0 : growthTarget(x, at), calm: false };
+        growing.set(x.id, g);
       }
-    } else if (growing) {
-      growing = null;
+      g.calm = x !== s;
     }
+    for (const id of [...growing.keys()]) if (!sessions.some((x) => x.id === id)) growing.delete(id);
     // finished plants
     const seen = new Set<string>();
     for (const plant of state.plants) {
@@ -379,29 +400,32 @@ export function createPlantSystem(opts: PlantSystemOptions): PlantSystem {
     }
     for (const id of [...finished.keys()]) if (!seen.has(id)) finished.delete(id);
     completing = null;
-    // a plant the session is replacing steps aside (and returns on cancel)
-    const displaced = s?.displacedPlantId ?? null;
+    // a plant a session is replacing steps aside (and returns on cancel)
+    const displaced = new Set(sessions.map((x) => x.displacedPlantId).filter((id): id is string => id !== null));
     for (const rec of finished.values()) {
-      const to = rec.plant.id === displaced ? 0 : 1;
+      const to = displaced.has(rec.plant.id) ? 0 : 1;
       if (rec.presence.to === to) continue;
       const from = initial ? to : fadeValue(rec.presence, lastT);
       rec.presence = { from, to, start: lastT, dur: to === 0 ? DISPLACE_OUT_SECONDS : DISPLACE_IN_SECONDS };
     }
     lastPlants = state.plants;
     lastSession = s;
+    lastWaiting = state.waiting;
   }
 
   function onStoreChange(state: GardenState, prev: GardenState, action: Action): void {
     if (!booted) return;
-    if (action.type === 'session/cancel' && prev.session && growing?.id === prev.session.id && !state.session) {
-      startWither(growing);
-      watering = null;
+    if (action.type === 'session/cancel' || action.type === 'session/complete') {
+      const still = new Set(inProgressSessions(state).map((x) => x.id));
+      for (const x of inProgressSessions(prev)) {
+        const g = growing.get(x.id);
+        if (!g || still.has(x.id)) continue;
+        if (action.type === 'session/cancel') startWither(g);
+        else completing = { id: x.id, from: g.shown };
+        if (watering?.id === x.id) watering = null;
+      }
     }
-    if (action.type === 'session/complete' && prev.session && growing?.id === prev.session.id) {
-      completing = { id: prev.session.id, from: growing.shown };
-      watering = null;
-    }
-    if (!state.session) watering = null;
+    if (watering && !inProgressSessions(state).some((x) => x.id === watering!.id)) watering = null;
     sync(state, sys?.clock.now() ?? 0, false);
   }
 
@@ -411,19 +435,21 @@ export function createPlantSystem(opts: PlantSystemOptions): PlantSystem {
     for (const rec of finished.values()) {
       cache.request(specFor(rec.inst, FINAL_STEP), visible(rec.inst.box) ? PRIORITY.visible : PRIORITY.ahead);
     }
-    if (growing) {
-      const { lo, hi } = stagePair(growing.shown);
-      cache.request(specFor(growing.inst, lo), PRIORITY.now);
-      cache.request(specFor(growing.inst, hi), PRIORITY.now);
+    for (const g of growing.values()) {
+      const { lo, hi } = stagePair(g.shown);
+      cache.request(specFor(g.inst, lo), PRIORITY.now);
+      cache.request(specFor(g.inst, hi), PRIORITY.now);
     }
   }
 
   function requestAhead(): void {
-    if (!growing) return;
-    const { lo, hi } = stagePair(growing.shown);
-    for (const step of [lo, hi]) cache.request(specFor(growing.inst, step), PRIORITY.now);
-    if (hi + 1 <= FINAL_STEP) cache.request(specFor(growing.inst, hi + 1), PRIORITY.next);
-    if (hi + 2 <= FINAL_STEP) cache.request(specFor(growing.inst, hi + 2), PRIORITY.ahead);
+    for (const g of growing.values()) {
+      const { lo, hi } = stagePair(g.shown);
+      for (const step of [lo, hi]) cache.request(specFor(g.inst, step), PRIORITY.now);
+      if (g.calm) continue; // a waiting seedling does not grow
+      if (hi + 1 <= FINAL_STEP) cache.request(specFor(g.inst, hi + 1), PRIORITY.next);
+      if (hi + 2 <= FINAL_STEP) cache.request(specFor(g.inst, hi + 2), PRIORITY.ahead);
+    }
   }
 
   // --- watering ----------------------------------------------------------------------------
@@ -490,8 +516,8 @@ export function createPlantSystem(opts: PlantSystemOptions): PlantSystem {
       draw: (ctx) =>
         timed(() => {
           const imgs = growthImages(g.inst, g.shown, PRIORITY.now);
-          const u = wateringProgress(t);
-          const pose = swayPose(g.inst, t);
+          const u = watering?.id === g.id ? wateringProgress(t) : null;
+          const pose = swayPose(g.inst, t, g.calm);
           if (u !== null && watering?.start != null) {
             const rig = wateringRig(g, imgs.a ?? imgs.b);
             // on the pond the drops ring the water instead of darkening soil
@@ -590,10 +616,11 @@ export function createPlantSystem(opts: PlantSystemOptions): PlantSystem {
       const sprite = imageFor(rec.inst, FINAL_STEP, PRIORITY.visible);
       if (sprite) list.push({ inst: rec.inst, sprite, alpha: a, lean: swayPose(rec.inst, t).lean });
     }
-    if (growing?.inst.axis != null) {
-      const imgs = growthImages(growing.inst, growing.shown, PRIORITY.now);
+    for (const g of growing.values()) {
+      if (g.inst.axis == null) continue;
+      const imgs = growthImages(g.inst, g.shown, PRIORITY.now);
       const sprite = imgs.weight >= 0.5 ? imgs.b ?? imgs.a : imgs.a ?? imgs.b;
-      if (sprite) list.push({ inst: growing.inst, sprite, alpha: 1, lean: swayPose(growing.inst, t).lean });
+      if (sprite) list.push({ inst: g.inst, sprite, alpha: 1, lean: swayPose(g.inst, t, g.calm).lean });
     }
     if (list.length === 0) return;
     ctx.save();
@@ -625,14 +652,15 @@ export function createPlantSystem(opts: PlantSystemOptions): PlantSystem {
       if (!booted) {
         booted = true;
         unsubs.push(c.store.subscribe(onStoreChange));
-        unsubs.push(c.bus.on('session:water', () => (waterPending = true)));
+        // the active session's plant, or the session the event names
+        unsubs.push(c.bus.on('session:water', (e) => (waterPending = e?.sessionId ?? activeId)));
         sync(c.store.get(), c.clock.now(), true);
       } else if (resChanged) {
         // instances keep their boxes; only the sprite resolution changes
         for (const rec of finished.values()) rec.inst = makeInst(rec.inst.def, rec.inst.slot, rec.inst.seed, rec.inst.key);
       }
       requestAll();
-      if (c.store.get().session) prewarmWatering(c.viewport.pixelScale, 40);
+      if (growing.size > 0) prewarmWatering(c.viewport.pixelScale, 40);
       let timer: ReturnType<typeof setTimeout> | undefined;
       await Promise.race([cache.whenIdle(), new Promise<void>((r) => (timer = setTimeout(r, initWait)))]);
       if (timer !== undefined) clearTimeout(timer);
@@ -655,20 +683,25 @@ export function createPlantSystem(opts: PlantSystemOptions): PlantSystem {
         rim = rimLight(light);
         if (!sys) return;
         const state = sys.store.get();
-        if (state.plants !== lastPlants || state.session !== lastSession) sync(state, f.now, false);
+        if (state.plants !== lastPlants || state.session !== lastSession || state.waiting !== lastWaiting) sync(state, f.now, false);
         const s = state.session;
         boost = s ? windBoost(sessionPhase(state, f.now)) : 0;
-        if (growing && s) {
-          const target = growthTarget(s, f.now);
-          if (f.dt <= 0 || Math.abs(target - growing.shown) < 1e-4) growing.shown = target;
-          else growing.shown += (target - growing.shown) * (1 - Math.exp(-f.dt / GROWTH_EASE_SECONDS));
+        if (growing.size > 0) {
+          for (const x of inProgressSessions(state)) {
+            const g = growing.get(x.id);
+            if (!g) continue;
+            const target = growthTarget(x, f.now);
+            if (f.dt <= 0 || Math.abs(target - g.shown) < 1e-4) g.shown = target;
+            else g.shown += (target - g.shown) * (1 - Math.exp(-f.dt / GROWTH_EASE_SECONDS));
+          }
           requestAhead();
         }
-        if (waterPending) {
-          waterPending = false;
-          if (growing) {
-            watering = { start: f.t };
-            prewarmWatering(sys.viewport.pixelScale, wateringRig(growing, undefined).size);
+        if (waterPending !== null) {
+          const g = growing.get(waterPending);
+          waterPending = null;
+          if (g) {
+            watering = { id: g.id, start: f.t };
+            prewarmWatering(sys.viewport.pixelScale, wateringRig(g, undefined).size);
           }
         }
         if (watering?.start != null && f.t - watering.start > WATERING_SECONDS * 0.9 + WET_LINGER_SECONDS) watering = null;
@@ -681,10 +714,10 @@ export function createPlantSystem(opts: PlantSystemOptions): PlantSystem {
     draw(layer: LayerId, ctx: CanvasRenderingContext2D, f: FrameInfo) {
       if (layer === 'waterSurface') timed(() => drawReflections(ctx, f.t));
       else if (layer === 'entities') timed(() => drawHighlight(ctx, f.t));
-      else if (layer === 'air' && growing && !reduced) {
+      else if (layer === 'air' && watering && !reduced) {
+        const g = growing.get(watering.id);
         const u = wateringProgress(f.t);
-        if (u === null || u >= 1) return;
-        const g = growing;
+        if (!g || u === null || u >= 1) return;
         timed(() => {
           const imgs = growthImages(g.inst, g.shown, PRIORITY.now);
           drawWateringFront(ctx, wateringRig(g, imgs.a ?? imgs.b), u, g.inst.seed);
@@ -698,7 +731,7 @@ export function createPlantSystem(opts: PlantSystemOptions): PlantSystem {
           const d = finishedDrawable(rec, f.t);
           if (d) out.push(d);
         }
-        if (growing) out.push(growingDrawable(growing, f.t));
+        for (const g of growing.values()) out.push(growingDrawable(g, f.t));
         for (const w of withering) out.push(witherDrawable(w, f.t));
         const ghost = ghostDrawable(f.t);
         if (ghost) out.push(ghost);
@@ -732,7 +765,8 @@ export function createPlantSystem(opts: PlantSystemOptions): PlantSystem {
     plantBounds(plantId) {
       const rec = finished.get(plantId);
       if (rec) return { ...rec.inst.box };
-      if (growing && growing.id === plantId) return { ...growing.inst.box };
+      const g = growing.get(plantId);
+      if (g) return { ...g.inst.box };
       const state = sys?.store.get();
       const plant = state?.plants.find((p) => p.id === plantId);
       const def = plant ? getSpecies(plant.speciesId) : undefined;
@@ -755,7 +789,10 @@ export function createPlantSystem(opts: PlantSystemOptions): PlantSystem {
       const state = sys?.store.get();
       if (state && sys) {
         sync(state, sys.clock.now(), false);
-        if (growing && state.session) growing.shown = growthTarget(state.session, sys.clock.now());
+        for (const x of inProgressSessions(state)) {
+          const g = growing.get(x.id);
+          if (g) g.shown = growthTarget(x, sys.clock.now());
+        }
         for (const rec of finished.values()) {
           rec.bloom = null;
           if (rec.appear !== null) rec.appear = null;
@@ -787,21 +824,31 @@ export function createPlantSystem(opts: PlantSystemOptions): PlantSystem {
       const displacedRec = s?.displacedPlantId ? finished.get(s.displacedPlantId) : undefined;
       const reflections: string[] = [];
       for (const rec of finished.values()) if (rec.inst.axis !== null) reflections.push(rec.plant.id);
-      if (growing?.inst.axis != null) reflections.push(`session:${growing.id}`);
+      for (const g of growing.values()) if (g.inst.axis != null) reflections.push(`session:${g.id}`);
       const u = wateringProgress(t);
       let grow: PlantDebugState['growing'] = null;
-      if (growing && s) {
-        const pair = stagePair(growing.shown);
+      const active = activeGrow();
+      if (active && s) {
+        const pair = stagePair(active.shown);
         grow = {
-          id: growing.id,
-          slotId: growing.inst.slot.id,
-          speciesId: growing.inst.speciesId,
+          id: active.id,
+          slotId: active.inst.slot.id,
+          speciesId: active.inst.speciesId,
           growth: growthTarget(s, sys!.clock.now()),
-          shown: growing.shown,
+          shown: active.shown,
           ...pair,
-          drawn: drawnThisFrame.has(`session:${growing.id}`),
+          drawn: drawnThisFrame.has(`session:${active.id}`),
         };
       }
+      const state = sys?.store.get();
+      const seedlings: PlantDebugState['seedlings'] = state
+        ? inProgressSessions(state).flatMap((x) => {
+            const g = growing.get(x.id);
+            return g
+              ? [{ id: g.id, slotId: g.inst.slot.id, speciesId: g.inst.speciesId, growth: growthTarget(x, sys!.clock.now()), shown: g.shown, active: x === s, calm: g.calm, drawn: drawnThisFrame.has(`session:${g.id}`) }]
+              : [];
+          })
+        : [];
       return {
         ready,
         resolution: res,
@@ -815,8 +862,14 @@ export function createPlantSystem(opts: PlantSystemOptions): PlantSystem {
           shown: r.appear === null ? 1 : r.appear === 'waiting' ? 0 : fadeValue(r.appear, t),
         })),
         growing: grow,
+        seedlings,
         withering: withering.map((w) => ({ slotId: w.inst.slot.id, progress: Math.min(1, (t - w.start) / WITHER_SECONDS) })),
-        watering: watering && watering.start !== null && u !== null ? { progress: Math.min(1, u), wet: gardenWetness(t - watering.start), active: u < 1 } : watering ? { progress: 0, wet: 0, active: true } : null,
+        watering:
+          watering && watering.start !== null && u !== null
+            ? { progress: Math.min(1, u), wet: gardenWetness(t - watering.start), active: u < 1, sessionId: watering.id }
+            : watering
+              ? { progress: 0, wet: 0, active: true, sessionId: watering.id }
+              : null,
         displaced: displacedRec ? { id: displacedRec.plant.id, alpha: fadeValue(displacedRec.presence, t) } : null,
         reflections,
         highlight: { active: highlight.active, slots: highlight.slots.length, ghost: highlight.active ? highlight.speciesId : null },

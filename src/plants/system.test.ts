@@ -13,6 +13,7 @@ import { APPEAR_SECONDS, createPlantSystem, DISPLACE_IN_SECONDS, DISPLACE_OUT_SE
 import { FakeCanvas, installFakeOffscreenCanvas } from './test-canvas';
 import type { SpeciesDef } from './types';
 import { GARDEN_PLANT_SCALE } from '../scene/slots';
+import { WATERING_SECONDS, WET_LINGER_SECONDS } from './watering';
 
 const MIN = 60_000;
 
@@ -394,5 +395,76 @@ describe('plant system', () => {
     env.frame();
     expect(sys.perf().frames).toBeGreaterThan(100);
     expect(sys.perf().avgMs).toBeLessThan(2);
+  });
+});
+
+describe('several sessions in progress (ADRs 0150, 0155)', () => {
+  /** a seedling in meadow-1 (session-1), then a second session in back-1 (session-2) after 10 min */
+  async function two(opts: Parameters<typeof setup>[0] = {}) {
+    const env = setup(opts);
+    const sys = await ready(env);
+    env.start('meadow-1');
+    env.clock.advance(10 * MIN);
+    env.store.dispatch({ type: 'session/start', id: 'session-2', taskName: 'Two', goalMinutes: 60, plan: PLAN, speciesId: 'small', slotId: 'back-1', seed: 7, now: env.clock.now(), weather: 'sun' });
+    env.frame(0);
+    return { env, sys };
+  }
+
+  it('draws each seedling at its slot and its own growth; the waiting one stands calm and does not grow', async () => {
+    const { env, sys } = await two();
+    const seedlings = () => Object.fromEntries(sys.debugState().seedlings.map((x) => [x.id, x]));
+    expect(seedlings()['session-1']).toMatchObject({ slotId: 'meadow-1', active: false, calm: true });
+    expect(seedlings()['session-1']!.growth).toBeCloseTo(10 / 50, 6);
+    expect(seedlings()['session-2']).toMatchObject({ slotId: 'back-1', active: true, calm: false, growth: 0 });
+    expect(sys.debugState().growing!.id).toBe('session-2');
+    env.clock.advance(20 * MIN);
+    env.frame(0);
+    expect(seedlings()['session-1']!.shown).toBeCloseTo(10 / 50, 6);
+    expect(seedlings()['session-2']!.shown).toBeCloseTo(20 / 50, 6);
+    const depths = sys.entities!(env.frame()).map((d) => d.depth);
+    expect(depths).toEqual(expect.arrayContaining([slot('meadow-1').y, slot('back-1').y]));
+  });
+
+  it('waters the seedling the event names (default: the active one), and only that one', async () => {
+    const { env, sys } = await two();
+    env.bus.emit('session:water', { blockIndex: 0, sessionId: 'session-1', auto: true });
+    env.frame();
+    env.run(0.5);
+    expect(sys.debugState().watering).toMatchObject({ sessionId: 'session-1', active: true });
+    env.run(WATERING_SECONDS + WET_LINGER_SECONDS + 1);
+    env.bus.emit('session:water', { blockIndex: 0, sessionId: 'nobody', auto: true });
+    env.frame();
+    expect(sys.debugState().watering).toBeNull();
+  });
+
+  it('cancelling the waiting session withers only its seedling; the active one keeps growing', async () => {
+    const restore = installFakeOffscreenCanvas();
+    try {
+      const { env, sys } = await two();
+      env.store.dispatch({ type: 'session/cancel', id: 'session-1', now: env.clock.now() });
+      env.frame();
+      expect(sys.debugState().withering.map((w) => w.slotId)).toEqual(['meadow-1']);
+      expect(sys.debugState().seedlings.map((x) => x.id)).toEqual(['session-2']);
+      expect(sys.debugState().growing!.id).toBe('session-2');
+    } finally {
+      restore();
+    }
+  });
+
+  it('a plant displaced by a waiting session stays aside', async () => {
+    const { env, sys } = await two({ plants: [plant('old', 'meadow-1')] });
+    env.run(DISPLACE_OUT_SECONDS + 0.5);
+    expect(sys.debugState().finished.find((p) => p.id === 'old')!.alpha).toBe(0);
+  });
+
+  it('after a reload every seedling shows at its own growth at once', async () => {
+    const env = setup();
+    const a = { id: 'a', taskName: 'A', goalMs: 60 * MIN, plan: PLAN, speciesId: 'small', slotId: 'meadow-1', seed: 1, displacedPlantId: null, startedAt: env.clock.now() - 30 * MIN, pausedAt: env.clock.now() - 20 * MIN, pausedTotalMs: 0, skippedMs: 0, weather: 'sun' as const, waterings: [], focusWaterings: 0 };
+    const b = { ...a, id: 'b', slotId: 'back-1', startedAt: env.clock.now() - 5 * MIN, pausedAt: null };
+    env.store.dispatch({ type: 'state/replace', state: { ...env.store.get(), session: b, waiting: [a] } });
+    const sys = await ready(env);
+    const by = Object.fromEntries(sys.debugState().seedlings.map((x) => [x.id, x.shown]));
+    expect(by.a).toBeCloseTo(10 / 50, 6);
+    expect(by.b).toBeCloseTo(5 / 50, 6);
   });
 });

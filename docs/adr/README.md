@@ -78,8 +78,8 @@ commit, and when it replaces or changes an earlier decision, update that ADR's S
 | [0111](0111-sprites-painted-in-workers.md) | Sprites painted in workers | accepted | Priority queue, up to 2 module workers, idle-callback fallback |
 | [0112](0112-sprite-lru-and-resolution-buckets.md) | Sprite LRU and resolution buckets | accepted | Quarter-octave buckets; byte-budgeted LRU |
 | [0113](0113-sway-skew-bend-and-wind-adapter.md) | Sway: skew, bend, wind adapter | accepted | Skew small plants, 6-slice bend for large ones; driven by the ambience wind |
-| [0114](0114-watering-animation.md) | Watering animation | accepted | Pure 2.5 s timeline; painted can and droplets on `air`; damp soil lingers |
-| [0115](0115-wither-from-store-actions.md) | Wither from store actions | accepted | Cancel → 3 s wither; completion hands the growth over without a gap |
+| [0114](0114-watering-animation.md) | Watering animation | accepted; amended by 0155 | Pure 2.5 s timeline; painted can and droplets on `air`; damp soil lingers |
+| [0115](0115-wither-from-store-actions.md) | Wither from store actions | accepted; amended by 0155 | Cancel → 3 s wither; completion hands the growth over without a gap |
 | [0116](0116-reflections-about-the-local-shoreline.md) | Reflections about the local shoreline | accepted | Mirror about the plant's base or the nearby pond edge |
 | [0117](0117-placement-highlight-in-canvas.md) | Placement highlight in the canvas | accepted | The plant system echoes `ui.placement` with dabs and a ghost plant |
 | [0118](0118-plant-view-on-the-plant-system.md) | Plant view on the plant system | accepted | View uses its own sprite cache plus the shared watering and wither |
@@ -113,3 +113,4 @@ commit, and when it replaces or changes an earlier decision, update that ADR's S
 | [0152](0152-after-a-bloom-the-gardener-chooses.md) | After a bloom the gardener chooses | accepted | Completion/cancel leaves nothing active; the dock offers Resume on the session left last |
 | [0153](0153-automatic-focus-watering.md) | Automatic focus watering | accepted | Seeded 4–10 min intervals of focused time; one `session:water { auto: true }` per due batch, only in focus |
 | [0154](0154-schema-v2-migration.md) | Schema v2 and the v1 → v2 migration | accepted | v1 session stays active, nothing waits, log back-filled from plants; v2 validation rules |
+| [0155](0155-several-seedlings-in-the-garden.md) | Several seedlings in the garden | accepted | One growing record per session in progress; waiting seedlings hold their growth and sway calm; water by `sessionId` |

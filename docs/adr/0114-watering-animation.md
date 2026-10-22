@@ -1,6 +1,6 @@
 # ADR 0114 — The watering moment: a pure timeline over cached paintings
 
-- Status: accepted
+- Status: accepted; amended by ADR 0155 (several seedlings: the event names the session)
 - Date: 2026-10-22
 
 ## Decision

@@ -1,6 +1,6 @@
 # ADR 0115 — Wither and bloom are driven by store actions
 
-- Status: accepted
+- Status: accepted; amended by ADR 0155 (any session in progress can wither or bloom)
 - Date: 2026-10-22
 
 ## Decision

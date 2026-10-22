@@ -50,11 +50,15 @@ store (plants, session) ──sync──▶ records ──requests──▶ spri
        entities(f): finished · growing · withering · ghost  (depth = slot y)
        draw('air'): the can + droplets
 ```
-- **Records** are re-synced whenever `store.get().plants` or `.session` change: one per finished
-  plant (`presence` fade, `appear` fade, `bloom`), one for the session's growing plant, a list of
-  withering seedlings. A store listener sees the *action*: `session/cancel` starts a wither,
-  `session/complete` hands the growing plant's displayed growth to the finished record (bloom),
-  anything else (reset, import) just re-syncs.
+- **Records** are re-synced whenever `store.get().plants`, `.session` or `.waiting` change: one per
+  finished plant (`presence` fade, `appear` fade, `bloom`), one growing plant **per session in
+  progress** (the active one and the waiting ones, ADR 0155), a list of withering seedlings. A store
+  listener sees the *action*: `session/cancel` withers the seedling of the session that ended (any
+  of them), `session/complete` hands that growing plant's displayed growth to the finished record
+  (bloom), anything else (reset, import, switch) just re-syncs.
+- **Waiting seedlings stand calm** (ADR 0155): their session is paused, so their growth holds; they
+  get no session wind boost and sway at `CALM_SWAY` (0.6) of a plant at rest. Only the active
+  seedling asks for the growth steps ahead. Every in-progress session's displaced plant stays aside.
 - **Growth**: `sessionTimeline(session, f.now).growth` (what `controller.status().timeline.growth`
   returns). The displayed growth eases toward it (τ = 0.6 s) so a dev jump or a reload grows the
   plant in; frames with `dt = 0` (freeze, `renderOnce`) snap, so screenshots are exact.
@@ -114,8 +118,9 @@ Each plant is drawn in the garden's daylight (the shared `DaylightSource`, docs/
 Reflections are drawn over the mirrored sky the scene lays on the pond.
 
 ## Watering (ADR 0114)
-`session:water` (from the panel, the widget or the dev API) starts a 2.5 s animation at the growing
-plant. `wateringTimeline(u)`: glide in 0–0.26 · tilt 0.2–0.37 · pour 0.29–0.74 · soil darkens
+`session:water` (from the panel, the widget, the automatic focus watering or the dev API) starts a
+2.5 s animation at the growing plant of the session the event names (`sessionId`; the active one
+by default — ADR 0153). `wateringTimeline(u)`: glide in 0–0.26 · tilt 0.2–0.37 · pour 0.29–0.74 · soil darkens
 0.36–0.6 · leaves lift 0.42–0.62 (+4 % height, a small nudge) · straighten 0.68–0.84 · lift away
 0.8–1. The **rig** is measured from the sprite's content bounds (plant top and width); the can's
 body is `0.5 × visible height` (30–54 world units × `plantScale(slot)`, so it still reads on the far
@@ -186,8 +191,9 @@ just before, with no frame in between), every sprite the garden needs is painted
 just appeared have faded in (ADR 0149), without snapping
 growth or blooms; use it before a screenshot (`sprout.addPlants(25); await sprout.plantsReady()`).
 `window.sprout.plants`:
-`state()` (ready, resolution, finished [id, slot, alpha, shown, drawn, blooming], growing [growth, shown,
-lo, hi, weight, drawn], withering, watering [progress, wet, active], displaced, reflections,
+`state()` (ready, resolution, finished [id, slot, alpha, shown, drawn, blooming], growing (the active
+seedling) [growth, shown, lo, hi, weight, drawn], seedlings (every session in progress: id, slot,
+growth, shown, active, calm, drawn), withering, watering [progress, wet, active, sessionId], displaced, reflections,
 highlight, cache stats), `settle()` (snap growth/fades, paint what is needed, resolve when idle),
 `whenIdle()`, `bounds(id)`, `boundsFor(speciesId, slotId)`, `toDevice(rect)`, `perf()`,
 `resetPerf()`, `ambienceWind()`.
