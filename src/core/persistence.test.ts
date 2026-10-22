@@ -451,3 +451,49 @@ describe('export / import', () => {
     expect(r.ok && r.value.from).toBe(0);
   });
 });
+
+describe('scheduled sessions (ADR 0170: an optional key, no schema bump)', () => {
+  const schedule = {
+    id: 'sch-1',
+    name: 'Biology',
+    date: '2026-10-23',
+    time: '09:00',
+    lengthMinutes: 60,
+    planId: 'pomodoro',
+    repeat: 'weekdays',
+    until: null,
+    notes: { '2026-10-26': { skipped: true }, '2026-10-27': { sessionId: 'session-x', time: '10:30', junk: 1 } },
+    createdAt: T0,
+  };
+
+  it('a v2 garden saved before schedules loads with none', () => {
+    const old: Partial<GardenState> = { ...createDefaultState(T0) };
+    delete old.schedules;
+    const r = validateState(old);
+    expect(r.ok && r.value.state.schedules).toEqual([]);
+  });
+
+  it('round-trips schedules through export and import (unknown note keys dropped)', () => {
+    const state = { ...createDefaultState(T0), schedules: [schedule] } as unknown as GardenState;
+    const r = importState(exportState(state, T0));
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.state.schedules[0]).toEqual({ ...schedule, notes: { '2026-10-26': { skipped: true }, '2026-10-27': { sessionId: 'session-x', time: '10:30' } } });
+  });
+
+  it.each([
+    ['a bad time', { time: '9am' }],
+    ['a plan without a length', { lengthMinutes: null }],
+    ['an unknown repeat', { repeat: 'monthly' }],
+    ['an until before the start', { until: '2026-10-01' }],
+    ['a bad note', { notes: { '2026-10-26': { time: 'later' } } }],
+  ])('rejects a schedule with %s', (_n, over) => {
+    const r = validateState({ ...createDefaultState(T0), schedules: [{ ...schedule, ...over }] });
+    expect(r).toMatchObject({ ok: false, error: { code: 'invalid-state' } });
+  });
+
+  it('rejects duplicate schedule ids', () => {
+    const r = validateState({ ...createDefaultState(T0), schedules: [schedule, schedule] });
+    expect(r).toMatchObject({ ok: false, error: { path: 'schedules[1].id' } });
+  });
+});

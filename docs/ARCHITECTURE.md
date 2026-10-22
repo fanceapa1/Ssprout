@@ -23,6 +23,10 @@ src/
     session.ts            session phases (idle/focus/break/paused), timeline + growth maths, goal clamp, weather,
                           the automatic focus-watering schedule
     session-log.ts        history queries (day/week/month, local calendar) and the v1 back-fill
+    schedule.ts           scheduled sessions: the rule + notes model, local-calendar recurrence expansion,
+                          due / missed / done status, the start prefill (ADRs 0170–0173)
+    schedule-reducer.ts   schedule/* reducers; "only this one" / "this and following" edits as actions
+    schedule-controller.ts the scheduler: the API for schedules, the due tick, `schedule:due`
     rewards.ts            tier from minutes, selectable species per total
     plans.ts              study plans: recommendPlans(total), plan validation
     placement.ts          slot compatibility (habitat + size class), swap candidates
@@ -194,7 +198,7 @@ a plant's box is `size × plantScale(slot)` (`plantScale(slot) = slot.scale × 1
 `plantWorldBounds` (`src/plants/bounds.ts`) is the one place that computes it; `slot.scale` itself
 stays the ground's perspective (fauna uses it for creatures).
 
-### State (`src/core/state.ts`, ADR 0003, ADR 0036, ADRs 0150–0154)
+### State (`src/core/state.ts`, ADR 0003, ADR 0036, ADRs 0150–0154, 0170)
 Each session is one plant, chosen at start, growing live in its slot. Up to three sessions are in
 progress: `session` is the **active** one (the timer, weather, motes, audio and widget follow it),
 `waiting` holds the others, all paused, in the order they were left (ADR 0150). Ended sessions go
@@ -221,6 +225,7 @@ export interface GardenState {
   session: ActiveSession | null; // the active session
   waiting: ActiveSession[];     // other sessions in progress, all paused (≤ MAX_SESSIONS − 1)
   log: SessionLogEntry[];       // ended sessions, oldest first
+  schedules: Schedule[];        // scheduled sessions (core/schedule.ts, ADR 0170); absent in older v2 docs → []
   stats: { totalMinutes: number /* focused */; completed: number; cancelled: number };
   faunaSeen: string[];          // creature ids already announced
   tips: Record<string, 'seen'>; // retired tips
@@ -260,6 +265,11 @@ deterministic. `type Action =`
 | `fauna/seen` | `id` | creature announced |
 | `state/replace` | `state` | import / load a whole state |
 | `state/reset` | `now` | fresh default state |
+| `schedule/add` | `schedule` | add a validated schedule (new id) — ADR 0170 |
+| `schedule/update` | `id, patch` | edit the whole rule (notes on dates it no longer has are dropped) |
+| `schedule/remove` | `id` | remove a schedule |
+| `schedule/note` | `id, date, note \| null` | replace one occurrence's note (skip, let pass, linked session, overrides) |
+| `schedule/split` | `id, date, newId, now, patch` | "this and following": end the series before `date`, a new one from it — ADR 0171 |
 
 Types exported alongside: `Settings`, `GardenStats`, `Action`, `ActionType`, `Reducer<S, A>`,
 `Listener<S, A>`, `Store`, `createStore`, `createDefaultState(now)`, `STATE_VERSION` (2),
@@ -274,6 +284,36 @@ complete and cancel. Pure queries over it: `entriesBetween(log, { from, to }, { 
 `dayRange(t)`, `weekRange(t, weekStartsOn = 1)`, `monthRange(t)` (local calendar),
 `entriesOnDay | entriesInWeek | entriesInMonth(log, t, q?)`, `dayKey(t)` (`YYYY-MM-DD`),
 `groupByDay(entries)` (by start day), `focusedMinutes(entries, q?)`, `backfillLog(plants)`.
+
+### Scheduled sessions (`src/core/schedule*.ts`, ADRs 0170–0174)
+A schedule is **a rule plus per-occurrence notes**; occurrences are never stored.
+```ts
+type Repeat = 'none' | 'daily' | 'weekdays' | 'weekly';
+interface OccurrenceNote { skipped?: true; dismissed?: true; sessionId?: string; name?: string; time?: string;
+  lengthMinutes?: number | null; planId?: string | null }
+interface Schedule { id; name /* ≤ 40 */; date /* local YYYY-MM-DD, first occurrence */; time /* local HH:MM */;
+  lengthMinutes: number | null /* null: chosen at start */; planId: string | null /* needs a length */;
+  repeat: Repeat; until: string | null /* exclusive */; notes: Record<string /* date */, OccurrenceNote>; createdAt }
+interface Occurrence { key /* scheduleId@date */; scheduleId; date; at; end; name; time; lengthMinutes; planId; repeat;
+  first: boolean; note: OccurrenceNote | null }
+type OccurrenceStatus = 'upcoming' | 'due' | 'missed' | 'dismissed' | 'started' | 'done' | 'ended';
+```
+**Recurrence contract** (pure, `schedule.ts`): `occursOn(rule, date)`, `occurrenceOn(s, date)` (notes
+applied; null when skipped), `expandSchedule(s, range)` / `expandSchedules(list, range)` (occurrences
+whose `[at, end)` overlaps the half-open range, by start; local wall time, calendar-day steps, DST-safe),
+`occurrenceStatus(o, { now, inProgress, log })` (derived, never stored), `dueUntil(o)` (= `at` +
+length (30 when open) + 30 min, ADR 0172), `viewOccurrences`, `dueOccurrences`, `nextOccurrence`,
+`startPrefill(o)` (ADR 0173), validation (`scheduleProblem`, `noteProblem`, `lengthPlanProblem`,
+`makeSchedule`), local-calendar helpers (`parseDate`, `localTime`, `addDays`, `weekdayOf`, `daysBetween`,
+`timeOfDay`). Edits: `planEdit(s, date, edit, 'this' | 'following', ids)` and `planRemove(s, date, scope)`
+return the `schedule/*` actions (`schedule-reducer.ts`, table in ADR 0171).
+
+**Scheduler** (`createScheduler({ store, clock, bus, ticker?, seed? })`, `schedule-controller.ts`) — the
+API the calendar, the waiting card and `?dev` use: `add(input) => Schedule | null`, `edit(ref, edit, scope)`,
+`remove(ref, scope)`, `dismiss(ref)`, `link(ref, sessionId)`, `get(ref)`, `occurrences(range)`, `due()`,
+`next()`, `check()`, `onChange(fn)` (the due set changed with time), `onTick(fn)`, `setTicker`, `setSeed`,
+`dispose()` (`ref = { scheduleId, date }`). It ticks while any schedule exists (main gives it the widget's
+Web Worker ticker) and emits `schedule:due` once per occurrence per page.
 
 ### Study plans (`src/core/plans.ts`, ADR 0036)
 `recommendPlans(totalMinutes): StudyPlan[]` — 2–4 plans (only `unbroken` below 30 min), each summing
@@ -331,14 +371,15 @@ kept and flagged).
 ### Events (`src/core/events.ts`)
 `session:start | session:pause | session:resume | session:switch | session:cancel | session:break |
 session:focus | session:water | session:complete | plant:placed | plant:swapped | fauna:arrived |
-tip:retired | settings:changed`. Payloads are typed in `EventMap`: `'session:break' | 'session:focus':
+tip:retired | settings:changed | schedule:due`. Payloads are typed in `EventMap`: `'session:break' | 'session:focus':
 { blockIndex, sessionId }`, `'session:water': { blockIndex, sessionId, auto }` (`auto`: the automatic
 focus watering, ADR 0153), `'session:start': { session, pausedId? }` (`pausedId`: the session that now
 waits), `'session:pause': { sessionId, at, reason? }` (`'user'` or `'switch'`), `'session:resume' |
 'session:cancel': { sessionId, at }`, `'session:switch': { from, to, at }` (after the pause/resume it
 implies; `from` null when nothing was active), `'session:complete': { sessionId, plant }`, `'plant:placed': { plant }`
 and `'plant:swapped': { plant, removed }` (both on completion; swapped first), `'fauna:arrived': { id }`,
-`'tip:retired': { id }`, `'settings:changed': { settings }`. `fauna:arrived` is emitted by the fauna
+`'tip:retired': { id }`, `'settings:changed': { settings }`, `'schedule:due': { occurrence }` (an
+`OccurrenceView` whose time has come, from the scheduler's tick, ADR 0172). `fauna:arrived` is emitted by the fauna
 system the first time a newly unlocked creature is actually in view (ADR 0120); the UI's quiet line
 announces it and records it with `controller.announceFauna(id)`.
 `createEventBus()` → `{ on, once, off, emit, clear }`; `on` returns an unsubscribe function;

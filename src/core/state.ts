@@ -2,6 +2,8 @@ import type { SpeciesDef } from '../plants/types';
 import { isCompatible, type PlacementSlot, type PlacementSpecies } from './placement';
 import { focusMinutes, planProblem, type StudyPlan } from './plans';
 import { tierForMinutes } from './rewards';
+import type { Schedule } from './schedule';
+import { reduceSchedules, type ScheduleAction } from './schedule-reducer';
 import {
   clampGoalMinutes,
   dueFocusWaterings,
@@ -122,6 +124,8 @@ export interface GardenState {
   waiting: ActiveSession[];
   /** ended sessions, oldest first (ADR 0151) */
   log: SessionLogEntry[];
+  /** scheduled study sessions: rules plus per-occurrence notes (ADRs 0170–0171) */
+  schedules: Schedule[];
   stats: GardenStats;
   /** creature ids already announced */
   faunaSeen: string[];
@@ -167,6 +171,7 @@ export function createDefaultState(now: number): GardenState {
     session: null,
     waiting: [],
     log: [],
+    schedules: [],
     stats: { totalMinutes: 0, completed: 0, cancelled: 0 },
     faunaSeen: [],
     tips: {},
@@ -207,7 +212,9 @@ export type Action =
   | { type: 'settings/update'; patch: Partial<Settings> }
   | { type: 'fauna/seen'; id: string }
   | { type: 'state/replace'; state: GardenState }
-  | { type: 'state/reset'; now: number };
+  | { type: 'state/reset'; now: number }
+  /** scheduled sessions (core/schedule-reducer.ts, ADR 0171) */
+  | ScheduleAction;
 
 export type ActionType = Action['type'];
 
@@ -440,6 +447,15 @@ export function createReducer(world?: ReducerWorld): Reducer {
       case 'state/reset':
         if (!finite(action.now)) return state;
         return createDefaultState(action.now);
+
+      case 'schedule/add':
+      case 'schedule/update':
+      case 'schedule/remove':
+      case 'schedule/note':
+      case 'schedule/split': {
+        const next = reduceSchedules(state.schedules, action);
+        return next === state.schedules ? state : { ...state, schedules: next as Schedule[] };
+      }
 
       default:
         return state;

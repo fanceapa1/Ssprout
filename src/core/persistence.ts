@@ -1,4 +1,5 @@
 import { planProblem, type StudyPlan } from './plans';
+import { noteProblem, scheduleProblem, type OccurrenceNote, type Schedule } from './schedule';
 import { clampGoalMinutes, DEFAULT_TASK_NAME, MINUTE_MS, normalizeTaskName } from './session';
 import { backfillLog } from './session-log';
 import {
@@ -326,6 +327,52 @@ function readLogEntry(v: unknown, path: string): SessionLogEntry {
   return entry;
 }
 
+/**
+ * A scheduled session (ADR 0170). Absent in v2 documents written before phase 8: the key is
+ * optional (default `[]`), so no schema bump. Present schedules must be valid.
+ */
+function readSchedule(v: unknown, path: string): Schedule {
+  const o = obj(v, path);
+  const notesRaw = opt(o, 'notes', {} as Json, obj, `${path}.notes`);
+  const notes: Record<string, OccurrenceNote> = {};
+  for (const [date, n] of Object.entries(notesRaw)) {
+    const no = obj(n, `${path}.notes.${date}`);
+    // known keys only (unknown ones are dropped, like everywhere else in the state)
+    const note: OccurrenceNote = {};
+    for (const k of ['skipped', 'dismissed', 'sessionId', 'name', 'time', 'lengthMinutes', 'planId'] as const) {
+      if (no[k] !== undefined) (note as Record<string, unknown>)[k] = no[k];
+    }
+    const p = noteProblem(note);
+    if (p) throw new Invalid(`${path}.notes.${date}`, p);
+    notes[date] = note;
+  }
+  const s: Schedule = {
+    id: str(o.id, `${path}.id`),
+    name: normalizeTaskName(str(o.name, `${path}.name`)),
+    date: str(o.date, `${path}.date`),
+    time: str(o.time, `${path}.time`),
+    lengthMinutes: o.lengthMinutes === undefined || o.lengthMinutes === null ? null : num(o.lengthMinutes, `${path}.lengthMinutes`),
+    planId: o.planId === undefined || o.planId === null ? null : str(o.planId, `${path}.planId`),
+    repeat: oneOf(o.repeat ?? 'none', ['none', 'daily', 'weekdays', 'weekly'] as const, `${path}.repeat`),
+    until: o.until === undefined || o.until === null ? null : str(o.until, `${path}.until`),
+    notes,
+    createdAt: opt(o, 'createdAt', 0, num, `${path}.createdAt`),
+  };
+  const problem = scheduleProblem(s);
+  if (problem) throw new Invalid(path, problem);
+  return s;
+}
+
+function readSchedules(v: unknown, path: string): Schedule[] {
+  const list = arr(v, path).map((x, i) => readSchedule(x, `${path}[${i}]`));
+  const ids = new Set<string>();
+  list.forEach((s, i) => {
+    if (ids.has(s.id)) throw new Invalid(`${path}[${i}].id`, `duplicate schedule id "${s.id}"`);
+    ids.add(s.id);
+  });
+  return list;
+}
+
 function readState(raw: unknown, now: number): GardenState {
   const o = obj(raw, '$');
   if (o.version !== STATE_VERSION) throw new Invalid('version', `expected version ${STATE_VERSION}`);
@@ -359,6 +406,7 @@ function readState(raw: unknown, now: number): GardenState {
     session: opt(o, 'session', null, readSession, 'session'),
     waiting: opt(o, 'waiting', [] as ActiveSession[], readWaiting, 'waiting'),
     log: opt(o, 'log', [] as SessionLogEntry[], (v, p) => arr(v, p).map((x, i) => readLogEntry(x, `${p}[${i}]`)), 'log'),
+    schedules: opt(o, 'schedules', [] as Schedule[], readSchedules, 'schedules'),
     stats: {
       totalMinutes: opt(statsRaw, 'totalMinutes', 0, (v, p) => num(v, p, 0), 'stats.totalMinutes'),
       completed: opt(statsRaw, 'completed', 0, (v, p) => num(v, p, 0), 'stats.completed'),
