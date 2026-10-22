@@ -10,5 +10,3 @@ coverage/
 .DS_Store
 .vite/
 
-# local agent tooling
-.claude/
