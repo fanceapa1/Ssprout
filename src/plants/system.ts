@@ -33,6 +33,11 @@ import {
 } from './watering';
 import { gardenWind, windBoost, type WindFn } from './wind-adapter';
 import { plantScale } from '../scene/slots';
+import { pinnedSource, type DaylightSource } from '../ambience/daylight-source';
+import type { DaylightState } from '../ambience/daylight';
+import { castShadow, rimLight, type CastShadow, type RimLight } from '../ambience/sky-layout';
+import { createRimCache } from '../paint/rim';
+import { drawPlantShadow } from './shadow';
 import { drawWithering, WITHER_SECONDS } from './wither';
 
 /**
@@ -49,6 +54,8 @@ export interface PlantSystemOptions {
   /** default: the garden wind (ambience, or the local fallback) */
   wind?: WindFn;
   budgetBytes?: number;
+  /** the garden's daylight: cast shadows and rim light follow its sun (default: pinned midday) */
+  daylight?: DaylightSource;
   /** upper bound for init waiting on the first sprites (ms, default 8000) */
   initWaitMs?: number;
 }
@@ -67,6 +74,10 @@ export const APPEAR_SECONDS = 0.9;
 export const BLOOM_SECONDS = 2.6;
 /** time constant of the displayed growth catching up with the session's growth */
 export const GROWTH_EASE_SECONDS = 0.6;
+/** How dark a plant's cast shadow is relative to the phase's shadow (they are small, soft things). */
+export const SHADOW_PLANT = 0.6;
+/** How strongly plants take the rim light. */
+export const RIM_PLANT = 0.85;
 
 interface Fade {
   from: number;
@@ -183,6 +194,12 @@ export function createPlantSystem(opts: PlantSystemOptions): PlantSystem {
   let highlight: PlacementSnapshot = NO_PLACEMENT;
   let unsubPlacement: (() => void) | null = null;
   const drawnThisFrame = new Set<string>();
+  const daylight = opts.daylight ?? pinnedSource('midday');
+  let light: DaylightState = daylight.at(0);
+  let shadow: CastShadow = castShadow(light);
+  let rim: RimLight = rimLight(light);
+  const rims = createRimCache();
+
 
   // perf
   let perfAcc = 0;
@@ -417,7 +434,8 @@ export function createPlantSystem(opts: PlantSystemOptions): PlantSystem {
               image = growthImage(inst, imgs, inst.key)?.image ?? null;
             }
           }
-          if (!image) image = imageFor(inst, FINAL_STEP, PRIORITY.visible)?.image ?? null;
+          const final = imageFor(inst, FINAL_STEP, PRIORITY.visible);
+          if (!image) image = final?.image ?? null;
           if (!image) return;
           if (rec.appear === 'waiting') rec.appear = { from: 0, to: 1, start: t, dur: APPEAR_SECONDS };
           let alpha = presence;
@@ -429,7 +447,7 @@ export function createPlantSystem(opts: PlantSystemOptions): PlantSystem {
           drawnThisFrame.add(rec.plant.id);
           const pose = swayPose(inst, t);
           pose.alpha = alpha;
-          drawPlant(ctx, image, inst.box, inst.slot.x, inst.slot.y, pose);
+          drawLit(ctx, inst, image, rec.bloom ? undefined : final, pose);
         }),
     };
   }
@@ -455,9 +473,33 @@ export function createPlantSystem(opts: PlantSystemOptions): PlantSystem {
           const img = growthImage(g.inst, imgs, g.inst.key);
           if (!img) return;
           drawnThisFrame.add(`session:${g.id}`);
-          drawPlant(ctx, img.image, g.inst.box, g.inst.slot.x, g.inst.slot.y, pose);
+          // light and shadow follow the nearer growth step (the cross-fade buffer changes every frame)
+          drawLit(ctx, g.inst, img.image, imgs.weight >= 0.5 ? imgs.b ?? imgs.a : imgs.a ?? imgs.b, pose);
         }),
     };
+  }
+
+  /**
+   * A plant in the garden's light: its cast shadow on the ground first (not on open water), the
+   * plant, then the rim of its sun-facing edges (screen) with the same pose. `lit` is a stable
+   * sprite for the shadow's extent and the rim mask (null: no shadow or rim this frame).
+   */
+  function drawLit(ctx: CanvasRenderingContext2D, inst: Inst, image: CanvasImageSource, lit: Sprite | undefined, pose: PlantPose): void {
+    const b = lit?.bounds;
+    if (b && shadow.alpha > 0.01 && inst.slot.habitat !== 'water') {
+      const w = (b.right - b.left) * inst.box.w;
+      const h = (inst.def.anchor.y - b.top) * inst.box.h;
+      drawPlantShadow(ctx, { x: inst.slot.x, y: inst.slot.y, w, h }, shadow, pose.alpha * SHADOW_PLANT);
+    }
+    drawPlant(ctx, image, inst.box, inst.slot.x, inst.slot.y, pose);
+    if (lit && rim.strength > 0.02) {
+      const mask = rims.get(lit.image, rim.side, rim.rgb);
+      if (!mask) return;
+      ctx.save();
+      ctx.globalCompositeOperation = 'screen';
+      drawPlant(ctx, mask as CanvasImageSource, inst.box, inst.slot.x, inst.slot.y, { ...pose, alpha: pose.alpha * rim.strength * RIM_PLANT });
+      ctx.restore();
+    }
   }
 
   function witherDrawable(w: WitherRec, t: number): Drawable {
@@ -575,6 +617,9 @@ export function createPlantSystem(opts: PlantSystemOptions): PlantSystem {
         cache.beginFrame();
         drawnThisFrame.clear();
         lastT = f.t;
+        light = daylight.at(f.now);
+        shadow = castShadow(light);
+        rim = rimLight(light);
         if (!sys) return;
         const state = sys.store.get();
         if (state.plants !== lastPlants || state.session !== lastSession) sync(state, f.now, false);
