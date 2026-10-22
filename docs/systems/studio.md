@@ -51,7 +51,7 @@ Seed + **Reseed**, **Play/Pause**, speed 0.25×–4×, background paper/white/da
 Errors thrown by an entry are shown on its card and logged to the console.
 
 URL: `#<section>` (only that section) · `?entry=<section>/<entry>` (single entry, large; a bare
-entry id works when unique) · `?seed=n` · `?t=seconds` (start paused at t) · `?scale=2` ·
+entry id works when unique) · `?seed=n` (default 1) · `?t=seconds` (start paused at t) · `?scale=2` ·
 `?bg=dark`.
 
 `window.studio` (for tests/scripts): `{ ready, entries, errors, renders(), pause(), setT(t) }`.
@@ -59,11 +59,13 @@ entry id works when unique) · `?seed=n` · `?t=seconds` (start paused at t) · 
 ## Screenshots
 ```
 npm run shots -- --studio                         # whole studio, full page
-npm run shots -- --studio species-placeholder-sprout
+npm run shots -- --studio species-white-clover
 npm run shots -- --entry scene/full --seed 7 --t 2.5
 ```
 
 ## Tests
-`tests/e2e/studio.spec.ts`: page loads, every entry renders without console errors, no canvas
-is blank, reseed re-renders, `#section` and `?entry` views work.
+`tests/e2e/studio.spec.ts`: the nav lists every section (scene and species included); every
+entry renders without errors and paints something, split into 4 parallel shards that show one
+`#section` at a time; reseed re-renders; `#section` and `?entry` views work; `?seed`/`?t` start
+paused, Play animates, Pause holds the frame; speed, background and scale controls.
 `src/studio/registry.test.ts`: discovery, ordering, id validation, entry lookup.

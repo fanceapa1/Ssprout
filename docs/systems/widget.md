@@ -21,6 +21,7 @@ plant for the card.
 | `pip.ts` | `createFloatingWidget()`: Document PiP plumbing, controller binding; `iframeHostOpener` for tests (ADR 0093) |
 | `dev.ts` | `installWidgetDebug()`: `window.sprout.widget` (?dev) |
 | `widget.studio.ts` | studio section **Widget** |
+| `test-helpers.ts` | test builders: `session`, `timeline`, `status`, `fakeController`, `fakeBus`, `fakeStore`, `recordingContext` (tests only) |
 
 ## Wiring (`src/main.ts`, after the controller is created)
 
@@ -47,7 +48,7 @@ Shippori Mincho 500 latin). `surfaces.dispose()` restores the interval ticker, t
 **Controller requirements** (`contract.ts`, from ADR 0003): `status()` returning
 `{ phase: 'idle'|'focus'|'break'|'paused', timeline, session }` with
 `timeline = { blockIndex, block, blockRemainingMs, totalRemainingMs, growth, progress, watered, complete }`
-and `session = { id, taskName, plan: { blocks }, speciesId, seed }`; `onTick`, `pause`, `resume`,
+and `session = { id, taskName, plan: { id, name, blocks }, speciesId, seed }`; `onTick`, `pause`, `resume`,
 `water`, `skipBreak`, `setTicker`, `updateSettings`. Bus events used: `session:start | break |
 focus | water | complete | cancel` (payloads read defensively; `sessionId` used when present).
 If core's `status()` names differ, adapt in `contract.ts` only.
@@ -131,20 +132,21 @@ Policy (ADR 0091):
 ## Debug API (`?dev`, `window.sprout.widget`)
 `supported()`, `isOpen()`, `open()`, `close()`, `tickerMode()`, `title()`, `favicon()`,
 `bloomed()`, `lastNotification()` (`{ kind, decision }`), `mountHarness()` (renders the card in
-`iframe#sprout-widget-harness` through the same code path as PiP), `closeHarness()`,
+`iframe#sprout-widget-harness`, fixed bottom-right, through the same code path as PiP), `closeHarness()`,
 `harnessMode()`, `harnessWatering()`.
 
 ## Tests
-- Unit (`src/widget/*.test.ts`, `src/plants/view.test.ts`): ticker adapter (fake worker, fallback,
-  errors, the worker script, driving the real controller), title, favicon model + drawing, tab
-  surfaces, notification policy + permission flow + per-moment notifications, view model, card DOM,
-  PiP open/close/reopen/actions/bloom, integration install/dispose, plant view.
+- Unit (`src/plants/view.test.ts` for the plant view): `ticker.test.ts` (fake worker, fallback,
+  errors, the worker script, driving the real controller), `title.test.ts`, `favicon.test.ts`
+  (model + drawing), `tab.test.ts`, `notifications.test.ts` (policy, permission flow, per-moment
+  notifications), `view.test.ts` (view model), `pip.test.ts` (card DOM via `mountCard`, PiP
+  open/close/reopen/actions/bloom), `index.test.ts` (integration install/dispose).
 - E2E (`tests/e2e/widget.spec.ts`): worker ticker, title countdown with `?speed=60`, favicon
   changes, pause, `Bloomed` while away, background notification via the SW (stubbed
   `showNotification`), no notification when attended, denied respected, PiP support detection,
-  a faked PiP window (open / pause / resume / close), the iframe harness (plant painted, bloom).
-  **They skip themselves until `window.sprout.widget` exists** — un-skip happens automatically once
-  `main.ts` is wired as above. Headless Chromium reports `Notification.permission === 'denied'`
+  a faked PiP window (open / pause / resume / close), the iframe harness (plant painted, bloom), in
+  a break the card waters the plant and skips the break. They run against the wired app (`main.ts`
+  installs `window.sprout.widget` under `?dev`). Headless Chromium reports `Notification.permission === 'denied'`
   even after `grantPermissions`, so the spec's init script owns the permission value.
 - Studio: section **Widget** (`#widget`): card at focus growth 0 / 0.3 / 0.7, break, watering
   mid-animation, paused, bloom, idle, unknown-species fallback, favicons (enlarged + tab size on
