@@ -336,3 +336,46 @@ describe('createNotifier · session moments', () => {
     expect(env.show).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('createNotifier · scheduled sessions (ADR 0174)', () => {
+  const due = (key: string, name = 'Biology ch. 4') => ({ occurrence: { key, name, scheduleId: 's', date: '2026-10-23' } });
+
+  it('a scheduled session’s time comes while the page is in the background: one soft notification', () => {
+    const env = fakeEnv('granted');
+    const { bus, notifier, clock } = setup(env, 'granted');
+    bus.emit('schedule:due', due('s@2026-10-23'));
+    bus.emit('schedule:due', due('s@2026-10-23'));
+    expect(env.shown).toEqual([
+      {
+        title: 'It’s time for “Biology ch. 4”.',
+        body: 'Whenever you are ready, a card in your garden will start it.',
+        tag: NOTIFICATION_TAG,
+        icon: 'icon:scheduled',
+        timestamp: clock.now(),
+        data: { url: 'https://example.test/Ssprout/?dev', sessionId: 's@2026-10-23', kind: 'scheduled' },
+      },
+    ]);
+    expect(notifier.lastDecision()).toEqual({ kind: 'scheduled', decision: 'duplicate' });
+    bus.emit('schedule:due', due('s@2026-10-24', 'Essay'));
+    expect(env.shown.map((n) => n.title)).toEqual(['It’s time for “Biology ch. 4”.', 'It’s time for “Essay”.']);
+  });
+
+  it('stays quiet while the page is attended, and follows permission and opt-out', () => {
+    const env = fakeEnv('granted');
+    env.setAttended(true);
+    const a = setup(env, 'granted');
+    a.bus.emit('schedule:due', due('k1'));
+    expect(a.notifier.lastDecision()).toEqual({ kind: 'scheduled', decision: 'attended' });
+    const b = setup(fakeEnv('granted'), 'denied');
+    b.bus.emit('schedule:due', due('k1'));
+    expect(b.notifier.lastDecision()).toEqual({ kind: 'scheduled', decision: 'opted-out' });
+    expect(env.shown).toEqual([]);
+  });
+
+  it('ignores a malformed payload', () => {
+    const env = fakeEnv('granted');
+    const { bus, notifier } = setup(env, 'granted');
+    bus.emit('schedule:due', {});
+    expect(notifier.lastDecision()).toBeNull();
+  });
+});

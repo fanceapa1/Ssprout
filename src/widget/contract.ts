@@ -77,7 +77,9 @@ export type WidgetEvent =
   | 'session:water'
   | 'session:complete'
   | 'session:cancel'
-  | 'session:switch';
+  | 'session:switch'
+  /** a scheduled session's time has come (notifications only, ADR 0174) */
+  | 'schedule:due';
 
 /** A bus as the widget uses it. The app's EventBus satisfies it (see `looseBus`). */
 export interface WidgetBus {

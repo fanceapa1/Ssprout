@@ -2,6 +2,8 @@ import { describe, expect, it, vi } from 'vitest';
 import { createManualClock } from '../core/clock';
 import { createSessionController, type Ticker } from '../core/controller';
 import { createEventBus } from '../core/events';
+import { localTime } from '../core/schedule';
+import { createScheduler } from '../core/schedule-controller';
 import { createDefaultState, createStore, reducer } from '../core/state';
 import type { SpeciesDef } from '../plants/types';
 import { createWorkerTicker, TICK_WORKER_SOURCE, type TickerCommand, type WorkerLike } from './ticker';
@@ -215,5 +217,26 @@ describe('createWorkerTicker', () => {
     expect(completed).toHaveBeenCalledTimes(1);
     expect(w.sent.at(-1)).toEqual({ type: 'stop', id: 1 });
     controller.dispose();
+  });
+
+  it('the same worker drives the scheduler beside the session controller (ADR 0174)', () => {
+    const w = fakeWorker();
+    const clock = createManualClock(localTime('2026-10-23', '08:00'));
+    const store = createStore(createDefaultState(clock.now()), reducer);
+    const bus = createEventBus();
+    const ticker = createWorkerTicker({ createWorker: () => w, fallback: manualTicker() });
+    const scheduler = createScheduler({ store, clock, bus, ticker, seed: 1 });
+    const due = vi.fn();
+    bus.on('schedule:due', due);
+    expect(w.sent).toEqual([]); // no schedule, no tick
+    scheduler.add({ name: 'Reading', date: '2026-10-23', time: '09:00' });
+    expect(w.sent).toEqual([{ type: 'start', id: 1, ms: 1000 }]);
+    // a background tab: the worker's tick still arrives on time
+    clock.set(localTime('2026-10-23', '09:00'));
+    w.tick(1);
+    expect(due).toHaveBeenCalledTimes(1);
+    expect(due.mock.calls[0]![0].occurrence).toMatchObject({ name: 'Reading', status: 'due' });
+    scheduler.dispose();
+    expect(w.sent.at(-1)).toEqual({ type: 'stop', id: 1 });
   });
 });

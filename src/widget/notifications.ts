@@ -23,11 +23,16 @@ export type PermissionResult = PermissionState | 'unsupported';
 
 export const NOTIFICATION_TAG = 'study-sprout-session';
 
-export type NotifyKind = 'break' | 'focus' | 'complete';
+export type NotifyKind = 'break' | 'focus' | 'complete' | 'scheduled';
 
-/** The text of each notification. `plant` is the species name, `task` the session's task. */
+/**
+ * The text of each notification. `plant` is the species name, `task` the session's task (for
+ * `scheduled`: the scheduled session's name; no plant is chosen yet).
+ */
 export function notificationText(kind: NotifyKind, plant: string, task: string): { title: string; body: string } {
   switch (kind) {
+    case 'scheduled':
+      return { title: `It’s time for “${task}”.`, body: 'Whenever you are ready, a card in your garden will start it.' };
     case 'break':
       return { title: `Time for a break — your ${plant} is thirsty.`, body: 'Tap the watering can when you are ready.' };
     case 'focus':
@@ -172,6 +177,32 @@ export function createNotifier({ controller, store, bus, clock, env, speciesName
     return pending;
   };
 
+  /** A scheduled session's time has come (ADR 0174): same policy, keyed by the occurrence. */
+  const notifyScheduled = (payload: unknown): void => {
+    const o = (payload as { occurrence?: { key?: unknown; name?: unknown } } | null)?.occurrence;
+    if (typeof o?.key !== 'string') return;
+    const key = `scheduled:${o.key}`;
+    const decision = decideNotification({
+      supported: env.supported,
+      permission: env.supported ? env.permission() : 'default',
+      setting: store.get().settings.notifications,
+      attended: env.attended(),
+      alreadyNotified: notified.has(key),
+    });
+    last = { kind: 'scheduled', decision };
+    if (decision !== 'notify') return;
+    notified.add(key);
+    const { title, body } = notificationText('scheduled', 'plant', typeof o.name === 'string' && o.name ? o.name : 'your study');
+    void env.show({
+      title,
+      body,
+      tag: NOTIFICATION_TAG,
+      icon: env.icon?.('scheduled'),
+      timestamp: clock.now(),
+      data: { url: env.appUrl(), sessionId: o.key, kind: 'scheduled' },
+    });
+  };
+
   const notify = (kind: NotifyKind, payload: unknown): void => {
     remember();
     const st = controller.status();
@@ -213,6 +244,7 @@ export function createNotifier({ controller, store, bus, clock, env, speciesName
     bus.on('session:break', (payload) => notify('break', payload)),
     bus.on('session:focus', (payload) => notify('focus', payload)),
     bus.on('session:complete', (payload) => notify('complete', payload)),
+    bus.on('schedule:due', (payload) => notifyScheduled(payload)),
   ];
 
   // the browser may already know the answer (granted earlier, or blocked in site settings)
