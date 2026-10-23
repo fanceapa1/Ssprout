@@ -95,7 +95,8 @@ engawa stay crisp). Sky, hills, banks and margins are painted with a `draft` pai
 no visible difference, about half the cost).
 
 **Reflections** (static, in the background): the far-bank green band, tree pads and stems (about
-their shore line `reflectAbout`), the near shrub, boulders (their own silhouette — seeded by rock
+their shore line `reflectAbout`; a mirrored stem wavers and breaks into pieces with depth, ADR 0185 —
+straight-sided bands read as seams down the pond close up), the near shrub, boulders (their own silhouette — seeded by rock
 id via `rockOutline`, so sprite and reflection agree — flipped about the base and foreshortened
 ×0.72); the pavilion stands on the bank and casts none. All in one soft clipped wet layer,
 then broken by ~26 horizontal lifted strokes.
