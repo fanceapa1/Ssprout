@@ -695,3 +695,26 @@ test.describe('calendar · keyboard focus survives the minute’s redraw', () =>
     await expect(cal(page).locator('.cal-timeline')).toBeFocused();
   });
 });
+
+test.describe('calendar · a planned slip on a phone’s garden', () => {
+  test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+
+  test('the slip above the pill and the zoom chips never overlap, zoomed in', async ({ page }) => {
+    await openUi(page);
+    await page.evaluate(async () => {
+      const s = window.sprout!;
+      s.schedule.demo();
+      s.startSessions(2);
+      await s.camera.settle();
+    });
+    const slip = page.locator('.stage-ui .due-slip');
+    await expect(slip).toBeVisible();
+    await expect(page.locator('.zoom-whole')).toBeVisible();
+    const a = (await slip.boundingBox())!;
+    for (const chip of await page.locator('.zoom-controls button:visible').all()) {
+      const b = (await chip.boundingBox())!;
+      const overlap = a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
+      expect(overlap, await chip.getAttribute('aria-label') ?? 'chip').toBe(false);
+    }
+  });
+});
