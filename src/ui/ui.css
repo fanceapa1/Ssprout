@@ -1255,7 +1255,7 @@ dialog :focus-visible {
   opacity: 0;
   transition: opacity var(--ui-mid) var(--ui-breath);
 }
-.tool:hover::before {
+.tool:is(:hover, :focus-visible)::before {
   opacity: 0.75;
 }
 .tool > * {
@@ -1737,7 +1737,7 @@ input.duration:focus-visible {
   opacity: 0.82;
   transition: opacity var(--ui-mid), filter var(--ui-mid);
 }
-.plan-card:hover {
+.plan-card:is(:hover, :focus-visible) {
   opacity: 1;
 }
 .plan-card[aria-checked='true'] {
@@ -1802,7 +1802,7 @@ input.duration:focus-visible {
 .plant-card > * {
   position: relative;
 }
-.plant-card:hover::before {
+.plant-card:is(:hover, :focus-visible)::before {
   opacity: 0.7;
 }
 .plant-card[aria-pressed='true']::before {
@@ -1818,8 +1818,8 @@ input.duration:focus-visible {
   opacity: 0.5;
   filter: saturate(0.35);
 }
-.plant-card[data-locked='true']:hover::before,
-.plant-card[data-full='true']:hover::before {
+.plant-card[data-locked='true']:is(:hover, :focus-visible)::before,
+.plant-card[data-full='true']:is(:hover, :focus-visible)::before {
   opacity: 0;
 }
 .plant-art {

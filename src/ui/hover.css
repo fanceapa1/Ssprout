@@ -10,7 +10,8 @@
  *          its leaves slightly.
  *
  * Pressing sinks the slip back (`:active`); keyboard focus (`:focus-visible`) shows the same state
- * as hover, with the ink focus ring. Hover only ever decorates: nothing is said only on hover,
+ * as hover, with the ink focus ring. Every `:hover` rule (gated by `(hover: hover)`) has a twin
+ * `:focus-visible` rule just after its block and an `:active` press: add a control to all three. Hover only ever decorates: nothing is said only on hover,
  * and touch screens (no hover) never keep a stuck state. With reduced motion, colour changes
  * only: no lift, no drawing stroke, no leaves moving.
  */
@@ -99,7 +100,8 @@ dialog .quiet:not(.ink):focus-visible::after,
 dialog .quiet:not(.ink):active:not(:disabled),
 .cal-view:active,
 .cal-step:active,
-.pick-step:active {
+.pick-step:active,
+.pill-more:active {
   color: var(--ui-ink);
   opacity: 0.8;
 }
@@ -123,7 +125,9 @@ dialog .quiet.ink,
     color var(--hover-ms) var(--hover-ease),
     opacity var(--hover-ms) var(--hover-ease);
 }
-.icon-btn::before {
+.icon-btn::before,
+.tool::before,
+.plant-card::before {
   transition:
     translate var(--hover-ms) var(--hover-ease),
     filter var(--hover-ms) var(--hover-ease),
@@ -176,9 +180,23 @@ dialog .quiet.ink:focus-visible,
   translate: 0 var(--hover-lift);
   filter: drop-shadow(0 1.5px 1.2px var(--hover-wash));
 }
-.icon-btn:focus-visible::before {
+.seal:focus-visible:not(:disabled) {
+  filter: saturate(1.06) brightness(0.95) drop-shadow(0 1.5px 1.2px var(--hover-wash));
+}
+.tool:focus-visible::before,
+.plant-card:not([data-locked='true']):focus-visible::before,
+.plan-card:focus-visible {
+  translate: 0 var(--hover-lift);
+}
+.icon-btn:focus-visible:not(:disabled)::before {
+  transform: none;
   translate: 0 var(--hover-lift);
   opacity: 1;
+  filter: brightness(var(--ui-dim, 1)) drop-shadow(0 1.5px 1.2px var(--hover-wash));
+}
+.pill-btn:focus-visible,
+.pill-start:focus-visible {
+  background-color: var(--hover-tint);
 }
 /* pressed: the slip sinks back onto the paper */
 .seal:active:not(:disabled),
@@ -192,6 +210,12 @@ dialog .quiet.ink:active:not(:disabled),
 .pick-field:active {
   translate: 0 var(--press-sink);
   transform: none;
+  filter: brightness(0.97);
+}
+.tool:active::before,
+.plant-card:not([data-locked='true']):active::before,
+.plan-card:active {
+  translate: 0 var(--press-sink);
   filter: brightness(0.97);
 }
 .icon-btn:active:not(:disabled)::before {

@@ -317,11 +317,8 @@ test.describe('v2 acceptance · hover language beyond Pause and End (ADR 0204)',
     await expect.poll(() => style(preset, 'translate')).toBe(LIFT);
   });
 
-  test('keyboard focus lifts the dock tools and the sheet’s plan and plant cards too (known gap)', async ({ page }) => {
-    // Known gap (docs/TESTING.md › v2 acceptance): ADR 0204 gives every family the hover state on
-    // :focus-visible, but hover.css lists no focus rule for `.tool::before`, `.plan-card` or
-    // `.plant-card::before`; these show only the focus ring. Expected to fail until fixed.
-    test.fail();
+  test('keyboard focus lifts the dock tools and the sheet’s plan and plant cards too', async ({ page }) => {
+    // ADR 0204: every family shows its hover state on :focus-visible, slips on ::before included
     await openUi(page);
     const tool = page.locator('.tool-list button.tool').first();
     await keyFocus(page, tool);
@@ -330,6 +327,9 @@ test.describe('v2 acceptance · hover language beyond Pause and End (ADR 0204)',
     const plan = page.locator('dialog[data-dialog="planting"] .plan-card').first();
     await keyFocus(page, plan);
     await expect.poll(() => style(plan, 'translate'), { timeout: 2_000 }).toBe(LIFT);
+    const card = page.locator('dialog[data-dialog="planting"] .plant-card:not([data-locked="true"])').first();
+    await keyFocus(page, card);
+    await expect.poll(() => style(card, 'translate', '::before'), { timeout: 2_000 }).toBe(LIFT);
   });
 });
 
