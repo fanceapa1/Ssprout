@@ -17,8 +17,12 @@ describe('phase grades', () => {
     const night = washed(PHASE_GRADES.night);
     for (const p of ['sunrise', 'midday', 'sunset'] as const) expect(night).toBeLessThan(washed(PHASE_GRADES[p]));
     expect(night).toBeGreaterThan(255 * 0.42);
-    expect(PHASE_GRADES.night.ground).toBeLessThanOrEqual(1);
-    expect(PHASE_GRADES.night.sky).toBeGreaterThan(0);
+    const g = PHASE_GRADES.night;
+    expect(g.sky).toBeGreaterThan(0);
+    // the near ground is glazed deeper than the middle distance (thin paint, ADR 0206) …
+    expect(g.ground).toBeGreaterThan(1);
+    // … but the wash at the bottom edge stays lighter than at the top of the sky
+    expect(g.amount * g.ground).toBeLessThan(g.amount + g.sky - 0.05);
   });
 
   it('sunset is warm, sunrise cool with a warm glow on the right, night blue', () => {

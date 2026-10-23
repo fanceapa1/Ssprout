@@ -15,7 +15,10 @@ export interface Grade {
   amount: number;
   /** extra alpha toward the top of the frame (the sky deepens first), may be negative */
   sky: number;
-  /** alpha multiplier at the bottom edge (< 1 keeps the foreground plants readable) */
+  /**
+   * alpha multiplier at the bottom edge, eased in from the middle of the frame (< 1 keeps the
+   * foreground lighter; night's > 1 deepens the near ground, still lighter than its sky)
+   */
   ground: number;
   /** warm light from a low sun / sky glow: wash thinned and shifted toward `warm` (0..1) */
   glow: number;
@@ -33,8 +36,10 @@ export interface Grade {
  * The four casts. Midday is almost bare paper (the painting at its most saturated and crisp);
  * sunrise a thin cool lavender warmed toward the rising sun on the right; sunset a warm amber,
  * glowing toward the setting sun on the left, the lantern coming on; night a moonlit indigo
- * glaze the paper still breathes through — lighter over the garden so the plants stay readable
- * (SPEC §5; an over-heavy veil was a problem before, ADR 0121).
+ * glaze the paper still breathes through — lighter over the garden than in the sky so the plants
+ * stay readable (SPEC §5; an over-heavy veil was a problem before, ADR 0121), but carried down
+ * into the near ground: the meadow and the path are thin paint, and without that weight the
+ * night reads milky and flat there (ADR 0206, devlog 29).
  */
 export const PHASE_GRADES: Readonly<Record<DayPhase, Grade>> = {
   sunrise: {
@@ -75,9 +80,9 @@ export const PHASE_GRADES: Readonly<Record<DayPhase, Grade>> = {
   },
   night: {
     tint: [92, 106, 184],
-    amount: 0.5,
-    sky: 0.26,
-    ground: 1,
+    amount: 0.54,
+    sky: 0.22,
+    ground: 1.2,
     glow: 0,
     warm: [236, 214, 170],
     glowX: 0.5,
