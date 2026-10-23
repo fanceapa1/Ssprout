@@ -231,6 +231,8 @@ test.describe('camera', () => {
     await page.evaluate(() => window.sprout!.camera.settle());
     expect((await camera(page)).pose.zoom).toBeGreaterThan(1.5);
     await expect(card.locator('h2')).toHaveText('White Clover');
+    // a labelled dialog: screen readers hear the plant's name
+    await expect(page.getByRole('dialog', { name: 'White Clover' })).toBeVisible();
     await expect(card).toContainText('Shirotsumekusa');
     await expect(card).toContainText('packing grass'); // its place in Japanese gardens
     await expect(card).toContainText('three leaves for patience'); // its poetic line
