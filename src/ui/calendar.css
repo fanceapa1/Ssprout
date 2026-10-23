@@ -161,8 +161,8 @@
   display: grid;
   grid-template-columns: repeat(var(--cal-days, 1), minmax(0, 1fr));
   gap: 0 6px;
-  /* hour guides: a whisper of dotted ink every hour */
-  background-image: radial-gradient(circle, var(--ui-ink-ghost) 0.7px, transparent 0.8px);
+  /* hour guides: dotted ink every hour, a shade firmer on the calendar's own sheet (ADR 0208) */
+  background-image: radial-gradient(circle, rgba(59, 53, 46, 0.25) 0.7px, transparent 0.8px);
   background-size: 7px var(--cal-hour);
   background-position: 0 calc(var(--cal-hour) * -0.5 + 0.5px);
 }
@@ -179,7 +179,7 @@
   cursor: copy;
 }
 .cal-col[data-today='true'] {
-  background: linear-gradient(to right, transparent, rgba(var(--ui-gold), 0.07) 30%, rgba(var(--ui-gold), 0.07) 70%, transparent);
+  background: linear-gradient(to right, transparent, rgba(var(--ui-gold), 0.11) 30%, rgba(var(--ui-gold), 0.11) 70%, transparent);
 }
 .cal-now {
   position: absolute;
@@ -347,7 +347,8 @@ button.cal-block {
   height: auto;
   min-height: var(--h);
   padding-bottom: 6px;
-  background-color: var(--ui-paper);
+  /* the calendar sheet's paper (ADR 0208), so the grown block lies on the surface it came from */
+  background-color: #fbf8ef;
   outline: none;
 }
 .cal-cols[data-days='7'] .cal-block[data-flip]:is(:hover, :focus-visible) {

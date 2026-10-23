@@ -86,9 +86,10 @@ export interface WashStyle {
 }
 
 export const WASH: Readonly<Record<'bloom' | 'growing' | 'faint', WashStyle>> = {
-  bloom: { body: 0.22, rim: 0.4 },
-  growing: { body: 0.15, rim: 0.34 },
-  faint: { body: 0.07, rim: 0.16 },
+  // set a little firmer for the calendar's own sheet (ADR 0208)
+  bloom: { body: 0.3, rim: 0.5 },
+  growing: { body: 0.21, rim: 0.44 },
+  faint: { body: 0.08, rim: 0.2 },
 };
 
 /** A watercolour wash as an SVG document: body, a lighter heart (the paper breathing through), a pooled rim. */
@@ -223,7 +224,7 @@ export function washBackground(hex: string, variant: number, kind: WashKind, w: 
   let out = washCache.get(k);
   if (!out) {
     const seed = `wash-${v}-${kind}-${bw}x${bh}`;
-    out = svgUrl(kind === 'plan' || kind === 'ghost' ? planSvg(seed, kind === 'ghost' ? 0.22 : 0.42, bw, bh) : washSvg(seed, hex, WASH[kind], bw, bh));
+    out = svgUrl(kind === 'plan' || kind === 'ghost' ? planSvg(seed, kind === 'ghost' ? 0.28 : 0.6, bw, bh) : washSvg(seed, hex, WASH[kind], bw, bh));
     washCache.set(k, out);
   }
   return out;
