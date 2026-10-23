@@ -42,4 +42,5 @@ ADR numbering ranges (to avoid collisions in parallel work):
 | 8 | v2 polish 1: resting icon visibility, tips on scroll, watering sound, midday sky, night margins, calendar week layout, plant-view wash, widget type, fresh-eyes pass | `src/ui/**` (not camera), `src/audio`, `src/ambience`, `src/scene`, `src/widget` | done |
 | 8 | Close-view art: seams, foreground detail, sprite opacity and soft fauna at 2–3× zoom | `src/render/**`, `src/plants/**`, `src/scene/**` detail, `src/fauna/**` | done |
 | 8 | v2 polish 2: plant card on phones, calendar day view follows now, planting sheet edge, schedule input locale, sun-shaft weather | `src/ui/**`, `src/ambience` weather | in progress |
+| 8 | Dock wayfinding: a hand-inked path flowing from the garden's stepping stones through the dock sections in order, clearer hierarchy/alignment, short helper lines and next-step hints; responsive (owner: "only if responsive without too much hassle") | `src/ui/**` | queued |
 | 8 | v2 QA & docs: SPEC/ARCHITECTURE/TESTING audit, gap tests, flakiness, performance on a busy page | `tests/**`, `docs/**` | in progress |
