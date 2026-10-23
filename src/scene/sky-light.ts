@@ -8,7 +8,7 @@
 import { createRng } from '../core/rng';
 import { PHASES, type DayPhase, type DaylightState, type PhaseWeights } from '../ambience/daylight';
 import { moonDisc, reserveStar, stars, sunDisc, type Disc } from '../ambience/sky-layout';
-import { bounds, createPainter, makeCanvas, type AnyCanvas } from '../paint';
+import { bounds, createPainter, createSimplex2D, insetPolygon, makeCanvas, type AnyCanvas } from '../paint';
 import type { Pt, Rect } from '../render/viewport';
 import { SKY_RECT, SKY_SCALE, paintSkyPlate, paintWaterSkyPlate, skyShape } from './paint-sky';
 
@@ -92,6 +92,7 @@ export function createSkyLight(opts: { pond: readonly Pt[]; seed: number }): Sky
   const wh = Math.ceil(waterRect.h * WATER_SCALE);
   const waterComposite = makeCanvas(ww, wh);
   const wctx = waterComposite.getContext('2d') as Ctx;
+  let waterMask: AnyCanvas | null | undefined;
   let waterAlpha = 0;
   let key = '';
   let last: { state: DaylightState; sun: Disc; moon: Disc } | null = null;
@@ -155,6 +156,14 @@ export function createSkyLight(opts: { pond: readonly Pt[]; seed: number }): Sky
     }
     cctx.globalAlpha = 1;
     wctx.globalAlpha = 1;
+    // the reflected sky dies away just inside the painted water's ragged rim instead of stopping
+    // at the pond outline (a hard pink line along the near edge, seen close)
+    if (waterMask === undefined) waterMask = feathered(opts.pond, waterRect, ww, wh, opts.seed);
+    if (waterMask) {
+      wctx.globalCompositeOperation = 'destination-in';
+      wctx.drawImage(waterMask as CanvasImageSource, 0, 0);
+      wctx.globalCompositeOperation = 'source-over';
+    }
     // world units from here on
     cctx.setTransform(SKY_SCALE, 0, 0, SKY_SCALE, -SKY_RECT.x * SKY_SCALE, -SKY_RECT.y * SKY_SCALE);
     if (sun.alpha > 0.01) punchSun(cctx, sun, skyClip());
@@ -320,4 +329,40 @@ function punchMoon(ctx: Ctx, moon: Disc, phase: number): void {
     ctx.fill();
   }
   ctx.restore();
+}
+
+/** How far inside the pond outline the sky's reflection has faded out (world units). */
+export const WATER_SKY_INSET = 7;
+
+/**
+ * The pond as a soft mask for the reflected sky: the outline pulled in by `WATER_SKY_INSET`, its
+ * edge wandering a little (the painted rim is ragged) and blurred over a few units. Null without
+ * canvas support.
+ */
+function feathered(pond: readonly Pt[], rect: Rect, w: number, h: number, seed: number): AnyCanvas | null {
+  let c: AnyCanvas;
+  try {
+    c = makeCanvas(w, h);
+  } catch {
+    return null;
+  }
+  const ctx = c.getContext('2d') as Ctx | null;
+  if (!ctx) return null;
+  const noise = createSimplex2D(createRng(`${seed}:water-mask`));
+  const inner = insetPolygon(pond, WATER_SKY_INSET).map((q) => {
+    const k = 2.5 * noise(q.x / 40, q.y / 40);
+    return { x: q.x, y: q.y - Math.abs(k) };
+  });
+  const sx = w / rect.w;
+  const sy = h / rect.h;
+  ctx.setTransform(sx, 0, 0, sy, -rect.x * sx, -rect.y * sy);
+  ctx.filter = `blur(${(3 * sx).toFixed(2)}px)`;
+  const supported = ctx.filter !== 'none' && ctx.filter !== '';
+  ctx.fillStyle = '#fff';
+  ctx.beginPath();
+  inner.forEach((q, i) => (i ? ctx.lineTo(q.x, q.y) : ctx.moveTo(q.x, q.y)));
+  ctx.closePath();
+  ctx.fill();
+  if (supported) ctx.filter = 'none';
+  return c;
 }
