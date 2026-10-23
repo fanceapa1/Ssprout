@@ -221,7 +221,9 @@ or the placement stays), calls `controller.retireTip(id, 'dismissed')`. Focus th
 goes back to the control (its first focusable part). No new note shows until the dismissed one has
 faded (`FADE_MS` × `?uitime`, at once with reduced motion). Notes sit at the end of the page (or
 sheet), so Tab is threaded by hand: Tab from a note's control (its last focusable part) goes to its
-×; Tab from the × moves on after the control, and Shift+Tab goes back to it. Inline phone notes in a
+×; Tab from the × moves on after the control. Backwards it is the same order: Shift+Tab from what
+follows the control stops at the × (a `focusin` check after a Shift+Tab), and Shift+Tab from the ×
+goes to the control. Inline phone notes in a
 sheet already follow their step and are left alone. Hover is the chip family (`hover.css`): the ink
 deepens on a lifted paper dab, with the same `:focus-visible` (the ink ring inside the target) and
 `:active` states.

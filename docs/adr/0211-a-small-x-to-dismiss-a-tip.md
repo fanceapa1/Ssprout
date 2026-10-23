@@ -36,8 +36,9 @@ be clicked.
 - **Keyboard.** The notes live in their own layer at the end of the page (or of the sheet), far from
   their controls in the page's order. So Tab is threaded by hand. From a note's control (its last
   focusable part), Tab goes to the note's ×. From the ×, Tab carries on after the control: focus is
-  put back on the control, and the browser's own Tab moves on from there. Shift+Tab goes back to
-  the control. After a keyboard dismissal, focus returns to the control the note was about. Inline
+  put back on the control, and the browser's own Tab moves on from there. The order holds both
+  ways. Shift+Tab from the × goes back to the control, and a Shift+Tab from whatever follows the
+  control stops at the × first, so Shift+Tab then Tab always returns to where it started. After a keyboard dismissal, focus returns to the control the note was about. Inline
   notes on phones (inside a sheet's step) already follow their control in the page's order and are
   left alone. Esc in a note is the note's own: it stops there, so the sheet, the placement or the
   plant card around it stays.

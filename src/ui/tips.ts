@@ -319,33 +319,49 @@ export function createTips(
 
   /**
    * Keyboard order (ADR 0211): the notes live in their own layer, far from their controls in the
-   * page's order, so Tab is threaded by hand: from a note's control (its last focusable part) Tab
-   * goes to the note's ×, and from the × Tab carries on after the control (focus is put back on the
-   * control and the browser's own Tab moves on from there); Shift+Tab goes back to the control.
+   * page's order, so Tab is threaded by hand, both ways: control → its note's × → whatever follows
+   * the control. "The control" is its last focusable part. Tab from the × puts focus back on the
+   * control and lets the browser's own Tab move on from there; Shift+Tab from the × goes back to the
+   * control; and a Shift+Tab that lands on the control from what follows it stops at the × first.
    */
+  const threaded = () =>
+    [...shown.values()].flatMap((t) => {
+      const x = t.note.querySelector<HTMLElement>('.tip-x');
+      const last = focusables(t.anchor).at(-1);
+      // an inline note (phones, in a sheet) already follows its control in the page's order
+      return x && last && t.host !== inlineHost && t.note.classList.contains('is-in') ? [{ x, last }] : [];
+    });
+  /** a Shift+Tab is moving focus backwards from somewhere other than a × */
+  let backwards = false;
   const onKeydown = (e: KeyboardEvent) => {
     if (e.key !== 'Tab' || e.altKey || e.ctrlKey || e.metaKey) return;
     const active = document.activeElement as HTMLElement | null;
     if (!active) return;
-    for (const t of shown.values()) {
-      const x = t.note.querySelector<HTMLElement>('.tip-x');
-      // an inline note (phones, in a sheet) already follows its control in the page's order
-      if (!x || t.host === inlineHost || !t.note.classList.contains('is-in')) continue;
+    for (const { x, last } of threaded()) {
       if (active === x) {
-        const back = focusTarget(t.anchor);
-        if (!back) return;
-        back.focus({ preventScroll: true });
+        last.focus({ preventScroll: true });
         if (e.shiftKey) e.preventDefault(); // else the browser's Tab moves on from the control
         return;
       }
-      if (!e.shiftKey && t.anchor && active === focusables(t.anchor).at(-1)) {
+      if (!e.shiftKey && active === last) {
         e.preventDefault();
         x.focus({ preventScroll: true });
         return;
       }
     }
+    if (e.shiftKey) {
+      backwards = true;
+      setTimeout(() => (backwards = false), 0);
+    }
+  };
+  const onFocusin = (e: FocusEvent) => {
+    if (!backwards) return;
+    backwards = false;
+    const hit = threaded().find((t) => t.last === e.target);
+    if (hit) hit.x.focus({ preventScroll: true });
   };
   document.addEventListener('keydown', onKeydown, { capture: true });
+  document.addEventListener('focusin', onFocusin, { capture: true });
 
   const schedule = () => {
     raf ??= requestAnimationFrame(layout);
@@ -363,6 +379,7 @@ export function createTips(
       window.removeEventListener('resize', schedule);
       document.removeEventListener('scroll', schedule, { capture: true });
       document.removeEventListener('keydown', onKeydown, { capture: true });
+      document.removeEventListener('focusin', onFocusin, { capture: true });
       if (raf !== null) cancelAnimationFrame(raf);
       if (holdTimer !== null) clearTimeout(holdTimer);
     },

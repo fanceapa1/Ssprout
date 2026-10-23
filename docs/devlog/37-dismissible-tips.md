@@ -20,7 +20,10 @@ note now has one (ADR 0211).
 - **Keyboard order.** The notes live at the end of the page (or sheet), far from their controls in
   the tab order: before this change, reaching a × meant tabbing through the whole dock, which
   scrolled the note's own control out of view. Tab is now threaded: control → its × → whatever
-  follows the control. Shift+Tab from the × goes back to the control.
+  follows the control, and the same order backwards. The first version only threaded forwards, so
+  Shift+Tab then Tab from the next control landed on the × instead of returning
+  (`v2-acceptance › keyboard focus shows the hover state` caught it). A Shift+Tab that lands on a
+  note's control now stops at its × first.
 - **Studio.** `ui-shell/tip-note` shows the note at rest, pointed at or focused, and the 32 px
   target.
 - **Tests.** Unit: `core/tips › dismissing a tip` (retires like a use, a no-op twice, persists

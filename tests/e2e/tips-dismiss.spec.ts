@@ -89,6 +89,9 @@ test.describe('tips · dismiss with the ×', () => {
     await page.keyboard.press('Tab');
     expect(await isX()).toBe(false);
     expect(await focusedAnchor()).not.toBe('start');
+    // both ways: Shift+Tab from there stops at the × before the control
+    await page.keyboard.press('Shift+Tab');
+    expect(await isX()).toBe(true);
     await page.keyboard.press('Shift+Tab');
     expect(await focusedAnchor()).toBe('start');
     await page.keyboard.press('Tab');
