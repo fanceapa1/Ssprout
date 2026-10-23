@@ -44,4 +44,11 @@ and it dims with the note on the painting at night.
 - A note that leaves (scrolled off screen, the quiet line) while its × has focus drops focus to the
   page, as any removed control does.
 
+## Suite
+Typecheck and unit tests pass (1364). The last full e2e run (on main 9851478, `nice -n 15`, 2
+workers) passed 214 of 218 tests. The 4 failures are `backdrops › every text on the sheets reads at
+≥ 4.5 : 1 · …` ("2.21 “Start”"); a different set of phases fails each run. They fail in the same way
+with main's `ui/tips.ts`, `ui.css` and `hover.css`, so they are not caused by this change. An earlier
+run at 20:30 passed them. They need a look from whoever owns the backdrops.
+
 `src/main.ts` is untouched.
