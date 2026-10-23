@@ -186,14 +186,15 @@ export function createPlantSection(ctx: UIContext): PlantSection {
     if (key === lastPaintKey) return;
     lastPaintKey = key;
     if (wilt && wilting !== null) {
-      renderPlantView(canvas, { speciesId: wilt.speciesId, seed: wilt.seed, growth: wilt.growth, watering: null, wilt: wilting });
+      renderPlantView(canvas, { speciesId: wilt.speciesId, seed: wilt.seed, growth: wilt.growth, watering: null, wilt: wilting, framing: 'growth' });
       return;
     }
     if (mode === 'empty' || !speciesId) {
       paintEmptyBed(canvas, 1);
       return;
     }
-    const ok = renderPlantView(canvas, { speciesId, seed, growth, watering });
+    // framed on what has grown, so a just-planted seed fills the window instead of a speck (devlog 25)
+    const ok = renderPlantView(canvas, { speciesId, seed, growth, watering, framing: 'growth' });
     if (!ok) {
       const def = getSpecies(speciesId);
       if (def) renderPlantPreview(canvas, def, seed, growth);

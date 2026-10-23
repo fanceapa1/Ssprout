@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { FakeCanvas, installFakeOffscreenCanvas } from './test-canvas';
-import { GROWTH_STEPS, growthZoom, MAX_GROWTH_ZOOM, plantLayout, quantiseGrowth, renderPlantView, setPlantViewSpecies } from './view';
+import { GROWTH_STEPS, growthZoom, MAX_GROWTH_ZOOM, plantLayout, quantiseGrowth, renderPlantView, SEED_BED_END, SEED_BED_START, seedBedAlpha, setPlantViewSpecies } from './view';
 import type { SpeciesDef } from './types';
 import { placeholderSprout } from '../dev/placeholder-sprout';
 
@@ -102,5 +102,25 @@ describe('growth framing (thumbnails)', () => {
     setPlantViewSpecies((id) => (id === placeholderSprout.id ? placeholderSprout : undefined));
     const c = target(64, 64);
     expect(renderPlantView(asCanvas(c), { speciesId: placeholderSprout.id, seed: 3, growth: 0.1, watering: null, framing: 'growth' })).toBe(true);
+    // a just-planted seed (its bed and all)
+    expect(renderPlantView(asCanvas(target(64, 64)), { speciesId: placeholderSprout.id, seed: 3, growth: 0, watering: null, framing: 'growth' })).toBe(true);
+  });
+
+  it('a seed lies on its bed until its first leaves, then the bed eases away', () => {
+    expect(seedBedAlpha(0)).toBe(1);
+    expect(seedBedAlpha(SEED_BED_START)).toBe(1);
+    expect(seedBedAlpha(SEED_BED_END)).toBe(0);
+    expect(seedBedAlpha(1)).toBe(0);
+    let prev = 1;
+    for (let g = SEED_BED_START; g <= SEED_BED_END; g += 0.01) {
+      const a = seedBedAlpha(g);
+      expect(a).toBeLessThanOrEqual(prev + 1e-9);
+      prev = a;
+    }
+    expect(seedBedAlpha(Number.NaN)).toBe(1);
+  });
+
+  it('can enlarge a seed far enough to read in a 64 px thumbnail', () => {
+    expect(MAX_GROWTH_ZOOM).toBeGreaterThanOrEqual(8);
   });
 });

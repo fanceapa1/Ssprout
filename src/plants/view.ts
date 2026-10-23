@@ -31,8 +31,24 @@ export interface PlantViewOptions {
   framing?: 'species' | 'growth';
 }
 
-/** The most a `growth`-framed view enlarges a seedling over the species framing. */
-export const MAX_GROWTH_ZOOM = 4;
+/**
+ * The most a `growth`-framed view enlarges a seedling over the species framing: enough for a
+ * just-planted seed to read in a 64 px thumbnail (it was 4, which left a speck).
+ */
+export const MAX_GROWTH_ZOOM = 8;
+
+/** Below this growth a `growth`-framed view lays the seed on a mound of soil, fading out by `SEED_BED_END`. */
+export const SEED_BED_START = 0.06;
+export const SEED_BED_END = 0.2;
+
+/** How much of the seed bed shows at a growth (1 for a seed, 0 once it has its first leaves). Pure. */
+export function seedBedAlpha(growth: number): number {
+  const g = clamp01(growth);
+  if (g <= SEED_BED_START) return 1;
+  if (g >= SEED_BED_END) return 0;
+  const t = (g - SEED_BED_START) / (SEED_BED_END - SEED_BED_START);
+  return 1 - t * t * (3 - 2 * t);
+}
 
 export { GROWTH_STEPS, quantiseGrowth } from './sprites';
 
@@ -125,6 +141,42 @@ function groundWash(px: number): AnyCanvas | null {
   return out;
 }
 
+const bedCache = new Map<number, AnyCanvas | null>();
+/** the seed bed's box (units) and the height of its crest, where the seed sits */
+const BED_BOX = { w: 200, h: 84, crest: 30 };
+/** how far (share of the frame) a seed is raised onto its bed */
+const BED_RAISE = 0.17;
+
+/**
+ * A just-planted bed (200 × 84 units), cached per pixel width: a mound of turned soil with a
+ * furrow on its crest, where the seed sits, so a seed reads as something planted, not an empty
+ * frame. Drawn only where the species' own seed is too flat to read.
+ */
+function seedBed(px: number): AnyCanvas | null {
+  const b = Math.max(24, Math.min(720, 2 ** (Math.round(Math.log2(Math.max(1, px)) * 3) / 3)));
+  if (bedCache.has(b)) return bedCache.get(b)!;
+  let out: AnyCanvas | null = null;
+  try {
+    const scale = b / BED_BOX.w;
+    const c = makeCanvas(Math.ceil(BED_BOX.w * scale), Math.ceil(BED_BOX.h * scale));
+    const p = createPainter(c, { seed: 'view-seed-bed' });
+    const rng = createRng('view-seed-bed');
+    const earth = mix(PIGMENTS.wood, PIGMENTS.stoneWarm, 0.4);
+    p.ctx.setTransform(scale, 0, 0, scale, 0, 0);
+    // the mound, lit from above: a broad wash, a darker foot, a lighter crest, the furrow
+    p.wash({ cx: 100, cy: 52, rx: 80, ry: 26 }, earth, { rng, opacity: 0.5, edge: 0.5, sharpness: 0.35, centreLift: 0.1, deform: 0.35, granulation: 0.6, fade: { angle: Math.PI / 2, start: 0.55, amount: 0.7, ragged: 0.5 } });
+    p.wash({ cx: 100, cy: 60, rx: 66, ry: 13 }, mix(earth, PIGMENTS.sumi, 0.3), { rng, opacity: 0.32, edge: 0.4, sharpness: 0.3, deform: 0.5, granulation: 0.5 });
+    p.wash({ cx: 98, cy: 38, rx: 38, ry: 8 }, mix(earth, PIGMENTS.washi, 0.45), { rng, opacity: 0.3, edge: 0.2, sharpness: 0.25, deform: 0.5 });
+    p.wash({ cx: 100, cy: BED_BOX.crest + 1, rx: 22, ry: 3.6 }, mix(PIGMENTS.wood, PIGMENTS.sumi, 0.45), { rng, opacity: 0.42, edge: 0.5, sharpness: 0.45, deform: 0.35 });
+    p.ctx.setTransform(1, 0, 0, 1, 0, 0);
+    out = c;
+  } catch {
+    out = null;
+  }
+  bedCache.set(b, out);
+  return out;
+}
+
 /**
  * How much to enlarge a plant whose painted content (`bounds`, fractions of its box laid out at
  * zoom 1 in `L`) is small in the frame: so its height reaches ~70 % of the frame and its width
@@ -152,7 +204,7 @@ export function renderPlantView(canvas: AnyCanvas, opts: PlantViewOptions): bool
   ctx.globalAlpha = 1;
   ctx.globalCompositeOperation = 'source-over';
   ctx.clearRect(0, 0, W, H);
-  let L = plantLayout(def, W, H);
+  let L: ReturnType<typeof plantLayout> = plantLayout(def, W, H);
   const seed = opts.seed >>> 0;
   const water = opts.watering === null || opts.watering === undefined ? null : clamp01(opts.watering);
   const wilt = clamp01(opts.wilt ?? 0);
@@ -168,15 +220,34 @@ export function renderPlantView(canvas: AnyCanvas, opts: PlantViewOptions): bool
     }
   }
   const shown = imgs.a ?? imgs.b;
-  const box = { x: L.x, y: L.y, w: L.w, h: L.h };
   const bounds = shown?.bounds;
+  // a seed too flat to read in a growth-framed view (a dark dab) is raised onto a mound of soil
+  // sized to the frame; seeds painted with their own mound, and water plants, keep theirs
+  const bed = opts.framing === 'growth' && !(def.habitats ?? []).every((x) => x === 'water') && bounds && (def.anchor.y - bounds.top) * L.h < H * 0.1 ? seedBedAlpha(opts.growth) : 0;
+  const groundY = L.baseY;
+  if (bed > 0) {
+    const raise = bed * H * BED_RAISE;
+    L = { ...L, y: L.y - raise, baseY: L.baseY - raise };
+  }
+  const box = { x: L.x, y: L.y, w: L.w, h: L.h };
   const top = bounds ? L.y + bounds.top * L.h : L.baseY - L.h * Math.max(0.2, opts.growth) * 0.8;
   const half = bounds ? ((bounds.right - bounds.left) / 2) * L.w : L.w * 0.25;
 
   // a soft ground wash under the plant
   const gw = Math.min(W * 0.92, Math.max(half * 2.6, L.w * 0.55, W * 0.3));
   const ground = groundWash(gw);
-  if (ground) ctx.drawImage(ground, L.baseX - gw / 2, L.baseY - (gw * 48) / 200 * 0.6, gw, (gw * 48) / 200);
+  if (ground) ctx.drawImage(ground, L.baseX - gw / 2, groundY - (gw * 48) / 200 * 0.6, gw, (gw * 48) / 200);
+  if (bed > 0) {
+    const bw = Math.min(W * 0.76, H * 1.1);
+    const bh = (bw * BED_BOX.h) / BED_BOX.w;
+    const img = seedBed(bw);
+    if (img) {
+      // its crest under the raised seed
+      ctx.globalAlpha = bed;
+      ctx.drawImage(img, L.baseX - bw / 2, L.baseY - bh * (BED_BOX.crest / BED_BOX.h), bw, bh);
+      ctx.globalAlpha = 1;
+    }
+  }
 
   let rig: WateringRig | null = null;
   let lift = 0;

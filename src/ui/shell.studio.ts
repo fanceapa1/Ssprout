@@ -211,7 +211,7 @@ const section: StudioSection = {
     },
     {
       id: 'session-thumbs',
-      label: 'session thumbnails: growing (0.1 / 0.45 / 0.85), then the same waiting (held, quieter)',
+      label: 'session thumbnails, framed on the growth: growing (0 / 0.45 / 0.85), then the same waiting (held, quieter)',
       w: 420,
       h: 160,
       render(canvas, { seed, pixelRatio }) {
@@ -219,7 +219,7 @@ const section: StudioSection = {
         if (!def) return;
         const ctx = canvas.getContext('2d')!;
         const size = Math.round(64 * pixelRatio);
-        [0.1, 0.45, 0.85].forEach((g, i) => {
+        [0, 0.45, 0.85].forEach((g, i) => {
           for (const waiting of [false, true]) {
             const c = document.createElement('canvas');
             c.width = size;
@@ -228,7 +228,7 @@ const section: StudioSection = {
             const p = document.createElement('canvas');
             p.width = size;
             p.height = size;
-            renderPlantView(p, { speciesId: def.id, seed, growth: g, watering: null });
+            renderPlantView(p, { speciesId: def.id, seed, growth: g, watering: null, framing: 'growth' });
             c.getContext('2d')!.drawImage(p, 0, 0);
             ctx.save();
             if (waiting) {
@@ -348,7 +348,7 @@ const section: StudioSection = {
     },
     {
       id: 'plant-view-growing',
-      label: 'Your plant: growing (0.15 / 0.5 / bloom)',
+      label: 'Your plant, framed on the growth: a seed (0), 0.5, bloom',
       w: 480,
       h: 170,
       render(canvas, { seed }) {
@@ -356,7 +356,7 @@ const section: StudioSection = {
         if (!def) return;
         const ctx = canvas.getContext('2d')!;
         const cw = Math.floor(canvas.width / 3);
-        [0.15, 0.5, 1].forEach((g, i) => {
+        [0, 0.5, 1].forEach((g, i) => {
           const c = document.createElement('canvas');
           c.width = cw;
           c.height = canvas.height;
@@ -364,9 +364,40 @@ const section: StudioSection = {
           const p = document.createElement('canvas');
           p.width = cw;
           p.height = canvas.height;
-          renderPlantView(p, { speciesId: def.id, seed, growth: g, watering: null });
+          renderPlantView(p, { speciesId: def.id, seed, growth: g, watering: null, framing: 'growth' });
           c.getContext('2d')!.drawImage(p, 0, 0);
           ctx.drawImage(c, i * cw, 0);
+        });
+      },
+    },
+    {
+      id: 'seed-bed',
+      label: 'a just-planted seed in a growth-framed view: flat seeds (pine, maple, ginkgo) on a mound of soil; 0 / 0.1 / 0.2 (the bed eases away), at 64 and 150 px',
+      w: 640,
+      h: 330,
+      render(canvas, { pixelRatio }) {
+        const ctx = canvas.getContext('2d')!;
+        ['black-pine', 'japanese-maple', 'ginkgo'].forEach((id, row) => {
+          [0, 0.1, 0.2].forEach((g, col) => {
+            for (const [size, x0] of [
+              [64, 10],
+              [150, 230],
+            ] as const) {
+              const px = Math.round(size * pixelRatio);
+              const c = document.createElement('canvas');
+              c.width = px;
+              c.height = px;
+              paintRoundWindow(c, 2);
+              const p = document.createElement('canvas');
+              p.width = px;
+              p.height = px;
+              renderPlantView(p, { speciesId: id, seed: 7, growth: g, watering: null, framing: 'growth' });
+              c.getContext('2d')!.drawImage(p, 0, 0);
+              const x = size === 64 ? x0 + col * 70 : x0 + col * 136;
+              const y = size === 64 ? 12 + row * 106 : 8 + row * 108;
+              ctx.drawImage(c, x * pixelRatio, y * pixelRatio, (size === 64 ? 64 : 100) * pixelRatio, (size === 64 ? 64 : 100) * pixelRatio);
+            }
+          });
         });
       },
     },
