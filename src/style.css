@@ -1,6 +1,6 @@
 /*
  * The page (ADR 0130): a sheet of washi that scrolls as a normal document. The garden stage sits
- * at the top with a small margin (~88 % of the viewport's height, so the dock peeks out below);
+ * at the top with a small margin (~94 % of the viewport's height, ADR 0212, so the dock peeks out below);
  * the dock follows on the same paper. The paper tile is the garden's own texture
  * (src/ui/page-paper.ts sets --page-paper); until it is generated the plain washi colour shows.
  */
@@ -8,14 +8,14 @@
   --paper: #f3ecd9;
   --ink: #3f3932;
   --page-margin: 14px;
-  --stage-h: 88vh;
+  --stage-h: 94vh;
   color-scheme: light;
 }
 
 @supports (height: 1svh) {
   :root {
     /* the small viewport: stable while a phone's address bar shows and hides */
-    --stage-h: 88svh;
+    --stage-h: 94svh;
   }
 }
 

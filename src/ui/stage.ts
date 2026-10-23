@@ -3,7 +3,7 @@ import { stageEdgeCanvas } from './stage-edge';
 
 /**
  * The garden stage (ADR 0130): the element that holds the canvas at the top of the page
- * (~88 % of the viewport height, a small margin around it). The renderer sizes itself to the
+ * (~94 % of the viewport height, ADR 0212, a small margin around it). The renderer sizes itself to the
  * canvas, which fills the stage, so the viewport follows the stage, not the window.
  * - `layer`: an overlay the size of the stage for everything that sits on the painting (timer pill,
  *   corner icons, quiet line, placement markers and bar, plant labels). Positions inside it are the
