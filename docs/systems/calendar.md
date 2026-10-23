@@ -90,7 +90,13 @@ the set of due occurrences changes.
   redraw checks a band (4 %–72 % of the window) and glides (1.4 s; at once under reduced motion) back
   to now − 90 min when now leaves it. A wheel, a touch move, a scrolling key on the hours or a scroll
   we did not make stops following; Today, another day or another view resets it. Past midnight it
-  turns to the new day, still following. Pure: `followTarget`, `glideScroll`, `FOLLOW`.
+  turns to the new day, still following. Pure: `followTarget`, `glideScroll`, `FOLLOW`. Only a
+  scroll on the timeline on screen counts: events from a timeline a redraw replaced, and scrolls
+  during our own glide, are ignored (each timeline remembers where we put it).
+- **The timeline is a 24-hour wall-clock face** (ADR 0210), also on a 23 or 25 hour daylight-saving
+  day: the hours, the now line, blocks (`daySpan`, `layoutDay`), the opening window and following
+  all count local wall minutes (`wallMinute`, `dayMinute`). The skipped spring hour is an empty
+  band; both passes of the repeated autumn hour fold onto one band and sit side by side.
 - The hours are redrawn every minute; keyboard focus on a block, a day or the hours is put back on
   the same control after a redraw.
 - On a phone's day, sessions side by side (three in progress overlap) keep a short time and the
@@ -140,6 +146,8 @@ validation), `core/schedule-reducer` (reducers, edits and removals by scope), `c
 round-trip, validation, v2 without schedules), `core/tips` (`schedule`), `ui/calendar-model` (ranges, DST
 week, items and merging, overlap layout, opening window, taps, month marks), `ui/prefill`,
 `widget/notifications` (scheduled), `widget/ticker` (the worker drives the scheduler), `dev/fill-history`,
-`ui/calendar-model` › following now, `ui/pickers` (formats, time parts, grid keys, the pickers in
+`ui/calendar-model` › following now, `ui/calendar-model` › daylight-saving days on the wall-clock
+face (both 2026 changes in Europe/London), `ui/pickers` (formats, time parts, grid keys, the pickers in
 jsdom).
-E2E: `tests/e2e/calendar.spec.ts`.
+E2E: `tests/e2e/calendar.spec.ts` (`calendar · a daylight-saving day` runs in Europe/London and
+jumps the dev clock to the next last Sunday of October, 25 Oct 2026).

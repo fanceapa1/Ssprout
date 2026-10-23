@@ -470,6 +470,7 @@ Legend: unit tests as `folder/file › test`, under `src/` (`.test.ts` omitted).
 | 13.19 | One quiet scheduling tip | core/tips › planning a session retires schedule | calendar › one quiet tip points at Schedule a session… | ✔ |
 | 13.20 | Phone layout | — | calendar · phone › one column, nothing wider than the screen… | ✔ |
 | 13.21 | Today's day view follows now while the tab stays open, gliding; a scroll by the gardener stops it until Today; it turns to the new day at midnight (ADR 0191) | ui/calendar-model › following now (all) | calendar · the day follows now › while the tab stays open…; › once the gardener scrolls the hours…; › past midnight… | ✔ |
+| 13.24 | A daylight-saving day (23 or 25 h) is drawn as 24 wall-clock hours: it opens at the clock's hour, the now line and blocks sit where the clock reads, the skipped hour is an empty band, both passes of the repeated hour share one band side by side; following survives a redraw mid-glide and only the gardener's own scroll stops it (ADRs 0191, 0210) | ui/calendar-model › daylight-saving days on the wall-clock face (all: spring forward and fall back 2026, Europe/London) | calendar · a daylight-saving day (ADR 0210) › the day opens at the hour the clock reads…; › later in the day the now line stays on the clock's hour…; › following survives the hours being redrawn while they glide; › only the gardener's own scroll stops following… (pinned to 25 Oct 2026, Europe/London) | ✔ |
 | 13.22 | The editor's day and time are painted pickers in the calendar's own formats (12 h in en-US, 24 h in en-GB), by keyboard and screen reader (ADR 0192) | ui/pickers (all: formats, time parts, grid keys, the day and time pickers in the page, Esc) | calendar · the editor speaks the calendar's clock › en-US, en-GB…; calendar › schedule a session… (pickDay, pickTime) | ✔ (studio `calendar/pickers`) |
 | 13.23 | A phone's day keeps sessions side by side readable (short time, first letters) and grows a focused one; keyboard focus survives the minute's redraw | — | calendar · a phone's day with sessions side by side…; calendar · keyboard focus survives the minute's redraw… | ✔ |
 
@@ -497,15 +498,12 @@ daylight › plantsReady waits for plants added just before it…).
 6. ~~Keyboard focus on tools and sheet cards~~ (12.26, v2 acceptance L5): fixed. The dock's tools,
    plan cards and plant cards lift on `:focus-visible` as on hover (ADR 0204); the test passes for
    real.
-7. **The day window is an hour off on a daylight-saving day** (ADR 0191; found by devlog 31):
-   `openingMinute` and the block positions in `ui/calendar-model.ts` count elapsed ms since
-   midnight, while the now line and following count wall-clock minutes (`minuteOfDay`). On a
-   23 h or 25 h day the window opens an hour early or late, so `calendar · the day follows now ›
-   while the tab stays open…` fails when it runs on such a day (e.g. `E2E_CLOCK=17:00` on
-   2026-10-24 in Europe lands it on Sunday 25 Oct). Fix in the UI: count local wall minutes.
-8. **Following stops when the hours are redrawn mid-glide** (ADR 0191; found by devlog 31): a
-   scroll event queued by the replaced `.cal-timeline` reaches the shared listener in
-   `ui/calendar.ts` after the new one set `lastSet`, so `follow` turns false. Seen when the clock
-   jumps while the day view follows and the view is then redrawn (`go`, a view change). Fix in the
-   UI: ignore scroll events from a scroller that is no longer connected. The follow-now specs wait
-   for the hours to rest after a jump (`hoursAtRest`) until then.
+7. ~~The day window is an hour off on a daylight-saving day~~: fixed (ADR 0210, devlog 33). The
+   timeline is a 24-hour wall-clock face. The opening window, blocks, the now line and following
+   all count local wall minutes. Proven across both 2026 changes (unit) and on 25 Oct 2026 in
+   Europe/London (e2e), 13.24.
+8. ~~Following stops when the hours are redrawn mid-glide~~: fixed (devlog 33). Scroll events
+   from a detached or replaced timeline, or during our own glide, are ignored. Each timeline
+   remembers where we put it. The follow-now specs no longer wait for the hours to rest before
+   redrawing. `calendar · a daylight-saving day › following survives the hours being redrawn
+   while they glide` redraws mid-glide on purpose, 13.24.
