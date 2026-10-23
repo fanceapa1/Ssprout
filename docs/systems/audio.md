@@ -145,7 +145,8 @@ defaults to the pond; navigation calls `setScenery('coast')` / `setScenery('pond
 the mix with a 2 s glide and notifies `onSceneryChange`; it does not select or unlock visual art.
 
 `settings.soundscape` stores the selected collection, overall volume, one Standard mix and
-per-scenery mixes. Absent settings preserve the old behavior and need no schema migration.
+per-scenery mixes in schema v3. The v2 → v3 migration preserves all old fields and the mute
+choice; absent sound preferences keep the original automatic mix.
 Scenery's `mode: 'garden'` follows weather/hour; `custom` uses fixed levels. Standard is always
 custom and stays identical across scenery changes. The parameter mapper filters out layers
 outside the active palette even if an imported mix contains values for hidden layers.

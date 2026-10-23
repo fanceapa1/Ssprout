@@ -1,10 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createDefaultState, createStore, reducer, type Reducer } from './state';
+import { createDefaultState, createStore, reducer, STATE_VERSION, type Reducer } from './state';
 
 describe('createDefaultState', () => {
   it('builds an empty, muted garden', () => {
     const s = createDefaultState(1234);
-    expect(s.version).toBe(2);
+    expect(s.version).toBe(STATE_VERSION);
     expect(s.createdAt).toBe(1234);
     expect(s.plants).toEqual([]);
     expect(s.session).toBeNull();

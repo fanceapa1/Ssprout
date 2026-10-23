@@ -246,14 +246,17 @@ const controller = createSessionController({
 ## Persistence (`persistence.ts`)
 
 - Key **`studysprout:v1`** (stable forever); the document's `version` drives migrations. Schema
-  `version: 2` (ADR 0154): `waiting`, `log`, `focusWaterings`; `schedules` (ADR 0170) is optional
-  (absent → `[]`), so it needed no schema bump.
+  `version: 3` adds optional sound preferences (ADR 0104); absent preferences retain the original
+  automatic mix. The v2 fields remain: `waiting`, `log`, `focusWaterings` (ADR 0154) and optional
+  `schedules` (absent → `[]`, ADR 0170).
 - `loadState(storage, now, { isKnownSpecies })` → `{ state, status, warnings, error?, backupKey? }`,
   status `fresh | loaded | migrated | recovered | unavailable`. Never throws.
   - `migrated`: upgraded via `MIGRATIONS[n]: (vN) => vN+1` and re-saved. `MIGRATIONS = { 1:
-    migrateV1toV2 }`: the v1 session stays the active one exactly as it was (`focusWaterings: 0`),
+    migrateV1toV2, 2: migrateV2toV3 }`: the v1 session stays the active one exactly as it was (`focusWaterings: 0`),
     `waiting: []`, `log` back-filled from the finished plants (`plan: null`, `focusedMinutes` = the
-    total, `backfilled: true`). Pure; never mutates its input. Tested on real v1 fixtures.
+    total, `backfilled: true`). The v2 → v3 step changes only the version. Both are pure and
+    never mutate input. Tested with v1 fixtures and a v2 garden containing parallel sessions,
+    history and schedules.
   - `recovered`: invalid JSON, invalid shape or a newer/unknown version → raw text copied to
     `studysprout:corrupt:<now>`, and only if that backup write succeeded is the main key reset to a
     default garden (and `backupKey` set); otherwise the original stays in place.

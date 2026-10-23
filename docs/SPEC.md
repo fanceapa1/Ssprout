@@ -276,9 +276,10 @@ The **Sound mixer** (corner and Garden tools, ADR 0104) has two collections:
   `audio.setScenery(id)` when the viewed garden changes.
 
 ## 9. Persistence
-- `localStorage` only (key `studysprout:v1`), versioned schema with migrations: schema v2 (parallel
-  sessions, the session log; scheduled sessions are an optional v2 key, ADR 0170); a v1 garden — and a v1 session in progress — is migrated on load and on
-  import, its history back-filled from its plants (ADR 0154).
+- `localStorage` only (key `studysprout:v1`), versioned schema with migrations: schema v3 adds
+  sound preferences (ADR 0104). The v2 → v3 step preserves every plant, session, schedule and
+  setting; an absent sound mix keeps the original automatic ambience. A v1 garden chains the
+  v1 → v2 step too, with history back-filled from its plants (ADR 0154).
 - Export garden → downloads `study-sprout-garden-YYYY-MM-DD.json`; Import restores (validated).
 - Hidden dev mode `?dev` exposes speed-up (`?dev&speed=60`; `?speed` alone is ignored) and a
   debug API for tests (`window.sprout`, docs/ARCHITECTURE.md › Dev / test hooks).

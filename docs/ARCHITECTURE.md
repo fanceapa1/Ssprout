@@ -244,7 +244,7 @@ export interface SessionLogEntry { id: string; outcome: 'completed' | 'cancelled
   slotId: string; seed: number; plan: StudyPlan | null /* null: back-filled */; goalMinutes: number; focusedMinutes: number;
   startedAt: number; endedAt: number /* wall clock */; backfilled?: true; }
 export interface GardenState {
-  version: 2;
+  version: 3;
   createdAt: number;
   plants: PlantInstance[];      // finished plants only
   pressed: PressedFlower[];
@@ -299,7 +299,7 @@ deterministic. `type Action =`
 | `schedule/split` | `id, date, newId, now, patch` | "this and following": end the series before `date`, a new one from it — ADR 0171 |
 
 Types exported alongside: `Settings`, `GardenStats`, `Action`, `ActionType`, `Reducer<S, A>`,
-`Listener<S, A>`, `Store`, `createStore`, `createDefaultState(now)`, `STATE_VERSION` (2),
+`Listener<S, A>`, `Store`, `createStore`, `createDefaultState(now)`, `STATE_VERSION` (3),
 `DEFAULT_GOAL_MINUTES`, `MAX_SESSIONS` (3), `createReducer`, `reducer`, `ReducerWorld`, `mergeSettings`,
 `logEntry`, and the selectors `inProgressSessions(state)` (oldest start first), `canStartSession`,
 `lastLeftSession`, `heldSlotIds`.
@@ -466,7 +466,9 @@ default; it follows `settings:changed` and the session/plant/fauna events on the
 `core/soundscape.ts` owns `SoundLayer`, `SoundLevels` (0–100), `SceneryId`, `SCENERIES` and
 `SoundscapeSettings = { collection: 'standard'|'scenery', volume: number, standard: SoundLevels,
 sceneries: Partial<Record<SceneryId, { mode: 'garden'|'custom', levels: SoundLevels }>> }`.
-Preferences are optional in schema v2; old saves keep their exact default. The reducer validates
+Preferences are optional in schema v3 (ADR 0104). `migrateV2toV3` changes only the version,
+preserving the original automatic mix and mute choice; v1 gardens chain both migrations.
+The reducer validates
 and copies them, persistence validates imports, and mixer edits use `controller.updateSettings`.
 The controller also emits `settings:changed` when a whole garden is restored or reset, so the
 running audio gate and levels follow imported settings immediately.

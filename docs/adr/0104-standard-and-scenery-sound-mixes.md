@@ -18,8 +18,10 @@ storage, quiet levels and procedural audio decisions.
   Clear creates a custom mix, independent of visual weather, hour and fauna unlocks. Follow
   the garden is reversible and keeps the saved custom levels. Neither collection edits nor
   level changes unmute; Listen and the existing speaker shortcut control the same mute bit.
-- `settings.soundscape` is optional in v2, validated and deeply copied, included in exports.
-  Missing preferences leave old gardens unchanged. Views write through the controller.
+- Schema v3 adds optional `settings.soundscape`, validated and deeply copied, included in exports.
+  The pure v2 → v3 migration changes only the version; missing preferences preserve the original
+  automatic mix and mute choice. v1 saves chain through both migrations. The storage key stays
+  `studysprout:v1`. Views write through the controller.
 - `audio.setScenery(id)` supplies runtime context; `onSceneryChange` updates the sheet. The
   pond is the only shipped scene; a coastal sound profile prepares this seam without adding a
   scene selector or garden progression.

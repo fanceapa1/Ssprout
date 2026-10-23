@@ -9,7 +9,8 @@ the saved custom levels. Editing never turns sound on. The compact sticky playba
 Listen and overall volume in reach, and the shared sheet measurement clears keyboard focus.
 
 `core/soundscape.ts` owns the collection/scenery model. The optional validated setting keeps
-old v2 saves unchanged and travels in garden exports. Standard is shared across places; scenery
+old garden contents unchanged through the v2 → v3 migration and travels in garden exports.
+Standard is shared across places; scenery
 mixes are separate. `GardenAudio.setScenery` and `onSceneryChange` provide the integration seam;
 a coastal audio profile is tested but no new visual scenery is exposed. The future scene
 selector must call the setter on navigation. Garden progression, unlocking, editing and
@@ -32,5 +33,15 @@ flow was split and the painting frozen during isolated mixer tests to stay withi
 time budget. Subjective sound quality remains a listening check; café is synthetic room murmur,
 not a recording of people, and lo-fi is an original instrumental loop.
 
-Status: implementation and targeted mixer checks complete; final whole-suite results are
-recorded after the release checks. ADR 0104 documents the contracts and decisions.
+Integrated the newer active-session audio follower and dock styling from main. The schema is
+v3, following the contributor rule for new persisted shapes; `migrateV2toV3` changes only the
+version. Tests cover v1 chains and v2 gardens with plants, parallel sessions, history and
+schedules, plus an actual browser reload from a v2 save. The devlog is numbered 39 to retain
+the intervening upstream entries.
+
+Validation: typecheck and all 1,378 unit tests passed. All 18 targeted browser checks passed
+serially: the mixer, migration, import/reset, keyboard, 390/320 px layouts, audio levels, studio
+playback/icon sheet, smoke tests and the four rendering checks. The original two-worker Windows
+run hit rendering/timing failures; those same four checks passed serially on both the unchanged
+base and the rebased feature, without changing their thresholds. The full suite runs in PR CI;
+its result is available with the PR checks. ADR 0104 documents the contracts and decisions.

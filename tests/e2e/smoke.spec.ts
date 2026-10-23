@@ -18,7 +18,7 @@ test.describe('smoke', () => {
     expect(api).toEqual(expect.arrayContaining(['state', 'ready', 'freeze', 'unfreeze', 'setSpeed']));
 
     const state = await page.evaluate(() => window.sprout!.state());
-    expect(state.version).toBe(2);
+    expect(state.version).toBe(3);
     expect(state.plants).toEqual([]);
 
     await page.evaluate(() => window.sprout!.freeze());

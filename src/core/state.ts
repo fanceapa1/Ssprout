@@ -114,7 +114,7 @@ export interface GardenStats {
 }
 
 export interface GardenState {
-  version: 2;
+  version: 3;
   createdAt: number;
   plants: PlantInstance[];
   pressed: PressedFlower[];
@@ -137,7 +137,7 @@ export interface GardenState {
   settings: Settings;
 }
 
-export const STATE_VERSION = 2 as const;
+export const STATE_VERSION = 3 as const;
 export const DEFAULT_GOAL_MINUTES = 25;
 /** Sessions that may be in progress at once: one active, the others waiting (ADR 0150). */
 export const MAX_SESSIONS = 3;

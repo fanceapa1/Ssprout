@@ -16,7 +16,7 @@ import {
   type Migrations,
   type StorageLike,
 } from './persistence';
-import { createDefaultState, type GardenState } from './state';
+import { createDefaultState, STATE_VERSION, type GardenState } from './state';
 import { makePlant, makePressed, makeSession, MIN, plan } from './testing';
 
 const T0 = 1_700_000_000_000;
@@ -78,15 +78,15 @@ describe('migrate', () => {
     const doc = garden();
     const r = migrate(doc);
     expect(r.ok && r.value.doc).toBe(doc);
-    expect(r.ok && r.value.from).toBe(2);
+    expect(r.ok && r.value.from).toBe(STATE_VERSION);
   });
 
-  it('runs a v0 → v1 → v2 chain', () => {
+  it('runs a v0 → v1 → v2 → v3 chain', () => {
     const r = migrate(v0, { migrations: fakeMigrations });
     expect(r.ok).toBe(true);
     if (!r.ok) return;
     expect(r.value.from).toBe(0);
-    expect(r.value.doc.version).toBe(2);
+    expect(r.value.doc.version).toBe(STATE_VERSION);
     const v = validateState(r.value.doc);
     expect(v.ok && v.value.state.plants[0]!.speciesId).toBe('violet');
     // fields that did not exist in v0 take their defaults
@@ -105,7 +105,7 @@ describe('migrate', () => {
   });
 
   it('rejects newer, missing or unmigratable versions', () => {
-    expect(migrate({ version: 3 })).toMatchObject({ ok: false, error: { code: 'unsupported-version' } });
+    expect(migrate({ version: STATE_VERSION + 1 })).toMatchObject({ ok: false, error: { code: 'unsupported-version' } });
     expect(migrate({ version: 0 })).toMatchObject({ ok: false, error: { code: 'unsupported-version' } });
     expect(migrate({})).toMatchObject({ ok: false, error: { code: 'not-a-garden' } });
     expect(migrate({ version: 'one' })).toMatchObject({ ok: false, error: { code: 'not-a-garden' } });
@@ -134,7 +134,7 @@ describe('validateState', () => {
   });
 
   it('fills absent keys with defaults and drops unknown keys', () => {
-    const r = validateState({ version: 2, createdAt: T0, extra: 'x', settings: { muted: false } });
+    const r = validateState({ version: STATE_VERSION, createdAt: T0, extra: 'x', settings: { muted: false } });
     expect(r.ok).toBe(true);
     if (!r.ok) return;
     expect(r.value.state).toEqual({ ...createDefaultState(T0), settings: { ...createDefaultState(T0).settings, muted: false } });
@@ -142,7 +142,7 @@ describe('validateState', () => {
   });
 
   it('uses `now` when createdAt is missing', () => {
-    const r = validateState({ version: 2 }, { now: 99 });
+    const r = validateState({ version: STATE_VERSION }, { now: 99 });
     expect(r.ok && r.value.state.createdAt).toBe(99);
   });
 
@@ -178,46 +178,46 @@ describe('validateState', () => {
 
   it('defaults optional session fields and normalises names', () => {
     const { skippedMs: _s, waterings: _w, displacedPlantId: _d, ...bare } = makeSession({ taskName: '  Essay  ' });
-    const r = validateState({ version: 2, session: bare });
+    const r = validateState({ version: STATE_VERSION, session: bare });
     expect(r.ok && r.value.state.session).toMatchObject({ skippedMs: 0, waterings: [], displacedPlantId: null, taskName: 'Essay' });
   });
 
   it('ignores a leftover pendingReward key (pre-ADR 0003 drafts)', () => {
-    const r = validateState({ version: 2, pendingReward: { anything: true } });
+    const r = validateState({ version: STATE_VERSION, pendingReward: { anything: true } });
     expect(r.ok && 'pendingReward' in r.value.state).toBe(false);
   });
 
   it('clamps lastGoalMinutes and dedupes faunaSeen', () => {
-    const r = validateState({ version: 2, settings: { lastGoalMinutes: 7 }, faunaSeen: ['koi-1', 'koi-1'] });
+    const r = validateState({ version: STATE_VERSION, settings: { lastGoalMinutes: 7 }, faunaSeen: ['koi-1', 'koi-1'] });
     expect(r.ok && r.value.state.settings.lastGoalMinutes).toBe(10);
     expect(r.ok && r.value.state.faunaSeen).toEqual(['koi-1']);
   });
 
   it.each([
-    ['wrong version', { version: 3 }, 'version'],
-    ['plants not an array', { version: 2, plants: {} }, 'plants'],
-    ['plant missing seed', { version: 2, plants: [{ id: 'a', speciesId: 's', slotId: 'x', plantedAt: 0, sessionMinutes: 1 }] }, 'plants[0].seed'],
-    ['plant with empty id', { version: 2, plants: [{ id: '', speciesId: 's', slotId: 'x', seed: 1, plantedAt: 0, sessionMinutes: 1 }] }, 'plants[0].id'],
-    ['NaN-ish seed', { version: 2, plants: [{ id: 'a', speciesId: 's', slotId: 'x', seed: '1', plantedAt: 0, sessionMinutes: 1 }] }, 'plants[0].seed'],
-    ['pressed entry', { version: 2, pressed: [{ speciesId: 's', seed: 1, plantedAt: 0 }] }, 'pressed[0].removedAt'],
-    ['plant task name not a string', { version: 2, plants: [{ ...makePlant(), taskName: 3 }] }, 'plants[0].taskName'],
-    ['bad weather', { version: 2, session: { ...makeSession(), weather: 'snow' } }, 'session.weather'],
-    ['zero goal', { version: 2, session: { ...makeSession(), goalMs: 0 } }, 'session.goalMs'],
-    ['goal not whole minutes', { version: 2, session: { ...makeSession(), goalMs: 25 * MIN + 1 } }, 'session.goalMs'],
-    ['negative pause total', { version: 2, session: { ...makeSession(), pausedTotalMs: -5 } }, 'session.pausedTotalMs'],
-    ['negative skipped', { version: 2, session: { ...makeSession(), skippedMs: -5 } }, 'session.skippedMs'],
-    ['missing plan', { version: 2, session: { ...makeSession(), plan: undefined } }, 'session.plan'],
-    ['plan not summing to goal', { version: 2, session: { ...makeSession(), plan: plan([20]) } }, 'session.plan'],
-    ['plan ending with a break', { version: 2, session: { ...makeSession(), goalMs: 30 * MIN, plan: plan([25, -5]) } }, 'session.plan'],
-    ['bad block kind', { version: 2, session: { ...makeSession(), plan: { id: 'x', name: 'x', blocks: [{ kind: 'nap', minutes: 25 }] } } }, 'session.plan.blocks[0].kind'],
-    ['missing species', { version: 2, session: { ...makeSession(), speciesId: '' } }, 'session.speciesId'],
-    ['watering a focus block', { version: 2, session: { ...makeSession(), waterings: [0] } }, 'session.waterings[0]'],
-    ['bad displaced id', { version: 2, session: { ...makeSession(), displacedPlantId: 5 } }, 'session.displacedPlantId'],
-    ['negative stats', { version: 2, stats: { totalMinutes: -1 } }, 'stats.totalMinutes'],
-    ['muted not boolean', { version: 2, settings: { muted: 'no' } }, 'settings.muted'],
-    ['bad notifications', { version: 2, settings: { notifications: 'maybe' } }, 'settings.notifications'],
-    ['tip value', { version: 2, tips: { duration: true } }, 'tips.duration'],
-    ['fauna id', { version: 2, faunaSeen: [3] }, 'faunaSeen[0]'],
+    ['wrong version', { version: STATE_VERSION + 1 }, 'version'],
+    ['plants not an array', { version: STATE_VERSION, plants: {} }, 'plants'],
+    ['plant missing seed', { version: STATE_VERSION, plants: [{ id: 'a', speciesId: 's', slotId: 'x', plantedAt: 0, sessionMinutes: 1 }] }, 'plants[0].seed'],
+    ['plant with empty id', { version: STATE_VERSION, plants: [{ id: '', speciesId: 's', slotId: 'x', seed: 1, plantedAt: 0, sessionMinutes: 1 }] }, 'plants[0].id'],
+    ['NaN-ish seed', { version: STATE_VERSION, plants: [{ id: 'a', speciesId: 's', slotId: 'x', seed: '1', plantedAt: 0, sessionMinutes: 1 }] }, 'plants[0].seed'],
+    ['pressed entry', { version: STATE_VERSION, pressed: [{ speciesId: 's', seed: 1, plantedAt: 0 }] }, 'pressed[0].removedAt'],
+    ['plant task name not a string', { version: STATE_VERSION, plants: [{ ...makePlant(), taskName: 3 }] }, 'plants[0].taskName'],
+    ['bad weather', { version: STATE_VERSION, session: { ...makeSession(), weather: 'snow' } }, 'session.weather'],
+    ['zero goal', { version: STATE_VERSION, session: { ...makeSession(), goalMs: 0 } }, 'session.goalMs'],
+    ['goal not whole minutes', { version: STATE_VERSION, session: { ...makeSession(), goalMs: 25 * MIN + 1 } }, 'session.goalMs'],
+    ['negative pause total', { version: STATE_VERSION, session: { ...makeSession(), pausedTotalMs: -5 } }, 'session.pausedTotalMs'],
+    ['negative skipped', { version: STATE_VERSION, session: { ...makeSession(), skippedMs: -5 } }, 'session.skippedMs'],
+    ['missing plan', { version: STATE_VERSION, session: { ...makeSession(), plan: undefined } }, 'session.plan'],
+    ['plan not summing to goal', { version: STATE_VERSION, session: { ...makeSession(), plan: plan([20]) } }, 'session.plan'],
+    ['plan ending with a break', { version: STATE_VERSION, session: { ...makeSession(), goalMs: 30 * MIN, plan: plan([25, -5]) } }, 'session.plan'],
+    ['bad block kind', { version: STATE_VERSION, session: { ...makeSession(), plan: { id: 'x', name: 'x', blocks: [{ kind: 'nap', minutes: 25 }] } } }, 'session.plan.blocks[0].kind'],
+    ['missing species', { version: STATE_VERSION, session: { ...makeSession(), speciesId: '' } }, 'session.speciesId'],
+    ['watering a focus block', { version: STATE_VERSION, session: { ...makeSession(), waterings: [0] } }, 'session.waterings[0]'],
+    ['bad displaced id', { version: STATE_VERSION, session: { ...makeSession(), displacedPlantId: 5 } }, 'session.displacedPlantId'],
+    ['negative stats', { version: STATE_VERSION, stats: { totalMinutes: -1 } }, 'stats.totalMinutes'],
+    ['muted not boolean', { version: STATE_VERSION, settings: { muted: 'no' } }, 'settings.muted'],
+    ['bad notifications', { version: STATE_VERSION, settings: { notifications: 'maybe' } }, 'settings.notifications'],
+    ['tip value', { version: STATE_VERSION, tips: { duration: true } }, 'tips.duration'],
+    ['fauna id', { version: STATE_VERSION, faunaSeen: [3] }, 'faunaSeen[0]'],
   ])('rejects %s', (_name, doc, path) => {
     const r = validateState(doc);
     expect(r).toMatchObject({ ok: false, error: { code: 'invalid-state', path } });
@@ -225,18 +225,18 @@ describe('validateState', () => {
 
   it('rejects duplicate plant ids and two plants in one slot', () => {
     const p = { speciesId: 's', seed: 1, plantedAt: 0, sessionMinutes: 1, taskName: 't', completedAt: 0 };
-    expect(validateState({ version: 2, plants: [{ ...p, id: 'a', slotId: 'x' }, { ...p, id: 'a', slotId: 'y' }] })).toMatchObject({
+    expect(validateState({ version: STATE_VERSION, plants: [{ ...p, id: 'a', slotId: 'x' }, { ...p, id: 'a', slotId: 'y' }] })).toMatchObject({
       ok: false,
       error: { path: 'plants[1].id' },
     });
-    expect(validateState({ version: 2, plants: [{ ...p, id: 'a', slotId: 'x' }, { ...p, id: 'b', slotId: 'x' }] })).toMatchObject({
+    expect(validateState({ version: STATE_VERSION, plants: [{ ...p, id: 'a', slotId: 'x' }, { ...p, id: 'b', slotId: 'x' }] })).toMatchObject({
       ok: false,
       error: { path: 'plants[1].slotId' },
     });
   });
 
   it('rejects a session whose id is already a finished plant', () => {
-    const doc = { version: 2, plants: [makePlant({ id: 's1' })], session: makeSession({ id: 's1', slotId: 'rock-1' }) };
+    const doc = { version: STATE_VERSION, plants: [makePlant({ id: 's1' })], session: makeSession({ id: 's1', slotId: 'rock-1' }) };
     expect(validateState(doc)).toMatchObject({ ok: false, error: { code: 'invalid-state', path: 'session.id' } });
   });
 });
@@ -260,7 +260,7 @@ describe('loadState', () => {
     const r = loadState(storage, T0, { migrations: fakeMigrations });
     expect(r.status).toBe('migrated');
     expect(r.state.plants[0]!.id).toBe('p1');
-    expect(JSON.parse(storage.map.get(STORAGE_KEY)!).version).toBe(2);
+    expect(JSON.parse(storage.map.get(STORAGE_KEY)!).version).toBe(STATE_VERSION);
   });
 
   it('recovers from corrupt JSON: default state, backup kept, main key reset', () => {
@@ -398,7 +398,7 @@ describe('export / import', () => {
     expect(doc).toMatchObject({
       format: EXPORT_FORMAT,
       formatVersion: 1,
-      schemaVersion: 2,
+      schemaVersion: STATE_VERSION,
       exportedAt: '2026-10-21T12:00:00.000Z',
       summary: { plants: 2, pressed: 1, totalMinutes: 35, completed: 2 },
     });

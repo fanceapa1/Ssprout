@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { exportState, importState, validateState } from './persistence';
 import { copySoundscape, defaultSoundscape, isSoundscape, levelsWith, sceneryMix, selectedMix } from './soundscape';
-import { createDefaultState, mergeSettings } from './state';
+import { createDefaultState, mergeSettings, STATE_VERSION } from './state';
 
 describe('sound collections', () => {
   it('keeps a Standard mix across sceneries and restores each scenery’s own mix', () => {
@@ -60,6 +60,6 @@ describe('sound collections', () => {
     const result = importState(exportState(state, 1234));
     expect(result.ok).toBe(true);
     if (result.ok) expect(result.state.settings.soundscape).toEqual(state.settings.soundscape);
-    expect(validateState({ ...state, settings: { ...state.settings, soundscape: { volume: 500 } } }).ok).toBe(false);
+    expect(validateState({ ...state, version: STATE_VERSION, settings: { ...state.settings, soundscape: { volume: 500 } } }).ok).toBe(false);
   });
 });

@@ -87,10 +87,10 @@ agent) picks up the work next.
   registry. Use `?fixtures` (`fx-*`) species for UI flows and real species for art.
 - **The studio paints lazily** (ADR 0006): cards paint near the screen within a frame budget.
   Await `window.studio.settle()` before reading studio pixels.
-- **State is schema v2** (ADR 0154). `state.session` is only the *active* session: up to two more
+- **State is schema v3** (ADRs 0154, 0104). `state.session` is only the *active* session: up to two more
   wait in `state.waiting` (use `inProgressSessions(state)`), and ended sessions are in `state.log`.
   The storage key stays `studysprout:v1`; the document's `version` drives `MIGRATIONS`. A shape
-  change means a v3: a migration step, the hand-written validation (ADR 0034), an ADR and the
+  change means a new schema version: a migration step, the hand-written validation (ADR 0034), an ADR and the
   ARCHITECTURE contract in the same commit.
 - **New UI below the garden is a dock section** (`ui.dock.addSection`, docs/ARCHITECTURE.md › Dock),
   never DOM added to the page by hand. The guiding path (ADR 0202) gets a stop for every visible

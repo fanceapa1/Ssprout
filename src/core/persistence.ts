@@ -95,7 +95,12 @@ export function migrateV1toV2(doc: Json): Json {
   return { ...doc, version: 2, session, waiting: [], log: backfillLog(readable) };
 }
 
-export const MIGRATIONS: Migrations = { 1: migrateV1toV2 };
+/** v2 → v3 reserves the sound preferences contract without changing any existing choices. */
+export function migrateV2toV3(doc: Json): Json {
+  return { ...doc, version: 3 };
+}
+
+export const MIGRATIONS: Migrations = { 1: migrateV1toV2, 2: migrateV2toV3 };
 
 export interface MigrateOptions {
   migrations?: Migrations;

@@ -35,7 +35,7 @@ commit, and when it replaces or changes an earlier decision, update that ADR's S
 | [0030](0030-reducer-validates-with-injected-world.md) | Reducer validates with an injected world | accepted; amended by 0036 | Invalid actions are no-ops returning the same reference; tier/slot checks via `ReducerWorld` |
 | [0031](0031-offer-generation.md) | Reward offer generation | **superseded** by 0003/0036 | The old 3-species end-of-session offer (removed) |
 | [0032](0032-session-controller.md) | Session controller is the single UI API | accepted; API revised by 0036, 0150 | Only dispatcher of session actions; injectable ticker; completes due sessions on boot |
-| [0033](0033-persistence-format-and-recovery.md) | Persistence format and recovery | accepted; first migration 0154 | Stable key, chained migrations, corrupt data backed up, 300 ms debounced saves |
+| [0033](0033-persistence-format-and-recovery.md) | Persistence format and recovery | accepted; amended by 0154, 0104 | Stable key, chained migrations through v3, corrupt data backed up, 300 ms debounced saves |
 | [0034](0034-hand-written-validation.md) | Hand-written validation | accepted; amended by 0036 | Lenient on missing keys, strict on types; unknown species kept and flagged |
 | [0035](0035-dev-clock-jump.md) | Dev clock jump | accepted | `advance(ms)`; dev break/complete helpers jump time, then `check()` |
 | [0036](0036-plan-based-sessions-in-core.md) | Plan-based sessions in core | accepted; amended by 0150 | Plans, plan position, growth = focus fraction, water/skip, block events |
@@ -74,8 +74,8 @@ commit, and when it replaces or changes an earlier decision, update that ADR's S
 | [0092](0092-notifications-only-service-worker.md) | Notifications-only service worker | accepted | `public/sw.js` handles clicks only |
 | [0093](0093-floating-card-dom-over-canvas.md) | Floating card: DOM over canvas | accepted; amended by 0157 | `mountCard(window)`, `HostOpener`, `WidgetController` |
 | [0094](0094-plant-view-seam.md) | Plant view seam | accepted; internals replaced by 0118; amended by 0189 | Fixed `renderPlantView` signature for widget and previews |
-| [0100](0100-procedural-audio-as-data.md) | Procedural audio as data | accepted | Pure planner and recipes over a thin Web Audio backend |
-| [0101](0101-audio-gating-and-fades.md) | Audio gating and fades | accepted | Muted by default, gesture unlock, 2 s fades, suspend when muted |
+| [0100](0100-procedural-audio-as-data.md) | Procedural audio as data | accepted; amended by 0104 | Pure planner and recipes over a thin Web Audio backend, optional layer routing and additional continuous beds |
+| [0101](0101-audio-gating-and-fades.md) | Audio gating and fades | accepted; amended by 0104 | Muted by default, gesture unlock, 2 s fades scaled by overall volume, suspend when muted |
 | [0102](0102-audio-clock.md) | Audio clock | accepted | Scheduling on the AudioContext clock; `Clock` only gives the hour |
 | [0103](0103-audio-levels.md) | Audio levels | accepted | Gains ≤ 0.12, master 0.8, compressor; chimes outside the mist filter |
 | [0104](0104-standard-and-scenery-sound-mixes.md) | Standard and scenery sound mixes | accepted | One Standard mix across places, one mix per scenery, reversible Follow the garden; validated local preferences; quiet synthesized beds and an accessible paper mixer |

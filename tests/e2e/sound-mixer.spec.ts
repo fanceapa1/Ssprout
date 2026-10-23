@@ -14,6 +14,25 @@ async function level(sheet: Locator, name: string, n: number) {
 }
 
 test.describe('sound mixer', () => {
+  test('a saved v2 garden migrates without losing plants or turning sound on', async ({ page }) => {
+    await openUi(page);
+    await page.evaluate(() => window.sprout!.addPlants(1));
+    const legacy = await page.evaluate(() => {
+      const state = JSON.parse(window.sprout!.exportState()).state;
+      state.version = 2;
+      delete state.settings.soundscape;
+      return state;
+    });
+    await page.addInitScript((json) => localStorage.setItem('studysprout:v1', json), JSON.stringify(legacy));
+    await reloadUi(page);
+    expect(await page.evaluate(() => window.sprout!.state().version)).toBe(3);
+    expect(await page.evaluate(() => window.sprout!.state().plants)).toEqual(legacy.plants);
+    const sheet = await openMixer(page);
+    await expect(sheet.getByRole('button', { name: 'Follow the garden', exact: true })).toHaveAttribute('aria-pressed', 'true');
+    await expect(sheet.getByRole('button', { name: 'Listen', exact: true })).toBeVisible();
+    expect(await page.evaluate(() => JSON.parse(localStorage.getItem('studysprout:v1')!).version)).toBe(3);
+  });
+
   test('two collections retain their mixes; sound stays off until Listen; quick mute stays in sync', async ({ page }) => {
     await openUi(page);
     const sheet = await openMixer(page);

@@ -4,9 +4,9 @@ import { createSessionController } from './controller';
 import { createEventBus } from './events';
 import v1Paused from './fixtures/garden-v1-paused.json';
 import v1Session from './fixtures/garden-v1-session.json';
-import { EXPORT_FORMAT, importState, loadState, migrate, migrateV1toV2, STORAGE_KEY, validateState, type StorageLike } from './persistence';
+import { EXPORT_FORMAT, importState, loadState, migrate, migrateV1toV2, migrateV2toV3, STORAGE_KEY, validateState, type StorageLike } from './persistence';
 import { sessionPhase, sessionTimeline } from './session';
-import { createReducer, createStore, type ActiveSession, type GardenState } from './state';
+import { createReducer, createStore, STATE_VERSION, type ActiveSession, type GardenState } from './state';
 
 /**
  * Schema v1 → v2 (ADRs 0150, 0151): parallel sessions and the session log. The fixtures are v1
@@ -37,7 +37,7 @@ const migrated = (doc: unknown): GardenState => {
 describe('v1 → v2 migration', () => {
   it('keeps the garden and makes the in-progress v1 session the active one, exactly as it was', () => {
     const state = migrated(v1Session);
-    expect(state.version).toBe(2);
+    expect(state.version).toBe(STATE_VERSION);
     expect(state.plants).toEqual(v1Session.plants);
     expect(state.pressed).toEqual(v1Session.pressed);
     expect(state.stats).toEqual(v1Session.stats);
@@ -85,17 +85,17 @@ describe('v1 → v2 migration', () => {
 
   it('leaves malformed plants out of the back-fill and lets validation report them', () => {
     const doc = { ...clone(v1Session), plants: [{ id: 3 }, ...clone(v1Session.plants)] };
-    const out = migrateV1toV2(doc);
+    const out = migrateV2toV3(migrateV1toV2(doc));
     expect((out.log as unknown[]).length).toBe(3);
     expect(validateState(out)).toMatchObject({ ok: false, error: { code: 'invalid-state', path: 'plants[0].plantedAt' } });
   });
 
-  it('a stored v1 garden loads as migrated, is saved as v2 and then loads as is', () => {
+  it('a stored v1 garden loads as migrated, is saved at the current version and then loads as is', () => {
     const storage = memoryStorage({ [STORAGE_KEY]: JSON.stringify(v1Session) });
     const now = v1Session.session.startedAt + 20 * MIN;
     const first = loadState(storage, now);
     expect(first.status).toBe('migrated');
-    expect(JSON.parse(storage.map.get(STORAGE_KEY)!).version).toBe(2);
+    expect(JSON.parse(storage.map.get(STORAGE_KEY)!).version).toBe(STATE_VERSION);
     const second = loadState(storage, now);
     expect(second.status).toBe('loaded');
     expect(second.state).toEqual(first.state);
@@ -129,7 +129,7 @@ describe('v1 → v2 migration', () => {
     const r = importState(file);
     expect(r.ok).toBe(true);
     if (!r.ok) return;
-    expect(r.state.version).toBe(2);
+    expect(r.state.version).toBe(STATE_VERSION);
     expect(r.state.session?.id).toBe('session-mh4f00aa-2c3d4');
     expect(r.state.log).toHaveLength(3);
   });
