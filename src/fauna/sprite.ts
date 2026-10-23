@@ -69,12 +69,17 @@ export function drawSprite(ctx: CanvasRenderingContext2D, s: Sprite, x: number, 
 }
 
 /**
- * Painted parts cached per key at one resolution. Changing the resolution (resize, studio zoom)
- * drops the cache; parts are repainted lazily on next use.
+ * Painted parts cached per key and resolution. The resolution follows the view: the overview's
+ * pixel scale, or a resting close view's (ADR 0188). A part missing at the current resolution is
+ * painted at once only when no other resolution has it; otherwise the copy at the other
+ * resolution keeps drawing and the sharp one is queued for idle time (`paintPending`), so a
+ * camera coming to rest never stalls a frame. Two resolutions are kept at most (the current one
+ * and the one before it), so memory stays bounded and a return to the overview repaints nothing.
  */
 export class ArtCache {
-  private map = new Map<string, unknown>();
+  private maps = new Map<number, Map<string, unknown>>();
   private _res = 2;
+  private queue = new Map<string, (res: number) => unknown>();
   /** number of parts painted since creation (perf / tests) */
   painted = 0;
 
@@ -82,23 +87,63 @@ export class ArtCache {
     return this._res;
   }
 
-  /** Device px per world unit to paint at (bucketed so small resizes keep the cache). */
+  /** The bucket a pixel scale paints at (small resizes keep the cache). */
+  static bucket(pxPerUnit: number): number {
+    return Math.max(1.5, Math.min(6, Math.round(pxPerUnit * 4) / 4));
+  }
+
+  /** Device px per world unit to paint at. */
   setRes(pxPerUnit: number): void {
-    const r = Math.max(1.5, Math.min(6, Math.round(pxPerUnit * 4) / 4));
-    if (r !== this._res) {
-      this._res = r;
-      this.map.clear();
-    }
+    const r = ArtCache.bucket(pxPerUnit);
+    if (r === this._res) return;
+    const prev = this._res;
+    this._res = r;
+    this.queue.clear();
+    for (const k of [...this.maps.keys()]) if (k !== r && k !== prev) this.maps.delete(k);
   }
 
   get<T>(key: string, make: (res: number) => T): T {
-    let v = this.map.get(key) as T | undefined;
-    if (v === undefined) {
-      v = make(this._res);
-      this.map.set(key, v);
-      this.painted++;
+    const map = this.mapFor(this._res);
+    let v = map.get(key) as T | undefined;
+    if (v !== undefined) return v;
+    for (const [res, other] of this.maps) {
+      if (res === this._res) continue;
+      const old = other.get(key) as T | undefined;
+      if (old !== undefined) {
+        this.queue.set(key, make);
+        return old;
+      }
     }
+    v = make(this._res);
+    map.set(key, v);
+    this.painted++;
     return v;
+  }
+
+  /** parts waiting to be painted at the current resolution */
+  get pending(): number {
+    return this.queue.size;
+  }
+
+  /** Paint queued parts until `budgetMs` has passed; returns how many are left. */
+  paintPending(budgetMs: number, now: () => number = () => performance.now()): number {
+    const t0 = now();
+    const map = this.mapFor(this._res);
+    for (const [key, make] of this.queue) {
+      this.queue.delete(key);
+      if (!map.has(key)) {
+        map.set(key, make(this._res));
+        this.painted++;
+      }
+      if (now() - t0 >= budgetMs) break;
+    }
+    return this.queue.size;
+  }
+
+  private mapFor(res: number): Map<string, unknown> {
+    let m = this.maps.get(res);
+    if (!m) this.maps.set(res, (m = new Map()));
+    return m;
   }
 
   private scratchCanvas: AnyCanvas | null = null;
@@ -122,10 +167,11 @@ export class ArtCache {
   }
 
   has(key: string): boolean {
-    return this.map.has(key);
+    return this.maps.get(this._res)?.has(key) ?? false;
   }
 
   clear(): void {
-    this.map.clear();
+    this.maps.clear();
+    this.queue.clear();
   }
 }

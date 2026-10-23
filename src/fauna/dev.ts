@@ -49,6 +49,10 @@ export interface FaunaDebug {
   /** Where creatures go right now: flower heads, lily pads, perches, heron wading spots. */
   targets(): { flowers: Pt[]; pads: Pt[]; perches: Pt[]; stands: Pt[] };
   view(): Rect;
+  /** The painted parts' cache: resolution (px per unit), parts waiting to be painted sharper, parts painted so far. */
+  art(): { res: number; pending: number; painted: number };
+  /** Paint every part waiting for a sharper resolution now (screenshots; normally idle time does it). */
+  settleArt(): void;
   /** Time update + draw of all fauna layers over `frames` simulated frames at the real canvas size. */
   bench(frames?: number): FaunaBench;
 }
@@ -102,6 +106,13 @@ export function installFaunaDebug(system: FaunaSystem): void {
       return { flowers: w.flowers.map(xy), pads: w.pads.map(xy), perches: w.perches.map(xy), stands: sim().heronStands().map(xy) };
     },
     view: () => ({ ...sim().world.view }),
+    art: () => {
+      const a = sim().world.art;
+      return { res: a.res, pending: a.pending, painted: a.painted };
+    },
+    settleArt: () => {
+      sim().world.art.paintPending(Infinity);
+    },
     bench(frames = 120) {
       const s = sim();
       const vp = system.viewport;

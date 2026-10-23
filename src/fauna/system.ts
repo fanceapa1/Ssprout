@@ -12,6 +12,25 @@ import { FaunaSim } from './sim';
 import type { TargetLookup } from './targets';
 import type { Creature } from './types';
 import type { DaylightSource } from '../ambience/daylight-source';
+import type { CameraView } from '../render/camera';
+
+/** ms of idle time spent painting sharper parts per callback (ADR 0188) */
+const PART_BUDGET_MS = 8;
+
+/**
+ * The pixel scale creatures should be painted at: the overview's, or — once a closer camera
+ * rests — its view's, so a bee on the flower you are looking at is as sharp as the flower.
+ */
+export function faunaResolution(overview: Viewport, camera: CameraView | null): number {
+  if (!camera || camera.isOverview()) return overview.pixelScale;
+  return Math.max(overview.pixelScale, camera.detailView().pixelScale);
+}
+
+const idle = (fn: () => void) => {
+  const ric = (globalThis as { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number }).requestIdleCallback;
+  if (ric) ric(fn, { timeout: 500 });
+  else setTimeout(fn, 16);
+};
 
 /** Creature kind → the unlock id it announces (koi are counted: koi-1, koi-2, koi-3). */
 const ARRIVAL_OF: Partial<Record<Creature['kind'], string>> = {
@@ -76,6 +95,18 @@ export function createFaunaSystem(opts: FaunaSystemOptions): FaunaSystem {
   /** arrivals already emitted this run (the UI records them in state.faunaSeen when it says them) */
   const emitted = new Set<string>();
   let sightT = 0;
+  let camera: CameraView | null = null;
+  let seenDetail = -1;
+  let painting = false;
+  /** paint queued sharper parts a slice at a time in idle callbacks */
+  const pumpParts = () => {
+    if (painting || !sim || sim.world.art.pending === 0) return;
+    painting = true;
+    idle(() => {
+      painting = false;
+      if (sim && sim.world.art.paintPending(PART_BUDGET_MS) > 0) pumpParts();
+    });
+  };
 
   const follow = (state: GardenState) => {
     unlocked = unlockedFauna(state, lookup);
@@ -125,6 +156,8 @@ export function createFaunaSystem(opts: FaunaSystemOptions): FaunaSystem {
       clock = ctx.clock;
       bus = ctx.bus;
       sim.setView(ctx.viewport.visible);
+      camera = ctx.camera ?? null;
+      seenDetail = -1;
       sim.setResolution(ctx.viewport.pixelScale);
     },
     update(f) {
@@ -132,6 +165,12 @@ export function createFaunaSystem(opts: FaunaSystemOptions): FaunaSystem {
       const session = store?.get().session;
       sim.setLively(!!session && session.pausedAt === null);
       sim.update(f.dt, f.now);
+      // a resting close view paints the creatures sharper (in idle time; the old parts draw meanwhile)
+      if (camera && viewport && camera.detailVersion !== seenDetail && !camera.moving()) {
+        seenDetail = camera.detailVersion;
+        sim.setResolution(faunaResolution(viewport, camera));
+      }
+      pumpParts();
       sightT += f.dt;
       if (sightT >= SIGHT_EVERY) {
         sightT = 0;
