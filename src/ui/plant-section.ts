@@ -89,7 +89,8 @@ export function paintRoundWindow(canvas: HTMLCanvasElement, seed = 1): void {
   const rng = createRng(`window-${seed}`);
   const r = Math.min(W, H) * 0.41;
   const cx = W / 2;
-  const cy = H * 0.5;
+  // a little low, so the ground the plant stands on sits in its lost lower edge
+  const cy = H * 0.55;
   const rim = Math.max(1.5, r * 0.02);
   // a hand-made circle: two slow harmonics of under 1.5 % keep it from looking compass-drawn
   const a1 = rng.range(0, Math.PI * 2);
