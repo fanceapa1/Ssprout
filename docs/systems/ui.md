@@ -117,7 +117,9 @@ the widget surfaces — the UI then asks in the Begin click itself.
   out again on dock changes, resizes and content changes. The stone of the section being read is
   darker. It draws in once on first view, never with reduced motion. On phones the line is straight.
 - The pill (ADR 0203): top-left on wide screens, bottom centre on phones and narrow screens; `pill-aside` (fade, inert,
-  with the planned slip) while the Study body is on screen.
+  with the planned slip) while the Study body is on screen. An `IntersectionObserver` keeps it; Begin settles it at
+  once for where the page is gliding (the garden), so keyboard focus lands on the pill's Pause even before the
+  glide has moved a frame (devlog 41).
 - Session controls exist in the dock; the pill keeps time, pause/resume and the way down. While
   focusing, the pill and the corner tools rest; the dock never fades. Resting is a small step back
   (`--rest-tools: 0.88` for the corner tools and the zoom chips, `--rest-pill: 0.72`; ADR 0180): the

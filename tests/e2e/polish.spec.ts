@@ -62,6 +62,31 @@ test.describe('polish', () => {
     expect(await page.evaluate(() => window.sprout!.status().phase)).toBe('focus');
   });
 
+  test('keyboard: a Begin that comes before the glide up to the garden ends still lands on Pause', async ({ page }) => {
+    await openDev(page, 'uitime=0.02');
+    await page.evaluate(() => {
+      window.sprout!.reset();
+      window.sprout!.ui.refresh();
+    });
+    // focusing the dock's Start brings the Study controls on screen: the pill steps aside
+    await page.locator('.panel').getByRole('button', { name: 'Start studying' }).focus();
+    await page.keyboard.press('Enter');
+    const sheet = page.locator('dialog[data-dialog="planting"]');
+    await sheet.locator('.plant-card[data-species-id="violet"]').focus();
+    await page.keyboard.press('Enter');
+    // a spot and Begin in one task, before the page's glide to the garden has moved a frame
+    // (devlog 41: the pill was still aside, inert, and focus fell to <body>)
+    const focused = await page.evaluate(() => {
+      const button = (scope: string, text: string) => [...document.querySelectorAll<HTMLButtonElement>(`${scope} button`)].find((b) => b.textContent?.includes(text))!;
+      button('dialog[data-dialog="planting"]', 'Choose a spot').click();
+      document.querySelector<HTMLButtonElement>('button.marker[data-occupied="false"]')!.click();
+      button('.placement-bar', 'Begin').click();
+      return document.activeElement?.matches('.pill button.pause') ?? false;
+    });
+    expect(focused).toBe(true);
+    await expect(page.locator('.pill button.pause')).toBeFocused();
+  });
+
   test('plantsReady resolves once the garden is painted', async ({ page }) => {
     await openDev(page);
     const painted = await page.evaluate(async () => {

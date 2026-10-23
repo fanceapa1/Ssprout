@@ -295,6 +295,19 @@ export function createUI(deps: UIDeps): UI {
           { rootMargin: '0px 0px -12% 0px' },
         )
       : null;
+  /** The observer's answer for the page scrolled to `y`, at once (the observer agrees once it gets there). */
+  function settleAside(y: number): void {
+    const body = dock.get('session')?.body;
+    if (!body || !asideObserver) return;
+    const r = body.getBoundingClientRect();
+    const shift = window.scrollY - y;
+    const on = r.top + shift < window.innerHeight * 0.88 && r.bottom + shift > 0;
+    if (on === pillAside) return;
+    pillAside = on;
+    root.classList.toggle('pill-aside', on);
+    syncPillInert();
+    ctx.changed();
+  }
 
   // ── guidance: a helper line under each heading, following the state (ADR 0201) ─────────────
   function queueGuide(): void {
@@ -422,6 +435,9 @@ export function createUI(deps: UIDeps): UI {
     // Pause), not on <body>; the page stays on the garden, where the seedling just appeared
     panel.render();
     pill.render();
+    // the observer learns of the glide to the garden only frames later: a quick Begin found the
+    // pill still aside (inert, hidden) and focus fell to <body>; settle it for where the page goes
+    settleAside(scroller.state().target);
     pill.pause.focus({ preventScroll: true });
   }
 
