@@ -146,7 +146,7 @@ Legend: unit tests as `folder/file › test`, under `src/` (`.test.ts` omitted).
 | 2.2 | Total time 10–180 in 5-min steps, chips 25/50/90, remembers last value; total decides tier | core/session › clampGoalMinutes (all); core/rewards › tierForMinutes; core/reducer › plants a seedling session… | ui-start-flow › total time: a 10–180 slider…; › the last total is remembered…; ui-session › sheet… (tier words at 25 and 90) | ✔ |
 | 2.3 | 2–4 plans per total, breaks inside, always Unbroken, sums exactly, ends with focus, < 30 min only Unbroken; shown as a segmented brush line | core/plans › %i min: sums exactly…; › offers only Unbroken below 30…; › offers 2–4 plans…; › has the expected shapes…; ui/plan-line (all) | ui-session › sheet…; core-loop › plant at start → … (plans(60)); ui-session › begin → focus panel… (plan line) | ✔ |
 | 2.4 | Plant choice: tier ≤ earned selectable; higher tiers visible but locked ("needs 50 min+"); earned highlighted; card = preview, name, native name, poetic line, habitat | core/rewards › selectableSpecies (all); core/controller › selectableSpecies marks locked and earned species; core/reducer › only allows species whose tier is earned… | ui-session › sheet…; ui-start-flow › plant cards…; polish › the placeholder sprout is not a plant you can pick | ✔ |
-| 2.5 | Choose its spot (placement mode); occupied = swap | core/placement (all); core/controller › placementOptions lists compatible slots with occupants; plants/plantable › has a compatible slot for each species | ui-session › sheet… (only compatible markers); › swap into an occupied spot…; › keyboard: Tab to a marker…; plants › placement shows an in-canvas highlight… | ◐ **bug: lotus cannot be planted** (tracked by plants/plantable) |
+| 2.5 | Choose its spot (placement mode); occupied = swap | core/placement (all); core/controller › placementOptions lists compatible slots with occupants; plants/plantable › has a compatible slot for each species; › lotus (Q1) › fits the two large open-water slots; › has no spot only when seedlings… hold both | ui-session › sheet… (only compatible markers); › swap into an occupied spot…; › keyboard: Tab to a marker…; plants › placement shows an in-canvas highlight…; lotus › choose Lotus, a large open-water spot glows, Begin plants its seedling in the pond; › when seedlings hold both large water spots, the sheet shows the lotus has no spot… | ✔ |
 | 2.6 | Begin; first start asks gently for notification permission | widget/notifications › asks at the first session:start…; › stores a denial…; › a dismissed prompt leaves the setting unasked… | widget › completion notifies… (permission granted at start); widget › denied permission is respected | ✔ |
 
 ### §2 During the session
@@ -205,7 +205,7 @@ Legend: unit tests as `folder/file › test`, under `src/` (`.test.ts` omitted).
 | 3.2 | Species per tier (examples) | plants/registry › every species is well formed; › filters by tier | — | ◐ list differs from the examples (SPEC status note) |
 | 3.3 | Chosen at start; no end-of-session picker | core/reducer › session/start (all) | ui-session (all flows) | ✔ |
 | 3.4 | ~50–60 slots, each with a habitat | scene/geometry › has 50–60 slots with unique ids; › has %s slots in the planned range; › uses only known habitats and size classes; › puts every water slot on the pond…; › puts shore slots at the pond edge… | scene › exposes 50–60 slots across all habitats; › ?dev&slots draws the slot overlay | ✔ |
-| 3.5 | Only compatible slots shown (habitat + max size class) as glowing markers | core/placement › isCompatible (all); › compatibleSlots (all); scene/geometry › only offers tree-sized slots on the far bank…; plants/plantable | ui-session › sheet… (iris: shore/water markers only); plants › placement shows an in-canvas highlight… | ◐ lotus bug (2.5) |
+| 3.5 | Only compatible slots shown (habitat + max size class) as glowing markers | core/placement › isCompatible (all); › compatibleSlots (all); scene/geometry › only offers tree-sized slots on the far bank…; plants/plantable | ui-session › sheet… (iris: shore/water markers only); plants › placement shows an in-canvas highlight…; lotus › choose Lotus… (only `water-1`/`water-3` glow) | ✔ |
 | 3.6 | Swap: old plant steps aside, pressed into the herbarium on completion, returns on cancel | plants/system › fades a displaced plant out…; core/reducer › records the finished plant in the chosen slot as displaced…; › presses the displaced plant… | ui-session › swap into an occupied spot…; plants › cancel withers … returns the plant it replaced; core-loop › cancel… | ✔ |
 | 3.7 | Upgrades = a higher tier into an occupied slot | core/reducer › records the finished plant in the chosen slot as displaced… | ui-session › swap into an occupied spot… | ✔ |
 | 3.8 | Finished plants sway gently | plants/draw › sway maths (all); plants/system › finished plants sway with the wind, and hold still under reduced motion | — | ✔ |
@@ -382,8 +382,9 @@ sprites and the fade-in (plants/system › ready() waits…; › ready() before 
 daylight › plantsReady waits for plants added just before it…).
 
 ### Open gaps (for the orchestrator)
-1. **Lotus is offered but cannot be planted** (src code: size class vs water slots). Tracked by
-   `src/plants/plantable.test.ts` (`KNOWN_UNPLANTABLE`). Remove it from the list when fixed.
+1. ~~Lotus is offered but cannot be planted~~: plantable since two water slots became large;
+   proven through the real flow (`tests/e2e/lotus.spec.ts`), and a species with every spot held
+   by growing seedlings is marked full in the sheet (ADR 0205).
 2. **Cross-browser**: no Firefox/WebKit e2e run (10.2).
 3. **Audio** is verified as data (unit) only (8.1); **real PiP** is faked (6.1). Both are headless
    limits.

@@ -118,9 +118,9 @@ Tier by **total session length** (chosen at start; gates which species can be pl
 forget-me-not, wild strawberry, dandelion, maidenhair fern · tier 2 Japanese iris, anemone, balloon
 flower, cosmos, red spider lily, silver grass, water lily · tier 3 tree peony, hydrangea, azalea,
 camellia, chrysanthemum, lotus · tier 4 weeping cherry, Japanese maple, wisteria, black pine, ginkgo,
-plum blossom. Not yet: moss and dianthus. **Bug:** the lotus (size class `large`) fits no water slot
-(all are medium or small), so it is offered but cannot be planted
-(tracked in `src/plants/plantable.test.ts`).
+plum blossom. Not yet: moss and dianthus. Every species has a compatible slot
+(`src/plants/plantable.test.ts`); the lotus (size class `large`) fits the two large open-water slots
+`water-1` and `water-3`.
 
 - The plant is chosen at session start from all species with tier ≤ earned tier (§2 step 4).
   There is no end-of-session picker.
@@ -132,6 +132,9 @@ plum blossom. Not yet: moss and dianthus. **Bug:** the lotus (size class `large`
   `rock` (crevices next to boulders, small plants).
 - Each species lists allowed habitats. Only compatible slots are shown, as softly glowing seed
   markers. Each slot also has a max size class so trees only go where they fit.
+- A species whose every compatible slot holds the seedling of another session in progress has
+  nowhere to go just now: the planting sheet shows it greyed with "Its spots all hold growing
+  seedlings just now" and it cannot be chosen (ADR 0205; mostly the lotus, which fits two slots).
 - Occupied compatible slots can be chosen too → **swap**: while the session runs the old plant
   steps aside (fades out); on completion it is saved to the **Pressed Flowers** collection
   (a small herbarium book view); on cancel it returns.

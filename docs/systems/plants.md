@@ -28,7 +28,7 @@ Look at it: studio sections **Plants · watering**, **· wither**, **· growth t
 | `species.studio.ts` | one studio section per registered species (`GROWTH_STAGES` + grow loop) |
 | `test-canvas.ts` | test-only fake canvases (`FakeCanvas`, `fakeContext`, `installFakeOffscreenCanvas`) |
 | `lib/` | shared species painting: `small-*` (tier 1–2 plants, `small-species-list.ts`), `shrub-*` (tier 3), `tree-*` (tier 4) |
-| `plantable.test.ts` | every species has a compatible garden slot (tracked bug: `lotus`, size class `large`, while water slots are medium/small) |
+| `plantable.test.ts` | every species has a compatible garden slot; the lotus fits exactly `water-1`/`water-3` and has none only when seedlings hold both (Q1, ADR 0205) |
 
 ## Wiring (`src/main.ts`)
 ```ts
