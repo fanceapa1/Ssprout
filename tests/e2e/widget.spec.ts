@@ -214,7 +214,7 @@ test.describe('floating widget', () => {
     });
     await openWidgetDev(page);
     expect(await page.evaluate(() => window.sprout!.widget.supported())).toBe(true);
-    await start(page);
+    await startWithBreak(page);
     await page.evaluate(() => window.sprout!.widget.open());
     await expect.poll(() => page.evaluate(() => window.sprout!.widget.isOpen())).toBe(true);
     const pip = page.frameLocator('#fake-pip');
@@ -227,6 +227,29 @@ test.describe('floating widget', () => {
     expect(await page.evaluate(() => window.sprout!.state().session?.pausedAt)).not.toBeNull();
     await pip.locator('button[data-action="resume"]').click();
     await expect(pip.locator('.ss-card')).toHaveAttribute('data-mode', 'focus');
+
+    // the bigger, darker type fits the 260 × 340 window: no line cut, every button inside (v2 polish)
+    const fits = () =>
+      pip.locator('.ss-card').evaluate((card) => {
+        const out: string[] = [];
+        for (const p of card.querySelectorAll<HTMLElement>('p')) {
+          if (p.textContent && p.scrollWidth > p.clientWidth + 1) out.push(`${p.className} cut: "${p.textContent}"`);
+        }
+        const w = card.ownerDocument.defaultView!.innerWidth;
+        for (const b of card.querySelectorAll<HTMLElement>('.ss-actions button')) {
+          const r = b.getBoundingClientRect();
+          if (r.left < 0 || r.right > w) out.push(`button ${b.textContent} outside`);
+        }
+        const time = parseFloat(getComputedStyle(card.querySelector('.ss-time')!).fontSize);
+        if (time < 38) out.push(`time at ${time}px`);
+        return out;
+      });
+    expect(await fits()).toEqual([]);
+    // a break: three buttons and the longest state line
+    await page.evaluate(() => window.sprout!.toBreak());
+    await expect(pip.locator('.ss-card')).toHaveAttribute('data-mode', 'break');
+    await expect(pip.locator('.ss-actions button')).toHaveCount(3);
+    expect(await fits()).toEqual([]);
 
     await page.evaluate(() => window.sprout!.widget.close());
     expect(await page.evaluate(() => window.sprout!.widget.isOpen())).toBe(false);
