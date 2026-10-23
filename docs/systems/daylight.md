@@ -1,19 +1,20 @@
 # Daylight
 
 The garden follows the real sun in four painted phases — **sunrise, midday, sunset, night** —
-blended over 40 minutes (SPEC §5, ADRs 0140–0147). It is spread over three folders because each
+blended over 40 minutes (SPEC §5, ADRs 0140–0147). It is spread over four folders because each
 part belongs with what it paints:
 
 | File | What |
 |---|---|
 | `src/ambience/solar.ts` | pure: NOAA sun times (`sunTimes`), `sunAltitude`, `solarNoon`, `moonPhase` |
 | `src/ambience/zones.ts` | pure: IANA zone → lat/lon table, `locationForZone(zone, offset)`, `browserLocation()` |
-| `src/ambience/daylight.ts` | pure: phase boundaries, weights, `DaylightState`, `pinnedState`, `parseTimeOverride`, `nextPhase` |
+| `src/ambience/daylight.ts` | pure: phase boundaries, weights, `DaylightState`, `daylightAt`, `pinnedState`, `parseTimeOverride`, `nextPhase`, `whenIdle` |
 | `src/ambience/daylight-source.ts` | `createDaylightSource()` — the one shared daylight (location, override, cache); `pinnedSource(p)` |
 | `src/ambience/sky-layout.ts` | pure: `sunDisc`, `moonDisc`, `stars`, `castShadow`, `rimLight` (world positions) |
 | `src/ambience/timeofday.ts` | `PHASE_GRADES` (the light grade of each phase), `gradeFor(weights)`, the hour-based `TYPICAL_DAY` |
 | `src/ambience/lighting.ts` | the per-pixel grade wash (`paintGradeWash`, `gradePlate`, lantern reserve) |
 | `src/ambience/cast.ts` | the light plates: painted per phase, blended, moving lights lifted out (`createCastLight`) |
+| `src/ambience/night-edge.ts` | where a dark light stops at the stage's edge (`createNightEdge`, `edgeStrength`; ADR 0184) |
 | `src/scene/paint-sky.ts` | the four painted skies and their mirrored water plates |
 | `src/scene/sky-light.ts` | `createSkyLight`: sky + water composites, the sun and moon punched out |
 | `src/paint/rim.ts` | rim-light masks for sprites (plants, boulders) |

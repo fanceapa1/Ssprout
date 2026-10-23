@@ -12,10 +12,10 @@ ui/calendar-model.ts         ranges, items, overlap layout, month marks, opening
 ui/calendar.ts · calendar.css · calendar-art.ts   the section, its look, the painted shapes
 ui/schedule-sheet.ts         the editor (a washi sheet)
 ui/pickers.ts                its painted day and time pickers, in the calendar's formats (ADR 0192)
-ui/schedule-card.ts          the waiting card (Study section) and its slip above the pill
+ui/schedule-card.ts          the waiting card (Study section) and its slip by the pill
 ui/planting-sheet.ts         applyPrefill / clearPrefill (the prefilled start)
 widget/notifications.ts      the soft notification on `schedule:due`
-dev/schedule-debug.ts · fill-history.ts            sprout.schedule, sprout.calendar
+dev/schedule-debug.ts · fill-history.ts · local-time.ts   sprout.schedule, sprout.calendar (local-time: forward-only time-of-day jumps)
 ui/calendar.studio.ts        studio section `calendar`
 ```
 
@@ -70,7 +70,8 @@ the set of due occurrences changes.
 ## At the scheduled time (ADRs 0173, 0174, 0176)
 1. The worker tick finds it due → `schedule:due` → the notifier shows "It’s time for “<name>”." if the
    page is not attended (same policy as breaks, ADR 0091).
-2. A **card** waits at the top of the Study section, and a **slip** above the pill on the garden:
+2. A **card** waits at the top of the Study section, and a **slip** by the pill on the garden (under
+   it in the top-left on wide screens, above it on phones; it steps aside with the pill, ADR 0203):
    **Start** · **Not this time**.
 3. **Start** opens the planting sheet with `startPrefill(o)` applied to the draft: the name; the
    length and plan when given (else the remembered total and the usual first plan); plant and spot are
@@ -104,7 +105,7 @@ the set of due occurrences changes.
   last column); blocks sharing a column are focusable in a day too. Blocks are laid out side by side when they overlap (`layoutColumns`), at their
   drawn size: at least 26 minutes tall in a day, 44 in a week (`MIN_BLOCK_MS`, ADR 0183). In a week a
   block shows its short time ("4:10", `shortTime`) over its title (two lines when long; first letters
-  fading out on phones), the "now" seal sits before the time, and a hovered or focused block grows to
+  fading out on phones), the sprout mark of a due or growing block sits before the time (ADR 0194), and a hovered or focused block grows to
   read whole (leftwards on the last two days). A tap on an empty time opens the editor there (snapped to 30 min).
 - Blocks: washes in the plant's colour (bloomed), lighter (growing / waiting), faintest (ended early);
   planned as a broken ink outline; passed as a fainter outline with "passed".

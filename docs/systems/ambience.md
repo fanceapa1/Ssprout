@@ -16,6 +16,7 @@ weather**, **· photosynthesis motes & wind**, **· time of day**) or with `npm 
 | `lighting.ts` | per-pixel grade wash (`paintGradeWash`, pure), `washField`, `gradePlate`; lantern reserve |
 | `cast.ts` | the painted light plate of each daylight phase and their blended composite (ADR 0147); `version()` bumps on every repaint |
 | `device-plate.ts` | the resting light plate at device resolution (ADR 0207) |
+| `night-edge.ts` | where a dark light stops: the wash lifted back to paper with a ragged, pooled edge just inside the stage's dissolve (ADR 0184) |
 | `solar.ts`, `zones.ts`, `daylight.ts`, `daylight-source.ts`, `sky-layout.ts` | the daylight: sun times, location, phases, the shared source, where the light falls — docs/systems/daylight.md |
 | `sprites.ts` | pre-painted textures: the sun's lifted glaze (`sunBands`, `sunGround`, `sunGlazeAt`, pure), rain strokes, ripple rings, glints, leaf glints, motes, mist bands, flame |
 | `ambience.ts` | the engine: update + draw into world-unit contexts (no store, no renderer — ADR 0080) |
@@ -37,7 +38,7 @@ Registered in `main.ts`: `const ambience = addAmbience(renderer, { dev: speedClo
 |---|---|
 | `waterSurface` | ripple rings (rain) and warm glints (sun), clipped to `scene.pond` |
 | `ambience` | the sun's glaze with its lifted light (multiply), the rain grade (multiply), mist bands + veil, dawn mist and dew (sunrise), leaf glints (screen), rain strokes (multiply), motes |
-| `lighting` | night desaturation (the frame backed with white, then a saturation glaze over the drawn view, ADR 0206), the daylight light plate composite (multiply) + a tiny lantern flame (screen) |
+| `lighting` | night desaturation (the frame backed with white, then a saturation glaze over the drawn view, ADR 0206), the daylight light plate composite (multiply), the night edge (screen space, ADR 0184) + a tiny lantern flame (screen) |
 
 Inputs come only from the `SceneGeometry` contract (`pond`, `waterline`, `pavilion.lantern`, `slots`)
 and the store (`session.weather`, phase via `sessionPhase`, `plants`, session slot + growth).
@@ -110,7 +111,11 @@ broken light path on the pond, the lantern's pool) and is rebuilt when the light
 every `LIGHT.redrawS` 3 s, at once after `setTime`). At night a saturation glaze takes some colour
 out first (`LOOK.nightDesaturate` 0.38), over a frame backed with white so it never leaves grey where the painting is thin (ADR 0206). Sunrise also lays **dawn mist** on the far bank and the
 water (bands 1–3, rising `dawnMistRise` 26 units and thinning as the sun climbs) and twinkles 16
-**dew glints** on the near grass. Sun shafts and glints fade with the night weight. Details, the
+**dew glints** on the near grass. The sun's glaze and glints fade with the night weight. A zoomed-in
+view gets a sharp **detail plate** for its part of the world (`CAST_DETAIL_MAX` 2 px per unit),
+repainted one phase per idle callback (ADR 0163). In dark light the wash stops short of the
+stage's dissolve with a watercolour edge instead of fading to a grey haze (`night-edge.ts`,
+`edgeStrength`: night 1, sunset 0.35, sunrise 0.15; ADR 0184). Details, the
 phase windows and the sky: docs/systems/daylight.md.
 
 ## Wind API (`wind.ts`)
@@ -139,6 +144,7 @@ v0 30, gravity 1300, max 24. `LIGHT.reflectLift` 0.45, `lanternR` 78, `lanternLi
 moves the sky, light, shadows, rims and fauna — docs/systems/daylight.md), `sprout.daylight()`,
 `sprout.setWeather('sun'|'rain'|'mist'|null)` (preview without a session; snaps to steady state),
 `sprout.settleAmbience()` (skip running transitions — call before `freeze()` for screenshots),
+`sprout.lightDetail()` (the light plate's detail for the resting view: rect, scale, painted yet; null: none),
 `sprout.ambience()` → `{ phase, weather, preview, levels, time (daylight phase), weights, counts (rain, ripples, glints, leafGlints, motes, drips), lightingPaints,
 lightingMs, reducedMotion, ms, timeOverride, location, sunTimes }` (`ms` = moving average of update + draw per frame).
 ```
@@ -161,7 +167,9 @@ Vitest: `sun.test.ts` (the glaze: sky unglazed, lifted bands, diagonal fall, poo
 leaf glints on the sunlit side, only in sun, still while paused), `wind.test.ts`, `envelope.test.ts` (start / end / pause / resume / break / weather change,
 frame-rate independence), `timeofday.test.ts` (phase grades, blends, readability at night, the typical day),
 `motes.test.ts` (emitters, rates, sim bounds, reduced-motion stillness, determinism),
-`lighting.test.ts` (wash ordering, lantern reserve and reflection, mottling, glow).
+`lighting.test.ts` (wash ordering, lantern reserve and reflection, mottling, glow),
+`device-plate.test.ts` (resample once at rest, same pixels, direct again on change),
+`night-edge.test.ts` (the mask's bands, dark light only, lift and broken rim, determinism).
 Playwright: `tests/e2e/ambience.spec.ts` (session weather, each preview, night, pause/end fades, the
 sun's glaze warm in the garden but not the sky and a trace on pause,
 setTime phases, blends and aliases, frame budget, reduced-motion emulation); the daylight tests are listed in docs/systems/daylight.md.

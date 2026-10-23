@@ -185,6 +185,8 @@ boulders (`k` = paint scale ÷ 1.5).
   `paperGrain(seed)` → the tileable grain field granulation and dry brush sample.
 - `createSimplex2D(rng)`, `createValueNoise2D(rng, period)`, `fbm(noise, x, y, opts)`,
   `noiseGrid(...)`.
+- Canvases (`canvas.ts`): `makeCanvas(w, h)` (OffscreenCanvas when available), `context2d`, and a
+  pool of scratch canvases (`acquireWork` / `releaseWork`).
 - Pure geometry: `deformPolygon`, `organicOutline` / `outlineLayer`, `blob`, `stoneShape`,
   `dabOutline`, `smoothPath`, `ribbon`, `smoothPolygon`, `insetPolygon`, `bounds`, … — all
   deterministic for a given `Rng`, all unit-tested.
@@ -250,4 +252,4 @@ counts and wet-layer resolution (draft: half resolution; normal: 0.8 for layers 
 `noise.test.ts`, `pigments.test.ts`, `geometry.test.ts` (determinism of deformation and
 outlines, brush profiles, paths), `wet.test.ts` (drying pass on synthetic buffers: rim pooling,
 opacity, dry brush, determinism), `primitives.test.ts` (jsdom-safe import, documented
-defaults, quality scaling, pure brush geometry). Visuals: the studio sections above.
+defaults, quality scaling, pure brush geometry), `rim.test.ts` (rim width, screen draw, faint rims skipped, one mask per image, side and colour). Visuals: the studio sections above.

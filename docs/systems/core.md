@@ -11,7 +11,7 @@ slot are chosen at start; the seedling grows live in its slot; breaks are option
 
 | File | What |
 |---|---|
-| `state.ts` | `GardenState` types, `createDefaultState`, `Action` union, `createReducer(world)`, `createStore` |
+| `state.ts` | `GardenState` types, `createDefaultState`, `Action` union, `createReducer(world)`, `createStore`; selectors `inProgressSessions`, `canStartSession`, `lastLeftSession`, `heldSlotIds`; `logEntry` |
 | `plans.ts` | `PlanBlock`, `StudyPlan`, `recommendPlans`, `findPlan`, `planProblem`, `focusMinutes`, `hasBreaks` |
 | `session.ts` | `sessionTimeline`, `sessionPhase`, plan position/growth maths, pauses, goal clamping, task names, weather, `formatClock`, the focus-watering schedule (`focusWateringTimes`, `dueFocusWaterings`, `nextFocusWateringIn`) |
 | `schedule.ts` | scheduled sessions: the rule + notes model, DST-safe recurrence (`expandSchedules`), due / missed / done (`occurrenceStatus`, `dueUntil`), `startPrefill`, validation — docs/systems/calendar.md (ADRs 0170–0173) |
@@ -157,6 +157,7 @@ notifies nobody and nothing is saved). The reducer never mutates its input.
 | `fauna/seen {id}` | non-empty id not yet seen | appended to `faunaSeen` |
 | `state/replace {state}` | `state.version === 2` and a different object | replaces the whole state (callers validate first) |
 | `state/reset {now}` | finite now | `createDefaultState(now)` |
+| `schedule/add` · `update` · `remove` · `note` · `split` | see `reduceSchedules` (`schedule-reducer.ts`) | the `schedules` list — docs/systems/calendar.md (ADR 0171) |
 
 `reducer` (no world) accepts any species/slot ids; the app uses `createReducer({ getSpecies, getSlot })`.
 
@@ -181,9 +182,10 @@ tested, but the UI no longer uses it: arrivals come from the fauna system on fir
 | `notifications` | …we'll ask once if we may chime softly… | idle and `notifications === 'unasked'` | `settings/update` answering it (auto) |
 | `widget` | Open the little floating window… | a session exists and `ctx.widgetSupported` | UI: `controller.retireTip('widget')` |
 | `water` | Tap the watering can… | a break is on (`ctx.now` required) | `session/water` (auto) |
-| `pressed` | Plants you replace are pressed… | the herbarium has something | UI: `controller.retireTip('pressed')` |
-| `sound` | Tap the speaker for quiet garden sounds… | always | `settings/update` toggling `muted` (auto) |
 | `switch` | Several seedlings can grow at once. Switch to another… | a session is waiting | `session/switch` (auto) |
+| `pressed` | Plants you replace are pressed… | the herbarium has something | UI: `controller.retireTip('pressed')` |
+| `schedule` | Plan a study time ahead… | no schedules yet and at least one bloom in the log | `schedule/add` (auto) |
+| `sound` | Tap the speaker for quiet garden sounds… | always | `settings/update` toggling `muted` (auto) |
 
 `activeTips(state, { now?, swapAvailable?, widgetSupported? })` in registry order (the UI shows
 one at a time, by priority, next to its `anchor`; ADR 0124), `allTips(state)` for the ⓘ list, `tipsRetiredBy(action, prev, next)`.
@@ -240,7 +242,8 @@ const controller = createSessionController({
 ## Persistence (`persistence.ts`)
 
 - Key **`studysprout:v1`** (stable forever); the document's `version` drives migrations. Schema
-  `version: 2` (ADR 0154): `waiting`, `log`, `focusWaterings`.
+  `version: 2` (ADR 0154): `waiting`, `log`, `focusWaterings`; `schedules` (ADR 0170) is optional
+  (absent → `[]`), so it needed no schema bump.
 - `loadState(storage, now, { isKnownSpecies })` → `{ state, status, warnings, error?, backupKey? }`,
   status `fresh | loaded | migrated | recovered | unavailable`. Never throws.
   - `migrated`: upgraded via `MIGRATIONS[n]: (vN) => vN+1` and re-saved. `MIGRATIONS = { 1:
@@ -259,7 +262,8 @@ const controller = createSessionController({
   keys (e.g. an old `pendingReward`) dropped. Invariants: unique plant ids, one plant per slot, session
   `goalMs` in whole minutes with a valid plan summing to it, waterings point at break blocks, the
   session id is not already a finished plant's id; waiting sessions are paused; at most three in
-  progress with unique ids (not in the log either) and one per slot; log entries fully typed.
+  progress with unique ids (not in the log either) and one per slot; log entries fully typed;
+  present schedules must be valid (`scheduleProblem`, `noteProblem`).
   Unknown species ids (plants, pressed, sessions in progress, the log) are **kept** and listed in
   `warnings.unknownSpecies`.
 - Export: `exportState(state, now)` and `exportFileName(now)` → `study-sprout-garden-YYYY-MM-DD.json`.
@@ -299,6 +303,7 @@ Example export:
         { "kind": "focus", "minutes": 25 }, { "kind": "break", "minutes": 5 }, { "kind": "focus", "minutes": 30 } ] },
         "goalMinutes": 60, "focusedMinutes": 55, "startedAt": 1792600000000, "endedAt": 1792603300000 }
     ],
+    "schedules": [],
     "stats": { "totalMinutes": 55, "completed": 1, "cancelled": 0 },
     "faunaSeen": ["striders"],
     "tips": { "task": "seen", "duration": "seen", "plan": "seen", "placement": "seen" },
@@ -340,7 +345,7 @@ await page.reload(); // saved on pagehide
 ## Tests
 - Unit: `src/core/*.test.ts` (clock, controller, controller-parallel, events, fauna-unlocks,
   focus-watering, migration-v2, parallel, persistence, placement, plans, reducer, rewards, rng,
-  session, session-log, state, tips).
+  schedule, schedule-controller, schedule-reducer, session, session-log, state, tips).
 - E2E: `tests/e2e/core-loop.spec.ts` (plant → break → water → skip → complete across reloads; cancel;
   corrupt save backed up; `addPlants`/`setState`) and `tests/e2e/session-rules.spec.ts` (timer and
   plan line, unwatered breaks, "Still with us?", closed-app completion, phone ink labels),

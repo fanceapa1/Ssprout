@@ -12,7 +12,7 @@ behaviour code on a small painted stage; `?t=` presimulates so stills show real 
 ## Wiring
 ```ts
 // main.ts (one line)
-void renderer.add(createFauna({ species: getSpecies, debug: dev }));
+void renderer.add(createFauna({ species: getSpecies, debug: dev, daylight }));
 ```
 `createFauna` (`index.ts`) returns the `FaunaSystem` (`system.ts`) and, with `debug`, installs
 `window.sprout.fauna` once `installDebug` has run (a microtask later).
@@ -28,7 +28,8 @@ void renderer.add(createFauna({ species: getSpecies, debug: dev }));
 | `system.ts` | render System wrapper: store → roster/targets, session → lively, clock → night; first sightings → `fauna:arrived` (`sightedFauna`, ADR 0120) |
 | `sprite.ts` | `paintSprite` (engine-painted parts), `deepCopy` (under-water copy), `ArtCache`, scratch canvas |
 | `creatures/<kind>.ts` | art + behaviour per creature; `creatures/index.ts` spawns, `sheets.ts` studio sheets, `flight.ts` shared flying-visitor helpers (entry/exit points off the view, flower choice) |
-| `stage.ts`, `fauna.studio.ts` | studio stages and entries |
+| `types.ts` | shared shapes: the creature world (`PondInfo`, targets, art cache, rng, noise) |
+| `stage.ts`, `fauna.studio.ts`, `close-view.studio.ts` | studio stages and entries (`close-view.studio.ts`: **Close view · creatures**, ADR 0188) |
 | `dev.ts` | `window.sprout.fauna` |
 
 ## Layers and depth
@@ -131,7 +132,8 @@ dragonfly, 2 butterflies, 3 bees, 2 birds, 3 swallows, heron, leaves): **update 
 `math.test.ts`, `schedule.test.ts` (delays, caps, night, reduced, retries, roster mapping),
 `targets.test.ts` (flowers, pads, perches, perch choice, heron stands, perspective), `sim.test.ts`
 (long simulated afternoons: residents, pond containment, visitor cap, rarity, determinism, night,
-reduced motion), `arrivals.test.ts` (`sightedFauna`, `fauna:arrived` on first sight). E2E
+reduced motion), `arrivals.test.ts` (`sightedFauna`, `fauna:arrived` on first sight), `art-cache.test.ts`
+(resolutions: paint at once the first time, idle repaint when sharper, two kept, time budget). E2E
 `tests/e2e/fauna.spec.ts`: striders from the start, koi with plants, roster and schedule, every
 creature spawned stays in bounds, birds land as entities and leave (the test follows the spawned
 bird by id), night rest, cost and a clean render. Simulation loops run in-page with the renderer
@@ -145,5 +147,6 @@ ignored) and emits `fauna:arrived {id}` once per run for each unlocked, announce
 Unit test: `arrivals.test.ts`.
 
 ## Time of day
-Night comes from the Clock's local hour. `sprout.setTime` (ambience) does not reach the fauna; use
-`sprout.fauna.setHour(h)`.
+Night comes from the shared daylight (`main.ts` passes `daylight`; night weight ≥ 0.5), so
+`sprout.setTime` (ambience) moves the fauna's night too. `sprout.fauna.setHour(h)` pins a local hour
+over it (`nightHours`); `setHour(null)` gives it back to the daylight.

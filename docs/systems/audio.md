@@ -74,8 +74,11 @@ audio.playBloom(); audio.playComplete(); audio.playPour();
 audio.dispose();
 ```
 Bus events consumed: `settings:changed` (mute), `session:start` (weather + active),
-`session:pause` / `session:resume`, `session:cancel` / `session:complete` (clear weather;
-complete also plays the phrase), `plant:placed` (bloom chime), `session:water` (the pour), `fauna:arrived` (adds a creature).
+`session:pause` / `session:resume` (also emitted around a `session:switch`), `session:cancel` /
+`session:complete` (clear weather and activity, whichever session ended; complete also plays the phrase), `plant:placed` (bloom chime), `session:water` (the pour), `fauna:arrived` (adds a creature).
+**Known gap:** there is no `session:switch` handler, so the weather bed keeps the session started
+last, and cancelling a *waiting* session (`controller.cancel(id)`) silences the active one's weather
+(SPEC §2 › Parallel sessions status; devlog 35).
 Initial muted/weather/activity/fauna come from `getState()` (a reload mid-session sounds right).
 Setters and bus events write the same fields; the last write wins.
 
@@ -83,8 +86,8 @@ Setters and bus events write the same fields; the last write wins.
 - `src/main.ts` builds `createGardenAudio({ bus, getState: store.get, clock })` and passes it to
   `createUI({ audio })`.
 - Gesture unlock (`src/ui/index.ts`): with sound on (persisted), the first `pointerdown` / `keydown`
-  calls `audio.unlock()`; the Begin click unlocks too.
-- Mute toggle (`src/ui/menu.ts`): the speaker button calls `controller.updateSettings({ muted })`
+  calls `audio.unlock()`; starting a session (`beforeStart`) unlocks too.
+- Mute toggle (`src/ui/tools.ts`): the "Garden sounds" tool calls `controller.updateSettings({ muted })`
   (emits `settings:changed`, which audio follows), then `audio.setMuted(muted)` and
   `audio.unlock()` inside the click. Order does not matter: unmute-then-unlock and
   unlock-then-unmute both fade in.
