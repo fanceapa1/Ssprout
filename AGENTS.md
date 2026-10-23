@@ -18,8 +18,9 @@ agent) picks up the work next.
 6. `docs/adr/README.md`: every decision with status and a one-line summary. Read the ADRs of
    the area you touch.
 7. `docs/systems/<system>.md`: the system you are about to change.
-8. `docs/devlog/README.md`: what each task did and left open. Read the latest entries
-   (14 polish, 15 QA & docs) for the current state.
+8. `docs/devlog/README.md`: what each task did and left open. Read the latest entries for the
+   current state: 30 (v2 acceptance), 31 and 33 (time-pinned tests, the calendar on a DST day),
+   34 (sheet focus) and 35 (docs audit). Entries are history; the system docs win where they differ.
 
 ## How work is organised
 - An orchestrator splits work into tasks and runs them in parallel, one **git worktree per
@@ -64,6 +65,11 @@ agent) picks up the work next.
   `addPlants`/`start` shows empty slots. Await `sprout.plantsReady()` (sprites painted) or
   `sprout.plants.settle()` (also snaps growth/fades), then `sprout.freeze()`:
   `npm run shots -- --eval "sprout.addPlants(25); await sprout.plantsReady()"`.
+- **The camera moves by itself.** Starting or switching a session glides onto its seedling
+  (ADR 0168), and close views repaint detail once the camera rests (ADR 0163). Before reading
+  pixels or overlay positions, await `sprout.camera.settle()` (ends the glide and waits for the
+  resting view's detail); a test that reads the overview pins it with `sprout.camera.autoFocus(false)`
+  or cuts with `sprout.camera.overview({ animate: false })`.
 - **Lighting follows the app clock.** `sprout.advance(…)` also moves the time of day. Pin it with
   `sprout.setTime('noon')` when comparing pixels across time jumps. The light also eases in once
   the painting is ready (ADR 0121); `freeze()` and `settleAmbience()` skip that.
@@ -81,6 +87,16 @@ agent) picks up the work next.
   registry. Use `?fixtures` (`fx-*`) species for UI flows and real species for art.
 - **The studio paints lazily** (ADR 0006): cards paint near the screen within a frame budget.
   Await `window.studio.settle()` before reading studio pixels.
+- **State is schema v2** (ADR 0154). `state.session` is only the *active* session: up to two more
+  wait in `state.waiting` (use `inProgressSessions(state)`), and ended sessions are in `state.log`.
+  The storage key stays `studysprout:v1`; the document's `version` drives `MIGRATIONS`. A shape
+  change means a v3: a migration step, the hand-written validation (ADR 0034), an ADR and the
+  ARCHITECTURE contract in the same commit.
+- **New UI below the garden is a dock section** (`ui.dock.addSection`, docs/ARCHITECTURE.md › Dock),
+  never DOM added to the page by hand. The guiding path (ADR 0202) gets a stop for every visible
+  section by itself and lays out again on dock and size changes. Measure the dock after
+  `sprout.ui.dockReady()` (fonts plus a frame); `sprout.ui.wayfinding()` lays the path out and
+  returns its stops.
 - **CPU budget on the owner's laptop.** Two agents run at once on 8 cores. Local e2e uses 2
   workers (`E2E_WORKERS`, default 2). While iterating, run only the specs you touch
   (`npx playwright test tests/e2e/<spec>`), and run the full suite once at the end, under
