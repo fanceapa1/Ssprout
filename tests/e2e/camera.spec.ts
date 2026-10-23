@@ -350,6 +350,45 @@ test.describe('camera', () => {
   });
 });
 
+test.describe('camera · cost at rest', () => {
+  test('a close view at rest costs about what the overview costs (ADR 0207)', async ({ page }) => {
+    // The main thread's whole time per frame, raster included: on a CPU rasteriser (headless) the
+    // canvas is rasterised on the main thread, inside or after the frame callback depending on
+    // when Chromium flushes, so `frameStats().workAvg` alone can hide it or show it. Relative to
+    // the overview on the same page, so a loaded machine slows both alike.
+    await openUi(page);
+    const cdp = await page.context().newCDPSession(page);
+    await cdp.send('Performance.enable');
+    const busyMs = async () => (await cdp.send('Performance.getMetrics')).metrics.find((m) => m.name === 'TaskDuration')!.value * 1000;
+    const perFrame = async () => {
+      await page.evaluate(() => window.sprout!.resetFrameStats());
+      const t0 = await busyMs();
+      await page.waitForFunction(() => window.sprout!.frameStats().frames >= 40, null, { polling: 100 });
+      const t1 = await busyMs();
+      return (t1 - t0) / (await page.evaluate(() => window.sprout!.frameStats().frames));
+    };
+    await page.evaluate(async () => {
+      window.sprout!.setTime('noon');
+      window.sprout!.addPlants(30);
+      await window.sprout!.plantsReady();
+    });
+    const rest = async (zoom: number) => {
+      await page.evaluate(async (z) => {
+        if (z > 1) window.sprout!.camera.glideTo({ zoom: z, x: 500, y: 640 }, { animate: false });
+        else window.sprout!.camera.overview({ animate: false });
+        await window.sprout!.camera.settle();
+        await window.sprout!.plantsReady();
+      }, zoom);
+      return Math.min(await perFrame(), await perFrame());
+    };
+    const overview = await rest(1);
+    const close = await rest(2.6);
+    console.log(`rest: overview ${overview.toFixed(1)} ms/frame, 2.6× ${close.toFixed(1)} ms/frame (main thread, raster included)`);
+    // measured 1.1–1.5× (CPU rasteriser, DPR 1 and 2); a close view drawing far more than it shows fails
+    expect(close).toBeLessThan(overview * 1.75);
+  });
+});
+
 test.describe('camera · reduced motion', () => {
   test.use({ reducedMotion: 'reduce' });
 
