@@ -52,6 +52,29 @@ describe('sound recipes', () => {
     expect(RECIPES.rin(rng).reverb).toBeGreaterThan(0.4);
   });
 
+  it('the watering pour is a gentle two-second trickle: soft swell, no spike, rising bubbles', () => {
+    for (let seed = 1; seed <= 30; seed++) {
+      const spec = RECIPES.pour(createRng(seed));
+      expect(spec.duration).toBeGreaterThan(1.6);
+      expect(spec.duration).toBeLessThan(2.8);
+      expect(spec.gain).toBeLessThanOrEqual(0.07);
+      const noise = spec.voices.filter((v) => v.kind === 'noise');
+      const tones = spec.voices.filter((v) => v.kind === 'tone');
+      // the stream swells in over a quarter second or more: no click, no burst
+      for (const v of noise) expect(v.env[1]![0]).toBeGreaterThanOrEqual(0.25);
+      const stream = Math.max(...noise[0]!.env.map((p) => p[1]));
+      expect(tones.length).toBeGreaterThanOrEqual(10);
+      for (const v of tones) {
+        if (v.kind !== 'tone') continue;
+        // each bubble stays under the stream and rises in pitch
+        expect(Math.max(...v.env.map((p) => p[1]))).toBeLessThan(stream);
+        expect(v.freq[v.freq.length - 1]![1]).toBeGreaterThan(v.freq[0]![1]);
+        // and only once the stream has swelled in
+        expect(v.env[0]![0]).toBeGreaterThanOrEqual(0.28);
+      }
+    }
+  });
+
   it('the plip’s pitch falls fast', () => {
     const tone = RECIPES.plip(createRng(3)).voices[0]!;
     if (tone.kind !== 'tone') throw new Error('expected a tone');

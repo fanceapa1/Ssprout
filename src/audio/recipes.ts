@@ -114,6 +114,69 @@ export function drip(rng: Rng, pan = 0): SoundSpec {
   });
 }
 
+/**
+ * Watering pour (the can tipped over the plant, ADR 0182): a soft trickle of about two seconds.
+ * A low band of water noise swells in over a quarter second, wavers and thins away, with a dozen
+ * small bubbles on top whose pitch rises (a bubble's ring rises as it shrinks). Every attack is
+ * gentle and the loudest bubble stays under the stream, so it never spikes over the garden.
+ */
+export function pour(rng: Rng, pan = 0): SoundSpec {
+  const len = rng.range(1.7, 2.2);
+  const flow = rng.range(0.55, 0.7);
+  const voices: Voice[] = [
+    {
+      kind: 'noise',
+      filter: { type: 'bandpass', freq: rng.range(900, 1300), q: 0.9 },
+      env: [
+        [0, EPS],
+        [0.28, flow],
+        [len * 0.45, flow * rng.range(0.75, 0.9)],
+        [len * 0.7, flow * rng.range(0.5, 0.65)],
+        [len + 0.35, EPS],
+      ],
+    },
+    // the airy top of the stream, quieter and shorter
+    {
+      kind: 'noise',
+      filter: { type: 'highpass', freq: rng.range(2600, 3400), q: 0.7 },
+      env: [
+        [0, EPS],
+        [0.32, flow * 0.32],
+        [len * 0.6, flow * 0.22],
+        [len + 0.1, EPS],
+      ],
+    },
+  ];
+  const bubbles = rng.int(10, 15);
+  for (let i = 0; i < bubbles; i++) {
+    // bubbles only once the stream is flowing, so nothing pokes out of the swell
+    const at = 0.3 + rng.next() * (len - 0.5);
+    const f0 = rng.range(480, 1150);
+    const dur = rng.range(0.04, 0.08);
+    // fainter as the can empties
+    const peak = rng.range(0.22, 0.42) * (1 - (0.5 * at) / len);
+    voices.push(
+      delay(
+        {
+          kind: 'tone',
+          wave: 'sine',
+          freq: [
+            [0, f0],
+            [dur, f0 * rng.range(1.35, 1.7)],
+          ],
+          env: [
+            [0, EPS],
+            [0.006, peak],
+            [dur, EPS],
+          ],
+        },
+        at,
+      ),
+    );
+  }
+  return finish({ name: 'pour', gain: 0.06, pan, reverb: 0.25, lowpass: 5200, voices });
+}
+
 // ---------------------------------------------------------------------------------------------
 // Birds and insects (all distant: low gain, distance low-pass, reverb)
 // ---------------------------------------------------------------------------------------------
@@ -299,11 +362,12 @@ export function completion(rng: Rng, pan = 0): SoundSpec {
   return finish({ name: 'completion', gain: 0.07, pan, reverb: 0.5, voices });
 }
 
-export type RecipeName = 'plip' | 'drip' | 'chirp' | 'warbler' | 'swallow' | 'cricket' | 'rin' | 'completion';
+export type RecipeName = 'plip' | 'drip' | 'pour' | 'chirp' | 'warbler' | 'swallow' | 'cricket' | 'rin' | 'completion';
 
 export const RECIPES: Readonly<Record<RecipeName, (rng: Rng, pan?: number) => SoundSpec>> = {
   plip,
   drip,
+  pour,
   chirp,
   warbler,
   swallow,

@@ -6,7 +6,7 @@ import { createWebAudioBackend, type AudioBackend, type BackendFactory } from '.
 import { gateStep, initialGate, isAudible, type GateCommand, type GateInput } from './gate';
 import { FADE_S, localHour, MASTER_LEVEL, mixParams, sameMix, type AudioActivity, type MixParams } from './params';
 import { createPlanner, type PlannedEvent } from './planner';
-import { RECIPES, completion, rinBowl, type RecipeName } from './recipes';
+import { RECIPES, completion, pour, rinBowl, type RecipeName } from './recipes';
 
 /**
  * The garden soundscape controller. Owns gating (muted by default, nothing starts before a
@@ -29,6 +29,8 @@ export interface GardenAudio {
   playBloom(): void;
   /** Short pentatonic phrase (session complete). No-op while muted. */
   playComplete(): void;
+  /** Soft watering trickle (also on every `session:water`). No-op while muted. */
+  playPour(): void;
   dispose(): void;
 }
 
@@ -84,6 +86,7 @@ export function createGardenAudio(options: GardenAudioOptions): GardenAudio {
   const rng = createRng(options.seed ?? 'garden-audio');
   const planner = createPlanner({ rng: rng.fork('planner') });
   const chimeRng = rng.fork('chimes');
+  const pourRng = rng.fork('pour');
 
   const initial = getState();
   let gate = initialGate(initial.settings.muted);
@@ -201,6 +204,18 @@ export function createGardenAudio(options: GardenAudioOptions): GardenAudio {
     backend.play(spec, when, 'chime');
   }
 
+  /** The soft watering trickle (ADR 0182); one at a time, a second pour while one sounds is dropped. */
+  let pourEnd = -Infinity;
+  function playPour(): void {
+    if (!backend || !isAudible(gate)) return;
+    const now = backend.now();
+    if (now < pourEnd) return;
+    const spec = pour(pourRng, pourRng.range(-0.2, 0.2));
+    const when = now + 0.05;
+    pourEnd = when + spec.duration;
+    backend.play(spec, when, 'events');
+  }
+
   const setActivity = (a: AudioActivity) => {
     activity = { sessionActive: a.sessionActive, paused: a.sessionActive && a.paused };
     pushMix(1.5);
@@ -228,6 +243,8 @@ export function createGardenAudio(options: GardenAudioOptions): GardenAudio {
       chime('completion');
     }),
     bus.on('plant:placed', () => chime('rin')),
+    // every watering pours, the automatic one during focus and the can tapped in a break
+    bus.on('session:water', () => playPour()),
     bus.on('fauna:arrived', ({ id }) => {
       fauna.add(id);
       pushMix(1.5);
@@ -250,6 +267,7 @@ export function createGardenAudio(options: GardenAudioOptions): GardenAudio {
     },
     playBloom: () => chime('rin'),
     playComplete: () => chime('completion'),
+    playPour,
     dispose() {
       for (const off of offs) off();
       send({ type: 'dispose' });

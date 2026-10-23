@@ -229,6 +229,32 @@ describe('createGardenAudio soundscape', () => {
     expect(chimes).toEqual(['rin', 'completion']);
   });
 
+  it('pours softly on every watering (automatic and tapped), only when unmuted, one at a time', () => {
+    const muted = setup();
+    muted.audio.unlock();
+    muted.bus.emit('session:water', { blockIndex: 0, sessionId: 's1', auto: true });
+    expect(muted.fake.played).toHaveLength(0);
+
+    const s = setup({}, { muted: false });
+    s.audio.unlock();
+    const pours = () => s.fake.played.filter((p) => p.spec.name === 'pour');
+    s.bus.emit('session:water', { blockIndex: 0, sessionId: 's1', auto: true });
+    expect(pours()).toHaveLength(1);
+    expect(pours()[0]!.bus).toBe('events');
+    // a second watering while the first still pours is dropped, never stacked into a louder one
+    s.bus.emit('session:water', { blockIndex: 1, sessionId: 's1', auto: false });
+    expect(pours()).toHaveLength(1);
+    s.fake.advance(5);
+    s.bus.emit('session:water', { blockIndex: 1, sessionId: 's1', auto: false });
+    expect(pours()).toHaveLength(2);
+
+    // muted again: silent
+    s.audio.setMuted(true);
+    s.fake.advance(5);
+    s.bus.emit('session:water', { blockIndex: 2, sessionId: 's1', auto: true });
+    expect(pours()).toHaveLength(2);
+  });
+
   it('limits overlapping chimes', () => {
     const s = setup({}, { muted: false });
     s.audio.unlock();

@@ -287,6 +287,7 @@ const section: StudioSection = {
     soundEntry('completion', 'Session complete phrase', 'chime'),
     soundEntry('plip', 'Pond plip', 'events'),
     soundEntry('drip', 'Rain drip', 'events'),
+    soundEntry('pour', 'Watering pour (focus watering, the can in a break)', 'events'),
     soundEntry('chirp', 'Distant chirp', 'events'),
     soundEntry('warbler', 'Bush warbler hō-hokekyo', 'events'),
     soundEntry('swallow', 'Swallows twitter', 'events'),
