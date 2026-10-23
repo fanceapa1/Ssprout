@@ -142,10 +142,11 @@ that does it and the tests that prove it (devlog 30). Names as in the matrix bel
 `folder/file › test` under `src/`, e2e as `spec › test` under `tests/e2e/`. New checks live in
 `tests/e2e/v2-acceptance.spec.ts` (`v2-acceptance › …`) and `src/ui/plant-card.test.ts`.
 **Status:** ✔ covered · ◐ the rest by visual review only (or a stated headless limit) · ✘ gap.
-Known gaps are kept as `test.fail()` tests: they pass while the bug is there and fail once it is
-fixed, as a reminder to drop the marker.
+A known gap is kept as a `test.fail()` test: it passes while the bug is there and fails once it is
+fixed, as a reminder to drop the marker. None is open now (the two found in devlog 30 were fixed
+in Q8a and Q8b).
 
-**Summary: 41 rows — 36 ✔, 3 ◐, 2 ✘.**
+**Summary: 41 rows — 38 ✔, 3 ◐, 0 ✘.**
 
 ### Owner requests (ADR 0005)
 
