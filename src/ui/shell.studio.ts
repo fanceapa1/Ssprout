@@ -441,6 +441,76 @@ const section: StudioSection = {
         ctx.drawImage(layer, 0, 0);
       },
     },
+    {
+      id: 'tip-note',
+      label: 'a tip note with its small inked × (ADR 0211): at rest, pointed at or focused (deeper ink on a lifted dab, the ink ring), and the 32 px target it hides',
+      w: 600,
+      h: 128,
+      render(canvas, { pixelRatio }) {
+        const ctx = canvas.getContext('2d')!;
+        ctx.scale(pixelRatio, pixelRatio);
+        // a pale sky wash behind, as over the painting
+        const g = ctx.createLinearGradient(0, 0, 0, 128);
+        g.addColorStop(0, '#b9c9d3');
+        g.addColorStop(1, '#dfe3d2');
+        ctx.fillStyle = g;
+        ctx.fillRect(0, 0, 600, 128);
+        const x = (cx: number, cy: number, color: string) => {
+          // the `close` icon's own strokes at 14 px, as `.tip-x .ink-icon` draws them (stroke 2.5)
+          ctx.save();
+          ctx.translate(cx - 7, cy - 7);
+          ctx.scale(14 / 24, 14 / 24);
+          ctx.strokeStyle = color;
+          ctx.lineWidth = 2.5;
+          ctx.lineCap = 'round';
+          for (const st of ICON_STROKES.close) ctx.stroke(new Path2D(st.d));
+          ctx.restore();
+        };
+        const states = ['rest', 'hover / focus', 'target'] as const;
+        states.forEach((state, i) => {
+          const left = 10 + i * 196;
+          const top = 26;
+          ctx.save();
+          ctx.translate(left, top);
+          ctx.rotate((-0.6 * Math.PI) / 180);
+          slip(ctx, `tip-${i}`, 0, 0, 186, 62);
+          text(ctx, 'Tap the speaker for', 12, 19, 'italic 15px serif');
+          text(ctx, 'quiet garden sounds.', 12, 40, 'italic 15px serif');
+          const cx = 186 - 17;
+          const cy = 3 + 16 - (state === 'hover / focus' ? 1 : 0);
+          if (state === 'hover / focus') {
+            // the paper dab lifts a pixel with a soft wash under it
+            ctx.fillStyle = 'rgba(74, 64, 52, 0.16)';
+            ctx.beginPath();
+            ctx.ellipse(cx, cy + 1.5, 12, 11.5, 0, 0, Math.PI * 2);
+            ctx.fill();
+            const dab = ctx.createRadialGradient(cx, cy, 0, cx, cy, 12);
+            dab.addColorStop(0, 'rgba(246, 240, 226, 0.82)');
+            dab.addColorStop(0.62, 'rgba(246, 240, 226, 0.5)');
+            dab.addColorStop(1, 'rgba(246, 240, 226, 0)');
+            ctx.fillStyle = dab;
+            ctx.beginPath();
+            ctx.ellipse(cx, cy, 12, 11.5, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = INK;
+            ctx.lineWidth = 1.6;
+            ctx.strokeRect(cx - 13, cy - 13, 26, 26);
+          }
+          if (state === 'target') {
+            ctx.save();
+            ctx.setLineDash([3, 3]);
+            ctx.strokeStyle = VERMILION;
+            ctx.globalAlpha = 0.6;
+            ctx.lineWidth = 1;
+            ctx.strokeRect(cx - 16, cy - 16, 32, 32);
+            ctx.restore();
+          }
+          x(cx, cy, state === 'rest' ? '#5c5449' : INK);
+          ctx.restore();
+          text(ctx, state, left + 4, 112, 'italic 11px serif', '#5c5449');
+        });
+      },
+    },
   ],
 };
 
