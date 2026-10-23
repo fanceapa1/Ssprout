@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   canPose,
+  canVisibility,
   dropletsAt,
   ease,
   fitRigToCanvas,
@@ -62,6 +63,18 @@ describe('watering timeline', () => {
     expect(gardenWetness(WATERING_SECONDS + 3)).toBeGreaterThan(0.3);
     expect(gardenWetness(WATERING_SECONDS * 0.9 + WET_LINGER_SECONDS)).toBe(0);
     expect(gardenWetness(-1)).toBe(0);
+  });
+});
+
+describe('the can in a small frame', () => {
+  it('is fully in the frame while it pours and mostly outside as it glides in (no stray sliver is drawn)', () => {
+    const W = 300;
+    const H = 300;
+    const fitted = fitRigToCanvas({ baseX: 150, baseY: 290, top: 200, halfWidth: 40, size: 60, side: 1 }, W, H);
+    expect(canVisibility(fitted, 0.55, W, H)).toBeGreaterThan(0.95);
+    // as it glides in it is only partly inside: the view fades it by this share
+    expect(canVisibility(fitted, 0.02, W, H)).toBeLessThan(canVisibility(fitted, 0.55, W, H));
+    expect(canVisibility(fitted, 0.02, W, H)).toBeLessThan(0.6);
   });
 });
 

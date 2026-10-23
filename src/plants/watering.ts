@@ -563,7 +563,37 @@ export function drawWetSoil(ctx: Ctx, rig: WateringRig, wet: number): void {
 }
 
 /** The can, the stream of droplets and the splashes (draw after the plant). */
-export function drawWateringFront(ctx: Ctx, rig: WateringRig, u: number, seed: number): void {
+/**
+ * The share of the can's box (at progress `u`) that lies inside a `w × h` frame (user units), 0..1.
+ * A framed view fades the can by it, so a can gliding in or out never leaves a detached sliver
+ * (a spout tip) at the frame's edge.
+ */
+export function canVisibility(rig: WateringRig, u: number, w: number, h: number): number {
+  const pose = canPose(rig, u);
+  let x0 = Infinity;
+  let y0 = Infinity;
+  let x1 = -Infinity;
+  let y1 = -Infinity;
+  for (const [cx, cy] of [
+    [CAN_BOX.x, CAN_BOX.y],
+    [CAN_BOX.x + CAN_BOX.w, CAN_BOX.y],
+    [CAN_BOX.x, CAN_BOX.y + CAN_BOX.h],
+    [CAN_BOX.x + CAN_BOX.w, CAN_BOX.y + CAN_BOX.h],
+  ]) {
+    const r = rot({ x: cx! * pose.side * pose.k, y: cy! * pose.k }, pose.angle);
+    x0 = Math.min(x0, pose.x + r.x);
+    x1 = Math.max(x1, pose.x + r.x);
+    y0 = Math.min(y0, pose.y + r.y);
+    y1 = Math.max(y1, pose.y + r.y);
+  }
+  const area = (x1 - x0) * (y1 - y0);
+  if (!(area > 0)) return 0;
+  const iw = Math.max(0, Math.min(w, x1) - Math.max(0, x0));
+  const ih = Math.max(0, Math.min(h, y1) - Math.max(0, y0));
+  return (iw * ih) / area;
+}
+
+export function drawWateringFront(ctx: Ctx, rig: WateringRig, u: number, seed: number, frame?: { w: number; h: number }): void {
   if (u <= 0 || u >= 1) return;
   const ph = wateringTimeline(u);
   const k = pxPerUnit(ctx);
@@ -602,10 +632,13 @@ export function drawWateringFront(ctx: Ctx, rig: WateringRig, u: number, seed: n
   }
   if (ph.alpha <= 0.01) return;
   const pose = canPose(rig, u);
+  // in a small frame the can only shows once it is mostly in (and fades as it leaves)
+  const seen = frame ? Math.min(1, Math.max(0, (canVisibility(rig, u, frame.w, frame.h) - 0.55) / 0.4)) : 1;
+  if (seen <= 0.01) return;
   const sprite = canSprite(rig.size * k);
   if (!sprite) return;
   ctx.save();
-  ctx.globalAlpha *= pose.alpha;
+  ctx.globalAlpha *= pose.alpha * seen * seen * (3 - 2 * seen);
   ctx.translate(pose.x, pose.y);
   ctx.rotate(pose.angle);
   ctx.scale(pose.side * pose.k, pose.k);
