@@ -102,6 +102,8 @@ async function prepareStudio(page: Page) {
     window.studio!.pause();
     window.studio!.setT(t);
   }, Number(values.t));
+  // the studio paints lazily (ADR 0006); a full-page shot needs every card painted
+  await page.evaluate(() => window.studio!.settle());
   const errs = await page.evaluate(() => window.studio!.errors);
   if (errs.length) console.warn('studio entry errors:\n  ' + errs.join('\n  '));
 }

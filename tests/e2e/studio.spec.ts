@@ -4,6 +4,12 @@ import { expect, test } from './fixtures';
 async function openStudio(page: Page, query = '') {
   await page.goto(`./studio.html${query}`);
   await page.waitForFunction(() => window.studio?.ready === true);
+  await settle(page);
+}
+
+/** The studio paints lazily (ADR 0006); paint every shown card and keep it painted. */
+function settle(page: Page) {
+  return page.evaluate(() => window.studio!.settle());
 }
 
 /** Entries whose canvas has no painted pixel at all. */
@@ -59,6 +65,7 @@ test.describe('studio', () => {
         );
         const entries = await page.evaluate(() => window.studio!.entries);
         await expect(page.locator('canvas[data-entry]'), id).toHaveCount(entries.length);
+        await settle(page);
         expect(await page.evaluate(() => window.studio!.errors), id).toEqual([]);
         expect(await blankCanvases(page), id).toEqual([]);
       }
@@ -69,10 +76,12 @@ test.describe('studio', () => {
     // one section keeps this fast; every section's entries are covered by the shard tests
     await openStudio(page, '#scene');
     const seed = page.locator('#seed');
+    await settle(page);
     const before = await seed.inputValue();
     const renders = await page.evaluate(() => window.studio!.renders());
     await page.locator('#reseed').click();
     await expect(seed).not.toHaveValue(before);
+    await settle(page);
     expect(await page.evaluate(() => window.studio!.renders())).toBeGreaterThan(renders);
     expect(await blankCanvases(page)).toEqual([]);
   });
@@ -86,6 +95,7 @@ test.describe('studio', () => {
   test('?entry shows a single entry large', async ({ page }) => {
     await openStudio(page, '?entry=scene/full&t=0');
     await expect(page.locator('canvas[data-entry]')).toHaveCount(1);
+    await settle(page);
     const box = await page.locator('canvas[data-entry]').boundingBox();
     expect(box!.width).toBeGreaterThan(800);
     expect(await blankCanvases(page)).toEqual([]);
@@ -121,7 +131,39 @@ test.describe('studio', () => {
     const w1 = (await canvas.boundingBox())!.width;
     await page.locator('#scale').selectOption('2');
     await expect.poll(async () => (await canvas.boundingBox())!.width).toBeCloseTo(w1 * 2, 0);
+    await settle(page);
     expect(await blankCanvases(page)).toEqual([]);
+  });
+});
+
+test.describe('studio · lazy painting (ADR 0006)', () => {
+  test('the whole studio paints only what is near the screen, and the rest on scroll', async ({ page }) => {
+    await page.goto('./studio.html');
+    await page.waitForFunction(() => window.studio?.ready === true);
+    // let the frame loop paint the first screenful
+    await page.waitForFunction(() => {
+      const shown = [...document.querySelectorAll<HTMLCanvasElement>('canvas[data-entry]')];
+      const onScreen = shown.filter((c) => c.getBoundingClientRect().top < innerHeight);
+      return onScreen.length > 0 && onScreen.every((c) => c.width > 1);
+    });
+    const counts = () =>
+      page.evaluate(() => {
+        const all = [...document.querySelectorAll<HTMLCanvasElement>('canvas[data-entry]')];
+        return { total: all.length, allocated: all.filter((c) => c.width > 1).length, pending: window.studio!.pending() };
+      });
+    const first = await counts();
+    expect(first.total).toBeGreaterThan(100);
+    expect(first.allocated, 'only cards near the screen hold pixels').toBeLessThan(first.total / 3);
+    expect(first.pending).toBeGreaterThan(0);
+
+    // the last card paints once scrolled to
+    const last = page.locator('canvas[data-entry]').last();
+    await last.scrollIntoViewIfNeeded();
+    await expect.poll(() => last.evaluate((c: HTMLCanvasElement) => c.width)).toBeGreaterThan(1);
+    // and the first cards, now far above, have given their pixels back
+    const firstCanvas = page.locator('canvas[data-entry]').first();
+    await expect.poll(() => firstCanvas.evaluate((c: HTMLCanvasElement) => c.width)).toBe(1);
+    expect(await page.evaluate(() => window.studio!.errors)).toEqual([]);
   });
 });
 
