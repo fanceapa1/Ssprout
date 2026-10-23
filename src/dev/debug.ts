@@ -1,6 +1,7 @@
 import type { SpeedClock } from '../core/clock';
 import type { GardenState, Store } from '../core/state';
 import type { Renderer } from '../render/renderer';
+import type { System } from '../render/types';
 
 /**
  * `window.sprout` — the ?dev debug API used by e2e tests and screenshots.
@@ -24,6 +25,12 @@ export interface SproutDebug {
   /** Main-thread frame cost (update + composite) and rAF intervals over the last frames, ms. */
   frameStats(): ReturnType<Renderer['frameStats']>;
   resetFrameStats(): void;
+  /**
+   * Leave out what systems draw, for isolating a layer in a screenshot or a pixel probe:
+   * `mute({ scene: ['background'], ambience: '*' })` (system id → layers, or '*' for all, including
+   * its entities); `mute({})` restores everything. Returns the registered system ids.
+   */
+  mute(spec: Record<string, readonly string[] | '*'>): string[];
 }
 
 declare global {
@@ -56,6 +63,7 @@ export function installDebug({ store, renderer, clock }: DebugDeps): SproutDebug
     now: () => clock.now(),
     frameStats: () => renderer.frameStats(),
     resetFrameStats: () => renderer.resetFrameStats(),
+    mute: (spec) => muteSystems(renderer, spec),
   } satisfies Partial<SproutDebug> as SproutDebug;
   window.sprout = api;
   return api;
@@ -64,4 +72,28 @@ export function installDebug({ store, renderer, clock }: DebugDeps): SproutDebug
 /** Add methods to `window.sprout` (no-op outside ?dev). */
 export function extendDebug(methods: Partial<SproutDebug> & Record<string, unknown>): void {
   if (window.sprout) Object.assign(window.sprout, methods);
+}
+
+type Muted = System & { __unmuted?: Pick<System, 'draw' | 'entities'> };
+
+/** Wrap systems' draw/entities so the muted layers draw nothing (dev only). */
+function muteSystems(renderer: Renderer, spec: Record<string, readonly string[] | '*'>): string[] {
+  for (const raw of renderer.systems()) {
+    const s = raw as Muted;
+    if (s.__unmuted) {
+      s.draw = s.__unmuted.draw;
+      s.entities = s.__unmuted.entities;
+      delete s.__unmuted;
+    }
+    const m = spec[s.id];
+    if (!m) continue;
+    const orig = { draw: s.draw, entities: s.entities };
+    s.__unmuted = orig;
+    const all = m === '*';
+    if (orig.draw) s.draw = (layer, ctx, f) => (all || m.includes(layer) ? undefined : orig.draw!.call(s, layer, ctx, f));
+    if (orig.entities && (all || m.includes('entities'))) s.entities = () => [];
+  }
+  renderer.invalidate();
+  if (renderer.frozen) renderer.renderOnce();
+  return renderer.systems().map((s) => s.id);
 }
