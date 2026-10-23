@@ -136,7 +136,9 @@ test.describe('ui · planting a session', () => {
     expect(st.plants[0]).toMatchObject({ speciesId: 'fx-violet', slotId, taskName: 'Biology ch. 4', sessionMinutes: 25 });
     await expect(page.locator('.panel')).toHaveAttribute('data-view', 'idle');
 
-    // hover the plant (a little above its base point) → task · minutes · date
+    // hover the plant (a little above its base point) → task · minutes · date (the camera has
+    // followed the session to its plant: let it rest first)
+    await page.evaluate(() => window.sprout!.camera.settle());
     const p = await page.evaluate((id) => window.sprout!.ui.slotScreen(id), slotId);
     await page.mouse.move(p!.x, p!.y - 8);
     await expect(page.locator('.plant-label')).toHaveClass(/is-in/);

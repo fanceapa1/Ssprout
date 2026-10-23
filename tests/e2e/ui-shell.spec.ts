@@ -71,7 +71,7 @@ test.describe('app shell · page', () => {
     await expect(page.locator('#garden')).toHaveAttribute('data-edge', 'masked');
   });
 
-  test('wheel over the garden scrolls the page with an eased glide; ctrl+wheel is left to the zoom hook', async ({ page }) => {
+  test('wheel over the garden scrolls the page with an eased glide; ctrl+wheel zooms the garden instead', async ({ page }) => {
     await openUi(page);
     await page.evaluate(() => window.sprout!.scenePainted());
     const scene = await page.evaluate(() => window.sprout!.sceneStats());
@@ -87,11 +87,14 @@ test.describe('app shell · page', () => {
     expect(between.length, 'intermediate positions: a glide, not a jump').toBeGreaterThanOrEqual(3);
     for (let i = 1; i < run.samples.length; i++) expect(run.samples[i]!).toBeGreaterThanOrEqual(run.samples[i - 1]! - 0.01);
 
-    // ctrl+wheel (a trackpad pinch) never scrolls the page; with a hook installed the hook gets it
+    // ctrl+wheel (a trackpad pinch) never scrolls the page: the camera takes it (camera.spec covers the zoom)
     await page.evaluate(() => window.sprout!.ui.scrollTo(0, { instant: true }));
-    const free = await wheelAndSample(page, 300, { ctrlKey: true });
-    expect(free.final).toBe(0);
-    expect(free.prevented).toBe(false); // no camera yet: the browser keeps its own zoom
+    const zoomed = await wheelAndSample(page, -300, { ctrlKey: true });
+    expect(zoomed.final).toBe(0);
+    expect(zoomed.prevented).toBe(true);
+    await page.evaluate(() => window.sprout!.camera.settle());
+    expect(await page.evaluate(() => window.sprout!.camera.state().pose.zoom)).toBeGreaterThan(1);
+    // another hook (e.g. a later feature) gets the same events
     await page.evaluate(() => {
       (window as unknown as { zooms: number }).zooms = 0;
       window.sprout!.ui.onZoomGesture(() => (window as unknown as { zooms: number }).zooms++);
@@ -151,6 +154,8 @@ test.describe('app shell · page', () => {
       window.sprout!.start(25, { speciesId: 'fx-violet', slotId: 'meadow-6', taskName: 'Scrolled' });
       return window.sprout!.completeSession()!.slotId;
     });
+    // the camera followed the session to its plant: let it rest (pointer mapping at any zoom)
+    await page.evaluate(() => window.sprout!.camera.settle());
     await page.evaluate(() => window.sprout!.plants.settle());
     await page.evaluate(() => window.sprout!.ui.scrollTo(120, { instant: true }));
     expect(await page.evaluate(() => window.scrollY)).toBe(120);

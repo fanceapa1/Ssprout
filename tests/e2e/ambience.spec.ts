@@ -153,6 +153,8 @@ test.describe('ambience with reduced motion', () => {
     await openDev(page);
     await page.evaluate(() => {
       window.sprout!.setTime('dusk');
+      // the overview, as before the camera (it would cut to the seedling and paint detail for it)
+      window.sprout!.camera.autoFocus(false);
       window.sprout!.start(25);
       window.sprout!.setWeather('rain');
     });

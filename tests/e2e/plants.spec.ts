@@ -173,6 +173,8 @@ test.describe('plants · growth in a still garden', () => {
     await page.evaluate(() => {
       window.sprout!.setTime('noon');
       window.sprout!.settleAmbience();
+      // the region is measured at the overview: no glide to the seedling (camera.spec covers that)
+      window.sprout!.camera.autoFocus(false);
     });
     await settle(page);
     const rect = (await page.evaluate(() => window.sprout!.plants.boundsFor('fx-bellflower', 'meadow-1')))!;

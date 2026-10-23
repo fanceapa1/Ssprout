@@ -98,7 +98,7 @@ test.describe('session rules', () => {
 test.describe('session rules · phone', () => {
   test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
 
-  test('tapping a finished plant shows its ink label', async ({ page }) => {
+  test('tapping a finished plant opens its card (the ink label is for hover)', async ({ page }) => {
     await openUi(page);
     // a finished violet in a meadow slot that is on screen in the portrait crop
     const slotId = await page.evaluate(() => {
@@ -117,6 +117,7 @@ test.describe('session rules · phone', () => {
       window.sprout!.start(25, { speciesId: 'fx-violet', slotId: id!, taskName: 'Flashcards' });
       window.sprout!.completeSession();
     }, slotId);
+    await page.evaluate(() => window.sprout!.camera.settle());
     await page.evaluate(() => window.sprout!.plants.settle());
     // the middle of the plant's painted box, in CSS pixels
     const tap = await page.evaluate(() => {
@@ -127,7 +128,10 @@ test.describe('session rules · phone', () => {
       return { x: box.left + (v.x / c.width) * box.width, y: box.top + (v.y / c.height) * box.height };
     });
     await page.touchscreen.tap(tap.x, tap.y);
-    await expect(page.locator('.plant-label')).toHaveClass(/is-in/);
-    await expect(page.locator('.plant-label')).toContainText('Flashcards · 25 min ·');
+    const card = page.locator('[data-ui="plant-card"]');
+    await expect(card).toBeVisible();
+    await expect(card).toHaveAttribute('data-placement', 'docked');
+    await expect(card).toContainText('Flashcards');
+    await expect(page.locator('.plant-label')).not.toHaveClass(/is-in/);
   });
 });
