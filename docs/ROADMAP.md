@@ -42,7 +42,7 @@ ADR numbering ranges (to avoid collisions in parallel work):
 | 8 | v2 polish 1: resting icon visibility, tips on scroll, watering sound, midday sky, night margins, calendar week layout, plant-view wash, widget type, fresh-eyes pass | `src/ui/**` (not camera), `src/audio`, `src/ambience`, `src/scene`, `src/widget` | done |
 | 8 | Close-view art: seams, foreground detail, sprite opacity and soft fauna at 2–3× zoom | `src/render/**`, `src/plants/**`, `src/scene/**` detail, `src/fauna/**` | done |
 | 8 | v2 polish 2: plant card on phones, calendar day view follows now, planting sheet edge, schedule input locale, sun-shaft weather | `src/ui/**`, `src/ambience` weather | done |
-| 8 | Dock wayfinding: a hand-inked path flowing from the garden's stepping stones through the dock sections in order, clearer hierarchy/alignment, short helper lines; responsive (owner: "only if responsive without too much hassle") | `src/ui/**` | in progress |
+| 8 | Dock wayfinding: a hand-inked path flowing from the garden's stepping stones through the dock sections in order, clearer hierarchy/alignment, short helper lines; responsive (owner: "only if responsive without too much hassle") | `src/ui/**` | done |
 
 
 Task queue (atomic tasks, at most 2 agents at a time; owner feedback 2026-10-23: split work as if there were more agents, never bundle requests into one agent):
@@ -50,12 +50,12 @@ Task queue (atomic tasks, at most 2 agents at a time; owner feedback 2026-10-23:
 | # | Task | Area | Status |
 |---|---|---|---|
 | Q1 | Lotus plantable again after the 1.25× slot changes (real flow + plantable test) | `src/scene/slots.ts`, `src/plants` | in progress |
-| Q2 | Night zoom artefact: a pale hard-edged rectangle and a clipped sprite at zoom 3 | `src/render`, `src/scene`, `src/ambience` | queued |
+| Q2 | Night zoom artefact: a pale hard-edged rectangle and a clipped sprite at zoom 3 | `src/render`, `src/scene`, `src/ambience` | in progress |
 | Q3 | Frame cost at rest while zoomed (20–47 ms headless at 2.6×, 30 plants) | `src/render`, `src/plants` | queued (first fix eabeab2 merged) |
-| Q4 | "Growing now" list order is nondeterministic | `src/ui/session-list*`, `src/core` | queued |
-| Q5 | Seedling at growth ≈ 0 reads as empty in thumbnails / Your plant | `src/plants/view.ts` | queued |
-| Q6 | Hover / focus / press states for every UI control (owner request) | `src/ui/**` CSS | queued (after wayfinding) |
-| Q7 | The two "Start studying" buttons sit too close: new placement for the garden pill (owner request) | `src/ui/**` | queued (after wayfinding) |
+| Q4 | "Growing now" list order is nondeterministic | `src/ui/session-list*`, `src/core` | done (with wayfinding, ADRs 0200–0204) |
+| Q5 | Seedling at growth ≈ 0 reads as empty in thumbnails / Your plant | `src/plants/view.ts` | done (with wayfinding, ADRs 0200–0204) |
+| Q6 | Hover / focus / press states for every UI control (owner request) | `src/ui/**` CSS | done (with wayfinding, ADRs 0200–0204) |
+| Q7 | The two "Start studying" buttons sit too close: new placement for the garden pill (owner request) | `src/ui/**` | done (with wayfinding, ADRs 0200–0204) |
 | Q8 | v2 acceptance: owner requests → tests, TESTING matrix gaps | `tests/**`, `docs/TESTING.md` | queued |
 | Q9 | Docs audit: SPEC/ARCHITECTURE/AGENTS/README vs code | `docs/**`, `README.md`, `AGENTS.md` | queued |
 | Q10 | Flakiness: three consecutive green e2e runs, root-cause fixes | `tests/**` | queued (last) |
