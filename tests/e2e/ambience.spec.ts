@@ -213,7 +213,29 @@ test.describe('the sun weather (ADR 0193)', () => {
           }
           return warm / n;
         };
-        return { garden: read(0.55, 0.85), sky: read(0.04, 0.14), sun: s.ambience()!.levels.sun };
+        /** how much the sky's brightness varies from column to column (pale columns raise it) */
+        const columns = (y0: number, y1: number) => {
+          const top = Math.round(c.height * y0);
+          const { data, width, height } = c.getContext('2d')!.getImageData(0, top, c.width, Math.round(c.height * (y1 - y0)));
+          const step = 8;
+          const means: number[] = [];
+          for (let x = 0; x < width; x += step) {
+            let sum = 0;
+            for (let y = 0; y < height; y += 4) {
+              const i = (y * width + x) * 4;
+              sum += data[i]! + data[i + 1]! + data[i + 2]!;
+            }
+            means.push(sum / (3 * Math.ceil(height / 4)));
+          }
+          // detrend: compare each column with its neighbourhood, so the sky's own gradient doesn't count
+          let dev = 0;
+          for (let k = 4; k < means.length - 4; k++) {
+            const local = means.slice(k - 4, k + 5).reduce((a, b) => a + b, 0) / 9;
+            dev += Math.abs(means[k]! - local);
+          }
+          return dev / Math.max(1, means.length - 8);
+        };
+        return { garden: read(0.55, 0.85), sky: read(0.04, 0.14), skyColumns: columns(0.04, 0.14), sun: s.ambience()!.levels.sun };
       });
     const focus = await look();
     expect(focus.sun).toBeCloseTo(1, 5);
@@ -231,7 +253,9 @@ test.describe('the sun weather (ADR 0193)', () => {
     expect(focus.garden - idle.garden).toBeGreaterThan(3);
     expect(paused.garden - idle.garden).toBeGreaterThan(0.3);
     expect(paused.garden - idle.garden).toBeLessThan((focus.garden - idle.garden) * 0.6);
-    // and the sky is left alone (no pale columns over it)
-    expect(Math.abs(focus.sky - idle.sky)).toBeLessThan((focus.garden - idle.garden) * 0.35);
+    // and the sky is left alone: no pale columns over it (column-to-column variation unchanged),
+    // only the session's overall warm light, which stays slight there
+    expect(focus.skyColumns - idle.skyColumns).toBeLessThan(0.5);
+    expect(Math.abs(focus.sky - idle.sky)).toBeLessThan(Math.max(4, (focus.garden - idle.garden) * 0.5));
   });
 });
