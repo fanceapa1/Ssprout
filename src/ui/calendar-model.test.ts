@@ -147,6 +147,15 @@ describe('calendarItems', () => {
     expect(items[0]!.occurrence).toMatchObject({ key: 's@2026-10-22', status: 'done' });
   });
 
+  it('sessions started in the same instant keep their names in order, whatever their ids', () => {
+    const at = local(2026, 10, 22, 16, 10);
+    const now = local(2026, 10, 22, 16, 30);
+    const mk = (id: string, taskName: string) => makeSession({ id, taskName, startedAt: at, pausedAt: now });
+    const state: GardenState = { ...createDefaultState(0), session: null, waiting: [mk('session-k-zz', 'Task 2'), mk('session-k-aa', 'Task 3'), mk('session-k-mm', 'Task 1')] };
+    const items = calendarItems(state, [], day, now);
+    expect(items.map((i) => i.title)).toEqual(['Task 1', 'Task 2', 'Task 3']);
+  });
+
   it('itemsOnDay splits a week; a session across midnight is on both days', () => {
     const week = viewRange('week', local(2026, 10, 22, 12));
     const state: GardenState = { ...createDefaultState(0), log: [entry('late', local(2026, 10, 21, 23, 30), 60)] };

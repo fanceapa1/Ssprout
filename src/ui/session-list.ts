@@ -56,6 +56,22 @@ export interface SessionListActions {
 export const LIMIT_NOTE = (max: number) =>
   `${max === 3 ? 'Three' : String(max)} seedlings are growing — as many as can grow at once. Switch to one of them, or let one bloom first.`;
 
+const BY_NAME = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
+
+/**
+ * The rows' order: by start, oldest first, so a row never moves when the gardener switches.
+ * Sessions started in the same instant (several started at once from the dev tools, on a frozen
+ * clock) used to fall back to their ids, whose tail is random, so the same setup listed "Task 1,
+ * Task 3, Task 2" in one run and "Task 1, Task 2, Task 3" in another; they now fall back to the
+ * task name (numbers in order), then the id. Pure, exported for tests.
+ */
+export function compareSessionRows(
+  a: { startedAt: number; taskName: string; id: string },
+  b: { startedAt: number; taskName: string; id: string },
+): number {
+  return a.startedAt - b.startedAt || BY_NAME.compare(a.taskName, b.taskName) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+}
+
 const THUMB = 64;
 const MAX_DPR = 2;
 const PLAN_W = 180;
@@ -160,7 +176,7 @@ export function createSessionList(ctx: UIContext, actions: SessionListActions): 
 
   function render(): void {
     const st = controller.status();
-    const sessions = st.sessions;
+    const sessions = [...st.sessions].sort((a, b) => compareSessionRows(a.session, b.session));
     const anyActive = st.session !== null;
     const visible = sessions.length >= 2 || (sessions.length >= 1 && !anyActive);
     if (st.canStart) limit = false;

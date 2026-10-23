@@ -167,8 +167,10 @@ export function calendarItems(
       occurrence: o,
     });
   }
-  return items.sort((a, b) => a.start - b.start || a.end - b.end || (a.id < b.id ? -1 : 1));
+  // ties (sessions started in the same instant) by title, so they do not shuffle with their ids
+  return items.sort((a, b) => a.start - b.start || a.end - b.end || TITLES.compare(a.title, b.title) || (a.id < b.id ? -1 : 1));
 }
+const TITLES = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
 
 /** Items overlapping the local day `date`. */
 export function itemsOnDay(items: readonly CalendarItem[], date: string): CalendarItem[] {
