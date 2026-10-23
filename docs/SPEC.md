@@ -298,6 +298,14 @@ The page is no longer only a canvas. It scrolls as a normal document:
   - **Calendar** — what was studied, what is growing and what is planned, by day, week or month (§13).
   - **Garden tools** — sound, floating timer, pressed flowers, garden data, hints, with icons and
     visible names; the same tools stay as icons in the garden's corner and share their state.
+- **Backdrops** (ADR 0208): each section lies on its own sheet of the page's washi, as if the
+  painting went on over separate leaves laid on the paper: a little lighter than the page, torn at
+  the edge (each sheet's tear its own), with a soft cool wash pooled under its lower and right
+  edges. No card corners, borders, blur or drop shadows. The heading and helper line sit on the
+  sheet; the guiding path and its stones stay in the lane outside it. The calendar's sheet is the
+  firmest, a clear surface for its toolbar, grid and blocks, on which blooms, growing sessions and
+  plans read a shade firmer. A sheet follows its section as it grows or the window changes, and
+  every text on a sheet reads at ≥ 4.5 : 1 in every light.
 - **Wayfinding** (ADRs 0200–0202):
   - *Headings.* Every section has the same heading (27 px, full ink; 25 px on phones). Under it is
     one short **helper line** in the quiet italic voice. It says what the section is for and what to

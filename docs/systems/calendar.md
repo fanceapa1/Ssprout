@@ -111,6 +111,10 @@ the set of due occurrences changes.
   planned as a broken ink outline; passed as a fainter outline with "passed".
 - Month: a dab per bloom, an ink ring per plan (faint when passed), minutes studied; tap a day → daily.
 - The summary line: blooms, time studied and plans in the range.
+- The section lies on the dock's firmest sheet (`backdrop: 'firm'`, ADR 0208): a clear surface for
+  the toolbar, the hours and the month. On it the washes, a plan's outline and the hour dots are a
+  shade firmer (`WASH`, `planSvg` 0.60 / passed 0.28), and a week block grown to read takes the
+  sheet's paper.
 
 ## The editor's pickers (ADR 0192)
 The native `<input type=date|time>` followed the operating system's locale; the pickers speak the

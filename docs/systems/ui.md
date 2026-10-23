@@ -33,6 +33,8 @@ the widget surfaces — the UI then asks in the Begin click itself.
 | `stage-edge.ts` | pure alpha mask for the dissolving edge (`stageEdgeAlpha`, `fadeHeight`, `featherWidth`) |
 | `page-paper.ts` | the page's paper tile from `paperTexture` (same washi as the garden, ADR 0132) |
 | `dock.ts` | the dock section registry (`createDock`, `orderSections`; contract in ARCHITECTURE › Dock) |
+| `backdrop.ts` · `backdrop-sheet.ts` | the sheet behind each dock section (ADR 0208): `createBackdrop(host, { seed, strength })` lays `div.backdrop` (wash + leaf) and draws its SVG mask and wash for the section's size, again only when it changes; pure geometry `createTear`, `sheetOutline`, `sheetFibres`, `shadowLayers`, `sheetMaskSvg`, `sheetShadowSvg`, `SHEET` (`leaf`, `firm`) |
+| `backdrop.studio.ts` | studio section `ui-backdrop`: a leaf, the calendar's firm sheet, the edge ×4, one seed at two heights |
 | `dock-guide.ts` | the helper line under each heading, by state (`guideLines`, `GUIDE`; ADR 0201) |
 | `wayfinding.ts` · `wayfinding-path.ts` | the guiding path from the stepping stones down the dock's lane, a stone beside each visible heading (ADR 0202); pure geometry `layoutPath`, `brushOutline`, `stonePath` |
 | `wayfinding.studio.ts` | studio section `ui-wayfinding`: the wide lane, the phone gutter, the stops, the draw-in |
@@ -85,7 +87,7 @@ the widget surfaces — the UI then asks in the Begin click itself.
 #ui (page, .ui-root) ─ section#stage ─ canvas#garden (masked edge)
                      │                └ .stage-ui: quiet line · plant label · markers · pill · nav.menu · placement bar · planned slip · zoom chips · plant card
                      ├ .dock: svg.wayfinding (behind) · Study (waiting cards + controls | sessions in progress) · Your plant · Calendar · Garden tools
-                     │        each: header.dock-head (h2 + helper line) · div.dock-body
+                     │        each: div.backdrop (the sheet, behind) · header.dock-head (h2 + helper line) · div.dock-body
                      ├ absolute (document coordinates): .tips (ADR 0181)
                      └ fixed: .scrollbar · live region · dialogs (top layer)
 ```
@@ -94,6 +96,14 @@ the widget surfaces — the UI then asks in the Begin click itself.
   a 38 px gutter on phones). Wide screens set two tracks inside Study (controls | sessions in
   progress, `.session-list[data-rows='true']`) and Your plant (window | caption). Phones (≤ 600 px):
   an 8 px margin and a 20 px base.
+- Each section on its own sheet (ADR 0208): a seeded, torn leaf of the page's paper tile, lifted
+  lighter (0.44; the calendar's `firm` 0.74), with a glazed violet wash pooled under its lower and
+  right edges. The section's padding is the sheet's margin (`--sheet-pad-top/x/bottom`: 30/38/44 px,
+  28 px sides under 860 px, 20/20/26 on phones); the heading and helper sit on the sheet, the lane
+  and its stones outside its left edge. The sheet is drawn for the section's size by a
+  ResizeObserver (one frame later) and again only when the size changes; never per frame. A
+  section opts out with `backdrop: 'none'`. The dock is not dimmed by the garden's light, so the
+  sheets read the same in every phase.
 - One rhythm and one heading: `--rhythm-section` between sections, `--rhythm-head` under the heading
   block; `h2.dock-title` 27 px full ink (25 px on phones), `p.dock-helper` 20.5 px italic soft ink.
 - One primary action in Study (`data-primary`, ADR 0201): Start studying (idle), Pause as the calm
@@ -268,6 +278,12 @@ Unit: `dock-guide.test.ts`, `wayfinding-path.test.ts`, `session-list.test.ts`, `
 `ambient-light.test.ts`, `scroll-math.test.ts`, `smooth-scroll.test.ts`, `dock.test.ts`, `stage-edge.test.ts`, `ink.test.ts`,
 `tip-place.test.ts`, `plant-card.test.ts`, `pickers.test.ts`, `prefill.test.ts` (calendar: `calendar-model.test.ts`).
 E2E: `tests/e2e/wayfinding.spec.ts` (the spine, the path at desktop and phone, never over text,
+Unit: `backdrop-sheet.test.ts`, `backdrop.test.ts`, `dock-guide.test.ts`, `wayfinding-path.test.ts`, `session-list.test.ts`, `format.test.ts`, `plan-line.test.ts`, `plant-labels.test.ts`, `previews.test.ts`,
+`ambient-light.test.ts`, `scroll-math.test.ts`, `dock.test.ts`, `stage-edge.test.ts`, `ink.test.ts`.
+E2E: `tests/e2e/backdrops.spec.ts` (a sheet per section holding its content, the calendar's the
+strongest, re-layout on growth / resize / view and not on a tick or scroll, the lane outside the
+sheets, text contrast from pixels in four lights at desktop, hd and phone),
+`tests/e2e/wayfinding.spec.ts` (the spine, the path at desktop and phone, never over text,
 re-layout on section/content/resize changes, the stop being read, helper lines by state, one primary
 per state, the pill stepping aside, hover and focus, the draw-in and reduced motion),
 `tests/e2e/camera.spec.ts` (zoom gestures and controls, focus on start/switch, the plant
