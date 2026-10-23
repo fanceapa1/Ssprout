@@ -130,6 +130,14 @@ edge is paper, so the line reads the same there too.
   - `ui-shell/seed-bed`;
   - `ui-shell/session-thumbs` and `plant-view-growing` now show growth framing.
 
+## Suites (after rebasing on main at e2b0faf)
+- `npm run typecheck` passes, and `npm test` passes (106 files, 1303 tests).
+- `E2E_PORT=4191 E2E_WORKERS=2 npm run e2e`, niced: 174 of 176 passed in 38.8 min, at a load
+  average of about 60.
+  - The two that failed timed out at 60 s: `core-loop › plant at start…` and `wayfinding › one
+    primary action in each state`. Run alone, both pass (41 s and 43 s).
+  - The wayfinding test is now `test.slow()`.
+
 ## Left open
 - A due card's Start and the long pause's Resume can both be seals if a planned session comes due
   during a long pause. This is rare; the helper line speaks to the long pause.
