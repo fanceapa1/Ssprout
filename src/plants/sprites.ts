@@ -164,6 +164,7 @@ export function paintSprite(def: SpeciesDef, spec: SpriteSpec): { canvas: HTMLCa
   }
   const p = createPainter(canvas, { seed: spec.seed });
   def.draw(p, createRng(spec.seed).fork(def.id), { w: spec.w, h: spec.h, growth: stepGrowth(spec.step) });
+  layBodyTwice(canvas);
   let bounds: SpriteBounds | null = null;
   try {
     const ctx = canvas.getContext('2d') as AnyCtx | null;
@@ -172,6 +173,35 @@ export function paintSprite(def: SpeciesDef, spec: SpriteSpec): { canvas: HTMLCa
     bounds = null;
   }
   return { canvas, bounds };
+}
+
+/**
+ * A plant sprite's body laid twice (ADR 0187): the sprite is transparent watercolour painted on
+ * white, and laid once over the landscape it let a third of it through — the hill line and the
+ * banks crossed leaves and petals seen close. Doubled, it reads as solid paint (the landscape keeps
+ * a ninth) while its washes, pooled edges and overlaps stay the painting's. Done once when the
+ * sprite is painted, so it costs nothing per frame.
+ */
+export const SPRITE_BODY = 1;
+
+function layBodyTwice(canvas: HTMLCanvasElement | OffscreenCanvas): void {
+  if (SPRITE_BODY <= 0) return;
+  let copy: HTMLCanvasElement | OffscreenCanvas;
+  try {
+    copy = makeCanvas(canvas.width, canvas.height);
+  } catch {
+    return;
+  }
+  const cctx = copy.getContext('2d') as AnyCtx | null;
+  const ctx = canvas.getContext('2d') as AnyCtx | null;
+  if (!cctx || !ctx) return;
+  cctx.drawImage(canvas as CanvasImageSource, 0, 0);
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.globalAlpha = SPRITE_BODY;
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.drawImage(copy as CanvasImageSource, 0, 0);
+  ctx.restore();
 }
 
 export const renderSpriteSync = (def: SpeciesDef, spec: SpriteSpec): RenderResult | null => {

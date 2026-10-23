@@ -27,12 +27,12 @@ export interface RimCache {
 /**
  * Rim width in sprite pixels for a sprite of this size (≈ 4 % of its smaller side, 1.5–9 px at the
  * reference resolution). `k` is the bitmap's resolution relative to that reference: a sharper
- * bitmap of the same thing gets a proportionally wider rim, so the rim keeps its place on the
- * plant at every zoom (ADR 0187).
+ * bitmap of the same thing gets a wider rim, but only by √k — the rim stays a band of light along
+ * the edges seen close instead of a shifted ghost of every leaf (ADR 0187).
  */
 export function rimWidth(w: number, h: number, k = 1): number {
   const s = k > 0 ? k : 1;
-  return Math.max(1.5, Math.min(9, (Math.min(w, h) * 0.04) / s)) * s;
+  return Math.max(1.5, Math.min(9, (Math.min(w, h) * 0.04) / s)) * Math.sqrt(s);
 }
 
 /** Colours are quantised so a slow blend reuses a few masks instead of building new ones. */

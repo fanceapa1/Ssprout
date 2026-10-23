@@ -80,12 +80,6 @@ export const GROWTH_EASE_SECONDS = 0.6;
 export const SHADOW_PLANT = 0.6;
 /** How strongly plants take the rim light. */
 export const RIM_PLANT = 0.85;
-/**
- * A plant is laid down twice (ADR 0187): the second pass at this opacity. Its sprites are
- * transparent watercolour painted on white; over the landscape a single pass lets the hill line
- * and the banks show through the leaves (ghostly), two read as solid paint.
- */
-export const BODY_PLANT = 1;
 /** Sprite px per world unit at which rim widths were tuned (the desktop overview at DPR 2). */
 export const RIM_REF_RES = 1.7;
 /** sway of a waiting (paused) session's seedling, relative to a plant at rest (ADR 0155) */
@@ -624,7 +618,6 @@ export function createPlantSystem(opts: PlantSystemOptions): PlantSystem {
       const h = (inst.def.anchor.y - b.top) * inst.box.h;
       drawPlantShadow(ctx, { x: inst.slot.x, y: inst.slot.y, w, h }, shadow, pose.alpha * SHADOW_PLANT);
     }
-    body(ctx, image, inst, pose);
     drawPlant(ctx, image, inst.box, inst.slot.x, inst.slot.y, pose);
     if (lit && rim.strength > 0.02) {
       const mask = rims.get(lit.image, rim.side, rim.rgb, spriteRes(lit, inst.box.w) / RIM_REF_RES);
@@ -637,22 +630,11 @@ export function createPlantSystem(opts: PlantSystemOptions): PlantSystem {
   }
 
   /** lift what is under the plant back to paper (the canvas's transparent pixels take the paper layer) */
-  /**
-   * The plant's own body laid twice (ADR 0187): one pass of the sprite lets a third of the landscape
-   * through its leaves and petals, so hill lines and banks cross the plant; a second pass of the
-   * same pigment makes it read as solid paint (the landscape keeps a ninth) while its washes,
-   * edges and overlaps stay those of the painting.
-   */
-  function body(ctx: CanvasRenderingContext2D, image: CanvasImageSource, inst: Inst, pose: PlantPose): void {
-    if (BODY_PLANT <= 0) return;
-    drawPlant(ctx, image, inst.box, inst.slot.x, inst.slot.y, { ...pose, alpha: pose.alpha * BODY_PLANT });
-  }
-
   function witherDrawable(w: WitherRec, t: number): Drawable {
     return {
       depth: w.inst.slot.y,
       draw: (ctx) =>
-        timed(() => drawWithering(ctx, w.image, w.w, w.h, w.inst.box, w.inst.slot.x, w.inst.slot.y, (t - w.start) / WITHER_SECONDS, w.inst.side, true, BODY_PLANT)),
+        timed(() => drawWithering(ctx, w.image, w.w, w.h, w.inst.box, w.inst.slot.x, w.inst.slot.y, (t - w.start) / WITHER_SECONDS, w.inst.side)),
     };
   }
 
