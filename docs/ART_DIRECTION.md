@@ -65,13 +65,16 @@ the tip, never grey drop shadows.
 - Glossy gradients, drop shadows, glow/bloom filters, neon, digital (opaque) saturation; lens
   flares, vector sunsets (concentric bands, a perfect sun disc with rays).
 - "Particle confetti", sparkle emojis, bouncy cartoon animations, lens flares.
-- Generic UI: pill buttons with gradients, glassmorphism, Inter font everywhere, emoji icons.
+- Generic UI: pill buttons with gradients, glassmorphism, Inter font everywhere, emoji icons, the
+  small round red "recording / live" dot beside actions or states (ADR 0194: an inked sprout marks
+  what begins or grows, a brush stroke marks what is chosen), pulsing dots, glowing badges.
 - Visible repetition: every instance must be seeded-unique; clumps vary in count & angle.
 
 ## UI style
 UI is calm paper and ink: small cards like washi slips with deckled edges, thin ink
 borders, serif typography (bundled via @fontsource — e.g. *Shippori Mincho* / *Cormorant
-Garamond*), muted ink text, a single vermilion seal-like accent for primary actions.
+Garamond*), muted ink text, a single vermilion seal-like accent for primary actions. Small signs are
+drawn, not dotted: the inked sprout beside what begins a planting, a brush stroke under a choice.
 Controls hug the bottom/edges and fade to low opacity when idle during a session.
 
 ## Motion

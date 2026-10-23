@@ -60,8 +60,8 @@ the widget surfaces — the UI then asks in the Begin click itself.
 | `stage-camera.ts` | the camera on the stage (ADRs 0164, 0168): ctrl/⌘ wheel and pinch zoom, double-click/tap, drag only when zoomed, touch-action switch, + / − / Whole garden chips, keys on the focused canvas, cursor hints, clicks → plant card; glides to the seedling on start/switch, to the whole garden on placement |
 | `plant-card.ts` | the plant card (ADR 0167): `plantStory()` / `storyLines()` (pure), a dialog `.plant-story` beside the plant or docked on phones (up to 62 % of the stage); Esc / close / click away; a seedling's card refreshes each tick; a taller card keeps its name and scrolls `.plant-story-body` with `data-more="above below"`, a fade at the cut and an ink mark, the body a focusable region only while it scrolls (ADR 0190) |
 | `previews.ts` | `renderPlantPreview(canvas, species, seed, growth?, createCanvas?)`, `createPreviewCache(getSpecies, createCanvas?)`, pressed-flower pixels |
-| `paper.ts` | seeded deckled washi slips + grain as CSS custom properties (ADR 0052) |
-| `icons.ts` | ink icons as stroke data: inline SVG (`ICONS`) and Path2D (`drawIcon`) (no emoji, no icon fonts) |
+| `paper.ts` | seeded deckled washi slips + grain as CSS custom properties (ADR 0052); `--brush-mark`, the vermilion stroke under a chosen chip, plan, tool or tier (ADR 0194) |
+| `icons.ts` | ink icons as stroke data: inline SVG (`ICONS`) and Path2D (`drawIcon`) (no emoji, no icon fonts); the sprout mark (`sproutMarkSvg`, `drawSproutMark`) that replaces every round red dot (ADR 0194) |
 | `format.ts` | pure copy helpers: tiers, habitats, spoken durations, milestones, tip priorities |
 | `ambient-light.ts` | `uiLight(grade)`, `applyUiLight(root, grade)`: `--ui-dab` / `--ui-dim` so the slips and paper dabs dim with the garden's light (ADR 0121) |
 | `context.ts` | `UIContext`: state shared by the components (internal) |

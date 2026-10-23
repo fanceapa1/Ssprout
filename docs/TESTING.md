@@ -301,6 +301,8 @@ Legend: unit tests as `folder/file › test`, under `src/` (`.test.ts` omitted).
 | 12.13 | Bigger, darker type: base ≥ 20 px, text ink ≥ 4.5:1 | ui/ink (all) | — | ✔ |
 | 12.14 | Tips point at the controls' new homes | ui/format › pickTips (all) | ui-shell › tips point at the controls in their new homes | ✔ |
 | 12.15 | The controls on the painting rest while focusing (a small step back: tools 0.88, pill 0.72, ADR 0180); the dock does not | — | ui-menu › the controls on the painting rest while studying…; tools-visibility › … ≥ 3:1 ink in all four lights | ✔ |
+| 12.17 | No round red "recording" dots: the inked sprout marks what begins a planting or grows now (pill, dock, Plant another, Schedule a session, growing now, the waiting card, due/growing blocks); a brush stroke marks what is chosen (ADR 0194) | — | marks › the sprout marks what begins a planting…; calendar · week layout (the mark never covers words) | ✔ (all four lights by shots; studio `ui-shell/marks`) |
+| 12.18 | On a phone a planned session's slip and the zoom chips never overlap | — | calendar · a planned slip on a phone's garden… | ✔ |
 | 12.16 | Sheets sit on a leaf of the page's washi (no dock text beside or below them); the page is locked under every sheet (wheel, keys, smooth scroll); the torn edge stays whole over a sticky footer (ADR 0190) | ui/smooth-scroll › a focused inner scroller… keeps its keys; › at its end, or on the page itself… | overlays › the planting sheet: paper behind it, the page locked…; › every other sheet locks the page too… | ✔ |
 
 ### §12a Camera & plant cards (ADRs 0160–0168)
