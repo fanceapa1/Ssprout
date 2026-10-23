@@ -2048,6 +2048,10 @@ dialog.book::after {
     width: 46px;
     height: 46px;
   }
+  /* a planned session's slip spans a phone's stage above the pill: the zoom chips step up over it */
+  .stage-ui:has(.due-slip:not([hidden])) .zoom-controls {
+    bottom: 132px;
+  }
 }
 .ui-root.is-resting .zoom-controls:not(:hover):not(:focus-within) {
   opacity: var(--rest-tools);
