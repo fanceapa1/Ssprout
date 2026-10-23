@@ -30,6 +30,24 @@ describe('dock registry', () => {
     expect(dock.sections()[0]).toMatchObject({ id: 'plant', title: 'Your iris', filled: true, visible: true, span: 'half' });
   });
 
+  it('gives every section a helper line under its heading that describes it (ADR 0201)', () => {
+    const dock = createDock();
+    const s = dock.addSection({ id: 'session', title: 'Study', helper: 'Name a task, choose a plant.', mount: () => {} });
+    const head = s.el.querySelector('header.dock-head')!;
+    expect([...head.children]).toEqual([s.heading, s.helper]);
+    expect(s.helper.textContent).toBe('Name a task, choose a plant.');
+    expect(s.el.getAttribute('aria-describedby')).toBe(s.helper.id);
+    expect(dock.sections()[0]!.helper).toBe('Name a task, choose a plant.');
+    s.setHelper('Pause whenever you need to.');
+    expect(s.helper.textContent).toBe('Pause whenever you need to.');
+    s.setHelper(null);
+    expect(s.helper.hidden).toBe(true);
+    expect(s.el.hasAttribute('aria-describedby')).toBe(false);
+    expect(dock.sections()[0]!.helper).toBeNull();
+    const bare = dock.addSection({ id: 'tools', title: 'Garden tools', mount: () => {} });
+    expect(bare.helper.hidden).toBe(true);
+  });
+
   it('keeps a placeholder hidden until it is filled', () => {
     const dock = createDock();
     const cal = dock.addSection({ id: 'calendar', title: 'Calendar', order: 30, span: 'full' });

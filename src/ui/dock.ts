@@ -18,6 +18,11 @@ export interface DockSectionDef {
   id: string;
   /** the section heading */
   title: string;
+  /**
+   * One short line under the heading: what the section is for and what to do next (ADR 0201).
+   * Change it with `setHelper` as the state moves on.
+   */
+  helper?: string;
   /** lower first (default 100); ties keep registration order */
   order?: number;
   /** wide screens: one column (`half`, default) or the whole row (`full`); phones: always full */
@@ -39,7 +44,11 @@ export interface DockSection {
   readonly body: HTMLElement;
   /** the heading (`h2`, focusable with tabindex -1 for jumps) */
   readonly heading: HTMLElement;
+  /** the helper line under the heading (`p.dock-helper`, the section's description; hidden when empty) */
+  readonly helper: HTMLElement;
   setTitle(title: string): void;
+  /** set the helper line (null or '' hides it); a no-op when unchanged */
+  setHelper(text: string | null): void;
   /** hide or show the whole section (e.g. nothing to show yet) */
   setHidden(hidden: boolean): void;
 }
@@ -47,6 +56,8 @@ export interface DockSection {
 export interface DockSectionInfo {
   id: string;
   title: string;
+  /** the helper line, or null */
+  helper: string | null;
   order: number;
   span: DockSpan;
   /** has content (mounted) */
@@ -73,7 +84,7 @@ export interface Dock {
 const ID = /^[a-z][a-z0-9-]*$/;
 
 interface Entry {
-  def: Required<Pick<DockSectionDef, 'id' | 'title' | 'order' | 'span'>>;
+  def: Required<Pick<DockSectionDef, 'id' | 'title' | 'order' | 'span'>> & { helper: string | null };
   index: number;
   section: DockSection;
   filled: boolean;
@@ -122,10 +133,21 @@ export function createDock(opts: { label?: string } = {}): Dock {
       if (entries.has(def.id)) throw new Error(`dock: section "${def.id}" already exists`);
       const headingId = `dock-${def.id}`;
       const heading = h('h2.dock-title', { id: headingId, tabindex: -1 }, def.title);
+      const helper = h('p.dock-helper', { id: `${headingId}-helper` });
       const body = h('div.dock-body');
-      const sectionEl = h('section.dock-section', { 'data-section': def.id, 'data-span': def.span ?? 'half', 'aria-labelledby': headingId }, heading, body);
+      // the heading and its helper line: one block, the same in every section (ADR 0201)
+      const head = h('header.dock-head', {}, heading, helper);
+      const sectionEl = h('section.dock-section', { 'data-section': def.id, 'data-span': def.span ?? 'half', 'aria-labelledby': headingId }, head, body);
+      const writeHelper = (text: string | null) => {
+        const t = text?.trim() || null;
+        entry.def.helper = t;
+        helper.textContent = t ?? '';
+        helper.hidden = t === null;
+        if (t) sectionEl.setAttribute('aria-describedby', helper.id);
+        else sectionEl.removeAttribute('aria-describedby');
+      };
       const entry: Entry = {
-        def: { id: def.id, title: def.title, order: def.order ?? 100, span: def.span ?? 'half' },
+        def: { id: def.id, title: def.title, order: def.order ?? 100, span: def.span ?? 'half', helper: null },
         index: counter++,
         filled: false,
         hidden: false,
@@ -135,9 +157,13 @@ export function createDock(opts: { label?: string } = {}): Dock {
           el: sectionEl,
           body,
           heading,
+          helper,
           setTitle(title) {
             entry.def.title = title;
             setText(heading, title);
+          },
+          setHelper(text) {
+            if ((text?.trim() || null) !== entry.def.helper) writeHelper(text);
           },
           setHidden(hidden) {
             if (entry.hidden === hidden) return;
@@ -147,6 +173,7 @@ export function createDock(opts: { label?: string } = {}): Dock {
           },
         },
       };
+      writeHelper(def.helper ?? null);
       entries.set(def.id, entry);
       sync(entry);
       arrange();
@@ -174,6 +201,7 @@ export function createDock(opts: { label?: string } = {}): Dock {
       orderSections([...entries.values()].map((x) => ({ ...x, order: x.def.order }))).map((e) => ({
         id: e.def.id,
         title: e.def.title,
+        helper: e.def.helper,
         order: e.def.order,
         span: e.def.span,
         filled: e.filled,
