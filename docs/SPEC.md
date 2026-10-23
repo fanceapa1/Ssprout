@@ -8,7 +8,7 @@ Over many sessions the garden fills, and wildlife slowly moves in.
 Rewards are quiet and beautiful, like a real garden changing over time.
 
 > **Status notes.** Where the implementation differs from or does not yet meet a rule, the rule
-> carries a *Status* note (audited 2026-10-22). `docs/TESTING.md` maps every rule here to the tests
+> carries a *Status* note (audited 2026-10-23, after v2 and the Q tasks). `docs/TESTING.md` maps every rule here to the tests
 > that cover it.
 
 Reference mood: hand-painted Japanese watercolour / sumi-e on warm washi paper — soft
@@ -268,7 +268,9 @@ browsers. Respects `prefers-reduced-motion` (ambience/fauna reduced, no sway).
 
 ## 11. Developer tools
 - **Studio** (`/Ssprout/studio.html`): a review page showing every sprite, creature, effect and
-  paint primitive with seed/reseed, play/pause, speed, background and scale controls.
+  paint primitive with seed/reseed, play/pause, speed, background and scale controls. Cards paint
+  lazily as they come near the screen, so the page opens at once (ADR 0006).
+- **`?dev`** exposes `window.sprout`, the debug API the e2e tests and screenshots drive (§9).
 
 ## 12. The app page (v2, ADR 0005; ADRs 0130–0136)
 The page is no longer only a canvas. It scrolls as a normal document:
@@ -327,6 +329,11 @@ The page is no longer only a canvas. It scrolls as a normal document:
   browser's). ctrl/⌘ + wheel and pinch over the garden never scroll the page: they zoom the
   garden (§12a).
 - **Type.** Bigger (base 21 px) and darker: body text ≥ 4.5:1 against the paper.
+- **Marks, not dots** (ADR 0194). No round red "recording" dot anywhere. What begins a planting or
+  is growing (Start studying, Plant another, Schedule a session, "growing now", a planned session's
+  card, due and growing calendar blocks) carries a tiny inked sprout; anything chosen (a chip, a
+  plan, a tool that is on, the current tier) gets a short vermilion brush stroke under its words.
+  The month view's pigment dabs stay: they are paint.
 - **Hover.** One calm language for every control (ADR 0204): words deepen their ink and a short
   brush stroke draws in under them; slips of paper lift a hair; a sprout mark opens its leaves. The
   same shows on keyboard focus; a press sinks the slip back. Nothing is said only on hover. With
@@ -380,13 +387,13 @@ plan sessions ahead. A planned session never starts on its own: at its time it w
 | Rule | Behaviour |
 |---|---|
 | Views | **Daily / Weekly / Monthly**, **Daily by default**; the last choice is remembered on this device. Previous / next and **Today**. |
-| Daily | An hour timeline of the day in a scrolling window, opened near now (today), else at the first entry, else 8:00. Today's window keeps up with now while the tab stays open (a gentle glide), unless the gardener scrolled it; past midnight it turns to the new day (ADR 0191). |
+| Daily | A 24-hour timeline of the day by the wall clock in a scrolling window, opened an hour and a half before now (today, from 6:00), else half an hour before the first entry, else at 8:00. On a daylight-saving day the hours stay where the clock says: the skipped spring hour is absent and the repeated autumn hour folds onto one band (ADR 0210). Today's window keeps up with now while the tab stays open (a gentle glide), unless the gardener scrolled it; past midnight it turns to the new day (ADR 0191). |
 | Weekly | Seven columns starting on the locale's first day, on purpose (Sunday in en-US, Monday in en-GB; Monday when unknown); tapping a day's head opens it. Blocks that look concurrent share the column; each keeps its short time ("4:10") and the start of its title, and a hovered or focused block grows to be read whole (ADR 0183). |
 | Monthly | A month grid with quiet marks per day: a painted dab in the plant's colour for each bloom, the minutes studied, a small ink ring for each planned session (faint when it passed). Tapping a day opens its daily view. |
 | Past sessions | From the session log: completed ones show the task, the plant, the minutes and the time, as a soft wash in the plant's colours; ended early ones appear very faintly. |
 | In progress | Sessions growing (or waiting) appear in their place, the active one marked. |
 | Planned | Scheduled sessions appear as unpainted outlines; one started from a plan shows as its session, "as planned". |
-| Now | A gentle now line on today. |
+| Now | A gentle now line on today, starting with a firm brush stroke at the rail (no round head, ADR 0194). |
 | Look | Paper, ink, brush underlines, soft washes; type and contrast as the rest of the dock (base 21 px, text ≥ 4.5:1). |
 
 ### Scheduling
@@ -408,7 +415,9 @@ plan sessions ahead. A planned session never starts on its own: at its time it w
 schema change (ADR 0170). Not yet: moving a planned session by dragging; a notification while the
 tab is closed (no server, by design). Polish 2 (ADRs 0191, 0192): the day follows now; the editor's
 day and time agree with the calendar's formats; on a phone, sessions side by side in a day keep a
-short time and grow to read when focused.
+short time and grow to read when focused. The day and week are a wall-clock face since ADR 0210
+(they opened an hour off on a daylight-saving day, and following now could stop when the hours
+were redrawn mid-glide; both fixed, devlog 33).
 
-## Non-goals (v1)
+## Non-goals
 Accounts, sync, server push, seasons, social features, streaks/penalties.
