@@ -2,7 +2,8 @@ import { createRng } from '../core/rng';
 import { allSpecies } from '../plants/registry';
 import type { StudioSection } from '../studio/types';
 import { paintPlan, paintWash, WASH, washTone } from './calendar-art';
-import { layoutColumns } from './calendar-model';
+import { layoutColumns, monthGrid, noonOf } from './calendar-model';
+import { dayLabel, hoursFor, pickerFormat, splitTime, timeLabel } from './pickers';
 import { deckledPath, deckledRoundPath } from './paper';
 
 /**
@@ -303,6 +304,93 @@ const section: StudioSection = {
         text(ctx, 'Japanese kanji', 88, 428, `16px ${DISPLAY}`);
         text(ctx, '· its time has come', 210, 428, `italic 16px ${BODY}`, SOFT);
         text(ctx, 'Start', 390, 428, `16px ${DISPLAY}`, '#8f3524');
+      },
+    },
+    {
+      id: 'pickers',
+      label: 'the schedule editor’s day and time pickers (ADR 0193): en-US on the left, en-GB on the right, 4:30 PM on 24 October',
+      w: 900,
+      h: 520,
+      render(canvas, { pixelRatio }) {
+        const ctx = canvas.getContext('2d')!;
+        ctx.scale(pixelRatio, pixelRatio);
+        ctx.fillStyle = PAPER;
+        ctx.fillRect(0, 0, 900, 520);
+        const ring = (cx: number, cy: number, r: number, seed: string, stroke: string, alpha: number) => {
+          const p = new Path2D(deckledRoundPath(createRng(seed), 48, 0.05));
+          const q = new Path2D();
+          q.addPath(p, new DOMMatrix().translate(cx - r, cy - r).scale((2 * r) / 1000, (2 * r) / 1000));
+          ctx.save();
+          ctx.strokeStyle = stroke;
+          ctx.globalAlpha = alpha;
+          ctx.lineWidth = 1.6;
+          ctx.stroke(q);
+          ctx.restore();
+        };
+        const column = (x0: number, locale: string, weekStartsOn: number) => {
+          const f = pickerFormat(locale);
+          const date = '2026-10-24';
+          const time = '16:30';
+          // the two fields
+          const field = (x: number, label: string, value: string, open: boolean) => {
+            ctx.fillStyle = 'rgba(255, 252, 244, 0.6)';
+            ctx.fillRect(x, 16, 200, 56);
+            ctx.fillStyle = open ? SOFT : 'rgba(59, 53, 46, 0.3)';
+            ctx.fillRect(x, 71, 200, 1.4);
+            text(ctx, label, x + 10, 30, `italic 15px ${BODY}`, SOFT);
+            text(ctx, value, x + 10, 54, `19px ${BODY}`, INK, 160);
+          };
+          field(x0, 'day', dayLabel(date, '2026-10-23', f), true);
+          field(x0 + 214, 'time', timeLabel(time, f), false);
+          // the month, unfolded under them
+          slip(ctx, 'faint', x0, 86, 400, 286, '#f6f0df', 0.9);
+          text(ctx, f.month.format(noonOf(date)), x0 + 200 - 50, 110, `17px ${DISPLAY}`);
+          text(ctx, '‹', x0 + 22, 110, `22px ${BODY}`);
+          text(ctx, '›', x0 + 370, 110, `22px ${BODY}`);
+          const weeks = monthGrid(noonOf(date), weekStartsOn);
+          ctx.textAlign = 'center';
+          weeks[0]!.forEach((d, i) => text(ctx, f.weekday.format(noonOf(d)), x0 + 40 + i * 53, 138, `italic 14px ${BODY}`, SOFT));
+          weeks.forEach((row, r) =>
+            row.forEach((d, i) => {
+              const cx = x0 + 40 + i * 53;
+              const cy = 166 + r * 38;
+              const other = d.slice(5, 7) !== '10';
+              if (d === date) ring(cx, cy, 17, 'today', VERMILION, 0.7);
+              text(ctx, String(Number(d.slice(8))), cx, cy, `${d === date ? 600 : 500} 17px ${BODY}`, other || d < '2026-10-23' ? MUTE : INK);
+              if (d === '2026-10-23') {
+                ctx.fillStyle = VERMILION;
+                ctx.globalAlpha = 0.7;
+                ctx.fillRect(cx - 8, cy + 10, 16, 1.3);
+                ctx.globalAlpha = 1;
+              }
+            }),
+          );
+          // the time chips
+          slip(ctx, 'faint', x0, 384, 400, 126, '#f6f0df', 0.9);
+          const p = splitTime(time, f.twelve);
+          const hours = hoursFor(f.twelve).slice(0, 12);
+          hours.forEach((hr, i) => {
+            const cx = x0 + 34 + i * 30;
+            if (hr === p.hour) slip(ctx, 'slip-1', cx - 14, 398, 28, 30, '#f8f3e6', 0.9);
+            text(ctx, f.twelve ? String(hr) : String(hr).padStart(2, '0'), cx, 414, `${hr === p.hour ? 600 : 500} 15px ${BODY}`);
+          });
+          [0, 15, 30, 45].forEach((m, i) => {
+            const cx = x0 + 40 + i * 54;
+            if (m === p.minute) slip(ctx, 'slip-1', cx - 22, 438, 44, 30, '#f8f3e6', 0.9);
+            text(ctx, `${f.sep}${String(m).padStart(2, '0')}`, cx, 454, `${m === p.minute ? 600 : 500} 15px ${BODY}`);
+          });
+          if (f.twelve) {
+            f.periods.forEach((label, i) => {
+              const cx = x0 + 280 + i * 60;
+              if (i === (p.pm ? 1 : 0)) slip(ctx, 'slip-1', cx - 24, 438, 48, 30, '#f8f3e6', 0.9);
+              text(ctx, label, cx, 454, `${i === (p.pm ? 1 : 0) ? 600 : 500} 15px ${BODY}`);
+            });
+          } else text(ctx, '(24 hours: 00 … 23)', x0 + 300, 454, `italic 14px ${BODY}`, SOFT);
+          text(ctx, 'Done', x0 + 360, 492, `16px ${BODY}`);
+          ctx.textAlign = 'left';
+        };
+        column(30, 'en-US', 0);
+        column(470, 'en-GB', 1);
       },
     },
   ],
