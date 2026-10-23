@@ -1,6 +1,6 @@
 # ADR 0183 — Week blocks at their drawn size, short times, and a deliberate first day
 
-- Status: accepted
+- Status: accepted; amended by ADR 0210 (wall-clock face)
 - Date: 2026-10-23
 - Amends: ADR 0175 (calendar section)
 

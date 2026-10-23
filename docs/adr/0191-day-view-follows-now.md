@@ -1,6 +1,6 @@
 # ADR 0191 — Today's day view follows now
 
-- Status: accepted
+- Status: accepted; amended by ADR 0210 (wall-clock face)
 - Date: 2026-10-23
 - Amends: ADR 0175 (the calendar section)
 
