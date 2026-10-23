@@ -79,6 +79,8 @@ agent) picks up the work next.
   `openUi`, which applies `calmUiMotion` (docs/TESTING.md).
 - **The `placeholder-sprout` is a unit-test fixture** (`src/dev/placeholder-sprout.ts`), not in the
   registry. Use `?fixtures` (`fx-*`) species for UI flows and real species for art.
+- **The studio paints lazily** (ADR 0006): cards paint near the screen within a frame budget.
+  Await `window.studio.settle()` before reading studio pixels.
 - **The e2e server is the production build.** With `E2E_REUSE=1`, rebuild after every `src/` change
   or you are testing stale code.
 

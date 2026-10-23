@@ -11,7 +11,7 @@ The owner's rule is "every behaviour is tested". When you add or change a behavi
 |---|---|---|---|
 | Unit | `src/**/*.test.ts`, colocated with the code | Vitest (`npm test`) | Pure logic: core rules, session maths, plans, persistence, schedules, envelopes, geometry, paint maths, widget/notification policy. Node by default. DOM tests opt in with `// @vitest-environment jsdom`. Canvas code is tested through recording fakes (`src/plants/test-canvas.ts`). |
 | End-to-end | `tests/e2e/*.spec.ts` | Playwright, Chromium (`npm run e2e`) | User-visible behaviour in the **production build** served by `vite preview` (ADR 0010), driven through the real UI or the `?dev` debug API (`window.sprout`, docs/ARCHITECTURE.md › Dev / test hooks). |
-| Studio smoke | `tests/e2e/studio.spec.ts` | Playwright | Every studio entry renders without errors and paints something; controls (seed, play/pause, speed, background, scale, `#section`, `?entry`). |
+| Studio smoke | `tests/e2e/studio.spec.ts` | Playwright | Every studio entry renders without errors and paints something; controls (seed, play/pause, speed, background, scale, `#section`, `?entry`); lazy painting (only cards near the screen hold pixels, ADR 0006). |
 | Visual review | `npm run shots`, the studio | a person (or agent) looking | Art quality: does it look like watercolour, is it subtle. Screenshots go to `artifacts/` (gitignored); nothing is asserted. |
 
 Helpers:
@@ -60,7 +60,7 @@ tests (`test-results/`).
   - `sprout.plants.settle()`: growth and fades snapped, sprites painted.
   - `sprout.scenePainted()`: no background repaint pending.
   - `waitFrames(page, n)`: n renderer frames, via `sprout.frameStats().frames`.
-  - `window.studio.ready`: the studio is mounted.
+  - `window.studio.ready`: the studio is mounted. It paints lazily: `await window.studio.settle()` before reading pixels (ADR 0006).
 
   The one deliberate `setTimeout` is the smoke test that *measures* the speed clock against real
   time.

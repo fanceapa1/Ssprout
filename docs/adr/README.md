@@ -19,6 +19,7 @@ commit, and when it replaces or changes an earlier decision, update that ADR's S
 | [0003](0003-plant-chosen-at-start-with-study-plans.md) | Plant chosen at start; study plans with watering breaks | accepted | One plant per session, chosen up front, grows live; breaks are for watering; skipping allowed |
 | [0004](0004-disable-vitest-fs-module-cache.md) | Disable Vitest's fs module cache | accepted | `fsModuleCache: false` so `import.meta.glob` finds newly added species files |
 | [0005](0005-app-shell-multi-session-camera-calendar-daylight.md) | App shell, parallel sessions, camera, calendar, daylight (v2) | accepted | Scrollable page with a UI dock below an 88 %-high garden, up to 3 sessions, focus camera, scheduling calendar, 4 sun-timed daylight phases, bolder type and colour, plants 1.25× |
+| [0006](0006-lazy-studio.md) | The studio paints lazily | accepted | Cards paint when near the screen within a 10 ms frame budget, far cards release their pixels; `studio.settle()` for tests/shots |
 | [0010](0010-e2e-against-preview-build.md) | E2E against the preview build | accepted | Playwright tests the production build via `vite preview`; `E2E_PORT`, `E2E_REUSE`; console errors fail tests |
 | [0011](0011-store-design.md) | Tiny synchronous store | accepted | `createStore(initial, reducer, onChange?)`; same reference = no change; re-entrant dispatches queued |
 | [0012](0012-rng-forks-from-seed.md) | mulberry32; forks from the seed | accepted | Hashed string seeds; `fork(label)` depends only on seed and label, not stream position |

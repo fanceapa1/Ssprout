@@ -46,6 +46,12 @@ Every species gets a section automatically (`src/plants/species.studio.ts`): all
 `0.1 / 0.3 / 0.55 / 0.8 / 1` plus an animated grow loop. Species files themselves must not be
 named `*.studio.ts` inside `species/` (the registry ignores them).
 
+## Lazy painting (ADR 0006)
+Cards paint only when they near the screen, a few per frame within a 10 ms budget (on-screen
+first); cards about three screens away release their pixels and repaint on return. Animated
+entries animate only while on screen. Entry `render` functions are unchanged — but anything that
+reads studio pixels (tests, scripts) must `await window.studio.settle()` first.
+
 ## Page controls
 Seed + **Reseed**, **Play/Pause**, speed 0.25×–4×, background paper/white/dark, scale 1×/2×.
 Errors thrown by an entry are shown on its card and logged to the console.
@@ -54,7 +60,8 @@ URL: `#<section>` (only that section) · `?entry=<section>/<entry>` (single entr
 entry id works when unique) · `?seed=n` (default 1) · `?t=seconds` (start paused at t) · `?scale=2` ·
 `?bg=dark`.
 
-`window.studio` (for tests/scripts): `{ ready, entries, errors, renders(), pause(), setT(t) }`.
+`window.studio` (for tests/scripts): `{ ready, entries, errors, renders(), pause(), setT(t), settle(), pending() }`.
+`settle()` paints every shown card and keeps it painted; `pending()` counts cards still to paint.
 
 ## Screenshots
 ```
@@ -66,6 +73,6 @@ npm run shots -- --entry scene/full --seed 7 --t 2.5
 ## Tests
 `tests/e2e/studio.spec.ts`: the nav lists every section (scene and species included); every
 entry renders without errors and paints something, split into 4 parallel shards that show one
-`#section` at a time; reseed re-renders; `#section` and `?entry` views work; `?seed`/`?t` start
+`#section` at a time; reseed re-renders; `#section` and `?entry` views work; the whole studio paints only cards near the screen and the rest on scroll (lazy painting); `?seed`/`?t` start
 paused, Play animates, Pause holds the frame; speed, background and scale controls.
 `src/studio/registry.test.ts`: discovery, ordering, id validation, entry lookup.
