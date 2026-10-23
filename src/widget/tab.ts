@@ -7,7 +7,7 @@ import { titleFor } from './title';
  * Updates on every controller tick (1 Hz while a session exists) and on store changes, writing
  * to the document only when the text / quantised icon actually changes — so the tab is touched
  * at most once per tick. A session that completes while the user is away leaves
- * `Bloomed · Study Sprout` and a vermilion-dot icon until they come back (focus / visible).
+ * `Bloomed · Study Sprout` and the ring closed around the sprout mark until they come back (focus / visible).
  * `dispose()` restores the original title and icon.
  */
 
