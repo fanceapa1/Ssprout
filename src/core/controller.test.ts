@@ -6,6 +6,7 @@ import { createIntervalTicker, createSessionController, type StartOptions, type 
 import { createEventBus, EVENT_NAMES, type EventMap, type EventName } from './events';
 import { createDefaultState, createReducer, createStore, type GardenState } from './state';
 import { makePlant, makeSession, MIN, plan, T0 } from './testing';
+import { defaultSoundscape } from './soundscape';
 
 const def = (id: string, tier: Tier, habitats: Habitat[], sizeClass: SizeClass = 'small'): SpeciesDef => ({
   id,
@@ -367,6 +368,15 @@ describe('status', () => {
 });
 
 describe('settings, tips and fauna', () => {
+  it('restoring and resetting a garden notify settings integrations immediately', () => {
+    const { store, payload } = setup();
+    const soundscape = defaultSoundscape(); soundscape.volume = 45;
+    const restored = { ...store.get(), settings: { ...store.get().settings, muted: false, soundscape } };
+    store.dispatch({ type: 'state/replace', state: restored });
+    expect(payload('settings:changed')).toEqual([{ settings: restored.settings }]);
+    store.dispatch({ type: 'state/reset', now: T0 });
+    expect(payload('settings:changed').at(-1)!.settings).toEqual(createDefaultState(T0).settings);
+  });
   it('updateSettings emits settings:changed and retires the sound tip on toggle', () => {
     const { controller, store, payload } = setup();
     expect(controller.updateSettings({ muted: false })).toBe(true);

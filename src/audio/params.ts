@@ -1,4 +1,5 @@
 import type { Weather } from '../core/state';
+import { SCENERIES, selectedMix, levelsWith, SOUND_LAYERS, STANDARD_LAYERS, type SceneryId, type SoundLayer, type SoundLevels, type SoundscapeSettings } from '../core/soundscape';
 
 /**
  * Pure parameter mapping: garden situation (time of day, weather, session activity, unlocked
@@ -22,6 +23,8 @@ export interface MixInput {
   activity: AudioActivity;
   /** unlocked creature ids, e.g. 'small-birds', 'swallows' */
   fauna: ReadonlySet<string>;
+  soundscape?: SoundscapeSettings;
+  scenery?: SceneryId;
 }
 
 export interface MixParams {
@@ -29,6 +32,7 @@ export interface MixParams {
   water: number;
   wind: number;
   rain: number;
+  extra: SoundLevels;
   /** centre of the wind band-pass (Hz) */
   windHz: number;
   /** bed multiplier: session active → a touch fuller, paused → thinner */
@@ -39,7 +43,13 @@ export interface MixParams {
   airHz: number;
   /** expected events per minute */
   rates: Record<EventKind, number>;
+  /** Event channel levels in percent; beds carry their own gains. */
+  eventLevels: SoundLevels;
 }
+
+export const EVENT_LAYER: Record<EventKind, SoundLayer> = {
+  plip: 'water', gust: 'wind', chirp: 'birds', warbler: 'birds', swallow: 'birds', cricket: 'crickets', drip: 'rain',
+};
 
 /** Overall loudness of the finished mix (master gain into a gentle limiter). Keep it low. */
 export const MASTER_LEVEL = 0.8;
@@ -106,7 +116,7 @@ export function localHour(epochMs: number): number {
   return d.getHours() + d.getMinutes() / 60 + d.getSeconds() / 3600;
 }
 
-export function mixParams({ hour, weather, activity, fauna }: MixInput): MixParams {
+export function mixParams({ hour, weather, activity, fauna, soundscape, scenery = 'pond' }: MixInput): MixParams {
   const birds = sampleCurve(BIRD_CURVE, hour);
   const warblerShare = sampleCurve(WARBLER_CURVE, hour);
   const swallowDay = sampleCurve(SWALLOW_CURVE, hour);
@@ -135,7 +145,7 @@ export function mixParams({ hour, weather, activity, fauna }: MixInput): MixPara
     gust: BASE_RATES.gust * windDay * (mist ? 0.5 : 1) * (paused ? 0.3 : 1),
   };
 
-  return {
+  const mix: MixParams = {
     water: BED.water * (rain ? 0.8 : 1),
     wind: BED.wind * windDay * (mist ? 0.7 : rain ? 1.15 : 1) * (paused ? 0.7 : 1),
     rain: rain ? BED.rain : 0,
@@ -144,6 +154,26 @@ export function mixParams({ hour, weather, activity, fauna }: MixInput): MixPara
     warmthDb: running ? 2.5 : 0,
     airHz: mist ? 2400 : 16000,
     rates,
+    eventLevels: levelsWith({ water: 100, wind: 100, birds: 100, crickets: 100, rain: 100 }),
+    extra: levelsWith(scenery === 'coast' ? { waves: 75 } : {}),
+  };
+  const selected = soundscape ? selectedMix(soundscape, scenery) : null;
+  if (selected?.mode !== 'custom') return scenery === 'coast' ? { ...mix, water: 0, rates: { ...rates, plip: 0, cricket: 0 } } : mix;
+  // Chosen sounds are independent of visual weather, wildlife unlocks and the local hour.
+  const allowed = new Set<string>(soundscape!.collection === 'standard' ? STANDARD_LAYERS : SCENERIES[scenery].layers);
+  const levels = Object.fromEntries(SOUND_LAYERS.map((id) => [id, allowed.has(id) ? selected.levels[id] : 0])) as SoundLevels;
+  return {
+    ...mix,
+    water: BED.water * levels.water / 100,
+    wind: BED.wind * levels.wind / 100,
+    rain: BED.rain * levels.rain / 100,
+    windHz: 900,
+    airHz: 16000,
+    eventLevels: { ...levels },
+    extra: { ...levels },
+    rates: Object.fromEntries(EVENT_KINDS.map((kind) => [kind,
+      levels[EVENT_LAYER[kind]] === 0 ? 0 : BASE_RATES[kind] * eventActivity * (kind === 'swallow' ? 0 : 1),
+    ])) as Record<EventKind, number>,
   };
 }
 
@@ -159,6 +189,8 @@ export function sameMix(a: MixParams | null, b: MixParams): boolean {
     close(a.bed, b.bed) &&
     close(a.warmthDb, b.warmthDb) &&
     close(a.airHz, b.airHz) &&
+    SOUND_LAYERS.every((id) => close(a.eventLevels[id], b.eventLevels[id])) &&
+    SOUND_LAYERS.every((id) => close(a.extra[id], b.extra[id])) &&
     EVENT_KINDS.every((k) => close(a.rates[k], b.rates[k]))
   );
 }

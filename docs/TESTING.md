@@ -215,8 +215,7 @@ in Q8a and Q8b).
 ### Needs a human (not automatable headless)
 - **Real touch:** a finger pinch, one-finger scrolling with native momentum, double tap on a phone
   or tablet (O1, O2, D4). The e2e tests use synthetic touch pointer events.
-- **Audio:** the watering pour, the bloom chime, wind, birds and rain are checked as data only
-  (§8.1); listening is by ear.
+- **Audio:** data tests and real offline graph renders check levels and isolation (8.1, 8.5). Timbre, café realism and musical taste still need listening on real devices.
 - **Real devices and browsers:** iOS Safari, Android Chrome, Firefox (§10.2); e2e runs Chromium
   with device emulation.
 - **Real notifications with the tab closed or in the background**, and a real Picture-in-Picture
@@ -365,6 +364,10 @@ Legend: unit tests as `folder/file › test`, under `src/` (`.test.ts` omitted).
 |---|---|---|---|---|
 | 8.1 | Procedural Web Audio: water, wind, distant birds, rain in rain sessions, bloom chime, a watering pour (ADR 0182) | audio/recipes (all); audio/noise (all); audio/planner (all); audio/params › rain brings patter and drips…; audio/garden-audio › reacts to session events: rain during a session… | — | ◐ audible result by ear (headless output not asserted) |
 | 8.2 | Muted by default; speaker toggle; remembered | audio/garden-audio › is muted by default…; audio/gate (all); core/controller › updateSettings … retires the sound tip | ui-menu › sound toggle persists across reloads | ✔ |
+| 8.3 | Standard travels across sceneries; each scenery restores its own palette and mix; Follow the garden is reversible | core/soundscape (all); audio/params › personal mixes; audio/garden-audio › personal soundscapes | sound-mixer › two collections retain their mixes…; › scenery changes…; › layer toggles… | ✔ |
+| 8.4 | Levels, volume and collection persist and export; old saves default unchanged; editing never unmutes; imports/reset reach the running audio gate | core/soundscape › merges only valid changes…; › round-trips mixes…; core/controller › restoring and resetting…; audio/garden-audio › personal soundscapes | sound-mixer › Standard levels, overall volume and the selected collection persist…; › two collections…; › importing and resetting settings… | ✔ |
+| 8.5 | Standard beds are deterministic and quiet; channels mute scheduled events; real graph has headroom | audio/standard-loops (all); audio/params › silences all ambience… | sound-mixer › real audio graph: every Standard layer is audible, quiet, and zero channels silence scheduled birds | ✔ levels/isolation; listening still by ear |
+| 8.6 | Mixer supports keyboard, reduced motion and narrow phones; sticky playback clears focused controls | — | sound-mixer › layer toggles…; › phone 390…; › phone 320… | ✔ |
 
 ### §9 Persistence
 
@@ -502,7 +505,7 @@ daylight › plantsReady waits for plants added just before it…).
    proven through the real flow (`tests/e2e/lotus.spec.ts`), and a species with every spot held
    by growing seedlings is marked full in the sheet (ADR 0205).
 2. **Cross-browser**: no Firefox/WebKit e2e run (10.2).
-3. **Audio** is verified as data (unit) only (8.1); **real PiP** is faked (6.1). Both are headless
+3. **Audio** has data and offline real-graph checks (8.1, 8.5); **real PiP** is faked (6.1). Both are headless
    limits.
 4. ~~Automatic focus watering is silent~~: a soft pour plays on every watering since v2 polish (2.34, 8.1).
 5. ~~Two seals during a long pause~~ (12.20, v2 acceptance L6): fixed. A seal-style control is a

@@ -61,8 +61,11 @@ There are no image assets. Nothing shouts: no confetti, no streaks, no badges.
   live, which can also switch sessions. Plus a tab-title countdown and a painted favicon.
 - Notifications for breaks, back-to-focus, blooms and planned sessions while you are in another
   tab.
-- **Sound**: procedural garden sounds (water, wind, distant birds, rain, a soft pour when the
-  plant is watered, a bloom chime). **Muted by default.**
+- **Sound mixer**: Standard sounds (rain, waves, wind, birds, fireplace, café, lo-fi and
+  white/brown noise) and Scenery sounds (pond water, leaves, birds, crickets and rain).
+  Blend individual levels or follow the garden's weather and hour. Standard travels with you;
+  each scenery remembers its own mix. The watering pour and bloom chime stay gentle.
+  **Muted by default.** All sounds are generated locally.
 - Replaced plants are kept in the **Pressed Flowers** herbarium. Small hints disappear once you
   have used a feature; the ⓘ button lists them all.
 - Export your garden to a JSON file and import it again. Everything lives in your browser's

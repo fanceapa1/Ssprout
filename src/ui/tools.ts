@@ -9,7 +9,7 @@ import { ICONS, type IconName } from './icons';
  * - `dock`: the same icons with visible names and a short note, in the "Garden tools" section.
  * `render()` updates both (e.g. the mute state), so they can never disagree.
  */
-export type ToolId = 'sound' | 'widget' | 'herbarium' | 'data' | 'hints';
+export type ToolId = 'sound' | 'soundscape' | 'widget' | 'herbarium' | 'data' | 'hints';
 
 export interface Tools {
   /** the corner view (`nav.menu`) */
@@ -23,6 +23,7 @@ export interface Tools {
 }
 
 export interface ToolActions {
+  openSoundscape(opener: HTMLElement): void;
   openHerbarium(opener: HTMLElement): void;
   openData(opener: HTMLElement): void;
   openHints(opener: HTMLElement): void;
@@ -48,11 +49,16 @@ export function createTools(ctx: UIContext, actions: ToolActions): Tools {
 
   const defs: ToolDef[] = [
     {
+      id: 'soundscape', name: 'Sound mixer', icon: () => 'mix', label: () => 'Sound mixer',
+      note: () => 'Familiar sounds, or a mix that belongs to this scenery.',
+      dialog: true, run: (b) => actions.openSoundscape(b),
+    },
+    {
       id: 'sound',
       name: 'Garden sounds',
       icon: () => (muted() ? 'soundOff' : 'soundOn'),
       label: () => (muted() ? 'Sound off' : 'Sound on'),
-      note: () => (muted() ? 'Off. Water, wind and birds, very softly.' : 'On. Water, wind and birds, very softly.'),
+      note: () => `${muted() ? 'Off' : 'On'}. ${store.get().settings.soundscape?.collection === 'standard' ? 'Your Standard mix, very softly.' : 'The sounds of this scenery, very softly.'}`,
       pressed: () => !muted(),
       run: () => {
         const next = !muted();

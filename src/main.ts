@@ -1,5 +1,6 @@
 import './style.css';
 import { createGardenAudio } from './audio';
+import { installAudioDebug } from './audio/debug';
 import { addAmbience, createDaylightSource } from './ambience';
 import { createSpeedClock, realClock, type Clock } from './core/clock';
 import { createSessionController } from './core/controller';
@@ -118,6 +119,7 @@ function boot(): void {
 
   if (speedClock) {
     installDebug({ store, renderer, clock: speedClock });
+    installAudioDebug(audio);
     installCoreDebug({ store, controller, clock: speedClock, species, slots: scene.slots, saver: saver ?? undefined, isKnownSpecies });
     installUiDebug({ ui, clock: speedClock, widget: fakeWidget, viewport: () => renderer.viewport, slots: scene.slots });
     installWidgetDebug({ surfaces, controller, store, bus });

@@ -57,7 +57,7 @@ const section: StudioSection = {
       id: 'icons',
       label: 'ink icons (24 px glyphs)',
       w: 560,
-      h: 120,
+      h: 24 + Math.ceil(Object.keys(ICON_STROKES).length / 9) * 56,
       render(canvas, { pixelRatio }) {
         const ctx = canvas.getContext('2d')!;
         ctx.scale(pixelRatio, pixelRatio);

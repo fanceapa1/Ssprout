@@ -1,7 +1,9 @@
 import { createRng } from '../core/rng';
+import { SOUND_LAYERS, type SoundLayer } from '../core/soundscape';
 import { brownNoise, impulseResponse, makeLoopable, pinkNoise, whiteNoise } from './noise';
 import type { MixParams } from './params';
 import { EPS, type Point, type SoundSpec, type Voice } from './recipes';
+import { standardLoop, type CraftedLoop } from './standard-loops';
 
 /**
  * The only module that touches Web Audio. The controller (garden-audio.ts) talks to this
@@ -33,7 +35,7 @@ export interface AudioBackend {
   /** smoothly move bed levels and filters; `seconds` ≈ time constant */
   applyMix(mix: MixParams, seconds: number): void;
   /** schedule a one-shot sound at audio time `when` */
-  play(spec: SoundSpec, when: number, bus: SoundBus): void;
+  play(spec: SoundSpec, when: number, bus: SoundBus, layer?: SoundLayer): void;
   /** swell the wind for `duration` seconds by factor `amount` */
   gust(when: number, duration: number, amount: number): void;
   close(): void;
@@ -87,6 +89,7 @@ export function createWebAudioBackend(
   const brown = buffer([makeLoopable(brownNoise(rng.fork('brown'), Math.round(sr * 6) + fade), fade)]);
   const pink = buffer([makeLoopable(pinkNoise(rng.fork('pink'), Math.round(sr * 7) + fade), fade)]);
   const white = buffer([whiteNoise(rng.fork('white'), Math.round(sr * 1))]);
+  const whiteBed = buffer([makeLoopable(whiteNoise(rng.fork('white-bed'), Math.round(sr * 6) + fade), fade)]);
   const [irL, irR] = impulseResponse(rng.fork('ir'), sr);
 
   // --- output chain --------------------------------------------------------------------------
@@ -117,6 +120,14 @@ export function createWebAudioBackend(
 
   const eventsBus = ctx.createGain();
   eventsBus.connect(air);
+  // Both direct sound and its reverb fade with the selected layer, including sounds in flight.
+  const layerBuses = Object.fromEntries(SOUND_LAYERS.map((id) => {
+    const dry = ctx.createGain();
+    const wet = ctx.createGain();
+    dry.connect(eventsBus);
+    wet.connect(reverb);
+    return [id, { dry, wet }];
+  })) as Record<SoundLayer, { dry: GainNode; wet: GainNode }>;
   // chimes stay clear of the mist muffling so they always read
   const chimeBus = ctx.createGain();
   chimeBus.connect(master);
@@ -132,6 +143,7 @@ export function createWebAudioBackend(
   // --- beds (built lazily on first fade-in) ---------------------------------------------------
   let beds: { water: GainNode; wind: GainNode; windBand: BiquadFilterNode; swell: GainNode; rain: GainNode } | null = null;
   const sources: AudioScheduledSourceNode[] = [];
+  const extras = new Map<SoundLayer, GainNode>();
 
   const loop = (buf: AudioBuffer, offset: number) => {
     const src = ctx.createBufferSource();
@@ -157,6 +169,27 @@ export function createWebAudioBackend(
     f.Q.value = q;
     return f;
   };
+
+  function extraBed(id: SoundLayer): GainNode {
+    const existing = extras.get(id);
+    if (existing) return existing;
+    const gain = ctx.createGain();
+    gain.gain.value = 0;
+    gain.connect(bed);
+    if (id === 'waves') {
+      const surf = ctx.createGain();
+      surf.gain.value = 0.6;
+      loop(pink, 2.4).connect(filter('lowpass', 2200)).connect(surf).connect(gain);
+      lfo(0.085, 0.35, surf.gain);
+      lfo(0.037, 0.12, surf.gain);
+    } else {
+      const buf = id === 'white' ? whiteBed : id === 'brown' ? brown :
+        buffer([standardLoop(id as CraftedLoop, rng.fork(id), sr)]);
+      loop(buf, 0).connect(gain);
+    }
+    extras.set(id, gain);
+    return gain;
+  }
 
   function startBeds() {
     if (beds) return;
@@ -234,7 +267,7 @@ export function createWebAudioBackend(
     return src;
   }
 
-  function play(spec: SoundSpec, when: number, bus: SoundBus) {
+  function play(spec: SoundSpec, when: number, bus: SoundBus, layer?: SoundLayer) {
     if (playing >= MAX_LIVE_SOUNDS || spec.voices.length === 0) return;
     playing++;
     const t0 = Math.max(when, ctx.currentTime);
@@ -244,11 +277,11 @@ export function createWebAudioBackend(
     pan.pan.value = Math.max(-1, Math.min(1, spec.pan));
     let head: AudioNode = out;
     if (spec.lowpass) head = out.connect(filter('lowpass', spec.lowpass));
-    head.connect(pan).connect(bus === 'chime' ? chimeBus : eventsBus);
+    head.connect(pan).connect(bus === 'chime' ? chimeBus : layer ? layerBuses[layer].dry : eventsBus);
     if (spec.reverb > 0) {
       const send = ctx.createGain();
       send.gain.value = spec.reverb;
-      pan.connect(send).connect(reverb);
+      pan.connect(send).connect(bus === 'events' && layer ? layerBuses[layer].wet : reverb);
     }
     const nodes = spec.voices.map((v) => voice(v, t0, out));
     let remaining = nodes.length;
@@ -280,6 +313,16 @@ export function createWebAudioBackend(
     applyMix(mix, seconds) {
       const t = ctx.currentTime;
       const tc = Math.max(0.01, seconds / 3);
+      for (const id of ['waves', 'fire', 'cafe', 'lofi', 'white', 'brown'] as const) {
+        const level = mix.extra[id] / 100;
+        const gain = level > 0 ? extraBed(id) : extras.get(id);
+        // Full-scale layers stay within the original garden's quiet loudness range.
+        gain?.gain.setTargetAtTime(level * (id === 'lofi' ? 0.045 : id === 'white' ? 0.012 : 0.035), t, tc);
+      }
+      for (const id of SOUND_LAYERS) {
+        layerBuses[id].dry.gain.setTargetAtTime(mix.eventLevels[id] / 100, t, tc);
+        layerBuses[id].wet.gain.setTargetAtTime(mix.eventLevels[id] / 100, t, tc);
+      }
       if (beds) {
         beds.water.gain.setTargetAtTime(mix.water, t, tc);
         beds.wind.gain.setTargetAtTime(mix.wind, t, tc);

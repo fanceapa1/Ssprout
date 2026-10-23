@@ -2,10 +2,13 @@ import { realClock } from '../core/clock';
 import { createEventBus } from '../core/events';
 import { createRng, type Rng } from '../core/rng';
 import { createDefaultState, type Weather } from '../core/state';
+import { defaultSoundscape, levelsWith, type SoundLayer } from '../core/soundscape';
 import type { StudioEntry, StudioRenderContext, StudioSection } from '../studio/types';
 import { createWebAudioBackend, type AudioBackend, type SoundBus } from './backend';
 import { createGardenAudio, type GardenAudio } from './garden-audio';
-import { BIRD_CURVE, CRICKET_CURVE, MASTER_LEVEL, sampleCurve, SWALLOW_CURVE, WARBLER_CURVE } from './params';
+import { BIRD_CURVE, CRICKET_CURVE, MASTER_LEVEL, mixParams, sampleCurve, SWALLOW_CURVE, WARBLER_CURVE } from './params';
+import { standardLoop } from './standard-loops';
+import { brownNoise, pinkNoise, whiteNoise } from './noise';
 import { EPS, RECIPES, type Point, type RecipeName, type SoundSpec, type Voice } from './recipes';
 
 /**
@@ -293,7 +296,50 @@ const section: StudioSection = {
     soundEntry('swallow', 'Swallows twitter', 'events'),
     soundEntry('cricket', 'Night cricket trill', 'events'),
     soundscape,
+    ...(['waves', 'fire', 'cafe', 'lofi', 'white', 'brown'] as const).map(standardEntry),
   ],
 };
+
+let bedPlayer: AudioBackend | null = null;
+let bedPlaying: SoundLayer | null = null;
+let bedSuspend: ReturnType<typeof setTimeout> | null = null;
+function standardEntry(id: 'waves' | 'fire' | 'cafe' | 'lofi' | 'white' | 'brown'): StudioEntry {
+  return {
+    id: `standard-${id}`, label: `Standard: ${id} — click to play / stop`, w: W, h: H,
+    render(canvas, rc) {
+      const rng = createRng(rc.seed).fork(id);
+      const samples = id === 'white' ? whiteNoise(rng, 16000) : id === 'brown' ? brownNoise(rng, 16000) :
+        id === 'waves' ? pinkNoise(rng, 16000) : standardLoop(id, rng, 8000);
+      const ctx = canvas.getContext('2d')!;
+      ctx.scale(rc.pixelRatio, rc.pixelRatio);
+      ctx.strokeStyle = ink(0.7); ctx.lineWidth = 1;
+      ctx.beginPath();
+      for (let x = 12; x < W - 12; x++) {
+        const start = Math.floor((x - 12) / (W - 24) * samples.length);
+        let power = 0;
+        for (let k = 0; k < 64; k++) power += samples[(start + k) % samples.length]! ** 2;
+        const height = Math.sqrt(power / 64) * 95;
+        ctx.moveTo(x, H / 2 - height); ctx.lineTo(x, H / 2 + height);
+      }
+      ctx.stroke(); ctx.fillStyle = ink(0.65);
+      ctx.font = 'italic 15px "Cormorant Garamond", serif'; ctx.fillText(id, 12, H - 14);
+      clickable(canvas, () => {
+        if (!bedPlayer) bedPlayer = createWebAudioBackend('standard-studio');
+        if (!bedPlayer) return;
+        if (bedSuspend) clearTimeout(bedSuspend);
+        if (bedPlaying === id) {
+          bedPlaying = null; bedPlayer.setMaster(0, 0.3);
+          bedSuspend = setTimeout(() => { void bedPlayer?.suspend(); }, 400);
+          return;
+        }
+        bedPlaying = id;
+        void bedPlayer.resume(); bedPlayer.startBeds();
+        const s = defaultSoundscape(); s.collection = 'standard'; s.standard = levelsWith({ [id]: 80 });
+        bedPlayer.applyMix(mixParams({ hour: 12, weather: null, activity: { sessionActive: false, paused: false }, fauna: new Set(), soundscape: s }), 0.5);
+        bedPlayer.setMaster(MASTER_LEVEL, 0.5);
+      });
+    },
+  };
+}
 
 export default section;

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { defaultSoundscape, levelsWith, silentLevels } from '../core/soundscape';
 import {
   BIRD_CURVE,
   CRICKET_CURVE,
@@ -110,11 +111,54 @@ describe('mixParams', () => {
 });
 
 describe('sameMix', () => {
+  it('notices changes to individual channel gains and Standard beds', () => {
+    const s = defaultSoundscape();
+    s.collection = 'standard';
+    s.standard = levelsWith({ cafe: 45, birds: 20 });
+    const a = at({ soundscape: s });
+    expect(sameMix(a, at({ soundscape: { ...s, standard: { ...s.standard, cafe: 60 } } }))).toBe(false);
+    expect(sameMix(a, at({ soundscape: { ...s, standard: { ...s.standard, birds: 30 } } }))).toBe(false);
+  });
   it('ignores sub-percent changes and notices real ones', () => {
     const a = at({ hour: 12 });
     expect(sameMix(null, a)).toBe(false);
     expect(sameMix(a, at({ hour: 12.01 }))).toBe(true);
     expect(sameMix(a, at({ weather: 'mist' }))).toBe(false);
     expect(sameMix(a, at({ fauna: new Set(['small-birds']) }))).toBe(false); // rates only
+  });
+});
+
+describe('personal mixes', () => {
+  it('lets rain, birds and crickets play independently of weather, hour and fauna', () => {
+    const s = defaultSoundscape();
+    s.sceneries.pond = { mode: 'custom', levels: levelsWith({ rain: 80, birds: 40, crickets: 50 }) };
+    const a = at({ hour: 12, weather: 'sun', soundscape: s });
+    const b = at({ hour: 0, weather: 'mist', soundscape: s });
+    expect(a).toEqual(b);
+    expect(a.rain).toBeGreaterThan(0);
+    expect(a.rates.cricket).toBeGreaterThan(0);
+    expect(a.rates.chirp).toBeGreaterThan(0);
+    expect(a.rates.plip).toBe(0);
+    expect(a.water).toBe(0);
+  });
+  it('silences all ambience when every layer is zero', () => {
+    const s = defaultSoundscape();
+    s.collection = 'standard'; s.standard = silentLevels();
+    const m = at({ weather: 'rain', soundscape: s });
+    expect(m.water + m.wind + m.rain).toBe(0);
+    expect(Object.values(m.rates).every((v) => v === 0)).toBe(true);
+    expect(Object.values(m.extra).every((v) => v === 0)).toBe(true);
+  });
+  it('uses the active scenery and excludes sounds from another scenery', () => {
+    const s = defaultSoundscape();
+    s.sceneries.pond = { mode: 'custom', levels: levelsWith({ water: 90, cafe: 100 }) };
+    s.sceneries.coast = { mode: 'custom', levels: levelsWith({ waves: 80, water: 100 }) };
+    expect(at({ soundscape: s }).extra.cafe).toBe(0);
+    const coast = at({ soundscape: s, scenery: 'coast' });
+    expect(coast.extra.waves).toBe(80);
+    expect(coast.water).toBe(0);
+    const automatic = at({ scenery: 'coast' });
+    expect(automatic.extra.waves).toBeGreaterThan(0);
+    expect(automatic.rates.plip).toBe(0);
   });
 });

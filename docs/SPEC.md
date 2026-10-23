@@ -260,6 +260,21 @@ is watered (the automatic focus watering and the can in a break, ADR 0182). **Mu
 toggle in the garden's corner and in the dock's Garden tools (one shared state); setting
 remembered.
 
+The **Sound mixer** (corner and Garden tools, ADR 0104) has two collections:
+- **Standard sounds:** soft rain, ocean waves, wind in leaves, distant birds, fireplace,
+  café murmur, an original lo-fi loop, white noise and brown noise. One mix follows the listener
+  across every scenery.
+- **Scenery sounds:** a palette belonging to the garden being viewed. The pond offers water,
+  leaves, birds, crickets and rain. Each scenery remembers its own mix, so returning restores it.
+  The default **Follow the garden** mode responds to weather and the hour; changing a slider,
+  toggling a layer or choosing a starting mix makes a personal mix independent of weather/hour.
+- Individual 0–100 levels, layer toggles, overall volume, starting mixes and Clear this mix.
+  Editing never unmutes. Listen and the existing speaker shortcut share mute state. Changes save
+  immediately through the settings controller and are included in garden exports.
+- Current shipped scenery: the pond. A coastal audio profile is ready for the future scenery
+  selector; the mixer does not unlock or create another garden. Scenery switching must call
+  `audio.setScenery(id)` when the viewed garden changes.
+
 ## 9. Persistence
 - `localStorage` only (key `studysprout:v1`), versioned schema with migrations: schema v2 (parallel
   sessions, the session log; scheduled sessions are an optional v2 key, ADR 0170); a v1 garden — and a v1 session in progress — is migrated on load and on
@@ -300,7 +315,7 @@ The page is no longer only a canvas. It scrolls as a normal document:
     animation whenever it is watered; idle, the most recent bloom with its task, or an empty bed
     waiting for a first session. No guilt copy.
   - **Calendar** — what was studied, what is growing and what is planned, by day, week or month (§13).
-  - **Garden tools** — sound, floating timer, pressed flowers, garden data, hints, with icons and
+  - **Garden tools** — sound mixer, sound toggle, floating timer, pressed flowers, garden data, hints, with icons and
     visible names; the same tools stay as icons in the garden's corner and share their state.
 - **Backdrops** (ADR 0208): each section lies on its own sheet of the page's washi, as if the
   painting went on over separate leaves laid on the paper: a little lighter than the page, torn at

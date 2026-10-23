@@ -2,6 +2,7 @@ import { planProblem, type StudyPlan } from './plans';
 import { noteProblem, scheduleProblem, type OccurrenceNote, type Schedule } from './schedule';
 import { clampGoalMinutes, DEFAULT_TASK_NAME, MINUTE_MS, normalizeTaskName } from './session';
 import { backfillLog } from './session-log';
+import { copySoundscape, isSoundscape } from './soundscape';
 import {
   createDefaultState,
   MAX_SESSIONS,
@@ -417,6 +418,12 @@ function readState(raw: unknown, now: number): GardenState {
     ],
     tips,
     settings: {
+      ...('soundscape' in settingsRaw ? {
+        soundscape: (() => {
+          if (!isSoundscape(settingsRaw.soundscape)) throw new Invalid('settings.soundscape', 'expected a sound mix with levels from 0 to 100');
+          return copySoundscape(settingsRaw.soundscape);
+        })(),
+      } : {}),
       muted: opt(settingsRaw, 'muted', d.settings.muted, bool, 'settings.muted'),
       lastGoalMinutes: clampGoalMinutes(
         opt(settingsRaw, 'lastGoalMinutes', d.settings.lastGoalMinutes, num, 'settings.lastGoalMinutes'),

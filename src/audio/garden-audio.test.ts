@@ -17,6 +17,7 @@ import type { AudioBackend } from './backend';
 import { createGardenAudio, MAX_CHIMES, type Timers } from './garden-audio';
 import { FADE_S, MASTER_LEVEL, type MixParams } from './params';
 import type { SoundSpec } from './recipes';
+import { defaultSoundscape, levelsWith } from '../core/soundscape';
 
 /** Records every call; the audio clock only moves when the test says so. */
 function fakeBackend() {
@@ -117,6 +118,57 @@ function runFor(s: ReturnType<typeof setup>, seconds: number) {
     s.t.tick();
   }
 }
+
+describe('personal soundscapes', () => {
+  it('loads the saved master level and updates volume without restarting the context', () => {
+    const prefs = defaultSoundscape(); prefs.volume = 35;
+    const s = setup({}, { muted: false, soundscape: prefs });
+    s.audio.unlock();
+    expect(s.fake.masters.at(-1)![0]).toBeCloseTo(MASTER_LEVEL * 0.35);
+    expect(s.fake.masters.at(-1)![1]).toBe(FADE_S);
+    const next = { ...prefs, volume: 60 };
+    s.bus.emit('settings:changed', { settings: { ...s.garden.settings, soundscape: next } });
+    expect(s.fake.masters.at(-1)).toEqual([MASTER_LEVEL * 0.6, 1.5]);
+    expect(s.created()).toBe(1);
+    s.audio.setMuted(true);
+    s.audio.setMuted(false);
+    expect(s.fake.masters.at(-1)).toEqual([MASTER_LEVEL * 0.6, FADE_S]);
+  });
+  it('switches scenery mixes, notifies the UI and keeps Standard sounds across scenery changes', () => {
+    const prefs = defaultSoundscape();
+    prefs.sceneries.pond = { mode: 'custom', levels: levelsWith({ water: 85 }) };
+    prefs.sceneries.coast = { mode: 'custom', levels: levelsWith({ waves: 60 }) };
+    const s = setup({}, { muted: false, soundscape: prefs });
+    let changes = 0;
+    const off = s.audio.onSceneryChange(() => changes++);
+    s.audio.unlock();
+    expect(s.fake.mixes.at(-1)!.water).toBeGreaterThan(0);
+    s.audio.setScenery('coast');
+    expect(s.audio.getScenery()).toBe('coast');
+    expect(s.fake.mixes.at(-1)!.water).toBe(0);
+    expect(s.fake.mixes.at(-1)!.extra.waves).toBe(60);
+    prefs.collection = 'standard'; prefs.standard = levelsWith({ cafe: 40 });
+    s.bus.emit('settings:changed', { settings: { ...s.garden.settings, soundscape: prefs } });
+    s.audio.setScenery('pond');
+    expect(s.fake.mixes.at(-1)!.extra.cafe).toBe(40);
+    expect(changes).toBe(2);
+    off(); s.audio.setScenery('coast');
+    expect(changes).toBe(2);
+    s.audio.dispose(); s.audio.setScenery('pond');
+    expect(s.audio.getScenery()).toBe('coast');
+  });
+  it('editing a mix while muted never creates or starts the audio backend', () => {
+    const s = setup();
+    const prefs = defaultSoundscape(); prefs.collection = 'standard';
+    prefs.standard = levelsWith({ lofi: 50 });
+    s.bus.emit('settings:changed', { settings: { ...s.garden.settings, soundscape: prefs } });
+    s.audio.setScenery('coast');
+    expect(s.created()).toBe(0);
+    expect(s.fake.calls).toEqual([]);
+    s.audio.setMuted(false); s.audio.unlock();
+    expect(s.fake.mixes.at(-1)!.extra.lofi).toBe(50);
+  });
+});
 
 describe('createGardenAudio gating', () => {
   it('is muted by default and creates nothing until unlocked', () => {

@@ -255,7 +255,8 @@ export interface GardenState {
   stats: { totalMinutes: number /* focused */; completed: number; cancelled: number };
   faunaSeen: string[];          // creature ids already announced
   tips: Record<string, 'seen'>; // retired tips
-  settings: { muted: boolean; lastGoalMinutes: number; notifications: 'unasked' | 'granted' | 'denied' };
+  settings: { muted: boolean; lastGoalMinutes: number; notifications: 'unasked' | 'granted' | 'denied';
+    soundscape?: SoundscapeSettings /* core/soundscape.ts, ADR 0104; absent → original living-garden mix */ };
 }
 ```
 `Store` = `{ get(): GardenState; dispatch(action): void; subscribe(fn): unsub }` where
@@ -455,11 +456,30 @@ pinned midday, or the ambience to its own source, without it). Where the light f
 moon discs, stars, cast shadow, rim light — comes from `sky-layout.ts`, so every painted thing
 agrees. Time enters only as the frame's `now`. Details: `docs/systems/daylight.md`.
 
-### Audio (`src/audio/`, ADRs 0100–0103)
-`createGardenAudio({ bus, getState, clock })` → `{ unlock(), setMuted(), isMuted(), setWeather(),
-setActivity(), setFauna(), setTimeOfDay(), playBloom(), playComplete(), dispose() }`. Muted by
+### Audio (`src/audio/`, ADRs 0100–0104)
+`createGardenAudio({ bus, getState, clock, scenery? /* default pond */ })` → `{ unlock(), setMuted(), isMuted(), setWeather(),
+setActivity(), setFauna(), setTimeOfDay(), getScenery(), setScenery(id), onSceneryChange(fn),
+playBloom(), playComplete(), playPour(), dispose() }`. Muted by
 default; it follows `settings:changed` and the session/plant/fauna events on the bus. The UI calls
 `unlock()` inside a user gesture. Details: `docs/systems/audio.md`.
+
+`core/soundscape.ts` owns `SoundLayer`, `SoundLevels` (0–100), `SceneryId`, `SCENERIES` and
+`SoundscapeSettings = { collection: 'standard'|'scenery', volume: number, standard: SoundLevels,
+sceneries: Partial<Record<SceneryId, { mode: 'garden'|'custom', levels: SoundLevels }>> }`.
+Preferences are optional in schema v2; old saves keep their exact default. The reducer validates
+and copies them, persistence validates imports, and mixer edits use `controller.updateSettings`.
+The controller also emits `settings:changed` when a whole garden is restored or reset, so the
+running audio gate and levels follow imported settings immediately.
+The viewed scenery is runtime context, not a preference: future scene navigation calls
+`audio.setScenery(id)` on selection, and the mixer subscribes with `onSceneryChange`. The coast
+profile is an integration fixture for a future scene; no new scenery is exposed in the app.
+
+`MixParams` also carries `eventLevels: SoundLevels` and `extra: SoundLevels` for Standard beds.
+`AudioBackend.play(spec, when, bus, layer?)` optionally routes a sound through the matching dry
+and reverb channel gains. Existing events/chime callers stay compatible. Overall volume scales
+the existing master fade; per-layer levels glide without restarting the graph.
+`?dev`: `sprout.audio` exposes the controller plus `measure(levels, eventLevel?)`, an offline
+render of the real graph returning RMS, peak and tail RMS for audio verification.
 
 ### Shared helpers
 `Pt` lives in `src/render/viewport.ts` (re-exported from `scene/geometry.ts`).

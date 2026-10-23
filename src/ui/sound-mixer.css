@@ -1,0 +1,44 @@
+/* The mixer is a page of the same washi, with the existing ink and brush controls. */
+dialog.sheet-soundscape { width: min(840px, calc(100vw - 24px)); }
+.sound-collections { display: flex; gap: 12px; border-bottom: 1px solid var(--ui-ink-faint); margin-bottom: 24px; }
+.sound-collections .quiet { padding: 8px 4px 14px; font-size: 22px; }
+.sound-collections [aria-pressed='true'], .sound-presets [aria-pressed='true'],
+.sound-context > [aria-pressed='true'] { color: var(--ui-vermilion-ink); background: var(--brush-mark) left bottom / 100% 5px no-repeat; }
+.sound-context { display: flex; gap: 20px; align-items: start; justify-content: space-between; margin-bottom: 12px; }
+.sound-place { font: 500 22px/1.4 var(--ui-display); margin: 0 0 4px; }
+.sound-description { margin: 0; font-style: italic; color: var(--ui-ink-soft); font-size: 19px; max-width: 29em; }
+.sound-context > .quiet { flex-shrink: 0; padding: 5px 2px 8px; }
+.sound-presets { display: flex; flex-wrap: wrap; gap: 2px 12px; margin: 10px 0 4px; }
+.sound-presets .quiet { font-size: 19px; padding: 8px 2px; }
+.sound-layers { display: grid; grid-template-columns: 1fr 1fr; column-gap: 38px; }
+.sound-layer { padding: 20px 0 12px; border-bottom: 1px solid var(--ui-ink-faint); min-width: 0; }
+.sound-layer[hidden], .sound-presets[hidden], .sound-presets > [hidden], .sound-context > [hidden] { display: none; }
+.sound-layer-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.sound-toggle.quiet { display: flex; align-items: center; gap: 10px; text-align: left; padding: 6px 0; min-height: 44px; color: var(--ui-ink-soft); }
+.sound-toggle .ink-icon { width: 26px; height: 26px; flex-shrink: 0; }
+.sound-toggle[aria-pressed='true'] { color: var(--ui-ink); }
+.sound-toggle[aria-pressed='true'] > span { background: var(--brush-mark) left bottom / 100% 4px no-repeat; }
+.sound-toggle.quiet::after { left: 36px; right: 0; bottom: 4px; }
+.sound-note { font-size: 18px; font-style: italic; color: var(--ui-ink-soft); margin: 0 0 4px 36px; }
+.sound-level { color: var(--ui-ink-soft); font-size: 18px; font-variant-numeric: lining-nums tabular-nums; white-space: nowrap; }
+.sound-layer[data-automatic='true'] .sound-level { font-style: italic; }
+input.sound-range { height: 44px; margin: 0; }
+.sound-footer { position: sticky; bottom: -28px; z-index: 1; margin-top: 8px; padding: 16px 0 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 18px 38px; background: var(--grain), var(--slip-dense-0) 0 0 / 100% 100%; }
+.sound-playback { display: flex; flex-direction: column; align-items: start; gap: 6px; }
+.sound-play.ink { min-width: 132px; min-height: 46px; }
+.sound-status { margin: 8px 0 0; font-style: italic; color: var(--ui-ink-soft); font-size: 18px; }
+.sound-master { align-self: center; }
+.sound-footnote { margin-top: 12px; display: flex; align-items: center; justify-content: space-between; gap: 12px; color: var(--ui-ink-soft); font-style: italic; font-size: 18px; }
+.sound-footnote .quiet { padding-right: 0; font-size: 18px; }
+@media (max-width: 600px) {
+  .sheet-soundscape .sheet-inner { padding: 28px 24px 24px; }
+  .sound-context { flex-direction: column; gap: 8px; }
+  .sound-collections { gap: 18px; }
+  .sound-collections .quiet { font-size: 20px; }
+  .sound-layers { grid-template-columns: 1fr; }
+  .sound-footer { grid-template-columns: auto minmax(0, 1fr); gap: 16px; bottom: -24px; padding: 12px 0 16px; }
+  .sound-play.ink { min-width: 112px; padding-inline: 14px; }
+  .sound-master label { font-size: 18px; }
+  .sound-layer { padding-top: 12px; }
+  .sound-footnote { align-items: start; flex-direction: column; gap: 2px; }
+}

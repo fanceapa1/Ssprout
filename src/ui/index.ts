@@ -36,6 +36,8 @@ import { createScheduleSheet, type ScheduleSheet } from './schedule-sheet';
 import { createScrollbar } from './scrollbar';
 import { createSessionList } from './session-list';
 import { createSmoothScroll } from './smooth-scroll';
+import { createSoundMixer } from './sound-mixer';
+import './sound-mixer.css';
 import { createStage } from './stage';
 import { createStageCamera } from './stage-camera';
 import { createTimerPanel } from './timer-panel';
@@ -221,7 +223,9 @@ export function createUI(deps: UIDeps): UI {
   const herbarium = createHerbarium(ctx);
   const data = createGardenData(ctx);
   const hints = createHints(ctx);
+  const soundMixer = createSoundMixer(ctx);
   const tools = createTools(ctx, {
+    openSoundscape: (b) => soundMixer.open(b),
     openHerbarium: (b) => herbarium.open(b),
     openData: (b) => data.open(b),
     openHints: (b) => hints.open(b),
@@ -354,7 +358,7 @@ export function createUI(deps: UIDeps): UI {
   stageEl.after(dock.el);
   // the guiding path from the garden's stepping stones through the sections (ADR 0202)
   const wayfinding = createWayfinding({ dock, stage: stageEl, viewport: () => deps.viewport(), reducedMotion: deps.reducedMotion });
-  root.append(tips.el, scrollbar.el, live, planting.el, herbarium.el, data.el, hints.el);
+  root.append(tips.el, scrollbar.el, live, planting.el, herbarium.el, data.el, hints.el, soundMixer.el);
   if (scheduleSheet) root.append(scheduleSheet.el);
   root.dataset.mode = mode;
   for (const d of allDialogs()) {
@@ -459,6 +463,7 @@ export function createUI(deps: UIDeps): UI {
     pill.render();
     plantView.render();
     tools.render();
+    if (soundMixer.isOpen()) soundMixer.render();
     calendar?.render();
     line.check();
     ctx.changed();
@@ -566,6 +571,7 @@ export function createUI(deps: UIDeps): UI {
       panel.dispose();
       placement.dispose();
       tools.dispose();
+      soundMixer.dispose();
       offDock();
       asideObserver?.disconnect();
       wayfinding.dispose();

@@ -229,6 +229,10 @@ export function createSessionController(deps: SessionControllerDeps): SessionCon
   };
 
   const unsubscribe = store.subscribe((next, prev, action) => {
+    // Restoring a garden must notify integrations just like a settings edit does.
+    if ((action.type === 'state/replace' || action.type === 'state/reset') && next.settings !== prev.settings) {
+      bus.emit('settings:changed', { settings: next.settings });
+    }
     for (const id of tipsRetiredBy(action, prev, next)) {
       store.dispatch({ type: 'tip/retire', id, reason: 'used' }); // queued until this delivery finishes
       bus.emit('tip:retired', { id, reason: 'used' });

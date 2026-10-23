@@ -1,4 +1,5 @@
 import type { Clock } from '../core/clock';
+import type { SceneryId } from '../core/soundscape';
 import type { SessionController } from '../core/controller';
 import type { EventBus } from '../core/events';
 import type { OccurrenceRef } from '../core/schedule';
@@ -41,6 +42,8 @@ export interface WidgetIntegration {
 
 /** The slice of `GardenAudio` (src/audio) the UI needs. */
 export interface AudioIntegration {
+  getScenery?(): SceneryId;
+  onSceneryChange?(fn: () => void): () => void;
   /** Create/resume the AudioContext — must run inside a user gesture. */
   unlock(): void;
   setMuted(muted: boolean): void;

@@ -78,6 +78,7 @@ commit, and when it replaces or changes an earlier decision, update that ADR's S
 | [0101](0101-audio-gating-and-fades.md) | Audio gating and fades | accepted | Muted by default, gesture unlock, 2 s fades, suspend when muted |
 | [0102](0102-audio-clock.md) | Audio clock | accepted | Scheduling on the AudioContext clock; `Clock` only gives the hour |
 | [0103](0103-audio-levels.md) | Audio levels | accepted | Gains ≤ 0.12, master 0.8, compressor; chimes outside the mist filter |
+| [0104](0104-standard-and-scenery-sound-mixes.md) | Standard and scenery sound mixes | accepted | One Standard mix across places, one mix per scenery, reversible Follow the garden; validated local preferences; quiet synthesized beds and an accessible paper mixer |
 | [0110](0110-growth-steps-cross-fade-and-morph.md) | Growth steps: cross-fade and morph | accepted | 24 growth steps; neighbour cross-fade with a clamped morph |
 | [0111](0111-sprites-painted-in-workers.md) | Sprites painted in workers | accepted; amended by 0187 | Priority queue, up to 2 module workers, idle-callback fallback |
 | [0112](0112-sprite-lru-and-resolution-buckets.md) | Sprite LRU and resolution buckets | accepted; amended by 0165 | Quarter-octave buckets; byte-budgeted LRU |

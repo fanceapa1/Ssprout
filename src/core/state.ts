@@ -4,6 +4,7 @@ import { focusMinutes, planProblem, type StudyPlan } from './plans';
 import { tierForMinutes } from './rewards';
 import type { Schedule } from './schedule';
 import { reduceSchedules, type ScheduleAction } from './schedule-reducer';
+import { copySoundscape, isSoundscape, sameSoundscape, type SoundscapeSettings } from './soundscape';
 import {
   clampGoalMinutes,
   dueFocusWaterings,
@@ -99,6 +100,8 @@ export interface SessionLogEntry {
 
 export interface Settings {
   muted: boolean;
+  /** Absent in older gardens: follow the garden at its original volume. */
+  soundscape?: SoundscapeSettings;
   lastGoalMinutes: number;
   notifications: 'unasked' | 'granted' | 'denied';
 }
@@ -476,12 +479,16 @@ export function mergeSettings(current: Settings, patch: Partial<Settings> | null
   if (!patch || typeof patch !== 'object') return current;
   const next: Settings = { ...current };
   if (typeof patch.muted === 'boolean') next.muted = patch.muted;
+  if (isSoundscape(patch.soundscape) && !sameSoundscape(current.soundscape, patch.soundscape)) {
+    next.soundscape = copySoundscape(patch.soundscape);
+  }
   if (finite(patch.lastGoalMinutes)) next.lastGoalMinutes = clampGoalMinutes(patch.lastGoalMinutes);
   if (typeof patch.notifications === 'string' && NOTIFICATION_SET.has(patch.notifications)) {
     next.notifications = patch.notifications;
   }
   const changed =
     next.muted !== current.muted ||
+    next.soundscape !== current.soundscape ||
     next.lastGoalMinutes !== current.lastGoalMinutes ||
     next.notifications !== current.notifications;
   return changed ? next : current;

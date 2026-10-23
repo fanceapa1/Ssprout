@@ -125,9 +125,47 @@ emits no session event, so the bed changes with the next one.
   "Live soundscape" to cycle off → sun → rain → mist → night through the real controller.
 
 ## Tests
+Personal mixes (ADR 0104): `core/soundscape.test.ts`, `audio/standard-loops.test.ts`, additions
+to `params.test.ts` / `garden-audio.test.ts`, and `tests/e2e/sound-mixer.spec.ts` (including
+real OfflineAudioContext renders, UI persistence, scenery changes, keyboard and narrow phones).
+
 `params.test.ts` (curves, weather/activity/fauna mapping, low levels), `planner.test.ts`
 (determinism, rate accuracy, step-size independence, voice cap, gaps), `gate.test.ts`
 (autoplay gating, fades, dispose), `recipes.test.ts` (valid quiet specs, warbler shape,
 pentatonic phrase), `noise.test.ts` (spectral tilt, seamless loops, decaying IR),
 `garden-audio.test.ts` (controller with a fake backend and manual timers; the parallel-session
 cases run the real session controller and store so events arrive in the app's order).
+
+## Personal sound mixer (ADR 0104)
+`core/soundscape.ts` is the shared, pure catalogue and preference model. **Standard** has nine
+layers: rain, ocean waves, wind, birds, fireplace, café, lo-fi, white and brown noise. **Scenery**
+uses a registered palette: pond water/leaves/birds/crickets/rain, and a coastal waves/leaves/
+birds/rain profile reserved for future navigation. `createGardenAudio({ scenery: 'pond' })`
+defaults to the pond; navigation calls `setScenery('coast')` / `setScenery('pond')`. That changes
+the mix with a 2 s glide and notifies `onSceneryChange`; it does not select or unlock visual art.
+
+`settings.soundscape` stores the selected collection, overall volume, one Standard mix and
+per-scenery mixes. Absent settings preserve the old behavior and need no schema migration.
+Scenery's `mode: 'garden'` follows weather/hour; `custom` uses fixed levels. Standard is always
+custom and stays identical across scenery changes. The parameter mapper filters out layers
+outside the active palette even if an imported mix contains values for hidden layers.
+The session controller emits `settings:changed` for whole-state restore/reset as well as edits,
+so importing a muted mix immediately mutes the real audio gate without a reload.
+
+`standard-loops.ts` makes original fireplace, café and lo-fi PCM: seeded fire rumble/crackle,
+indistinct room murmur with occasional cup clinks, and a 75 BPM four-bar instrumental loop with
+soft keys, bass and brushed drums. No recordings, downloads, speech or external music services.
+The backend builds each extra bed once on first use: waves use filtered pink noise with two
+slow swells; white/brown use the shared noise generators. Up to six extra looping sources and
+two wave LFOs can remain at zero gain after use; mute suspends the whole context as before.
+
+Each `MixParams` includes `eventLevels` (percent) and `extra` (percent). One-shots route through
+their layer's dry and wet gains, so reducing birds/crickets/water/rain also fades existing voices
+and future reverb sends. Watering and chimes stay independent of layer sliders but follow overall
+volume and mute. New gains glide over 1.5 s; the original limiter and quiet master remain.
+
+The studio has `audio/standard-waves`, `standard-fire`, `standard-cafe`, `standard-lofi`,
+`standard-white`, `standard-brown`, each with a waveform and click-to-play/stop. `?dev` adds
+`sprout.audio` (controller plus `measure`). E2E verifies each Standard layer has RMS > 0.0001,
+peak < 0.2, all-nine peak < 0.3, and zero layer gains silence a scheduled bird. These are
+headroom/isolation checks, not a substitute for subjective listening.

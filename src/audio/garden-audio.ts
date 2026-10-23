@@ -1,10 +1,11 @@
 import type { Clock } from '../core/clock';
 import type { EventBus } from '../core/events';
 import { createRng } from '../core/rng';
+import { copySoundscape, defaultSoundscape, SCENERIES, type SceneryId } from '../core/soundscape';
 import type { GardenState, Weather } from '../core/state';
 import { createWebAudioBackend, type AudioBackend, type BackendFactory } from './backend';
 import { gateStep, initialGate, isAudible, type GateCommand, type GateInput } from './gate';
-import { FADE_S, localHour, MASTER_LEVEL, mixParams, sameMix, type AudioActivity, type MixParams } from './params';
+import { EVENT_LAYER, FADE_S, localHour, MASTER_LEVEL, mixParams, sameMix, type AudioActivity, type MixParams } from './params';
 import { createPlanner, type PlannedEvent } from './planner';
 import { RECIPES, completion, pour, rinBowl, type RecipeName } from './recipes';
 
@@ -18,6 +19,9 @@ export interface GardenAudio {
   isMuted(): boolean;
   /** Call from a user gesture (click/keydown/pointerdown): creates/resumes the AudioContext. */
   unlock(): void;
+  getScenery(): SceneryId;
+  setScenery(id: SceneryId): void;
+  onSceneryChange(fn: () => void): () => void;
   /** Session weather; `null` = none (clear garden outside sessions). */
   setWeather(weather: Weather | null): void;
   setActivity(activity: AudioActivity): void;
@@ -53,6 +57,7 @@ export interface GardenAudioOptions {
   timers?: Timers;
   /** scheduler tick (default 250 ms) */
   tickMs?: number;
+  scenery?: SceneryId;
 }
 
 /** Events are scheduled this far ahead of the audio clock so timer jitter never clips them. */
@@ -107,6 +112,9 @@ export function createGardenAudio(options: GardenAudioOptions): GardenAudio {
   let activity: AudioActivity = activeActivity(initial);
   let fauna = new Set<string>(initial.faunaSeen);
   let hourOverride: number | null = null;
+  let soundscape = copySoundscape(initial.settings.soundscape ?? defaultSoundscape());
+  let scenery = options.scenery ?? 'pond';
+  const sceneryListeners = new Set<() => void>();
 
   let interval: unknown = null;
   let suspendTimer: unknown = null;
@@ -115,7 +123,7 @@ export function createGardenAudio(options: GardenAudioOptions): GardenAudio {
   let chimeEnds: number[] = [];
 
   const currentMix = () =>
-    mixParams({ hour: hourOverride ?? localHour(clock.now()), weather, activity, fauna });
+    mixParams({ hour: hourOverride ?? localHour(clock.now()), weather, activity, fauna, soundscape, scenery });
 
   const pushMix = (seconds: number) => {
     if (!backend) return;
@@ -138,7 +146,7 @@ export function createGardenAudio(options: GardenAudioOptions): GardenAudio {
         const g = createRng(ev.seed);
         backend.gust(when, g.range(5, 8), g.range(1.5, 2.3));
       } else {
-        backend.play(RECIPES[RECIPE_FOR[ev.kind]](createRng(ev.seed), ev.pan), when, 'events');
+        backend.play(RECIPES[RECIPE_FOR[ev.kind]](createRng(ev.seed), ev.pan), when, 'events', EVENT_LAYER[ev.kind]);
       }
     }
   }
@@ -171,7 +179,7 @@ export function createGardenAudio(options: GardenAudioOptions): GardenAudio {
         cancelSuspend();
         b.startBeds();
         pushMix(0);
-        b.setMaster(MASTER_LEVEL, FADE_S);
+        b.setMaster(MASTER_LEVEL * soundscape.volume / 100, FADE_S);
         lastNow = null;
         planner.reset();
         stopTicking();
@@ -243,7 +251,15 @@ export function createGardenAudio(options: GardenAudioOptions): GardenAudio {
   };
 
   const offs = [
-    bus.on('settings:changed', ({ settings }) => send({ type: 'mute', muted: settings.muted })),
+    bus.on('settings:changed', ({ settings }) => {
+      const volume = soundscape.volume;
+      soundscape = copySoundscape(settings.soundscape ?? defaultSoundscape());
+      send({ type: 'mute', muted: settings.muted });
+      pushMix(1.5);
+      if (backend && isAudible(gate) && volume !== soundscape.volume) {
+        backend.setMaster(MASTER_LEVEL * soundscape.volume / 100, 1.5);
+      }
+    }),
     // Every session event re-reads the active session from state (the controller emits after the
     // store has changed), so the ambience follows `state.session` whichever session the event
     // names: a switch brings the new active one's weather, and ending a waiting one changes nothing.
@@ -269,6 +285,17 @@ export function createGardenAudio(options: GardenAudioOptions): GardenAudio {
     setMuted: (muted) => send({ type: 'mute', muted }),
     isMuted: () => gate.muted,
     unlock: () => send({ type: 'unlock' }),
+    getScenery: () => scenery,
+    setScenery(id) {
+      if (gate.disposed || !Object.hasOwn(SCENERIES, id) || id === scenery) return;
+      scenery = id;
+      pushMix(2);
+      for (const fn of sceneryListeners) fn();
+    },
+    onSceneryChange(fn) {
+      sceneryListeners.add(fn);
+      return () => { sceneryListeners.delete(fn); };
+    },
     setWeather,
     setActivity,
     setFauna(ids) {
@@ -283,6 +310,7 @@ export function createGardenAudio(options: GardenAudioOptions): GardenAudio {
     playComplete: () => chime('completion'),
     playPour,
     dispose() {
+      sceneryListeners.clear();
       for (const off of offs) off();
       send({ type: 'dispose' });
     },

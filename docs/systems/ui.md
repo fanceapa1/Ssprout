@@ -274,6 +274,18 @@ planned slip, and the tips on the painting. The dock is not dimmed:
 it is read on the page, like a sheet.
 
 ## Audio
+`sound-mixer.ts` / `sound-mixer.css`: Your soundscape, opened by the Sound mixer tool in both
+the corner and dock. Standard sounds and Scenery sounds share playback and overall volume;
+their levels are independent, with each scenery's saved levels keyed by `SceneryId`. All writes
+use `controller.updateSettings({ soundscape })`. Editing is silent while muted; Listen calls
+the same mute/unlock integration as the existing Garden sounds shortcut. The current collection
+is `aria-pressed`, every layer has a labelled toggle and native range, and starting mixes use
+brush marks. Auto means Follow the garden; an edit switches to custom without changing visual
+weather. Clear is scoped to the selected collection/place. The compact sticky playback bar uses
+the shared sheet's measured `--sheet-foot-h` for keyboard focus clearance. The optional audio
+integration adds `getScenery()` / `onSceneryChange(fn)`; a future scenery selector supplies the
+actual context to `GardenAudio.setScenery`. No coast selector is shown today.
+
 `createGardenAudio` is created in `main.ts` and passed as `audio`. The sound button toggles
 `settings.muted` via `controller.updateSettings` (audio follows `settings:changed`) and calls
 `audio.unlock()` inside the click; a persisted "sound on" unlocks on the first pointer/key gesture.
