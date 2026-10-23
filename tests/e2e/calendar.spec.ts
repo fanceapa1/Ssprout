@@ -464,3 +464,83 @@ test.describe('calendar · week start elsewhere', () => {
     expect(new Date(`${first}T12:00`).getDay()).toBe(1);
   });
 });
+
+test.describe('calendar · the day follows now (ADR 0192)', () => {
+  /** Jump the dev clock forward to the next `hour`:`minute` local time (today or tomorrow). */
+  const jumpTo = (page: Page, hour: number, minute = 0) =>
+    page.evaluate(
+      ([h, m]) => {
+        const s = window.sprout!;
+        const d = new Date(s.now());
+        const at = new Date(d.getFullYear(), d.getMonth(), d.getDate(), h, m).getTime();
+        s.advance(at > s.now() ? at - s.now() : at + 86_400_000 - s.now());
+      },
+      [hour, minute] as const,
+    );
+  /** Where now sits in the hours' window: 0 at its top, 1 at its bottom. */
+  const nowInWindow = (page: Page) =>
+    page.evaluate(() => {
+      const tl = document.querySelector<HTMLElement>('[data-section="calendar"] .cal-timeline')!;
+      const line = tl.querySelector<HTMLElement>('.cal-now');
+      if (!line) return null;
+      const t = tl.getBoundingClientRect();
+      return (line.getBoundingClientRect().top - t.top) / t.height;
+    });
+  const hoursTop = (page: Page) => page.evaluate(() => document.querySelector<HTMLElement>('[data-section="calendar"] .cal-timeline')!.scrollTop);
+
+  async function openAt(page: Page, hour: number): Promise<void> {
+    await openUi(page);
+    await jumpTo(page, hour);
+    await page.evaluate(async () => {
+      window.sprout!.calendar.setView('day');
+      window.sprout!.calendar.go(window.sprout!.now());
+      await window.sprout!.ui.scrollTo('calendar', { instant: true });
+    });
+    await expect(cal(page)).toBeVisible();
+    expect((await calState(page)).follow).toBe(true);
+  }
+
+  test('while the tab stays open the now line and the window keep up, gliding', async ({ page }) => {
+    await openAt(page, 9);
+    const top0 = await hoursTop(page);
+    const at0 = (await nowInWindow(page))!;
+    expect(at0).toBeGreaterThan(0);
+    expect(at0).toBeLessThan(0.5);
+    // a few hours later (a long-open tab): the window has moved on with now
+    await page.evaluate(() => window.sprout!.advance(5 * 3_600_000));
+    await expect.poll(() => hoursTop(page)).toBeGreaterThan(top0 + 50);
+    await expect.poll(async () => (await nowInWindow(page))!).toBeLessThan(0.5);
+    expect((await nowInWindow(page))!).toBeGreaterThan(0);
+    expect((await calState(page)).follow).toBe(true);
+  });
+
+  test('once the gardener scrolls the hours, the view stays where they put it (the now line still moves)', async ({ page }) => {
+    await openAt(page, 9);
+    const tl = cal(page).locator('.cal-timeline');
+    const box = (await tl.boundingBox())!;
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.wheel(0, -200);
+    await expect.poll(async () => (await calState(page)).follow).toBe(false);
+    const top = await hoursTop(page);
+    const line0 = await page.evaluate(() => document.querySelector<HTMLElement>('.cal-now')!.style.top);
+    await page.evaluate(() => window.sprout!.advance(5 * 3_600_000));
+    await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
+    expect(await hoursTop(page)).toBe(top);
+    expect(await page.evaluate(() => document.querySelector<HTMLElement>('.cal-now')!.style.top)).not.toBe(line0);
+    // "Today" follows again
+    await cal(page).getByRole('button', { name: 'Today' }).click();
+    await expect.poll(async () => (await calState(page)).follow).toBe(true);
+  });
+
+  test('past midnight the day view turns to the new day, still following', async ({ page }) => {
+    await openAt(page, 23);
+    const before = (await calState(page)).date;
+    await page.evaluate(() => window.sprout!.advance(90 * 60_000));
+    await expect.poll(async () => (await calState(page)).date).not.toBe(before);
+    expect((await calState(page)).date).toBe(await dayKeyIn(page));
+    expect((await calState(page)).follow).toBe(true);
+    const at = (await nowInWindow(page))!;
+    expect(at).toBeGreaterThanOrEqual(0);
+    expect(at).toBeLessThan(0.5);
+  });
+});
