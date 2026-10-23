@@ -12,9 +12,11 @@ import { MIN, openUi, reloadUi } from './ui-helpers';
 
 const cal = (page: Page) => page.locator('[data-section="calendar"] .calendar');
 const calState = (page: Page) => page.evaluate(() => window.sprout!.calendar.state()!);
+/** The app clock's local day, `offsetDays` calendar days on (not 24 h steps: a daylight-saving day is 23 or 25 h). */
 const dayKeyIn = (page: Page, offsetDays = 0) =>
   page.evaluate((o) => {
-    const d = new Date(window.sprout!.now() + o * 86_400_000);
+    const now = new Date(window.sprout!.now());
+    const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + o, 12);
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   }, offsetDays);
 
@@ -495,17 +497,18 @@ test.describe('calendar · week start elsewhere', () => {
 });
 
 test.describe('calendar · the day follows now (ADR 0191)', () => {
-  /** Jump the dev clock forward to the next `hour`:`minute` local time (today or tomorrow). */
-  const jumpTo = (page: Page, hour: number, minute = 0) =>
-    page.evaluate(
-      ([h, m]) => {
-        const s = window.sprout!;
-        const d = new Date(s.now());
-        const at = new Date(d.getFullYear(), d.getMonth(), d.getDate(), h, m).getTime();
-        s.advance(at > s.now() ? at - s.now() : at + 86_400_000 - s.now());
-      },
-      [hour, minute] as const,
-    );
+  /** Jump the dev clock forward to the next `hour`:00 local time (today or tomorrow, daylight saving included). */
+  const jumpTo = (page: Page, hour: number) => page.evaluate((t) => window.sprout!.advanceTo(t), `${String(hour).padStart(2, '0')}:00`);
+  /** The hours' scroller has stopped moving (no glide in progress) for a few frames. */
+  const hoursAtRest = (page: Page) =>
+    page.evaluate(async () => {
+      const tl = document.querySelector<HTMLElement>('[data-section="calendar"] .cal-timeline');
+      if (!tl) return true;
+      const frame = () => new Promise((r) => requestAnimationFrame(r));
+      const a = tl.scrollTop;
+      for (let i = 0; i < 6; i++) await frame();
+      return a === tl.scrollTop;
+    });
   /** Where now sits in the hours' window: 0 at its top, 1 at its bottom. */
   const nowInWindow = (page: Page) =>
     page.evaluate(() => {
@@ -520,6 +523,9 @@ test.describe('calendar · the day follows now (ADR 0191)', () => {
   async function openAt(page: Page, hour: number): Promise<void> {
     await openUi(page);
     await jumpTo(page, hour);
+    // a day window that was following now glides after the jump; let it come to rest before the
+    // view is drawn afresh (redrawn mid-glide, it stops following: see devlog 31)
+    await expect.poll(() => hoursAtRest(page)).toBe(true);
     await page.evaluate(async () => {
       window.sprout!.calendar.setView('day');
       window.sprout!.calendar.go(window.sprout!.now());
@@ -551,15 +557,7 @@ test.describe('calendar · the day follows now (ADR 0191)', () => {
     await page.mouse.wheel(0, -200);
     await expect.poll(async () => (await calState(page)).follow).toBe(false);
     // the wheel's own scroll animation settles where the gardener put it
-    const settled = () =>
-      page.evaluate(async () => {
-        const tl = document.querySelector<HTMLElement>('[data-section="calendar"] .cal-timeline')!;
-        const frame = () => new Promise((r) => requestAnimationFrame(r));
-        const a = tl.scrollTop;
-        for (let i = 0; i < 6; i++) await frame();
-        return a === tl.scrollTop;
-      });
-    await expect.poll(settled).toBe(true);
+    await expect.poll(() => hoursAtRest(page)).toBe(true);
     const top = await hoursTop(page);
     const line0 = await page.evaluate(() => document.querySelector<HTMLElement>('.cal-now')!.style.top);
     await page.evaluate(() => window.sprout!.advance(5 * 3_600_000));
