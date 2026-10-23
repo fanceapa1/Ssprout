@@ -532,7 +532,8 @@ confirm, resting, dialogs, tips, markers, line, plantLabel, plantCard, draft, â€
 included), `scroll()`, `scrollTo(y | sectionId, { instant? })`, `dock()`, `dockReady()`,
 `wayfinding({ layout? })` (the guiding path's stops and centre line in client coordinates, the stop
 being read, draw state, layout count), `setSectionHidden(id, hidden)`,
-`waterPlantView()`, `onZoomGesture(fn)`, `widget` (fake only); `window.sprout.advance(ms)`.
+`waterPlantView()`, `onZoomGesture(fn)`, `widget` (fake only); `window.sprout.advance(ms)`,
+`window.sprout.advanceTo('HH:MM')` (forward to the next local time of day).
 Query flags: `?fixtures` (dev `fx-*` species, ADR 0055), `?uitime=0.05` (UI delays),
 `?widget=fake`.
 

@@ -85,6 +85,10 @@ agent) picks up the work next.
   workers (`E2E_WORKERS`, default 2). While iterating, run only the specs you touch
   (`npx playwright test tests/e2e/<spec>`), and run the full suite once at the end, under
   `nice -n 10`. Don't leave dev servers or watchers running.
+- **The dev clock starts at the real time of day.** A test that reads what is due, the day view or
+  "today" passes at one hour and fails at another. Pin the hour (`sprout.advanceTo('HH:MM')`),
+  count days in calendar days (not 24 h steps), and check with `E2E_CLOCK=17:00` (and 00:30, 23:50)
+  before you trust it (docs/TESTING.md › Conventions).
 - **The e2e server is the production build.** With `E2E_REUSE=1`, rebuild after every `src/` change
   or you are testing stale code.
 

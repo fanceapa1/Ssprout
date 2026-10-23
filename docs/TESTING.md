@@ -36,6 +36,7 @@ npm run e2e                            # build + preview on :4173 + Playwright
 E2E_PORT=4187 npm run e2e              # another port (several checkouts at once)
 E2E_PORT=4187 E2E_REUSE=1 npx playwright test plants   # reuse a running preview (fresh build!)
 npx playwright test --repeat-each=3 --workers=8        # hunt flakiness under load
+E2E_CLOCK=17:00 npx playwright test calendar marks    # run as if the page opened at 17:00 local
 npx playwright show-trace test-results/<test>/trace.zip
 ```
 To reuse a server: `npm run build && npx vite preview --host 127.0.0.1 --port 4187 --strictPort`,
@@ -70,6 +71,17 @@ tests (`test-results/`).
 - **A reload restarts the dev clock at real time.** Jumps made with `sprout.advance` before a reload
   are lost (the saved timestamps are ahead of the new clock), so a reload test jumps only after it
   (`parallel-sessions › a reload continues every session…`).
+- **Never depend on the hour the suite runs at.** The dev clock starts at the real time, so
+  anything that reads the time of day (what is due, the day view's window, "today", the week, the
+  lighting) changes with it. A test that needs an hour pins it first: `sprout.advanceTo('HH:MM')`
+  jumps the dev clock forward to the next local `HH:MM` (today or tomorrow).
+  `sprout.schedule.demo()` always lands on the next 16:10 with the 15:40 daily due, so a demo that
+  needs sessions growing starts them *after* the demo (a jump of up to a day would end them).
+  Count days in calendar days, never in `86_400_000` ms steps: a daylight-saving day is 23 or 25 h
+  (`dayKeyIn` in `calendar.spec.ts`). Read time in the page with `sprout.now()`, never
+  `Date.now()`. Prove a spec is hour-proof with `E2E_CLOCK=HH:MM` (the fixture jumps the clock
+  there once the page is ready; a reload starts at real time again): try 00:30, 09:00, 17:00 and
+  23:50 (devlog 31).
 - **Pin what is not under test.** Lighting follows the app clock: advancing the dev clock moves
   the time of day. Use `sprout.setTime('noon')` and `settleAmbience()` for pixel comparisons.
   A session start glides the camera to its seedling (ADR 0168): a test that reads the garden at
@@ -370,6 +382,7 @@ Legend: unit tests as `folder/file › test`, under `src/` (`.test.ts` omitted).
 |---|---|---|---|---|
 | 11.1 | Studio shows every sprite, creature, effect and paint primitive | studio/registry › discovers the real *.studio.ts files; › flattens…; › rejects duplicate…; › finds entries… | studio › lists every section in the nav…; › every entry renders without errors and paints something (4 shards) | ◐ "every sprite has an entry" is a convention (AGENTS.md), not machine-checked |
 | 11.2 | Seed/reseed, play/pause, speed, background, scale; URL `#section`, `?entry`, `?seed`, `?t` | — | studio › reseed re-renders with a new seed; › #section shows only that section; › ?entry shows a single entry large; › ?seed and ?t start paused…; › speed, background and scale controls | ✔ |
+| 11.3 | The dev clock pins a time of day (`sprout.advanceTo`, forward only, daylight saving included); `schedule.demo()` opens at the same hour whenever it runs, with a session due; e2e never depends on the hour it runs at | dev/local-time (all) | marks › the sprout marks what begins a planting…; calendar · a planned slip on a phone’s garden…; calendar · the day follows now (all); calendar › schedule a session…; › edit only this one…: all pass with `E2E_CLOCK` = 00:30, 09:00, 17:00, 23:50 (devlog 31) | ✔ (hour-proofing is a run, not a CI job) |
 
 ### §12 The app page
 
@@ -484,3 +497,15 @@ daylight › plantsReady waits for plants added just before it…).
 6. ~~Keyboard focus on tools and sheet cards~~ (12.26, v2 acceptance L5): fixed. The dock's tools,
    plan cards and plant cards lift on `:focus-visible` as on hover (ADR 0204); the test passes for
    real.
+7. **The day window is an hour off on a daylight-saving day** (ADR 0191; found by devlog 31):
+   `openingMinute` and the block positions in `ui/calendar-model.ts` count elapsed ms since
+   midnight, while the now line and following count wall-clock minutes (`minuteOfDay`). On a
+   23 h or 25 h day the window opens an hour early or late, so `calendar · the day follows now ›
+   while the tab stays open…` fails when it runs on such a day (e.g. `E2E_CLOCK=17:00` on
+   2026-10-24 in Europe lands it on Sunday 25 Oct). Fix in the UI: count local wall minutes.
+8. **Following stops when the hours are redrawn mid-glide** (ADR 0191; found by devlog 31): a
+   scroll event queued by the replaced `.cal-timeline` reaches the shared listener in
+   `ui/calendar.ts` after the new one set `lastSet`, so `follow` turns false. Seen when the clock
+   jumps while the day view follows and the view is then redrawn (`go`, a view change). Fix in the
+   UI: ignore scroll events from a scroller that is no longer connected. The follow-now specs wait
+   for the hours to rest after a jump (`hoursAtRest`) until then.
