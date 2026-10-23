@@ -1,7 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import { createManualClock } from '../core/clock';
 import { createEventBus } from '../core/events';
-import { createDefaultState, type ActiveSession, type GardenState, type PlantInstance } from '../core/state';
+import { createSessionController, type StartOptions, type Ticker } from '../core/controller';
+import {
+  createDefaultState,
+  createReducer,
+  createStore,
+  type ActiveSession,
+  type GardenState,
+  type PlantInstance,
+  type Weather,
+} from '../core/state';
+import type { SpeciesDef } from '../plants/types';
+import type { Slot } from '../scene/geometry';
 import type { AudioBackend } from './backend';
 import { createGardenAudio, MAX_CHIMES, type Timers } from './garden-audio';
 import { FADE_S, MASTER_LEVEL, type MixParams } from './params';
@@ -263,18 +274,17 @@ describe('createGardenAudio soundscape', () => {
   });
 
   it('reacts to session events: rain during a session, thinner when paused, clear afterwards', () => {
-    const s = setup({}, { muted: false });
-    s.audio.unlock();
-    s.bus.emit('session:start', { session: session({ weather: 'rain' }) });
-    expect(s.fake.mixes.at(-1)!.rain).toBeGreaterThan(0);
-    expect(s.fake.mixes.at(-1)!.bed).toBeGreaterThan(1);
-    s.bus.emit('session:pause', { sessionId: 's1', at: 0 });
-    expect(s.fake.mixes.at(-1)!.bed).toBeLessThan(1);
-    s.bus.emit('session:resume', { sessionId: 's1', at: 0 });
-    expect(s.fake.mixes.at(-1)!.bed).toBeGreaterThan(1);
-    s.bus.emit('session:cancel', { sessionId: 's1', at: 0 });
-    expect(s.fake.mixes.at(-1)!.rain).toBe(0);
-    expect(s.fake.mixes.at(-1)!.bed).toBe(1);
+    const p = parallel();
+    const a = p.start('rain');
+    expect(p.heard()).toEqual({ weather: 'rain', bed: 'running' });
+    p.controller.pause();
+    expect(p.heard()).toEqual({ weather: 'rain', bed: 'paused' });
+    expect(p.fake.mixes.at(-1)!.bed).toBeLessThan(1);
+    p.controller.resume();
+    expect(p.fake.mixes.at(-1)!.bed).toBeGreaterThan(1);
+    p.controller.cancel(a);
+    expect(p.heard()).toEqual({ weather: 'clear', bed: 'idle' });
+    expect(p.fake.mixes.at(-1)!.bed).toBe(1);
   });
 
   it('picks up a session already running at load (reload mid-session)', () => {
@@ -283,6 +293,14 @@ describe('createGardenAudio soundscape', () => {
     const mix = s.fake.mixes.at(-1)!;
     expect(mix.airHz).toBeLessThan(5000);
     expect(mix.bed).toBeLessThan(1);
+  });
+
+  it('waiting sessions alone are silent at load: nothing active, a clear garden', () => {
+    const s = setup({ session: null, waiting: [session({ weather: 'rain', pausedAt: 5 })] }, { muted: false });
+    s.audio.unlock();
+    const mix = s.fake.mixes.at(-1)!;
+    expect(mix.rain).toBe(0);
+    expect(mix.bed).toBe(1);
   });
 
   it('explicit setters drive the mix (weather, time of day, fauna)', () => {
@@ -316,5 +334,168 @@ describe('createGardenAudio soundscape', () => {
     s.fake.advance(3600);
     s.t.tick();
     expect(s.fake.played.length).toBeLessThan(4);
+  });
+});
+
+/**
+ * The real session controller and store drive the audio, so the events arrive exactly as in the
+ * app (after the state changed). The weather is chosen by the controller's rng; `start` pins it.
+ */
+function parallel() {
+  const T = new Date(2026, 4, 1, 12, 0).getTime();
+  const clock = createManualClock(T);
+  const species: SpeciesDef = {
+    id: 'violet',
+    name: 'violet',
+    tier: 1,
+    habitats: ['meadow'],
+    sizeClass: 'small',
+    size: { w: 10, h: 10 },
+    anchor: { x: 0.5, y: 1 },
+    description: '',
+    bloomColor: '#fff',
+    pollinators: true,
+    draw: () => {},
+  };
+  const slots: Slot[] = ['meadow-1', 'meadow-2', 'meadow-3'].map((id) => ({ id, x: 0, y: 0, habitat: 'meadow', maxSize: 'large', scale: 1 }));
+  const reducer = createReducer({ getSpecies: (id) => (id === species.id ? species : undefined), getSlot: (id) => slots.find((x) => x.id === id) });
+  const base = createDefaultState(T);
+  const store = createStore<GardenState>({ ...base, settings: { ...base.settings, muted: false } }, reducer);
+  const bus = createEventBus();
+  let tick: (() => void) | null = null;
+  const ticker: Ticker = {
+    start(fn) {
+      tick = fn;
+      return () => void (tick = null);
+    },
+  };
+  const controller = createSessionController({ store, clock, bus, species: [species], slots, ticker, seed: 1 });
+  const fake = fakeBackend();
+  const t = fakeTimers();
+  const audio = createGardenAudio({ bus, getState: store.get, clock, seed: 1, createBackend: () => fake.backend, timers: t.timers });
+  audio.unlock();
+  let started = 0;
+
+  /** Start a session with this weather (the active one becomes a waiting one); returns its id. */
+  const start = (weather: Weather): string => {
+    const opts: StartOptions = { taskName: weather, goalMinutes: 25, speciesId: 'violet', slotId: slots[started++ % slots.length]!.id };
+    expect(controller.start(opts)).toBe(true);
+    const st = store.get();
+    // replace the weather the rng picked (state/replace emits nothing); the audio re-reads the
+    // state on the next session event, here a pause and resume of the new session
+    store.dispatch({ type: 'state/replace', state: { ...st, session: { ...st.session!, weather } } });
+    controller.pause();
+    controller.resume();
+    return st.session!.id;
+  };
+  /** What the garden sounds like now: the weather bed and the session activity of the mix. */
+  const heard = () => {
+    const m = fake.mixes.at(-1)!;
+    return {
+      weather: m.rain > 0 ? 'rain' : m.airHz < 5000 ? 'mist' : 'clear',
+      bed: m.bed > 1 ? 'running' : m.bed < 1 ? 'paused' : 'idle',
+    };
+  };
+  /** Finish the active session (its 25 minutes have passed). */
+  const completeActive = () => {
+    clock.advance(26 * 60_000);
+    tick?.();
+  };
+  return { controller, store, fake, audio, start, heard, completeActive };
+}
+
+describe('createGardenAudio follows the active session (SPEC §2 › Parallel sessions, ADR 0150)', () => {
+  it('a switch brings the weather of the session switched to', () => {
+    const p = parallel();
+    const a = p.start('rain');
+    const b = p.start('mist');
+    expect(p.heard()).toEqual({ weather: 'mist', bed: 'running' });
+    p.controller.switchTo(a);
+    expect(p.heard()).toEqual({ weather: 'rain', bed: 'running' });
+    p.controller.switchTo(b);
+    expect(p.heard()).toEqual({ weather: 'mist', bed: 'running' });
+  });
+
+  it('a switch from nothing active (after a bloom) brings that session back, running', () => {
+    const p = parallel();
+    const a = p.start('rain');
+    p.start('sun');
+    p.completeActive();
+    expect(p.heard()).toEqual({ weather: 'clear', bed: 'idle' });
+    p.controller.switchTo(a);
+    expect(p.heard()).toEqual({ weather: 'rain', bed: 'running' });
+  });
+
+  it('cancelling a waiting session leaves the active one sounding as it was', () => {
+    const p = parallel();
+    const a = p.start('rain');
+    const c = p.start('sun');
+    p.start('mist');
+    const mixes = p.fake.mixes.length;
+    p.controller.cancel(a);
+    p.controller.cancel(c);
+    expect(p.store.get().waiting).toHaveLength(0);
+    expect(p.heard()).toEqual({ weather: 'mist', bed: 'running' });
+    expect(p.fake.mixes).toHaveLength(mixes); // nothing re-applied, not even a fade
+  });
+
+  it('cancelling a waiting session while the active one is paused keeps it paused', () => {
+    const p = parallel();
+    const a = p.start('rain');
+    p.start('mist');
+    p.controller.pause();
+    p.controller.cancel(a);
+    expect(p.heard()).toEqual({ weather: 'mist', bed: 'paused' });
+  });
+
+  it('cancelling the active one with others waiting goes quiet: the waiting ones never sound', () => {
+    const p = parallel();
+    p.start('rain');
+    const b = p.start('mist');
+    p.controller.cancel(b);
+    expect(p.store.get().waiting).toHaveLength(1);
+    expect(p.heard()).toEqual({ weather: 'clear', bed: 'idle' });
+  });
+
+  it('completing the active one with others waiting goes quiet, with the phrase; the waiting ones never sound', () => {
+    const p = parallel();
+    p.start('rain');
+    p.start('mist');
+    p.start('sun');
+    p.completeActive();
+    expect(p.store.get().session).toBeNull();
+    expect(p.store.get().waiting).toHaveLength(2);
+    expect(p.heard()).toEqual({ weather: 'clear', bed: 'idle' });
+    expect(p.fake.played.filter((x) => x.bus === 'chime').map((x) => x.spec.name)).toContain('completion');
+  });
+
+  it('pause and resume follow the active session, also across a switch', () => {
+    const p = parallel();
+    const a = p.start('rain');
+    p.start('mist');
+    p.controller.pause();
+    expect(p.heard()).toEqual({ weather: 'mist', bed: 'paused' });
+    p.controller.resume();
+    expect(p.heard()).toEqual({ weather: 'mist', bed: 'running' });
+    p.controller.pause();
+    // switching away from a paused session resumes the chosen one: it runs, in its own weather
+    p.controller.switchTo(a);
+    expect(p.heard()).toEqual({ weather: 'rain', bed: 'running' });
+  });
+
+  it('stays muted by default: session events change nothing audible until unmuted', () => {
+    const p = parallel();
+    p.audio.setMuted(true);
+    const masters = p.fake.masters.length;
+    const played = p.fake.played.length;
+    p.start('rain');
+    p.start('mist');
+    p.completeActive();
+    expect(p.fake.masters).toHaveLength(masters);
+    expect(p.fake.played).toHaveLength(played);
+    // unmuting fades in with the state as it is now: nothing active, a clear garden
+    p.audio.setMuted(false);
+    expect(p.fake.masters.at(-1)).toEqual([MASTER_LEVEL, FADE_S]);
+    expect(p.heard()).toEqual({ weather: 'clear', bed: 'idle' });
   });
 });

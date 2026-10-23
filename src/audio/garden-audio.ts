@@ -78,6 +78,17 @@ const RECIPE_FOR: Record<Exclude<PlannedEvent['kind'], 'gust'>, RecipeName> = {
   cricket: 'cricket',
 };
 
+/** The weather bed belongs to the active session only; none active → a clear garden. */
+function activeWeather(state: GardenState): Weather | null {
+  return state.session?.weather ?? null;
+}
+
+/** Activity of the active session; waiting sessions (always paused) never count. */
+function activeActivity(state: GardenState): AudioActivity {
+  const s = state.session;
+  return { sessionActive: !!s, paused: !!s && s.pausedAt != null };
+}
+
 export function createGardenAudio(options: GardenAudioOptions): GardenAudio {
   const { bus, getState, clock } = options;
   const factory = options.createBackend ?? (() => createWebAudioBackend(options.seed));
@@ -92,8 +103,8 @@ export function createGardenAudio(options: GardenAudioOptions): GardenAudio {
   let gate = initialGate(initial.settings.muted);
   let backend: AudioBackend | null = null;
   let unsupported = false;
-  let weather: Weather | null = initial.session?.weather ?? null;
-  let activity: AudioActivity = { sessionActive: !!initial.session, paused: initial.session?.pausedAt != null };
+  let weather: Weather | null = activeWeather(initial);
+  let activity: AudioActivity = activeActivity(initial);
   let fauna = new Set<string>(initial.faunaSeen);
   let hourOverride: number | null = null;
 
@@ -224,22 +235,25 @@ export function createGardenAudio(options: GardenAudioOptions): GardenAudio {
     weather = w;
     pushMix(1.5);
   };
+  /** Weather and activity of the active session (ADR 0150: `state.session`; waiting ones are silent). */
+  const followActive = () => {
+    const state = getState();
+    weather = activeWeather(state);
+    setActivity(activeActivity(state));
+  };
 
   const offs = [
     bus.on('settings:changed', ({ settings }) => send({ type: 'mute', muted: settings.muted })),
-    bus.on('session:start', ({ session }) => {
-      weather = session.weather;
-      setActivity({ sessionActive: true, paused: false });
-    }),
-    bus.on('session:pause', () => setActivity({ sessionActive: true, paused: true })),
-    bus.on('session:resume', () => setActivity({ sessionActive: true, paused: false })),
-    bus.on('session:cancel', () => {
-      weather = null;
-      setActivity({ sessionActive: false, paused: false });
-    }),
+    // Every session event re-reads the active session from state (the controller emits after the
+    // store has changed), so the ambience follows `state.session` whichever session the event
+    // names: a switch brings the new active one's weather, and ending a waiting one changes nothing.
+    bus.on('session:start', followActive),
+    bus.on('session:pause', followActive),
+    bus.on('session:resume', followActive),
+    bus.on('session:switch', followActive),
+    bus.on('session:cancel', followActive),
     bus.on('session:complete', () => {
-      weather = null;
-      setActivity({ sessionActive: false, paused: false });
+      followActive();
       chime('completion');
     }),
     bus.on('plant:placed', () => chime('rin')),
