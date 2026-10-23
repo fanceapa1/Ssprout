@@ -31,6 +31,14 @@ declare module './debug' {
       dock(): ReturnType<UI['dock']['sections']>;
       /** resolves once every filled dock section is laid out (fonts loaded, a frame painted) */
       dockReady(): Promise<void>;
+      /**
+       * The guiding path (ADR 0202), laid out now against the page as it is (unless `layout: false`):
+       * its stops in page order and its centre line, in client coordinates, which stop is being read,
+       * the draw-in state and how many layouts it has done.
+       */
+      wayfinding(opts?: { layout?: boolean }): ReturnType<UI['wayfinding']['state']>;
+      /** hide or show a dock section (as a feature does when it has nothing to show) */
+      setSectionHidden(id: string, hidden: boolean): boolean;
       /** play the "Your plant" watering animation (as the automatic focus watering will); false if nothing to water */
       waterPlantView(): boolean;
       /** the stage's zoom hook (ctrl/⌘ + wheel, pinch over the garden), for the camera and tests */
@@ -104,6 +112,16 @@ export function installUiDebug({ ui, clock, widget, viewport, slots }: UiDebugDe
       async dockReady() {
         await document.fonts?.ready;
         await new Promise<void>((r) => requestAnimationFrame(() => r()));
+      },
+      wayfinding(opts?: { layout?: boolean }) {
+        // `{ layout: false }` reads what the path last laid out on its own (tests of its triggers)
+        if (opts?.layout !== false) ui.wayfinding.layout();
+        return ui.wayfinding.state();
+      },
+      setSectionHidden(id: string, hidden: boolean) {
+        const section = ui.dock.get(id);
+        section?.setHidden(hidden);
+        return section !== null;
       },
       waterPlantView: () => ui.plantView.water(),
       onZoomGesture: (fn: (e: WheelEvent) => void) => ui.stage.onZoomGesture(fn),
