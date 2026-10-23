@@ -137,7 +137,7 @@ limit }, pillMore, confirm, resting, dialogs, tips, markers, line, plantLabel, d
 ## Sheets over the page (ADR 0190)
 Every sheet is a `<dialog>` opened with `showModal()` through `ctx.openDialog`. Behind it the page
 goes under a leaf of its own washi (`::backdrop`: `--page-paper` at `--sheet-veil`, 0.965), never a
-grey scrim or a blur. `html:has(dialog.sheet[open]:not(.is-closing))` hides the page's overflow, so
+grey scrim or a blur. `html.has-sheet` (set by `syncSheetLock` in `index.ts`) hides the page's overflow, so
 the wheel beside the sheet, PageDown/Space/End and touch do not move the page, and the smooth scroll
 already stands aside while a modal is open. The sheet's own paper scrolls (`overscroll-behavior:
 contain`). The torn edge is drawn by `dialog.sheet::after` from `--slip-dense-edge-*` over the

@@ -21,7 +21,7 @@ tallest cards.
 1. **A leaf of washi behind every sheet.** `dialog.sheet::backdrop` is the page's own paper tile
    (`--page-paper`) at 0.965 opacity, not a grey scrim or a blur. The garden is a ghost and no
    dock text is legible beside or below the sheet. It is paper laid over paper.
-2. **The page is locked.** `html:has(dialog.sheet[open]:not(.is-closing)) { overflow: hidden }`
+2. **The page is locked.** `html.has-sheet { overflow: hidden }` (the UI sets the class while a sheet is open and not fading out, and on a native close; a class rather than an `html:has(…)` rule, which would re-match the root on every change in the page)
    stops wheel, keys and touch from scrolling the page, whichever sheet is open (planting,
    schedule, pressed flowers, garden data, hints). The smooth scroll already ignores input while a
    modal is open. Programmatic scrolls (placement's glide to the top) still work. The page is free

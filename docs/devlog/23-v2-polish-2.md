@@ -7,7 +7,7 @@ The orchestrator's list from devlog 21's "Left for others", plus a second fresh-
 1. **Sheets over the page** (ADR 0190).
    - Every sheet sits on a leaf of the page's own washi (`::backdrop`, 0.965), so no dock text reads
      beside or under it.
-   - The page is locked while a sheet is open (`html:has(dialog.sheet[open])`). The wheel beside the
+   - The page is locked while a sheet is open (`html.has-sheet`, set by the UI while a sheet is open). The wheel beside the
      sheet, PageDown, Space and End no longer move it.
    - The slip's torn edge is drawn over the content (`dialog.sheet::after`), so the planting sheet's
      sticky footer no longer erases its bottom edge.
