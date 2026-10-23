@@ -276,7 +276,7 @@ browsers. Respects `prefers-reduced-motion` (ambience/fauna reduced, no sway).
 The page is no longer only a canvas. It scrolls as a normal document:
 
 - **Stage.** The garden sits at the top with a small margin to the window's edges (14 px; 8 px on
-  phones) and is ~88 % of the window's height on first load, so the top of the UI peeks out below.
+  phones) and is ~94 % of the window's height on first load (ADR 0212), so the top of the UI peeks out below.
   Its edges dissolve into the page's paper like a wash thinning out — broadly at the bottom, where
   the UI begins, and softly at the top and sides. The page is the same washi as the painting.
 - **Dock.** Below the garden, sections registered by features, read in one order at every width

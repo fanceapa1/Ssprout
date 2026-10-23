@@ -54,7 +54,7 @@ Back → front: `background`, `underwater`, `waterSurface`, `entities`, `air`, `
   `add()` (if sized) and again on every resize (debounced 200 ms, window `resize` +
   `ResizeObserver`); systems keep drawing with their old caches until re-init completes.
 - The renderer measures the **canvas's own box**, not the window. In the app the canvas fills the
-  garden stage (`#stage`, ~88 % of the window under a small margin, ADR 0130), so the viewport
+  garden stage (`#stage`, ~94 % of the window under a small margin, ADRs 0130, 0212), so the viewport
   is the stage; scrolling the page moves the canvas element and never re-inits or repaints.
 - A system that throws is isolated: the error is logged once per system+phase
   (`onSystemError` to override) and the rest of the frame continues.

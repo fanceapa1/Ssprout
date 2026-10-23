@@ -1,6 +1,6 @@
 # ADR 0130 — The page: a garden stage on top, a dock of sections below
 
-- Status: accepted; amended by ADRs 0156 (the Study section lists the sessions in progress), 0160, 0164, 0200, 0201
+- Status: accepted; amended by ADRs 0156 (the Study section lists the sessions in progress), 0160, 0164, 0200, 0201, 0212 (the stage is 94 % tall)
 - Date: 2026-10-23
 - Context: ADR 0005 (owner's v2 requests); amends ADR 0050 (the UI is no longer only an overlay)
 
@@ -41,4 +41,5 @@ and a UI that later features (calendar, parallel sessions, …) can grow into.
   own with `ui.dock.addSection` from `src/ui` or `main.ts`.
 - E2E selectors: `.panel` is now the dock's session controls; buttons that exist twice (Start
   studying, tools) are scoped (`.panel`, `.pill`, `.menu`, `.tool-list`).
-- Short landscape windows crop a little more of the sky than before (the stage is 88 % tall).
+- Short landscape windows crop a little more of the sky than before (the stage is 88 % tall;
+  94 % since ADR 0212).

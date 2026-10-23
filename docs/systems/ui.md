@@ -1,8 +1,8 @@
 # UI system
 
 `src/ui/` — the app page around the garden canvas: calm paper and ink (ART_DIRECTION › UI style).
-The page scrolls as a document: the garden **stage** on top (~88 % of the window under a small
-margin), the **dock** of sections below it on the same washi (ADRs 0130–0136).
+The page scrolls as a document: the garden **stage** on top (~94 % of the window under a small
+margin, ADR 0212), the **dock** of sections below it on the same washi (ADRs 0130–0136).
 It drives the app **only** through the session controller (`src/core/controller.ts`) and reads
 `controller.status()`; it never dispatches session actions or recomputes session maths (ADR 0050).
 

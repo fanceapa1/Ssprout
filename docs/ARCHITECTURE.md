@@ -78,7 +78,7 @@ docs/                     SPEC, ARCHITECTURE, ART_DIRECTION, ROADMAP, adr/, syst
   tall phones get paper above and below instead (ADR 0123). `viewport.worldToScreen(p)`,
   `screenToWorld(p)`, `scale`, `visible` (the world rect on screen).
 - Device pixel ratio capped at 2. Static layers are re-rendered on resize (debounced 200 ms).
-- **The viewport is the stage, not the window** (ADR 0130): the canvas fills `#stage` (~88 % of
+- **The viewport is the stage, not the window** (ADR 0130): the canvas fills `#stage` (~94 % of
   the window's height under a small margin) and the renderer measures the canvas's own box
   (`getBoundingClientRect`, observed with a `ResizeObserver`). Viewport CSS pixels are stage
   pixels; client (window) coordinates = viewport coordinates + the canvas's client rect, whatever
