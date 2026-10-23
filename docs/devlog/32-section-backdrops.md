@@ -50,7 +50,7 @@ sheets laid on the page:
 - After: `artifacts/backdrops/after/` has the whole matrix: desktop 1440, hd 1920 and phone 390 ×
   sunrise / midday / sunset / night × idle / busy (three sessions + `schedule.demo()`), and the
   calendar's day / week / month, idle (empty) and busy, at the three sizes. Contact sheets:
-  `m1.png` (lights), `m2.png` (desktop calendar), `m3.png` (phone calendar).
+  `contact-lights.png`, `contact-calendar-desktop.png`, `contact-calendar-phone.png`.
 - Studio: `artifacts/backdrops/studio-ui-backdrop-1440x900.png`.
 
 The dock is not dimmed by the garden's light (ADR 0121), so the sheets read the same in the four
