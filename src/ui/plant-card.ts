@@ -135,7 +135,7 @@ let cardCount = 0;
 export function createPlantCard(ctx: UIContext): PlantCard {
   const { store, getSpecies, clock } = ctx.deps;
   const uid = `plant-card-${++cardCount}`;
-  const title = h(`h2.plant-story-name#${uid}-name`);
+  const title = h(`h2#${uid}-name.plant-story-name`);
   const native = h('p.plant-story-native');
   const line = h('p.plant-story-line');
   const note = h('p.plant-story-note');
