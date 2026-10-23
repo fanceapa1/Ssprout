@@ -376,7 +376,7 @@ Legend: unit tests as `folder/file › test`, under `src/` (`.test.ts` omitted).
 |---|---|---|---|---|
 | 9.1 | localStorage `studysprout:v1`, versioned schema, migrations, safe recovery | core/persistence › migrate (all); › validateState (all); › loadState (all); › saveState / createSaver (all) | core-loop › a corrupt save is backed up and the garden starts fresh | ✔ |
 | 9.2 | Export `study-sprout-garden-YYYY-MM-DD.json`; validated import | core/persistence › export / import (all) | ui-menu › export downloads the garden; import validates, confirms and restores | ✔ |
-| 9.4 | Schema v2: a v1 garden and a v1 session in progress (running or paused) survive; history back-filled; v1 exports still import | core/migration-v2 (all); core/persistence › migrate (all) | smoke › ?dev exposes window.sprout… (version 2) | ✔ |
+| 9.4 | Schema v3 (ADRs 0154, 0213): a v1 garden with a session in progress (running or paused) and a v2 garden (active and waiting sessions, log, schedules) survive; history back-filled; v1 and v2 exports still import | core/migration-v2 (all); core/migration-v3 › v1 and v2 fixtures reach v3 (all); core/persistence › migrate (all) | smoke › ?dev exposes window.sprout… (version 3) | ✔ |
 | 9.3 | `?dev` debug API and `?speed` | core/clock › createSpeedClock (all) | smoke › app loads… (no API without ?dev); › ?dev exposes window.sprout…; › ?speed accelerates the app clock… | ✔ |
 
 ### §10 Platforms

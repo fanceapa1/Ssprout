@@ -1,6 +1,6 @@
 # ADR 0154 — Persisted schema v2 and the v1 → v2 migration
 
-- Status: accepted (amends ADR 0033: the first real migration)
+- Status: accepted (amends ADR 0033: the first real migration); amended by ADR 0213 (v2 → v3)
 - Date: 2026-10-23
 
 ## Context

@@ -28,7 +28,7 @@ slot are chosen at start; the seedling grows live in its slot; breaks are option
 | `rng.ts` | `Rng`, `createRng(seed)`, `hashString`, `toSeed` |
 | `events.ts` | `EventMap`, `EVENT_NAMES`, `createEventBus` |
 | `testing.ts` | test fixtures: `MIN`, `T0`, `plan(shape)`, `makeSession`, `makePlant`, `makePressed` |
-| `fixtures/garden-v1-*.json` | real v1 documents (a running session with plants, a paused session) for the migration tests |
+| `fixtures/garden-v1-*.json`, `garden-v2-parallel.json` | real v1 documents (a running session with plants, a paused session) and a v2 one (active and waiting sessions, log, a schedule) for the migration tests |
 
 ## State machine
 
@@ -351,7 +351,7 @@ await page.reload(); // saved on pagehide
 
 ## Tests
 - Unit: `src/core/*.test.ts` (clock, controller, controller-parallel, events, fauna-unlocks,
-  focus-watering, migration-v2, parallel, persistence, placement, plans, reducer, rewards, rng,
+  focus-watering, migration-v2, migration-v3, parallel, persistence, placement, plans, reducer, rewards, rng,
   schedule, schedule-controller, schedule-reducer, session, session-log, state, tips).
 - E2E: `tests/e2e/core-loop.spec.ts` (plant → break → water → skip → complete across reloads; cancel;
   corrupt save backed up; `addPlants`/`setState`) and `tests/e2e/session-rules.spec.ts` (timer and

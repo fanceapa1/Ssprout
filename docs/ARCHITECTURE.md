@@ -386,10 +386,10 @@ It ticks **only while an active session exists** (waiting ones are paused).
 `Ticker = { start(tick): stop }` (default `createIntervalTicker`, 1 s). Full table in
 `docs/systems/core.md`.
 
-### Persistence (`src/core/persistence.ts`, ADRs 0033–0034, 0154)
-Key `studysprout:v1` (stable; the document's `version` drives `MIGRATIONS`). Schema v2;
-`MIGRATIONS = { 1: migrateV1toV2 }` (the v1 session stays the active one, `waiting: []`, `log`
-back-filled from the plants). `loadState(storage,
+### Persistence (`src/core/persistence.ts`, ADRs 0033–0034, 0154, 0213)
+Key `studysprout:v1` (stable; the document's `version` drives `MIGRATIONS`). Schema v3;
+`MIGRATIONS = { 1: migrateV1toV2, 2: migrateV2toV3 }` (v1 → v2: the v1 session stays the active
+one, `waiting: []`, `log` back-filled from the plants; v2 → v3: only the version, ADR 0213). `loadState(storage,
 now, opts)` never throws (`fresh | loaded | migrated | recovered | unavailable`; corrupt data is
 copied to `studysprout:corrupt:<ts>`). `createSaver(storage)` debounces saves (300 ms; `main.ts`
 flushes on `pagehide` and when the page becomes hidden). `exportState`/`exportFileName`/`importState` (typed errors; unknown species

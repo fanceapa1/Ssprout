@@ -116,7 +116,7 @@ commit, and when it replaces or changes an earlier decision, update that ADR's S
 | [0151](0151-session-log.md) | Session log | accepted | Append-only `log` of completed/cancelled sessions with wall times, focused minutes, plan, plant; pure local-calendar queries |
 | [0152](0152-after-a-bloom-the-gardener-chooses.md) | After a bloom the gardener chooses | accepted | Completion/cancel leaves nothing active; the dock offers Resume on the session left last |
 | [0153](0153-automatic-focus-watering.md) | Automatic focus watering | accepted | Seeded 4–10 min intervals of focused time; one `session:water { auto: true }` per due batch, only in focus |
-| [0154](0154-schema-v2-migration.md) | Schema v2 and the v1 → v2 migration | accepted | v1 session stays active, nothing waits, log back-filled from plants; v2 validation rules |
+| [0154](0154-schema-v2-migration.md) | Schema v2 and the v1 → v2 migration | accepted; amended by 0213 | v1 session stays active, nothing waits, log back-filled from plants; v2 validation rules |
 | [0155](0155-several-seedlings-in-the-garden.md) | Several seedlings in the garden | accepted | One growing record per session in progress; waiting seedlings hold their growth and sway calm; water by `sessionId` |
 | [0156](0156-sessions-in-progress-in-the-study-section.md) | Sessions in progress in the Study section | accepted; amended by 0194 | Rows with a live thumbnail, plan line, time left, Switch/Resume; "Plant another"; a gentle limit note; the pill's "+N"; a switch tip |
 | [0157](0157-widget-follows-the-active-session-and-switches.md) | Widget follows the active session and switches | accepted | Title, favicon, notifications, card follow the active session; Switch cycles in start order; Resume when none is active |
