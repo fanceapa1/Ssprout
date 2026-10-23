@@ -148,7 +148,11 @@ the mix with a 2 s glide and notifies `onSceneryChange`; it does not select or u
 per-scenery mixes in schema v3. The v2 → v3 migration preserves all old fields and the mute
 choice; absent sound preferences keep the original automatic mix.
 Scenery's `mode: 'garden'` follows weather/hour; `custom` uses fixed levels. Standard is always
-custom and stays identical across scenery changes. The parameter mapper filters out layers
+custom and stays identical across scenery changes. Both still follow the **active session**: a
+custom or Standard mix ignores the session's weather, but its bed fullness and event rates come
+from the active session's activity, so a `session:switch`, a pause or a bloom with others waiting
+moves it exactly as it moves the garden mix, and ending a waiting session changes nothing
+(`garden-audio.test.ts › the sound mixes follow the active session too`). The parameter mapper filters out layers
 outside the active palette even if an imported mix contains values for hidden layers.
 The session controller emits `settings:changed` for whole-state restore/reset as well as edits,
 so importing a muted mix immediately mutes the real audio gate without a reload.

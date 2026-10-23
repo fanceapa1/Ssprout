@@ -17,7 +17,7 @@ import type { AudioBackend } from './backend';
 import { createGardenAudio, MAX_CHIMES, type Timers } from './garden-audio';
 import { FADE_S, MASTER_LEVEL, type MixParams } from './params';
 import type { SoundSpec } from './recipes';
-import { defaultSoundscape, levelsWith } from '../core/soundscape';
+import { defaultSoundscape, levelsWith, type SoundscapeSettings } from '../core/soundscape';
 
 /** Records every call; the audio clock only moves when the test says so. */
 function fakeBackend() {
@@ -393,7 +393,7 @@ describe('createGardenAudio soundscape', () => {
  * The real session controller and store drive the audio, so the events arrive exactly as in the
  * app (after the state changed). The weather is chosen by the controller's rng; `start` pins it.
  */
-function parallel() {
+function parallel(soundscape?: SoundscapeSettings) {
   const T = new Date(2026, 4, 1, 12, 0).getTime();
   const clock = createManualClock(T);
   const species: SpeciesDef = {
@@ -412,7 +412,7 @@ function parallel() {
   const slots: Slot[] = ['meadow-1', 'meadow-2', 'meadow-3'].map((id) => ({ id, x: 0, y: 0, habitat: 'meadow', maxSize: 'large', scale: 1 }));
   const reducer = createReducer({ getSpecies: (id) => (id === species.id ? species : undefined), getSlot: (id) => slots.find((x) => x.id === id) });
   const base = createDefaultState(T);
-  const store = createStore<GardenState>({ ...base, settings: { ...base.settings, muted: false } }, reducer);
+  const store = createStore<GardenState>({ ...base, settings: { ...base.settings, muted: false, ...(soundscape ? { soundscape } : {}) } }, reducer);
   const bus = createEventBus();
   let tick: (() => void) | null = null;
   const ticker: Ticker = {
@@ -549,5 +549,49 @@ describe('createGardenAudio follows the active session (SPEC §2 › Parallel se
     p.audio.setMuted(false);
     expect(p.fake.masters.at(-1)).toEqual([MASTER_LEVEL, FADE_S]);
     expect(p.heard()).toEqual({ weather: 'clear', bed: 'idle' });
+  });
+});
+
+describe('the sound mixes follow the active session too (ADRs 0150, 0213)', () => {
+  it('a Standard mix stays chosen across a switch, a cancel and a bloom; the activity is the active session’s', () => {
+    const prefs = defaultSoundscape();
+    prefs.collection = 'standard';
+    prefs.standard = levelsWith({ cafe: 40 });
+    const p = parallel(prefs);
+    const a = p.start('rain');
+    const b = p.start('mist');
+    // the chosen sounds, not the session's weather: no rain bed, no mist muffling
+    expect(p.fake.mixes.at(-1)!.extra.cafe).toBe(40);
+    expect(p.heard()).toEqual({ weather: 'clear', bed: 'running' });
+    p.controller.pause();
+    expect(p.heard()).toEqual({ weather: 'clear', bed: 'paused' });
+    p.controller.switchTo(a);
+    expect(p.heard()).toEqual({ weather: 'clear', bed: 'running' });
+    expect(p.fake.mixes.at(-1)!.extra.cafe).toBe(40);
+    const mixes = p.fake.mixes.length;
+    p.controller.cancel(b); // a waiting one: nothing changes
+    expect(p.fake.mixes).toHaveLength(mixes);
+    p.start('sun');
+    p.completeActive(); // a bloom with one still waiting: quiet activity, the mix plays on
+    expect(p.store.get().waiting).toHaveLength(1);
+    expect(p.heard()).toEqual({ weather: 'clear', bed: 'idle' });
+    expect(p.fake.mixes.at(-1)!.extra.cafe).toBe(40);
+  });
+
+  it('a custom scenery mix holds across a switch; Follow the garden brings back the active session’s weather', () => {
+    const prefs = defaultSoundscape();
+    prefs.sceneries.pond = { mode: 'custom', levels: levelsWith({ water: 60, rain: 80 }) };
+    const p = parallel(prefs);
+    const a = p.start('sun');
+    p.start('mist');
+    expect(p.heard()).toEqual({ weather: 'rain', bed: 'running' }); // the chosen rain, not the mist
+    p.controller.switchTo(a);
+    expect(p.heard()).toEqual({ weather: 'rain', bed: 'running' });
+    const follow = defaultSoundscape();
+    follow.sceneries.pond = { mode: 'garden', levels: prefs.sceneries.pond.levels };
+    expect(p.controller.updateSettings({ soundscape: follow })).toBe(true);
+    expect(p.heard()).toEqual({ weather: 'clear', bed: 'running' }); // a's sun
+    p.controller.switchTo(p.store.get().waiting[0]!.id);
+    expect(p.heard()).toEqual({ weather: 'mist', bed: 'running' });
   });
 });
