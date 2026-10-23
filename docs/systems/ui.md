@@ -78,7 +78,7 @@ the widget surfaces — the UI then asks in the Begin click itself.
 | `types.ts` | `UIDeps`, `UI`, `UIState`, `PlantingDraft`, `PlacementHighlight`, widget/audio/notification integrations |
 | `notifications.ts` | `browserNotifications()`: the Notification API as a `NotificationIntegration` |
 | `ui.studio.ts` | studio section `ui`: plant previews at a few growth values, pressed-flower treatment |
-| `shell.studio.ts` | studio section `ui-shell`: icons, the sprout and brush marks, corner chips, scrollbar, pill states and "+N", session thumbnails and rows, plant-view states, the seed bed, the garden's edge |
+| `shell.studio.ts` | studio section `ui-shell`: icons, the sprout and brush marks, corner chips, scrollbar, pill states and "+N", session thumbnails and rows, plant-view states, the seed bed, the garden's edge, a tip note with its × (`tip-note`) |
 | `stage-camera.studio.ts` | studio section `ui-camera`: the zoom chips with "Whole garden", the plant card beside a plant, growing, docked on a phone, and a long docked card cut with its mark |
 | `ui.css` | all UI styles; tokens on `:root` (`--ui-ink`, `--ui-ink-soft`, `--ui-ink-mute`, `--ui-paper`, `--ui-vermilion`, fonts); base 21 px (ADR 0136, checked by `ink.test.ts`) |
 
@@ -209,9 +209,22 @@ retire when their control is used (task named, time committed, plan picked); a c
 counts as in view only while scrolled into it, and notes follow on scroll. Notes wait while the
 quiet line speaks. `format.ts` also holds `TIP_GROUP` (sheet / panel / menu / garden / calendar) and
 `tipSides`. A tip's `anchor` is resolved as `[data-anchor="<anchor>"]` (except `garden`:
-placement bar, or the first swap marker for `swap`). Tips never take pointer events; they retire
+placement bar, or the first swap marker for `swap`). The slips never take pointer events; they retire
 when the controller retires them (or the UI calls `controller.retireTip` for UI-only mechanisms:
 `widget` on opening the floating timer, `pressed` on opening the book).
+
+**Dismissing** (ADR 0211): every note is `p.tip > span.tip-copy + button.icon-btn.tip-x`. The × is
+the `close` icon at 14 px in the soft ink, with a 32 px target in the slip's right padding (34 px).
+Only the × of a showing note (`.tip.is-in`) takes the pointer, and not while the notes step aside
+(resting, quiet line). A click or tap on it, or Esc anywhere in the note (stopped there, so a sheet
+or the placement stays), calls `controller.retireTip(id, 'dismissed')`. Focus that was in the note
+goes back to the control (its first focusable part). No new note shows until the dismissed one has
+faded (`FADE_MS` × `?uitime`, at once with reduced motion). Notes sit at the end of the page (or
+sheet), so Tab is threaded by hand: Tab from a note's control (its last focusable part) goes to its
+×; Tab from the × moves on after the control, and Shift+Tab goes back to it. Inline phone notes in a
+sheet already follow their step and are left alone. Hover is the chip family (`hover.css`): the ink
+deepens on a lifted paper dab, with the same `:focus-visible` (the ink ring inside the target) and
+`:active` states.
 
 **On a scrolling page** (ADR 0181): page notes live in document coordinates (the `.tips` layer sits
 at the document's origin and scrolls with the page), so a note stays on its control through every
@@ -294,6 +307,6 @@ widget button, export/import, creature line, resting panel, mobile), `ui-start-f
 name, total time, plant cards), `session-rules.spec.ts`, `polish.spec.ts` (one tip at a time,
 keyboard focus, `plantsReady`, paper edges, tall phones), `overlays.spec.ts` (sheets on washi, the
 page locked, focus clear of a sheet's sticky parts), `marks.spec.ts` (no round red dot; sprout marks),
-`tips-scroll.spec.ts` (notes ride with the page), `tools-visibility.spec.ts` (tools at rest in every
+`tips-scroll.spec.ts` (notes ride with the page), `tips-dismiss.spec.ts` (the × by mouse, keyboard, Esc and tap), `tools-visibility.spec.ts` (tools at rest in every
 light), `plant-card-phone.spec.ts` (long cards on small phones), `v2-acceptance.spec.ts` (one primary
 action, the hover language, the switch tip). Screenshots: `npm run shots -- --query "fixtures" --eval "…"`.

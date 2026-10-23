@@ -355,6 +355,9 @@ Legend: unit tests as `folder/file › test`, under `src/` (`.test.ts` omitted).
 | 7.2 | A tip retires when its mechanism is first used | core/tips › tipsRetiredBy (all); core/controller › retires the start-flow tips; core/reducer › tip/retire | ui-menu › tips … retire when used (sound); polish › one tip at a time… (task); ui-menu › floating timer button… (widget); ui-session › swap… (pressed); core-loop › … (task, duration, plan, water) | ✔ |
 | 7.4 | Notes stay on their control through every scroll, wait while it is off screen or has no room, pick the copy on screen (corner or dock), never paint faded, step aside for a plant card (ADR 0181) | ui/tip-place (all) | tips-scroll (all) | ✔ |
 | 7.3 | ⓘ lists every tip, the learned ones marked | core/tips › allTips lists every tip with its retired flag | ui-menu › tips … stay listed under ⓘ | ✔ |
+| 7.5 | A small inked × (a real, named button with a ≥ 32 px target; only it takes the pointer) dismisses a tip: retired for good and saved, listed as learned under ⓘ, the next tip speaks after the fade (ADR 0211) | core/tips › dismissing a tip (all); core/controller › retireTip with reason dismissed… | tips-dismiss › a click retires the tip for good: the next one speaks, ⓘ lists it, a reload keeps it gone | ✔ |
+| 7.6 | Keyboard: Tab from the tip's control reaches its ×, Tab moves on past the control, Shift+Tab goes back; Enter dismisses and focus returns to the control; Esc in a note dismisses it and not the sheet around it (ADR 0211) | — | tips-dismiss › keyboard: Tab reaches the ×…; › Esc inside a note dismisses that tip, not the sheet around it | ✔ |
+| 7.7 | Touch: a tap on the × dismisses the tip on a phone; the next tip still waits while the quiet line speaks (ADR 0124, 0211) | — | tips-dismiss › a tap on the × dismisses the tip (390 × 844, touch); › the next tip still waits while the quiet line speaks | ✔ |
 
 ### §8 Sound
 

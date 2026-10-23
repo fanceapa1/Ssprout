@@ -245,6 +245,13 @@ watercolour, never neon.
   the note has room (never over other controls), and a faded tip leaves nothing behind (ADR 0181).
 - Each tip shows until the user first uses that mechanism, then is retired. The small ⓘ lists
   every tip, the retired ones marked as learned.
+- Every tip can be dismissed with a small hand-inked × on its note (the tool icons' ink, not an
+  icon font or a red circle), or with Esc while focus is in the note. It is a real button named
+  "Dismiss tip: …", reached from the tip's control with Tab, with a touch-sized target (32 px) and
+  the shared hover and focus states. Dismissing retires the tip for good, as if learned (it is
+  saved and stays listed under ⓘ). Focus goes back to the control. The next waiting tip may speak
+  once the note has faded, still one at a time and still waiting for the quiet line. *Status:*
+  done (ADR 0211).
 
 ## 8. Sound
 Procedural Web Audio ambience (no audio files): soft water, wind in leaves, occasional distant
