@@ -722,7 +722,7 @@ dialog.schedule {
   align-items: end;
 }
 /*
- * The day and time pickers (ADR 0193): a field like the other inputs (a paper wash over an ink
+ * The day and time pickers (ADR 0192): a field like the other inputs (a paper wash over an ink
  * underline) that unfolds a panel under the row — a month of days with the calendar's brush rings,
  * or paper chips for the hour, the minutes and AM / PM — in the calendar's own formats.
  */

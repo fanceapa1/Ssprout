@@ -11,7 +11,7 @@ core/schedule-controller.ts  createScheduler: the API, the due tick, `schedule:d
 ui/calendar-model.ts         ranges, items, overlap layout, month marks, opening window (pure)
 ui/calendar.ts · calendar.css · calendar-art.ts   the section, its look, the painted shapes
 ui/schedule-sheet.ts         the editor (a washi sheet)
-ui/pickers.ts                its painted day and time pickers, in the calendar's formats (ADR 0193)
+ui/pickers.ts                its painted day and time pickers, in the calendar's formats (ADR 0192)
 ui/schedule-card.ts          the waiting card (Study section) and its slip above the pill
 ui/planting-sheet.ts         applyPrefill / clearPrefill (the prefilled start)
 widget/notifications.ts      the soft notification on `schedule:due`
@@ -86,7 +86,7 @@ the set of due occurrences changes.
   **Monthly** (whole weeks). Prev / Today / next. The choice is remembered in `localStorage`
   (`studysprout:calendar-view`).
 - Day and week: an hour timeline in a 9-hour window that opens near now (today, waking hours), at the
-  first item, or at 8:00. **Today's day follows now** (ADR 0192): opened with now in the window, every
+  first item, or at 8:00. **Today's day follows now** (ADR 0191): opened with now in the window, every
   redraw checks a band (4 %–72 % of the window) and glides (1.4 s; at once under reduced motion) back
   to now − 90 min when now leaves it. A wheel, a touch move, a scrolling key on the hours or a scroll
   we did not make stops following; Today, another day or another view resets it. Past midnight it
@@ -105,7 +105,7 @@ the set of due occurrences changes.
 - Month: a dab per bloom, an ink ring per plan (faint when passed), minutes studied; tap a day → daily.
 - The summary line: blooms, time studied and plans in the range.
 
-## The editor's pickers (ADR 0193)
+## The editor's pickers (ADR 0192)
 The native `<input type=date|time>` followed the operating system's locale; the pickers speak the
 calendar's (`Intl`, the browser's language). Each is a field button (named by its label and value,
 `aria-expanded`, `data-value`) that unfolds a panel inline under the "When" row, one at a time:

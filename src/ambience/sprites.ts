@@ -63,7 +63,7 @@ function pixels(w: number, h: number, colour: Rgb, fn: (x: number, y: number, rg
 }
 
 /**
- * Sunny weather as a watercolourist paints it (ADR 0194): not pale columns of added light, but a
+ * Sunny weather as a watercolourist paints it (ADR 0193): not pale columns of added light, but a
  * thin warm glaze over the garden with soft diagonal bands of light *lifted out* of it while it was
  * damp — the paper shows through where the light falls, the lifted pigment pools a little at each
  * band's edge, and the glaze fades out above the hills so the sky is never striped.

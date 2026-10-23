@@ -308,7 +308,7 @@ const section: StudioSection = {
     },
     {
       id: 'pickers',
-      label: 'the schedule editor’s day and time pickers (ADR 0193): en-US on the left, en-GB on the right, 4:30 PM on 24 October',
+      label: 'the schedule editor’s day and time pickers (ADR 0192): en-US on the left, en-GB on the right, 4:30 PM on 24 October',
       w: 900,
       h: 520,
       render(canvas, { pixelRatio }) {

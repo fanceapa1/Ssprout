@@ -2117,7 +2117,7 @@ dialog.book::after {
   padding: 12px 16px 12px 18px;
 }
 /*
- * The name stays; the rest scrolls inside the card when it is taller than its room (ADR 0191).
+ * The name stays; the rest scrolls inside the card when it is taller than its room (ADR 0190).
  * At the cut the words thin into the paper and a small ink mark says there is more.
  */
 .plant-story-body {

@@ -1,4 +1,4 @@
-# ADR 0192 — Today's day view follows now
+# ADR 0191 — Today's day view follows now
 
 - Status: accepted
 - Date: 2026-10-23

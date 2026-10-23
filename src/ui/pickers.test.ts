@@ -14,7 +14,7 @@ import {
   uses12h,
 } from './pickers';
 
-/** The schedule editor's painted day and time pickers (ADR 0193). */
+/** The schedule editor's painted day and time pickers (ADR 0192). */
 
 describe('picker formats follow the calendar’s locale', () => {
   it('a 12-hour clock in en-US, 24 hours in en-GB and de-DE', () => {

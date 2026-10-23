@@ -19,7 +19,7 @@ import { ICONS } from './icons';
  *
  * When the card is taller than its room (a long note on a small phone), the name stays and the
  * rest scrolls inside the card: the words thin into the paper at the cut and a small ink mark
- * shows there is more; the scrolling part takes keyboard focus only then (ADR 0191).
+ * shows there is more; the scrolling part takes keyboard focus only then (ADR 0190).
  */
 
 export interface PlantStory {

@@ -5,7 +5,7 @@ import { monthGrid, noonOf } from './calendar-model';
 import { clear, fragment, h, setText } from './dom';
 
 /**
- * Painted day and time pickers for the schedule editor (ADR 0193). Native `<input type=date|time>`
+ * Painted day and time pickers for the schedule editor (ADR 0192). Native `<input type=date|time>`
  * follow the operating system's locale (dd/mm/yyyy, a 24-hour clock) while the calendar follows the
  * browser's language (12 hours in en-US): here both speak the calendar's own `Intl` formats, so a
  * planned "4:30 PM" reads the same in the editor and in the calendar.

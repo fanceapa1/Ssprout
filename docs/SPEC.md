@@ -101,7 +101,7 @@ While a session runs, the garden visibly "works with you":
 - All of this is low-contrast and slow. It must never compete with the plants.
 
 *Status:* the sun is a warm glaze with diagonal bands of light lifted out of it, taking turns as
-under drifting cloud (ADR 0194); the earlier pale shafts are gone.
+under drifting cloud (ADR 0193); the earlier pale shafts are gone.
 
 ## 3. Rewards
 
@@ -334,7 +334,7 @@ The garden can be looked at closely, like leaning into a painting.
   rests while paused or waits while another session is active); the plant it replaced. On wide
   screens the card stands beside the plant; on phones it docks at the bottom of the garden and
   can always be read whole: when it is taller than its room the name stays and the rest scrolls
-  inside the card, thinning at the cut under a small ink mark (ADR 0191). Esc,
+  inside the card, thinning at the cut under a small ink mark (ADR 0190). Esc,
   the close mark, or a click elsewhere closes it; it is keyboard accessible (focus moves into it
   and back). The hover label stays as the quick glance on desktop.
 
@@ -349,7 +349,7 @@ plan sessions ahead. A planned session never starts on its own: at its time it w
 | Rule | Behaviour |
 |---|---|
 | Views | **Daily / Weekly / Monthly**, **Daily by default**; the last choice is remembered on this device. Previous / next and **Today**. |
-| Daily | An hour timeline of the day in a scrolling window, opened near now (today), else at the first entry, else 8:00. Today's window keeps up with now while the tab stays open (a gentle glide), unless the gardener scrolled it; past midnight it turns to the new day (ADR 0192). |
+| Daily | An hour timeline of the day in a scrolling window, opened near now (today), else at the first entry, else 8:00. Today's window keeps up with now while the tab stays open (a gentle glide), unless the gardener scrolled it; past midnight it turns to the new day (ADR 0191). |
 | Weekly | Seven columns starting on the locale's first day, on purpose (Sunday in en-US, Monday in en-GB; Monday when unknown); tapping a day's head opens it. Blocks that look concurrent share the column; each keeps its short time ("4:10") and the start of its title, and a hovered or focused block grows to be read whole (ADR 0183). |
 | Monthly | A month grid with quiet marks per day: a painted dab in the plant's colour for each bloom, the minutes studied, a small ink ring for each planned session (faint when it passed). Tapping a day opens its daily view. |
 | Past sessions | From the session log: completed ones show the task, the plant, the minutes and the time, as a soft wash in the plant's colours; ended early ones appear very faintly. |
@@ -361,7 +361,7 @@ plan sessions ahead. A planned session never starts on its own: at its time it w
 ### Scheduling
 | Rule | Behaviour |
 |---|---|
-| Create | Tap an empty time in the day or week (snapped to the half hour) or **Schedule a session**. A **name**, a **date and time**, and **optionally a length and a plan** — both can be left open and chosen when it starts. The day and the time are chosen in painted pickers that speak the calendar's own formats (12 h or 24 h, as the calendar), by touch, pointer or keyboard (ADR 0193). |
+| Create | Tap an empty time in the day or week (snapped to the half hour) or **Schedule a session**. A **name**, a **date and time**, and **optionally a length and a plan** — both can be left open and chosen when it starts. The day and the time are chosen in painted pickers that speak the calendar's own formats (12 h or 24 h, as the calendar), by touch, pointer or keyboard (ADR 0192). |
 | Repeat | Once, every day, weekdays (Mon–Fri) or every week (same weekday). |
 | Not here | The plant and its spot are chosen when the session starts, so no spot is held for days. |
 | Edit, remove | Tap a planned session. For a repeat: **only this one** or **this and the following**. A new repeat applies from that day on. |
@@ -375,7 +375,7 @@ plan sessions ahead. A planned session never starts on its own: at its time it w
 
 *Status:* done (phase 8). Schedules are stored in the garden (export/import included) without a
 schema change (ADR 0170). Not yet: moving a planned session by dragging; a notification while the
-tab is closed (no server, by design). Polish 2 (ADRs 0192, 0193): the day follows now; the editor's
+tab is closed (no server, by design). Polish 2 (ADRs 0191, 0192): the day follows now; the editor's
 day and time agree with the calendar's formats; on a phone, sessions side by side in a day keep a
 short time and grow to read when focused.
 

@@ -15,7 +15,7 @@ import { createSheet, type Sheet } from './sheet';
  * optional length and plan ("Choose when I start" by default) and a repeat. Plant and spot are not
  * chosen here. Editing an occurrence of a repeat asks "Only this one" or "This and the following"
  * (ADR 0171); a planned session today can also be started from here ("Start now"). The day and
- * the time are painted pickers in the calendar's own formats, not the system's inputs (ADR 0193).
+ * the time are painted pickers in the calendar's own formats, not the system's inputs (ADR 0192).
  */
 
 export interface ScheduleSheetDeps {
@@ -72,7 +72,7 @@ export function createScheduleSheet(ctx: UIContext, deps: ScheduleSheetDeps): Sc
   // ── fields ──
   const name = h('input.sched-input.sched-name', { id: 'sched-name', type: 'text', maxLength: 40, autocomplete: 'off', placeholder: 'What will you study?' });
   name.addEventListener('input', () => (form.name = name.value));
-  // the day and the time speak the calendar's formats (ADR 0193); one unfolds at a time
+  // the day and the time speak the calendar's formats (ADR 0192); one unfolds at a time
   const date = createDayPicker({
     id: 'sched-date',
     label: 'day',

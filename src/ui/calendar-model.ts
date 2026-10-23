@@ -286,7 +286,7 @@ export function openingMinute(items: readonly CalendarItem[], dates: string | re
 }
 
 /**
- * The comfortable band of a following day window (ADR 0192), as fractions of the window's height:
+ * The comfortable band of a following day window (ADR 0191), as fractions of the window's height:
  * while "now" stays between `from` and `to` the window rests; when it drifts out (time passing, a
  * long-open tab, the dev clock), the window glides so now sits `lead` minutes below its top again
  * (the same hour and a half the day opens with).

@@ -49,7 +49,7 @@ export const DRIP = {
 } as const;
 
 export const GLINT = { rate: 1.2, life: [1.3, 2.4] as const, len: [8, 18] as const, max: 5 } as const;
-/** sunlight caught on leaves: on the sunlit (upper left) side of the plants' crowns (ADR 0194) */
+/** sunlight caught on leaves: on the sunlit (upper left) side of the plants' crowns (ADR 0193) */
 export const LEAF_GLINT = { rate: 0.9, life: [1.6, 3.2] as const, size: [3.5, 6.5] as const, max: 6 } as const;
 
 export interface RainDrop {

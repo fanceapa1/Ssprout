@@ -177,7 +177,7 @@ test.describe('ambience with reduced motion', () => {
   });
 });
 
-test.describe('the sun weather (ADR 0194)', () => {
+test.describe('the sun weather (ADR 0193)', () => {
   test.use({ reducedMotion: 'reduce' });
 
   test('a warm glaze with light lifted out of it, untouched sky; it eases to a trace on pause and away at the end', async ({ page }) => {

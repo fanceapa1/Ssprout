@@ -1,4 +1,4 @@
-# ADR 0194 — The sun weather as a warm glaze with light lifted out
+# ADR 0193 — The sun weather as a warm glaze with light lifted out
 
 - Status: accepted
 - Date: 2026-10-23
@@ -38,6 +38,6 @@ does not add light on top. They leave or lift it out of a wash.
 - Unit tests in `src/ambience/sun.test.ts` cover: the sky unglazed, bands paler than beside them,
   the diagonal fall, the pooled edge, the half lift, leaf glints on the sunlit side only in sun, and
   stillness while paused.
-- The e2e test `the sun weather (ADR 0194)` covers warmth in the garden, not the sky, a trace on
+- The e2e test `the sun weather (ADR 0193)` covers warmth in the garden, not the sky, a trace on
   pause and none after the end.
 - Cost is unchanged: two full-frame blits replace two, and up to 6 small dabs.

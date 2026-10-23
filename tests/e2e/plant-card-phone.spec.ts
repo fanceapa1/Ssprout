@@ -3,7 +3,7 @@ import { expect, test } from './fixtures';
 import { openUi } from './ui-helpers';
 
 /**
- * The plant card on phones (ADR 0191): docked at the bottom of the stage, the whole card can be
+ * The plant card on phones (ADR 0190): docked at the bottom of the stage, the whole card can be
  * read. A card that fits shows everything; a taller one keeps its name, scrolls the rest inside the
  * card with a visible mark at the cut, and the scrolling part is a keyboard-focusable region.
  * Checked with the longest species note (the lotus) and the longest growing card (a spider lily

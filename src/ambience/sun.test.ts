@@ -8,7 +8,7 @@ import { sunBands, sunGlazeAt, sunGround } from './sprites';
 import { wind } from './wind';
 
 /**
- * The sun weather as a watercolourist paints it (ADR 0194): a thin warm glaze with soft diagonal
+ * The sun weather as a watercolourist paints it (ADR 0193): a thin warm glaze with soft diagonal
  * bands of light lifted out of it, nothing over the sky, warm glints on the leaves that face the sun.
  */
 

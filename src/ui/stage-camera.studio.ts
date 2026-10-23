@@ -11,7 +11,7 @@ import { storyLines, type PlantStory } from './plant-card';
  * The camera's controls on the stage and the plant card (ADRs 0164, 0167), redrawn with the
  * page's own paths so they can be judged over a painted wash: the + / − chips with "Whole
  * garden", the card beside a plant (every species' note, by seed) and docked on a phone; a long
- * card on a small phone, cut with the words thinning into the paper and a mark (ADR 0191).
+ * card on a small phone, cut with the words thinning into the paper and a mark (ADR 0190).
  */
 const INK = '#3b352e';
 const SOFT = '#5c5449';

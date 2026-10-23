@@ -42,7 +42,7 @@ Inputs come only from the `SceneGeometry` contract (`pond`, `waterline`, `pavili
 and the store (`session.weather`, phase via `sessionPhase`, `plants`, session slot + growth).
 
 ## Effects
-- **Sun** (ADR 0194): a thin raw-sienna glaze over the garden, mottled, fading out above the hills
+- **Sun** (ADR 0193): a thin raw-sienna glaze over the garden, mottled, fading out above the hills
   so the sky is never striped, with four soft diagonal bands of light (≈ 0.62 rad, from the upper
   left) **lifted out** of it: the width wanders slowly, the lifted pigment pools a little darker at
   the edge, and the light comes in soft from the hills and dies away on the near bank. Two sprites,

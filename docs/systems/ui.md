@@ -41,7 +41,7 @@ the widget surfaces — the UI then asks in the Begin click itself.
 | `calendar-model.ts` | pure: view ranges, items, overlap layout (`layoutColumns`), month marks, opening window, week start |
 | `calendar-art.ts` | the calendar's painted shapes (washes, plan outlines, rings, underline), as SVG backgrounds and on canvas |
 | `schedule-sheet.ts` | the schedule editor sheet: name, day and time (painted pickers), open-by-default length and plan, repeat; only this one / this and following (ADR 0177) |
-| `pickers.ts` | painted day and time pickers in the calendar's `Intl` formats (ADR 0193): a field that unfolds a month grid or hour / minute / AM-PM chips inline; pure `pickerFormat`, `uses12h`, `dayLabel`, `timeLabel`, `splitTime`, `joinTime`, `stepDay` |
+| `pickers.ts` | painted day and time pickers in the calendar's `Intl` formats (ADR 0192): a field that unfolds a month grid or hour / minute / AM-PM chips inline; pure `pickerFormat`, `uses12h`, `dayLabel`, `timeLabel`, `splitTime`, `joinTime`, `stepDay` |
 | `schedule-card.ts` | the waiting card at the top of the Study section and its slip above the pill (ADR 0176) |
 | `calendar.studio.ts` | studio section `calendar`: washes, day / week / month fixtures, the waiting card |
 | `tools.ts` | garden tools, one implementation rendered twice: corner chips (`nav.menu`) and the dock list (`ul.tool-list`) (ADR 0135) |
@@ -58,7 +58,7 @@ the widget surfaces — the UI then asks in the Begin click itself.
 | `quiet-line.ts` | one sentence at the top: completion, fauna arrivals (ADR 0054, ADR 0120) |
 | `plant-labels.ts` | hover a finished plant → "task · minutes · date" (the plant system's painted-pixel hit-test with a camera, else `hitPlant` over sprite boxes and taps too); hidden while a plant card is open |
 | `stage-camera.ts` | the camera on the stage (ADRs 0164, 0168): ctrl/⌘ wheel and pinch zoom, double-click/tap, drag only when zoomed, touch-action switch, + / − / Whole garden chips, keys on the focused canvas, cursor hints, clicks → plant card; glides to the seedling on start/switch, to the whole garden on placement |
-| `plant-card.ts` | the plant card (ADR 0167): `plantStory()` / `storyLines()` (pure), a dialog `.plant-story` beside the plant or docked on phones (up to 62 % of the stage); Esc / close / click away; a seedling's card refreshes each tick; a taller card keeps its name and scrolls `.plant-story-body` with `data-more="above below"`, a fade at the cut and an ink mark, the body a focusable region only while it scrolls (ADR 0191) |
+| `plant-card.ts` | the plant card (ADR 0167): `plantStory()` / `storyLines()` (pure), a dialog `.plant-story` beside the plant or docked on phones (up to 62 % of the stage); Esc / close / click away; a seedling's card refreshes each tick; a taller card keeps its name and scrolls `.plant-story-body` with `data-more="above below"`, a fade at the cut and an ink mark, the body a focusable region only while it scrolls (ADR 0190) |
 | `previews.ts` | `renderPlantPreview(canvas, species, seed, growth?, createCanvas?)`, `createPreviewCache(getSpecies, createCanvas?)`, pressed-flower pixels |
 | `paper.ts` | seeded deckled washi slips + grain as CSS custom properties (ADR 0052) |
 | `icons.ts` | ink icons as stroke data: inline SVG (`ICONS`) and Path2D (`drawIcon`) (no emoji, no icon fonts) |

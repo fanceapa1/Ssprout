@@ -25,7 +25,7 @@ type Ctx = CanvasRenderingContext2D;
 
 /** Look tuning (alphas are peaks at level 1). docs/systems/ambience.md › Tuning. */
 export const LOOK = {
-  /** the sun's warm glaze at full strength, its lifted bands paler (sprites.ts › sunGlazeAt; ADR 0194) */
+  /** the sun's warm glaze at full strength, its lifted bands paler (sprites.ts › sunGlazeAt; ADR 0193) */
   sunGlaze: 0.35,
   rainGrade: { rgb: [204, 213, 221], alpha: 0.2 },
   /** a thin veil over the far half only: it fades out above the plant zone (`mistVeilTo`) */
@@ -326,7 +326,7 @@ export function createAmbience(opts: AmbienceOptions): Ambience {
         ctx.fillStyle = `rgb(${rgb[0]},${rgb[1]},${rgb[2]})`;
         ctx.fillRect(area.x, area.y, area.w, area.h);
       };
-      // the sun: a thin warm glaze with soft diagonal bands of light lifted out of it (ADR 0194);
+      // the sun: a thin warm glaze with soft diagonal bands of light lifted out of it (ADR 0193);
       // the two groups of bands take turns, as light comes and goes between drifting clouds
       if (lv.sun > 0.002) {
         ctx.globalCompositeOperation = 'multiply';

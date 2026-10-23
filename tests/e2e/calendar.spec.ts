@@ -30,7 +30,7 @@ async function openCalendar(page: Page, query = ''): Promise<void> {
 
 type Loc = ReturnType<Page['locator']>;
 
-/** Choose a day in the schedule editor's painted day picker (ADR 0193): open it, turn to the month, tap the day. */
+/** Choose a day in the schedule editor's painted day picker (ADR 0192): open it, turn to the month, tap the day. */
 async function pickDay(sheet: Loc, date: string): Promise<void> {
   await sheet.locator('#sched-date').click();
   const panel = sheet.locator('#sched-date-panel');
@@ -494,7 +494,7 @@ test.describe('calendar · week start elsewhere', () => {
   });
 });
 
-test.describe('calendar · the day follows now (ADR 0192)', () => {
+test.describe('calendar · the day follows now (ADR 0191)', () => {
   /** Jump the dev clock forward to the next `hour`:`minute` local time (today or tomorrow). */
   const jumpTo = (page: Page, hour: number, minute = 0) =>
     page.evaluate(
@@ -584,7 +584,7 @@ test.describe('calendar · the day follows now (ADR 0192)', () => {
   });
 });
 
-test.describe('calendar · the editor speaks the calendar’s clock (ADR 0193)', () => {
+test.describe('calendar · the editor speaks the calendar’s clock (ADR 0192)', () => {
   for (const locale of ['en-US', 'en-GB']) {
     test.describe(locale, () => {
       test.use({ locale });

@@ -1,4 +1,4 @@
-# ADR 0193 — Painted day and time pickers in the calendar's formats
+# ADR 0192 — Painted day and time pickers in the calendar's formats
 
 - Status: accepted
 - Date: 2026-10-23

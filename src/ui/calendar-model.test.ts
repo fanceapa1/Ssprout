@@ -270,7 +270,7 @@ describe('month marks', () => {
   });
 });
 
-describe('following now (ADR 0192)', () => {
+describe('following now (ADR 0191)', () => {
   // a 540 px window over a 1344 px day (56 px an hour); now leads by 90 minutes (84 px)
   const view = 540;
   const max = 1344 - view;

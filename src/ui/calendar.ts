@@ -38,7 +38,7 @@ import { keyDirection } from './smooth-scroll';
  * soft washes in each plant's colour; the month is a grid of quiet pigment dabs. A tap on an empty
  * time (or "Schedule a session") opens the schedule editor; a planned block opens it to edit.
  *
- * Today's day view follows now (ADR 0192): while the tab stays open the now line moves and the
+ * Today's day view follows now (ADR 0191): while the tab stays open the now line moves and the
  * window glides on before now leaves it, and past midnight it turns to the new day — unless the
  * gardener scrolled the hours themselves; then it stays put until "Today" or another day is opened.
  */
@@ -72,7 +72,7 @@ export interface CalendarState {
   /** the days on screen */
   days: string[];
   items: CalendarItemState[];
-  /** today's day window follows now (until the gardener scrolls it, ADR 0192) */
+  /** today's day window follows now (until the gardener scrolls it, ADR 0191) */
   follow: boolean;
 }
 
@@ -148,7 +148,7 @@ export function createCalendar(ctx: UIContext, deps: CalendarDeps): Calendar {
   let current: CalendarState = { view, date: dayKey(anchor), weekStartsOn, title: '', days: [], items: [], follow: false };
   /** the view/day the timeline was last opened at (it scrolls to a sensible window only then) */
   let openedFor = '';
-  /** today's day window keeps up with now (ADR 0192) */
+  /** today's day window keeps up with now (ADR 0191) */
   let follow = false;
   /** where we last put the hours' scroll (a scroll elsewhere is the gardener's) */
   let lastSet = 0;
@@ -367,7 +367,7 @@ export function createCalendar(ctx: UIContext, deps: CalendarDeps): Calendar {
 
   function timeline(days: string[], items: CalendarItem[], now: number): HTMLElement {
     const scroller = h('div.cal-timeline', { tabindex: 0, role: 'group', 'aria-label': days.length === 1 ? 'Hours of the day' : 'Hours of the week' });
-    // the gardener moving the hours themselves: the window stops following now (ADR 0192)
+    // the gardener moving the hours themselves: the window stops following now (ADR 0191)
     const mine = () => {
       follow = false;
       stopGlide();
@@ -474,7 +474,7 @@ export function createCalendar(ctx: UIContext, deps: CalendarDeps): Calendar {
     return null;
   }
 
-  // ── following now (ADR 0192) ──────────────────────────────────────────────────────────────
+  // ── following now (ADR 0191) ──────────────────────────────────────────────────────────────
   function minuteOfDay(t: number): number {
     const d = new Date(t);
     return d.getHours() * 60 + d.getMinutes() + d.getSeconds() / 60;
