@@ -407,7 +407,7 @@ function weekBlocks(page: Page) {
           timeText: time?.textContent ?? '',
           timeShown: !!time && getComputedStyle(time).display !== 'none',
           title: r(b.querySelector('.cal-block-title')),
-          dot: r(b.querySelector('.cal-block-dot')),
+          dot: r(b.querySelector('.cal-block-mark')),
         };
       }),
     })),
