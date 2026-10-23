@@ -61,7 +61,7 @@ glassmorphism or blur, no gradient cards, no borders everywhere, and no second p
 - **The calendar's sheet is the firmest.** It has a stronger lift (0.74) and a deeper wash, so the
   toolbar, the grid and the blocks share one clear surface. On it the washes are a little firmer
   (bloom 0.30, growing 0.21, ended early 0.08), a plan's broken outline is darker (0.60, passed
-  0.28), the hour dots are darker (0.25), and today's column is a little warmer. A week block that
+  0.28), the hour dots are darker (0.25). Today's column keeps its faint warmth (a stronger one read as a stain on the light sheet). A week block that
   grows to read takes the sheet's paper.
 - **Light.** The dock is read like a sheet and is not dimmed by the garden's light (ADR 0121), so
   the sheets read the same in all four phases. All text on them is ≥ 4.5 : 1, measured from pixels
