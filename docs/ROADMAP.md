@@ -69,5 +69,5 @@ Task queue (atomic tasks, at most 2 agents at a time; owner feedback 2026-10-23:
 | Q12 | **Owner:** a small × on each tooltip to dismiss it (dismissed = retired, still listed under ⓘ) | `src/ui/tips*`, `src/core/tips.ts` | in progress |
 | Q15 | Audio weather follows the active session (`session:switch`); ending a waiting session must not silence the active one | `src/audio` | done |
 | Q16 | Favicon/notification icon: replace the unseen-bloom round dot with the inked sprout (ADR 0194) | `src/widget/favicon.ts` | done |
-| Q17 | **Owner:** garden stage 7 % taller (≈ 88 → 94 vh), so more sky shows above the hills | `src/ui` stage CSS, viewport tests | in progress |
+| Q17 | **Owner:** garden stage 7 % taller (≈ 88 → 94 vh), so more sky shows above the hills | `src/ui` stage CSS, viewport tests | done (ADR 0212) |
 | Q10 | Flakiness: three consecutive green e2e runs, root-cause fixes | `tests/**` | queued (last) |
