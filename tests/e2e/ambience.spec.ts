@@ -176,3 +176,62 @@ test.describe('ambience with reduced motion', () => {
     expect(delta(before, after)).toBeLessThan(0.05);
   });
 });
+
+test.describe('the sun weather (ADR 0194)', () => {
+  test.use({ reducedMotion: 'reduce' });
+
+  test('a warm glaze with light lifted out of it, untouched sky; it eases to a trace on pause and away at the end', async ({ page }) => {
+    await openDev(page);
+    // a session whose weather is sun, at noon
+    const seed = await page.evaluate(() => {
+      const s = window.sprout!;
+      for (let n = 1; n < 60; n++) {
+        s.reset();
+        s.seed(n);
+        s.setTime('noon');
+        s.camera.autoFocus(false);
+        if (s.start(25)!.weather === 'sun') return n;
+      }
+      return null;
+    });
+    expect(seed).not.toBeNull();
+    /** the frame's warmth (red minus blue) in the garden and in the sky, read in one go */
+    const look = () =>
+      page.evaluate(async () => {
+        const s = window.sprout!;
+        s.fauna.clear();
+        s.settleAmbience();
+        await s.freeze();
+        const c = document.querySelector<HTMLCanvasElement>('#garden')!;
+        const read = (y0: number, y1: number) => {
+          const { data } = c.getContext('2d')!.getImageData(0, Math.round(c.height * y0), c.width, Math.round(c.height * (y1 - y0)));
+          let warm = 0;
+          let n = 0;
+          for (let i = 0; i < data.length; i += 4 * 53) {
+            warm += data[i]! - data[i + 2]!;
+            n++;
+          }
+          return warm / n;
+        };
+        return { garden: read(0.55, 0.85), sky: read(0.04, 0.14), sun: s.ambience()!.levels.sun };
+      });
+    const focus = await look();
+    expect(focus.sun).toBeCloseTo(1, 5);
+
+    await page.evaluate(() => window.sprout!.pause());
+    const paused = await look();
+    expect(paused.sun).toBeGreaterThan(0.1);
+    expect(paused.sun).toBeLessThan(0.5);
+
+    await page.evaluate(() => window.sprout!.cancel());
+    const idle = await look();
+    expect(idle.sun).toBe(0);
+
+    // the garden is warmer in the sun, a little warmer still while paused, back to itself at the end
+    expect(focus.garden - idle.garden).toBeGreaterThan(3);
+    expect(paused.garden - idle.garden).toBeGreaterThan(0.3);
+    expect(paused.garden - idle.garden).toBeLessThan((focus.garden - idle.garden) * 0.6);
+    // and the sky is left alone (no pale columns over it)
+    expect(Math.abs(focus.sky - idle.sky)).toBeLessThan((focus.garden - idle.garden) * 0.35);
+  });
+});
