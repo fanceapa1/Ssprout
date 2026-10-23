@@ -221,6 +221,9 @@ test.describe('calendar', () => {
 
   test('not started within its window, it passes quietly into missed; "Not this time" lets one pass', async ({ page }) => {
     await openCalendar(page);
+    // the window lasts an hour: from 23:00 on, passing it lands on tomorrow, whose day view has no
+    // ghost of today's plan (devlog 41)
+    await jumpTo(page, 10);
     const key = await dueNow(page, { name: 'Reading', lengthMinutes: 25 });
     await expect(page.locator('.due-card')).toHaveCount(1);
     await page.evaluate((k) => window.sprout!.schedule.jumpPast(k), key);
