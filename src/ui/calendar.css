@@ -1126,6 +1126,52 @@ td[aria-selected='true'] > .pick-day {
   .cal-cols[data-days='7'] .cal-block[data-flip]:is(:hover, :focus-visible) {
     left: calc(var(--l) + var(--w) - max(var(--w), 8.5em));
   }
+  /*
+   * A day on a phone with sessions side by side (three in progress overlap all day): each narrow
+   * block keeps its short time ("4:10") and the title's first letters, fading out, and grows to
+   * read whole when touched or focused, to the left in the last column.
+   */
+  .cal-cols[data-days='1'] .cal-block[data-narrow] {
+    padding-left: 6px;
+    padding-right: 4px;
+  }
+  .cal-cols[data-days='1'] .cal-block[data-narrow] .cal-block-time {
+    font-size: 13.5px;
+  }
+  .cal-cols[data-days='1'] .cal-block[data-narrow] .cal-block-title {
+    min-width: 0;
+    font-size: 15px;
+    line-height: 1.15;
+    white-space: nowrap;
+    text-overflow: clip;
+    -webkit-mask-image: linear-gradient(to right, #000 70%, transparent);
+    mask-image: linear-gradient(to right, #000 70%, transparent);
+  }
+  .cal-cols[data-days='1'] .cal-block[data-narrow] .cal-block-meta,
+  .cal-cols[data-days='1'] .cal-block[data-narrow] .cal-block-planned {
+    display: none;
+  }
+  .cal-cols[data-days='1'] .cal-block[data-narrow]:is(:hover, :focus-visible) {
+    z-index: 5;
+    width: max(var(--w), 12em);
+    height: auto;
+    min-height: var(--h);
+    padding-bottom: 6px;
+    background-color: var(--ui-paper);
+    outline: none;
+  }
+  .cal-cols[data-days='1'] .cal-block[data-narrow][data-flip]:is(:hover, :focus-visible) {
+    left: calc(var(--l) + var(--w) - max(var(--w), 12em));
+  }
+  .cal-cols[data-days='1'] .cal-block[data-narrow]:is(:hover, :focus-visible) .cal-block-title {
+    white-space: normal;
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
+  .cal-cols[data-days='1'] .cal-block[data-narrow]:is(:hover, :focus-visible) .cal-block-meta {
+    display: block;
+    white-space: normal;
+  }
   .cal-weeks {
     gap: 2px;
   }

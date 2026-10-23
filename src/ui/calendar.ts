@@ -307,9 +307,10 @@ export function createCalendar(ctx: UIContext, deps: CalendarDeps): Calendar {
       'data-size': size,
       'data-occurrence': i.occurrence?.key,
       'data-occurrence-status': i.occurrence && i.kind !== 'scheduled' ? i.occurrence.status : undefined,
-      'data-narrow': week && cols > 1 ? 'true' : undefined,
+      // blocks sharing a column (a week's, or a day's sessions side by side) can grow to be read
+      'data-narrow': cols > 1 ? 'true' : undefined,
       // the last days of a week grow leftwards when expanded, so they stay inside the timeline
-      'data-flip': week && days.length - 1 - days.indexOf(date) < 2 ? 'true' : undefined,
+      'data-flip': (week ? days.length - 1 - days.indexOf(date) < 2 : cols > 1 && col === cols - 1) ? 'true' : undefined,
       'aria-label': blockLabel(i),
       title: blockLabel(i),
     };
@@ -319,7 +320,7 @@ export function createCalendar(ctx: UIContext, deps: CalendarDeps): Calendar {
       h(
         'span.cal-block-line',
         { 'aria-hidden': 'true' },
-        h('span.cal-block-time', {}, dot, week ? shortTime(i.start, F.time) : F.time.format(i.start)),
+        h('span.cal-block-time', {}, dot, week || w < 150 ? shortTime(i.start, F.time) : F.time.format(i.start)),
         h('span.cal-block-title', {}, i.title),
       ),
       h('span.cal-block-meta', { 'aria-hidden': 'true' }, metaOf(i)),
@@ -335,7 +336,7 @@ export function createCalendar(ctx: UIContext, deps: CalendarDeps): Calendar {
       return b;
     }
     // in a week, a block can be focused to read it whole (it grows like on hover)
-    return h('div.cal-block', { ...attrs, role: 'img', tabindex: week ? 0 : undefined }, ...content);
+    return h('div.cal-block', { ...attrs, role: 'img', tabindex: week || cols > 1 ? 0 : undefined }, ...content);
   }
 
   /** One day column of the timeline. */
