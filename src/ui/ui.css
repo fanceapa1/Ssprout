@@ -1812,12 +1812,14 @@ input.duration:focus-visible {
 .plant-card[data-earned='true'] .plant-art {
   background: radial-gradient(closest-side, rgba(var(--ui-gold), 0.26), rgba(var(--ui-gold), 0.1) 62%, rgba(var(--ui-gold), 0));
 }
-.plant-card[data-locked='true'] {
+.plant-card[data-locked='true'],
+.plant-card[data-full='true'] {
   cursor: default;
   opacity: 0.5;
   filter: saturate(0.35);
 }
-.plant-card[data-locked='true']:hover::before {
+.plant-card[data-locked='true']:hover::before,
+.plant-card[data-full='true']:hover::before {
   opacity: 0;
 }
 .plant-art {
@@ -1843,7 +1845,8 @@ input.duration:focus-visible {
   font-size: 17px;
   line-height: 1.28;
 }
-.plant-card[data-locked='true'] .plant-desc {
+.plant-card[data-locked='true'] .plant-desc,
+.plant-card[data-full='true'] .plant-desc {
   font-style: normal;
   font-size: 16px;
   letter-spacing: 0.04em;

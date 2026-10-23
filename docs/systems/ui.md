@@ -164,7 +164,7 @@ contain`). The torn edge is drawn by `dialog.sheet::after` from `--slip-dense-ed
 content; the planting footer stops 7 px short of it.
 
 ## Accessibility
-Real buttons with labels; `role=radiogroup` for plans; locked plants `aria-disabled`; ink focus
+Real buttons with labels; `role=radiogroup` for plans; locked plants, and plants whose every spot holds a growing seedling (`data-full`, ADR 0205), `aria-disabled`; ink focus
 rings (`:focus-visible`); sheets are `<dialog>` with focus on the heading and focus returned to
 the opener; one polite live region announces start, pause/resume, break/focus changes, milestones
 (30/10/5/1 min left — never every second), completion and cancel. Reduced motion: no breathing,

@@ -172,8 +172,11 @@ export function createPlantingSheet(ctx: UIContext, draft: PlantingDraft, action
 
   function renderPlants(): void {
     const list = controller.selectableSpecies(draft.goalMinutes);
+    // a species whose every spot holds another session's seedling would lead to a placement
+    // with nowhere to plant: show it, say why, and keep it out of reach (ADR 0205)
+    const full = new Set(list.filter((s) => !s.locked && controller.placementOptions(s.species.id).length === 0).map((s) => s.species.id));
     const current = list.find((s) => s.species.id === draft.speciesId);
-    if (!current || current.locked) {
+    if (!current || current.locked || full.has(current.species.id)) {
       if (draft.speciesId) draft.slotId = null;
       draft.speciesId = null;
     }
@@ -188,6 +191,7 @@ export function createPlantingSheet(ctx: UIContext, draft: PlantingDraft, action
       canvas.style.height = `${PREVIEW.h}px`;
       ctx.previews.paint(canvas, def.id, { ...PREVIEW, dpr, seed: `preview:${def.id}` });
       const selected = draft.speciesId === def.id;
+      const noSpot = full.has(def.id);
       const card = h(
         'button.plant-card',
         {
@@ -196,11 +200,12 @@ export function createPlantingSheet(ctx: UIContext, draft: PlantingDraft, action
           'data-tier': def.tier,
           'data-locked': String(s.locked),
           'data-earned': String(s.earned),
+          'data-full': String(noSpot),
           'aria-pressed': String(selected),
-          'aria-disabled': s.locked ? 'true' : undefined,
+          'aria-disabled': s.locked || noSpot ? 'true' : undefined,
           'aria-describedby': `plant-desc-${def.id}`,
           onclick: () => {
-            if (s.locked) return;
+            if (s.locked || noSpot) return;
             if (draft.speciesId !== def.id) draft.slotId = null;
             draft.speciesId = def.id;
             for (const c of plants.querySelectorAll('.plant-card')) c.setAttribute('aria-pressed', String((c as HTMLElement).dataset.speciesId === def.id));
@@ -210,7 +215,11 @@ export function createPlantingSheet(ctx: UIContext, draft: PlantingDraft, action
         h('span.plant-art', {}, canvas),
         h('span.plant-name', {}, def.name),
         def.nativeName ? h('span.plant-native', { lang: 'ja-Latn' }, def.nativeName) : null,
-        h('span.plant-desc', { id: `plant-desc-${def.id}` }, s.locked ? `Needs ${s.requiredMinutes} min+` : def.description),
+        h(
+          'span.plant-desc',
+          { id: `plant-desc-${def.id}` },
+          s.locked ? `Needs ${s.requiredMinutes} min+` : noSpot ? 'Its spots all hold growing seedlings just now' : def.description,
+        ),
         s.locked ? null : h('span.plant-habitat', {}, habitatPhrase(def.habitats)),
       );
       plants.appendChild(h('li', {}, card));
