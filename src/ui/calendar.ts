@@ -201,6 +201,7 @@ export function createCalendar(ctx: UIContext, deps: CalendarDeps): Calendar {
     if (v === view) return;
     view = v;
     openedFor = '';
+    follow = false;
     try {
       storage?.setItem(VIEW_KEY, v);
     } catch {
@@ -213,11 +214,13 @@ export function createCalendar(ctx: UIContext, deps: CalendarDeps): Calendar {
   function go(date: string | number): void {
     anchor = noonOf(typeof date === 'number' ? dayKey(date) : date);
     openedFor = ''; // asked for a day: open its window afresh (today's follows now again)
+    follow = false;
     render();
   }
 
   function step(dir: number): void {
     anchor = shiftAnchor(view, anchor, dir);
+    follow = false; // another day: today's window, if it comes back, opens following again
     render();
   }
 
