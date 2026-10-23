@@ -11,6 +11,7 @@ import { WORLD_H, WORLD_W } from '../render/viewport';
 import type { SceneGeometry } from '../scene/geometry';
 import { createEnvelope, settleEnvelope, stepEnvelope, targetsFor, type Channel, type EnvelopeState, type Levels } from './envelope';
 import { createCastLight, type CastLight, type LightArt } from './cast';
+import { createNightEdge, edgeStrength } from './night-edge';
 import { LIGHT } from './lighting';
 import { nextPhase, pinnedState, only, whenIdle, type DayPhase, type DaylightState } from './daylight';
 import { MOTE, type Emitter } from './motes';
@@ -154,6 +155,7 @@ export function createAmbience(opts: AmbienceOptions): Ambience {
   const pondBox = bounds(scene.pond);
   const sprites: Sprites = spritesFor(scene, seed, { pondTop: pondBox.y, pondBottom: pondBox.y + pondBox.h });
   const cast: CastLight = castFor(scene, opts.lightArt ?? NO_ART, `${seed}-cast`);
+  const nightEdge = createNightEdge(`${seed}-edge`);
   const area0 = opts.area ?? { x: 0, y: 0, w: WORLD_W, h: WORLD_H };
   /** the visible area: on tall phones it reaches above and below the world (bare paper there) */
   let view: Rect = area0;
@@ -461,6 +463,10 @@ export function createAmbience(opts: AmbienceOptions): Ambience {
       if (view.y < 0) ctx.drawImage(lc, 0, 0, lc.width, 1, 0, view.y, WORLD_W, -view.y);
       const below = view.y + view.h - WORLD_H;
       if (below > 0) ctx.drawImage(lc, 0, lc.height - 1, lc.width, 1, 0, WORLD_H, WORLD_W, below);
+      // in dark light the wash stops short of the stage's dissolve with a watercolour edge (ADR 0182)
+      ctx.globalAlpha = 1;
+      ctx.globalCompositeOperation = 'source-over';
+      nightEdge.draw(ctx as CanvasRenderingContext2D, edgeStrength(light) * alpha);
       if (grade.lantern > 0.02) {
         const L = scene.pavilion.lantern;
         const flicker = 0.88 + 0.12 * (0.5 + 0.5 * Math.sin(flameT * 2.3) * Math.sin(flameT * 3.7 + 1));
