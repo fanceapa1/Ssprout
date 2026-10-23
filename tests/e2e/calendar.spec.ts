@@ -678,3 +678,20 @@ test.describe('calendar · a phone’s day with sessions side by side', () => {
     await expect(last.locator('.cal-block-meta')).toBeVisible();
   });
 });
+
+test.describe('calendar · keyboard focus survives the minute’s redraw', () => {
+  test('a focused block or the focused hours keep focus when the calendar redraws', async ({ page }) => {
+    await openCalendar(page);
+    await page.evaluate(() => window.sprout!.schedule.demo());
+    await page.evaluate(() => window.sprout!.calendar.setView('week'));
+    const block = cal(page).locator('div.cal-block[tabindex="0"]').first();
+    await block.focus();
+    const id = await block.getAttribute('data-id');
+    // the clock moves on a minute: the calendar is drawn again
+    await page.evaluate(() => window.sprout!.advance(60_000));
+    await expect(cal(page).locator(`.cal-block[data-id="${id}"]`)).toBeFocused();
+    await cal(page).locator('.cal-timeline').focus();
+    await page.evaluate(() => window.sprout!.advance(60_000));
+    await expect(cal(page).locator('.cal-timeline')).toBeFocused();
+  });
+});
