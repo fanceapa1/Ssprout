@@ -60,6 +60,8 @@ export interface CastLight {
   paintDetailStep(): boolean;
   /** the detail composite for the current light, when it is ready */
   detail(): { canvas: AnyCanvas; rect: Rect } | null;
+  /** bumps whenever the composite or the detail composite is repainted (caches of them key off it) */
+  version(): number;
   stats(): { plates: number; composes: number; paintMs: number; detail: { rect: Rect; scale: number; ready: boolean } | null; detailMs: number };
 }
 
@@ -234,6 +236,7 @@ export function createCastLight(scene: SceneGeometry, art: LightArt, seed = 'cas
   const ctx = canvas.getContext('2d') as Ctx;
   let last = '';
   let composes = 0;
+  let version = 0;
   let paintMs = 0;
   let pondPath: Path2D | null = null;
   const now = () => (typeof performance !== 'undefined' ? performance.now() : 0);
@@ -314,6 +317,7 @@ export function createCastLight(scene: SceneGeometry, art: LightArt, seed = 'cas
   const compose = (state: DaylightState, sun: Disc, moon: Disc) => {
     composeInto(ctx, w, h, state, sun, moon, plate, [CAST_SCALE, 0, 0]);
     composes++;
+    version++;
   };
 
   /** the detail composite, if every phase in the blend has its detail plate */
@@ -331,6 +335,7 @@ export function createCastLight(scene: SceneGeometry, art: LightArt, seed = 'cas
     const d = want;
     composeInto(c.getContext('2d') as Ctx, dw, dh, lastState, sun, moon, (p) => detailPlates.get(p)!.canvas, [d.scale, -d.rect.x * d.scale, -d.rect.y * d.scale]);
     detailComp = { key: k, canvas: c, rect: d.rect };
+    version++;
     return detailComp;
   };
 
@@ -407,6 +412,7 @@ export function createCastLight(scene: SceneGeometry, art: LightArt, seed = 'cas
       const d = composeDetail();
       return d ? { canvas: d.canvas, rect: d.rect } : null;
     },
+    version: () => version,
     stats: () => ({
       plates: plates.size,
       composes,

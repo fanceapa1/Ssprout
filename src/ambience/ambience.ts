@@ -11,6 +11,7 @@ import { WORLD_H, WORLD_W } from '../render/viewport';
 import type { SceneGeometry } from '../scene/geometry';
 import { createEnvelope, settleEnvelope, stepEnvelope, targetsFor, type Channel, type EnvelopeState, type Levels } from './envelope';
 import { createCastLight, type CastLight, type LightArt } from './cast';
+import { createDevicePlate } from './device-plate';
 import { createNightEdge, edgeStrength } from './night-edge';
 import { LIGHT } from './lighting';
 import { nextPhase, pinnedState, only, whenIdle, type DayPhase, type DaylightState } from './daylight';
@@ -158,6 +159,7 @@ export function createAmbience(opts: AmbienceOptions): Ambience {
   const sprites: Sprites = spritesFor(scene, seed, { pondTop: pondBox.y, pondBottom: pondBox.y + pondBox.h });
   const cast: CastLight = castFor(scene, opts.lightArt ?? NO_ART, `${seed}-cast`);
   const nightEdge = createNightEdge(`${seed}-edge`);
+  const plate = createDevicePlate();
   const area0 = opts.area ?? { x: 0, y: 0, w: WORLD_W, h: WORLD_H };
   /** the visible area: on tall phones it reaches above and below the world (bare paper there) */
   let view: Rect = area0;
@@ -479,14 +481,19 @@ export function createAmbience(opts: AmbienceOptions): Ambience {
       ctx.imageSmoothingEnabled = true;
       ctx.imageSmoothingQuality = 'low';
       const inWorld = visible ? clip(visible) : null;
-      const d = inWorld ? cast.detail() : null;
-      if (d && inWorld && contains(d.rect, inWorld)) ctx.drawImage(d.canvas as CanvasImageSource, d.rect.x, d.rect.y, d.rect.w, d.rect.h);
-      else ctx.drawImage(cast.canvas as CanvasImageSource, 0, 0, WORLD_W, WORLD_H);
-      // paper shown beyond the world's top/bottom (tall phones) takes the light of the nearest edge
-      const lc = cast.canvas as CanvasImageSource & { width: number; height: number };
-      if (view.y < 0) ctx.drawImage(lc, 0, 0, lc.width, 1, 0, view.y, WORLD_W, -view.y);
-      const below = view.y + view.h - WORLD_H;
-      if (below > 0) ctx.drawImage(lc, 0, lc.height - 1, lc.width, 1, 0, WORLD_H, WORLD_W, below);
+      const detail = inWorld ? cast.detail() : null;
+      const d = detail && inWorld && contains(detail.rect, inWorld) ? detail : null;
+      // at rest the plate is resampled once and laid 1:1 (ADR 0207): same pixels, a third of the fill
+      const key = `${cast.version()}|${d ? `${d.rect.x},${d.rect.y},${d.rect.w},${d.rect.h}` : 'world'}|${view.y},${view.h}`;
+      plate.draw(ctx, key, (c) => {
+        if (d) c.drawImage(d.canvas as CanvasImageSource, d.rect.x, d.rect.y, d.rect.w, d.rect.h);
+        else c.drawImage(cast.canvas as CanvasImageSource, 0, 0, WORLD_W, WORLD_H);
+        // paper shown beyond the world's top/bottom (tall phones) takes the light of the nearest edge
+        const lc = cast.canvas as CanvasImageSource & { width: number; height: number };
+        if (view.y < 0) c.drawImage(lc, 0, 0, lc.width, 1, 0, view.y, WORLD_W, -view.y);
+        const below = view.y + view.h - WORLD_H;
+        if (below > 0) c.drawImage(lc, 0, lc.height - 1, lc.width, 1, 0, WORLD_H, WORLD_W, below);
+      });
       // in dark light the wash stops short of the stage's dissolve with a watercolour edge (ADR 0184)
       ctx.globalAlpha = 1;
       ctx.globalCompositeOperation = 'source-over';
