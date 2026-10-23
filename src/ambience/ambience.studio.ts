@@ -334,7 +334,7 @@ const sections: StudioSection[] = [
     title: 'Ambience · session weather',
     order: 400,
     entries: [
-      entry('sun', 'sun · focus (shafts, warm grade, glints)', { phase: always('focus'), weather: 'sun', hour: noon }),
+      entry('sun', 'sun · focus (a warm glaze with diagonal light lifted out, warm glints on water and leaves)', { phase: always('focus'), weather: 'sun', hour: noon }),
       entry('rain', 'rain · focus (strokes ×3 depths, ripples, cool grade)', { phase: always('focus'), weather: 'rain', hour: noon }),
       entry('mist', 'mist · focus (drifting bands, far bank softened)', { phase: always('focus'), weather: 'mist', hour: noon }),
       entry('rain-cycle', 'rain through a session: idle → focus → break → focus → paused → focus → end (60 s loop)', { phase: cycle, weather: 'rain', hour: noon }),

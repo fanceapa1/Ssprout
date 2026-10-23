@@ -1,7 +1,7 @@
 /**
  * Render-system adapter: reads the session phase/weather and plants from the store, the hour
  * from the Clock (or a dev override) and drives the ambience engine in three layers:
- * `waterSurface` (ripples, glints), `ambience` (grades, mist, shafts, rain, motes) and
+ * `waterSurface` (ripples, glints), `ambience` (the sun glaze, grades, mist, leaf glints, rain, motes) and
  * `lighting` (time-of-day wash, lantern).
  */
 import { sessionPhase } from '../core/session';

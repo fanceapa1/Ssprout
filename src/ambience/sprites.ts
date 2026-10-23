@@ -1,6 +1,6 @@
 /**
- * Pre-painted textures for the ambience, built once per scene (never per frame): light shafts,
- * rain strokes, ripple rings, glints, motes, mist bands, the lantern flame. Each is computed per
+ * Pre-painted textures for the ambience, built once per scene (never per frame): the sun's
+ * glaze with its lifted light, rain strokes, ripple rings, glints, motes, mist bands, the lantern flame. Each is computed per
  * pixel from seeded noise so edges are broken and uneven — washes and strokes, not vector
  * shapes. Browser only (canvas); the maths is in small pure helpers.
  */
@@ -12,21 +12,24 @@ import type { Rgb } from './timeofday';
 import { RAIN, SPRITE_VARIANTS } from './sim';
 
 export const COLOURS = {
-  /** warm cream light (screen) */
-  shaft: [255, 244, 222] as Rgb,
+  /** the sun's thin warm glaze (multiply): a raw-sienna / quinacridone-gold wash, laid very thin */
+  sunGlaze: [228, 204, 158] as Rgb,
+  /** sunlight caught on a leaf (screen): a warm lifted dab */
+  leafGlint: [255, 236, 186] as Rgb,
   /** ink-wash rain, grey-blue (multiply) */
   rain: [92, 108, 122] as Rgb,
   /** ripple line: deep celadon, and the lifted pale line beside it */
   rippleDark: [88, 124, 122] as Rgb,
   rippleLight: [250, 248, 238] as Rgb,
-  glint: [255, 251, 238] as Rgb,
+  /** sun on the water: warm, not white */
+  glint: [255, 242, 208] as Rgb,
   moteGold: [234, 206, 124] as Rgb,
   moteGreen: [214, 228, 150] as Rgb,
   mist: [246, 244, 238] as Rgb,
   flame: [246, 222, 170] as Rgb,
 } as const;
 
-export const SHAFT_SCALE = 0.2;
+export const SUN_SCALE = 0.2;
 export const MIST_SCALE = 0.3;
 
 const clamp01 = (v: number) => (v < 0 ? 0 : v > 1 ? 1 : v);
@@ -59,53 +62,82 @@ function pixels(w: number, h: number, colour: Rgb, fn: (x: number, y: number, rg
   return canvas;
 }
 
-export interface ShaftDef {
+/**
+ * Sunny weather as a watercolourist paints it (ADR 0194): not pale columns of added light, but a
+ * thin warm glaze over the garden with soft diagonal bands of light *lifted out* of it while it was
+ * damp — the paper shows through where the light falls, the lifted pigment pools a little at each
+ * band's edge, and the glaze fades out above the hills so the sky is never striped.
+ */
+export interface SunBand {
+  /** where the band enters (world units): upper left, at the hills */
   x0: number;
   y0: number;
-  /** angle from vertical (rad, + leans toward +x) */
+  /** lean from vertical (rad, + falls toward +x) */
   angle: number;
   width: number;
   length: number;
 }
 
-/** Four shafts falling from the upper left, split into two groups that breathe in turn. */
-export function shaftLayout(rng: Rng): ShaftDef[] {
-  const xs = [80, 420, 760, 1080];
+export interface SunLayout {
+  /** top of the pond (world y): the far bank and the hills sit above it */
+  pondTop: number;
+}
+
+/** Four bands of light falling from the upper left across the garden, two groups breathing in turn. */
+export function sunBands(rng: Rng, layout: SunLayout): SunBand[] {
+  const y0 = layout.pondTop - 210;
+  const xs = [-120, 300, 700, 1100];
   return xs.map((x, i) => ({
-    x0: x + rng.range(-60, 60),
-    y0: -120,
-    angle: 0.5 + rng.range(-0.05, 0.05),
-    width: [150, 90, 130, 70][i]! * rng.range(0.85, 1.15),
-    length: rng.range(950, 1250),
+    x0: x + rng.range(-50, 50),
+    y0: y0 + rng.range(-20, 20),
+    angle: 0.62 + rng.range(-0.05, 0.05),
+    width: [300, 190, 260, 160][i]! * rng.range(0.85, 1.15),
+    length: rng.range(900, 1150),
   }));
 }
 
-function shaftCanvas(defs: ShaftDef[], noise: Noise2D, streak: Noise2D): AnyCanvas {
-  const w = Math.ceil(WORLD_W * SHAFT_SCALE);
-  const h = Math.ceil(WORLD_H * SHAFT_SCALE);
-  return pixels(w, h, COLOURS.shaft, (px, py) => {
-    const wx = (px + 0.5) / SHAFT_SCALE;
-    const wy = (py + 0.5) / SHAFT_SCALE;
-    let keep = 1;
-    defs.forEach((s, i) => {
-      const sa = Math.sin(s.angle);
-      const ca = Math.cos(s.angle);
-      const dx = wx - s.x0;
-      const dy = wy - s.y0;
-      const along = dx * sa + dy * ca;
-      const across = dx * ca - dy * sa;
-      if (along <= 0 || along >= s.length) return;
-      const half = (s.width / 2) * (1 + 0.35 * noise(along / 140, i * 7.1)) * (0.75 + 0.5 * (along / s.length));
-      const k = Math.abs(across) / half;
-      if (k >= 1.2) return;
-      const side = 1 - smoothstep(0.3, 1.05 + 0.15 * noise(along / 40, 3 + i), k);
-      const len = along / s.length;
-      const lengthwise = smoothstep(0, 0.18, len) * (1 - smoothstep(0.4, 0.95, len));
-      const streaks = 0.82 + 0.18 * streak(across / 34, along / 300 + i * 3);
-      keep *= 1 - side * lengthwise * streaks;
-    });
-    return 1 - keep;
-  });
+/** How much glaze the garden carries at height `wy`: little over the sky, all of it on the ground. */
+export function sunGround(wy: number, layout: SunLayout): number {
+  return 0.15 + 0.85 * smoothstep(layout.pondTop - 260, layout.pondTop - 40, wy);
+}
+
+/**
+ * The glaze's strength at a world point (0..1, before `LOOK.sunGlaze`), with the bands in `lifted`
+ * (`[band, how much]`) lifted out. Pure, so tests can read it: lifted light is paler than the glaze, edges pool a little
+ * darker, and nothing is lifted above the hills.
+ */
+export function sunGlazeAt(wx: number, wy: number, bands: readonly SunBand[], lifted: readonly (readonly [number, number])[], layout: SunLayout, noise: Noise2D | null = null): number {
+  const ground = sunGround(wy, layout);
+  const mottle = noise ? 0.86 + 0.14 * noise(wx / 260, wy / 220) : 1;
+  let lift = 0;
+  let rim = 0;
+  for (const [i, amount] of lifted) {
+    const b = bands[i];
+    if (!b) continue;
+    const sa = Math.sin(b.angle);
+    const ca = Math.cos(b.angle);
+    const dx = wx - b.x0;
+    const dy = wy - b.y0;
+    const along = dx * sa + dy * ca;
+    if (along <= 0 || along >= b.length) continue;
+    const across = dx * ca - dy * sa;
+    const len = along / b.length;
+    // the tissue lifts unevenly: the band's width wanders slowly along its length
+    const ragged = noise ? 1 + 0.16 * noise(along / 340, i * 7.3) : 1;
+    const half = (b.width / 2) * ragged * (0.8 + 0.4 * len);
+    const k = Math.abs(across) / half;
+    // the light comes in soft from the hills and dies away on the near bank
+    const lengthwise = smoothstep(0, 0.18, len) * (1 - smoothstep(0.62, 1, len)) * smoothstep(layout.pondTop - 230, layout.pondTop - 40, wy);
+    lift = Math.max(lift, (1 - smoothstep(0.2, 1, k)) * lengthwise * amount);
+    rim = Math.max(rim, Math.exp(-(((k - 1.05) / 0.2) ** 2)) * lengthwise * amount);
+  }
+  return clamp01(0.85 * ground * mottle * (1 - 0.92 * lift + 0.16 * rim));
+}
+
+function sunCanvas(bands: SunBand[], lifted: Array<[number, number]>, layout: SunLayout, noise: Noise2D): AnyCanvas {
+  const w = Math.ceil(WORLD_W * SUN_SCALE);
+  const h = Math.ceil(WORLD_H * SUN_SCALE);
+  return pixels(w, h, COLOURS.sunGlaze, (px, py) => sunGlazeAt((px + 0.5) / SUN_SCALE, (py + 0.5) / SUN_SCALE, bands, lifted, layout, noise));
 }
 
 /** Rain stroke sprite (vertical, head at the bottom) — tapered, faintly broken ink wash. */
@@ -214,11 +246,14 @@ function mistCanvas(rng: Rng, hWorld: number): AnyCanvas {
 }
 
 export interface Sprites {
-  shafts: [AnyCanvas, AnyCanvas];
+  /** the sun's glaze, with the first and the second group of bands lifted out */
+  sun: [AnyCanvas, AnyCanvas];
   /** [layer][variant] */
   rain: AnyCanvas[][];
   ripples: AnyCanvas[];
   glints: AnyCanvas[];
+  /** warm dabs of sunlight caught on leaves */
+  leafGlints: AnyCanvas[];
   /** [gold..., green...] */
   motes: AnyCanvas[];
   mist: MistBand[];
@@ -246,15 +281,20 @@ export function mistLayout(m: MistLayout): Array<Omit<MistBand, 'canvas'>> {
 
 export function buildSprites(seed: number | string, mist: MistLayout): Sprites {
   const rng = createRng(seed);
-  const defs = shaftLayout(rng.fork('shafts'));
-  const n = createSimplex2D(rng.fork('shaft-noise'));
-  const streak = createSimplex2D(rng.fork('shaft-streak'));
+  const sunLayout = { pondTop: mist.pondTop };
+  const bands = sunBands(rng.fork('sun'), sunLayout);
+  const n = createSimplex2D(rng.fork('sun-noise'));
   const v = Array.from({ length: SPRITE_VARIANTS }, (_, i) => i);
   return {
-    shafts: [shaftCanvas([defs[0]!, defs[2]!], n, streak), shaftCanvas([defs[1]!, defs[3]!], n, streak)],
+    // every band is lifted in both; each sprite favours one group, so the light shifts as they take turns
+    sun: [
+      sunCanvas(bands, [[0, 1], [2, 1], [1, 0.5], [3, 0.5]], sunLayout, n),
+      sunCanvas(bands, [[1, 1], [3, 1], [0, 0.5], [2, 0.5]], sunLayout, n),
+    ],
     rain: RAIN.layers.map((_, li) => v.map((i) => rainSprite(rng.fork(`rain-${li}-${i}`), li))),
     ripples: v.map((i) => rippleSprite(rng.fork(`ripple-${i}`))),
     glints: v.map((i) => glintSprite(rng.fork(`glint-${i}`))),
+    leafGlints: v.map((i) => moteSprite(rng.fork(`leaf-glint-${i}`), COLOURS.leafGlint)),
     motes: [0, 1, 2, 3].map((i) => moteSprite(rng.fork(`mote-${i}`), i < 2 ? COLOURS.moteGold : COLOURS.moteGreen)),
     mist: mistLayout(mist).map((b, i) => ({ ...b, canvas: mistCanvas(rng.fork(`mist-${i}`), b.h) })),
     flame: moteSprite(rng.fork('flame'), COLOURS.flame),

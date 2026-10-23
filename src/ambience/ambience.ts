@@ -25,16 +25,18 @@ type Ctx = CanvasRenderingContext2D;
 
 /** Look tuning (alphas are peaks at level 1). docs/systems/ambience.md › Tuning. */
 export const LOOK = {
-  sunGrade: { rgb: [250, 236, 208], alpha: 0.2 },
+  /** the sun's warm glaze at full strength, its lifted bands paler (sprites.ts › sunGlazeAt; ADR 0194) */
+  sunGlaze: 0.35,
   rainGrade: { rgb: [204, 213, 221], alpha: 0.2 },
   /** a thin veil over the far half only: it fades out above the plant zone (`mistVeilTo`) */
   mistVeil: { rgb: [244, 242, 236], alpha: 0.08 },
   /** at night the mist (multiplied by the indigo wash) reads as fog: thin it this much */
   mistNight: 0.45,
-  shaftAlpha: 0.6,
-  /** breathing period of the light shafts (s) and depth (0..1) */
-  shaftBreathS: 13,
-  shaftBreath: 0.35,
+  /** breathing period of the lifted light (s) and depth (0..1): the two band groups take turns */
+  sunBreathS: 13,
+  sunBreath: 0.35,
+  /** sunlight caught on leaves (screen) */
+  leafGlintAlpha: 0.55,
   rainAlpha: [0.3, 0.36, 0.42] as readonly number[],
   /** stroke width per rain layer (world units) */
   rainWidth: [0.9, 1.2, 1.5] as readonly number[],
@@ -93,7 +95,7 @@ export interface AmbienceDebug {
   /** the dominant daylight phase and the weights of all four */
   time: DayPhase;
   weights: DaylightState['weights'];
-  counts: { rain: number; ripples: number; glints: number; motes: number; drips: number };
+  counts: { rain: number; ripples: number; glints: number; leafGlints: number; motes: number; drips: number };
   lightingPaints: number;
   /** cost of the light plates painted so far (ms; each phase is painted once) */
   lightingMs: number;
@@ -198,7 +200,7 @@ export function createAmbience(opts: AmbienceOptions): Ambience {
     return pondPath;
   };
 
-  /** how much daylight there is for sunny effects (shafts, glints): none at night */
+  /** how much daylight there is for sunny effects (the lifted light, glints): little at night */
   const daylight = () => 1 - 0.85 * Math.min(1, light.weights.night);
   const pondTop = pondBox.y;
   let mistVeil: { top: number; to: number; fill: CanvasGradient } | null = null;
@@ -324,8 +326,17 @@ export function createAmbience(opts: AmbienceOptions): Ambience {
         ctx.fillStyle = `rgb(${rgb[0]},${rgb[1]},${rgb[2]})`;
         ctx.fillRect(area.x, area.y, area.w, area.h);
       };
-      // faint grades
-      fill(LOOK.sunGrade.rgb, LOOK.sunGrade.alpha * lv.sun, 'multiply');
+      // the sun: a thin warm glaze with soft diagonal bands of light lifted out of it (ADR 0194);
+      // the two groups of bands take turns, as light comes and goes between drifting clouds
+      if (lv.sun > 0.002) {
+        ctx.globalCompositeOperation = 'multiply';
+        const b = 0.5 * LOOK.sunBreath * Math.sin((sim.t / LOOK.sunBreathS) * Math.PI * 2);
+        const a = LOOK.sunGlaze * lv.sun * daylight();
+        ctx.globalAlpha = a * (0.5 + b);
+        ctx.drawImage(sprites.sun[0] as CanvasImageSource, 0, 0, WORLD_W, WORLD_H);
+        ctx.globalAlpha = a * (0.5 - b);
+        ctx.drawImage(sprites.sun[1] as CanvasImageSource, 0, 0, WORLD_W, WORLD_H);
+      }
       fill(LOOK.rainGrade.rgb, LOOK.rainGrade.alpha * lv.rain, 'multiply');
 
       // mist: drifting bands over the far bank, then a thin veil over the far half only
@@ -379,15 +390,16 @@ export function createAmbience(opts: AmbienceOptions): Ambience {
         }
       }
 
-      // light shafts, two groups breathing in turn
-      if (lv.sun > 0.002) {
+      // sunlight caught on leaves: warm lifted dabs that come and go
+      if (sim.leafGlints.length && lv.sun > 0.002) {
         ctx.globalCompositeOperation = 'screen';
         const day = daylight();
-        sprites.shafts.forEach((s, i) => {
-          const breath = 1 - LOOK.shaftBreath * (0.5 + 0.5 * Math.sin((sim.t / LOOK.shaftBreathS) * Math.PI * 2 + i * Math.PI));
-          ctx.globalAlpha = LOOK.shaftAlpha * lv.sun * day * breath;
-          ctx.drawImage(s as CanvasImageSource, 0, 0, WORLD_W, WORLD_H);
-        });
+        for (const g of sim.leafGlints) {
+          const a = LOOK.leafGlintAlpha * lv.sun * day * lifeAlpha(g.age, g.life, 0.35, 0.45);
+          if (a <= 0.003) continue;
+          ctx.globalAlpha = a;
+          ctx.drawImage(sprites.leafGlints[g.variant]! as CanvasImageSource, g.x - g.size, g.y - g.size * 0.8, g.size * 2, g.size * 1.6);
+        }
       }
 
       // rain strokes, far → near
@@ -486,7 +498,7 @@ export function createAmbience(opts: AmbienceOptions): Ambience {
         levels: { ...env.value },
         weights: { ...light.weights },
         time: light.phase,
-        counts: { rain: sim.rain.length, ripples: sim.ripples.length, glints: sim.glints.length, motes: sim.motes.length, drips: sim.drips.length },
+        counts: { rain: sim.rain.length, ripples: sim.ripples.length, glints: sim.glints.length, leafGlints: sim.leafGlints.length, motes: sim.motes.length, drips: sim.drips.length },
         lightingPaints: paints,
         lightingMs: cast.stats().paintMs,
         reducedMotion,

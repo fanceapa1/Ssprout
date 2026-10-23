@@ -49,6 +49,8 @@ export const DRIP = {
 } as const;
 
 export const GLINT = { rate: 1.2, life: [1.3, 2.4] as const, len: [8, 18] as const, max: 5 } as const;
+/** sunlight caught on leaves: on the sunlit (upper left) side of the plants' crowns (ADR 0194) */
+export const LEAF_GLINT = { rate: 0.9, life: [1.6, 3.2] as const, size: [3.5, 6.5] as const, max: 6 } as const;
 
 export interface RainDrop {
   x: number;
@@ -73,6 +75,14 @@ export interface Glint {
   x: number;
   y: number;
   len: number;
+  variant: number;
+  age: number;
+  life: number;
+}
+export interface LeafGlint {
+  x: number;
+  y: number;
+  size: number;
   variant: number;
   age: number;
   life: number;
@@ -121,6 +131,7 @@ export interface Sim {
   rain: RainDrop[];
   ripples: Ripple[];
   glints: Glint[];
+  leafGlints: LeafGlint[];
   motes: Mote[];
   drips: Drip[];
   /** drip points along the eave */
@@ -149,6 +160,7 @@ export function createSim(rng: Rng, world: SimWorld): Sim {
     rain: [],
     ripples: [],
     glints: [],
+    leafGlints: [],
     motes: [],
     drips: [],
     dripPoints: dripPoints(world.eave ?? null, rng.fork('drip-points')),
@@ -228,6 +240,8 @@ export function stepSim(sim: Sim, dt: number, input: SimInputs): void {
   sim.ripples = sim.ripples.filter((p) => p.age < p.life);
   for (const g of sim.glints) g.age += d;
   sim.glints = sim.glints.filter((g) => g.age < g.life);
+  for (const g of sim.leafGlints) g.age += d;
+  sim.leafGlints = sim.leafGlints.filter((g) => g.age < g.life);
   for (const m of sim.motes) {
     m.age += d;
     const w = input.wind(sim.t, m.x, m.y, levels.boost);
@@ -285,6 +299,23 @@ export function stepSim(sim: Sim, dt: number, input: SimInputs): void {
     if (!p) return;
     sim.glints.push({ ...p, len: range(rng, GLINT.len), variant: rng.int(0, SPRITE_VARIANTS - 1), age: off, life: range(rng, GLINT.life) });
   });
+
+  // the sun catching a leaf now and then, on the side of the crowns that faces it
+  if (input.emitters.length) {
+    poisson(sim, 'leaf-glint', LEAF_GLINT.rate * levels.sun, d, (off) => {
+      if (sim.leafGlints.length >= LEAF_GLINT.max) return;
+      const e = pickEmitter(input.emitters, rng.next());
+      if (!e) return;
+      sim.leafGlints.push({
+        x: e.x + rng.range(-0.5, 0.15) * e.w,
+        y: e.y - rng.range(0.45, 0.95) * e.h,
+        size: range(rng, LEAF_GLINT.size),
+        variant: rng.int(0, SPRITE_VARIANTS - 1),
+        age: off,
+        life: range(rng, LEAF_GLINT.life),
+      });
+    });
+  }
 
   // drips off the eave
   if (sim.dripPoints.length && sim.world.eave) {
