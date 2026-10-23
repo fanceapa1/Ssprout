@@ -6,13 +6,16 @@ import { dayKey } from '../core/session-log';
 import { GOAL_PRESETS, isValidGoalMinutes, MAX_GOAL_MINUTES, MIN_GOAL_MINUTES } from '../core/session';
 import type { UIContext } from './context';
 import { clear, h, setText, show } from './dom';
+import { localeWeekStart } from './calendar-model';
+import { createDayPicker, createTimePicker } from './pickers';
 import { createSheet, type Sheet } from './sheet';
 
 /**
  * The schedule editor (SPEC §13, ADR 0177): a washi sheet with a name, a date and a time, an
  * optional length and plan ("Choose when I start" by default) and a repeat. Plant and spot are not
  * chosen here. Editing an occurrence of a repeat asks "Only this one" or "This and the following"
- * (ADR 0171); a planned session today can also be started from here ("Start now").
+ * (ADR 0171); a planned session today can also be started from here ("Start now"). The day and
+ * the time are painted pickers in the calendar's own formats, not the system's inputs (ADR 0193).
  */
 
 export interface ScheduleSheetDeps {
@@ -23,6 +26,9 @@ export interface ScheduleSheetDeps {
 
 export interface ScheduleSheetState {
   mode: 'new' | 'edit' | null;
+  /** the day and time in the form (`YYYY-MM-DD`, `HH:MM`) */
+  date: string | null;
+  time: string | null;
   /** the pending question: which occurrences a save or a removal applies to */
   ask: 'save' | 'remove' | null;
   occurrence: string | null;
@@ -66,10 +72,21 @@ export function createScheduleSheet(ctx: UIContext, deps: ScheduleSheetDeps): Sc
   // ── fields ──
   const name = h('input.sched-input.sched-name', { id: 'sched-name', type: 'text', maxLength: 40, autocomplete: 'off', placeholder: 'What will you study?' });
   name.addEventListener('input', () => (form.name = name.value));
-  const date = h('input.sched-input', { id: 'sched-date', type: 'date', required: true });
-  date.addEventListener('input', () => (form.date = date.value));
-  const time = h('input.sched-input', { id: 'sched-time', type: 'time', step: 300, required: true });
-  time.addEventListener('input', () => (form.time = time.value));
+  // the day and the time speak the calendar's formats (ADR 0193); one unfolds at a time
+  const date = createDayPicker({
+    id: 'sched-date',
+    label: 'day',
+    today: () => dayKey(clock.now()),
+    weekStartsOn: localeWeekStart(typeof navigator === 'undefined' ? undefined : navigator.language),
+    onChange: (v) => (form.date = v),
+    onOpen: () => time.close(),
+  });
+  const time = createTimePicker({
+    id: 'sched-time',
+    label: 'time',
+    onChange: (v) => (form.time = v),
+    onOpen: () => date.close(),
+  });
 
   const lengthChips = h('div.sched-chips', { role: 'radiogroup', 'aria-label': 'Length' });
   const other = h('input.sched-input', {
@@ -114,7 +131,9 @@ export function createScheduleSheet(ctx: UIContext, deps: ScheduleSheetDeps): Sc
         'div.sched-row',
         {},
         h('span.sched-label', {}, 'When'),
-        h('div.sched-when', {}, h('label.sched-field', {}, 'day', date), h('label.sched-field', {}, 'time', time)),
+        h('div.sched-when', {}, date.field, time.field),
+        date.panel,
+        time.panel,
       ),
       h(
         'div.sched-row',
@@ -229,6 +248,8 @@ export function createScheduleSheet(ctx: UIContext, deps: ScheduleSheetDeps): Sc
     form.name = name.value;
     form.date = date.value;
     form.time = time.value;
+    date.close();
+    time.close();
     if (!isDateKey(form.date)) return fail('Choose a day.');
     if (!isTimeOfDay(form.time)) return fail('Choose a time.');
     if (form.length !== null && !isValidGoalMinutes(form.length)) return fail(`A length between ${MIN_GOAL_MINUTES} and ${MAX_GOAL_MINUTES} minutes, in fives.`);
@@ -291,8 +312,10 @@ export function createScheduleSheet(ctx: UIContext, deps: ScheduleSheetDeps): Sc
 
   function fill(): void {
     name.value = form.name;
-    date.value = form.date;
-    time.value = form.time;
+    date.set(form.date);
+    time.set(form.time);
+    date.close();
+    time.close();
     setText(error, '');
     renderChoices();
     setAsk(null);
@@ -337,6 +360,6 @@ export function createScheduleSheet(ctx: UIContext, deps: ScheduleSheetDeps): Sc
     ...sheet,
     openNew,
     openEdit,
-    state: () => ({ mode, ask, occurrence: editing?.key ?? null }),
+    state: () => ({ mode, date: mode ? date.value : null, time: mode ? time.value : null, ask, occurrence: editing?.key ?? null }),
   };
 }
