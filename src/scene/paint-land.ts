@@ -272,19 +272,22 @@ export function paintBanks(p: Painter, rng: Rng): void {
  * The earthen path: lift the grass back to warm paper with soft, grass-nibbled edges and a
  * little grit. The stones are `paintStones` (after the margins).
  */
+/** The worn earth path's outline (world units): grass is lifted back to warm paper inside it. */
+export const PATH_GROUND: readonly Pt[] = [
+  { x: 734, y: 716 },
+  { x: 860, y: 718 },
+  { x: 896, y: 776 },
+  { x: 920, y: 840 },
+  { x: 960, y: 920 },
+  { x: 1030, y: WORLD_H + 40 },
+  { x: 580, y: WORLD_H + 40 },
+  { x: 640, y: 920 },
+  { x: 690, y: 840 },
+  { x: 712, y: 776 },
+];
+
 export function paintPath(p: Painter, rng: Rng, stones: readonly Stone[]): void {
-  const ground: Pt[] = [
-    { x: 734, y: 716 },
-    { x: 860, y: 718 },
-    { x: 896, y: 776 },
-    { x: 920, y: 840 },
-    { x: 960, y: 920 },
-    { x: 1030, y: WORLD_H + 40 },
-    { x: 580, y: WORLD_H + 40 },
-    { x: 640, y: 920 },
-    { x: 690, y: 840 },
-    { x: 712, y: 776 },
-  ];
+  const ground = PATH_GROUND as Pt[];
   p.lift(ground, { rng, amount: 0.42, deform: 0.1, spread: 0.45, sharpness: 0.15, edge: 0, layers: 12 });
   // bare earth: warm and very pale, a touch deeper where feet have worn it between the stones
   const earth = mix(PIGMENTS.stoneWarm, PIGMENTS.washiDeep, 0.5);
@@ -342,55 +345,78 @@ export function paintTufts(p: Painter, rng: Rng, tufts: readonly TuftSpec[]): vo
 }
 
 /**
- * Unpainted-paper margins: lift everything back toward bare paper near the edges, with a
- * ragged organic front (a real painting stops before the edge of the sheet). Strongest at the
- * bottom corners and the sides, lightest along the (already pale) sky.
+ * Unpainted-paper margins: lift everything back toward bare paper near the edges of the sheet (a
+ * real painting stops before the edge). One continuous field, not nested bands (ADR 0185): the
+ * lift grows smoothly toward each edge (deepest at the bottom corners, lightest along the pale
+ * sky), and its front wanders with world-anchored noise, so it reads as a soft ragged dissolve at
+ * any zoom and the overview and a detail painting compute the same value for the same place.
  */
 export function paintMargins(p: Painter, rng: Rng): void {
   const L = p.layer({ x: -10, y: -10, w: WORLD_W + 20, h: WORLD_H + 20 });
-  const outer: Pt[] = [
-    { x: -200, y: -200 },
-    { x: WORLD_W + 200, y: -200 },
-    { x: WORLD_W + 200, y: WORLD_H + 200 },
-    { x: -200, y: WORLD_H + 200 },
-  ];
-  const noise = createSimplex2D(rng.fork('margin'));
-  const steps = 9;
-  for (let k = 0; k < steps; k++) {
-    const t = k / (steps - 1);
-    const inner = organicFrame(10 + t * 190, 8 + t * 120, noise, k);
-    const c = L.ctx;
-    c.beginPath();
-    for (const poly of [outer, inner]) {
-      poly.forEach((q, i) => (i ? c.lineTo(q.x, q.y) : c.moveTo(q.x, q.y)));
-      c.closePath();
-    }
-    c.fillStyle = 'rgba(255,253,248,0.2)';
-    c.fill('evenodd');
+  if (L.empty) {
+    L.dry(MARGIN_DRY);
+    return;
   }
-  L.dry({ opacity: 1, edge: 0.04, edgeWidth: 6, sharpness: 0.15, centreLift: 0, granulation: 0.05, flow: 0.6, flowScale: 120, blend: 'source-over' });
+  const field = marginField(createSimplex2D(rng.fork('margin')));
+  const c = L.ctx;
+  const W = c.canvas.width;
+  const H = c.canvas.height;
+  const inv = c.getTransform().inverse();
+  const img = c.createImageData(W, H);
+  const d = img.data;
+  const [pr, pg, pb] = [255, 253, 248];
+  for (let py = 0; py < H; py++) {
+    for (let px = 0; px < W; px++) {
+      const x = inv.a * (px + 0.5) + inv.c * (py + 0.5) + inv.e;
+      const y = inv.b * (px + 0.5) + inv.d * (py + 0.5) + inv.f;
+      const a = field(x, y);
+      if (a <= 0.002) continue;
+      const i = (py * W + px) * 4;
+      d[i] = pr;
+      d[i + 1] = pg;
+      d[i + 2] = pb;
+      d[i + 3] = a * 255;
+    }
+  }
+  c.putImageData(img, 0, 0);
+  L.dry(MARGIN_DRY);
 }
 
+const MARGIN_DRY = { opacity: 1, edge: 0.04, edgeWidth: 6, sharpness: 0.15, centreLift: 0, granulation: 0.05, flow: 0.6, flowScale: 120, blend: 'source-over' as const };
+
+/** Margin widths (world units): the sides (deeper toward the bottom), the top (the sky is pale already) and the bottom. */
+export const MARGIN = { side: 200, sideBottom: 1.6, top: 77, bottom: 166, maxLift: 0.87 } as const;
+
 /**
- * A closed, irregular rounded window inset `mx` (sides) / `my` (top, bottom) from the world
- * edges; corners cut deeper; the front wanders with low-frequency noise.
+ * The margins' lift (0..1) at a world point. Each edge contributes a ramp from 1 at the sheet's
+ * edge to 0 at its width (plus a little), its front perturbed by two octaves of noise; the edges
+ * combine as a soft maximum so the corners cut deeper, and the lift eases in without a kink.
  */
-function organicFrame(mx: number, my: number, noise: (x: number, y: number) => number, k: number): Pt[] {
-  const pts: Pt[] = [];
-  const n = 120;
-  for (let i = 0; i < n; i++) {
-    const a = (i / n) * Math.PI * 2;
-    const c = Math.cos(a);
-    const s = Math.sin(a);
-    const e = 0.28;
-    const x = Math.sign(c) * Math.abs(c) ** e;
-    const y = Math.sign(s) * Math.abs(s) ** e;
-    const rx = WORLD_W / 2 - mx * (1 + 0.6 * Math.max(0, s)); // deeper at the bottom
-    const ry = WORLD_H / 2 - my * (s > 0 ? 1.3 : 0.6); // shallow at the top
-    const wob = 1 + 0.02 * noise(Math.cos(a) * 2.2 + k * 0.15, Math.sin(a) * 2.2) + 0.008 * noise(a * 6, k);
-    pts.push({ x: WORLD_W / 2 + x * rx * wob, y: WORLD_H / 2 + y * ry * wob });
-  }
-  return pts;
+export function marginField(noise: (x: number, y: number) => number): (x: number, y: number) => number {
+  const reach = MARGIN.side * MARGIN.sideBottom + 40;
+  return (x, y) => {
+    const dl = x;
+    const dr = WORLD_W - x;
+    const dt = y;
+    const db = WORLD_H - y;
+    const yb = Math.max(0, Math.min(1, (y - WORLD_H / 2) / (WORLD_H / 2)));
+    const ws = MARGIN.side * (1 + (MARGIN.sideBottom - 1) * yb);
+    // far from every edge: nothing to lift (most of the sheet)
+    if (Math.min(dl, dr) > ws + 40 && dt > MARGIN.top + 40 && db > MARGIN.bottom + 40 && Math.min(dl, dr) > reach) return 0;
+    // the wandering front: low-frequency drift plus a finer raggedness, in world units
+    const nd = 26 * noise(x / 120, y / 120) + 9 * noise(x / 34 + 17.3, y / 34 - 4.1);
+    const ramp = (dist: number, width: number) => {
+      const t = (width + 10 - (dist + nd * (width / MARGIN.side) ** 0.5)) / (width + 10);
+      return t <= 0 ? 0 : t >= 1 ? 1 : t;
+    };
+    const m = 2.6;
+    const s = ramp(dl, ws) ** m + ramp(dr, ws) ** m + ramp(dt, MARGIN.top) ** m + ramp(db, MARGIN.bottom) ** m;
+    if (s <= 0) return 0;
+    const c = Math.min(1, s ** (1 / m));
+    // nine stacked 20 % lifts became this curve: 1 − 0.8^(9c), eased in at c = 0
+    const e = c * c * (2 - c);
+    return Math.min(MARGIN.maxLift, 1 - 0.8 ** (9 * e));
+  };
 }
 
 /** The pale rim between grass and water: lift the pond (slightly outset) back to paper. */
