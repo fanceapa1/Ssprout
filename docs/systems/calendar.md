@@ -11,6 +11,7 @@ core/schedule-controller.ts  createScheduler: the API, the due tick, `schedule:d
 ui/calendar-model.ts         ranges, items, overlap layout, month marks, opening window (pure)
 ui/calendar.ts · calendar.css · calendar-art.ts   the section, its look, the painted shapes
 ui/schedule-sheet.ts         the editor (a washi sheet)
+ui/pickers.ts                its painted day and time pickers, in the calendar's formats (ADR 0193)
 ui/schedule-card.ts          the waiting card (Study section) and its slip above the pill
 ui/planting-sheet.ts         applyPrefill / clearPrefill (the prefilled start)
 widget/notifications.ts      the soft notification on `schedule:due`
@@ -85,7 +86,16 @@ the set of due occurrences changes.
   **Monthly** (whole weeks). Prev / Today / next. The choice is remembered in `localStorage`
   (`studysprout:calendar-view`).
 - Day and week: an hour timeline in a 9-hour window that opens near now (today, waking hours), at the
-  first item, or at 8:00. Blocks are laid out side by side when they overlap (`layoutColumns`), at their
+  first item, or at 8:00. **Today's day follows now** (ADR 0192): opened with now in the window, every
+  redraw checks a band (4 %–72 % of the window) and glides (1.4 s; at once under reduced motion) back
+  to now − 90 min when now leaves it. A wheel, a touch move, a scrolling key on the hours or a scroll
+  we did not make stops following; Today, another day or another view resets it. Past midnight it
+  turns to the new day, still following. Pure: `followTarget`, `glideScroll`, `FOLLOW`.
+- The hours are redrawn every minute; keyboard focus on a block, a day or the hours is put back on
+  the same control after a redraw.
+- On a phone's day, sessions side by side (three in progress overlap) keep a short time and the
+  first letters of the title, and a touched or focused one grows to read whole (leftwards in the
+  last column); blocks sharing a column are focusable in a day too. Blocks are laid out side by side when they overlap (`layoutColumns`), at their
   drawn size: at least 26 minutes tall in a day, 44 in a week (`MIN_BLOCK_MS`, ADR 0183). In a week a
   block shows its short time ("4:10", `shortTime`) over its title (two lines when long; first letters
   fading out on phones), the "now" seal sits before the time, and a hovered or focused block grows to
@@ -95,6 +105,18 @@ the set of due occurrences changes.
 - Month: a dab per bloom, an ink ring per plan (faint when passed), minutes studied; tap a day → daily.
 - The summary line: blooms, time studied and plans in the range.
 
+## The editor's pickers (ADR 0193)
+The native `<input type=date|time>` followed the operating system's locale; the pickers speak the
+calendar's (`Intl`, the browser's language). Each is a field button (named by its label and value,
+`aria-expanded`, `data-value`) that unfolds a panel inline under the "When" row, one at a time:
+- **day**: a month grid (`role=grid`, `aria-selected`, `aria-current="date"`, full-date names);
+  arrows by day and week, Home / End, PageUp / PageDown by month (Shift: year), Enter or Space
+  chooses, Esc folds; the chosen day has the brush ring, today the brush underline;
+- **time**: radio groups of paper chips for Hour (12, 1 … 11 or 00 … 23), Minutes in fives (an
+  odd one keeps its chip) and, on a 12-hour clock, the locale's AM / PM; arrows choose; Done or
+  Esc folds.
+Esc in a panel never closes the sheet. Values stay `YYYY-MM-DD` / `HH:MM`.
+
 ## Debug API (`?dev`)
 `sprout.schedule`: `add(input?)` (defaults: "Planned session", the next minute, open length, once),
 `list()`, `occurrences(from?, to?)` (dates or ms; default this week), `due()`, `get(key)`,
@@ -102,10 +124,10 @@ the set of due occurrences changes.
 (past its window → missed), `edit(key, edit, scope?)`, `remove(key, scope?)`, `check()`,
 `fillHistory(days = 30, seed?)` (a realistic log), `demo({ days?, hour? })` (moves the dev clock to
 16:10 today when earlier, adds 35 days of history and three schedules).
-`sprout.calendar`: `state()` (`{ view, date, weekStartsOn, title, days, items: [{ id, kind, status, date,
+`sprout.calendar`: `state()` (`{ view, date, weekStartsOn, title, days, follow, items: [{ id, kind, status, date,
 title, occurrence, occurrenceStatus }] }`), `setView(view)`, `go(date)`.
 `sprout.ui.state()` also has `calendar`, `due` (`{ due: keys, mode: 'start' | 'limit' | null, slip }`) and
-`scheduleSheet` (`{ mode, ask, occurrence }`).
+`scheduleSheet` (`{ mode, date, time, ask, occurrence }`).
 
 Screenshots: `npm run shots -- --eval "sprout.reset(); sprout.schedule.demo(); sprout.setTime('noon'); sprout.calendar.setView('week'); await sprout.ui.scrollTo('calendar', { instant: true })"`.
 
@@ -115,5 +137,7 @@ validation), `core/schedule-reducer` (reducers, edits and removals by scope), `c
 (due tick and event, closed-tab return, dismiss, link → done / ended, refs), `core/persistence` (schedules
 round-trip, validation, v2 without schedules), `core/tips` (`schedule`), `ui/calendar-model` (ranges, DST
 week, items and merging, overlap layout, opening window, taps, month marks), `ui/prefill`,
-`widget/notifications` (scheduled), `widget/ticker` (the worker drives the scheduler), `dev/fill-history`.
+`widget/notifications` (scheduled), `widget/ticker` (the worker drives the scheduler), `dev/fill-history`,
+`ui/calendar-model` › following now, `ui/pickers` (formats, time parts, grid keys, the pickers in
+jsdom).
 E2E: `tests/e2e/calendar.spec.ts`.

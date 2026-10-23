@@ -16,7 +16,7 @@ weather**, **· photosynthesis motes & wind**, **· time of day**) or with `npm 
 | `lighting.ts` | per-pixel grade wash (`paintGradeWash`, pure), `washField`, `gradePlate`; lantern reserve |
 | `cast.ts` | the painted light plate of each daylight phase and their blended composite (ADR 0147) |
 | `solar.ts`, `zones.ts`, `daylight.ts`, `daylight-source.ts`, `sky-layout.ts` | the daylight: sun times, location, phases, the shared source, where the light falls — docs/systems/daylight.md |
-| `sprites.ts` | pre-painted textures: shafts, rain strokes, ripple rings, glints, motes, mist bands, flame |
+| `sprites.ts` | pre-painted textures: the sun's lifted glaze (`sunBands`, `sunGround`, `sunGlazeAt`, pure), rain strokes, ripple rings, glints, leaf glints, motes, mist bands, flame |
 | `ambience.ts` | the engine: update + draw into world-unit contexts (no store, no renderer — ADR 0080) |
 | `system.ts` | render `System` adapter (store, Clock, dev overrides, cost metering) |
 | `dev.ts`, `index.ts` | `window.sprout` methods; `addAmbience(renderer, { dev, daylight })` |
@@ -34,17 +34,23 @@ Registered in `main.ts`: `const ambience = addAmbience(renderer, { dev: speedClo
 ## Layers
 | Layer | Draws |
 |---|---|
-| `waterSurface` | ripple rings (rain) and glints (sun), clipped to `scene.pond` |
-| `ambience` | weather grades (multiply), mist bands + veil, dawn mist and dew (sunrise), light shafts (screen), rain strokes (multiply), motes |
+| `waterSurface` | ripple rings (rain) and warm glints (sun), clipped to `scene.pond` |
+| `ambience` | the sun's glaze with its lifted light (multiply), the rain grade (multiply), mist bands + veil, dawn mist and dew (sunrise), leaf glints (screen), rain strokes (multiply), motes |
 | `lighting` | night desaturation (saturation glaze), the daylight light plate composite (multiply) + a tiny lantern flame (screen) |
 
 Inputs come only from the `SceneGeometry` contract (`pond`, `waterline`, `pavilion.lantern`, `slots`)
 and the store (`session.weather`, phase via `sessionPhase`, `plants`, session slot + growth).
 
 ## Effects
-- **Sun**: four diagonal shafts from the upper left in two groups breathing in antiphase (13 s),
-  noise-broken edges and faint lengthwise streaks, dissolving toward the ground; a faint warm
-  multiply grade; occasional lifted-paper glints on the far water. Shafts/glints fade at dusk/night.
+- **Sun** (ADR 0194): a thin raw-sienna glaze over the garden, mottled, fading out above the hills
+  so the sky is never striped, with four soft diagonal bands of light (≈ 0.62 rad, from the upper
+  left) **lifted out** of it: the width wanders slowly, the lifted pigment pools a little darker at
+  the edge, and the light comes in soft from the hills and dies away on the near bank. Two sprites,
+  each favouring one group of bands, are cross-weighted by a 13 s breath, so the light shifts as
+  under drifting cloud while the glaze stays constant. Warm lifted glints on the far water, and
+  **leaf glints**: warm dabs on the sunlit (upper left) side of the plants' crowns, spawned from the
+  mote emitters. All of it fades with the night weight. The old screen shafts read as pale columns
+  over the sky and are gone.
 - **Rain**: tapered, faintly broken ink-wash strokes in three depths (far: short, slow, many; near:
   long, fast, few), slanted by the wind; broken ripple rings (deep line + pale lifted line, often a
   second ring) expanding on the pond; a cool grey grade; a **drip line** off the pavilion eave — drops
@@ -63,10 +69,11 @@ and the store (`session.weather`, phase via `sessionPhase`, `plants`, session sl
   where its light falls (mirrored about `waterline` if that lands on the pond, else the nearest water;
   then stepped toward the pond's middle until it is off the shore and clear of the water hidden under
   the pavilion — in the garden scene it lies just left of the front post, broken into soft bands).
-- **Real-scene check** (1440×900 and 390×844): mist bands sit on the hills, the far bank and the far
-  water (heights derive from the pond's top); at 1× DPR the rain strokes needed more weight than on
-  phones, and the shafts only read over foliage, hills and water (the pre-paper sky is white, so a
-  `screen` shaft cannot lighten it — they read against the slightly stronger warm grade instead).
+- **Real-scene check** (1440×900, 1920×1080 and 390×844): mist bands sit on the hills, the far bank
+  and the far water (heights derive from the pond's top); at 1× DPR the rain strokes needed more
+  weight than on phones. The pre-paper frame is white, so light is never added with `screen` over
+  paper: the sun's light is lifted out of its glaze, and only the leaf glints (over foliage) and the
+  water glints use screen.
 
 ## Envelopes (`envelope.ts`)
 Channels `sun rain mist motes motion boost`, each eased toward a target with a critically damped
@@ -117,10 +124,11 @@ sway a touch more" during a session. The plant system uses `sway` for its skew (
 `src/plants/wind-adapter.ts`); the fauna does not read the wind field. Unit tests cover bounds, determinism, continuity, boost and the front direction.
 
 ## Tuning constants
-`LOOK` (ambience.ts): grade alphas (sun 0.2, rain 0.2, mist veil 0.08), `shaftAlpha` 0.6 (screen,
-near-white cream), breath 13 s / 0.35, rain alpha per depth 0.30/0.36/0.42 and widths 0.9/1.2/1.5,
+`LOOK` (ambience.ts): `sunGlaze` 0.35 (multiply, `COLOURS.sunGlaze` 228,204,158; lift −92 %, rim
++16 %), `sunBreathS` 13 / `sunBreath` 0.35, `leafGlintAlpha` 0.55, grade alphas (rain 0.2, mist veil
+0.08), rain alpha per depth 0.30/0.36/0.42 and widths 0.9/1.2/1.5,
 `mistNight` 0.45, `rippleAlpha` 0.75, squash 0.3, `glintAlpha` 0.65, `dripAlpha` 0.6, `dripMaxLen` 30, flame 0.22.
-`RAIN` (sim.ts): strokes per depth 84/50/20 per full world, speeds 300/470/720, slant 0.2 rad +
+`LEAF_GLINT` (sim.ts): 0.9/s × sun, life 1.6–3.2 s, size 3.5–6.5, ≤ 6. `RAIN` (sim.ts): strokes per depth 84/50/20 per full world, speeds 300/470/720, slant 0.2 rad +
 0.14 × sway. `RIPPLE` 2.4/s, max 16. `GLINT` 1.2/s, max 5. `DRIP` spacing 30, 0.6/s per point,
 v0 30, gravity 1300, max 24. `LIGHT.reflectLift` 0.45, `lanternR` 78, `lanternLift` 0.8. `LOOK.nightDesaturate` 0.38, `dawnMist` 1.25, `dawnMistRise` 26, `dewCount` 16, `dewAlpha` 0.75.
 `MOTE` (motes.ts): 0.15/s + 0.06/s per weight, ≤ 0.6/s, ≤ 7 alive. `ENVELOPE`, `LIGHT` as above.
@@ -130,7 +138,7 @@ v0 30, gravity 1300, max 24. `LIGHT.reflectLift` 0.45, `lanternR` 78, `lanternLi
 moves the sky, light, shadows, rims and fauna — docs/systems/daylight.md), `sprout.daylight()`,
 `sprout.setWeather('sun'|'rain'|'mist'|null)` (preview without a session; snaps to steady state),
 `sprout.settleAmbience()` (skip running transitions — call before `freeze()` for screenshots),
-`sprout.ambience()` → `{ phase, weather, preview, levels, time (daylight phase), weights, counts, lightingPaints,
+`sprout.ambience()` → `{ phase, weather, preview, levels, time (daylight phase), weights, counts (rain, ripples, glints, leafGlints, motes, drips), lightingPaints,
 lightingMs, reducedMotion, ms, timeOverride, location, sunTimes }` (`ms` = moving average of update + draw per frame).
 ```
 npm run shots -- --name night-rain --eval "sprout.setTime('night'); sprout.start(25); sprout.setWeather('rain')"
@@ -145,9 +153,11 @@ scene + seed and shared between engines (the studio runs several). Budget 1.5 ms
 asserted in `tests/e2e/ambience.spec.ts`. Sprites are painted once per scene (~100 ms total).
 
 ## Tests
-Vitest: `wind.test.ts`, `envelope.test.ts` (start / end / pause / resume / break / weather change,
+Vitest: `sun.test.ts` (the glaze: sky unglazed, lifted bands, diagonal fall, pooled edge, half lift;
+leaf glints on the sunlit side, only in sun, still while paused), `wind.test.ts`, `envelope.test.ts` (start / end / pause / resume / break / weather change,
 frame-rate independence), `timeofday.test.ts` (phase grades, blends, readability at night, the typical day),
 `motes.test.ts` (emitters, rates, sim bounds, reduced-motion stillness, determinism),
 `lighting.test.ts` (wash ordering, lantern reserve and reflection, mottling, glow).
-Playwright: `tests/e2e/ambience.spec.ts` (session weather, each preview, night, pause/end fades,
+Playwright: `tests/e2e/ambience.spec.ts` (session weather, each preview, night, pause/end fades, the
+sun's glaze warm in the garden but not the sky and a trace on pause,
 setTime phases, blends and aliases, frame budget, reduced-motion emulation); the daylight tests are listed in docs/systems/daylight.md.

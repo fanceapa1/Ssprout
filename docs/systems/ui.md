@@ -31,7 +31,7 @@ the widget surfaces — the UI then asks in the Begin click itself.
 | `stage-edge.ts` | pure alpha mask for the dissolving edge (`stageEdgeAlpha`, `fadeHeight`, `featherWidth`) |
 | `page-paper.ts` | the page's paper tile from `paperTexture` (same washi as the garden, ADR 0132) |
 | `dock.ts` | the dock section registry (`createDock`, `orderSections`; contract in ARCHITECTURE › Dock) |
-| `smooth-scroll.ts` · `scroll-math.ts` | custom smooth scrolling (wheel/keys/jumps, native adoption, reduced motion) and its pure maths (ADR 0131) |
+| `smooth-scroll.ts` · `scroll-math.ts` | custom smooth scrolling (wheel/keys/jumps, native adoption, reduced motion) and its pure maths (ADR 0131); a focused inner scroller keeps its scrolling keys (`keyDirection`, ADR 0190) |
 | `scrollbar.ts` · `brush-path.ts` | the brush-stroke scrollbar; seeded vertical brush strokes |
 | `timer-panel.ts` | session controls in the dock's "Study" section: idle "Start studying"; studying: task, block label, block + total remaining, plan line with progress, Pause/End, break Water/Skip, cancel confirm, long-pause prompt; `resting` drives the root's `is-resting` |
 | `pill.ts` | the timer pill on the garden: idle "Start studying"; block time, Pause/Resume, "Session controls" (glide down + focus) (ADR 0133); "+N" when other sessions are in progress (ADR 0156) |
@@ -40,7 +40,8 @@ the widget surfaces — the UI then asks in the Begin click itself.
 | `calendar.ts` · `calendar.css` | the Calendar section: Daily (default) / Weekly / Monthly, remembered per viewer; painted timeline and month (ADR 0175) — docs/systems/calendar.md |
 | `calendar-model.ts` | pure: view ranges, items, overlap layout (`layoutColumns`), month marks, opening window, week start |
 | `calendar-art.ts` | the calendar's painted shapes (washes, plan outlines, rings, underline), as SVG backgrounds and on canvas |
-| `schedule-sheet.ts` | the schedule editor sheet: name, date, time, open-by-default length and plan, repeat; only this one / this and following (ADR 0177) |
+| `schedule-sheet.ts` | the schedule editor sheet: name, day and time (painted pickers), open-by-default length and plan, repeat; only this one / this and following (ADR 0177) |
+| `pickers.ts` | painted day and time pickers in the calendar's `Intl` formats (ADR 0193): a field that unfolds a month grid or hour / minute / AM-PM chips inline; pure `pickerFormat`, `uses12h`, `dayLabel`, `timeLabel`, `splitTime`, `joinTime`, `stepDay` |
 | `schedule-card.ts` | the waiting card at the top of the Study section and its slip above the pill (ADR 0176) |
 | `calendar.studio.ts` | studio section `calendar`: washes, day / week / month fixtures, the waiting card |
 | `tools.ts` | garden tools, one implementation rendered twice: corner chips (`nav.menu`) and the dock list (`ul.tool-list`) (ADR 0135) |
@@ -57,7 +58,7 @@ the widget surfaces — the UI then asks in the Begin click itself.
 | `quiet-line.ts` | one sentence at the top: completion, fauna arrivals (ADR 0054, ADR 0120) |
 | `plant-labels.ts` | hover a finished plant → "task · minutes · date" (the plant system's painted-pixel hit-test with a camera, else `hitPlant` over sprite boxes and taps too); hidden while a plant card is open |
 | `stage-camera.ts` | the camera on the stage (ADRs 0164, 0168): ctrl/⌘ wheel and pinch zoom, double-click/tap, drag only when zoomed, touch-action switch, + / − / Whole garden chips, keys on the focused canvas, cursor hints, clicks → plant card; glides to the seedling on start/switch, to the whole garden on placement |
-| `plant-card.ts` | the plant card (ADR 0167): `plantStory()` / `storyLines()` (pure), a dialog `.plant-story` beside the plant or docked on phones; Esc / close / click away; a seedling's card refreshes each tick |
+| `plant-card.ts` | the plant card (ADR 0167): `plantStory()` / `storyLines()` (pure), a dialog `.plant-story` beside the plant or docked on phones (up to 62 % of the stage); Esc / close / click away; a seedling's card refreshes each tick; a taller card keeps its name and scrolls `.plant-story-body` with `data-more="above below"`, a fade at the cut and an ink mark, the body a focusable region only while it scrolls (ADR 0191) |
 | `previews.ts` | `renderPlantPreview(canvas, species, seed, growth?, createCanvas?)`, `createPreviewCache(getSpecies, createCanvas?)`, pressed-flower pixels |
 | `paper.ts` | seeded deckled washi slips + grain as CSS custom properties (ADR 0052) |
 | `icons.ts` | ink icons as stroke data: inline SVG (`ICONS`) and Path2D (`drawIcon`) (no emoji, no icon fonts) |
@@ -65,7 +66,7 @@ the widget surfaces — the UI then asks in the Begin click itself.
 | `ambient-light.ts` | `uiLight(grade)`, `applyUiLight(root, grade)`: `--ui-dab` / `--ui-dim` so the slips and paper dabs dim with the garden's light (ADR 0121) |
 | `context.ts` | `UIContext`: state shared by the components (internal) |
 | `dom.ts` | tiny DOM helpers (`h('button.primary', …)`, `setText`) |
-| `sheet.ts` | `createSheet`: the modal washi `<dialog>` shell for herbarium, garden data and hints |
+| `sheet.ts` | `createSheet`: the modal washi `<dialog>` shell for every sheet (planting, schedule, herbarium, garden data, hints); in CSS the backdrop is the page's paper at 0.965, the page is locked while one is open, and `::after` draws the torn edge over the content (ADR 0190) |
 | `types.ts` | `UIDeps`, `UI`, `UIState`, `PlantingDraft`, `PlacementHighlight`, widget/audio/notification integrations |
 | `notifications.ts` | `browserNotifications()`: the Notification API as a `NotificationIntegration` |
 | `ui.studio.ts` | studio section: plant previews at a few growth values, pressed-flower treatment |
@@ -132,6 +133,15 @@ bloom / End ──▶ nothing active: rows offer Resume (the one left last as a 
 'growing'|'bloom'|'empty', speciesId, growth, watering, wilting }, sessions: { visible, rows: [{ id,
 taskName, active, running, action: 'switch'|'resume'|null, suggested, totalRemainingMs, growth }],
 limit }, pillMore, confirm, resting, dialogs, tips, markers, line, plantLabel, draft }`.
+
+## Sheets over the page (ADR 0190)
+Every sheet is a `<dialog>` opened with `showModal()` through `ctx.openDialog`. Behind it the page
+goes under a leaf of its own washi (`::backdrop`: `--page-paper` at `--sheet-veil`, 0.965), never a
+grey scrim or a blur. `html:has(dialog.sheet[open]:not(.is-closing))` hides the page's overflow, so
+the wheel beside the sheet, PageDown/Space/End and touch do not move the page, and the smooth scroll
+already stands aside while a modal is open. The sheet's own paper scrolls (`overscroll-behavior:
+contain`). The torn edge is drawn by `dialog.sheet::after` from `--slip-dense-edge-*` over the
+content; the planting footer stops 7 px short of it.
 
 ## Accessibility
 Real buttons with labels; `role=radiogroup` for plans; locked plants `aria-disabled`; ink focus
