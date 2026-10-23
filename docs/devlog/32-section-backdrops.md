@@ -82,7 +82,10 @@ phases. Only the garden's edge above the first sheet changes.
 paper tile. The dock contract gains `backdrop` (docs/ARCHITECTURE.md › Dock).
 
 ## Suites
-SUITES
+After rebasing on main at eaaf161:
+- `npm run typecheck` passes;
+- `npm test` passes (111 files, 1337 tests);
+- `nice -n 10 env E2E_PORT=4204 npm run e2e` (2 workers): 212 passed in 15.8 min.
 
 ## Left open
 - The due card's slip is darker than the Study sheet it lies on. It reads as a slip on a leaf, which
