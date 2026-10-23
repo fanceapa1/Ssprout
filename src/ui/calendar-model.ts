@@ -285,6 +285,33 @@ export function openingMinute(items: readonly CalendarItem[], dates: string | re
   return Number.isFinite(first) ? clamp(first - 30) : clamp(8 * 60);
 }
 
+/**
+ * The comfortable band of a following day window (ADR 0192), as fractions of the window's height:
+ * while "now" stays between `from` and `to` the window rests; when it drifts out (time passing, a
+ * long-open tab, the dev clock), the window glides so now sits `lead` minutes below its top again
+ * (the same hour and a half the day opens with).
+ */
+export const FOLLOW = { from: 0.04, to: 0.72, leadMinutes: 90, glideMs: 1400 } as const;
+
+/**
+ * Where a day window that follows now should scroll to (px), or null to stay where it is.
+ * `nowY` is now's offset in the scroller's content, `top` / `view` / `max` its scrollTop,
+ * clientHeight and furthest scrollTop, `lead` the lead in px.
+ */
+export function followTarget(nowY: number, top: number, view: number, max: number, lead: number, band: { from: number; to: number } = FOLLOW): number | null {
+  if (!(view > 0)) return null;
+  if (nowY >= top + view * band.from && nowY <= top + view * band.to) return null;
+  const to = Math.min(Math.max(0, max), Math.max(0, nowY - lead));
+  return Math.abs(to - top) < 1 ? null : to;
+}
+
+/** An eased glide (sine in-out) from `from` to `to` at `t` of `duration` ms. */
+export function glideScroll(from: number, to: number, t: number, duration: number): number {
+  if (t >= duration || duration <= 0) return to;
+  const k = Math.max(0, t) / duration;
+  return from + (to - from) * (0.5 - 0.5 * Math.cos(Math.PI * k));
+}
+
 /** The minute of the day under a tap at fraction `y` (0–1) of the timeline, snapped to 30 minutes. */
 export function minuteAt(y: number, step = 30): number {
   const m = Math.floor((Math.min(0.9999, Math.max(0, y)) * 1440) / step) * step;

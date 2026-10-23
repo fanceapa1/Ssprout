@@ -9,7 +9,10 @@ import {
   dayFraction,
   dayMarks,
   daysOf,
+  FOLLOW,
+  followTarget,
   formatMinutes,
+  glideScroll,
   itemsOnDay,
   layoutColumns,
   localeWeekStart,
@@ -26,6 +29,7 @@ import {
 } from './calendar-model';
 import type { UIContext } from './context';
 import { fragment, h, setText } from './dom';
+import { keyDirection } from './smooth-scroll';
 
 /**
  * The Calendar section of the dock (SPEC §13, ADR 0175): a Daily / Weekly / Monthly toggle (daily
@@ -33,6 +37,10 @@ import { fragment, h, setText } from './dom';
  * what was studied, what is growing and what is planned. Day and week are an hour timeline with
  * soft washes in each plant's colour; the month is a grid of quiet pigment dabs. A tap on an empty
  * time (or "Schedule a session") opens the schedule editor; a planned block opens it to edit.
+ *
+ * Today's day view follows now (ADR 0192): while the tab stays open the now line moves and the
+ * window glides on before now leaves it, and past midnight it turns to the new day — unless the
+ * gardener scrolled the hours themselves; then it stays put until "Today" or another day is opened.
  */
 
 export interface CalendarDeps {
@@ -64,6 +72,8 @@ export interface CalendarState {
   /** the days on screen */
   days: string[];
   items: CalendarItemState[];
+  /** today's day window follows now (until the gardener scrolls it, ADR 0192) */
+  follow: boolean;
 }
 
 export interface Calendar {
@@ -135,9 +145,17 @@ export function createCalendar(ctx: UIContext, deps: CalendarDeps): Calendar {
 
   let view: CalendarView = readView(storage);
   let anchor = noonOf(dayKey(clock.now()));
-  let current: CalendarState = { view, date: dayKey(anchor), weekStartsOn, title: '', days: [], items: [] };
+  let current: CalendarState = { view, date: dayKey(anchor), weekStartsOn, title: '', days: [], items: [], follow: false };
   /** the view/day the timeline was last opened at (it scrolls to a sensible window only then) */
   let openedFor = '';
+  /** today's day window keeps up with now (ADR 0192) */
+  let follow = false;
+  /** where we last put the hours' scroll (a scroll elsewhere is the gardener's) */
+  let lastSet = 0;
+  /** a gentle glide of the hours in progress */
+  let glide: { from: number; to: number; start: number } | null = null;
+  let glideRaf: number | null = null;
+  const reduced = () => ctx.deps.reducedMotion ?? (typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches);
 
   // ── header ─────────────────────────────────────────────────────────────────────────────
   const viewButtons = CALENDAR_VIEWS.map((v) =>
@@ -194,7 +212,7 @@ export function createCalendar(ctx: UIContext, deps: CalendarDeps): Calendar {
 
   function go(date: string | number): void {
     anchor = noonOf(typeof date === 'number' ? dayKey(date) : date);
-    openedFor = ''; // asked for a day: open its window afresh
+    openedFor = ''; // asked for a day: open its window afresh (today's follows now again)
     render();
   }
 
@@ -345,6 +363,23 @@ export function createCalendar(ctx: UIContext, deps: CalendarDeps): Calendar {
 
   function timeline(days: string[], items: CalendarItem[], now: number): HTMLElement {
     const scroller = h('div.cal-timeline', { tabindex: 0, role: 'group', 'aria-label': days.length === 1 ? 'Hours of the day' : 'Hours of the week' });
+    // the gardener moving the hours themselves: the window stops following now (ADR 0192)
+    const mine = () => {
+      follow = false;
+      stopGlide();
+    };
+    scroller.addEventListener('wheel', mine, { passive: true });
+    scroller.addEventListener('touchmove', mine, { passive: true });
+    scroller.addEventListener('keydown', (e) => {
+      if (keyDirection(e.key, e.shiftKey) !== 0) mine();
+    });
+    scroller.addEventListener(
+      'scroll',
+      () => {
+        if (glide === null && Math.abs(scroller.scrollTop - lastSet) > 2) follow = false;
+      },
+      { passive: true },
+    );
     const cols = h('div.cal-cols', { 'data-days': days.length });
     for (const d of days) cols.appendChild(column(d, itemsOnDay(items, d), now, days));
     scroller.appendChild(h('div.cal-grid', {}, hoursRail(), cols));
@@ -426,9 +461,64 @@ export function createCalendar(ctx: UIContext, deps: CalendarDeps): Calendar {
     return wrap;
   }
 
+  // ── following now (ADR 0192) ──────────────────────────────────────────────────────────────
+  function minuteOfDay(t: number): number {
+    const d = new Date(t);
+    return d.getHours() * 60 + d.getMinutes() + d.getSeconds() / 60;
+  }
+  /** now's offset in the hours' scroller (px), from the grid's own box */
+  function nowOffset(tl: HTMLElement, now: number): number {
+    const grid = tl.querySelector<HTMLElement>('.cal-grid');
+    const top = grid?.offsetTop ?? 0;
+    const height = grid?.offsetHeight || tl.scrollHeight;
+    return top + (minuteOfDay(now) / 1440) * height;
+  }
+  function nowInWindow(tl: HTMLElement, now: number): boolean {
+    const y = nowOffset(tl, now);
+    return y >= tl.scrollTop && y <= tl.scrollTop + tl.clientHeight;
+  }
+  /** glide the window on when now is about to leave it */
+  function keepUp(tl: HTMLElement, now: number): void {
+    const grid = tl.querySelector<HTMLElement>('.cal-grid');
+    const lead = ((grid?.offsetHeight || tl.scrollHeight) * FOLLOW.leadMinutes) / 1440;
+    const to = followTarget(nowOffset(tl, now), tl.scrollTop, tl.clientHeight, tl.scrollHeight - tl.clientHeight, lead);
+    if (to === null) return;
+    if (glide && Math.abs(glide.to - to) < 1) return;
+    if (reduced() || typeof requestAnimationFrame !== 'function') {
+      stopGlide();
+      tl.scrollTop = to;
+      lastSet = tl.scrollTop;
+      return;
+    }
+    glide = { from: tl.scrollTop, to, start: typeof performance === 'undefined' ? Date.now() : performance.now() };
+    glideRaf ??= requestAnimationFrame(stepGlide);
+  }
+  function stepGlide(ts: number): void {
+    glideRaf = null;
+    const tl = body.querySelector<HTMLElement>('.cal-timeline');
+    if (!glide || !tl) return void (glide = null);
+    const y = glideScroll(glide.from, glide.to, ts - glide.start, FOLLOW.glideMs);
+    tl.scrollTop = y;
+    lastSet = tl.scrollTop;
+    if (y === glide.to) glide = null;
+    else glideRaf = requestAnimationFrame(stepGlide);
+  }
+  function stopGlide(): void {
+    glide = null;
+    if (glideRaf !== null && typeof cancelAnimationFrame === 'function') cancelAnimationFrame(glideRaf);
+    glideRaf = null;
+  }
+
   // ── render ─────────────────────────────────────────────────────────────────────────────
   function render(): void {
     const now = clock.now();
+    // following today past midnight: turn to the new day, still following
+    let rolled = false;
+    if (follow && view === 'day' && dayKey(anchor) !== dayKey(now) && dayKey(anchor) < dayKey(now)) {
+      anchor = noonOf(dayKey(now));
+      openedFor = '';
+      rolled = true;
+    }
     const state = store.get();
     const range = viewRange(view, anchor, weekStartsOn);
     const occurrences = scheduler.occurrences(range);
@@ -464,13 +554,23 @@ export function createCalendar(ctx: UIContext, deps: CalendarDeps): Calendar {
       body.appendChild(tl);
       if (items.length === 0) body.appendChild(h('p.cal-empty', {}, view === 'day' ? 'A quiet day. Tap a time to plan a session.' : 'A quiet week. Tap a time to plan a session.'));
       const openKey = `${view}|${days[0]}`;
+      const isToday = view === 'day' && days[0] === dayKey(now);
       const fit = () => {
         if (openedFor !== openKey) {
           // a day follows now; a week opens on its earliest work
-          const m = openingMinute(items, days, view === 'day' ? now : NaN);
+          stopGlide();
+          const m = rolled ? Math.max(0, minuteOfDay(now) - FOLLOW.leadMinutes) : openingMinute(items, days, view === 'day' ? now : NaN);
           tl.scrollTop = (m / 1440) * tl.scrollHeight;
-          if (tl.scrollHeight > 0) openedFor = openKey;
-        } else tl.scrollTop = keepScroll;
+          lastSet = tl.scrollTop;
+          if (tl.scrollHeight > 0) {
+            openedFor = openKey;
+            follow = isToday && nowInWindow(tl, now);
+          }
+        } else {
+          tl.scrollTop = keepScroll;
+          lastSet = tl.scrollTop;
+          if (follow && isToday) keepUp(tl, now);
+        }
       };
       fit();
       if (tl.scrollHeight === 0 && typeof requestAnimationFrame === 'function') requestAnimationFrame(fit);
@@ -482,6 +582,7 @@ export function createCalendar(ctx: UIContext, deps: CalendarDeps): Calendar {
       weekStartsOn,
       title: text,
       days,
+      follow,
       items: items.map((i) => ({
         id: i.id,
         kind: i.kind,
@@ -509,9 +610,10 @@ export function createCalendar(ctx: UIContext, deps: CalendarDeps): Calendar {
     render,
     setView,
     go,
-    state: () => current,
+    state: () => ({ ...current, follow }),
     dispose() {
       clearInterval(timer);
+      stopGlide();
     },
   };
 }

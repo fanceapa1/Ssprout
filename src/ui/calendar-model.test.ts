@@ -7,7 +7,10 @@ import {
   dayFraction,
   dayMarks,
   daysOf,
+  FOLLOW,
+  followTarget,
   formatMinutes,
+  glideScroll,
   itemsOnDay,
   layoutColumns,
   localeWeekStart,
@@ -264,5 +267,38 @@ describe('month marks', () => {
     expect(formatMinutes(45)).toBe('45 min');
     expect(formatMinutes(60)).toBe('1 h');
     expect(formatMinutes(125)).toBe('2 h 05');
+  });
+});
+
+describe('following now (ADR 0192)', () => {
+  // a 540 px window over a 1344 px day (56 px an hour); now leads by 90 minutes (84 px)
+  const view = 540;
+  const max = 1344 - view;
+  const lead = 84;
+
+  it('rests while now is in the comfortable band', () => {
+    expect(followTarget(400, 300, view, max, lead)).toBeNull();
+    expect(followTarget(300 + view * FOLLOW.to, 300, view, max, lead)).toBeNull();
+  });
+
+  it('glides on before now leaves the window, leaving the same lead as when it opened', () => {
+    expect(followTarget(300 + view * 0.8, 300, view, max, lead)).toBeCloseTo(300 + view * 0.8 - lead, 6);
+    // now above the window (e.g. the window was left low): back up to it
+    expect(followTarget(200, 300, view, max, lead)).toBe(116);
+  });
+
+  it('never scrolls past the day', () => {
+    expect(followTarget(1330, 300, view, max, lead)).toBe(max);
+    expect(followTarget(10, 300, view, max, lead)).toBe(0);
+    expect(followTarget(1330, max, view, max, lead)).toBeNull();
+    expect(followTarget(400, 300, 0, max, lead)).toBeNull();
+  });
+
+  it('the glide eases in and out and lands exactly', () => {
+    expect(glideScroll(100, 300, 0, 1000)).toBe(100);
+    expect(glideScroll(100, 300, 500, 1000)).toBeCloseTo(200, 6);
+    expect(glideScroll(100, 300, 100, 1000) - 100).toBeLessThan(10);
+    expect(glideScroll(100, 300, 1000, 1000)).toBe(300);
+    expect(glideScroll(100, 300, 5000, 1000)).toBe(300);
   });
 });
