@@ -152,7 +152,7 @@ notifies nobody and nothing is saved). The reducer never mutates its input.
 | `session/skipBreak {now}` | not complete; current block is a break with time left | `skippedMs += blockRemainingMs` (ends that much sooner; total and tier unchanged) |
 | `session/cancel {now, id?}` | the session `id` (default: the active one) is in progress | it is removed (no other becomes active), `stats.cancelled++`, a `cancelled` log entry; the displaced plant was never removed, so it stays |
 | `session/complete {now, id?}` | the session `id` (default: the active one) with `isComplete(now)` | finished plant `{ id: session.id, speciesId, slotId, seed, plantedAt: startedAt, sessionMinutes: total, taskName, completedAt: now }`; the displaced plant (and anything else in the slot) → `pressed` (`{ speciesId, seed, plantedAt, removedAt: now, taskName }`); `stats.totalMinutes += focus minutes`; `stats.completed++`; a `completed` log entry; the others stay as they are |
-| `tip/retire {id}` | non-empty id not yet retired | `tips[id] = 'seen'` |
+| `tip/retire {id, reason?}` | non-empty id not yet retired | `tips[id] = 'seen'` (`reason` `used`/`dismissed` is not stored, ADR 0211) |
 | `settings/update {patch}` | at least one valid field changes | merges `muted` (boolean), `lastGoalMinutes` (clamped), `notifications` (unasked/granted/denied) |
 | `fauna/seen {id}` | non-empty id not yet seen | appended to `faunaSeen` |
 | `state/replace {state}` | `state.version === 2` and a different object | replaces the whole state (callers validate first) |
@@ -190,6 +190,10 @@ tested, but the UI no longer uses it: arrivals come from the fauna system on fir
 `activeTips(state, { now?, swapAvailable?, widgetSupported? })` in registry order (the UI shows
 one at a time, by priority, next to its `anchor`; ADR 0124), `allTips(state)` for the ⓘ list, `tipsRetiredBy(action, prev, next)`.
 
+Any tip can also be **dismissed** with the small × on its note (ADR 0211): the UI calls
+`controller.retireTip(id, 'dismissed')`, which retires it exactly as above (persisted as `'seen'`,
+listed as learned under ⓘ). A dismissal is not a use: `tipsRetiredBy` returns nothing for it.
+
 ## Controller API (`controller.ts`)
 
 ```ts
@@ -213,7 +217,7 @@ const controller = createSessionController({
 | `recommendPlans(min)` | `StudyPlan[]` | — |
 | `selectableSpecies(min)` | `{ species, locked, requiredMinutes, earned }[]` | — |
 | `placementOptions(speciesId)` | `{ slot, occupiedBy? }[]` | — |
-| `retireTip(id)` | `boolean` | `tip:retired {id}` (auto-retirements emit it too) |
+| `retireTip(id, reason = 'used')` | `boolean` | `tip:retired {id, reason}` (auto-retirements emit it too, as `used`; the note's × as `dismissed`, ADR 0211) |
 | `updateSettings(patch)` | `boolean` | `settings:changed {settings}` |
 | `announceFauna(id)` | `boolean` (true the first time) | `fauna:arrived {id}` |
 | `status()` | `{ phase: 'idle'\|'focus'\|'break'\|'paused', session, timeline: SessionTimeline \| null, pausedForMs, longPause, sessions: { session, timeline, active, running, pausedForMs, lastLeft }[], canStart, maxSessions }` (phase…longPause: the active session) | — |

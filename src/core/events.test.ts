@@ -27,7 +27,7 @@ describe('event bus', () => {
     bus.on('tip:retired', b);
     unsub();
     bus.off('tip:retired', b);
-    bus.emit('tip:retired', { id: 'slider' });
+    bus.emit('tip:retired', { id: 'slider', reason: 'used' });
     expect(a).not.toHaveBeenCalled();
     expect(b).not.toHaveBeenCalled();
   });
@@ -64,7 +64,7 @@ describe('event bus', () => {
       throw new Error('boom');
     });
     bus.on('tip:retired', after);
-    bus.emit('tip:retired', { id: 'x' });
+    bus.emit('tip:retired', { id: 'x', reason: 'used' });
     expect(after).toHaveBeenCalled();
     expect(onError).toHaveBeenCalledWith(expect.any(Error), 'tip:retired');
   });

@@ -1,6 +1,6 @@
 # ADR 0124 — One tip at a time
 
-- Status: accepted; amended by ADR 0181
+- Status: accepted; amended by ADR 0181, ADR 0211
 - Date: 2026-10-22
 
 ## Context

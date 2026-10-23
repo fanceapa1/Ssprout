@@ -1,5 +1,5 @@
 import type { OccurrenceView } from './schedule';
-import type { ActiveSession, PlantInstance, PressedFlower, Settings } from './state';
+import type { ActiveSession, PlantInstance, PressedFlower, Settings, TipRetireReason } from './state';
 
 /**
  * Typed app-wide events (contract: docs/ARCHITECTURE.md › Events).
@@ -35,7 +35,8 @@ export interface EventMap {
   'plant:placed': { plant: PlantInstance };
   'plant:swapped': { plant: PlantInstance; removed: PressedFlower };
   'fauna:arrived': { id: string };
-  'tip:retired': { id: string };
+  /** `reason`: used, or dismissed with the note's × (ADR 0211) */
+  'tip:retired': { id: string; reason: TipRetireReason };
   'settings:changed': { settings: Settings };
   /**
    * a scheduled occurrence's time has come: it waits for one-tap Start (emitted once per

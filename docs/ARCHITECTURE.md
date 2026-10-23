@@ -286,7 +286,7 @@ deterministic. `type Action =`
 | `session/skipBreak` | `now` | skip the rest of the current break (`skippedMs +=` remainder) |
 | `session/cancel` | `now, id?` | (default: the active session) seedling withers, displaced plant stays, `stats.cancelled++`, a `cancelled` log entry; the others untouched |
 | `session/complete` | `now, id?` | plan finished → finished plant (id = session id), displaced plant → `pressed`, a `completed` log entry; nothing else resumes |
-| `tip/retire` | `id` | mark a tip as seen |
+| `tip/retire` | `id, reason?` | mark a tip as seen; `reason` `'used'` (default) or `'dismissed'` (its ×, ADR 0211) is not stored |
 | `settings/update` | `patch: Partial<Settings>` | merge settings |
 | `fauna/seen` | `id` | creature announced |
 | `state/replace` | `state` | import / load a whole state |
@@ -372,7 +372,7 @@ API the UI and widget use**: `start({ taskName, goalMinutes, planId?, speciesId,
 (the new session becomes active; the active one waits), `pause()`, `resume()`, `switchTo(id)`,
 `water()`, `skipBreak()`, `cancel(id?)`, `check()`, `nextFocusWatering()`, `recommendPlans(min)`,
 `selectableSpecies(min) => { species, locked, requiredMinutes, earned }[]`,
-`placementOptions(speciesId) => { slot, occupiedBy? }[]` (held slots left out), `retireTip(id)`,
+`placementOptions(speciesId) => { slot, occupiedBy? }[]` (held slots left out), `retireTip(id, reason = 'used')`,
 `updateSettings(patch)`, `announceFauna(id)`,
 `status() => { phase, session, timeline, pausedForMs, longPause, sessions, canStart, maxSessions }`
 (`sessions`: every session in progress, oldest first, as `{ session, timeline, active, running,
@@ -404,7 +404,7 @@ waits), `'session:pause': { sessionId, at, reason? }` (`'user'` or `'switch'`), 
 'session:cancel': { sessionId, at }`, `'session:switch': { from, to, at }` (after the pause/resume it
 implies; `from` null when nothing was active), `'session:complete': { sessionId, plant }`, `'plant:placed': { plant }`
 and `'plant:swapped': { plant, removed }` (both on completion; swapped first), `'fauna:arrived': { id }`,
-`'tip:retired': { id }`, `'settings:changed': { settings }`, `'schedule:due': { occurrence }` (an
+`'tip:retired': { id, reason }` (`'used' | 'dismissed'`, ADR 0211), `'settings:changed': { settings }`, `'schedule:due': { occurrence }` (an
 `OccurrenceView` whose time has come, from the scheduler's tick, ADR 0172). `fauna:arrived` is emitted by the fauna
 system the first time a newly unlocked creature is actually in view (ADR 0120); the UI's quiet line
 announces it and records it with `controller.announceFauna(id)`.

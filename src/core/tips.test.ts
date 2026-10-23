@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { loadState, saveState, STORAGE_KEY, type StorageLike } from './persistence';
 import { createDefaultState, reducer, type Action, type GardenState } from './state';
 import { makePlant, makePressed, makeSession, MIN, plan, T0 } from './testing';
 import { activeTips, allTips, getTip, isRetired, TIP_IDS, TIPS, tipsRetiredBy } from './tips';
@@ -133,5 +134,43 @@ describe('tipsRetiredBy', () => {
     const retired = run(idle(), { type: 'tip/retire', id: 'duration' });
     expect(step(retired, startAction())).toEqual(['task', 'placement']);
     expect(step(idle(), { type: 'fauna/seen', id: 'koi-1' })).toEqual([]);
+  });
+});
+
+describe('dismissing a tip (ADR 0211)', () => {
+  const dismiss = (id: string): Action => ({ type: 'tip/retire', id, reason: 'dismissed' });
+
+  it('retires the tip exactly like using it: never active again, listed as retired', () => {
+    const s = run(idle(), dismiss('notifications'));
+    expect(s.tips).toEqual({ notifications: 'seen' });
+    expect(isRetired(s, 'notifications')).toBe(true);
+    expect(ids(s)).not.toContain('notifications');
+    expect(allTips(s).find((t) => t.id === 'notifications')?.retired).toBe(true);
+    // the next waiting tip is still there to take its turn
+    expect(ids(s)).toContain('sound');
+  });
+
+  it('is a no-op for a tip already retired (used or dismissed) and for an empty id', () => {
+    const used = run(idle(), { type: 'tip/retire', id: 'sound' });
+    expect(reducer(used, dismiss('sound'))).toBe(used);
+    const dismissed = run(idle(), dismiss('sound'));
+    expect(reducer(dismissed, dismiss('sound'))).toBe(dismissed);
+    expect(reducer(dismissed, { type: 'tip/retire', id: 'sound' })).toBe(dismissed);
+    expect(reducer(idle(), dismiss(''))).toEqual(idle());
+  });
+
+  it('persists: a dismissed tip stays retired after a save and a load', () => {
+    const map = new Map<string, string>();
+    const storage: StorageLike = { getItem: (k) => map.get(k) ?? null, setItem: (k, v) => void map.set(k, v) };
+    expect(saveState(storage, run(idle(), dismiss('sound'))).ok).toBe(true);
+    expect(JSON.parse(map.get(STORAGE_KEY)!).tips).toEqual({ sound: 'seen' });
+    const loaded = loadState(storage, T0);
+    expect(loaded.status).toBe('loaded');
+    expect(isRetired(loaded.state, 'sound')).toBe(true);
+    expect(ids(loaded.state)).not.toContain('sound');
+  });
+
+  it('dismissing does not count as using a mechanism', () => {
+    expect(tipsRetiredBy(dismiss('sound'), idle(), reducer(idle(), dismiss('sound')))).toEqual([]);
   });
 });

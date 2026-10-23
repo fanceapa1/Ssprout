@@ -1,6 +1,6 @@
 # ADR 0181 — Tips ride with the page and wait for room
 
-- Status: accepted
+- Status: accepted; amended by ADR 0211
 - Date: 2026-10-23
 - Amends: ADR 0124 (one tip at a time)
 

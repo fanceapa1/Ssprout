@@ -379,7 +379,15 @@ describe('settings, tips and fauna', () => {
     const { controller, payload } = setup();
     expect(controller.retireTip('widget')).toBe(true);
     expect(controller.retireTip('widget')).toBe(false);
-    expect(payload('tip:retired')).toEqual([{ id: 'widget' }]);
+    expect(payload('tip:retired')).toEqual([{ id: 'widget', reason: 'used' }]);
+  });
+
+  it('retireTip with reason dismissed retires and says so on the event (ADR 0211)', () => {
+    const { controller, store, payload } = setup();
+    expect(controller.retireTip('sound', 'dismissed')).toBe(true);
+    expect(store.get().tips.sound).toBe('seen');
+    expect(controller.retireTip('sound', 'dismissed')).toBe(false);
+    expect(payload('tip:retired')).toEqual([{ id: 'sound', reason: 'dismissed' }]);
   });
 
   it('announceFauna emits fauna:arrived once per creature', () => {

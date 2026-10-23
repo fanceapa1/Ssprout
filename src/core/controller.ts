@@ -31,6 +31,7 @@ import {
   type GardenState,
   type Settings,
   type Store,
+  type TipRetireReason,
 } from './state';
 import { tipsRetiredBy } from './tips';
 
@@ -146,7 +147,8 @@ export interface SessionController {
   selectableSpecies(totalMinutes: number): SelectableSpecies[];
   /** Slots this species fits, each with its finished occupant (a swap) if any. */
   placementOptions(speciesId: string): CompatibleSlot[];
-  retireTip(id: string): boolean;
+  /** Retire a tip: its mechanism was used (default), or the gardener dismissed it (ADR 0211). */
+  retireTip(id: string, reason?: TipRetireReason): boolean;
   updateSettings(patch: Partial<Settings>): boolean;
   /** Record that a creature has been announced; emits `fauna:arrived` the first time. */
   announceFauna(id: string): boolean;
@@ -228,8 +230,8 @@ export function createSessionController(deps: SessionControllerDeps): SessionCon
 
   const unsubscribe = store.subscribe((next, prev, action) => {
     for (const id of tipsRetiredBy(action, prev, next)) {
-      store.dispatch({ type: 'tip/retire', id }); // queued until this delivery finishes
-      bus.emit('tip:retired', { id });
+      store.dispatch({ type: 'tip/retire', id, reason: 'used' }); // queued until this delivery finishes
+      bus.emit('tip:retired', { id, reason: 'used' });
     }
     syncTicker();
   });
@@ -379,9 +381,9 @@ export function createSessionController(deps: SessionControllerDeps): SessionCon
       return def ? compatibleSlots(def, slots, state.plants, heldSlotIds(state)) : [];
     },
 
-    retireTip(id) {
-      if (!apply({ type: 'tip/retire', id }).changed) return false;
-      bus.emit('tip:retired', { id });
+    retireTip(id, reason = 'used') {
+      if (!apply({ type: 'tip/retire', id, reason }).changed) return false;
+      bus.emit('tip:retired', { id, reason });
       return true;
     },
 

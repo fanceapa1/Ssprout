@@ -184,6 +184,13 @@ export function createDefaultState(now: number): GardenState {
 // stay pure and deterministic.
 // ---------------------------------------------------------------------------------------------
 
+/**
+ * Why a tip retired: its mechanism was `used`, or the gardener `dismissed` its note (ADR 0211). Both
+ * retire it the same way (`tips[id] = 'seen'`, persisted); the reason travels on the action and the
+ * `tip:retired` event only.
+ */
+export type TipRetireReason = 'used' | 'dismissed';
+
 export type Action =
   | {
       type: 'session/start';
@@ -208,7 +215,8 @@ export type Action =
   /** `id` defaults to the active session; a waiting one may be ended too */
   | { type: 'session/cancel'; now: number; id?: string }
   | { type: 'session/complete'; now: number; id?: string }
-  | { type: 'tip/retire'; id: string }
+  /** `reason`: the gardener used the mechanism (default) or dismissed the note with its × (ADR 0211) */
+  | { type: 'tip/retire'; id: string; reason?: TipRetireReason }
   | { type: 'settings/update'; patch: Partial<Settings> }
   | { type: 'fauna/seen'; id: string }
   | { type: 'state/replace'; state: GardenState }
