@@ -107,6 +107,39 @@ const lum = (c: { r: number; g: number; b: number }) => {
   return 0.2126 * lin(c.r) + 0.7152 * lin(c.g) + 0.0722 * lin(c.b);
 };
 
+/** Every visible text line box in the dock now on screen, with its colour and the opacity above it. */
+const collectLines = (page: Page) =>
+  page.evaluate(() => {
+    const out: Array<{ key: string; at: string; text: string; color: string; alpha: number; left: number; top: number; right: number; bottom: number }> = [];
+    const walk = document.createTreeWalker(document.querySelector('.dock')!, NodeFilter.SHOW_TEXT);
+    const range = document.createRange();
+    let i = 0;
+    for (let n = walk.nextNode(); n; n = walk.nextNode(), i++) {
+      if (!n.textContent?.trim()) continue;
+      const el = n.parentElement!;
+      if (el.closest('[hidden], .visually-hidden, svg, [aria-hidden="true"]')) continue;
+      // a missed plan is shown faintly on purpose (no guilt, ADR 0172): it is not body text
+      if (el.closest('[data-occurrence-status="missed"], [data-outcome="cancelled"]')) continue;
+      const cs = getComputedStyle(el);
+      if (cs.visibility === 'hidden' || cs.display === 'none') continue;
+      let alpha = 1;
+      for (let e: Element | null = el; e; e = e.parentElement) alpha *= Number(getComputedStyle(e).opacity);
+      // inside the hours, only lines clear of the window's faded edges are read
+      const tl = el.closest('.cal-timeline')?.getBoundingClientRect();
+      range.selectNodeContents(n);
+      let k = 0;
+      for (const r of range.getClientRects()) {
+        k++;
+        if (r.width < 2 || r.height < 2) continue;
+        if (r.top < 0 || r.bottom > window.innerHeight) continue;
+        if (tl && (r.top < tl.top + 26 || r.bottom > tl.bottom - 26)) continue;
+        const text = n.textContent.trim().slice(0, 24);
+        out.push({ key: `${i}:${k}`, at: `${text}:${Math.round(r.left)}:${Math.round(r.top + scrollY)}`, text, color: cs.color, alpha, left: r.left, top: r.top, right: r.right, bottom: r.bottom });
+      }
+    }
+    return out;
+  });
+
 /**
  * Every visible text line on the dock's sheets, against the pixels under it: the text is made
  * transparent, the window photographed, and each line box's ground averaged. Walks the page
@@ -120,46 +153,27 @@ async function textContrast(page: Page): Promise<{ count: number; low: string[] 
   for (const id of ids) {
     await page.evaluate((id) => window.sprout!.ui.scrollTo(id, { instant: true }), id);
     await waitFrames(page, 2);
-    const lines = await page.evaluate(() => {
-      const out: Array<{ key: string; text: string; color: string; alpha: number; left: number; top: number; right: number; bottom: number }> = [];
-      const walk = document.createTreeWalker(document.querySelector('.dock')!, NodeFilter.SHOW_TEXT);
-      const range = document.createRange();
-      let i = 0;
-      for (let n = walk.nextNode(); n; n = walk.nextNode(), i++) {
-        if (!n.textContent?.trim()) continue;
-        const el = n.parentElement!;
-        if (el.closest('[hidden], .visually-hidden, svg, [aria-hidden="true"]')) continue;
-        // a missed plan is shown faintly on purpose (no guilt, ADR 0172): it is not body text
-        if (el.closest('[data-occurrence-status="missed"], [data-outcome="cancelled"]')) continue;
-        const cs = getComputedStyle(el);
-        if (cs.visibility === 'hidden' || cs.display === 'none') continue;
-        let alpha = 1;
-        for (let e: Element | null = el; e; e = e.parentElement) alpha *= Number(getComputedStyle(e).opacity);
-        // inside the hours, only lines clear of the window's faded edges are read
-        const tl = el.closest('.cal-timeline')?.getBoundingClientRect();
-        range.selectNodeContents(n);
-        for (const r of range.getClientRects()) {
-          if (r.width < 2 || r.height < 2) continue;
-          if (r.top < 0 || r.bottom > window.innerHeight) continue;
-          if (tl && (r.top < tl.top + 26 || r.bottom > tl.bottom - 26)) continue;
-          out.push({ key: `${i}:${Math.round(r.left)}:${Math.round(r.top + scrollY)}`, text: n.textContent.trim().slice(0, 24), color: cs.color, alpha, left: r.left, top: r.top, right: r.right, bottom: r.bottom });
-        }
-      }
-      return out;
-    });
-    const todo = lines.filter((l) => !seen.has(l.key));
-    if (todo.length === 0) continue;
+    // colours with the text shown; rects again once it is hidden, right before the photograph, so a
+    // page that settles in between (a scroll finishing, a line rewrapping) is measured where it is
+    const lines = await collectLines(page);
     await page.evaluate(() => {
       const st = document.createElement('style');
       st.dataset.test = 'no-text';
-      st.textContent = '.dock, .dock * { color: transparent !important; -webkit-text-fill-color: transparent !important; text-shadow: none !important; }';
+      // the text goes, and so do the floating tip notes, which may lie over a line on purpose
+      st.textContent =
+        '.dock, .dock * { color: transparent !important; -webkit-text-fill-color: transparent !important; text-shadow: none !important; } .tips { visibility: hidden !important; }';
       document.head.append(st);
     });
     await waitFrames(page, 2);
-    const grounds = await sample(page, todo);
+    const where = new Map((await collectLines(page)).map((l) => [l.key, l]));
+    const todo = lines
+      .filter((l) => where.has(l.key))
+      .map((l) => ({ ...l, ...where.get(l.key)!, color: l.color, alpha: l.alpha }))
+      .filter((l) => !seen.has(l.at));
+    const grounds = todo.length ? await sample(page, todo) : [];
     await page.evaluate(() => document.querySelector('style[data-test="no-text"]')?.remove());
     todo.forEach((l, i) => {
-      seen.add(l.key);
+      seen.add(l.at);
       const p = /rgba?\(([^)]+)\)/.exec(l.color)![1]!.split(/[\s,/]+/).filter(Boolean).map(Number);
       const a = (p[3] ?? 1) * l.alpha;
       const g = grounds[i]!;
@@ -305,7 +319,7 @@ test.describe('section backdrops · hd', () => {
 test.describe('section backdrops · phone', () => {
   test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
 
-  test('each view of the calendar, empty or full, lies on its sheet; the lane stays outside', async ({ page }) => {
+  test('each view of the calendar, empty or full, lies on its sheet; the lane stays outside; no sideways scroll', async ({ page }) => {
     await openUi(page);
     for (const state of ['empty', 'busy'] as const) {
       if (state === 'busy') await busy(page);
@@ -319,6 +333,8 @@ test.describe('section backdrops · phone', () => {
         for (const s of list) for (const c of s.controls) expect(inside(c, s.sheet, 2), `${s.id}: ${c.what}`).toBe(true);
       }
     }
+    // the washes reach past the sheets' right edges, never into a sideways scroll
+    expect(await page.evaluate(() => ({ w: innerWidth, scroll: document.documentElement.scrollWidth }))).toEqual({ w: 390, scroll: 390 });
     const w = await page.evaluate(() => window.sprout!.ui.wayfinding({ layout: true }));
     const list = await sheets(page);
     for (const st of w.stops) expect(st.x).toBeLessThan(list[0]!.sheet.left - 6);
