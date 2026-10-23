@@ -51,6 +51,9 @@ function glideAndSample(page: Page, target: number | string, anchors: Record<str
 
 test.describe('tips · on a scrolling page', () => {
   test('a note rides with its control through a smooth glide, then hands over to the dock copy', async ({ page }) => {
+    // a narrower window, where the pill sits at the bottom of the garden: a long glide keeps it on
+    // screen (on wide screens it is in the top-left corner and leaves the screen at once, ADR 0203)
+    await page.setViewportSize({ width: 860, height: 900 });
     await openUi(page);
     const note = page.locator('.tip[data-tip-id="notifications"]');
     await expect(note).toBeVisible();
