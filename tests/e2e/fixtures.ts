@@ -1,10 +1,68 @@
 import { test as base, expect, type Page } from '@playwright/test';
 
 /**
+ * `E2E_CLOCK=HH:MM` runs the suite as if the page opened at that local time of day, to prove a
+ * spec does not depend on the hour it runs at (docs/TESTING.md › Conventions): e.g.
+ * `E2E_CLOCK=17:00 npx playwright test tests/e2e/marks.spec.ts`.
+ *
+ * Every page of the test's context sees `Date` shifted forward to the next local `HH:MM` (in the
+ * page's own time zone), by one offset kept in the origin's storage: a reload or a second page
+ * carries on from the same shifted time, as the real clock would, instead of falling back to the
+ * real hour behind the saved timestamps (devlog 41). The app reads time only through `Date.now()`
+ * (`realClock`), so the dev clock starts there; `sprout.advance` jumps stack on top as usual.
+ */
+export const E2E_CLOCK = process.env.E2E_CLOCK?.trim() || null;
+
+/** Init script: shift this document's `Date` to the pinned hour (see `E2E_CLOCK`). */
+function shiftDate(hhmm: string): void {
+  const KEY = 'e2e:clock-offset';
+  const RealDate = Date;
+  const realNow = RealDate.now.bind(RealDate);
+  let offset = NaN;
+  try {
+    const saved = localStorage.getItem(KEY);
+    if (saved !== null) offset = Number(saved);
+  } catch {
+    // an opaque origin (about:blank) has no storage: nothing there reads the clock
+  }
+  if (!Number.isFinite(offset)) {
+    const [h, m] = hhmm.split(':').map(Number);
+    const now = new RealDate(realNow());
+    const at = new RealDate(now);
+    at.setHours(h!, m!, 0, 0);
+    if (at.getTime() <= now.getTime()) at.setDate(at.getDate() + 1);
+    offset = at.getTime() - now.getTime();
+    try {
+      localStorage.setItem(KEY, String(offset));
+    } catch {
+      // as above
+    }
+  }
+  class ShiftedDate extends RealDate {
+    constructor(...args: unknown[]) {
+      if (args.length === 0) super(realNow() + offset);
+      else super(...(args as [number]));
+    }
+    static override now(): number {
+      return realNow() + offset;
+    }
+  }
+  globalThis.Date = ShiftedDate as DateConstructor;
+}
+
+/**
  * `test` that fails on any console error or uncaught page error.
  * Runs automatically for every test; use `errors` to assert explicitly mid-test.
+ * With `E2E_CLOCK` set it also pins the hour for every page of the test (above).
  */
-export const test = base.extend<{ errors: string[] }>({
+export const test = base.extend<{ errors: string[]; e2eClock: void }>({
+  e2eClock: [
+    async ({ context }, use) => {
+      if (E2E_CLOCK) await context.addInitScript(shiftDate, E2E_CLOCK);
+      await use();
+    },
+    { auto: true },
+  ],
   errors: [
     async ({ page }, use) => {
       const errors: string[] = [];
@@ -21,20 +79,11 @@ export const test = base.extend<{ errors: string[] }>({
 
 export { expect };
 
-/**
- * `E2E_CLOCK=HH:MM` runs the suite as if the page opened at that local time of day: the dev clock
- * jumps forward to it (`sprout.advanceTo`) as soon as the page is ready. Use it to prove a spec
- * does not depend on the hour it runs at (docs/TESTING.md › Conventions): e.g.
- * `E2E_CLOCK=17:00 npx playwright test tests/e2e/marks.spec.ts`.
- */
-export const E2E_CLOCK = process.env.E2E_CLOCK?.trim() || null;
-
 /** Open the app with the debug API and wait until every system has initialised. */
 export async function openDev(page: Page, query = ''): Promise<void> {
   await page.goto(`./?dev${query ? `&${query}` : ''}`);
   await page.waitForFunction(() => window.sprout !== undefined);
   await page.evaluate(() => window.sprout!.ready());
-  if (E2E_CLOCK) await page.evaluate((t) => window.sprout!.advanceTo(t), E2E_CLOCK);
 }
 
 /**
