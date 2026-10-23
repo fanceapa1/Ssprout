@@ -102,6 +102,8 @@ export function drawWithering(
   side: 1 | -1,
   /** false when `img` is a reused buffer whose pixels change (no caching of its dried twin) */
   stableImage = true,
+  /** opacity of a second pass of the plant under the first (the garden's plants are laid twice, ADR 0187) */
+  body = 0,
 ): void {
   const st = witherState(u);
   if (st.alpha <= 0.003) return;
@@ -124,5 +126,7 @@ export function drawWithering(
     }
     source = buf.canvas;
   }
-  drawPlant(ctx, source, box, baseX, baseY, { lean: st.droop * side, bend: 2, scaleY: st.squash, alpha: st.alpha });
+  const pose = { lean: st.droop * side, bend: 2, scaleY: st.squash, alpha: st.alpha };
+  if (body > 0) drawPlant(ctx, source, box, baseX, baseY, { ...pose, alpha: st.alpha * body });
+  drawPlant(ctx, source, box, baseX, baseY, pose);
 }

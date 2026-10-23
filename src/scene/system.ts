@@ -357,13 +357,15 @@ export function createSceneSystem(opts: SceneSystemOptions = {}): SceneSystem {
       if (!res) return [];
       const alpha = res === detail ? 1 : previous ? 1 : easeInOut(fade);
       const rim = light ? rimLight(light) : null;
+      // a detail painting's boulders are sharper bitmaps: their rim keeps its width on the stone
+      const rimK = res.view.scale / RIM_REF_SCALE;
       return res.sprites.map((s) => ({
         depth: s.depth,
         draw(ctx) {
           ctx.globalAlpha = alpha;
           ctx.drawImage(s.canvas as CanvasImageSource, s.box.x, s.box.y, s.box.w, s.box.h);
           // boulders catch the low sun on their lit side (tufts are too small to bother)
-          if (rim && rim.strength > 0.02 && s.id.startsWith('rock')) drawRim(ctx, rims, s.canvas, s.box, rim, RIM_ROCK);
+          if (rim && rim.strength > 0.02 && s.id.startsWith('rock')) drawRim(ctx, rims, s.canvas, s.box, rim, RIM_ROCK, rimK);
         },
       }));
     },
@@ -396,6 +398,8 @@ export function createSceneSystem(opts: SceneSystemOptions = {}): SceneSystem {
 
 /** How strongly the boulders take the rim light (they are matte stone). */
 const RIM_ROCK = 0.7;
+/** Paint scale the boulders' rim width was tuned at (the overview's cap). */
+const RIM_REF_SCALE = 1.5;
 
 const easeInOut = (t: number) => (t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t));
 

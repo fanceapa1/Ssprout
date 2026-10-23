@@ -18,21 +18,28 @@ export interface RimSpec {
 type Source = CanvasImageSource & { width: number; height: number };
 
 export interface RimCache {
-  get(image: CanvasImageSource, side: -1 | 1, rgb: readonly [number, number, number]): AnyCanvas | null;
+  /** `k`: the bitmap's resolution relative to the one rim widths were tuned at (default 1) */
+  get(image: CanvasImageSource, side: -1 | 1, rgb: readonly [number, number, number], k?: number): AnyCanvas | null;
   /** masks built so far (perf / tests) */
   readonly built: number;
 }
 
-/** Rim width in sprite pixels for a sprite of this size (≈ 4 % of its smaller side, 1.5–9 px). */
-export function rimWidth(w: number, h: number): number {
-  return Math.max(1.5, Math.min(9, Math.min(w, h) * 0.04));
+/**
+ * Rim width in sprite pixels for a sprite of this size (≈ 4 % of its smaller side, 1.5–9 px at the
+ * reference resolution). `k` is the bitmap's resolution relative to that reference: a sharper
+ * bitmap of the same thing gets a proportionally wider rim, so the rim keeps its place on the
+ * plant at every zoom (ADR 0187).
+ */
+export function rimWidth(w: number, h: number, k = 1): number {
+  const s = k > 0 ? k : 1;
+  return Math.max(1.5, Math.min(9, (Math.min(w, h) * 0.04) / s)) * s;
 }
 
 /** Colours are quantised so a slow blend reuses a few masks instead of building new ones. */
 const quant = (rgb: readonly number[]) => rgb.map((c) => Math.min(255, Math.round(c / 16) * 16));
 
 /** A sprite's lit edge as a coloured mask (null when canvases are unavailable). */
-export function rimMask(image: CanvasImageSource, side: -1 | 1, rgb: readonly [number, number, number]): AnyCanvas | null {
+export function rimMask(image: CanvasImageSource, side: -1 | 1, rgb: readonly [number, number, number], k = 1): AnyCanvas | null {
   const src = image as Source;
   const w = Math.max(1, Math.round(src.width));
   const h = Math.max(1, Math.round(src.height));
@@ -44,7 +51,7 @@ export function rimMask(image: CanvasImageSource, side: -1 | 1, rgb: readonly [n
   }
   const ctx = canvas.getContext('2d') as Ctx2D | null;
   if (!ctx) return null;
-  const d = rimWidth(w, h);
+  const d = rimWidth(w, h, k);
   ctx.drawImage(image, 0, 0, w, h);
   // remove every pixel whose neighbour toward the sun (to the side and a little above) is covered
   ctx.globalCompositeOperation = 'destination-out';
@@ -63,13 +70,14 @@ export function createRimCache(): RimCache {
   const masks = new WeakMap<object, Map<string, AnyCanvas | null>>();
   let built = 0;
   return {
-    get(image, side, rgb) {
+    get(image, side, rgb, k = 1) {
       let byKey = masks.get(image as object);
       if (!byKey) masks.set(image as object, (byKey = new Map()));
-      const key = `${side}:${quant(rgb).join(',')}`;
+      const kq = Math.round(k * 8) / 8 || 1;
+      const key = `${side}:${quant(rgb).join(',')}:${kq}`;
       let m = byKey.get(key);
       if (m === undefined) {
-        m = rimMask(image, side, rgb);
+        m = rimMask(image, side, rgb, kq);
         byKey.set(key, m);
         built++;
       }
@@ -89,10 +97,11 @@ export function drawRim(
   box: { x: number; y: number; w: number; h: number },
   rim: RimSpec,
   alpha = 1,
+  k = 1,
 ): void {
   const a = rim.strength * alpha;
   if (a <= 0.01) return;
-  const mask = cache.get(image, rim.side, rim.rgb);
+  const mask = cache.get(image, rim.side, rim.rgb, k);
   if (!mask) return;
   const prevOp = ctx.globalCompositeOperation;
   const prevAlpha = ctx.globalAlpha;
