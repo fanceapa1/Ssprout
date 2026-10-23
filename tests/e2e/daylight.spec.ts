@@ -173,6 +173,32 @@ test.describe('daylight phases', () => {
     expect(plants.avgMs).toBeLessThan(4);
   });
 
+  test('the night keeps its depth: the lower frame is glazed indigo to the reference weight, not hazed (ADR 0206)', async ({ page }) => {
+    await openDev(page);
+    await page.evaluate(async () => {
+      window.sprout!.seed(4);
+      window.sprout!.addPlants(20);
+      await window.sprout!.plantsReady();
+    });
+    // the thin paint of the lower frame (the meadow, the path), inside the stage's night edge
+    await show(page, 'midday');
+    const noon = await band(page, 0.55, 0.82, 0.05);
+    await show(page, 'night');
+    const night = await band(page, 0.55, 0.82, 0.05);
+    const depth = night.lum / noon.lum;
+    const colour = night.sat / noon.sat;
+    console.log(`night lower frame: ${depth.toFixed(3)} of midday's luminance, ${colour.toFixed(3)} of its saturation, b − r ${(night.b - night.r).toFixed(1)}`);
+    // The reference night (weighted by the grey the saturation glaze left in clear pixels, before
+    // ADR 0206) measured 0.63 here; with the grey gone and nothing in its place, 0.69 (milky,
+    // flat). The deeper night grade brings it back to 0.64 (devlog 29).
+    expect(depth).toBeGreaterThan(0.6);
+    expect(depth).toBeLessThan(0.665);
+    // the weight comes from the indigo grade, not from a grey or milky veil: colour stays in it
+    // (the grey reference kept 0.32 of midday's saturation, the milky night 0.30, this one 0.43)
+    expect(colour).toBeGreaterThan(0.36);
+    expect(night.b).toBeGreaterThan(night.r + 10);
+  });
+
   test('at night the wash stops short of the margin and the margin is paper, not a grey haze (ADR 0184)', async ({ page }) => {
     await openDev(page);
     /** Mean colour of a vertical strip of the canvas, between two CSS-px distances from its left edge. */
