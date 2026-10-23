@@ -1,14 +1,18 @@
 import { activeTips, getTip, type TipContext, type TipId } from '../core/tips';
 import type { UIContext } from './context';
-import { h, setText } from './dom';
+import { fragment, h, setText } from './dom';
 import { pickTips, tipSides } from './format';
+import { ICONS } from './icons';
 import { placeTip, type Box, type TipSpot } from './tip-place';
 
 /**
  * Tooltips (SPEC §7): tiny handwritten-feel notes on a faint paper slip with a thin ink leader
  * line to their control. Shown only while relevant and not retired (core `activeTips`), one at
  * a time — the most relevant (`TIP_PRIORITY`) whose control is wholly on screen and has room for
- * its note; the others wait their turn. They never take pointer events. Tips for controls
+ * its note; the others wait their turn. The slip never takes pointer events; only its small inked
+ * × does (ADR 0211): it, or Esc inside the note, dismisses the tip for good (retired as
+ * `dismissed`), focus goes back to the tip's control, and the next tip waits for the dismissed
+ * note to fade before it speaks. Tips for controls
  * inside an open sheet render inside that <dialog> (the top layer); with a sheet open, only its
  * controls carry tips.
  *
@@ -38,15 +42,33 @@ interface Host {
 
 interface Shown {
   note: HTMLElement;
+  /** the note's words (the × sits beside them) */
+  copy: HTMLElement;
   leader: SVGPathElement;
   host: Host;
+  /** the control it is about (focus returns here when the note is dismissed from the keyboard) */
+  anchor: HTMLElement | null;
 }
+
+const copyOf = (id: TipId) => getTip(id)?.copy ?? '';
+
+const FOCUSABLE = 'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])';
+
+/** The focusable things of a control: itself, else the ones inside it (in order). */
+function focusables(el: HTMLElement | null): HTMLElement[] {
+  if (!el?.isConnected) return [];
+  if (el.matches(FOCUSABLE)) return [el];
+  return [...el.querySelectorAll<HTMLElement>(FOCUSABLE)].filter((n) => n.getClientRects().length > 0);
+}
+
+/** Where focus goes back to: the control itself, else the first focusable thing inside it. */
+const focusTarget = (el: HTMLElement | null): HTMLElement | null => focusables(el)[0] ?? null;
 
 function makeHost(): Host {
   const leaders = document.createElementNS(SVG_NS, 'svg');
   leaders.classList.add('tip-leaders');
   leaders.setAttribute('aria-hidden', 'true');
-  const measure = h('p.tip.tip-measure', { 'aria-hidden': 'true' });
+  const measure = h('p.tip.tip-measure', { 'aria-hidden': 'true' }, h('span.tip-copy'));
   const el = h('div.tips');
   el.append(leaders);
   return { el, leaders, measure };
@@ -69,6 +91,9 @@ export function createTips(
   const leaving = new Set<Shown>();
   let raf: number | null = null;
   let current: TipId[] = [];
+  /** after a dismissal: no new note until the dismissed one has faded (one quiet thing at a time) */
+  let holding = false;
+  let holdTimer: ReturnType<typeof setTimeout> | null = null;
 
   const hostFor = (anchor: HTMLElement): Host => {
     const dialog = anchor.closest('dialog');
@@ -117,17 +142,61 @@ export function createTips(
     setTimeout(() => drop(t), FADE_MS);
   }
 
-  function ensure(id: TipId, host: Host): Shown {
+  /** The gardener closed a note with its × (or Esc inside it): retire the tip for good. */
+  function dismiss(id: TipId): void {
+    const t = shown.get(id);
+    const hadFocus = !!t && t.note.contains(document.activeElement);
+    const anchor = t?.anchor ?? null;
+    retire(id);
+    holding = true;
+    if (holdTimer !== null) clearTimeout(holdTimer);
+    holdTimer = setTimeout(
+      () => {
+        holdTimer = null;
+        holding = false;
+        schedule();
+      },
+      ctx.deps.reducedMotion ? 0 : ctx.delay(FADE_MS),
+    );
+    ctx.deps.controller.retireTip(id, 'dismissed');
+    // keyboard: focus goes back to the control the note was about, not to the top of the page
+    if (hadFocus) focusTarget(anchor)?.focus({ preventScroll: true });
+    schedule();
+  }
+
+  /** A note: its words and a small inked × that dismisses it (a real button, ADR 0211). */
+  function makeNote(id: TipId, cls: string): { note: HTMLElement; copy: HTMLElement } {
+    const copy = h('span.tip-copy', {}, copyOf(id));
+    const x = h(
+      'button.icon-btn.tip-x',
+      { type: 'button', 'aria-label': `Dismiss tip: ${copyOf(id)}`, onclick: () => dismiss(id) },
+      fragment(ICONS.close),
+    );
+    const note = h(`p.${cls}`, { 'data-tip-id': id, role: 'note' }, copy, x);
+    note.addEventListener('keydown', (e) => {
+      if (e.key !== 'Escape') return;
+      // the note's own Esc: not the sheet's, the placement's or the plant card's
+      e.preventDefault();
+      e.stopPropagation();
+      dismiss(id);
+    });
+    return { note, copy };
+  }
+
+  function ensure(id: TipId, host: Host, anchor: HTMLElement): Shown {
     const existing = shown.get(id);
-    if (existing && existing.host === host) return existing;
+    if (existing && existing.host === host) {
+      existing.anchor = anchor;
+      return existing;
+    }
     if (existing) retire(id, true);
-    const note = h('p.tip', { 'data-tip-id': id, role: 'note' });
+    const { note, copy } = makeNote(id, 'tip');
     const leader = document.createElementNS(SVG_NS, 'path');
     leader.classList.add('tip-leader');
     leader.dataset.tipId = id;
     host.el.appendChild(note);
     host.leaders.appendChild(leader);
-    const t: Shown = { note, leader, host };
+    const t: Shown = { note, copy, leader, host, anchor };
     shown.set(id, t);
     requestAnimationFrame(() => {
       if (shown.get(id) !== t) return;
@@ -141,11 +210,12 @@ export function createTips(
   function sizeOf(id: TipId, host: Host): { w: number; h: number } {
     const live = shown.get(id);
     if (live && live.host === host) {
-      setText(live.note, getTip(id)?.copy ?? '');
+      setText(live.copy, copyOf(id));
       return { w: live.note.offsetWidth, h: live.note.offsetHeight };
     }
-    // measured in place for a moment (never left in the page, where it would count as a note)
-    setText(host.measure, getTip(id)?.copy ?? '');
+    // measured in place for a moment (never left in the page, where it would count as a note); the
+    // × is absolutely placed in the note's own padding, so the words alone give the size
+    setText(host.measure.firstElementChild!, copyOf(id));
     host.el.appendChild(host.measure);
     const size = { w: host.measure.offsetWidth, h: host.measure.offsetHeight };
     host.measure.remove();
@@ -178,14 +248,15 @@ export function createTips(
     const container = anchor.closest<HTMLElement>('.step') ?? anchor.parentElement!;
     const existing = shown.get(id);
     if (existing && existing.host === inlineHost && existing.note.parentElement === container) {
-      setText(existing.note, getTip(id)?.copy ?? '');
+      setText(existing.copy, copyOf(id));
+      existing.anchor = anchor;
       return;
     }
     if (existing) retire(id, true);
-    const note = h('p.tip.tip-inline', { 'data-tip-id': id, role: 'note' }, getTip(id)?.copy ?? '');
+    const { note, copy } = makeNote(id, 'tip.tip-inline');
     const leader = document.createElementNS(SVG_NS, 'path');
     container.appendChild(note);
-    const t: Shown = { note, leader, host: inlineHost };
+    const t: Shown = { note, copy, leader, host: inlineHost, anchor };
     shown.set(id, t);
     requestAnimationFrame(() => {
       if (shown.get(id) === t) note.classList.add('is-in');
@@ -201,7 +272,7 @@ export function createTips(
     const lineSpeaking = !openDialog && root.querySelector('.quiet-line.is-in') !== null;
     // …and while a plant's card is being read (the camera's plant card, ADR 0167)
     const cardOpen = !openDialog && root.querySelector('[data-ui="plant-card"]:not([hidden])') !== null;
-    const active = anyClosing || lineSpeaking || cardOpen ? [] : activeTips(store.get(), opts.tipContext());
+    const active = holding || anyClosing || lineSpeaking || cardOpen ? [] : activeTips(store.get(), opts.tipContext());
     const narrow = window.innerWidth < 600;
     // notes keep clear of the other slips on the painting and of the dock's section headings
     const avoid: Box[] = openDialog
@@ -237,14 +308,44 @@ export function createTips(
         placeInline(id, anchor);
         continue;
       }
-      const t = ensure(id, hostFor(anchor));
-      setText(t.note, getTip(id)?.copy ?? '');
+      const t = ensure(id, hostFor(anchor), anchor);
+      setText(t.copy, copyOf(id));
       // a note on the painting dims with the garden's light; one on the page does not (ADR 0121)
       t.note.dataset.on = anchor.closest('.stage') ? 'stage' : 'page';
       apply(t, spot);
     }
     current = next;
   }
+
+  /**
+   * Keyboard order (ADR 0211): the notes live in their own layer, far from their controls in the
+   * page's order, so Tab is threaded by hand: from a note's control (its last focusable part) Tab
+   * goes to the note's ×, and from the × Tab carries on after the control (focus is put back on the
+   * control and the browser's own Tab moves on from there); Shift+Tab goes back to the control.
+   */
+  const onKeydown = (e: KeyboardEvent) => {
+    if (e.key !== 'Tab' || e.altKey || e.ctrlKey || e.metaKey) return;
+    const active = document.activeElement as HTMLElement | null;
+    if (!active) return;
+    for (const t of shown.values()) {
+      const x = t.note.querySelector<HTMLElement>('.tip-x');
+      // an inline note (phones, in a sheet) already follows its control in the page's order
+      if (!x || t.host === inlineHost || !t.note.classList.contains('is-in')) continue;
+      if (active === x) {
+        const back = focusTarget(t.anchor);
+        if (!back) return;
+        back.focus({ preventScroll: true });
+        if (e.shiftKey) e.preventDefault(); // else the browser's Tab moves on from the control
+        return;
+      }
+      if (!e.shiftKey && t.anchor && active === focusables(t.anchor).at(-1)) {
+        e.preventDefault();
+        x.focus({ preventScroll: true });
+        return;
+      }
+    }
+  };
+  document.addEventListener('keydown', onKeydown, { capture: true });
 
   const schedule = () => {
     raf ??= requestAnimationFrame(layout);
@@ -261,7 +362,9 @@ export function createTips(
     dispose() {
       window.removeEventListener('resize', schedule);
       document.removeEventListener('scroll', schedule, { capture: true });
+      document.removeEventListener('keydown', onKeydown, { capture: true });
       if (raf !== null) cancelAnimationFrame(raf);
+      if (holdTimer !== null) clearTimeout(holdTimer);
     },
   };
 }

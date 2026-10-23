@@ -4,7 +4,7 @@
  *   ink    words that act (quiet buttons, calendar views and steps, picker steps): the ink deepens
  *          and a short brush stroke draws in under the word.
  *   chip   anything on a slip of paper (seals, the calm lead, Water, ink slips, corner and zoom
- *          chips, sheet cards and chips, tools): the slip lifts a hair and a soft wash of shadow
+ *          chips, sheet cards and chips, tools, a tip's ×): the slip lifts a hair and a soft wash of shadow
  *          follows its deckled edge; the seal's vermilion deepens a little.
  *   sprout a sprout mark in a control (Start studying, Plant another, Schedule a session) opens
  *          its leaves slightly.
@@ -167,6 +167,10 @@ dialog .quiet.ink,
   .pill-start:hover {
     background-color: var(--hover-tint);
   }
+  /* a tip's × (ADR 0211): its ink deepens as a small paper dab lifts under it */
+  .tip-x:hover {
+    color: var(--ui-ink);
+  }
 }
 .seal:focus-visible,
 .calm:focus-visible,
@@ -198,6 +202,9 @@ dialog .quiet.ink:focus-visible,
 .pill-start:focus-visible {
   background-color: var(--hover-tint);
 }
+.tip-x:focus-visible {
+  color: var(--ui-ink);
+}
 /* pressed: the slip sinks back onto the paper */
 .seal:active:not(:disabled),
 .calm:active,
@@ -225,6 +232,9 @@ dialog .quiet.ink:active:not(:disabled),
 .pill-btn:active,
 .pill-start:active {
   background-color: rgba(59, 53, 46, 0.1);
+}
+.tip-x:active {
+  color: var(--ui-ink);
 }
 
 /* ── sprout: a control that begins a planting opens its leaves a little ────────────────────── */
