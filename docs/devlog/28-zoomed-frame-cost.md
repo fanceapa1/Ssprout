@@ -53,3 +53,6 @@ the frame and the diff map, and nothing is visible.
   `sprout.ambience().ms` read ~20–30 ms there. The e2e budgets run at DPR 1 and pass. Real devices
   with GPU canvases are unaffected.
 - The growing plant's cross-fade buffer is drawn whole (one plant).
+- Full e2e run (2 workers, `nice`): 179 passed, 2 failed. The failures are `calendar.spec.ts:702` (the planned slip on a
+  phone, zoomed) and `marks.spec.ts:41` (`.due-when` sprout mark). Both also fail on `main` (6b59647) without these
+  changes; they look time-of-day dependent (run at ~17:00). Not touched here.
