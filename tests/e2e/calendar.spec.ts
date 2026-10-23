@@ -358,3 +358,109 @@ test.describe('calendar · phone', () => {
     expect(box.x + box.width).toBeLessThanOrEqual(390);
   });
 });
+
+/** Rects of the week's blocks, their time and title lines and their "now" seal, per day column. */
+function weekBlocks(page: Page) {
+  return page.evaluate(() =>
+    [...document.querySelectorAll<HTMLElement>('.cal-cols[data-days="7"] .cal-col')].map((col) => ({
+      date: col.dataset.date!,
+      blocks: [...col.querySelectorAll<HTMLElement>('.cal-block')].map((b) => {
+        const r = (el: Element | null) => {
+          if (!el) return null;
+          const x = el.getBoundingClientRect();
+          return { left: x.left, top: x.top, right: x.right, bottom: x.bottom, width: x.width, height: x.height };
+        };
+        const time = b.querySelector('.cal-block-time');
+        return {
+          id: b.dataset.id!,
+          box: r(b)!,
+          time: r(time),
+          timeText: time?.textContent ?? '',
+          timeShown: !!time && getComputedStyle(time).display !== 'none',
+          title: r(b.querySelector('.cal-block-title')),
+          dot: r(b.querySelector('.cal-block-dot')),
+        };
+      }),
+    })),
+  );
+}
+
+test.describe('calendar · week layout (ADR 0183)', () => {
+  test.use({ locale: 'en-US', viewport: { width: 1440, height: 900 } });
+
+  test('concurrent blocks share the column, the seal never covers words, a narrow block reads whole on hover', async ({ page }) => {
+    await openUi(page);
+    await page.evaluate(async () => {
+      window.sprout!.schedule.demo();
+      // three seedlings growing at once, from the planned time on: the busiest moment of the week
+      window.sprout!.startSessions(3, 50);
+      window.sprout!.calendar.setView('week');
+      window.sprout!.calendar.go(window.sprout!.now());
+      await window.sprout!.ui.scrollTo('calendar', { instant: true });
+      await window.sprout!.ui.dockReady();
+    });
+    const days = await weekBlocks(page);
+    expect(days).toHaveLength(7);
+    const problems: string[] = [];
+    const overlap = (a: { left: number; right: number; top: number; bottom: number }, b: typeof a) =>
+      Math.max(0, Math.min(a.right, b.right) - Math.max(a.left, b.left)) * Math.max(0, Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top));
+    let count = 0;
+    for (const d of days) {
+      for (const [i, a] of d.blocks.entries()) {
+        count++;
+        // every block shows its time ("4:10", no AM/PM in a narrow week column)
+        if (!a.timeShown) problems.push(`${d.date} ${a.id}: time hidden`);
+        if (/AM|PM/.test(a.timeText)) problems.push(`${d.date} ${a.id}: long time "${a.timeText}"`);
+        // the seal sits before the time, inside the block, clear of the title
+        if (a.dot) {
+          if (a.title && overlap(a.dot, a.title) > 0) problems.push(`${d.date} ${a.id}: seal over the title`);
+          if (a.dot.left < a.box.left - 0.5 || a.dot.right > a.box.right + 0.5) problems.push(`${d.date} ${a.id}: seal outside`);
+        }
+        for (const b of d.blocks.slice(i + 1)) {
+          // blocks share the column side by side: never drawn over each other (2 px of soft edges allowed)
+          if (overlap(a.box, b.box) > 2 * Math.min(a.box.height, b.box.height)) problems.push(`${d.date}: ${a.id} over ${b.id}`);
+        }
+      }
+    }
+    expect(count).toBeGreaterThan(10);
+    expect(problems).toEqual([]);
+
+    // today has a plan and three sessions at once: the narrowest blocks; hovered, one grows to read
+    const narrow = cal(page).locator('.cal-col[data-today="true"] .cal-block[data-narrow]').first();
+    await expect(narrow).toBeVisible();
+    const before = (await narrow.boundingBox())!;
+    await narrow.hover();
+    await expect.poll(async () => (await narrow.boundingBox())!.width).toBeGreaterThan(Math.max(before.width + 20, 150));
+    const grown = (await narrow.boundingBox())!;
+    const timeline = (await cal(page).locator('.cal-timeline').boundingBox())!;
+    // it stays inside the timeline (the end of the week grows to the left)
+    expect(grown.x).toBeGreaterThanOrEqual(timeline.x - 1);
+    expect(grown.x + grown.width).toBeLessThanOrEqual(timeline.x + timeline.width + 1);
+  });
+
+  test('the week starts on Sunday in en-US', async ({ page }) => {
+    await openUi(page);
+    await page.evaluate(() => window.sprout!.calendar.setView('week'));
+    const st = await calState(page);
+    expect(st.weekStartsOn).toBe(0);
+    expect(new Date(`${st.days[0]}T12:00`).getDay()).toBe(0);
+    await expect(cal(page).locator('.cal-dayhead-name').first()).toHaveText('Sun');
+  });
+});
+
+test.describe('calendar · week start elsewhere', () => {
+  test.use({ locale: 'en-GB' });
+
+  test('the week starts on Monday in en-GB (the locale decides, deliberately)', async ({ page }) => {
+    await openUi(page);
+    await page.evaluate(() => window.sprout!.calendar.setView('week'));
+    const st = await calState(page);
+    expect(st.weekStartsOn).toBe(1);
+    expect(new Date(`${st.days[0]}T12:00`).getDay()).toBe(1);
+    await expect(cal(page).locator('.cal-dayhead-name').first()).toHaveText('Mon');
+    // and the month grid follows the same week
+    await page.evaluate(() => window.sprout!.calendar.setView('month'));
+    const first = await cal(page).locator('.cal-day').first().getAttribute('data-date');
+    expect(new Date(`${first}T12:00`).getDay()).toBe(1);
+  });
+});
