@@ -41,7 +41,7 @@ function wheelAndSample(page: Page, deltaY: number, mods: { ctrlKey?: boolean } 
 }
 
 test.describe('app shell · page', () => {
-  test('the garden stage fills ~88 % of the window under a small margin; the dock peeks out below', async ({ page }) => {
+  test('the garden stage fills ~94 % of the window under a small margin; the dock peeks out below', async ({ page }) => {
     await openUi(page);
     const vp = page.viewportSize()!;
     const stage = (await page.locator('#stage').boundingBox())!;
@@ -49,7 +49,12 @@ test.describe('app shell · page', () => {
     expect(stage.y).toBeLessThanOrEqual(16);
     expect(stage.x).toBeGreaterThanOrEqual(12);
     expect(vp.width - (stage.x + stage.width)).toBeGreaterThanOrEqual(12);
-    expect(stage.height / vp.height).toBeCloseTo(0.88, 2);
+    expect(stage.height / vp.height).toBeCloseTo(0.94, 2);
+    // the taller stage (ADR 0212) crops less of the sky: at 1280×720 the world shows from ~y 128
+    // (it was ~155 at 88 %)
+    if (vp.width === 1280 && vp.height === 720) {
+      expect(await page.evaluate(() => window.sprout!.fauna.view().y)).toBeLessThan(140);
+    }
     // the dock begins on screen, below the garden
     const dock = (await page.locator('.dock').boundingBox())!;
     expect(dock.y).toBeGreaterThanOrEqual(stage.y + stage.height - 1);

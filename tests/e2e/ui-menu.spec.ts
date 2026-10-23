@@ -131,12 +131,12 @@ test.describe('ui · phone', () => {
 
   test('the garden fills the screen, the controls stack below it, menu reachable, planting works by touch', async ({ page }) => {
     await openUi(page);
-    // the stage: ~88 % of the height below an 8 px margin; none of the session controls covers it
+    // the stage: ~94 % of the height below an 8 px margin (ADR 0212); none of the session controls covers it
     const stage = (await page.locator('#stage').boundingBox())!;
     expect(stage.y).toBeCloseTo(8, 0);
     expect(stage.x).toBeCloseTo(8, 0);
-    expect(stage.height / 844).toBeGreaterThan(0.85);
-    expect(stage.height / 844).toBeLessThan(0.9);
+    expect(stage.height / 844).toBeGreaterThan(0.91);
+    expect(stage.height / 844).toBeLessThan(0.96);
     const panel = page.locator('.panel');
     const box = (await panel.boundingBox())!;
     expect(box.y).toBeGreaterThan(stage.y + stage.height);
