@@ -342,6 +342,7 @@ Legend: unit tests as `folder/file › test`, under `src/` (`.test.ts` omitted).
 | 12a.19 | A phone's first glide toward its cropped sides finds them painted; a strip painting's cut sides fade to paper (ADR 0189) | — | — | ◐ by shots (mid-glide on a 390×844 phone) |
 | 12a.20 | The plant view: the can never shows a sliver at the frame's edge; thumbnails frame what has grown (ADR 0189) | plants/watering › the can in a small frame…; plants/view › growth framing (all) | — | ◐ the look by the plant view sheet in shots |
 | 12a.21 | On phones (390×844, 360×740) the whole card can be read: the longest note and a growing plant fit or scroll inside the card with a mark at the cut; the scrolling part is a keyboard region (ADR 0190) | — | plant-card-phone › the longest note (lotus)…; › a growing spider lily that replaced a plant…; › the mark at the cut reads on | ✔ (studio `ui-camera/plant-card-docked-long`) |
+| 12a.22 | At night (and in the blends into and out of it) a close view has no straight line where the sky plate stops at y 500: the night's saturation glaze only takes colour out, over a white-backed frame, so the meadow and the plants on it are not cut (ADR 0206) | — | close-view › no hard line where the sky plate ends, at night, zoomed on the meadow (row step < 3 levels; 9.7 before the fix) | ✔ (before/after by shots, devlog 27) |
 
 ### §13 Calendar & scheduling (ADRs 0170–0177)
 

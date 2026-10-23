@@ -10,7 +10,7 @@ import { expect, openDev, test } from './fixtures';
 type Pt = { x: number; y: number };
 
 /** Cut the camera to a pose, pin the light, settle every detail, and draw one still frame. */
-async function restAt(page: Page, pose: { zoom: number; x: number; y: number } | null, phase: string) {
+async function restAt(page: Page, pose: { zoom: number; x: number; y: number } | null, phase: string | { from: string; to: string; t: number }) {
   await page.evaluate(
     async ({ pose, phase }) => {
       const s = window.sprout!;
@@ -94,6 +94,41 @@ function seamStep(col: number[], k = 8, w = 30) {
   return { max, at };
 }
 
+/**
+ * Row means of the garden canvas over a run of world columns, for world rows y0..y1 (device
+ * pixels): `columnProfile` turned on its side, so a straight horizontal line shows as a step.
+ */
+function rowProfile(page: Page, x0: number, x1: number, y0: number, y1: number) {
+  return page.evaluate(
+    ({ x0, x1, y0, y1 }) => {
+      const c = document.querySelector<HTMLCanvasElement>('#garden')!;
+      const ctx = c.getContext('2d')!;
+      const a = window.sprout!.camera.toClient({ x: x0, y: y0 });
+      const b = window.sprout!.camera.toClient({ x: x1, y: y1 });
+      const r = c.getBoundingClientRect();
+      const k = c.width / r.width;
+      const px0 = Math.max(0, Math.round((a.x - r.left) * k));
+      const px1 = Math.min(c.width, Math.round((b.x - r.left) * k));
+      const py0 = Math.max(0, Math.round((a.y - r.top) * k));
+      const py1 = Math.min(c.height, Math.round((b.y - r.top) * k));
+      const { data } = ctx.getImageData(px0, py0, px1 - px0, py1 - py0);
+      const w = px1 - px0;
+      const h = py1 - py0;
+      const out: number[] = [];
+      for (let y = 0; y < h; y++) {
+        let sum = 0;
+        for (let x = 0; x < w; x++) {
+          const i = (y * w + x) * 4;
+          sum += (data[i]! + data[i + 1]! + data[i + 2]!) / 3;
+        }
+        out.push(sum / w);
+      }
+      return out;
+    },
+    { x0, x1, y0, y1 },
+  );
+}
+
 test.describe('close views', () => {
   test.use({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1 });
 
@@ -158,5 +193,20 @@ test.describe('close views', () => {
     // the sharp close-view sprite covers the landscape as much as the 1× one does
     expect(at3 / at1).toBeGreaterThan(0.8);
     expect(at3 / at1).toBeLessThan(1.25);
+  });
+
+  test('no hard line where the sky plate ends, at night, zoomed on the meadow (ADR 0206)', async ({ page }) => {
+    await openDev(page);
+    // the view it was reported in: zoom 3 on the left meadow, where the sky plate (world y −240…500)
+    // stops. The night's saturation glaze left grey only where the frame was still clear, so the
+    // meadow and the plants on it were cut by a straight line at y 500, lighter above it.
+    for (const phase of ['night', { from: 'sunset', to: 'night', t: 0.5 }, { from: 'night', to: 'sunrise', t: 0.5 }] as const) {
+      await restAt(page, { zoom: 3, x: 260, y: 500 }, phase);
+      // a wide run of columns: the meadow's own marks average out, a straight line stays a step
+      const st = seamStep(await rowProfile(page, 40, 420, 450, 550), 3, 20);
+      const name = typeof phase === 'string' ? phase : `${phase.from}→${phase.to}`;
+      console.log(`${name}: largest detrended row step ${st.max.toFixed(2)} at row ${st.at}`);
+      expect(st.max, `${name}: a step of ${st.max.toFixed(2)} levels at row ${st.at}`).toBeLessThan(3);
+    }
   });
 });

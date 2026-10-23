@@ -97,7 +97,7 @@ plant and docked, a seedling's card; the seed picks the species, so every note c
 `camera.test.ts` (compose, clamp, reach, slack, zoom about a point, pan, framing, path, easing,
 durations, controller), `renderer.test.ts` (camera views, caches), `hit-test.test.ts`,
 `notes.test.ts`, `sprites.test.ts` / `system.test.ts` (resolution, eviction, culling, hit-test),
-`tests/e2e/close-view.spec.ts` (no seams at a pinned close view; a plant as solid at 3× as at 1×),
+`tests/e2e/close-view.spec.ts` (no seams at a pinned close view; a plant as solid at 3× as at 1×; no line where the sky plate ends at night),
 `tests/e2e/camera.spec.ts` (focus on start and switch, ctrl+wheel about the pointer, plain wheel,
 drag only zoomed, pinch, double-click, controls, keys, the card, placement while zoomed, detail
 painted, glide frame cost, reduced motion, the docked card).
