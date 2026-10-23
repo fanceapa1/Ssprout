@@ -286,7 +286,7 @@ Legend: unit tests as `folder/file › test`, under `src/` (`.test.ts` omitted).
 | 12.5 | Touch native; reduced motion: no smoothing | — | ui-shell · reduced motion › no smoothing… | ◐ touch momentum is the platform's (not asserted) |
 | 12.6 | Custom scrollbar: shows the position, drags, fades, native bar hidden, not a focus stop | ui/scroll-math › scrollbar thumb (all) | ui-shell › the custom scrollbar shows the position and drags… | ✔ |
 | 12.7 | Pointer mapping stays right when scrolled | — | ui-shell › pointer mapping stays right on a scrolled page… | ✔ |
-| 12.8 | Dock: sections in order, two columns on wide screens, one on phones; calendar placeholder hidden | ui/dock (all) | ui-shell › sections in order…; ui-menu · phone › the garden fills the screen… | ✔ |
+| 12.8 | Dock: sections in order, two columns on wide screens, one on phones; the calendar full width once filled (a placeholder stays hidden) | ui/dock (all) | ui-shell › sections in order… the calendar across…; ui-menu · phone › the garden fills the screen… | ✔ |
 | 12.9 | Session controls work from the dock; the pill shows the same session | — | ui-shell › the session controls work from the dock…; ui-session (all flows); session-rules (all) | ✔ |
 | 12.10 | Pill: pause/resume, glide to the controls; idle Start studying | — | ui-shell › the pill pauses and resumes…; › idle, the pill is a small Start studying… | ✔ |
 | 12.11 | Your plant: live growth, watering animation (hook), latest bloom / empty bed when idle | — | ui-shell › "Your plant" shows the session plant growing… | ◐ look by studio `ui-shell/plant-view-*` |
@@ -294,6 +294,31 @@ Legend: unit tests as `folder/file › test`, under `src/` (`.test.ts` omitted).
 | 12.13 | Bigger, darker type: base ≥ 20 px, text ink ≥ 4.5:1 | ui/ink (all) | — | ✔ |
 | 12.14 | Tips point at the controls' new homes | ui/format › pickTips (all) | ui-shell › tips point at the controls in their new homes | ✔ |
 | 12.15 | The controls on the painting rest while focusing; the dock does not | — | ui-menu › the controls on the painting rest while studying… | ✔ |
+
+### §13 Calendar & scheduling (ADRs 0170–0177)
+
+| # | Rule | Unit | E2E | Status |
+|---|---|---|---|---|
+| 13.1 | Daily / Weekly / Monthly, Daily by default, remembered per viewer; prev / next / Today | ui/calendar-model › ranges and navigation (all) | calendar › daily by default; toggle views, navigate, and the choice is remembered | ✔ |
+| 13.2 | Weekly: seven columns from the locale's first day (Monday when unknown); DST weeks are seven days | ui/calendar-model › the week starts as the locale says…; › a week across the autumn DST change… | calendar › daily by default… (7 heads, first day = weekStartsOn) | ✔ |
+| 13.3 | Monthly: whole weeks, a dab per bloom, minutes, rings for plans (faint when passed); tap a day → daily | ui/calendar-model › month marks (all); › the month grid’s whole weeks | calendar › daily by default… (tap a day) | ◐ look by shots + studio `calendar/month` |
+| 13.4 | Past sessions (completed in the plant's colour, cancelled faintly), sessions in progress, planned, a now line | ui/calendar-model › calendarItems (all) | calendar › past sessions show in the calendar…; › at the scheduled time… (growing block) | ◐ look by shots + studio `calendar/*` |
+| 13.5 | Overlapping blocks side by side; tiny blocks keep a readable height | ui/calendar-model › timeline layout (all) | — | ✔ |
+| 13.6 | The day opens on a sensible window; a tap on an empty time opens the editor there (half hour) | ui/calendar-model › opens an hour and a half before now…; › a tap snaps to the half hour | calendar › a tap on an empty time opens the editor at that time | ✔ |
+| 13.7 | Schedule: name, date and time, length and plan optional (open), no plant or spot | core/schedule › validation (all); core/schedule-controller › adds schedules… | calendar › schedule a session from the calendar… | ✔ |
+| 13.8 | Repeats: once, daily, weekdays, weekly; exceptions; DST-safe | core/schedule › recurrence (all, Europe/London DST) | calendar › schedule a session… (a daily repeat on the following days) | ✔ |
+| 13.9 | Edit / remove: only this one vs this and the following; a new repeat applies from that day | core/schedule-reducer › edits… (all); › split…; core/schedule-controller › edit and remove through occurrence refs | calendar › edit only this one, or this and the following; remove | ✔ |
+| 13.10 | Stored in the garden (pure reducers), export/import validated; v2 documents without schedules load | core/schedule-reducer › schedule reducers (all); core/persistence › scheduled sessions (all) | — | ✔ |
+| 13.11 | At the time: soft notification while the page is in the background, once | widget/notifications › scheduled sessions (all); core/schedule-controller › announces an occurrence once… | calendar · notification › the scheduled time brings a soft notification… | ✔ |
+| 13.12 | Background tabs: the worker ticker drives the due check | widget/ticker › the same worker drives the scheduler… | — | ✔ |
+| 13.13 | A waiting card (and a slip by the pill) with one-tap Start; never auto-starts | core/schedule › due… | calendar › at the scheduled time a card waits… (no session after 5 min) | ✔ |
+| 13.14 | Start opens the planting sheet prefilled (name, length, plan when given) | core/schedule › prefill; ui/prefill (all) | calendar › at the scheduled time… (sheet prefilled) | ✔ |
+| 13.15 | A session started from a plan links back; done when it blooms | core/schedule-controller › a session started from an occurrence links back…; › … ended; ui/calendar-model › a started occurrence is merged… | calendar › at the scheduled time… (data-occurrence-status done) | ✔ |
+| 13.16 | Missed after length (30 when open) + 30 min, shown faintly, no guilt; "Not this time" | core/schedule › due, missed, done (all); core/schedule-controller › dismiss…; › …notices it pass into missed | calendar › not started within its window… | ✔ |
+| 13.17 | Closed tab: no notification; on return due / missed are right | core/schedule-controller › an occurrence that came due while the app was closed…; core/schedule › dueOccurrences… (closed tab) | — | ✔ |
+| 13.18 | Limit of three: the card says so gently and offers the sessions | — | calendar › with three sessions in progress the card says so gently… | ✔ |
+| 13.19 | One quiet scheduling tip | core/tips › planning a session retires schedule | calendar › one quiet tip points at Schedule a session… | ✔ |
+| 13.20 | Phone layout | — | calendar · phone › one column, nothing wider than the screen… | ✔ |
 
 ### Beyond the SPEC (covered, listed for completeness)
 Rendering contracts (render/renderer), paint engine (paint/*), species growth continuity

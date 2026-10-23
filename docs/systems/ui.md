@@ -37,6 +37,12 @@ the widget surfaces — the UI then asks in the Begin click itself.
 | `pill.ts` | the timer pill on the garden: idle "Start studying"; block time, Pause/Resume, "Session controls" (glide down + focus) (ADR 0133); "+N" when other sessions are in progress (ADR 0156) |
 | `session-list.ts` | the sessions in progress under the controls (ADR 0156): rows with a live 64 px plant, task, plan line, time left and Switch / Resume ("growing now" on the active one); "Plant another"; the gentle limit note |
 | `plant-section.ts` | "Your plant": the **active** session's plant, live `renderPlantView`, watering on `session:water` (tap or automatic, ADR 0153) / `water()`, wilt on cancel of that session, latest bloom or an empty bed when nothing is active; `paintRoundWindow`, `paintEmptyBed` (ADR 0134) |
+| `calendar.ts` · `calendar.css` | the Calendar section: Daily (default) / Weekly / Monthly, remembered per viewer; painted timeline and month (ADR 0175) — docs/systems/calendar.md |
+| `calendar-model.ts` | pure: view ranges, items, overlap layout (`layoutColumns`), month marks, opening window, week start |
+| `calendar-art.ts` | the calendar's painted shapes (washes, plan outlines, rings, underline), as SVG backgrounds and on canvas |
+| `schedule-sheet.ts` | the schedule editor sheet: name, date, time, open-by-default length and plan, repeat; only this one / this and following (ADR 0177) |
+| `schedule-card.ts` | the waiting card at the top of the Study section and its slip above the pill (ADR 0176) |
+| `calendar.studio.ts` | studio section `calendar`: washes, day / week / month fixtures, the waiting card |
 | `tools.ts` | garden tools, one implementation rendered twice: corner chips (`nav.menu`) and the dock list (`ul.tool-list`) (ADR 0135) |
 | `session-view.ts` | the one adapter from `controller.status()` to what the panel shows |
 | `planting-sheet.ts` | `<dialog>`: task name (≤ 40), total time, recommended plans, plant grid → "Choose a spot" (ADR 0053) |
@@ -67,7 +73,7 @@ the widget surfaces — the UI then asks in the Begin click itself.
 ```
 #ui (page, .ui-root) ─ section#stage ─ canvas#garden (masked edge)
                      │                └ .stage-ui: quiet line · plant label · markers · pill · nav.menu · placement bar
-                     ├ .dock: [Study (controls + sessions in progress) | Your plant] · (Calendar, hidden placeholder) · Garden tools
+                     ├ .dock: [Study (waiting cards + controls + sessions in progress) | Your plant] · Calendar · Garden tools
                      └ fixed: .tips · .scrollbar · live region · dialogs (top layer)
 ```
 - Desktop: two columns (Study, Your plant), tools across; under 860 px one column; phones (≤ 600 px)
@@ -75,7 +81,12 @@ the widget surfaces — the UI then asks in the Begin click itself.
 - Session controls exist in the dock; the pill keeps time, pause/resume and the way down. While
   focusing, the pill and the corner tools rest; the dock never fades.
 - **Add a dock section:** `ui.dock.addSection({ id, title, order, span, mount(body) { … } })` from
-  `src/ui` (or `main.ts`); fill the reserved calendar with `ui.dock.fill('calendar', mount)`.
+  `src/ui` (or `main.ts`). The calendar fills the reserved `calendar` section when `createUI` gets a
+  scheduler (`schedules`); without one it stays a hidden placeholder.
+- **Scheduled sessions** (docs/systems/calendar.md): the waiting card's Start calls
+  `openPlanting(opener, startPrefill(o))`, which applies the prefill to the shared draft
+  (`applyPrefill`); Begin links the new session to the occurrence (`scheduler.link`). A normal Start
+  studying clears a leftover link (`clearPrefill`).
 
 ## Flows
 ```

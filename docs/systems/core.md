@@ -14,6 +14,9 @@ slot are chosen at start; the seedling grows live in its slot; breaks are option
 | `state.ts` | `GardenState` types, `createDefaultState`, `Action` union, `createReducer(world)`, `createStore` |
 | `plans.ts` | `PlanBlock`, `StudyPlan`, `recommendPlans`, `findPlan`, `planProblem`, `focusMinutes`, `hasBreaks` |
 | `session.ts` | `sessionTimeline`, `sessionPhase`, plan position/growth maths, pauses, goal clamping, task names, weather, `formatClock`, the focus-watering schedule (`focusWateringTimes`, `dueFocusWaterings`, `nextFocusWateringIn`) |
+| `schedule.ts` | scheduled sessions: the rule + notes model, DST-safe recurrence (`expandSchedules`), due / missed / done (`occurrenceStatus`, `dueUntil`), `startPrefill`, validation — docs/systems/calendar.md (ADRs 0170–0173) |
+| `schedule-reducer.ts` | `schedule/*` reducers; `planEdit` / `planRemove` ("only this one" / "this and following", ADR 0171) |
+| `schedule-controller.ts` | `createScheduler` — the API for schedules, the due tick and `schedule:due` (ADR 0174) |
 | `session-log.ts` | history queries over `state.log` (`entriesBetween`, `dayRange`/`weekRange`/`monthRange`, `entriesOnDay`/`InWeek`/`InMonth`, `dayKey`, `groupByDay`, `focusedMinutes`) and `backfillLog` |
 | `rewards.ts` | `tierForMinutes`, `TIER_MIN_MINUTES`, `selectableSpecies` |
 | `placement.ts` | `isCompatible`, `compatibleSlots`, `freeSlotIds` |

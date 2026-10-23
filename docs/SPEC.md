@@ -221,8 +221,8 @@ watercolour, never neon.
   `Bloomed · …`) and a painted favicon that fills as time passes.
 - **Notifications**: Notification API (via service worker registration when available) at
   completion, and at each break and back-to-focus (§2); only while the page is not visible and
-  focused (ADR 0091). Works with tab in background. Closed tab → no notification (no server); the
-  reward waits on return. Timer ticks use a Web Worker so background throttling doesn't delay
+  focused (ADR 0091), and when a scheduled session's time comes (§13). Works with tab in background.
+  Closed tab → no notification (no server); the reward (or the waiting card) waits on return. Timer ticks use a Web Worker so background throttling doesn't delay
   completion.
 
 ## 7. Tooltips / onboarding
@@ -230,7 +230,7 @@ watercolour, never neon.
   on the garden, whichever is in view; §12), only for non-obvious
   features: duration slider/presets, the floating widget, placement (choose a glowing spot),
   swapping, pressed flowers, sound toggle. (Also: the task name, the study plan, watering and the
-  notification question — 10 tips in `src/core/tips.ts`.)
+  notification question, switching sessions and scheduling — 12 tips in `src/core/tips.ts`.)
 - One tip at a time, the most relevant first; tips wait while the quiet line speaks (ADR 0124).
 - Each tip shows until the user first uses that mechanism, then is retired. The small ⓘ lists
   every tip, the retired ones marked as learned.
@@ -243,7 +243,7 @@ remembered.
 
 ## 9. Persistence
 - `localStorage` only (key `studysprout:v1`), versioned schema with migrations: schema v2 (parallel
-  sessions, the session log); a v1 garden — and a v1 session in progress — is migrated on load and on
+  sessions, the session log; scheduled sessions are an optional v2 key, ADR 0170); a v1 garden — and a v1 session in progress — is migrated on load and on
   import, its history back-filled from its plants (ADR 0154).
 - Export garden → downloads `study-sprout-garden-YYYY-MM-DD.json`; Import restores (validated).
 - Hidden dev mode `?dev` exposes speed-up (`?dev&speed=60`; `?speed` alone is ignored) and a
@@ -275,7 +275,7 @@ The page is no longer only a canvas. It scrolls as a normal document:
   - **Your plant** — a large painted view of the session's plant, growing live, with the watering
     animation whenever it is watered; idle, the most recent bloom with its task, or an empty bed
     waiting for a first session. No guilt copy.
-  - **Calendar** — reserved for the calendar (phase 8); hidden until it exists.
+  - **Calendar** — what was studied, what is growing and what is planned, by day, week or month (§13).
   - **Garden tools** — sound, floating timer, pressed flowers, garden data, hints, with icons and
     visible names; the same tools stay as icons in the garden's corner and share their state.
 - **Timer pill** on the garden: time left in the block, pause/resume, and a way down to the
@@ -288,6 +288,42 @@ The page is no longer only a canvas. It scrolls as a normal document:
   fades when idle; it is decoration over normal scrolling (keyboard scrolling and focus are the
   browser's). ctrl/⌘ + wheel and pinch over the garden never scroll the page (reserved for zoom).
 - **Type.** Bigger (base 21 px) and darker: body text ≥ 4.5:1 against the paper.
+
+## 13. Calendar & scheduling (v2, ADR 0005; ADRs 0170–0177)
+A calendar in the dock shows the garden's study by **day, week or month**, and lets the gardener
+plan sessions ahead. A planned session never starts on its own: at its time it waits with one tap.
+
+### The calendar
+| Rule | Behaviour |
+|---|---|
+| Views | **Daily / Weekly / Monthly**, **Daily by default**; the last choice is remembered on this device. Previous / next and **Today**. |
+| Daily | An hour timeline of the day in a scrolling window, opened near now (today), else at the first entry, else 8:00. |
+| Weekly | Seven columns starting on the locale's first day (Monday when unknown); tapping a day's head opens it. |
+| Monthly | A month grid with quiet marks per day: a painted dab in the plant's colour for each bloom, the minutes studied, a small ink ring for each planned session (faint when it passed). Tapping a day opens its daily view. |
+| Past sessions | From the session log: completed ones show the task, the plant, the minutes and the time, as a soft wash in the plant's colours; ended early ones appear very faintly. |
+| In progress | Sessions growing (or waiting) appear in their place, the active one marked. |
+| Planned | Scheduled sessions appear as unpainted outlines; one started from a plan shows as its session, "as planned". |
+| Now | A gentle now line on today. |
+| Look | Paper, ink, brush underlines, soft washes; type and contrast as the rest of the dock (base 21 px, text ≥ 4.5:1). |
+
+### Scheduling
+| Rule | Behaviour |
+|---|---|
+| Create | Tap an empty time in the day or week (snapped to the half hour) or **Schedule a session**. A **name**, a **date and time**, and **optionally a length and a plan** — both can be left open and chosen when it starts. |
+| Repeat | Once, every day, weekdays (Mon–Fri) or every week (same weekday). |
+| Not here | The plant and its spot are chosen when the session starts, so no spot is held for days. |
+| Edit, remove | Tap a planned session. For a repeat: **only this one** or **this and the following**. A new repeat applies from that day on. |
+| At the time | A soft notification while the page is in the background (none while the tab is closed). A card waits at the top of the Study section, and a small slip above the timer pill, with **Start** and **Not this time**. |
+| One-tap Start | Opens the planting sheet prefilled with the name, and the length and plan when given; the gardener chooses the plant and the spot and begins. Never starts on its own. |
+| Limit of three | With three sessions in progress the card says so gently and offers to go to them (switch, or let one bloom first). |
+| Missed | If not started within **its length (30 min when open) plus 30 minutes**, it quietly passes: shown faintly in the calendar as "passed". No guilt copy, no streaks. |
+| Done | A session started from a plan is linked to it; when it blooms the calendar shows the plan done. |
+| Closed tab | Nothing is sent. On return, what is due waits and what passed is shown as passed. |
+| Tip | One quiet tip by **Schedule a session** after the first bloom, until a session is planned. |
+
+*Status:* done (phase 8). Schedules are stored in the garden (export/import included) without a
+schema change (ADR 0170). Not yet: moving a planned session by dragging; a notification while the
+tab is closed (no server, by design).
 
 ## Non-goals (v1)
 Accounts, sync, server push, seasons, social features, streaks/penalties.

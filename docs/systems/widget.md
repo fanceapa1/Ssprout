@@ -69,6 +69,8 @@ runs `setInterval` per subscription and posts `{ type: 'tick', id }`. Background
 main-thread timers (Chrome: down to once a minute), not dedicated-worker timers, so breaks, focus
 and completion fire on time and the notification is not late. Worker creation failure, CSP or an
 `error` event moves every subscription to `setInterval`. `mode` is `'worker' | 'interval'`.
+`main.ts` also hands this ticker (`surfaces.internals.ticker`) to the scheduler, which subscribes while
+any schedule exists, so a background tab notices a scheduled session on time (ADR 0174).
 
 ### Tab title & favicon (always on, every browser)
 | Phase | Title | Favicon |
@@ -114,6 +116,7 @@ Reduced motion: no easing, no watering animation.
 | break starts | `Time for a break — your <plant> is thirsty.` | `Tap the watering can when you are ready.` |
 | next focus | `Back to focus — <task>.` | `Your <plant> is growing again.` |
 | complete | `Your session is complete` | `Your <plant> has bloomed — return to your garden.` |
+| a scheduled session's time (`schedule:due`, ADR 0174) | `It’s time for “<name>”.` | `Whenever you are ready, a card in your garden will start it.` |
 
 Policy (ADR 0091):
 - **Ask** once, at the first `session:start` with `settings.notifications === 'unasked'` and

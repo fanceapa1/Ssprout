@@ -91,7 +91,7 @@ commit, and when it replaces or changes an earlier decision, update that ADR's S
 | [0125](0125-small-plant-design-box.md) | Small-plant design box | accepted | Tier-1 plants draw in a 70-unit design box scaled into a larger garden box (86) |
 | [0126](0126-open-sides-in-the-drying-pass.md) | Open sides in the drying pass | accepted | No false wet edge where a wash is cut off by the canvas |
 | [0127](0127-timer-slip-in-the-corner.md) | Timer slip in the corner | superseded by 0133 | The timer panel lies in the lower-left corner on wide screens |
-| [0130](0130-page-shell-stage-and-dock.md) | Page shell: stage and dock | accepted; amended by 0156 | Garden stage 88svh under a small margin; a registry of dock sections below; calendar placeholder hidden |
+| [0130](0130-page-shell-stage-and-dock.md) | Page shell: stage and dock | accepted; amended by 0156, 0175 | Garden stage 88svh under a small margin; a registry of dock sections below; calendar placeholder hidden (filled by 0175) |
 | [0131](0131-custom-smooth-scroll-and-scrollbar.md) | Custom smooth scroll and scrollbar | accepted | Native document scroll, eased wheel/keys, glided jumps, touch native, reduced motion instant; brush scrollbar |
 | [0132](0132-garden-edge-mask-and-page-paper.md) | Garden edge mask, page paper | accepted | The canvas dissolves into the page through a CSS mask; the page tile is the garden's own washi |
 | [0133](0133-timer-pill-on-the-garden.md) | Timer pill on the garden | accepted; amended by 0156 | Only a small pill (time, pause/resume, go to controls) stays on the painting |
@@ -121,3 +121,6 @@ commit, and when it replaces or changes an earlier decision, update that ADR's S
 | [0172](0172-due-grace-window-and-missed.md) | Due, the grace window and missed | accepted | Due from its time until length (30 when open) + 30 min, then quietly missed; status derived, never stored |
 | [0173](0173-prefilled-start-and-the-occurrence-link.md) | Prefilled start and the occurrence link | accepted | One-tap Start opens the planting sheet prefilled; the started session is linked by a note; at three in progress the card offers the sessions instead |
 | [0174](0174-scheduler-tick-and-notification.md) | The scheduler's tick and the soft notification | accepted | The scheduler subscribes to the widget's worker ticker while schedules exist; `schedule:due` once per occurrence; the notifier's usual background-only policy |
+| [0175](0175-calendar-section-painted-timeline-and-month.md) | The calendar section | accepted | Daily (default) / Weekly / Monthly, remembered per viewer; pure ranges, items and overlap layout; washes in each plant's colour, planned as broken ink, passed as ghosts; month of pigment dabs |
+| [0176](0176-waiting-card-in-the-study-section.md) | The waiting card | accepted | A card at the top of the Study section and a slip above the pill; Start / Not this time; at three in progress it offers the sessions instead |
+| [0177](0177-schedule-editor-sheet.md) | The schedule editor | accepted | A washi sheet: name, date, time, length and plan open by default, repeat chips; only this one / this and the following; Start now |

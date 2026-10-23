@@ -487,6 +487,11 @@ Fauna (`src/fauna/dev.ts`, installed by `createFauna({ debug })`): `window.sprou
 `setHour(h)`, `night()`, `roster()`, `schedule()`, `pond()`, `view()`, `targets()`, `bench(frames?)`
 (docs/systems/fauna.md).
 
+Schedules (`src/dev/schedule-debug.ts`): `window.sprout.schedule` — `add(input?)`, `list()`,
+`occurrences(from?, to?)`, `due()`, `get(key)`, `jumpToDue(scheduleId?)`, `jumpPast(key)`, `edit(key, edit,
+scope?)`, `remove(key, scope?)`, `check()`, `fillHistory(days?, seed?)`, `demo(opts?)`; `window.sprout.calendar`
+— `state()`, `setView(view)`, `go(date)` (docs/systems/calendar.md).
+
 Widget (`src/widget/dev.ts`, `installWidgetDebug`): `window.sprout.widget` — `supported()`,
 `isOpen()`, `open()`, `close()`, `tickerMode()`, `title()`, `favicon()`, `bloomed()`,
 `lastNotification()`, `mountHarness()` (the floating card in `iframe#sprout-widget-harness`),
@@ -502,9 +507,11 @@ Query flags: `?fixtures` (dev `fx-*` species, ADR 0055), `?uitime=0.05` (UI dela
 
 ## UI (`src/ui/`, ADRs 0050–0055, 0121, 0124, 0130–0136)
 `createUI({ root, stage?, controller, store, bus, clock, getSpecies, slots, viewport, audio?, widget?,
-notifications?, isKnownSpecies?, reducedMotion?, timeScale? })` → `{ dock, stage, scroll, plantView,
-placement: { current(), subscribe(fn) }, state(), refresh(), setTimeScale(), showPlantLabel(),
-dispose() }`. DOM only, drives the app through the controller. `root` is the page (`#ui`), `stage`
+notifications?, isKnownSpecies?, reducedMotion?, timeScale?, schedules? })` → `{ dock, stage, scroll, plantView,
+calendar, placement: { current(), subscribe(fn) }, state(), refresh(), setTimeScale(), showPlantLabel(),
+dispose() }`. With `schedules` (the scheduler) it fills the Calendar section, mounts the waiting card
+and links a session started from a schedule (ADRs 0173–0177); `calendar` is then `{ state(),
+setView(view), go(date) }`, else null. DOM only, drives the app through the controller. `root` is the page (`#ui`), `stage`
 the element holding the canvas (default: `root`'s `.stage`). `viewport` is a function returning the
 renderer's current `Viewport`. `widget` is the `WidgetIntegration` (`{ supported, open(), isOpen(), onChange?() }`,
 satisfied by `surfaces.widget`). `main.ts` passes no `notifications`: the widget surfaces ask for
@@ -535,14 +542,21 @@ interface Dock { el; addSection(def): DockSection /* throws on duplicate/malform
   removeSection(id); get(id): DockSection | null; sections(): { id, title, order, span, filled, visible }[]; onChange(fn): () => void }
 ```
 Order: by `order`, then registration. A section without `mount` is a hidden placeholder until
-`fill`. Registered by the UI: `session` "Study" (10; the controls, then the sessions in progress,
-ADR 0156), `plant` "Your plant" (20), `calendar`
-"Calendar" (30, full, **placeholder**), `tools` "Garden tools" (90, full). Wide screens: two
+`fill`. Registered by the UI: `session` "Study" (10; the waiting cards of due scheduled sessions,
+the controls, then the sessions in progress, ADRs 0156, 0176), `plant` "Your plant" (20), `calendar`
+"Calendar" (30, full; a placeholder filled by the calendar when `createUI` has a scheduler, ADR 0175),
+`tools` "Garden tools" (90, full). Wide screens: two
 columns (`half` sections side by side); under 860 px one column.
 
 **Scroll** — `ui.scroll = { state(): { y, max, target, animating, smooth }, to(y | sectionId, { instant? }) }`
 (ADR 0131). Wheel and arrow keys ease, page keys/Home/End/jumps glide, touch is native, reduced
 motion lands at once; native scrolls are adopted. The custom scrollbar is `aria-hidden` decoration.
+
+**Calendar** — `ui/calendar.ts` in the `calendar` section (ADR 0175): Daily (default) / Weekly /
+Monthly, remembered per viewer (`localStorage` `studysprout:calendar-view`); the pure range, item,
+overlap-layout and month-mark maths live in `ui/calendar-model.ts`. The schedule editor is the
+`schedule` sheet (`ui/schedule-sheet.ts`, ADR 0177); the waiting card and its slip above the pill are
+`ui/schedule-card.ts` (ADR 0176). Details: `docs/systems/calendar.md`.
 
 **Plant view** — `ui.plantView = { water(): boolean, state() }` (ADR 0134). It shows the active
 session's plant and plays on every `session:water` bus event for it — the tap in a break and the
@@ -552,7 +566,7 @@ automatic focus watering (`auto: true`, ADR 0153).
 `createTimerSurfaces({ controller, store, bus, clock, win?, notificationEnv?, openHost? })` →
 `{ widget: { supported, open(), isOpen(), close(), onChange(fn), dispose() },
 requestPermissionFromGesture(), dispose(), internals }` (`internals` = ticker, tab, notifier, widget
-for the dev hooks). It installs a Web Worker
+for the dev hooks; `main.ts` also gives `internals.ticker` to the scheduler, ADR 0174). It installs a Web Worker
 `Ticker` on the controller (`setTicker`), keeps the tab title/favicon in sync, sends break / focus /
 bloom notifications (service worker `public/sw.js` → `${BASE_URL}sw.js`) and opens the Document
 Picture-in-Picture card. It reads the controller through the structural `WidgetController`
