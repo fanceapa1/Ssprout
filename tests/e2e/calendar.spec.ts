@@ -312,6 +312,8 @@ test.describe('calendar', () => {
 
   test('past sessions show in the calendar: completed in their plant’s colour, ended early faintly', async ({ page }) => {
     await openCalendar(page);
+    // 31 minutes of sessions: from 23:29 on they would end tomorrow, away from the day shown (devlog 41)
+    await jumpTo(page, 10);
     await page.evaluate(() => {
       window.sprout!.start(25, { taskName: 'Bloomed', speciesId: 'fx-violet' });
       window.sprout!.completeSession();
