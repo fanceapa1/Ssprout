@@ -42,6 +42,7 @@ never on time:
 1. **Two seals during a long pause** (ADR 0201, open since devlog 25). The long pause's Resume
    (`timer-panel.ts`, `button.seal.long-resume`) keeps its seal class when a due card's Start takes
    the lead. `data-primary` is right, but Study shows two vermilion seals.
+   *Fixed in Q8a:* the seal now follows `data-primary`, and the test no longer carries `test.fail()`.
 2. **Keyboard focus without the lift** (ADR 0204). `hover.css` has `:focus-visible` rules for
    seals, calm slips, quick picks, chips and corner chips, but none for `.tool::before`,
    `.plan-card` or `.plant-card::before`. These show only the focus ring.
