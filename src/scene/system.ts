@@ -234,13 +234,26 @@ export function createSceneSystem(opts: SceneSystemOptions = {}): SceneSystem {
     return !!inWorld && covers(detail.view.rect, inWorld);
   };
 
-  const drawPainting = (ctx: CanvasRenderingContext2D, res: PaintResult, alpha: number) => {
+  const drawPainting = (ctx: CanvasRenderingContext2D, res: PaintResult, alpha: number, op: GlobalCompositeOperation = 'source-over') => {
     if (alpha <= 0) return;
     const { rect } = res.view;
     ctx.globalAlpha = alpha;
+    ctx.globalCompositeOperation = op;
     ctx.imageSmoothingEnabled = true;
     ctx.drawImage(res.canvas as CanvasImageSource, rect.x, rect.y, rect.w, rect.h);
     ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = 'source-over';
+  };
+
+  /**
+   * `(1 − e)·a + e·b` per pixel: the paintings are translucent (paper shows through them), so a
+   * plain fade of one over the other would let the paper through mid-way (a pale pulse). The
+   * background layer starts empty, so the second image is added with `lighter` (ADR 0185).
+   */
+  const crossFade = (ctx: CanvasRenderingContext2D, a: PaintResult | null, b: PaintResult, e: number) => {
+    if (e >= 1 || !a) return drawPainting(ctx, b, a ? 1 : e);
+    drawPainting(ctx, a, 1 - e);
+    drawPainting(ctx, b, e, 'lighter');
   };
 
   return {
@@ -321,13 +334,10 @@ export function createSceneSystem(opts: SceneSystemOptions = {}): SceneSystem {
     draw(layer: LayerId, ctx: CanvasRenderingContext2D, f) {
       if (layer === 'background') {
         if (detailCovers(f.view) && detail) {
-          // the detail painting fades in over the overview painting (a crossfade: no darker pulse)
-          const e = easeInOut(detailFade);
-          if (e < 1 && current) drawPainting(ctx, current, 1 - e);
-          drawPainting(ctx, detail, e);
-        } else {
-          if (previous) drawPainting(ctx, previous, 1);
-          if (current) drawPainting(ctx, current, easeInOut(fade));
+          // the detail painting cross-fades in over the overview painting
+          crossFade(ctx, current, detail, easeInOut(detailFade));
+        } else if (current) {
+          crossFade(ctx, previous, current, easeInOut(fade));
         }
         if (current && sky) sky.drawSky(ctx, f.view?.visible);
       } else if (layer === 'waterSurface') {
