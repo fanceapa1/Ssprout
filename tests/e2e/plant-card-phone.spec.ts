@@ -54,7 +54,7 @@ async function readsWhole(page: Page, id: string): Promise<void> {
   // the card stays on the garden
   const geo = await c.evaluate((el) => {
     const r = el.getBoundingClientRect();
-    const stage = el.offsetParent!.getBoundingClientRect();
+    const stage = (el as HTMLElement).offsetParent!.getBoundingClientRect();
     return { top: r.top, bottom: r.bottom, stageTop: stage.top, stageBottom: stage.bottom };
   });
   expect(geo.top).toBeGreaterThanOrEqual(geo.stageTop);
