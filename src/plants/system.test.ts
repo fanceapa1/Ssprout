@@ -45,17 +45,27 @@ const DEFS = new Map([species('small', 'small', 70, 70), species('tree', 'tree',
 const getSpecies = (id: string) => DEFS.get(id);
 
 /** Every sprite is "painted" instantly; requests are recorded. */
-function instantCache(): SpriteCache & { requested: SpriteSpec[] } {
+function instantCache(): SpriteCache & { requested: SpriteSpec[]; images: Set<unknown> } {
   const store = new Map<string, Sprite>();
   const requested: SpriteSpec[] = [];
+  const images = new Set<unknown>();
   const make = (s: SpriteSpec): Sprite => {
     const key = spriteKey(s);
     let sp = store.get(key);
-    if (!sp) store.set(key, (sp = { key, spec: s, image: new FakeCanvas(s.w, s.h) as unknown as CanvasImageSource, bytes: s.w * s.h * 4, bounds: { left: 0.2, top: 0.3, right: 0.8, bottom: 0.95 } }));
+    if (!sp) {
+      // painted in the middle of the box: the ink (any paint, padded) is a little wider than the bounds
+      const x0 = Math.floor(s.w * 0.18);
+      const y0 = Math.floor(s.h * 0.28);
+      const ink = { x: x0, y: y0, w: Math.ceil(s.w * 0.82) - x0, h: Math.ceil(s.h * 0.96) - y0 };
+      const image = new FakeCanvas(s.w, s.h);
+      images.add(image);
+      store.set(key, (sp = { key, spec: s, image: image as unknown as CanvasImageSource, bytes: s.w * s.h * 4, bounds: { left: 0.2, top: 0.3, right: 0.8, bottom: 0.95, ink } }));
+    }
     return sp;
   };
   return {
     requested,
+    images,
     get: (s) => store.get(spriteKey(s)),
     best: (id, seed, step) => [...store.values()].find((s) => s.spec.speciesId === id && s.spec.seed === seed && s.spec.step === step),
     has: (s) => store.has(spriteKey(s)),
@@ -564,6 +574,64 @@ describe('the camera (ADRs 0165, 0166)', () => {
     const seed = sys.plantBounds('session-1')!;
     expect(sys.hitTest({ x: seed.x + seed.w / 2, y: seed.y + seed.h * 0.6 })).toMatchObject({ id: 'session-1', kind: 'growing' });
     expect(sys.hitTest({ x: 1500, y: 60 })).toBeNull();
+  });
+
+  it('a close view blits only the painted part of each sprite (ADR 0207)', async () => {
+    const env = setup({ plants: [plant('near', 'meadow-1'), plant('tree', 'back-1', 'tree')], camera: true });
+    const sys = await ready(env);
+    env.camera!.zoomTo(2.6, { x: 340, y: 600 }, { animate: false });
+    const f = { ...env.frame(), view: env.camera!.view() };
+    const c = new FakeCanvas(1600, 1000);
+    const ctx = c.ctx;
+    // device rows each blit can touch: its rect's rows, within the bend slice's clip band
+    let fill = 0;
+    let boxes = 0;
+    const tf = () => (ctx.getTransform as () => DOMMatrix)();
+    type Band = [number, number] | null;
+    let rect: Band = null;
+    let band: Band = null;
+    const bands: Band[] = [];
+    const wrap = (name: string, fn: (...a: number[]) => void) => {
+      const orig = ctx[name] as (...a: unknown[]) => unknown;
+      (ctx as Record<string, unknown>)[name] = (...a: unknown[]) => {
+        fn(...(a as number[]));
+        return orig(...a);
+      };
+    };
+    wrap('save', () => bands.push(band));
+    wrap('restore', () => (band = bands.pop() ?? null));
+    wrap('rect', (_x, y, _w, h) => {
+      const m = tf();
+      rect = [m.d * y! + m.f, m.d * (y! + h!) + m.f];
+    });
+    wrap('clip', () => (band = rect));
+    const orig = ctx.drawImage as (...a: unknown[]) => void;
+    (ctx as Record<string, unknown>).drawImage = (...a: unknown[]) => {
+      if (env.cache.images.has(a[0])) {
+        const m = tf();
+        const [, y, w, h] = (a.length === 9 ? a.slice(5) : a.slice(1)) as number[];
+        const y0 = m.d * y! + m.f;
+        const rows = Math.max(0, Math.min(y0 + m.d * h!, band ? band[1] : Infinity) - Math.max(y0, band ? band[0] : -Infinity));
+        fill += rows * w! * Math.abs(m.a);
+      }
+      orig(...a);
+    };
+    const drawn = sys.entities!(f);
+    expect(drawn.length).toBe(2);
+    const c2d = ctx as unknown as CanvasRenderingContext2D;
+    for (const d of drawn) {
+      c2d.save();
+      f.view.applyTo(c2d);
+      d.draw(c2d, f);
+      c2d.restore();
+    }
+    for (const id of ['near', 'tree']) {
+      const b = sys.plantBounds(id)!;
+      boxes += b.w * b.h * f.view.pixelScale ** 2;
+    }
+    // the ink is 64 % × 68 % (0.44) of each box, the whole box is 1: bare margins cost nothing
+    expect(fill).toBeGreaterThan(0);
+    expect(fill / boxes).toBeLessThan(0.5);
   });
 
   it('toDevice follows the camera', async () => {

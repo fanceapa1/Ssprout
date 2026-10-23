@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { bendOffset, crossFade, drawPlant, drawSliced, morphBetween, type Scratch } from './draw';
+import { bendOffset, crossFade, drawPlant, drawSliced, inkCrop, morphBetween, type Scratch } from './draw';
 import { FakeCanvas } from './test-canvas';
 
 describe('sway maths', () => {
@@ -92,5 +92,50 @@ describe('drawing', () => {
     expect(hi![1]! + hi![3]! / 2).toBeCloseTo(50, 6);
     expect(lo![2]! + lo![4]!).toBeCloseTo(200, 6);
     expect(hi![2]! + hi![4]!).toBeCloseTo(200, 6);
+  });
+});
+
+describe('ink crop (ADR 0207)', () => {
+  const box = { x: 10, y: 20, w: 50, h: 100 };
+  // a 200×400 sprite whose paint lies in x 40..160, y 100..380
+  const ink = { x: 40, y: 100, w: 120, h: 280 };
+  const ctxOf = (c: FakeCanvas) => c.ctx as unknown as CanvasRenderingContext2D;
+  const images = (c: FakeCanvas) => c.ctx.calls.filter((k) => k.name === 'drawImage').map((k) => k.args.slice(1) as number[]);
+
+  it('maps the ink to the same place the whole sprite puts it', () => {
+    const crop = inkCrop(box, ink, 200, 400)!;
+    expect(crop.src).toEqual(ink);
+    expect(crop.dst).toEqual({ x: 10 + 40 / 4, y: 20 + 100 / 4, w: 30, h: 70 });
+    // nothing to save: no crop
+    expect(inkCrop(box, { x: 0, y: 0, w: 200, h: 400 }, 200, 400)).toBeNull();
+    expect(inkCrop(box, undefined, 200, 400)).toBeNull();
+  });
+
+  it('blits only the ink, at a fraction of the area, in every pose', () => {
+    const crop = inkCrop(box, ink, 200, 400)!;
+    for (const pose of [
+      { lean: 0, bend: 1, scaleY: 1, alpha: 1 },
+      { lean: 0.05, bend: 1, scaleY: 1.04, alpha: 1 },
+    ]) {
+      const c = new FakeCanvas(100, 200);
+      drawPlant(ctxOf(c), {} as CanvasImageSource, box, 35, 120, pose, crop);
+      expect(images(c)).toEqual([[40, 100, 120, 280, 20, 45, 30, 70]]);
+    }
+    const area = (crop.dst.w * crop.dst.h) / (box.w * box.h);
+    expect(area).toBeLessThan(0.45);
+  });
+
+  it('bends with the same slices: bands that miss the ink are skipped, the rest keep their skew', () => {
+    const crop = inkCrop(box, ink, 200, 400)!;
+    const pose = { lean: 0.04, bend: 2.4, scaleY: 1, alpha: 1 };
+    const full = new FakeCanvas(100, 200);
+    const cut = new FakeCanvas(100, 200);
+    drawPlant(ctxOf(full), {} as CanvasImageSource, box, 35, 120, pose);
+    drawPlant(ctxOf(cut), {} as CanvasImageSource, box, 35, 120, pose, crop);
+    const skews = (c: FakeCanvas) => c.ctx.calls.filter((k) => k.name === 'transform').map((k) => k.args as number[]);
+    // the top sixth (y 20..36.7) holds no ink (it starts at y 45): one band fewer, the others as before
+    expect(skews(full)).toHaveLength(6);
+    expect(skews(cut)).toEqual(skews(full).slice(1));
+    expect(images(cut).every((a) => a.length === 8 && a[0] === 40 && a[6] === 30)).toBe(true);
   });
 });

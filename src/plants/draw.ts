@@ -34,8 +34,28 @@ export function bendOffset(lean: number, h: number, t: number, bend: number): nu
 type Ctx = CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
 
 /**
+ * The painted part of an image laid in `box`: `src` (image px) and where it lands (`dst`, the
+ * same mapping as the whole image into `box`). Drawing only it gives the same pixels when the
+ * rest of the image is bare (ADR 0207); null when there is nothing to save.
+ */
+export interface Crop {
+  src: Box;
+  dst: Box;
+}
+
+export function inkCrop(box: Box, ink: Box | null | undefined, iw: number, ih: number): Crop | null {
+  if (!ink || iw <= 0 || ih <= 0 || ink.w <= 0 || ink.h <= 0) return null;
+  if (ink.x <= 0 && ink.y <= 0 && ink.w >= iw && ink.h >= ih) return null;
+  const kx = box.w / iw;
+  const ky = box.h / ih;
+  return { src: { ...ink }, dst: { x: box.x + ink.x * kx, y: box.y + ink.y * ky, w: ink.w * kx, h: ink.h * ky } };
+}
+
+/**
  * Draw `img` into `box` (current user space) in `slices` horizontal bands, displacing each row by
- * `offsetAt(y)` (linear within a band, continuous across bands).
+ * `offsetAt(y)` (linear within a band, continuous across bands). With `crop`, only `crop.src` is
+ * drawn (into `crop.dst`); the bands still follow `box`, so the pose is the same, and bands that
+ * miss the crop are skipped.
  */
 export function drawSliced(
   ctx: Ctx,
@@ -44,6 +64,7 @@ export function drawSliced(
   offsetAt: (y: number) => number,
   slices: number,
   src?: Box,
+  crop?: Crop | null,
 ): void {
   const n = Math.max(1, Math.floor(slices));
   const m = ctx.getTransform();
@@ -56,6 +77,7 @@ export function drawSliced(
     const y0 = i === 0 ? box.y - box.h : snap(ya);
     const y1 = i === n - 1 ? box.y + box.h * 2 : snap(yb);
     if (y1 <= y0) continue;
+    if (crop && (y1 <= crop.dst.y || y0 >= crop.dst.y + crop.dst.h)) continue;
     const oa = offsetAt(ya);
     const ob = offsetAt(yb);
     const c = (ob - oa) / (yb - ya);
@@ -64,17 +86,23 @@ export function drawSliced(
     ctx.rect(box.x - pad, Math.min(y0, y1), box.w + pad * 2, Math.abs(y1 - y0));
     ctx.clip();
     ctx.transform(1, 0, c, 1, oa - c * ya, 0);
-    if (src) ctx.drawImage(img, src.x, src.y, src.w, src.h, box.x, box.y, box.w, box.h);
+    if (crop) drawCrop(ctx, img, crop);
+    else if (src) ctx.drawImage(img, src.x, src.y, src.w, src.h, box.x, box.y, box.w, box.h);
     else ctx.drawImage(img, box.x, box.y, box.w, box.h);
     ctx.restore();
   }
 }
 
+const drawCrop = (ctx: Ctx, img: CanvasImageSource, c: Crop) => ctx.drawImage(img, c.src.x, c.src.y, c.src.w, c.src.h, c.dst.x, c.dst.y, c.dst.w, c.dst.h);
+
 /** Slices used for a bend: enough for a smooth curve, few enough to stay cheap. */
 export const BEND_SLICES = 6;
 
-/** Draw a plant image with its base at (baseX, baseY) in `box`, posed. */
-export function drawPlant(ctx: Ctx, img: CanvasImageSource, box: Box, baseX: number, baseY: number, pose: PlantPose): void {
+/**
+ * Draw a plant image with its base at (baseX, baseY) in `box`, posed. `crop` (`inkCrop`) blits
+ * only the painted part: same pixels, a fraction of the fill (ADR 0207).
+ */
+export function drawPlant(ctx: Ctx, img: CanvasImageSource, box: Box, baseX: number, baseY: number, pose: PlantPose, crop?: Crop | null): void {
   if (pose.alpha <= 0.002) return;
   ctx.save();
   ctx.globalAlpha *= Math.min(1, pose.alpha);
@@ -85,13 +113,15 @@ export function drawPlant(ctx: Ctx, img: CanvasImageSource, box: Box, baseX: num
   }
   const H = Math.max(1e-6, baseY - box.y);
   if (pose.lean === 0) {
-    ctx.drawImage(img, box.x, box.y, box.w, box.h);
+    if (crop) drawCrop(ctx, img, crop);
+    else ctx.drawImage(img, box.x, box.y, box.w, box.h);
   } else if (pose.bend === 1) {
     // x' = x + lean·(baseY − y)
     ctx.transform(1, 0, -pose.lean, 1, pose.lean * baseY, 0);
-    ctx.drawImage(img, box.x, box.y, box.w, box.h);
+    if (crop) drawCrop(ctx, img, crop);
+    else ctx.drawImage(img, box.x, box.y, box.w, box.h);
   } else {
-    drawSliced(ctx, img, box, (y) => bendOffset(pose.lean, H, (baseY - y) / H, pose.bend), BEND_SLICES);
+    drawSliced(ctx, img, box, (y) => bendOffset(pose.lean, H, (baseY - y) / H, pose.bend), BEND_SLICES, undefined, crop);
   }
   ctx.restore();
 }

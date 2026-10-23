@@ -5,7 +5,7 @@ import type { Pt, Rect, Viewport } from '../render/viewport';
 import { alphaMask, pickPlant, type HitCandidate } from './hit-test';
 import type { SceneGeometry, Slot } from '../scene/geometry';
 import { plantWorldBounds, type WorldRect } from './bounds';
-import { crossFade, drawPlant, morphBetween, scratch, type PlantPose } from './draw';
+import { crossFade, drawPlant, inkCrop, morphBetween, scratch, type PlantPose } from './draw';
 import { DAB_BOX, dabAlpha, GHOST_ALPHA, highlightDab, NO_PLACEMENT, type PlacementSnapshot, type PlacementSource } from './highlight';
 import { drawReflection, reflectionImage, shoreAxis } from './reflection';
 import {
@@ -15,6 +15,7 @@ import {
   resolutionBucket,
   spritePixelSize,
   stagePair,
+  type PixelRect,
   type Sprite,
   type SpriteCache,
   type SpriteSpec,
@@ -326,6 +327,13 @@ export function createPlantSystem(opts: PlantSystemOptions): PlantSystem {
     return any;
   }
 
+  /** an image's pixel size and painted part (ink), when it is a sprite */
+  interface Painted {
+    w: number;
+    h: number;
+    ink?: PixelRect;
+  }
+
   interface GrowthImages {
     a?: Sprite;
     b?: Sprite;
@@ -346,10 +354,10 @@ export function createPlantSystem(opts: PlantSystemOptions): PlantSystem {
   }
 
   /** Composite (cross-faded) image for growth images, or the single one. */
-  function growthImage(inst: Inst, imgs: GrowthImages, id: string): { image: CanvasImageSource; w: number; h: number } | null {
+  function growthImage(inst: Inst, imgs: GrowthImages, id: string): { image: CanvasImageSource; w: number; h: number; ink?: PixelRect } | null {
     const one = imgs.weight >= 1 ? imgs.b : imgs.a ?? imgs.b;
     if (!one) return null;
-    if (!imgs.a || !imgs.b || imgs.weight <= 0 || imgs.weight >= 1) return { image: one.image, w: one.spec.w, h: one.spec.h };
+    if (!imgs.a || !imgs.b || imgs.weight <= 0 || imgs.weight >= 1) return { image: one.image, w: one.spec.w, h: one.spec.h, ink: one.bounds?.ink };
     const spec = specFor(inst, imgs.lo);
     // a cross-fade is composited again only when its images or its weight moved: a waiting seedling
     // never changes, a growing one moves a step in about two minutes, so about once a second (devlog 24)
@@ -358,7 +366,7 @@ export function createPlantSystem(opts: PlantSystemOptions): PlantSystem {
       return { image: last.image, w: spec.w, h: spec.h };
     }
     const buf = scratch(`grow:${uid}:${id}`, spec.w, spec.h);
-    if (!buf) return { image: one.image, w: one.spec.w, h: one.spec.h };
+    if (!buf) return { image: one.image, w: one.spec.w, h: one.spec.h, ink: one.bounds?.ink };
     crossFade(buf, imgs.a.image, imgs.b.image, imgs.weight, morphBetween(imgs.a.bounds, imgs.b.bounds, inst.def.anchor));
     fades.set(id, { a: imgs.a.image, b: imgs.b.image, weight: imgs.weight, w: spec.w, h: spec.h, image: buf.canvas });
     fadeComposites++;
@@ -581,7 +589,11 @@ export function createPlantSystem(opts: PlantSystemOptions): PlantSystem {
             }
           }
           const final = imageFor(inst, FINAL_STEP, PRIORITY.visible);
-          if (!image) image = final?.image ?? null;
+          let drawn: Painted | undefined;
+          if (!image && final) {
+            image = final.image;
+            drawn = { w: final.spec.w, h: final.spec.h, ink: final.bounds?.ink };
+          }
           if (!image) return;
           if (rec.appear === 'waiting') rec.appear = { from: 0, to: 1, start: t, dur: APPEAR_SECONDS };
           let alpha = presence;
@@ -593,7 +605,7 @@ export function createPlantSystem(opts: PlantSystemOptions): PlantSystem {
           drawnThisFrame.add(rec.plant.id);
           const pose = swayPose(inst, t);
           pose.alpha = alpha;
-          drawLit(ctx, inst, image, rec.bloom ? undefined : final, pose);
+          drawLit(ctx, inst, image, rec.bloom ? undefined : final, pose, drawn);
         }),
     };
   }
@@ -620,7 +632,7 @@ export function createPlantSystem(opts: PlantSystemOptions): PlantSystem {
           if (!img) return;
           drawnThisFrame.add(`session:${g.id}`);
           // light and shadow follow the nearer growth step (the cross-fade buffer changes every frame)
-          drawLit(ctx, g.inst, img.image, imgs.weight >= 0.5 ? imgs.b ?? imgs.a : imgs.a ?? imgs.b, pose);
+          drawLit(ctx, g.inst, img.image, imgs.weight >= 0.5 ? imgs.b ?? imgs.a : imgs.a ?? imgs.b, pose, img);
         }),
     };
   }
@@ -628,22 +640,25 @@ export function createPlantSystem(opts: PlantSystemOptions): PlantSystem {
   /**
    * A plant in the garden's light: its cast shadow on the ground first (not on open water), the
    * plant, then the rim of its sun-facing edges (screen) with the same pose. `lit` is a stable
-   * sprite for the shadow's extent and the rim mask (null: no shadow or rim this frame).
+   * sprite for the shadow's extent and the rim mask (null: no shadow or rim this frame). `painted`
+   * gives `image`'s size and ink when it is a sprite: only the painted part is blitted (ADR 0207).
    */
-  function drawLit(ctx: CanvasRenderingContext2D, inst: Inst, image: CanvasImageSource, lit: Sprite | undefined, pose: PlantPose): void {
+  function drawLit(ctx: CanvasRenderingContext2D, inst: Inst, image: CanvasImageSource, lit: Sprite | undefined, pose: PlantPose, painted?: Painted): void {
     const b = lit?.bounds;
     if (b && shadow.alpha > 0.01 && inst.slot.habitat !== 'water') {
       const w = (b.right - b.left) * inst.box.w;
       const h = (inst.def.anchor.y - b.top) * inst.box.h;
       drawPlantShadow(ctx, { x: inst.slot.x, y: inst.slot.y, w, h }, shadow, pose.alpha * SHADOW_PLANT);
     }
-    drawPlant(ctx, image, inst.box, inst.slot.x, inst.slot.y, pose);
+    drawPlant(ctx, image, inst.box, inst.slot.x, inst.slot.y, pose, painted && inkCrop(inst.box, painted.ink, painted.w, painted.h));
     if (lit && rim.strength > 0.02) {
       const mask = rims.get(lit.image, rim.side, rim.rgb, spriteRes(lit, inst.box.w) / RIM_REF_RES);
       if (!mask) return;
       ctx.save();
       ctx.globalCompositeOperation = 'screen';
-      drawPlant(ctx, mask as CanvasImageSource, inst.box, inst.slot.x, inst.slot.y, { ...pose, alpha: pose.alpha * rim.strength * RIM_PLANT });
+      // the rim is cut from the sprite's own pixels: it lies inside the sprite's ink
+      const crop = inkCrop(inst.box, lit.bounds?.ink, lit.spec.w, lit.spec.h);
+      drawPlant(ctx, mask as CanvasImageSource, inst.box, inst.slot.x, inst.slot.y, { ...pose, alpha: pose.alpha * rim.strength * RIM_PLANT }, crop);
       ctx.restore();
     }
   }

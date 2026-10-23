@@ -116,6 +116,52 @@ export interface SpriteBounds {
   top: number;
   right: number;
   bottom: number;
+  /**
+   * Every pixel with any paint (alpha > 0), padded by `INK_PAD` and clamped, in sprite pixels:
+   * what a draw needs to cover. The rest of the box is bare and is not blitted (ADR 0207).
+   */
+  ink?: PixelRect;
+}
+
+export interface PixelRect {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+/** Bare pixels kept round the ink: bilinear sampling at the crop's edge reads only bare pixels. */
+export const INK_PAD = 2;
+
+/**
+ * The pixel rect holding every pixel with alpha > 0, padded by `pad` and clamped to the image;
+ * null when the image is bare. Scans in from each side and stops at the first paint, so a full
+ * sprite costs little more than its margins.
+ */
+export function inkRect(data: ArrayLike<number>, w: number, h: number, pad = INK_PAD): PixelRect | null {
+  const a = (x: number, y: number) => data[(y * w + x) * 4 + 3] ?? 0;
+  const rowHas = (y: number) => {
+    for (let x = 0; x < w; x++) if (a(x, y) > 0) return true;
+    return false;
+  };
+  let top = 0;
+  while (top < h && !rowHas(top)) top++;
+  if (top >= h) return null;
+  let bottom = h - 1;
+  while (bottom > top && !rowHas(bottom)) bottom--;
+  const colHas = (x: number) => {
+    for (let y = top; y <= bottom; y++) if (a(x, y) > 0) return true;
+    return false;
+  };
+  let left = 0;
+  while (left < w - 1 && !colHas(left)) left++;
+  let right = w - 1;
+  while (right > left && !colHas(right)) right--;
+  const x0 = Math.max(0, left - pad);
+  const y0 = Math.max(0, top - pad);
+  const x1 = Math.min(w, right + 1 + pad);
+  const y1 = Math.min(h, bottom + 1 + pad);
+  return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
 }
 
 export interface Sprite {
@@ -168,7 +214,12 @@ export function paintSprite(def: SpeciesDef, spec: SpriteSpec): { canvas: HTMLCa
   let bounds: SpriteBounds | null = null;
   try {
     const ctx = canvas.getContext('2d') as AnyCtx | null;
-    if (ctx) bounds = contentBounds(ctx.getImageData(0, 0, spec.w, spec.h).data, spec.w, spec.h);
+    if (ctx) {
+      const data = ctx.getImageData(0, 0, spec.w, spec.h).data;
+      bounds = contentBounds(data, spec.w, spec.h);
+      const ink = bounds && inkRect(data, spec.w, spec.h);
+      if (bounds && ink) bounds.ink = ink;
+    }
   } catch {
     bounds = null;
   }

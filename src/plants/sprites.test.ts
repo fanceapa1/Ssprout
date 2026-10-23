@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   contentBounds,
+  INK_PAD,
+  inkRect,
   createSpriteCache,
   crossFadeAlphas,
   GROWTH_STEPS,
@@ -113,6 +115,24 @@ describe('sprite sizing', () => {
     set(6, 7);
     expect(contentBounds(data, w, h)).toEqual({ left: 0.2, top: 3 / 8, right: 0.7, bottom: 1 });
     expect(contentBounds(new Uint8ClampedArray(w * h * 4), w, h)).toBeNull();
+  });
+
+  it('finds the ink: every pixel with any paint, padded and clamped, in pixels (ADR 0207)', () => {
+    const w = 20;
+    const h = 16;
+    const data = new Uint8ClampedArray(w * h * 4);
+    const set = (x: number, y: number, a = 200) => (data[(y * w + x) * 4 + 3] = a);
+    set(6, 5);
+    set(12, 9, 1); // the faintest wash counts: a crop must never cut paint
+    expect(inkRect(data, w, h)).toEqual({ x: 6 - INK_PAD, y: 5 - INK_PAD, w: 12 - 6 + 1 + INK_PAD * 2, h: 9 - 5 + 1 + INK_PAD * 2 });
+    // paint at the edges: the pad is clamped to the image
+    set(0, 0);
+    set(19, 15);
+    expect(inkRect(data, w, h)).toEqual({ x: 0, y: 0, w, h });
+    expect(inkRect(new Uint8ClampedArray(w * h * 4), w, h)).toBeNull();
+    const one = new Uint8ClampedArray(w * h * 4);
+    one[(7 * w + 3) * 4 + 3] = 9;
+    expect(inkRect(one, w, h, 0)).toEqual({ x: 3, y: 7, w: 1, h: 1 });
   });
 });
 
