@@ -34,7 +34,7 @@ export interface SceneSystemOptions {
   /** cap on bitmap pixels per world unit (default 1.5); above it the painting is upscaled */
   maxPaintScale?: number;
   /**
-   * cap for the detail painting of a zoomed-in view (default 3.2): once the camera rests closer
+   * cap for the detail painting of a zoomed-in view (default 2.8): once the camera rests closer
    * than the overview painting resolves, the visible part is painted again at the view's scale
    * and cross-fades in (ADR 0163)
    */
@@ -73,7 +73,7 @@ export interface SceneSystem extends System {
   /** sky plates painted, composites built, ms spent painting skies */
   skyStats(): ReturnType<SkyLight['stats']> | null;
   /** the detail painting for the camera's resting view: its view, whether it is painting, how far it has faded in */
-  detailStats(): { view: PaintView | null; painting: boolean; fade: number; paints: number; lastPaintMs: number };
+  detailStats(): { view: PaintView | null; painting: boolean; fade: number; paints: number; lastPaintMs: number; extending: boolean; world: boolean };
 }
 
 const WORLD: Rect = { x: 0, y: 0, w: WORLD_W, h: WORLD_H };
@@ -106,7 +106,7 @@ export function createSceneSystem(opts: SceneSystemOptions = {}): SceneSystem {
   const quality = opts.quality ?? 'normal';
   const fadeSeconds = opts.fadeSeconds ?? 1.2;
   const maxScale = opts.maxPaintScale ?? 1.5;
-  const maxDetail = opts.maxDetailScale ?? 3.2;
+  const maxDetail = opts.maxDetailScale ?? 2.8;
   const tolerance = opts.rescaleTolerance ?? 0.1;
   const margin = opts.margin ?? 60;
   const yieldTo = opts.yieldTo ?? macrotask;
@@ -126,6 +126,7 @@ export function createSceneSystem(opts: SceneSystemOptions = {}): SceneSystem {
   let skyVersion = -1;
   let sinceSky = Infinity;
   let preparing = false;
+  let extending = false;
   const rims: RimCache = createRimCache();
   // the camera's detail painting (ADR 0163)
   let camera: CameraView | null = null;
@@ -138,17 +139,22 @@ export function createSceneSystem(opts: SceneSystemOptions = {}): SceneSystem {
   const detailCounts = { paints: 0, lastPaintMs: 0 };
   const stats: SceneStats = { paints: 0, rescales: 0, lastPaintMs: 0, lastCpuMs: 0, lastView: null, timings: [], painting: false };
 
-  /** `swap`: the same painting over a larger area — replace it at once (a cross-fade would pulse) */
-  const startPaint = (view: PaintView, swap = false): Promise<void> => {
+  /**
+   * `extend`: the same painting over the whole world, behind the scenes — swapped in at once (a
+   * cross-fade would pulse) and not counted as a repaint.
+   */
+  const startPaint = (view: PaintView, extend = false): Promise<void> => {
     const id = ++jobId;
-    stats.painting = true;
+    if (!extend) stats.painting = true;
+    extending = extend;
+    const swap = extend;
     const run = paintScene(art, view, { quality, yieldTo, now, cancelled: () => id !== jobId })
       .then((res) => {
         if (id !== jobId) return;
         previous = swap ? null : current;
         current = res;
         fade = swap ? 1 : 0;
-        stats.paints++;
+        if (!extend) stats.paints++;
         stats.lastPaintMs = res.totalMs;
         stats.lastCpuMs = res.cpuMs;
         stats.lastView = res.view;
@@ -161,6 +167,7 @@ export function createSceneSystem(opts: SceneSystemOptions = {}): SceneSystem {
       .finally(() => {
         if (id === jobId) {
           stats.painting = false;
+          extending = false;
           job = null;
         }
       });
@@ -263,16 +270,7 @@ export function createSceneSystem(opts: SceneSystemOptions = {}): SceneSystem {
       const view = paintViewFor(ctx.viewport, maxScale, margin);
       const p = startPaint(view);
       // first paint: block init so ready() means painted; afterwards repaint in the background
-      if (first) {
-        await p;
-        // with a camera, a closer look may go beyond the overview's crop (a phone's sides): paint
-        // the whole world at the same scale behind the scenes (it cross-fades in invisibly)
-        if (camera && current && !contains(current.view.rect, WORLD)) {
-          void (job ?? Promise.resolve()).then(() => {
-            if (current && !contains(current.view.rect, WORLD) && !job) startPaint({ rect: { ...WORLD }, scale: current.view.scale }, true);
-          });
-        }
-      }
+      if (first) await p;
     },
     update(f) {
       // the sky follows the daylight: checked every couple of seconds (at once after setTime)
@@ -295,6 +293,17 @@ export function createSceneSystem(opts: SceneSystemOptions = {}): SceneSystem {
         }
       }
       followCamera();
+      // a closer look may go beyond the overview's crop (a phone's sides): the first time a view
+      // (or a glide's destination) leaves the painted area, paint the whole world at the same
+      // scale behind the scenes
+      if (camera && current && !job && !camera.isOverview() && !contains(current.view.rect, WORLD)) {
+        const painted = current.view.rect;
+        const beyond = (v: Viewport) => {
+          const r = intersect(v.visible, WORLD);
+          return !!r && !contains(painted, r);
+        };
+        if (beyond(camera.view()) || beyond(camera.detailView())) startPaint({ rect: { ...WORLD }, scale: current.view.scale }, true);
+      }
       if (sky && camera) {
         const v = camera.detailView();
         sky.setDetail(camera.isOverview() && !camera.moving() ? null : v.visible, v.pixelScale);
@@ -361,7 +370,15 @@ export function createSceneSystem(opts: SceneSystemOptions = {}): SceneSystem {
       if (camera && camera.detailVersion !== seenDetail && !camera.moving()) followCamera();
       await (detailJob ?? Promise.resolve());
     },
-    detailStats: () => ({ view: detail?.view ?? detailWanted, painting: detailJob !== null, fade: detailFade, paints: detailCounts.paints, lastPaintMs: detailCounts.lastPaintMs }),
+    detailStats: () => ({
+      view: detail?.view ?? detailWanted,
+      painting: detailJob !== null,
+      fade: detailFade,
+      paints: detailCounts.paints,
+      lastPaintMs: detailCounts.lastPaintMs,
+      extending,
+      world: !!current && contains(current.view.rect, WORLD),
+    }),
     stats: () => ({ ...stats, timings: [...stats.timings] }),
     skyStats: () => sky?.stats() ?? null,
   };
