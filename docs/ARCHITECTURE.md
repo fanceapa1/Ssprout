@@ -194,7 +194,7 @@ export interface PlantViewOptions { speciesId: string; seed: number; growth: num
 export function renderPlantView(canvas: HTMLCanvasElement | OffscreenCanvas, opts: PlantViewOptions): boolean; // false: unknown species
 ```
 Clears the canvas, contains the species with its base at the bottom centre (`plantLayout`) over a soft
-ground wash (`framing: 'growth'` frames what has grown instead, up to 4× larger: small thumbnails,
+ground wash (`framing: 'growth'` frames what has grown instead, up to 8× larger (`MAX_GROWTH_ZOOM`, devlog 25): small thumbnails,
 ADR 0189), and draws the same cached growth steps as the garden (`GROWTH_STEPS = 24`, morphing
 cross-fade), the painted watering animation (jōro, droplets, damp soil, leaves lift) and the wither
 (ADR 0118). `setPlantViewSpecies(fn)` adds species the registry lacks (main passes its `getSpecies`, so

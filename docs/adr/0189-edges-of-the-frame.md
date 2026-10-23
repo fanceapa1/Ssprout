@@ -1,6 +1,6 @@
 # ADR 0189 — Edges of the frame: a phone's painting, the plant view's can and its framing
 
-- Status: accepted (amends ADRs 0003, 0094, 0163)
+- Status: accepted (amends ADRs 0003, 0094, 0163); the growth framing's cap is 8× since devlog 25 (a just-planted seed must read)
 - Date: 2026-10-23
 
 ## Context
