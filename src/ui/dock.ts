@@ -1,3 +1,5 @@
+import { createBackdrop, type Backdrop } from './backdrop';
+import type { SheetStrength } from './backdrop-sheet';
 import { h, setText } from './dom';
 
 /**
@@ -28,6 +30,11 @@ export interface DockSectionDef {
   /** wide screens: one column (`half`, default) or the whole row (`full`); phones: always full */
   span?: DockSpan;
   /**
+   * The sheet of washi behind the section (ADR 0208): `leaf` (default), `firm` (a stronger
+   * surface, the calendar) or `none`.
+   */
+  backdrop?: SheetStrength | 'none';
+  /**
    * Build the section's content into `body`. May return a cleanup, called on `removeSection`.
    * Omit to register a hidden placeholder (see `fill`).
    */
@@ -46,6 +53,8 @@ export interface DockSection {
   readonly heading: HTMLElement;
   /** the helper line under the heading (`p.dock-helper`, the section's description; hidden when empty) */
   readonly helper: HTMLElement;
+  /** the backdrop sheet behind the section (`div.backdrop`), or null with `backdrop: 'none'` */
+  readonly backdrop: Backdrop | null;
   setTitle(title: string): void;
   /** set the helper line (null or '' hides it); a no-op when unchanged */
   setHelper(text: string | null): void;
@@ -90,6 +99,7 @@ interface Entry {
   filled: boolean;
   hidden: boolean;
   cleanup: (() => void) | null;
+  backdrop: Backdrop | null;
 }
 
 /** Page order: by `order`, then registration. Pure, exported for tests. */
@@ -138,6 +148,7 @@ export function createDock(opts: { label?: string } = {}): Dock {
       // the heading and its helper line: one block, the same in every section (ADR 0201)
       const head = h('header.dock-head', {}, heading, helper);
       const sectionEl = h('section.dock-section', { 'data-section': def.id, 'data-span': def.span ?? 'half', 'aria-labelledby': headingId }, head, body);
+      const backdrop = def.backdrop === 'none' ? null : createBackdrop(sectionEl, { seed: def.id, strength: def.backdrop ?? 'leaf' });
       const writeHelper = (text: string | null) => {
         const t = text?.trim() || null;
         entry.def.helper = t;
@@ -152,12 +163,14 @@ export function createDock(opts: { label?: string } = {}): Dock {
         filled: false,
         hidden: false,
         cleanup: null,
+        backdrop,
         section: {
           id: def.id,
           el: sectionEl,
           body,
           heading,
           helper,
+          backdrop,
           setTitle(title) {
             entry.def.title = title;
             setText(heading, title);
@@ -192,6 +205,7 @@ export function createDock(opts: { label?: string } = {}): Dock {
       const e = entries.get(id);
       if (!e) return;
       e.cleanup?.();
+      e.backdrop?.dispose();
       e.section.el.remove();
       entries.delete(id);
       changed();
@@ -214,7 +228,10 @@ export function createDock(opts: { label?: string } = {}): Dock {
       };
     },
     dispose() {
-      for (const e of entries.values()) e.cleanup?.();
+      for (const e of entries.values()) {
+        e.cleanup?.();
+        e.backdrop?.dispose();
+      }
       entries.clear();
       listeners.clear();
       el.replaceChildren();

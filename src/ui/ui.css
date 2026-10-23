@@ -723,7 +723,7 @@ dialog :focus-visible {
 .dock {
   --lane: 84px; /* the path's lane, left of the content edge */
   --stop-gap: 34px; /* from a stop's centre to its heading's first letter */
-  --rhythm-section: 104px;
+  --rhythm-section: 64px;
   --rhythm-head: 28px;
   --dock-main: minmax(0, 1.12fr);
   --dock-aside: minmax(0, 0.88fr);
@@ -837,6 +837,56 @@ dialog :focus-visible {
   from {
     opacity: 0;
   }
+}
+
+/*
+ * Backdrops (ADR 0208): each section lies on its own leaf of the page's washi, lifted a little
+ * lighter, torn at the edge, with a cool wash pooled under its lower and right edges. backdrop.ts
+ * draws the mask and the wash for the section's size; the leaf's paper is the shared tile
+ * (`--page-paper`, ADR 0132) at a seeded offset under a thin lift of white, so no second tint is
+ * multiplied in (ADR 0021). The section's padding is the sheet's margin: the heading and helper line
+ * sit on the sheet, the path's lane and stones stay outside its left edge (ADR 0202).
+ */
+.dock {
+  --sheet-pad-top: 30px;
+  --sheet-pad-x: 38px;
+  --sheet-pad-bottom: 44px;
+}
+.dock-section {
+  padding: var(--sheet-pad-top) var(--sheet-pad-x) var(--sheet-pad-bottom);
+}
+.backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+}
+.backdrop:not([data-paints]) {
+  visibility: hidden;
+}
+.backdrop-shadow {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: calc(100% + 36px);
+  height: calc(100% + 36px);
+  background: var(--sheet-shadow, none) 0 0 / 100% 100% no-repeat;
+}
+.backdrop-leaf {
+  position: absolute;
+  inset: 0;
+  background-color: var(--ui-paper);
+  background-image:
+    linear-gradient(rgba(255, 253, 247, var(--sheet-lift, 0.44)), rgba(255, 253, 247, var(--sheet-lift, 0.44))),
+    var(--page-paper, none);
+  background-size: auto, 512px 512px;
+  background-position: 0 0, var(--sheet-grain, 0 0);
+  -webkit-mask-image: var(--sheet-mask, none);
+  mask-image: var(--sheet-mask, none);
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
 }
 
 /* Study: the controls, and beside them (wide screens) the sessions in progress */
@@ -2049,7 +2099,8 @@ dialog.book::after {
   .dock {
     --lane: 64px;
     --stop-gap: 28px;
-    --rhythm-section: 88px;
+    --rhythm-section: 56px;
+    --sheet-pad-x: 28px;
     --path-sway: 8px;
   }
   .dock-section[data-section='session'] .dock-body {
@@ -2075,9 +2126,12 @@ dialog.book::after {
     --path-rise: 10px;
     --path-width: 2.1px;
     --stop-size: 17px;
-    --rhythm-section: 76px;
+    --rhythm-section: 40px;
     --rhythm-head: 22px;
-    padding: 64px 14px 104px var(--lane);
+    --sheet-pad-top: 20px;
+    --sheet-pad-x: 20px;
+    --sheet-pad-bottom: 26px;
+    padding: 64px 4px 104px var(--lane);
   }
   .dock-title {
     font-size: 25px;

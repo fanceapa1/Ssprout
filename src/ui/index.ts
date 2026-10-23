@@ -238,7 +238,7 @@ export function createUI(deps: UIDeps): UI {
   dock.addSection({ id: 'session', title: 'Study', order: 10, mount: (body) => void body.append(panel.el, sessions.el) });
   dock.addSection({ id: 'plant', title: 'Your plant', order: 20, mount: (body) => plantView.mount(body) });
   // filled below when the app has a scheduler (ADR 0175); hidden until then (ADR 0130)
-  dock.addSection({ id: 'calendar', title: 'Calendar', order: 30, span: 'full' });
+  dock.addSection({ id: 'calendar', title: 'Calendar', order: 30, span: 'full', backdrop: 'firm' });
   dock.addSection({ id: 'tools', title: 'Garden tools', order: 90, span: 'full', mount: (body) => void body.append(tools.dock) });
 
   // ── scheduled sessions: the calendar, its editor, the waiting card (ADRs 0173–0177) ─────────

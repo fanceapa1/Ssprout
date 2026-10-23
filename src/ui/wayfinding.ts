@@ -155,7 +155,9 @@ export function createWayfinding(deps: WayfindingDeps): Wayfinding {
     sy = Math.max(6, Math.min(sy, rise - 6));
     sx = Math.max(contentLeft, Math.min(W - 40, sx));
     const lane = contentLeft - stopGap;
-    const first = heads[0]!.rect;
+    // the crossing to the lane is done above the first section's sheet, not only its heading (ADR 0208)
+    const firstSheet = dock.get(visible[0]!.id)!.el.getBoundingClientRect();
+    const first = { top: Math.min(heads[0]!.rect.top, firstSheet.top) };
     layout = layoutPath({
       start: { x: sx, y: sy },
       lane,

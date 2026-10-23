@@ -582,9 +582,11 @@ The canvas edge dissolves into the page's paper through a CSS mask (ADR 0132).
 ```ts
 interface DockSectionDef { id: string /* kebab-case, unique */; title: string; helper?: string /* ADR 0201 */;
   order?: number /* default 100 */; span?: 'half' | 'full' /* kept; every section takes the row since ADR 0200 */;
+  backdrop?: 'leaf' | 'firm' | 'none' /* the sheet behind the section, default 'leaf'; ADR 0208 */;
   mount?(body: HTMLElement, section: DockSection): void | (() => void) }
 interface DockSection { id; el /* <section data-section=id> */; body; heading /* h2#dock-<id>, tabindex -1 */;
-  helper /* p.dock-helper#dock-<id>-helper, describes the section */; setTitle(t); setHelper(t | null); setHidden(b) }
+  helper /* p.dock-helper#dock-<id>-helper, describes the section */; backdrop /* Backdrop | null */;
+  setTitle(t); setHelper(t | null); setHidden(b) }
 interface Dock { el; addSection(def): DockSection /* throws on duplicate/malformed id */; fill(id, mount): DockSection;
   removeSection(id); get(id): DockSection | null; sections(): DockSectionInfo[]; onChange(fn): () => void; dispose() }
 interface DockSectionInfo { id; title; helper: string | null; order; span; filled: boolean; visible: boolean }
@@ -592,10 +594,15 @@ interface DockSectionInfo { id; title; helper: string | null; order; span; fille
 `createDock({ label? })` builds it (`createUI` does; `ui.dock` is the instance). Markup:
 `section > header.dock-head > (h2.dock-title, p.dock-helper)` then `div.dock-body`.
 Order: by `order`, then registration (`orderSections(list)`, pure). A section without `mount` is a hidden placeholder until
+Markup: `section > div.backdrop[aria-hidden]` (the sheet, behind), `header.dock-head > (h2.dock-title,
+p.dock-helper)`, then `div.dock-body`. Each section lies on its own sheet of washi (ADR 0208): the
+section's padding is the sheet's margin, the heading sits on the sheet, and the path's lane stays
+outside its left edge. The sheet is drawn for the section's size and again only when that changes.
+Order: by `order`, then registration. A section without `mount` is a hidden placeholder until
 `fill`. Registered by the UI: `session` "Study" (10; the waiting cards of due scheduled sessions,
 the controls, then the sessions in progress, ADRs 0156, 0176), `plant` "Your plant" (20), `calendar`
 "Calendar" (30, full; a placeholder filled by the calendar when `createUI` has a scheduler, ADR 0175),
-`tools` "Garden tools" (90, full). One reading spine at every width (ADR 0200): each section
+`tools` "Garden tools" (90, full). The calendar's sheet is `firm`, the others `leaf`. One reading spine at every width (ADR 0200): each section
 takes the row, in order, on one left edge; wide screens may set two tracks inside a section
 (`--dock-main` / `--dock-aside`). The UI keeps the helper lines current from `ui/dock-guide.ts`: pure
 `guideLines(input) => { session, plant, calendar, tools }` over a `GuideInput` (panel, confirming, due,
