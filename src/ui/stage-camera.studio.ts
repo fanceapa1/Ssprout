@@ -2,6 +2,7 @@ import { createRng } from '../core/rng';
 import { speciesNote } from '../plants/notes';
 import { allSpecies } from '../plants/registry';
 import type { StudioSection } from '../studio/types';
+import { CHEVRON } from './calendar-art';
 import { drawIcon, type IconName } from './icons';
 import { deckledPath, deckledRoundPath } from './paper';
 import { storyLines, type PlantStory } from './plant-card';
@@ -9,7 +10,8 @@ import { storyLines, type PlantStory } from './plant-card';
 /**
  * The camera's controls on the stage and the plant card (ADRs 0164, 0167), redrawn with the
  * page's own paths so they can be judged over a painted wash: the + / − chips with "Whole
- * garden", the card beside a plant (every species' note, by seed) and docked on a phone.
+ * garden", the card beside a plant (every species' note, by seed) and docked on a phone; a long
+ * card on a small phone, cut with the words thinning into the paper and a mark (ADR 0191).
  */
 const INK = '#3b352e';
 const SOFT = '#5c5449';
@@ -104,9 +106,9 @@ function card(ctx: CanvasRenderingContext2D, story: PlantStory, x: number, y: nu
   }
 }
 
-function storyFor(seed: number, growing = false): PlantStory {
+function storyFor(seed: number, growing = false, speciesId?: string): PlantStory {
   const all = allSpecies();
-  const def = all[(seed - 1 + all.length * 10) % all.length]!;
+  const def = all.find((d) => d.id === speciesId) ?? all[(seed - 1 + all.length * 10) % all.length]!;
   const day = Date.UTC(2026, 9, 20 + (seed % 5));
   return {
     id: 'studio',
@@ -193,6 +195,43 @@ const section: StudioSection = {
         ctx.scale(pixelRatio, pixelRatio);
         wash(ctx, 390, 740);
         card(ctx, storyFor(seed + 3), 8, 370, 374, 362, 0.92);
+      },
+    },
+    {
+      id: 'plant-card-docked-long',
+      label: 'a long card on a 360 px phone: the rest scrolls inside, thinning at the cut under a mark',
+      w: 360,
+      h: 740,
+      render(canvas, { pixelRatio, seed }) {
+        const ctx = canvas.getContext('2d')!;
+        ctx.scale(pixelRatio, pixelRatio);
+        wash(ctx, 360, 740);
+        const [x, y, w, h] = [8, 250, 344, 392];
+        // the whole story, cut by the card's room
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(x, y, w, h - 8);
+        ctx.clip();
+        card(ctx, storyFor(seed, true, 'spider-lily'), x, y, w, h + 260, 1.08);
+        ctx.restore();
+        // the words thin into the paper at the cut
+        const fade = ctx.createLinearGradient(0, y + h - 54, 0, y + h - 8);
+        fade.addColorStop(0, 'rgba(243, 236, 217, 0)');
+        fade.addColorStop(0.9, 'rgba(243, 236, 217, 0.9)');
+        fade.addColorStop(1, PAPER);
+        ctx.fillStyle = fade;
+        ctx.fillRect(x + 6, y + h - 54, w - 12, 46);
+        // the torn edge along the cut, and the mark
+        slip(ctx, 'dense-1', x, y, w, h, false, 0);
+        ctx.save();
+        ctx.translate(x + w / 2 - 13, y + h - 32);
+        ctx.scale(26 / 24, 26 / 24);
+        ctx.strokeStyle = INK;
+        ctx.lineWidth = 1.7;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.stroke(new Path2D(CHEVRON.down));
+        ctx.restore();
       },
     },
   ],
