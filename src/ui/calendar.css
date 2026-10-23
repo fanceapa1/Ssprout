@@ -7,7 +7,7 @@
 .calendar {
   --cal-hour: 56px;
   --cal-window: calc(var(--cal-hour) * 9);
-  --cal-rail: 58px;
+  --cal-rail: 66px;
   position: relative;
 }
 
@@ -239,6 +239,11 @@
   background-repeat: repeat, no-repeat;
   cursor: default;
   z-index: 1;
+  /* placed by calendar.ts as fractions of the day and of the overlap cluster */
+  top: var(--t);
+  height: var(--h);
+  left: var(--l);
+  width: var(--w);
 }
 /* a little air between blocks that sit side by side or follow each other */
 .cal-block {
@@ -288,12 +293,13 @@ button.cal-block {
   font-size: 15px;
   color: var(--ui-vermilion-ink);
 }
+/* the seal for "now" (due, growing): in the line, before the time, never over the words */
 .cal-block-dot {
-  position: absolute;
-  top: 9px;
-  right: 9px;
-  width: 8px;
-  height: 8px;
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin: 0 5px 1px 0;
+  vertical-align: middle;
   border-radius: 46% 54% 40% 60% / 58% 44% 56% 42%;
   background: var(--ui-vermilion);
   opacity: 0.85;
@@ -314,23 +320,68 @@ button.cal-block {
 .cal-block[data-size='m'] .cal-block-planned {
   display: none;
 }
-/* a week's narrow columns: the time above the title; the shortest blocks keep only the title */
+/*
+ * A week's narrow columns (ADR 0183): every block is at least two lines tall, the short time
+ * ("4:10") above the title, and the title wraps onto a second line when the block is tall enough
+ * rather than shrinking to "Jap…". Hovered or focused, a block grows to read whole (to the left
+ * at the end of the week) on its own paper, above its neighbours.
+ */
+.cal-cols[data-days='7'] .cal-block {
+  justify-content: flex-start;
+  padding: 3px 5px 2px 7px;
+}
 .cal-cols[data-days='7'] .cal-block-line {
   flex-direction: column;
   align-items: stretch;
   gap: 0;
 }
+.cal-cols[data-days='7'] .cal-block-time,
 .cal-cols[data-days='7'] .cal-block[data-size='s'] .cal-block-time {
-  display: none;
+  font-size: 13.5px;
+  letter-spacing: 0.01em;
 }
 .cal-cols[data-days='7'] .cal-block-title {
   font-size: 16px;
+  line-height: 1.15;
+}
+/* long blocks have room for a second line of title (shorter ones keep one, with an ellipsis) */
+.cal-cols[data-days='7'] .cal-block[data-size='l'] .cal-block-title {
+  white-space: normal;
+  hyphens: auto;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 .cal-cols[data-days='7'] .cal-block-meta {
   font-size: 15.5px;
 }
-.cal-cols[data-days='7'] .cal-block[data-size='m'] .cal-block-meta {
+.cal-cols[data-days='7'] .cal-block[data-size='m'] .cal-block-meta,
+.cal-cols[data-days='7'] .cal-block[data-narrow] .cal-block-meta {
   display: none;
+}
+.cal-cols[data-days='7'] .cal-block:is(:hover, :focus-visible) {
+  z-index: 5;
+  width: max(var(--w), 10.5em);
+  height: auto;
+  min-height: var(--h);
+  padding-bottom: 6px;
+  background-color: var(--ui-paper);
+  outline: none;
+}
+.cal-cols[data-days='7'] .cal-block[data-flip]:is(:hover, :focus-visible) {
+  left: calc(var(--l) + var(--w) - max(var(--w), 10.5em));
+}
+.cal-cols[data-days='7'] .cal-block:is(:hover, :focus-visible) .cal-block-title {
+  white-space: normal;
+  display: block;
+}
+.cal-cols[data-days='7'] .cal-block:is(:hover, :focus-visible) .cal-block-meta {
+  display: block;
+  white-space: normal;
+}
+.cal-cols[data-days='7'] .cal-block:focus-visible {
+  outline: 1.4px solid var(--ui-ink);
+  outline-offset: 1px;
 }
 
 /* planned: paper with a broken ink outline, not yet painted */
@@ -787,7 +838,7 @@ dialog.schedule {
 /* ── narrower screens ───────────────────────────────────────────────────────────────────── */
 @media (max-width: 860px) {
   .calendar {
-    --cal-rail: 50px;
+    --cal-rail: 60px;
   }
 }
 @media (max-width: 600px) {
@@ -827,20 +878,43 @@ dialog.schedule {
     height: 28px;
     font-size: 17px;
   }
-  /* a week on a phone: narrow washes, the time and the first words */
+  /* a week on a phone: narrow washes, the short time over the first words; a tap reads it whole */
   .cal-cols[data-days='7'] .cal-block {
-    padding: 2px 3px 2px 4px;
+    padding: 2px 2px 2px 4px;
   }
-  .cal-cols[data-days='7'] .cal-block-time {
-    display: none;
+  .cal-cols[data-days='7'] .cal-block-time,
+  .cal-cols[data-days='7'] .cal-block[data-size='s'] .cal-block-time {
+    font-size: 12px;
+    letter-spacing: 0;
   }
-  .cal-cols[data-days='7'] .cal-block-title {
+  /* the first letters of the title, fading out at the edge rather than cut by "…" */
+  .cal-cols[data-days='7'] .cal-block-title,
+  .cal-cols[data-days='7'] .cal-block[data-size='l'] .cal-block-title {
+    display: block;
     font-size: 13.5px;
+    white-space: nowrap;
+    text-overflow: clip;
+    -webkit-mask-image: linear-gradient(to right, #000 70%, transparent);
+    mask-image: linear-gradient(to right, #000 70%, transparent);
+  }
+  .cal-cols[data-days='7'] .cal-block:is(:hover, :focus-visible) .cal-block-title {
+    -webkit-mask-image: none;
+    mask-image: none;
   }
   .cal-cols[data-days='7'] .cal-block-meta,
-  .cal-cols[data-days='7'] .cal-block-planned,
-  .cal-cols[data-days='7'] .cal-block-dot {
+  .cal-cols[data-days='7'] .cal-block-planned {
     display: none;
+  }
+  .cal-cols[data-days='7'] .cal-block-dot {
+    width: 5px;
+    height: 5px;
+    margin-right: 2px;
+  }
+  .cal-cols[data-days='7'] .cal-block:is(:hover, :focus-visible) {
+    width: max(var(--w), 8.5em);
+  }
+  .cal-cols[data-days='7'] .cal-block[data-flip]:is(:hover, :focus-visible) {
+    left: calc(var(--l) + var(--w) - max(var(--w), 8.5em));
   }
   .cal-weeks {
     gap: 2px;

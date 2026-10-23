@@ -11,7 +11,9 @@ import {
   itemsOnDay,
   layoutColumns,
   localeWeekStart,
+  MIN_BLOCK_MS,
   minuteAt,
+  shortTime,
   monthGrid,
   noonOf,
   openingMinute,
@@ -79,8 +81,12 @@ describe('ranges and navigation', () => {
   });
 
   it('the week starts as the locale says (Monday when unknown)', () => {
+    // deliberate (ADR 0183): the calendar follows the browser's own week, as the system calendar does
     expect(localeWeekStart('en-GB')).toBe(1);
     expect(localeWeekStart('en-US')).toBe(0);
+    expect(localeWeekStart('fr-FR')).toBe(1);
+    expect(localeWeekStart('ja-JP')).toBe(0);
+    expect(localeWeekStart('ar-EG')).toBe(6);
     expect(localeWeekStart(undefined)).toBe(1);
     expect(localeWeekStart('not a locale!')).toBe(1);
   });
@@ -183,6 +189,27 @@ describe('timeline layout', () => {
       [0, 2],
       [1, 2],
     ]);
+  });
+
+  it('in a week, a plan and a session half an hour apart share the column (they are drawn two lines tall)', () => {
+    // "Japanese kanji" planned at 15:40 (time open: 30 min) and a session started at 16:10 used to be
+    // laid out as if they did not touch, then drawn over each other (ADR 0183)
+    const plan = it_('kanji', at(15, 40), at(16, 10));
+    const session = it_('stats', at(16, 10), at(16, 25));
+    expect(layoutColumns([plan, session], MIN_BLOCK_MS.day).map((p) => p.cols)).toEqual([1, 1]);
+    expect(layoutColumns([plan, session], MIN_BLOCK_MS.week).map((p) => [p.item.id, p.col, p.cols])).toEqual([
+      ['kanji', 0, 2],
+      ['stats', 1, 2],
+    ]);
+    // the week's minimum is at least the drawn height of a time line and a title line at 56 px per hour
+    expect(((MIN_BLOCK_MS.week / (60 * MIN)) * 56)).toBeGreaterThanOrEqual(38);
+  });
+
+  it('a week shows short times ("4:10"); 24-hour clocks are unchanged', () => {
+    const t = at(16, 10);
+    expect(shortTime(t, new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit' }))).toBe('4:10');
+    expect(shortTime(at(9, 5), new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit' }))).toBe('9:05');
+    expect(shortTime(t, new Intl.DateTimeFormat('en-GB', { hour: 'numeric', minute: '2-digit' }))).toBe('16:10');
   });
 
   it('dayFraction places blocks in their day, clipped at midnight, at least minMs tall', () => {

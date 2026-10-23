@@ -13,11 +13,13 @@ import {
   itemsOnDay,
   layoutColumns,
   localeWeekStart,
+  MIN_BLOCK_MS,
   minuteAt,
   monthGrid,
   noonOf,
   openingMinute,
   shiftAnchor,
+  shortTime,
   viewRange,
   type CalendarItem,
   type CalendarView,
@@ -78,8 +80,6 @@ export const VIEW_KEY = 'studysprout:calendar-view';
 const VIEW_WORDS: Record<CalendarView, string> = { day: 'Daily', week: 'Weekly', month: 'Monthly' };
 const UNIT: Record<CalendarView, string> = { day: 'day', week: 'week', month: 'month' };
 const MIN = 60_000;
-/** blocks are drawn at least this long (so a 5-minute session can still be read) */
-const MIN_BLOCK_MS = 26 * MIN;
 
 const defaultStorage = (): Pick<Storage, 'getItem' | 'setItem'> | null => {
   try {
@@ -253,20 +253,24 @@ export function createCalendar(ctx: UIContext, deps: CalendarDeps): Calendar {
     metrics = { colPx: Math.max(30, (width - rail) / days - 6), hourPx: px('--cal-hour', 56) };
   }
 
-  function block(i: CalendarItem, date: string, col: number, cols: number): HTMLElement {
-    const f = dayFraction(i.start, i.end, date, MIN_BLOCK_MS);
+  function block(i: CalendarItem, date: string, col: number, cols: number, days: readonly string[]): HTMLElement {
+    const week = days.length > 1;
+    const minMs = MIN_BLOCK_MS[week ? 'week' : 'day'];
+    const f = dayFraction(i.start, i.end, date, minMs);
     const len = (i.end - i.start) / MIN;
     const size = len < 40 ? 's' : len < 80 ? 'm' : 'l';
     const interactive = i.kind === 'scheduled';
     const variant = hash(i.id);
+    // position as custom properties: CSS places the block, and lets a narrow one grow while
+    // hovered or focused (to the left when it sits at the end of the week)
     const style: Record<string, string> = {
-      top: `${(f.top * 100).toFixed(4)}%`,
-      height: `${(f.height * 100).toFixed(4)}%`,
-      left: `${((col / cols) * 100).toFixed(3)}%`,
-      width: `${(100 / cols).toFixed(3)}%`,
+      '--t': `${(f.top * 100).toFixed(4)}%`,
+      '--h': `${(f.height * 100).toFixed(4)}%`,
+      '--l': `${((col / cols) * 100).toFixed(3)}%`,
+      '--w': `${(100 / cols).toFixed(3)}%`,
     };
     const w = metrics.colPx / cols;
-    const hpx = Math.max(MIN_BLOCK_MS, i.end - i.start) / (60 * MIN) * metrics.hourPx;
+    const hpx = (Math.max(minMs, i.end - i.start) / (60 * MIN)) * metrics.hourPx;
     if (i.speciesId) {
       const color = getSpecies(i.speciesId)?.bloomColor ?? '#8b9c5a';
       style['--wash'] = washBackground(color, variant, i.status === 'cancelled' ? 'faint' : i.kind === 'growing' ? 'growing' : 'bloom', w, hpx);
@@ -282,19 +286,23 @@ export function createCalendar(ctx: UIContext, deps: CalendarDeps): Calendar {
       'data-size': size,
       'data-occurrence': i.occurrence?.key,
       'data-occurrence-status': i.occurrence && i.kind !== 'scheduled' ? i.occurrence.status : undefined,
+      'data-narrow': week && cols > 1 ? 'true' : undefined,
+      // the last days of a week grow leftwards when expanded, so they stay inside the timeline
+      'data-flip': week && days.length - 1 - days.indexOf(date) < 2 ? 'true' : undefined,
       'aria-label': blockLabel(i),
       title: blockLabel(i),
     };
+    // the seal for "now" (due, growing) sits in the line before the time, never over the words
+    const dot = i.status === 'due' || i.status === 'growing' ? h('span.cal-block-dot', { 'aria-hidden': 'true' }) : null;
     const content = [
       h(
         'span.cal-block-line',
         { 'aria-hidden': 'true' },
-        h('span.cal-block-time', {}, F.time.format(i.start)),
+        h('span.cal-block-time', {}, dot, week ? shortTime(i.start, F.time) : F.time.format(i.start)),
         h('span.cal-block-title', {}, i.title),
       ),
       h('span.cal-block-meta', { 'aria-hidden': 'true' }, metaOf(i)),
       i.occurrence && i.kind !== 'scheduled' ? h('span.cal-block-planned', { 'aria-hidden': 'true' }, i.occurrence.status === 'done' ? 'as planned' : 'planned') : null,
-      i.status === 'due' || i.status === 'growing' ? h('span.cal-block-dot', { 'aria-hidden': 'true' }) : null,
     ];
     if (interactive) {
       const occ = i.occurrence!;
@@ -305,14 +313,15 @@ export function createCalendar(ctx: UIContext, deps: CalendarDeps): Calendar {
       });
       return b;
     }
-    return h('div.cal-block', { ...attrs, role: 'img' }, ...content);
+    // in a week, a block can be focused to read it whole (it grows like on hover)
+    return h('div.cal-block', { ...attrs, role: 'img', tabindex: week ? 0 : undefined }, ...content);
   }
 
   /** One day column of the timeline. */
-  function column(date: string, items: CalendarItem[], now: number): HTMLElement {
+  function column(date: string, items: CalendarItem[], now: number, days: readonly string[]): HTMLElement {
     const col = h('div.cal-col', { 'data-date': date, 'data-today': String(date === dayKey(now)) });
-    const placed = layoutColumns(items, MIN_BLOCK_MS);
-    for (const p of placed) col.appendChild(block(p.item, date, p.col, p.cols));
+    const placed = layoutColumns(items, MIN_BLOCK_MS[days.length > 1 ? 'week' : 'day']);
+    for (const p of placed) col.appendChild(block(p.item, date, p.col, p.cols, days));
     if (date === dayKey(now)) {
       const f = dayFraction(now, now, date);
       col.appendChild(h('div.cal-now', { style: { top: `${(f.top * 100).toFixed(4)}%` }, 'aria-hidden': 'true' }));
@@ -337,7 +346,7 @@ export function createCalendar(ctx: UIContext, deps: CalendarDeps): Calendar {
   function timeline(days: string[], items: CalendarItem[], now: number): HTMLElement {
     const scroller = h('div.cal-timeline', { tabindex: 0, role: 'group', 'aria-label': days.length === 1 ? 'Hours of the day' : 'Hours of the week' });
     const cols = h('div.cal-cols', { 'data-days': days.length });
-    for (const d of days) cols.appendChild(column(d, itemsOnDay(items, d), now));
+    for (const d of days) cols.appendChild(column(d, itemsOnDay(items, d), now, days));
     scroller.appendChild(h('div.cal-grid', {}, hoursRail(), cols));
     return scroller;
   }

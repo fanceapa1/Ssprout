@@ -14,6 +14,28 @@ export const CALENDAR_VIEWS: readonly CalendarView[] = ['day', 'week', 'month'];
 
 const MIN = 60_000;
 
+/**
+ * Blocks are drawn at least this long, so a 5-minute session can still be read: one line in a day,
+ * two (time over title) in a week's narrow columns. The overlap layout uses the same length, so
+ * blocks that *look* concurrent share the column side by side instead of drawing over each other
+ * (ADR 0183).
+ */
+export const MIN_BLOCK_MS: Readonly<Record<'day' | 'week', number>> = { day: 26 * MIN, week: 44 * MIN };
+
+/**
+ * A start time for a week's narrow blocks: "4:10" rather than "4:10 PM" (the hour rail beside it
+ * already says morning or afternoon); 24-hour locales are unchanged.
+ */
+export function shortTime(t: number | Date, f: Intl.DateTimeFormat = new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' })): string {
+  return f
+    .formatToParts(t)
+    .filter((p) => p.type !== 'dayPeriod')
+    .map((p) => p.value)
+    .join('')
+    .trim();
+}
+
+
 export type ItemStatus =
   /** a past session that bloomed */
   | 'completed'
