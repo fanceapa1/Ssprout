@@ -94,8 +94,11 @@ the widget surfaces — the UI then asks in the Begin click itself.
 - One rhythm and one heading: `--rhythm-section` between sections, `--rhythm-head` under the heading
   block; `h2.dock-title` 27 px full ink (25 px on phones), `p.dock-helper` 20.5 px italic soft ink.
 - One primary action in Study (`data-primary`, ADR 0201): Start studying (idle), Pause as the calm
-  slip `.calm` (focus), Water then Skip break (a break), Resume (paused), the first due card's Start
-  (a planned session due: the panel steps back). Secondary words rest in the soft ink.
+  slip `.calm` (focus), Water then Skip break (a break), Resume (paused or the long pause), the first
+  due card's Start (a planned session due: the panel steps back). The look follows the mark: Start
+  studying and both Resumes are a seal only while they hold `data-primary`, an ink slip otherwise
+  (`markPrimary` in `timer-panel.ts`), so Study never shows two seals. Secondary words rest in the
+  soft ink.
 - The guiding path (ADR 0202): from where the stepping stones leave the painting, across the dock's
   top margin to the lane, down the lane with a stepping stone beside each visible heading. It lays
   out again on dock changes, resizes and content changes. The stone of the section being read is

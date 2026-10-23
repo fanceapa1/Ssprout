@@ -106,11 +106,23 @@ export function createTimerPanel(ctx: UIContext, actions: TimerPanelActions): Ti
 
   // ── behaviour ───────────────────────────────────────────────────────────────────────────
   const leads = [plantBtn, pauseBtn, resumeBtn, waterBtn, skipBtn, longResume];
-  /** `data-primary` on the one control that is the next step (tests and styles read it) */
+  /** controls drawn as a vermilion seal while they lead, and as an ink slip when they step back */
+  const sealLeads: HTMLElement[] = [plantBtn, resumeBtn, longResume];
+  /**
+   * `data-primary` on the one control that is the next step (tests and styles read it). The look
+   * follows the mark (ADR 0201): a seal-style control is a seal only while it is the primary, so a
+   * due card's Start never sits beside a second seal.
+   */
   function markPrimary(lead: HTMLElement | null): void {
     for (const b of leads) {
       if (b === lead) b.dataset.primary = 'true';
       else delete b.dataset.primary;
+    }
+    for (const b of sealLeads) {
+      const primary = b === lead;
+      b.classList.toggle('seal', primary);
+      b.classList.toggle('quiet', !primary);
+      b.classList.toggle('ink', !primary);
     }
   }
 
@@ -171,7 +183,6 @@ export function createTimerPanel(ctx: UIContext, actions: TimerPanelActions): Ti
       const waiting = controller.status().sessions;
       // others wait (after a bloom): the list below offers Resume, so starting anew steps back
       const primary = waiting.length === 0 && !due;
-      plantBtn.className = `${primary ? 'seal' : 'quiet ink'} plant-session`;
       markPrimary(primary ? plantBtn : null);
       setText(
         idleLine,
@@ -230,7 +241,6 @@ export function createTimerPanel(ctx: UIContext, actions: TimerPanelActions): Ti
                   : null;
       pauseBtn.className = `${lead === pauseBtn ? 'calm' : 'quiet'} pause`;
       skipBtn.className = `${lead === skipBtn ? 'calm' : 'quiet'} skip-break`;
-      resumeBtn.className = `${lead === resumeBtn || view !== 'paused' ? 'seal' : 'quiet ink'} resume`;
       waterBtn.classList.toggle('is-lead', lead === waterBtn);
       markPrimary(lead);
     }
