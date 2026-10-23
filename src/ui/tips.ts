@@ -199,7 +199,9 @@ export function createTips(
     const anyClosing = root.querySelector('dialog.is-closing') !== null;
     // one quiet thing at a time: notes wait while the quiet line is speaking (a bloom, a koi)
     const lineSpeaking = !openDialog && root.querySelector('.quiet-line.is-in') !== null;
-    const active = anyClosing || lineSpeaking ? [] : activeTips(store.get(), opts.tipContext());
+    // …and while a plant's card is being read (the camera's plant card, ADR 0167)
+    const cardOpen = !openDialog && root.querySelector('[data-ui="plant-card"]:not([hidden])') !== null;
+    const active = anyClosing || lineSpeaking || cardOpen ? [] : activeTips(store.get(), opts.tipContext());
     const narrow = window.innerWidth < 600;
     // notes keep clear of the other slips on the painting and of the dock's section headings
     const avoid: Box[] = openDialog
