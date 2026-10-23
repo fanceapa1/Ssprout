@@ -1276,10 +1276,30 @@ dialog.sheet {
   overflow: visible;
   transition: opacity 360ms var(--ui-breath);
 }
+/*
+ * Behind a sheet the page goes under a leaf of the same washi (ADR 0190): the page's own paper
+ * tile, nearly opaque, so the garden and the dock are only a ghost and no dock text reads beside
+ * or below the sheet. Not a blur or a grey scrim: paper laid over paper.
+ */
 dialog.sheet::backdrop {
-  background: rgba(243, 236, 217, 0.4);
+  background-color: rgb(243, 236, 217);
+  background-image: var(--page-paper, none);
+  background-size: 512px 512px;
+  opacity: var(--sheet-veil, 0.965);
   animation: ui-fade-in var(--ui-slow) var(--ui-breath) both;
   transition: opacity 360ms;
+}
+/* the page under an open sheet does not scroll: not by wheel, keys, touch or the smooth scroll */
+html:has(dialog.sheet[open]:not(.is-closing)) {
+  overflow: hidden;
+}
+/* the torn edge is drawn over the sheet's content, so a sticky footer never covers it */
+dialog.sheet::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: var(--slip-dense-edge-0) 0 0 / 100% 100% no-repeat;
 }
 dialog.sheet.is-closing {
   opacity: 0;
@@ -1677,8 +1697,9 @@ input.duration:focus-visible {
   align-items: center;
   justify-content: flex-end;
   gap: 16px;
-  margin: 0 -38px;
-  padding: 12px 38px 18px;
+  /* stops short of the torn edge (drawn over it by dialog.sheet::after), so the edge stays whole */
+  margin: 0 -30px;
+  padding: 12px 30px 18px;
   background: linear-gradient(to bottom, rgba(243, 236, 217, 0), rgb(241, 234, 216) 22px);
 }
 .choice-summary {
@@ -1696,6 +1717,9 @@ input.duration:focus-visible {
 }
 
 /* herbarium book */
+dialog.book::after {
+  background-image: var(--slip-dense-edge-1);
+}
 .book .sheet-inner {
   background-image: var(--grain), linear-gradient(90deg, transparent calc(50% - 0.5px), rgba(59, 53, 46, 0.1) 50%, transparent calc(50% + 0.5px)),
     var(--slip-dense-1);
@@ -1926,9 +1950,9 @@ input.duration:focus-visible {
     padding: 24px 20px 18px;
   }
   .planting-foot {
-    margin: 0 -20px;
+    margin: 0 -14px;
     /* the summary wraps onto its own line: keep the paper opaque behind it (cards scroll under) */
-    padding: 22px 20px 14px;
+    padding: 22px 14px 14px;
     flex-wrap: wrap;
     background: linear-gradient(to bottom, rgba(243, 236, 217, 0), rgb(241, 234, 216) 14px);
   }

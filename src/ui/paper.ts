@@ -171,6 +171,8 @@ export function installPaper(doc: Document = document): void {
   }
   for (let i = 0; i < 2; i++) {
     vars.push(`--slip-dense-${i}: ${svgUrl(slipSvg(`dense-${i}`, { fill: PAPER, fillOpacity: 0.96, stroke: INK, strokeOpacity: 0.3 }))};`);
+    // the same torn edge alone, drawn over a sheet's content (a sticky footer must not hide it)
+    vars.push(`--slip-dense-edge-${i}: ${svgUrl(slipSvg(`dense-${i}`, { fill: 'none', fillOpacity: 0, stroke: INK, strokeOpacity: 0.3 }))};`);
     vars.push(`--seal-${i}: ${svgUrl(slipSvg(`seal-${i}`, { fill: VERMILION, fillOpacity: 0.97, stroke: '#7d2d1d', strokeOpacity: 0.45, broken: false }))};`);
   }
   // the paper chips under the corner icons: dense enough to carry ink over any part of the painting
