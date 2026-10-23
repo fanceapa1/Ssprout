@@ -307,9 +307,14 @@ test.describe('wayfinding · motion', () => {
   test('a gentle draw-in on first view; none with reduced motion', async ({ page }) => {
     await openDev(page, 'fixtures');
     await expect.poll(async () => (await wayfinding(page, false)).drawn).toMatch(/drawing|drawn/);
-    // while it draws, the reveal runs as a CSS animation
-    const drawing = (await wayfinding(page, false)).drawn;
-    if (drawing === 'drawing') expect(await page.evaluate(() => document.getAnimations().some((a) => (a.effect as KeyframeEffect | null)?.target?.closest?.('.wayfinding') != null))).toBe(true);
+    // while it draws, the reveal runs as a CSS animation: state and animations read in the same task,
+    // since the draw-in ends 3.8 s after it starts and a loaded machine can spend that between two
+    // round trips (devlog 41)
+    const seen = await page.evaluate(() => ({
+      drawn: window.sprout!.ui.wayfinding({ layout: false }).drawn,
+      animating: document.getAnimations().some((a) => (a.effect as KeyframeEffect | null)?.target?.closest?.('.wayfinding') != null),
+    }));
+    if (seen.drawn === 'drawing') expect(seen.animating).toBe(true);
   });
 
   test('with reduced motion the path is simply there, and nothing moves on hover', async ({ page }) => {
