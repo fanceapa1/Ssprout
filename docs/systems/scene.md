@@ -15,7 +15,8 @@ Look at it: studio → **Scene · painted garden** (`npm run shots -- --studio s
 | `geometry.ts` | `SceneGeometry` contract types and `gardenScene`: `POND`, `ROCKS`, `PATH`, `PAVILION`, `WATERLINE`, sky band |
 | `slots.ts` | `GARDEN_SLOTS` (52), `perspectiveScale(y)`, `PLANT_SIZES` (canonical plant sizes), `GARDEN_PLANT_SCALE` / `plantScale(slot)` |
 | `layout.ts` | painting-only composition: trees, shrubs, tufts, foreground tufts, hill ridges (not a contract) |
-| `paint-land.ts` | sky, hills, far tree line, banks, path, background tufts, pond reserve, paper margins |
+| `paint-land.ts` | sky, hills, far tree line, banks, path (`PATH_GROUND`), background tufts, pond reserve, paper margins (`marginField`) |
+| `paint-ground.ts` | the meadow's close-up texture: wet-in-wet patches with back-runs and granulation, sparse grass strokes, from a world-anchored cell grid (ADR 0186) |
 | `paint-pond.ts` | water body, static reflections, water detail (sky band, ripples, far-shore ink) |
 | `paint-trees.ts` | trees (stems, limbs, twigs, cloud pads) and shrubs |
 | `paint-pavilion.ts` | engawa corner: roof, eave, posts, wall, shoji, deck, hanging lantern |
@@ -29,6 +30,7 @@ Look at it: studio → **Scene · painted garden** (`npm run shots -- --studio s
 | `system.ts` | `createSceneSystem` (background + entities + water + overlay), `createPaperSystem`, `paintViewFor`, `canReuse` |
 | `debug.ts` | `?dev` hooks: `sprout.slots()`, `sprout.sceneStats()`, `sprout.scenePainted()`, `sprout.skyStats()` |
 | `scene.studio.ts` | studio section `scene` |
+| `close-view.studio.ts` | studio section `close-view`: overview vs detail for the meadow, the margin and a trunk |
 
 ## Composition map (world 1600 × 1000)
 ```
@@ -62,18 +64,32 @@ y    0 ┌───────────────────────�
   stones, trunks and the pavilion.
 - **Value structure**: lightest = paper (sky, path, pond rim, margins); darkest = small accents —
   boulder contact shadows, trunk shadow lines, the eave line.
+- **Close up** (ADRs 0185, 0186): the camera rests at up to 3× for whole sessions, so the painting
+  carries marks that resolve when you lean in, painted into the overview and the detail alike:
+  - **Meadow** (`paint-ground.ts`, two steps after the banks): wet-in-wet green patches (sage,
+    sap, a touch of gold, a blue-green) bleeding into each other with pooled edges, granulation and
+    back-runs in about one in five; sparse grass strokes in drifts, denser and larger toward the
+    viewer. Every mark comes from a world-anchored cell (`fork('p<i>,<j>')`), only cells near the
+    painted rect are painted, and marks stay off the water, the path and the engawa (`onGrass`).
+  - **Trunks** (`paint-trees.ts`): a cool shadow flank bled into the wet stem, dry-brush
+    striations along the grain, a knot or two, flanks on thick limbs; stems keep their width almost
+    to the top and forks get a faint node, so joints never show square-cut ends.
+  - **Paper margins** are one continuous field (`marginField`): a ramp from each sheet edge (sides
+    200 units, deeper toward the bottom; top 77; bottom 166) whose front wanders with
+    world-anchored noise, combined as a soft maximum and eased in — not nine nested straight bands,
+    whose sides read as seams zoomed in.
 
 ## Layers
 | Layer | What the scene draws |
 |---|---|
 | `background` | the cached painting (everything except boulders and foreground tufts), cross-faded in, with the daylight sky plate multiplied over it (sun and moon left as paper; rebuilt when the sky moves) |
-| `waterSurface` | the mirrored daylight sky, then `water.ts`, clipped to the pond, every frame (still under reduced motion) |
+| `waterSurface` | the mirrored daylight sky (faded out inside the painted rim by a feathered pond mask, ADR 0185 — no hard line at the near edge), then `water.ts`, clipped to the pond, every frame (still under reduced motion) |
 | `entities` | 11 boulders + 6 tufts as `Drawable`s, **depth = base y** (`Rock.y`, tuft base); boulders take the sunrise/sunset rim light (ADR 0146) |
 | `lighting` | the slot overlay, only with `?dev&slots` |
 | `paper` | `createPaperSystem`: `paperTexture(pixelW, pixelH)` multiplied over the frame (ADR 0040) |
 
-Paint order of the background (`backgroundSteps`): sky → hills (+ far tree line) → banks → far
-trees → pond reserve (thin rim far, wider near) → water → reflections → water detail → path →
+Paint order of the background (`backgroundSteps`): sky → hills (+ far tree line) → banks → meadow
+→ grass → far trees → pond reserve (thin rim far, wider near) → water → reflections → water detail → path →
 shrubs → near trees → tufts → margins → stones → pavilion (after the margins so the stones and the
 engawa stay crisp). Sky, hills, banks and margins are painted with a `draft` painter (soft washes:
 no visible difference, about half the cost).
@@ -135,7 +151,10 @@ crowded `meadow-8`).
   overview cache) uses the overview painting. Back at the overview the detail is dropped. The
   first time a view or a glide's destination leaves the painted rect (a phone's cropped sides),
   the overview painting is extended to the whole world in the background and swapped in at once
-  (`detailStats().extending`, not counted in `paints`). The sky composes its own detail
+  (`detailStats().extending`, not counted in `paints`). A painting of a strip of the world (a
+  phone's overview) is extended anyway 1.5 s after the first paint, in idle time
+  (`extendDelayMs`), so the first glide toward the sides finds them painted; until then the strip's
+  cut sides fade to paper over `CUT_FADE` (36 units, inside its 60-unit margin) — ADR 0189. The sky composes its own detail
   (`SkyLight.setDetail`: plates upscaled, sun, moon and stars punched at ≤ 3 px/unit).
   `sprout.sceneDetail()`; docs/systems/camera.md.
 
@@ -149,6 +168,11 @@ crowded `meadow-8`).
 Biggest steps: boulder sprites (~0.35–0.5 s for 11), the big tree (~0.2 s), pavilion, banks.
 Uncapped scale 1.8 cost ~2.3 s for an identical-looking result. Draft-quality boulders were tried
 and rejected (granulation and rims wash out). `sprout.sceneStats()` returns per-step timings.
+
+Close-view art (ADRs 0185, 0186; desktop 1440×900 @2, 30 plants, three runs, same machine, before →
+after): overview paint CPU 0.81–0.98 s → 0.97–0.98 s (meadow ≈ 60 + 25 ms, margins ≈ 40 ms),
+wall 1.1–1.4 s → 1.3 s; the detail paint of a 2.6× view 2.3–2.7 s → 2.7–3.0 s wall (cooperative); the
+longest step is still the boulder sprites (~170–200 ms).
 
 ## How to tweak
 - **Move things**: geometry in `geometry.ts` (contract — slots, rocks, pond are read by other
@@ -170,6 +194,10 @@ and rejected (granulation and rims wash out). `sprout.sceneStats()` returns per-
   stepping stone, no plant box lies more than a fifth over the engawa or over the lantern,
   neighbours at the same depth overlap by at most half their footprint.
 - `system.test.ts`: paint view (cap, portrait strip) and the 10 % repaint rule.
+- `margins.test.ts`: the paper margins' field — most at the edge, none in the middle, deeper at the
+  bottom corners, a continuous ramp (no step between neighbouring units over 0.03), a wandering front.
+- `paint-ground.test.ts`: meadow marks stay off the water, the path, the engawa and the sky.
+- `tests/e2e/close-view.spec.ts`: no seams across the old margin bands at a pinned 2× view, sunset and night.
 - `sky-light.test.ts`: blend order (exact convex mix), recompose key, sky band, water opacity.
 - `tests/e2e/scene.spec.ts`: painted (a pale clear midday sky, celadon pond, many colours), 50–60
   slots across all habitats, `?dev&slots` overlay, rescale vs repaint on resize.

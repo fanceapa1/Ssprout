@@ -87,18 +87,27 @@ scene (boulders 60–150 wide).
 ## Art
 Every part is painted once with the paint engine (`paintSprite` → `createPainter`, washes,
 wet-in-wet, dabs, ink lines, clipped wet layers for markings) into a small transparent canvas at
-`ArtCache.res` device px per world unit (bucketed `viewport.pixelScale`; cleared on change), and
+`ArtCache.res` device px per world unit (bucketed to quarters, 1.5–6), and
 composed per frame with `drawImage` transforms only — no vector shapes. Koi get `deepCopy` twins
 (down/up-sampled blur + cool tint) and cross-fade by depth. Flapping is done with frames
 (bee/dragonfly blur sprites, bird up/down/fold, swallow spread/up/swept) or by foreshortening a
 single wing (butterflies horizontally, heron vertically).
+
+**Close views** (ADR 0188): the resolution follows the camera once it rests — the overview's pixel
+scale, or a zoomed resting view's (`faunaResolution`) — so the bee on the flower you look at is as
+sharp as the flower. Parts are cached per key and resolution; a part missing at the new resolution
+is painted at once only if no other resolution has it, otherwise the softer copy keeps drawing and
+the sharp one is painted from idle callbacks, 8 ms at a time (`ArtCache.paintPending`). Two
+resolutions are kept (current and previous): a return to the overview repaints nothing. Studio:
+**Close view · creatures** (overview parts upscaled | close parts).
 
 ## Dev API (`window.sprout.fauna`, ?dev)
 `kinds()`, `spawn(id, count?)` (kinds or unlock ids; ignores schedule, cap and night; the frog needs
 a pad), `list()` (`{ id, kind, x, y, layer, state, visitor, inPond }`), `clear()`,
 `step(seconds, dt?)` (advance the sim without rendering), `setHour(h | null)` (pins an hour over the daylight), `night()`, `roster()`,
 `schedule()` (seconds until each visit), `pond()`, `view()`, `targets()` (flowers, pads, perches,
-heron stands), `bench(frames?)` (update + draw ms).
+heron stands), `bench(frames?)` (update + draw ms), `art()` (resolution, parts waiting to be painted
+sharper, parts painted), `settleArt()` (paint the waiting parts now, for screenshots).
 ```js
 sprout.fauna.setHour(12); sprout.fauna.spawn('heron'); sprout.fauna.step(25); await sprout.freeze();
 ```

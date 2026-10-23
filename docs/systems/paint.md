@@ -19,7 +19,12 @@ noise and with the shared paper grain (granulation, dry brush, edge micro-textur
 composites onto the target with `multiply` by default — watercolour is subtractive. See
 ADR 0020–0022. Open sides (ADR 0126): a `WetLayer` records which of its sides were cut off by the
 canvas, and `boxBlur` / `edgeBlur` / `dryPixels` take `OpenSides` so the border value continues
-outward there — no false wet edge where a wash simply runs off the canvas.
+outward there — no false wet edge where a wash simply runs off the canvas. **Flow is a function
+of the place** (ADR 0185): its noise is anchored at the layer's own area corner (before clipping)
+with an offset drawn in noise units, so a layer cut by the canvas, or painted at another
+resolution, mottles exactly like the whole one; the two offsets are drawn from the painter's rng
+even for a layer that misses the canvas, so every later layer draws the same numbers whatever part
+of the world a painting covers (a camera's detail painting is the overview resolved).
 
 ## Pipeline convention (important)
 Paint **on white** (or transparent) and multiply `paperTexture` over the finished frame last —
@@ -168,10 +173,12 @@ Helpers work in OKLab: `mix(a, b, t)`, `lighten(p, k)` (also thins chroma, like 
 `jitter(p, rng, k)` (per-stroke variation), `rgba(p, a)`, `lightness`, `chroma`.
 
 ### Rim light (`rim.ts`, ADR 0146)
-`rimMask(image, side, rgb)` → the sprite's sun-facing edge (its alpha minus a copy shifted
-`rimWidth(w, h)` ≈ 4 % away from the sun), coloured; `createRimCache()` keeps one per image, side
-and quantised colour; `drawRim(ctx, cache, image, box, rim, alpha)` draws it with `screen`. Used by
-the plant system (in the plant's pose) and the scene's boulders.
+`rimMask(image, side, rgb, k?)` → the sprite's sun-facing edge (its alpha minus a copy shifted
+`rimWidth(w, h, k)` ≈ 4 % away from the sun, 1.5–9 px at the reference resolution, × √k for a
+bitmap `k` times sharper — ADR 0187), coloured; `createRimCache()` keeps one per image, side,
+quantised colour and `k`; `drawRim(ctx, cache, image, box, rim, alpha, k?)` draws it with `screen`.
+Used by the plant system (in the plant's pose, `k` = sprite px per unit ÷ 1.7) and the scene's
+boulders (`k` = paint scale ÷ 1.5).
 
 ### Paper, noise, geometry
 - `paperTexture(w, h, seed, { tint, base, grain, mottle, vignette, grainScale })` → canvas.

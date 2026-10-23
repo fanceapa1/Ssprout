@@ -118,9 +118,14 @@ Each plant is drawn in the garden's daylight (the shared `DaylightSource`, docs/
    from the sun — long and sideways at sunrise (to the left) and sunset (to the right), a pool
    centred under the plant at midday, a whisper at night; ≤ 1.3× the plant's visible height,
    about half its width thick, multiplied, `SHADOW_PLANT` 0.6; none for plants on open water;
-2. the plant itself (pose, sway, fades as before);
+2. the plant itself (pose, sway, fades as before). Its sprite's **body is laid twice** when it is
+   painted (`layBodyTwice` in `paintSprite`, ADR 0187): a single pass of the transparent sprite let a
+   third of the landscape through, so the hill line and the banks crossed plants seen close; doubled
+   it reads as solid paint at every zoom, at no per-frame cost;
 3. its **rim light** at sunrise/sunset: the sprite's sun-facing edge (`src/paint/rim.ts`, cached
-   per sprite image, side and colour) drawn with `screen` in the same pose, `RIM_PLANT` 0.85.
+   per sprite image, side and colour) drawn with `screen` in the same pose, `RIM_PLANT` 0.85; its
+   width follows the sprite's resolution by √k (`RIM_REF_RES` 1.7 px per unit), so a close sprite
+   keeps the rim it has at 1×.
    The growing plant uses the nearer growth step's sprite for the shadow extent and the rim.
 Reflections are drawn over the mirrored sky the scene lays on the pond.
 
@@ -163,11 +168,15 @@ the plants; the focused (else selected) slot shows a **ghost** of the species at
 34 % opacity. The DOM markers stay the source of truth for input; this is paint only.
 
 ## Plant view (ADR 0118)
-`renderPlantView(canvas, { speciesId, seed, growth, watering, wilt? })` — unchanged signature.
-Contains the species (base bottom centre), a soft ground wash, the morphing cross-fade between
+`renderPlantView(canvas, { speciesId, seed, growth, watering, wilt?, framing? })`.
+Contains the species (base bottom centre) — or, with `framing: 'growth'`, what has grown so far,
+enlarged about its base up to `MAX_GROWTH_ZOOM` (4×; `growthZoom`, the "Growing now" thumbnails,
+ADR 0189) — a soft ground wash, the morphing cross-fade between
 the two nearest of 24 steps (lower step painted synchronously on first use, upper step queued for
 idle time and faded in once ready), damp soil + the can + droplets for `watering` (the rig is
-kept inside the canvas with `fitRigToCanvas`), and the wither for `wilt`. Its cache is a separate
+kept inside the canvas with `fitRigToCanvas`, and the can fades by its share inside the frame,
+`canVisibility`, so no sliver of it shows at the edge while it glides in or out), and the wither
+for `wilt`. Its cache is a separate
 24 MB main-thread `SpriteCache`. `setPlantViewSpecies(fn)` adds species the registry lacks.
 
 ## Bounds, hit-test & notes

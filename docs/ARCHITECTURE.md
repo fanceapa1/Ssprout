@@ -184,11 +184,12 @@ One species at an arbitrary growth, optionally mid-watering or wilting — used 
 the planting-sheet previews and the studio (the garden draws through the plant system, with the
 same growth steps, watering and wither):
 ```ts
-export interface PlantViewOptions { speciesId: string; seed: number; growth: number; watering: number | null /* 0..1 */; wilt?: number /* 0..1 */ }
+export interface PlantViewOptions { speciesId: string; seed: number; growth: number; watering: number | null /* 0..1 */; wilt?: number /* 0..1 */; framing?: 'species' | 'growth' }
 export function renderPlantView(canvas: HTMLCanvasElement | OffscreenCanvas, opts: PlantViewOptions): boolean; // false: unknown species
 ```
 Clears the canvas, contains the species with its base at the bottom centre (`plantLayout`) over a soft
-ground wash, and draws the same cached growth steps as the garden (`GROWTH_STEPS = 24`, morphing
+ground wash (`framing: 'growth'` frames what has grown instead, up to 4× larger: small thumbnails,
+ADR 0189), and draws the same cached growth steps as the garden (`GROWTH_STEPS = 24`, morphing
 cross-fade), the painted watering animation (jōro, droplets, damp soil, leaves lift) and the wither
 (ADR 0118). `setPlantViewSpecies(fn)` adds species the registry lacks (main passes its `getSpecies`, so
 `?fixtures` render). Keep the signature.
@@ -467,7 +468,8 @@ instead of sleeping (docs/TESTING.md). Modules add methods with `extendDebug({..
 Foundation (`src/dev/debug.ts`): `state()`, `ready()` (resolves when all systems are initialised),
 `freeze()` (async; resolves after a stable frame is drawn), `unfreeze()`, `setSpeed(n)`, `now()`,
 `frameStats()` (`{ frames, workAvg, workP95, workMax, intervalAvg, intervalP95 }`: renderer main-thread
-ms per frame and rAF intervals over the last 600 frames), `resetFrameStats()`.
+ms per frame and rAF intervals over the last 600 frames), `resetFrameStats()`, `mute({ systemId: layers[] | '*' })`
+(leave out what systems draw, to isolate a layer in a probe or a pixel test; `mute({})` restores).
 
 Core logic (`src/dev/core-debug.ts`): `reset()`, `seed(n)`, `start(min?, { taskName?, planId?,
 speciesId?, slotId? })` (`min` defaults to `settings.lastGoalMinutes`; returns the session or null;
@@ -510,8 +512,9 @@ hour for fauna; audio keeps the real clock).
 
 Fauna (`src/fauna/dev.ts`, installed by `createFauna({ debug })`): `window.sprout.fauna` —
 `kinds()`, `spawn(id, count?)` (returns creature ids), `list()`, `clear()`, `step(seconds, dt?)`,
-`setHour(h)`, `night()`, `roster()`, `schedule()`, `pond()`, `view()`, `targets()`, `bench(frames?)`
-(docs/systems/fauna.md).
+`setHour(h)`, `night()`, `roster()`, `schedule()`, `pond()`, `view()`, `targets()`, `bench(frames?)`,
+`art()` (parts' resolution, parts waiting to be painted sharper, parts painted), `settleArt()` (paint them
+now) (docs/systems/fauna.md).
 
 Schedules (`src/dev/schedule-debug.ts`): `window.sprout.schedule` — `add(input?)`, `list()`,
 `occurrences(from?, to?)`, `due()`, `get(key)`, `jumpToDue(scheduleId?)`, `jumpPast(key)`, `edit(key, edit,

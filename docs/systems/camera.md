@@ -51,8 +51,12 @@ Systems poll `camera.detailVersion` in `update` and, **once the camera rests**:
 | Sky (`SkyLight.setDetail`) | upscaled plates under the view + sun, moon, stars punched sharp | 3 px/unit |
 | Light plate (`CastLight.setDetail`) | grade wash upscaled, marks (shadows, crown lights, window light, stars) repainted, one phase per idle callback | 2 px/unit |
 | Plants | plants in the view (+12 %) at `resolutionBucket(detailView.pixelScale)` (requested at the glide's start), others at the overview's; far-off high-res sprites evicted at rest | 6 px/unit, 2048 px per side |
-A layer uses its detail only when it covers the whole visible world rect of the draw, so a seam is
-never on screen. Back at the overview the scene's detail painting and the detail plates go.
+| Fauna (ADR 0188) | parts at the resting view's pixel scale, painted in idle callbacks while the overview's parts keep drawing; two resolutions kept | 6 px/unit |
+A layer uses its detail only when it covers the whole visible world rect of the draw, so its edge is
+never on screen. The detail and the overview are the same painting at two resolutions (ADR 0185:
+world-anchored flow, the rng kept in step, a continuous paper margin; ADR 0186: close-up marks
+painted into both from world-anchored cells), and the detail fades in as an exact lerp. Plants read
+as solid paint at every zoom (ADR 0187). Back at the overview the scene's detail painting and the detail plates go.
 
 ## When the camera moves by itself (ADR 0168)
 `session:start` → frame the seedling; `session:switch` → frame the new active seedling; entering
@@ -85,13 +89,15 @@ detail, the sprites and the light plate's detail), `autoFocus(on)`, `toClient(wo
 
 ## Studio
 `camera/playground` (map + stage through the camera, gliding between poses), `camera-detail/moon`
-and `camera-detail/shadows` (overview plate vs detail), `ui-camera/*` (zoom chips, the card beside a
+and `camera-detail/shadows` (overview plate vs detail), `close-view/ground`, `/margin`, `/trunk`,
+`close-view-plants/solid`, `close-view-fauna/*` (overview vs close view, ADRs 0185–0188), `ui-camera/*` (zoom chips, the card beside a
 plant and docked, a seedling's card; the seed picks the species, so every note can be read).
 
 ## Tests
 `camera.test.ts` (compose, clamp, reach, slack, zoom about a point, pan, framing, path, easing,
 durations, controller), `renderer.test.ts` (camera views, caches), `hit-test.test.ts`,
 `notes.test.ts`, `sprites.test.ts` / `system.test.ts` (resolution, eviction, culling, hit-test),
+`tests/e2e/close-view.spec.ts` (no seams at a pinned close view; a plant as solid at 3× as at 1×),
 `tests/e2e/camera.spec.ts` (focus on start and switch, ctrl+wheel about the pointer, plain wheel,
 drag only zoomed, pinch, double-click, controls, keys, the card, placement while zoomed, detail
 painted, glide frame cost, reduced motion, the docked card).
