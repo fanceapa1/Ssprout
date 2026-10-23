@@ -70,4 +70,5 @@ Task queue (atomic tasks, at most 2 agents at a time; owner feedback 2026-10-23:
 | Q15 | Audio weather follows the active session (`session:switch`); ending a waiting session must not silence the active one | `src/audio` | done |
 | Q16 | Favicon/notification icon: replace the unseen-bloom round dot with the inked sprout (ADR 0194) | `src/widget/favicon.ts` | done |
 | Q17 | **Owner:** garden stage 7 % taller (≈ 88 → 94 vh), so more sky shows above the hills | `src/ui` stage CSS, viewport tests | done (ADR 0212) |
+| PR1 | Collaborator PR #1 (soniaspn): standard / scenery sound mixes, schema v3; rebased and merged | `src/audio`, `src/core` | done (ADR 0213, devlog 40) |
 | Q10 | Flakiness: three consecutive green e2e runs, root-cause fixes | `tests/**` | in progress (also: backdrops contrast "2.21 Start" fails locally, passes in CI) |
