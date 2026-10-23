@@ -45,3 +45,13 @@ playback/icon sheet, smoke tests and the four rendering checks. The original two
 run hit rendering/timing failures; those same four checks passed serially on both the unchanged
 base and the rebased feature, without changing their thresholds. The full suite runs in PR CI;
 its result is available with the PR checks. ADR 0213 documents the contracts and decisions.
+
+## Rebased onto main
+The branch was rebased onto main (the dismissible tips, ADR 0211). The merge commit that brought
+in the taller stage was dropped: main already has that work, and its only own change, numbering
+this devlog 40, is kept. ADR 0104 is renumbered 0213 (next free after 0212). Added on top: unit
+tests that a Standard or custom scenery mix follows the active session (switch, cancelled waiting
+session, bloom with others waiting) while keeping its chosen sounds, and a v2 fixture
+(`core/fixtures/garden-v2-parallel.json`) migrated, loaded and imported to v3 next to both v1
+fixtures. Typecheck and 1,390 unit tests pass; the sound mixer, studio, ui-menu, ui-shell,
+parallel-sessions, backdrops, wayfinding, smoke, core-loop and session-rules specs pass (75 tests).
