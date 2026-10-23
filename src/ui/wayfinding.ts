@@ -207,11 +207,17 @@ export function createWayfinding(deps: WayfindingDeps): Wayfinding {
   function markHere(): void {
     if (!layout) return;
     const r = el.getBoundingClientRect();
-    const line = window.innerHeight * 0.42;
+    // the reading line, a quarter of the way down the window: the last heading above it is being read
+    const line = window.innerHeight * 0.25;
     let id: string | null = null;
     for (const st of layout.stops) if (r.top + st.y <= line) id = st.id;
     // nothing passed yet but the first heading is on screen: it is the one being read
     if (id === null && layout.stops[0] && r.top + layout.stops[0].y < window.innerHeight) id = layout.stops[0].id;
+    // at the foot of the page the last sections never reach the line: the lowest heading in view
+    const doc = document.documentElement;
+    if (window.scrollY + window.innerHeight >= doc.scrollHeight - 2) {
+      for (const st of layout.stops) if (r.top + st.y < window.innerHeight * 0.85) id = st.id;
+    }
     if (id === here) return;
     here = id;
     for (const g of stopEls) g.classList.toggle('is-here', g.dataset.stop === id);
