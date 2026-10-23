@@ -457,10 +457,22 @@ export function createAmbience(opts: AmbienceOptions): Ambience {
       // colours fade at night before they darken (the eye's night vision): a cool desaturating glaze
       const desat = LOOK.nightDesaturate * light.weights.night * alpha;
       if (desat > 0.004) {
+        // over the whole drawn view, not only the overview's crop (a zoomed view can reach past it)
+        const area = visible ?? view;
+        // The painting is laid on transparent canvas (white = no paint), and a saturation fill
+        // composites source-over: where the frame is still clear it would leave its grey as
+        // pigment, darkest where the painting is thinnest, and nothing where something opaque (the
+        // sky plate, down to y 500) had filled it in — a hard grey line across the meadow and the
+        // plants on it, plain when zoomed in. Back the frame with white paper first (ADR 0206): the
+        // multiplies after it come out the same, and the glaze only takes colour out.
+        ctx.globalAlpha = 1;
+        ctx.globalCompositeOperation = 'destination-over';
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(area.x, area.y, area.w, area.h);
         ctx.globalCompositeOperation = 'saturation';
         ctx.globalAlpha = desat;
         ctx.fillStyle = 'rgb(120,124,138)';
-        ctx.fillRect(view.x, view.y, view.w, view.h);
+        ctx.fillRect(area.x, area.y, area.w, area.h);
       }
       ctx.globalAlpha = alpha;
       ctx.globalCompositeOperation = 'multiply';

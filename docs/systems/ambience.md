@@ -36,7 +36,7 @@ Registered in `main.ts`: `const ambience = addAmbience(renderer, { dev: speedClo
 |---|---|
 | `waterSurface` | ripple rings (rain) and warm glints (sun), clipped to `scene.pond` |
 | `ambience` | the sun's glaze with its lifted light (multiply), the rain grade (multiply), mist bands + veil, dawn mist and dew (sunrise), leaf glints (screen), rain strokes (multiply), motes |
-| `lighting` | night desaturation (saturation glaze), the daylight light plate composite (multiply) + a tiny lantern flame (screen) |
+| `lighting` | night desaturation (the frame backed with white, then a saturation glaze over the drawn view, ADR 0206), the daylight light plate composite (multiply) + a tiny lantern flame (screen) |
 
 Inputs come only from the `SceneGeometry` contract (`pond`, `waterline`, `pavilion.lantern`, `slots`)
 and the store (`session.weather`, phase via `sessionPhase`, `plants`, session slot + growth).
@@ -107,7 +107,7 @@ the `lighting` layer. Each phase's plate is painted once (on demand; the next ph
 The composite lifts the moving lights (a warm glow round the low sun, the moon and its halo, the
 broken light path on the pond, the lantern's pool) and is rebuilt when the light moved (checked
 every `LIGHT.redrawS` 3 s, at once after `setTime`). At night a saturation glaze takes some colour
-out first (`LOOK.nightDesaturate` 0.38). Sunrise also lays **dawn mist** on the far bank and the
+out first (`LOOK.nightDesaturate` 0.38), over a frame backed with white so it never leaves grey where the painting is thin (ADR 0206). Sunrise also lays **dawn mist** on the far bank and the
 water (bands 1–3, rising `dawnMistRise` 26 units and thinning as the sun climbs) and twinkles 16
 **dew glints** on the near grass. Sun shafts and glints fade with the night weight. Details, the
 phase windows and the sky: docs/systems/daylight.md.
