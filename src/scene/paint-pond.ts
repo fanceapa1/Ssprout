@@ -5,6 +5,7 @@
  */
 import { createRng, type Rng } from '../core/rng';
 import {
+  smoothPath,
   PIGMENTS,
   bounds,
   blob,
@@ -25,6 +26,37 @@ import { foliageFor } from './paint-trees';
 import { atmos } from './paint-land';
 
 const mirror = (pts: readonly Pt[], about: number): Pt[] => pts.map((q) => ({ x: q.x, y: 2 * about - q.y }));
+
+/**
+ * A mirrored trunk as water shows it (ADR 0185): not a straight-sided band (seen close, its edges
+ * read as seams down the pond) but a wavering ribbon, wider and more broken the further it lies
+ * from the shore, in a few pieces with gaps where the surface catches the sky.
+ */
+function brokenReflection(m: readonly Pt[], shore: number, w: number, rng: Rng): Pt[][] {
+  const path = smoothPath(m, 5);
+  const ph = rng.range(0, Math.PI * 2);
+  const out: Pt[][] = [];
+  let run: { l: Pt[]; r: Pt[] } = { l: [], r: [] };
+  const flush = () => {
+    if (run.l.length > 1) out.push([...run.l, ...run.r.reverse()]);
+    run = { l: [], r: [] };
+  };
+  for (const q of path) {
+    const d = Math.max(0, q.y - shore);
+    const depth = Math.min(1, d / 160);
+    // a gap now and then, more often deeper (the ripples break the image)
+    if (rng.next() < 0.04 + 0.12 * depth) {
+      flush();
+      continue;
+    }
+    const sway = Math.sin(q.y * 0.13 + ph) * (0.4 + 2.2 * depth) + rng.range(-0.5, 0.5) * depth;
+    const half = (w / 2) * (1 + 0.5 * depth) * rng.range(0.8, 1.15);
+    run.l.push({ x: q.x + sway - half, y: q.y });
+    run.r.push({ x: q.x + sway + half * rng.range(0.85, 1.1), y: q.y });
+  }
+  flush();
+  return out;
+}
 
 /** Rock silhouettes are seeded per rock id so the sprite and its reflection agree. */
 export function rockOutline(r: Rock, seed: number): Pt[] {
@@ -89,10 +121,7 @@ export function paintReflections(p: Painter, rng: Rng, input: ReflectionInput): 
     }
     const bark = mix(atmos(PIGMENTS.wood, t.distance), PIGMENTS.celadonDeep, 0.4);
     for (const stem of t.stems) {
-      const m = mirror(stem, t.reflectAbout);
-      const w = t.width * 0.9;
-      const ribbon: Pt[] = [...m.map((q) => ({ x: q.x - w / 2, y: q.y })), ...m.reverse().map((q) => ({ x: q.x + w / 2, y: q.y }))];
-      L.fill(ribbon, bark, 0.16);
+      for (const ribbon of brokenReflection(mirror(stem, t.reflectAbout), t.reflectAbout, t.width * 0.9, rng)) L.fill(ribbon, bark, 0.16);
     }
   }
 
