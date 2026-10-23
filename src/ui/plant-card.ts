@@ -2,6 +2,7 @@ import { sessionTimeline, MINUTE_MS } from '../core/session';
 import { inProgressSessions, type GardenState } from '../core/state';
 import { speciesNote } from '../plants/notes';
 import type { SpeciesDef } from '../plants/types';
+import { CHEVRON, chevronSvg } from './calendar-art';
 import type { UIContext } from './context';
 import { clear, fragment, h, setText } from './dom';
 import { formatDay, formatTimer, inSentence, spokenMinutes } from './format';
@@ -15,6 +16,10 @@ import { ICONS } from './icons';
  * stages the slip stands on the side away from the plant (the camera frames the plant in the rest
  * of the stage); on phones it docks at the bottom of the stage. Esc, the close mark or a click
  * elsewhere on the garden closes it; focus moves into it and back.
+ *
+ * When the card is taller than its room (a long note on a small phone), the name stays and the
+ * rest scrolls inside the card: the words thin into the paper at the cut and a small ink mark
+ * shows there is more; the scrolling part takes keyboard focus only then (ADR 0191).
  */
 
 export interface PlantStory {
@@ -143,14 +148,55 @@ export function createPlantCard(ctx: UIContext): PlantCard {
   const facts = h('ul.plant-story-facts', { role: 'list' });
   const replaced = h('p.plant-story-replaced');
   const closeBtn = h('button.icon-btn.plant-story-close', { type: 'button', 'aria-label': 'Close', onclick: () => api.close({ restoreFocus: true }) }, fragment(ICONS.close));
-  const el = h(
-    'section.plant-story.slip',
-    { role: 'dialog', 'aria-modal': 'false', 'aria-labelledby': `${uid}-name`, 'data-ui': 'plant-card', hidden: true, tabindex: '-1' },
-    h('header.plant-story-head', {}, h('div.plant-story-titles', {}, title, native), closeBtn),
+  const body = h(
+    'div.plant-story-body',
+    { 'aria-labelledby': `${uid}-name` },
     line,
     note,
     h('div.plant-story-history', {}, h('h3.plant-story-history-head', {}, 'Its story'), storyTask, facts, replaced),
   );
+  // the mark at the cut: a pointer or a tap reads on (keyboard: the body itself scrolls)
+  const more = h(
+    'button.plant-story-more',
+    { type: 'button', tabindex: -1, 'aria-hidden': 'true', onclick: () => readOn() },
+    fragment(chevronSvg(CHEVRON.down)),
+  );
+  const el = h(
+    'section.plant-story.slip',
+    { role: 'dialog', 'aria-modal': 'false', 'aria-labelledby': `${uid}-name`, 'data-ui': 'plant-card', hidden: true, tabindex: '-1' },
+    h('header.plant-story-head', {}, h('div.plant-story-titles', {}, title, native), closeBtn),
+    body,
+    more,
+  );
+  const reduced = () => ctx.deps.reducedMotion ?? (typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches);
+  function readOn(): void {
+    body.scrollBy({ top: Math.max(40, body.clientHeight * 0.7), behavior: reduced() ? 'auto' : 'smooth' });
+  }
+  /**
+   * Is there more than the card shows? Marks the cut (`data-more="above below"`) and lets the
+   * scrolling part take keyboard focus only while it scrolls (a region named after the plant).
+   */
+  function fit(): void {
+    if (el.hidden) return;
+    const over = body.scrollHeight - body.clientHeight > 1;
+    const above = over && body.scrollTop > 1;
+    const below = over && body.scrollTop + body.clientHeight < body.scrollHeight - 1;
+    const want = [above ? 'above' : '', below ? 'below' : ''].filter(Boolean).join(' ');
+    if ((el.dataset.more ?? '') !== want) {
+      if (want) el.dataset.more = want;
+      else delete el.dataset.more;
+    }
+    if (over) {
+      body.tabIndex = 0;
+      body.setAttribute('role', 'region');
+    } else {
+      body.removeAttribute('tabindex');
+      body.removeAttribute('role');
+    }
+  }
+  body.addEventListener('scroll', fit, { passive: true });
+  const onResize = () => fit();
+  const fitSoon = () => (typeof requestAnimationFrame === 'function' ? requestAnimationFrame(() => fit()) : fit());
   let shown: { id: string; kind: 'finished' | 'growing' } | null = null;
   let placement: CardPlacement = 'right';
   let returnTo: HTMLElement | null = null;
@@ -178,6 +224,7 @@ export function createPlantCard(ctx: UIContext): PlantCard {
     for (const f of lines.facts) facts.append(h('li', {}, f));
     setText(replaced, lines.replaced ?? '');
     replaced.hidden = !lines.replaced;
+    fit();
     return true;
   }
 
@@ -201,6 +248,7 @@ export function createPlantCard(ctx: UIContext): PlantCard {
   const api: PlantCard = {
     el,
     open(id, where) {
+      const fresh = el.hidden || shown?.id !== id;
       shown = { id, kind: 'finished' };
       if (!render()) {
         shown = null;
@@ -209,8 +257,12 @@ export function createPlantCard(ctx: UIContext): PlantCard {
       placement = where;
       el.dataset.placement = where;
       el.hidden = false;
+      if (fresh) body.scrollTop = 0;
+      fit();
+      fitSoon();
       ctx.deps.root.classList.add('has-plant-story');
       window.addEventListener('keydown', onKey);
+      window.addEventListener('resize', onResize);
       ctx.changed();
       return true;
     },
@@ -221,6 +273,7 @@ export function createPlantCard(ctx: UIContext): PlantCard {
       el.hidden = true;
       ctx.deps.root.classList.remove('has-plant-story');
       window.removeEventListener('keydown', onKey);
+      window.removeEventListener('resize', onResize);
       if (opts.restoreFocus !== false && hadFocus && returnTo?.isConnected) returnTo.focus({ preventScroll: true });
       returnTo = null;
       for (const fn of [...closeListeners]) fn();
@@ -254,6 +307,8 @@ export function createPlantCard(ctx: UIContext): PlantCard {
       offTick();
       offStore();
       window.removeEventListener('keydown', onKey);
+      window.removeEventListener('resize', onResize);
+      body.removeEventListener('scroll', fit);
       closeListeners.clear();
     },
   };
