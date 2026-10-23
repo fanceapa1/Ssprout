@@ -11,13 +11,22 @@ import { MIN, openUi } from './ui-helpers';
 
 type Box = { left: number; top: number; right: number; bottom: number };
 
-/** Three sessions in progress and the demo calendar (35 days of history, three schedules). */
-const busy = (page: Page) =>
-  page.evaluate((gap) => {
-    window.sprout!.startSessions(3, 50, gap);
-    window.sprout!.schedule.demo();
-    window.sprout!.ui.refresh();
-  }, MIN);
+/**
+ * Sessions in progress (three by default) and the demo calendar (35 days of history, three
+ * schedules). The demo goes first: it moves the dev clock to the next 16:10, up to a day ahead,
+ * which would carry sessions already growing to their end, and the active one would bloom on a
+ * later tick, in the middle of a measurement (devlog 41). With three growing the waiting card
+ * offers "See them"; with two it has the seal "Start".
+ */
+const busy = (page: Page, sessions = 3) =>
+  page.evaluate(
+    ({ gap, sessions }) => {
+      window.sprout!.schedule.demo();
+      window.sprout!.startSessions(sessions, 50, gap);
+      window.sprout!.ui.refresh();
+    },
+    { gap: MIN, sessions },
+  );
 
 /** Wait until every visible section's sheet is drawn for its current size. */
 async function sheetsSettled(page: Page): Promise<void> {
@@ -113,6 +122,14 @@ const collectLines = (page: Page) =>
     const out: Array<{ key: string; at: string; text: string; color: string; alpha: number; left: number; top: number; right: number; bottom: number }> = [];
     const walk = document.createTreeWalker(document.querySelector('.dock')!, NodeFilter.SHOW_TEXT);
     const range = document.createRange();
+    // the same element keeps its id across both passes; a re-rendered one gets a new id (a ticking
+    // countdown rewrites its text, not its element)
+    const w = window as unknown as { __lineIds?: WeakMap<Element, number>; __lineNext?: number };
+    const ids = (w.__lineIds ??= new WeakMap());
+    const elId = (e: Element) => {
+      if (!ids.has(e)) ids.set(e, (w.__lineNext = (w.__lineNext ?? 0) + 1));
+      return ids.get(e)!;
+    };
     let i = 0;
     for (let n = walk.nextNode(); n; n = walk.nextNode(), i++) {
       if (!n.textContent?.trim()) continue;
@@ -134,7 +151,7 @@ const collectLines = (page: Page) =>
         if (r.top < 0 || r.bottom > window.innerHeight) continue;
         if (tl && (r.top < tl.top + 26 || r.bottom > tl.bottom - 26)) continue;
         const text = n.textContent.trim().slice(0, 24);
-        out.push({ key: `${i}:${k}`, at: `${text}:${Math.round(r.left)}:${Math.round(r.top + scrollY)}`, text, color: cs.color, alpha, left: r.left, top: r.top, right: r.right, bottom: r.bottom });
+        out.push({ key: `${i}:${k}:${elId(el)}`, at: `${text}:${Math.round(r.left)}:${Math.round(r.top + scrollY)}`, text, color: cs.color, alpha, left: r.left, top: r.top, right: r.right, bottom: r.bottom });
       }
     }
     return out;
@@ -165,7 +182,11 @@ async function textContrast(page: Page): Promise<{ count: number; low: string[] 
       document.head.append(st);
     });
     await waitFrames(page, 2);
-    const where = new Map((await collectLines(page)).map((l) => [l.key, l]));
+    const hidden = await collectLines(page);
+    // both passes must read the same lines: a dock that re-renders in between (a session blooming,
+    // a card changing mode) would pair one text's colour with another's ground
+    expect(hidden.map((l) => l.key), `${id}: the dock changed while it was measured`).toEqual(lines.map((l) => l.key));
+    const where = new Map(hidden.map((l) => [l.key, l]));
     const todo = lines
       .filter((l) => where.has(l.key))
       .map((l) => ({ ...l, ...where.get(l.key)!, color: l.color, alpha: l.alpha }))
@@ -287,6 +308,7 @@ test.describe('section backdrops · desktop', () => {
       test.slow();
       await openUi(page);
       await busy(page);
+      await expect(page.locator('.due-card')).toHaveAttribute('data-mode', 'limit');
       await page.evaluate((p) => {
         window.sprout!.setTime(p);
         window.sprout!.settleAmbience();
@@ -345,7 +367,9 @@ test.describe('section backdrops · phone', () => {
     test(`every text on the sheets reads at ≥ 4.5 : 1 from its pixels · phone ${phase}`, async ({ page }) => {
       test.slow();
       await openUi(page);
-      await busy(page);
+      // two growing: the waiting card has its seal “Start” (three, on desktop, give “See them”)
+      await busy(page, 2);
+      await expect(page.locator('.due-card .seal.due-start')).toBeVisible();
       await page.evaluate((p) => {
         window.sprout!.setTime(p);
         window.sprout!.settleAmbience();
