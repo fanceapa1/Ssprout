@@ -77,7 +77,8 @@
   padding: 6px 8px;
 }
 .cal-add {
-  margin-left: auto;
+  /* beside the navigation, not floating at the far edge of the row (ADR 0200) */
+  margin-left: 6px;
   display: inline-flex;
   align-items: center;
   gap: 10px;
@@ -628,11 +629,12 @@ button.cal-block[data-kind='scheduled']:hover {
   filter: brightness(var(--ui-dim));
   transition: opacity var(--ui-slow) var(--ui-breath);
 }
-/* wide screens: above the pill in the lower-left corner, the path stays clear (ADR 0133) */
+/* wide screens: under the pill in the top-left corner (ADR 0203) */
 @media (min-width: 900px) and (min-aspect-ratio: 5/4) {
   .stage-ui .due-slip {
-    left: 22px;
-    bottom: 90px;
+    left: 10px;
+    top: 74px;
+    bottom: auto;
     transform: none;
   }
 }

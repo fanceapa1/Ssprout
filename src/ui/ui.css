@@ -130,6 +130,38 @@ dialog :focus-visible {
 .quiet:hover {
   text-decoration-color: var(--ui-ink-faint);
 }
+/*
+ * The calm lead (ADR 0201): the next step while a session runs (Pause; Skip break once watered) —
+ * a washi slip with an inked edge, clearly the thing to press, but not the vermilion seal of a
+ * beginning (Start studying, Start, Resume).
+ */
+.calm {
+  appearance: none;
+  border: 0;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 48px;
+  padding: 7px 24px 8px 18px;
+  font-family: var(--ui-display);
+  font-size: 18.5px;
+  letter-spacing: 0.06em;
+  color: var(--ui-ink);
+  background-image: var(--grain), var(--slip-1);
+  background-size: auto, 100% 100%;
+  background-repeat: repeat, no-repeat;
+}
+.calm .ink-icon {
+  width: 20px;
+  height: 20px;
+}
+.pause-mark {
+  display: none;
+}
+.calm .pause-mark {
+  display: inline-flex;
+}
 .quiet.ink {
   padding: 6px 22px;
   background-image: var(--slip-faint);
@@ -301,6 +333,11 @@ dialog :focus-visible {
   height: 21px;
   margin: -2px -2px 0 0;
 }
+/* the dock's Start studying: the sprout before its words, a seal or (stepping back) an ink slip */
+.plant-session .sprout-mark {
+  margin-right: 10px;
+  vertical-align: -2px;
+}
 /* on the vermilion seal of the dock's Start studying the sprout is drawn in the cream of its words */
 .seal .sprout-mark {
   color: currentColor;
@@ -384,15 +421,41 @@ dialog :focus-visible {
 }
 
 /*
- * Wide screens: the pill lies in the lower-left corner where the painting has dissolved into
- * paper, so the stepping-stone path (the picture's leading line) stays clear (ADR 0133, after 0127).
+ * Wide screens: the pill lies in the top-left corner, mirroring the garden tools in the top
+ * right (ADR 0203; it was in the lower left, ADR 0133). The garden's own controls share its top
+ * edge, far from the dock's Study controls, and the lower edge stays clear for the stepping
+ * stones and the guiding path that continues them into the dock (ADR 0202).
  */
 @media (min-width: 900px) and (min-aspect-ratio: 5/4) {
   .pill {
-    left: 22px;
-    bottom: 24px;
+    left: 10px;
+    top: 10px;
+    bottom: auto;
     transform: none;
   }
+  /* the quiet line keeps clear of the pill and the tools at the top */
+  .quiet-line {
+    max-width: min(560px, calc(100% - 640px));
+  }
+}
+/*
+ * The pill steps aside while the dock's Study controls are on screen (ADR 0203): there they are
+ * the controls, so two "Start studying" (or two timers) never show at once. It only fades: no
+ * movement, no layout change, and it is inert while away.
+ */
+.pill,
+.stage-ui .due-slip {
+  transition:
+    opacity var(--ui-slow) var(--ui-breath),
+    visibility 0s linear 0s;
+}
+.ui-root.pill-aside .pill,
+.ui-root.pill-aside .stage-ui .due-slip {
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity var(--ui-slow) var(--ui-breath),
+    visibility 0s linear var(--ui-slow);
 }
 
 /* the quiet line (completion, fauna arrivals) */
@@ -650,35 +713,145 @@ dialog :focus-visible {
 }
 
 /* ── the dock: the page below the garden (ADR 0130) ─────────────────────────────────────── */
+/*
+ * One reading spine (ADR 0200): every section takes the whole row, in order (Study, Your plant,
+ * Calendar, Garden tools), on one left edge, with the same rhythm between heading, helper line and
+ * content. The lane on the left of that edge carries the guiding path and its stops (ADR 0202).
+ * Inside a section, wide screens may set two tracks (the Study controls beside the sessions in
+ * progress; the plant's window beside its caption) on the shared `--dock-main` / `--dock-aside`.
+ */
 .dock {
+  --lane: 84px; /* the path's lane, left of the content edge */
+  --stop-gap: 34px; /* from a stop's centre to its heading's first letter */
+  --rhythm-section: 104px;
+  --rhythm-head: 28px;
+  --dock-main: minmax(0, 1.12fr);
+  --dock-aside: minmax(0, 0.88fr);
+  --dock-tracks-gap: clamp(40px, 5vw, 80px);
+  position: relative;
   display: grid;
-  grid-template-columns: minmax(0, 1.08fr) minmax(0, 0.92fr);
-  column-gap: clamp(40px, 6vw, 96px);
-  row-gap: 56px;
+  grid-template-columns: minmax(0, 1fr);
+  row-gap: var(--rhythm-section);
   align-items: start;
-  max-width: 1080px;
+  max-width: 1120px;
   margin: 0 auto;
-  padding: 30px clamp(20px, 4vw, 48px) 120px;
+  padding: 92px clamp(24px, 4vw, 56px) 150px var(--lane);
   transition: opacity var(--ui-slow) var(--ui-breath);
 }
 .dock-section {
+  position: relative;
   min-width: 0;
-}
-.dock-section[data-span='full'] {
   grid-column: 1 / -1;
 }
+.dock-head {
+  margin: 0 0 var(--rhythm-head);
+  max-width: 36em;
+}
 .dock-title {
-  margin: 0 0 20px;
-  padding-bottom: 12px;
+  margin: 0;
   font-family: var(--ui-display);
   font-weight: 500;
-  font-size: 19px;
-  letter-spacing: 0.14em;
-  color: var(--ui-ink-soft);
-  background: var(--brush-rule) left bottom / 84px 8px no-repeat;
+  font-size: 27px;
+  line-height: 1.25;
+  letter-spacing: 0.06em;
+  color: var(--ui-ink);
 }
 .dock-title:focus {
   outline: none;
+}
+.dock-helper {
+  margin: 6px 0 0;
+  font-style: italic;
+  font-size: 20.5px;
+  line-height: 1.38;
+  color: var(--ui-ink-soft);
+  text-wrap: pretty;
+}
+.dock-body {
+  min-width: 0;
+}
+
+/*
+ * The guiding path (ADR 0202): sumi ink thinned to a whisper, behind the content, multiplied into
+ * the paper like the painting above it. Stones are the garden's own warm grey. The stop of the
+ * section being read is a shade darker; nothing pulses.
+ */
+.dock {
+  --path-rise: 150px; /* how far the line reaches up into the garden's dissolving edge */
+  --path-sway: 12px;
+  --path-width: 2.6px;
+  --path-tail: 72px;
+  --stop-size: 23px;
+  --way-ink: rgba(74, 68, 60, 0.42);
+  --way-stone: rgba(157, 151, 135, 0.5);
+  --way-stone-here: rgba(126, 122, 110, 0.78);
+  --way-rim: rgba(98, 92, 82, 0.5);
+}
+.wayfinding {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 0;
+  overflow: visible;
+  pointer-events: none;
+  mix-blend-mode: multiply;
+}
+.dock-section {
+  z-index: 1;
+}
+.way-ink {
+  fill: var(--way-ink);
+}
+.way-stone {
+  fill: var(--way-stone);
+  transition: fill var(--ui-slow) var(--ui-breath);
+}
+.way-stone-rim {
+  fill: none;
+  stroke: var(--way-rim);
+  stroke-width: 0.9;
+  stroke-dasharray: 26 3 9 4;
+}
+.way-stop.is-here .way-stone {
+  fill: var(--way-stone-here);
+}
+/* the first view: the brush draws the line down from the garden, the stones settle in turn */
+.wayfinding.is-drawing .way-reveal {
+  animation: way-draw 2600ms var(--ui-breath) both;
+}
+.wayfinding.is-drawing .way-stop {
+  animation: way-stop-in 900ms var(--ui-breath) both;
+  animation-delay: calc(var(--at, 0) * 2600ms);
+}
+@keyframes way-draw {
+  from {
+    stroke-dasharray: 1 1;
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dasharray: 1 1;
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes way-stop-in {
+  from {
+    opacity: 0;
+  }
+}
+
+/* Study: the controls, and beside them (wide screens) the sessions in progress */
+.dock-section[data-section='session'] .dock-body {
+  display: grid;
+  grid-template-columns: var(--dock-main) var(--dock-aside);
+  column-gap: var(--dock-tracks-gap);
+  align-items: start;
+}
+.dock-section[data-section='session'] .dock-body > * {
+  grid-column: 1;
+}
+.dock-section[data-section='session'] .dock-body > .session-list[data-rows='true'] {
+  grid-column: 2;
+  grid-row: 1 / span 3;
 }
 
 /* the session controls in the dock: an open page, no slip */
@@ -882,7 +1055,7 @@ dialog :focus-visible {
 }
 .session-row {
   display: grid;
-  grid-template-columns: 64px minmax(0, 1fr) auto;
+  grid-template-columns: 64px minmax(0, 200px) auto;
   align-items: center;
   column-gap: 16px;
   padding: 8px 0;
@@ -933,8 +1106,8 @@ dialog :focus-visible {
 .session-row-act {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
-  justify-self: end;
+  justify-content: flex-start;
+  justify-self: start;
 }
 .session-row-now {
   display: inline-flex;
@@ -982,11 +1155,17 @@ dialog :focus-visible {
   color: var(--ui-ink);
 }
 
-/* your plant (ADR 0134) */
+/* your plant (ADR 0134): the round window, its caption beside it on wide screens (ADR 0200) */
 .plant-view {
   display: grid;
-  grid-template-columns: minmax(0, 300px);
+  grid-template-columns: minmax(0, 300px) minmax(0, 1fr);
+  column-gap: 44px;
   row-gap: 4px;
+  align-items: end;
+}
+.plant-view-caption {
+  padding-bottom: 18px;
+  max-width: 26em;
 }
 .plant-frame {
   position: relative;
@@ -1857,8 +2036,17 @@ dialog.book::after {
 /* ── narrower screens: one column ───────────────────────────────────────────────────────── */
 @media (max-width: 860px) {
   .dock {
+    --lane: 64px;
+    --stop-gap: 28px;
+    --rhythm-section: 88px;
+    --path-sway: 8px;
+  }
+  .dock-section[data-section='session'] .dock-body {
     grid-template-columns: minmax(0, 1fr);
-    row-gap: 44px;
+  }
+  .dock-section[data-section='session'] .dock-body > .session-list[data-rows='true'] {
+    grid-column: 1;
+    grid-row: auto;
   }
 }
 
@@ -1868,8 +2056,23 @@ dialog.book::after {
     font-size: 20px;
   }
   .dock {
-    padding: 22px 12px 96px;
-    row-gap: 40px;
+    /* a phone: the lane narrows to a gutter beside the stacked headings (ADR 0202) */
+    --lane: 38px;
+    --stop-gap: 19px;
+    /* the gutter is narrow: a straight line, no meander, starting at the garden's edge */
+    --path-sway: 0px;
+    --path-rise: 10px;
+    --path-width: 2.1px;
+    --stop-size: 17px;
+    --rhythm-section: 76px;
+    --rhythm-head: 22px;
+    padding: 64px 14px 104px var(--lane);
+  }
+  .dock-title {
+    font-size: 25px;
+  }
+  .dock-helper {
+    font-size: 19.5px;
   }
   .time {
     font-size: 58px;
@@ -1912,11 +2115,9 @@ dialog.book::after {
   }
   .plant-view {
     grid-template-columns: minmax(0, 1fr);
-    justify-items: center;
-    text-align: center;
   }
-  .plant-view-title {
-    justify-content: center;
+  .plant-view-caption {
+    padding-bottom: 0;
   }
   .plant-frame {
     max-width: 280px;

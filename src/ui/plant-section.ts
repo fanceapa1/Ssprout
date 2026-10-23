@@ -269,7 +269,7 @@ export function createPlantSection(ctx: UIContext): PlantSection {
     } else {
       setText(name, 'An empty bed');
       setText(native, '');
-      setText(task, 'Start a session and its plant will grow here while you work.');
+      setText(task, 'Waiting for its first seed.');
       setText(stage, '');
       canvas.setAttribute('aria-label', 'An empty bed, waiting for a seed');
     }

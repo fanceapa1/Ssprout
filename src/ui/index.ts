@@ -16,6 +16,7 @@ import type { TipId } from '../core/tips';
 import type { UIContext } from './context';
 import { createCalendar, type Calendar } from './calendar';
 import { createDock } from './dock';
+import { guideLines } from './dock-guide';
 import { h } from './dom';
 import { createGardenData } from './garden-data';
 import { createHerbarium } from './herbarium';
@@ -40,6 +41,7 @@ import { createStageCamera } from './stage-camera';
 import { createTimerPanel } from './timer-panel';
 import { createTips } from './tips';
 import { createTools } from './tools';
+import { createWayfinding } from './wayfinding';
 import type { PlantingDraft, UI, UIDeps, UIMode, UIState } from './types';
 
 export type { Dock, DockSection, DockSectionDef, DockSectionInfo, DockSpan } from './dock';
@@ -92,6 +94,7 @@ export function createUI(deps: UIDeps): UI {
   const live = h('div.visually-hidden.ui-live', { role: 'status', 'aria-live': 'polite', 'aria-atomic': 'true' });
   let liveTimer: ReturnType<typeof setTimeout> | null = null;
   let disposed = false;
+  let guideQueued = false;
 
   const draft: PlantingDraft = {
     taskName: '',
@@ -119,7 +122,7 @@ export function createUI(deps: UIDeps): UI {
       // the rest of the UI steps back while the gardener chooses a spot
       dock.el.inert = next === 'placement';
       tools.corner.inert = next === 'placement';
-      pill.el.inert = next === 'placement';
+      syncPillInert();
       if (next !== 'garden') {
         labels.hide();
         plantCard?.close({ restoreFocus: false });
@@ -127,7 +130,10 @@ export function createUI(deps: UIDeps): UI {
       ctx.changed();
       if (next === 'garden') line.check();
     },
-    changed: () => tips.schedule(),
+    changed: () => {
+      tips.schedule();
+      queueGuide();
+    },
     delay: (ms) => Math.max(0, ms * timeScale),
     openDialog(dialog, opener) {
       for (const d of allDialogs()) if (d !== dialog && d.open) closeNow(d);
@@ -180,8 +186,11 @@ export function createUI(deps: UIDeps): UI {
   root.addEventListener('close', () => syncSheetLock(), true);
 
   // ── components ────────────────────────────────────────────────────────────────────────
-  const panel = createTimerPanel(ctx, { plant: (opener) => openPlanting(opener) });
-  const sessions = createSessionList(ctx, { plantAnother: (opener) => openPlanting(opener) });
+  // a planned session waiting with Start is the Study section's one primary action (ADR 0201)
+  let dueCards: DueCards | null = null;
+  const dueWaiting = () => dueCards?.state().mode === 'start';
+  const panel = createTimerPanel(ctx, { plant: (opener) => openPlanting(opener), dueWaiting });
+  const sessions = createSessionList(ctx, { plantAnother: (opener) => openPlanting(opener), dueWaiting });
   const pill = createPill(ctx, {
     start: (opener) => openPlanting(opener),
     jump: () => void jumpToControls(),
@@ -233,7 +242,6 @@ export function createUI(deps: UIDeps): UI {
   // ── scheduled sessions: the calendar, its editor, the waiting card (ADRs 0173–0177) ─────────
   let calendar: Calendar | null = null;
   let scheduleSheet: ScheduleSheet | null = null;
-  let dueCards: DueCards | null = null;
   const offSchedules: Array<() => void> = [];
   if (deps.schedules) {
     const scheduler = deps.schedules;
@@ -260,6 +268,56 @@ export function createUI(deps: UIDeps): UI {
     );
   }
 
+  // ── the pill steps aside while the dock's Study controls are on screen (ADR 0203) ──────────
+  let pillAside = false;
+  function syncPillInert(): void {
+    pill.el.inert = mode === 'placement' || pillAside;
+    if (dueCards) dueCards.slip.inert = pillAside;
+  }
+  const asideObserver =
+    typeof IntersectionObserver === 'function'
+      ? new IntersectionObserver(
+          (entries) => {
+            const on = entries.some((e) => e.isIntersecting);
+            if (on === pillAside) return;
+            pillAside = on;
+            root.classList.toggle('pill-aside', on);
+            syncPillInert();
+            ctx.changed();
+          },
+          // the controls count as on screen once they are clear of the window's lower edge
+          { rootMargin: '0px 0px -12% 0px' },
+        )
+      : null;
+
+  // ── guidance: a helper line under each heading, following the state (ADR 0201) ─────────────
+  function queueGuide(): void {
+    if (guideQueued) return;
+    guideQueued = true;
+    queueMicrotask(syncGuide);
+  }
+  function syncGuide(): void {
+    guideQueued = false;
+    if (disposed) return;
+    const st = controller.status();
+    const view = calendar?.el.dataset.view;
+    const lines = guideLines({
+      panel: panel.view(),
+      confirming: panel.confirm() !== null,
+      due: dueCards?.state().mode ?? null,
+      sessions: st.sessions.length,
+      watered: !!st.timeline?.watered,
+      plant: plantView.state().mode,
+      calendar: view === 'day' || view === 'week' || view === 'month' ? view : null,
+    });
+    dock.get('session')?.setHelper(lines.session);
+    dock.get('plant')?.setHelper(lines.plant);
+    dock.get('calendar')?.setHelper(lines.calendar);
+    dock.get('tools')?.setHelper(lines.tools);
+  }
+
+  const studyBody = dock.get('session')?.body;
+  if (studyBody) asideObserver?.observe(studyBody);
   const scrollbar = createScrollbar(scroller, { delay: (ms) => ctx.delay(ms) });
   const offDock = dock.onChange(() => scrollbar.update());
 
@@ -292,6 +350,8 @@ export function createUI(deps: UIDeps): UI {
   if (dueCards) stage.layer.append(dueCards.slip);
   if (stageCamera && plantCard) stage.layer.append(stageCamera.controls, plantCard.el);
   stageEl.after(dock.el);
+  // the guiding path from the garden's stepping stones through the sections (ADR 0202)
+  const wayfinding = createWayfinding({ dock, stage: stageEl, viewport: () => deps.viewport(), reducedMotion: deps.reducedMotion });
   root.append(tips.el, scrollbar.el, live, planting.el, herbarium.el, data.el, hints.el);
   if (scheduleSheet) root.append(scheduleSheet.el);
   root.dataset.mode = mode;
@@ -391,12 +451,12 @@ export function createUI(deps: UIDeps): UI {
       placement.close();
       ctx.setMode('garden');
     }
+    dueCards?.render();
     panel.render();
     sessions.render();
     pill.render();
     plantView.render();
     tools.render();
-    dueCards?.render();
     calendar?.render();
     line.check();
     ctx.changed();
@@ -414,6 +474,7 @@ export function createUI(deps: UIDeps): UI {
     pill.render();
     plantView.render();
     if (panel.view() !== before) ctx.changed();
+    else queueGuide();
   });
   const offComplete = bus.on('session:complete', ({ plant }) => {
     const name = deps.getSpecies(plant.speciesId)?.name ?? 'Your plant';
@@ -446,6 +507,7 @@ export function createUI(deps: UIDeps): UI {
     plantView: plantView.state(),
     sessions: sessions.state(),
     pillMore: pill.more(),
+    pillAside,
     confirm: panel.confirm(),
     resting: panel.resting(),
     dialogs: ctx.openDialogs(),
@@ -472,6 +534,7 @@ export function createUI(deps: UIDeps): UI {
       },
     },
     plantView: { water: () => plantView.water(), state: () => plantView.state() },
+    wayfinding: { state: () => wayfinding.state(), layout: () => wayfinding.layout() },
     calendar: calendar
       ? { state: () => calendar!.state(), setView: (v) => calendar!.setView(v), go: (d) => calendar!.go(d) }
       : null,
@@ -502,6 +565,8 @@ export function createUI(deps: UIDeps): UI {
       placement.dispose();
       tools.dispose();
       offDock();
+      asideObserver?.disconnect();
+      wayfinding.dispose();
       scrollbar.dispose();
       scroller.dispose();
       dock.dispose();

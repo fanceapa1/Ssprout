@@ -12,6 +12,7 @@ import type { SpeciesDef } from '../plants/types';
 import type { Camera } from '../render/camera';
 import type { Pt, Rect, Viewport } from '../render/viewport';
 import type { Slot } from '../scene/geometry';
+import type { WayfindingState } from './wayfinding';
 import type { Dock } from './dock';
 import type { PlantViewState } from './plant-section';
 import type { SessionListState } from './session-list';
@@ -151,6 +152,8 @@ export interface UIState {
   sessions: SessionListState;
   /** the pill's "+N": how many other sessions are in progress (0: not shown) */
   pillMore: number;
+  /** the pill (and the planned-session slip) stepped aside: the dock's Study controls are on screen (ADR 0203) */
+  pillAside: boolean;
   /** inline confirmation currently shown in the panel */
   confirm: 'cancel' | null;
   /** the controls on the painting (pill, corner icons) rest while focusing */
@@ -205,6 +208,8 @@ export interface UI {
     /** called whenever markers appear/disappear/move or focus changes */
     subscribe(fn: (h: PlacementHighlight) => void): () => void;
   };
+  /** the guiding path through the dock (ADR 0202): its stops and line, laid out again on demand */
+  readonly wayfinding: { state(): WayfindingState; layout(): void };
   state(): UIState;
   /** Re-read status/state and re-render (the controller ticks once a second anyway). */
   refresh(): void;
