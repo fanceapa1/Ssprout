@@ -107,7 +107,7 @@ that keep resolution-dependent caches watch `detailVersion` and repaint for the 
 | 2 | `waterSurface` | the mirrored daylight sky, water shimmer and glints, reflections (trees, rocks, plants near shore), rain rings, eave drips, water striders, floating leaves | per frame (reflections cached) |
 | 3 | `entities` | depth-sorted (by base y): foreground rocks/tufts from scene (+ rim light), plants (cast shadow, plant, rim light — ADR 0146), ground fauna (birds on rocks, frog, heron) | per frame (sprites cached) |
 | 4 | `air` | bees, butterflies, dragonflies, flying birds, swallows, falling leaves, the watering can | per frame |
-| 5 | `ambience` | sun shafts, rain strokes, mist, light motes | per frame |
+| 5 | `ambience` | the sun's lifted glaze and leaf glints, rain strokes, mist, light motes | per frame |
 | 6 | `lighting` | the daylight light plate: the blended phase plates (grade wash, shadows, crown lights, lamp light) with the moving lights lifted out, a night desaturation glaze (ADRs 0082, 0147); zoomed in, a detail plate with the marks repainted for the view (ADR 0163); the `?dev&slots` overlay | composite rebuilt when the light moves; one blit per frame |
 | 7 | `paper` | static washi grain + vignette over everything (multiply); **screen-fixed**, it does not follow the camera | once per resize |
 
