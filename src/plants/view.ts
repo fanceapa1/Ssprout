@@ -145,7 +145,7 @@ const bedCache = new Map<number, AnyCanvas | null>();
 /** the seed bed's box (units) and the height of its crest, where the seed sits */
 const BED_BOX = { w: 200, h: 84, crest: 30 };
 /** how far (share of the frame) a seed is raised onto its bed */
-const BED_RAISE = 0.17;
+const BED_RAISE = 0.2;
 
 /**
  * A just-planted bed (200 × 84 units), cached per pixel width: a mound of turned soil with a
@@ -164,8 +164,8 @@ function seedBed(px: number): AnyCanvas | null {
     const earth = mix(PIGMENTS.wood, PIGMENTS.stoneWarm, 0.4);
     p.ctx.setTransform(scale, 0, 0, scale, 0, 0);
     // the mound, lit from above: a broad wash, a darker foot, a lighter crest, the furrow
-    p.wash({ cx: 100, cy: 52, rx: 80, ry: 26 }, earth, { rng, opacity: 0.5, edge: 0.5, sharpness: 0.35, centreLift: 0.1, deform: 0.35, granulation: 0.6, fade: { angle: Math.PI / 2, start: 0.55, amount: 0.7, ragged: 0.5 } });
-    p.wash({ cx: 100, cy: 60, rx: 66, ry: 13 }, mix(earth, PIGMENTS.sumi, 0.3), { rng, opacity: 0.32, edge: 0.4, sharpness: 0.3, deform: 0.5, granulation: 0.5 });
+    p.wash({ cx: 100, cy: 52, rx: 80, ry: 26 }, earth, { rng, opacity: 0.42, edge: 0.5, sharpness: 0.35, centreLift: 0.1, deform: 0.35, granulation: 0.6, fade: { angle: Math.PI / 2, start: 0.55, amount: 0.7, ragged: 0.5 } });
+    p.wash({ cx: 100, cy: 60, rx: 66, ry: 13 }, mix(earth, PIGMENTS.sumi, 0.3), { rng, opacity: 0.24, edge: 0.4, sharpness: 0.3, deform: 0.5, granulation: 0.5 });
     p.wash({ cx: 98, cy: 38, rx: 38, ry: 8 }, mix(earth, PIGMENTS.washi, 0.45), { rng, opacity: 0.3, edge: 0.2, sharpness: 0.25, deform: 0.5 });
     p.wash({ cx: 100, cy: BED_BOX.crest + 1, rx: 22, ry: 3.6 }, mix(PIGMENTS.wood, PIGMENTS.sumi, 0.45), { rng, opacity: 0.42, edge: 0.5, sharpness: 0.45, deform: 0.35 });
     p.ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -238,7 +238,7 @@ export function renderPlantView(canvas: AnyCanvas, opts: PlantViewOptions): bool
   const ground = groundWash(gw);
   if (ground) ctx.drawImage(ground, L.baseX - gw / 2, groundY - (gw * 48) / 200 * 0.6, gw, (gw * 48) / 200);
   if (bed > 0) {
-    const bw = Math.min(W * 0.76, H * 1.1);
+    const bw = Math.min(W * 0.66, H);
     const bh = (bw * BED_BOX.h) / BED_BOX.w;
     const img = seedBed(bw);
     if (img) {
