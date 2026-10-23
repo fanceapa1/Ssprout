@@ -21,11 +21,20 @@ export const test = base.extend<{ errors: string[] }>({
 
 export { expect };
 
+/**
+ * `E2E_CLOCK=HH:MM` runs the suite as if the page opened at that local time of day: the dev clock
+ * jumps forward to it (`sprout.advanceTo`) as soon as the page is ready. Use it to prove a spec
+ * does not depend on the hour it runs at (docs/TESTING.md › Conventions): e.g.
+ * `E2E_CLOCK=17:00 npx playwright test tests/e2e/marks.spec.ts`.
+ */
+export const E2E_CLOCK = process.env.E2E_CLOCK?.trim() || null;
+
 /** Open the app with the debug API and wait until every system has initialised. */
 export async function openDev(page: Page, query = ''): Promise<void> {
   await page.goto(`./?dev${query ? `&${query}` : ''}`);
   await page.waitForFunction(() => window.sprout !== undefined);
   await page.evaluate(() => window.sprout!.ready());
+  if (E2E_CLOCK) await page.evaluate((t) => window.sprout!.advanceTo(t), E2E_CLOCK);
 }
 
 /**
