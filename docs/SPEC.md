@@ -260,7 +260,7 @@ is watered (the automatic focus watering and the can in a break, ADR 0182). **Mu
 toggle in the garden's corner and in the dock's Garden tools (one shared state); setting
 remembered.
 
-The **Sound mixer** (corner and Garden tools, ADR 0104) has two collections:
+The **Sound mixer** (corner and Garden tools, ADR 0213) has two collections:
 - **Standard sounds:** soft rain, ocean waves, wind in leaves, distant birds, fireplace,
   café murmur, an original lo-fi loop, white noise and brown noise. One mix follows the listener
   across every scenery.
@@ -277,7 +277,7 @@ The **Sound mixer** (corner and Garden tools, ADR 0104) has two collections:
 
 ## 9. Persistence
 - `localStorage` only (key `studysprout:v1`), versioned schema with migrations: schema v3 adds
-  sound preferences (ADR 0104). The v2 → v3 step preserves every plant, session, schedule and
+  sound preferences (ADR 0213). The v2 → v3 step preserves every plant, session, schedule and
   setting; an absent sound mix keeps the original automatic ambience. A v1 garden chains the
   v1 → v2 step too, with history back-filled from its plants (ADR 0154).
 - Export garden → downloads `study-sprout-garden-YYYY-MM-DD.json`; Import restores (validated).

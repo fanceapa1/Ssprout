@@ -1,6 +1,6 @@
 # ADR 0100 — Procedural audio: pure planner and sound recipes over a thin Web Audio facade
 
-- Status: accepted; amended by ADR 0104 (optional layer routing and additional continuous beds)
+- Status: accepted; amended by ADR 0213 (optional layer routing and additional continuous beds)
 - Date: 2026-10-21
 
 ## Context

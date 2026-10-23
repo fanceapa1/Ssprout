@@ -125,7 +125,7 @@ emits no session event, so the bed changes with the next one.
   "Live soundscape" to cycle off → sun → rain → mist → night through the real controller.
 
 ## Tests
-Personal mixes (ADR 0104): `core/soundscape.test.ts`, `audio/standard-loops.test.ts`, additions
+Personal mixes (ADR 0213): `core/soundscape.test.ts`, `audio/standard-loops.test.ts`, additions
 to `params.test.ts` / `garden-audio.test.ts`, and `tests/e2e/sound-mixer.spec.ts` (including
 real OfflineAudioContext renders, UI persistence, scenery changes, keyboard and narrow phones).
 
@@ -136,7 +136,7 @@ pentatonic phrase), `noise.test.ts` (spectral tilt, seamless loops, decaying IR)
 `garden-audio.test.ts` (controller with a fake backend and manual timers; the parallel-session
 cases run the real session controller and store so events arrive in the app's order).
 
-## Personal sound mixer (ADR 0104)
+## Personal sound mixer (ADR 0213)
 `core/soundscape.ts` is the shared, pure catalogue and preference model. **Standard** has nine
 layers: rain, ocean waves, wind, birds, fireplace, café, lo-fi, white and brown noise. **Scenery**
 uses a registered palette: pond water/leaves/birds/crickets/rain, and a coastal waves/leaves/

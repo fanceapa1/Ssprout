@@ -1,4 +1,4 @@
-# 39 — A sound mix to travel with, and one for each place
+# 40 — A sound mix to travel with, and one for each place
 
 Added a native paper mixer to both Garden tools and the corner menu; the existing speaker
 stays a quick mute shortcut. Standard offers rain, ocean waves, leaves, birds, fireplace, café
@@ -36,12 +36,12 @@ not a recording of people, and lo-fi is an original instrumental loop.
 Integrated the newer active-session audio follower and dock styling from main. The schema is
 v3, following the contributor rule for new persisted shapes; `migrateV2toV3` changes only the
 version. Tests cover v1 chains and v2 gardens with plants, parallel sessions, history and
-schedules, plus an actual browser reload from a v2 save. The devlog is numbered 39 to retain
-the intervening upstream entries.
+schedules, plus an actual browser reload from a v2 save. The devlog is numbered 40 to retain
+the intervening upstream entries, including the taller garden stage.
 
 Validation: typecheck and all 1,378 unit tests passed. All 18 targeted browser checks passed
 serially: the mixer, migration, import/reset, keyboard, 390/320 px layouts, audio levels, studio
 playback/icon sheet, smoke tests and the four rendering checks. The original two-worker Windows
 run hit rendering/timing failures; those same four checks passed serially on both the unchanged
 base and the rebased feature, without changing their thresholds. The full suite runs in PR CI;
-its result is available with the PR checks. ADR 0104 documents the contracts and decisions.
+its result is available with the PR checks. ADR 0213 documents the contracts and decisions.

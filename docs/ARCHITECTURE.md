@@ -256,7 +256,7 @@ export interface GardenState {
   faunaSeen: string[];          // creature ids already announced
   tips: Record<string, 'seen'>; // retired tips
   settings: { muted: boolean; lastGoalMinutes: number; notifications: 'unasked' | 'granted' | 'denied';
-    soundscape?: SoundscapeSettings /* core/soundscape.ts, ADR 0104; absent → original living-garden mix */ };
+    soundscape?: SoundscapeSettings /* core/soundscape.ts, ADR 0213; absent → original living-garden mix */ };
 }
 ```
 `Store` = `{ get(): GardenState; dispatch(action): void; subscribe(fn): unsub }` where
@@ -456,7 +456,7 @@ pinned midday, or the ambience to its own source, without it). Where the light f
 moon discs, stars, cast shadow, rim light — comes from `sky-layout.ts`, so every painted thing
 agrees. Time enters only as the frame's `now`. Details: `docs/systems/daylight.md`.
 
-### Audio (`src/audio/`, ADRs 0100–0104)
+### Audio (`src/audio/`, ADRs 0100–0103, 0213)
 `createGardenAudio({ bus, getState, clock, scenery? /* default pond */ })` → `{ unlock(), setMuted(), isMuted(), setWeather(),
 setActivity(), setFauna(), setTimeOfDay(), getScenery(), setScenery(id), onSceneryChange(fn),
 playBloom(), playComplete(), playPour(), dispose() }`. Muted by
@@ -466,7 +466,7 @@ default; it follows `settings:changed` and the session/plant/fauna events on the
 `core/soundscape.ts` owns `SoundLayer`, `SoundLevels` (0–100), `SceneryId`, `SCENERIES` and
 `SoundscapeSettings = { collection: 'standard'|'scenery', volume: number, standard: SoundLevels,
 sceneries: Partial<Record<SceneryId, { mode: 'garden'|'custom', levels: SoundLevels }>> }`.
-Preferences are optional in schema v3 (ADR 0104). `migrateV2toV3` changes only the version,
+Preferences are optional in schema v3 (ADR 0213). `migrateV2toV3` changes only the version,
 preserving the original automatic mix and mute choice; v1 gardens chain both migrations.
 The reducer validates
 and copies them, persistence validates imports, and mixer edits use `controller.updateSettings`.

@@ -1,6 +1,6 @@
 # ADR 0101 — Audio gating: muted by default, gesture unlock, 2 s fades, suspend when muted
 
-- Status: accepted; amended by ADR 0104 (user-selected overall volume scales the gated master)
+- Status: accepted; amended by ADR 0213 (user-selected overall volume scales the gated master)
 - Date: 2026-10-21
 
 ## Context

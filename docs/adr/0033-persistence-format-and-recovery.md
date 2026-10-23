@@ -1,6 +1,6 @@
 # ADR 0033 — Persistence: one stable key, versioned documents, back up rather than lose
 
-- Status: accepted; amended by ADR 0154 (v1 → v2) and ADR 0104 (v2 → v3)
+- Status: accepted; amended by ADR 0154 (v1 → v2) and ADR 0213 (v2 → v3)
 - Date: 2026-10-21
 
 ## Context

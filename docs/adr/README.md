@@ -35,7 +35,7 @@ commit, and when it replaces or changes an earlier decision, update that ADR's S
 | [0030](0030-reducer-validates-with-injected-world.md) | Reducer validates with an injected world | accepted; amended by 0036 | Invalid actions are no-ops returning the same reference; tier/slot checks via `ReducerWorld` |
 | [0031](0031-offer-generation.md) | Reward offer generation | **superseded** by 0003/0036 | The old 3-species end-of-session offer (removed) |
 | [0032](0032-session-controller.md) | Session controller is the single UI API | accepted; API revised by 0036, 0150 | Only dispatcher of session actions; injectable ticker; completes due sessions on boot |
-| [0033](0033-persistence-format-and-recovery.md) | Persistence format and recovery | accepted; amended by 0154, 0104 | Stable key, chained migrations through v3, corrupt data backed up, 300 ms debounced saves |
+| [0033](0033-persistence-format-and-recovery.md) | Persistence format and recovery | accepted; amended by 0154, 0213 | Stable key, chained migrations through v3, corrupt data backed up, 300 ms debounced saves |
 | [0034](0034-hand-written-validation.md) | Hand-written validation | accepted; amended by 0036 | Lenient on missing keys, strict on types; unknown species kept and flagged |
 | [0035](0035-dev-clock-jump.md) | Dev clock jump | accepted | `advance(ms)`; dev break/complete helpers jump time, then `check()` |
 | [0036](0036-plan-based-sessions-in-core.md) | Plan-based sessions in core | accepted; amended by 0150 | Plans, plan position, growth = focus fraction, water/skip, block events |
@@ -74,11 +74,10 @@ commit, and when it replaces or changes an earlier decision, update that ADR's S
 | [0092](0092-notifications-only-service-worker.md) | Notifications-only service worker | accepted | `public/sw.js` handles clicks only |
 | [0093](0093-floating-card-dom-over-canvas.md) | Floating card: DOM over canvas | accepted; amended by 0157 | `mountCard(window)`, `HostOpener`, `WidgetController` |
 | [0094](0094-plant-view-seam.md) | Plant view seam | accepted; internals replaced by 0118; amended by 0189 | Fixed `renderPlantView` signature for widget and previews |
-| [0100](0100-procedural-audio-as-data.md) | Procedural audio as data | accepted; amended by 0104 | Pure planner and recipes over a thin Web Audio backend, optional layer routing and additional continuous beds |
-| [0101](0101-audio-gating-and-fades.md) | Audio gating and fades | accepted; amended by 0104 | Muted by default, gesture unlock, 2 s fades scaled by overall volume, suspend when muted |
+| [0100](0100-procedural-audio-as-data.md) | Procedural audio as data | accepted; amended by 0213 | Pure planner and recipes over a thin Web Audio backend, optional layer routing and additional continuous beds |
+| [0101](0101-audio-gating-and-fades.md) | Audio gating and fades | accepted; amended by 0213 | Muted by default, gesture unlock, 2 s fades scaled by overall volume, suspend when muted |
 | [0102](0102-audio-clock.md) | Audio clock | accepted | Scheduling on the AudioContext clock; `Clock` only gives the hour |
 | [0103](0103-audio-levels.md) | Audio levels | accepted | Gains ≤ 0.12, master 0.8, compressor; chimes outside the mist filter |
-| [0104](0104-standard-and-scenery-sound-mixes.md) | Standard and scenery sound mixes | accepted | One Standard mix across places, one mix per scenery, reversible Follow the garden; validated local preferences; quiet synthesized beds and an accessible paper mixer |
 | [0110](0110-growth-steps-cross-fade-and-morph.md) | Growth steps: cross-fade and morph | accepted | 24 growth steps; neighbour cross-fade with a clamped morph |
 | [0111](0111-sprites-painted-in-workers.md) | Sprites painted in workers | accepted; amended by 0187 | Priority queue, up to 2 module workers, idle-callback fallback |
 | [0112](0112-sprite-lru-and-resolution-buckets.md) | Sprite LRU and resolution buckets | accepted; amended by 0165 | Quarter-octave buckets; byte-budgeted LRU |
@@ -165,3 +164,4 @@ commit, and when it replaces or changes an earlier decision, update that ADR's S
 | [0210](0210-day-timeline-on-the-wall-clock.md) | The day timeline is a 24-hour wall-clock face | accepted | Hours, the now line, blocks, the opening window and following all count local wall minutes; a 23 or 25 h day keeps 24 rows; the skipped spring hour is an empty band; both passes of the repeated autumn hour fold onto one band and are laid out side by side |
 | [0211](0211-a-small-x-to-dismiss-a-tip.md) | A small × to dismiss a tip | accepted | Every tip note has a small inked × (a real button, 32 px target inside the slip): it or Esc in the note retires the tip as `dismissed` (stored as `'seen'`, no schema change), focus returns to its control, the next tip waits for the fade; Tab is threaded from the control to its × |
 | [0212](0212-a-taller-garden-stage.md) | A taller garden stage | accepted | The stage is 94svh (was 88): landscape screens show more sky above the hills; phones get the same garden on a taller stage |
+| [0213](0213-standard-and-scenery-sound-mixes.md) | Standard and scenery sound mixes | accepted | One Standard mix across places, one mix per scenery, reversible Follow the garden; validated local preferences; quiet synthesized beds and an accessible paper mixer |

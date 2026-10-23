@@ -246,7 +246,7 @@ const controller = createSessionController({
 ## Persistence (`persistence.ts`)
 
 - Key **`studysprout:v1`** (stable forever); the document's `version` drives migrations. Schema
-  `version: 3` adds optional sound preferences (ADR 0104); absent preferences retain the original
+  `version: 3` adds optional sound preferences (ADR 0213); absent preferences retain the original
   automatic mix. The v2 fields remain: `waiting`, `log`, `focusWaterings` (ADR 0154) and optional
   `schedules` (absent → `[]`, ADR 0170).
 - `loadState(storage, now, { isKnownSpecies })` → `{ state, status, warnings, error?, backupKey? }`,
