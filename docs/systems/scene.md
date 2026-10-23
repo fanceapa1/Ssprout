@@ -15,7 +15,7 @@ Look at it: studio → **Scene · painted garden** (`npm run shots -- --studio s
 | `geometry.ts` | `SceneGeometry` contract types and `gardenScene`: `POND`, `ROCKS`, `PATH`, `PAVILION`, `WATERLINE`, sky band |
 | `slots.ts` | `GARDEN_SLOTS` (52), `perspectiveScale(y)`, `PLANT_SIZES` (canonical plant sizes), `GARDEN_PLANT_SCALE` / `plantScale(slot)` |
 | `layout.ts` | painting-only composition: trees, shrubs, tufts, foreground tufts, hill ridges (not a contract) |
-| `paint-land.ts` | sky, hills, far tree line, banks, path (`PATH_GROUND`), background tufts, pond reserve, paper margins (`marginField`) |
+| `paint-land.ts` | sky, hills, far tree line, banks, path (`PATH_GROUND`), stepping stones, background tufts, pond reserve, paper margins (`marginField`, `MARGIN`) |
 | `paint-ground.ts` | the meadow's close-up texture: wet-in-wet patches with back-runs and granulation, sparse grass strokes, from a world-anchored cell grid (ADR 0186) |
 | `paint-pond.ts` | water body, static reflections, water detail (sky band, ripples, far-shore ink) |
 | `paint-trees.ts` | trees (stems, limbs, twigs, cloud pads) and shrubs |
@@ -27,10 +27,11 @@ Look at it: studio → **Scene · painted garden** (`npm run shots -- --studio s
 | `sky-light.ts` | `createSkyLight`: phase plates blended, sun and moon punched out; sky + water composites |
 | `daylight.studio.ts` | studio section `daylight`: each phase and blend over the garden, each plate, the moon |
 | `overlay.ts` | `drawSlotOverlay` (dev) |
-| `system.ts` | `createSceneSystem` (background + entities + water + overlay), `createPaperSystem`, `paintViewFor`, `canReuse` |
-| `debug.ts` | `?dev` hooks: `sprout.slots()`, `sprout.sceneStats()`, `sprout.scenePainted()`, `sprout.skyStats()` |
+| `system.ts` | `createSceneSystem` (background + entities + water + overlay), `createPaperSystem`, `paintViewFor`, `canReuse`, `CUT_FADE` |
+| `debug.ts` | `?dev` hooks: `sprout.slots()`, `sprout.sceneStats()`, `sprout.scenePainted()`, `sprout.skyStats()`, `sprout.sceneDetail()` |
 | `scene.studio.ts` | studio section `scene` |
 | `close-view.studio.ts` | studio section `close-view`: overview vs detail for the meadow, the margin and a trunk |
+| `camera-detail.studio.ts` | studio section `camera-detail`: what a close view's detail adds to the sky (moon, stars) and the light plate (a shrub's sunset shadow), overview vs detail at 3× (ADR 0163) |
 
 ## Composition map (world 1600 × 1000)
 ```
@@ -198,7 +199,9 @@ longest step is still the boulder sprites (~170–200 ms).
 - `margins.test.ts`: the paper margins' field — most at the edge, none in the middle, deeper at the
   bottom corners, a continuous ramp (no step between neighbouring units over 0.03), a wandering front.
 - `paint-ground.test.ts`: meadow marks stay off the water, the path, the engawa and the sky.
-- `tests/e2e/close-view.spec.ts`: no seams across the old margin bands at a pinned 2× view, sunset and night.
+- `tests/e2e/close-view.spec.ts`: no seams across the old margin bands at a pinned 2× view, sunset and night;
+  no hard line where the sky plate ends (world y 500) at 3× on the meadow, at night and in the
+  sunset→night and night→sunrise blends (ADR 0206).
 - `sky-light.test.ts`: blend order (exact convex mix), recompose key, sky band, water opacity.
 - `tests/e2e/scene.spec.ts`: painted (a pale clear midday sky, celadon pond, many colours), 50–60
   slots across all habitats, `?dev&slots` overlay, rescale vs repaint on resize.

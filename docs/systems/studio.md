@@ -39,12 +39,39 @@ Contract: fill `canvas.width × canvas.height` pixels; the studio resets the tra
 clears to transparent before every call. Use `seed` for all randomness so **Reseed** shows
 variety. `t`/`dt` are scaled by the speed slider; `frame` counts renders since the last reset.
 
-Suggested `order` ranges: 0–99 paint primitives, 100–199 scene, 200–299 plants,
-300–399 fauna, 400–499 ambience/lighting, 500+ UI/widget.
+Suggested `order` ranges: 0–99 paint primitives (60–62: the camera and the landscape's close
+views), 100–199 scene, 200–299 plants, 300–399 fauna, 400–499 ambience/lighting, 500–599
+UI/widget, 600+ audio.
 
-Every species gets a section automatically (`src/plants/species.studio.ts`): all growth stages
-`0.1 / 0.3 / 0.55 / 0.8 / 1` plus an animated grow loop. Species files themselves must not be
-named `*.studio.ts` inside `species/` (the registry ignores them).
+Every species gets a section automatically (`src/plants/species.studio.ts`): `species-<id>`,
+titled `T<tier> · <name>`, order `200 + tier`, all growth stages `0.1 / 0.3 / 0.55 / 0.8 / 1`
+plus an animated grow loop. Species files themselves must not be named `*.studio.ts` inside
+`species/` (the registry ignores them).
+
+Where the sections live today:
+
+| File | Sections (`order`) |
+|---|---|
+| `src/paint/paint.studio.ts` | `paint`, `paint-recipes`, `paint-vignettes` (10–30) |
+| `src/render/camera.studio.ts` | `camera` (60) |
+| `src/scene/camera-detail.studio.ts` | `camera-detail` (61) |
+| `src/scene/close-view.studio.ts` | `close-view` (62) |
+| `src/scene/scene.studio.ts` | `scene` (100) |
+| `src/scene/daylight.studio.ts` | `daylight` (105) |
+| `src/plants/species.studio.ts` | `species-<id>` (200 + tier) |
+| `src/plants/lib/small-review.studio.ts`, `tree-review.studio.ts` | `plants-a-review`, `plants-trees` (205) |
+| `src/plants/plants.studio.ts` | `plants-watering`, `plants-wither`, `plants-growth`, `plants-reflection` (250–253) |
+| `src/plants/close-view.studio.ts` | `close-view-plants` (262) |
+| `src/plants/lib/shrub-gallery.studio.ts` | `shrubs-b` (290) |
+| `src/fauna/fauna.studio.ts` | `fauna-garden` (300), `fauna-<kind>` (310+) |
+| `src/fauna/close-view.studio.ts` | `close-view-fauna` (362) |
+| `src/ambience/ambience.studio.ts` | `ambience-weather`, `ambience-motes`, `ambience-lighting` (400–402) |
+| `src/widget/widget.studio.ts` | `widget` (510) |
+| `src/ui/ui.studio.ts` | `ui` (520) |
+| `src/ui/shell.studio.ts` | `ui-shell` (521) |
+| `src/ui/stage-camera.studio.ts` | `ui-camera` (522) |
+| `src/ui/calendar.studio.ts`, `wayfinding.studio.ts` | `calendar`, `ui-wayfinding` (523) |
+| `src/audio/audio.studio.ts` | `audio` (650) |
 
 ## Lazy painting (ADR 0006)
 Cards paint only when they near the screen, a few per frame within a 10 ms budget (on-screen
@@ -74,5 +101,7 @@ npm run shots -- --entry scene/full --seed 7 --t 2.5
 `tests/e2e/studio.spec.ts`: the nav lists every section (scene and species included); every
 entry renders without errors and paints something, split into 4 parallel shards that show one
 `#section` at a time; reseed re-renders; `#section` and `?entry` views work; the whole studio paints only cards near the screen and the rest on scroll (lazy painting); `?seed`/`?t` start
-paused, Play animates, Pause holds the frame; speed, background and scale controls.
+paused, Play animates, Pause holds the frame; speed, background and scale controls; the plant
+view's round window (`ui-shell/plant-view-window`) is round with a pooled rim and lost at the
+bottom (ADR 0184).
 `src/studio/registry.test.ts`: discovery, ordering, id validation, entry lookup.

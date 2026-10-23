@@ -6,7 +6,8 @@ placement highlight, and the shared `renderPlantView` used by the widget and the
 Species themselves (`species/*.ts`, `lib/*`) only paint; see `types.ts` and ARCHITECTURE › Species.
 
 Look at it: studio sections **Plants · watering**, **· wither**, **· growth timelapse**,
-**· reflections & placement** (`npm run shots -- --studio plants-watering --t 1.6`).
+**· reflections & placement**, and **Close view · a plant** (`close-view-plants`, ADR 0187)
+(`npm run shots -- --studio plants-watering --t 1.6`).
 
 | File | What |
 |---|---|
@@ -18,11 +19,15 @@ Look at it: studio sections **Plants · watering**, **· wither**, **· growth t
 | `wither.ts` | wither timeline, ochre pixel pass, `drawWithering` |
 | `reflection.ts` | shoreline axis maths, cached reflection images, wavering draw |
 | `highlight.ts` | placement dabs and their breathing; the `PlacementSource` shape |
+| `shadow.ts` | the cast-shadow blot (`shadowBlot`), `shadowBox`, `drawPlantShadow` (ADR 0146) |
 | `bounds.ts` | `plantWorldBounds` / `plantWorldEdges` — world box of a placed plant |
-| `view.ts` | `renderPlantView` (widget, previews, studio; returns `false` for an unknown species or no 2D context), `plantLayout`, `setPlantViewSpecies` |
+| `hit-test.ts` | painted-pixel hit-testing: per-bitmap alpha masks (`MASK_CELLS`, `HIT_ALPHA`) (ADR 0166) |
+| `notes.ts` | `SPECIES_NOTES` / `speciesNote` — the plant card's note per species (ADR 0167) |
+| `view.ts` | `renderPlantView` (widget, previews, studio; returns `false` for an unknown species or no 2D context), `plantLayout`, `growthZoom`, `seedBedAlpha`, `setPlantViewSpecies` |
 | `wind-adapter.ts` | the garden wind for sway: `src/ambience/wind.ts`'s `wind`/`windBoost` (picked up by glob; a local `createFallbackWind` stays as a stand-in if that module is absent) |
 | `debug.ts` | `window.sprout.plants` (?dev) |
 | `plants.studio.ts` | studio sections |
+| `close-view.studio.ts` | studio: a plant over the hill line, overview sprite vs close sprite (ADR 0187) |
 | `registry.ts` | auto-discovery of `species/<id>.ts` (file name = id): `getSpecies`, `allSpecies`, `speciesByTier`, `buildRegistry` |
 | `types.ts` | `SpeciesDef`, `Tier`, `Habitat`, `SizeClass`, `TIERS`, `HABITATS`, `SIZE_CLASSES` |
 | `species.studio.ts` | one studio section per registered species (`GROWTH_STAGES` + grow loop) |
@@ -103,7 +108,8 @@ store (plants, session) ──sync──▶ records ──requests──▶ spri
 ## Motion
 - **Sway** (ADR 0113): `wind(t, x, y, boost)` → a horizontal skew about the base.
   Lean at the top = `amp × (sway + 0.18·gust·flutter)`; `amp` small 0.06 · medium 0.045 ·
-  large 0.03 · tree 0.016 (fraction of height). Large plants and trees **bend** (`bend` 1.6 / 2.4:
+  large 0.03 · tree 0.016 (fraction of height). Medium and large plants and trees **bend** (`bend`
+1.25 / 1.6 / 2.4:
   displacement ∝ heightᵇ) drawn as 6 slices with piecewise-linear skews that meet at every seam and
   clip bands snapped to device rows — the trunk stays, the crown moves, no seams. `boost` is
   `windBoost(phase)` (focus 1, break 0.5), so plants sway a touch more during sessions.
@@ -175,8 +181,10 @@ the plants; the focused (else selected) slot shows a **ghost** of the species at
 ## Plant view (ADR 0118)
 `renderPlantView(canvas, { speciesId, seed, growth, watering, wilt?, framing? })`.
 Contains the species (base bottom centre) — or, with `framing: 'growth'`, what has grown so far,
-enlarged about its base up to `MAX_GROWTH_ZOOM` (4×; `growthZoom`, the "Growing now" thumbnails,
-ADR 0189) — a soft ground wash, the morphing cross-fade between
+enlarged about its base up to `MAX_GROWTH_ZOOM` (8×; `growthZoom`; "Your plant" and the "Growing
+now" thumbnails, ADR 0189); below growth 0.2 a seed painted as a flat dab is raised onto a small
+mound of soil that eases away by its first leaves (`seedBedAlpha`, `SEED_BED_START` 0.06 →
+`SEED_BED_END` 0.2; not for water plants) — a soft ground wash, the morphing cross-fade between
 the two nearest of 24 steps (lower step painted synchronously on first use, upper step queued for
 idle time and faded in once ready), damp soil + the can + droplets for `watering` (the rig is
 kept inside the canvas with `fitRigToCanvas`, and the can fades by its share inside the frame,
@@ -223,7 +231,8 @@ growth or blooms; use it before a screenshot (`sprout.addPlants(25); await sprou
 seedling) [growth, shown, lo, hi, weight, drawn], seedlings (every session in progress: id, slot,
 growth, shown, active, calm, drawn), withering, watering [progress, wet, active, sessionId], displaced, reflections,
 highlight, cache stats), `settle()` (snap growth/fades, paint what is needed, resolve when idle),
-`whenIdle()`, `bounds(id)`, `boundsFor(speciesId, slotId)`, `toDevice(rect)`, `perf()`,
+`whenIdle()`, `bounds(id)`, `boundsFor(speciesId, slotId)`, `toDevice(rect)`,
+`hitTest(world, tolerance?)`, `perf()`,
 `resetPerf()`, `ambienceWind()`.
 
 ## Tests
@@ -232,7 +241,8 @@ bounds, LRU budget/epoch/best, scheduling, workers incl. fallback and death), `d
 `watering.test.ts`, `wither.test.ts`, `reflection.test.ts`, `system.test.ts` (drawables, sizing,
 growth + look-ahead, easing, displacement, wither, watering, bloom, bounds, reflections,
 highlight, 50-plant budget, plantsReady waits for the store change, sprites and fade-in, "finished plants sway with the wind, and hold still under reduced
-motion"), `shadow.test.ts` (cast shadow length, side, pool), `view.test.ts`, `registry.test.ts` (discovery, well-formed species, tiers, id/file
+motion"), `shadow.test.ts` (cast shadow length, side, pool), `view.test.ts`, `hit-test.test.ts`,
+`notes.test.ts`, `registry.test.ts` (discovery, well-formed species, tiers, id/file
 match), `plantable.test.ts`. E2E: `tests/e2e/plants.spec.ts` (watering, wither, bloom + reload,
 reflection, placement highlight, bounds + budget; the growth test runs in a reduced-motion block
 with the light pinned to noon).

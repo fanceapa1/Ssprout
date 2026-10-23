@@ -18,19 +18,19 @@ npm run shots -- --entry plants-a-review/strip-balloon-flower --seed 3
 
 | id | name · native | tier | habitats | size (w×h) · anchor | bloom colour | pollinators | signature |
 |---|---|---|---|---|---|---|---|
-| `violet` | Violet · Sumire | 1 | meadow, path, rock | 86×86 · .5/.9 | `#6f5f9f` | yes | heart leaves on stalks; hooked stems; 5 petals, pale veined lip |
-| `white-clover` | White Clover · Shirotsumekusa | 1 | meadow, path | 86×86 · .5/.88 | `#f4f0e4` | yes | trifoliate leaves on runners; ball heads, old florets droop blush |
-| `forget-me-not` | Forget-me-not · Wasurenagusa | 1 | shore, meadow | 86×86 · .5/.88 | `#93a9d6` | yes | curled sprays, open from the bottom, pink buds at the tip |
-| `wild-strawberry` | Wild Strawberry · No-ichigo | 1 | meadow, path, rock | 86×86 · .5/.86 | `#f6f1e6` | yes | toothed trifoliate leaves, runner + plantlet, white flowers, a berry |
-| `dandelion` | Dandelion · Tanpopo | 1 | meadow, path | 86×86 · .5/.88 | `#dfbe5c` | yes | runcinate rosette; ringed gold heads; 40 % of seeds hold a seed clock |
-| `maidenhair-fern` | Maidenhair Fern · Kujakushida | 1 | rock, shore | 70×70 · .5/.88 | `#a8b47e` | no | near-black wiry stipes, fan leaflets in tiers; fiddleheads uncurl |
-| `japanese-iris` | Japanese Iris · Hanashōbu | 2 | shore | 120×160 · .5/.94 | `#7b6ba8` | yes | sword-leaf fan; 3 broad falls with gold signal + veins, small standards; 4 colourways |
-| `anemone` | Anemone · Shūmeigiku | 2 | meadow, path | 120×160 · .5/.94 | `#f6f0ea` | yes | cut-leaf mound, tall wiry stems with a ruff; white/blush with dark eye, or pink with gold |
-| `balloon-flower` | Balloon Flower · Kikyō | 2 | meadow, path | 120×160 · .5/.94 | `#7d84bd` | yes | five-seamed balloon buds that split into veined blue-violet stars; top buds stay balloons |
-| `cosmos` | Cosmos · Kosumosu | 2 | meadow, back | 120×160 · .5/.94 | `#e8a7a9` | yes | feathery thread leaves; 8 petals; pink / blush / white / rose |
-| `spider-lily` | Red Spider Lily · Higanbana | 2 | meadow, shore | 120×160 · .5/.94 | `#c0573f` | yes | bare scapes; umbels of recurved petals and long stamens; muted red only in the heads |
-| `water-lily` | Water Lily · Suiren | 2 | water | 130×80 · .5/.62 | `#f4e6e4` | yes | slit pads in perspective (squash 0.36), cupped white or pink flowers on the surface |
-| `susuki-grass` | Silver Grass · Susuki | 2 | back, meadow, shore | 120×160 · .5/.94 | `#cdbfa6` | no | arching fountain with pale midribs; russet spikes open into silver tassels downwind |
+| `violet` | Violet · Sumire | 1 | meadow, path, rock | 86×86 · .5/.9 | `#715aae` | yes | heart leaves on stalks; hooked stems; 5 petals, pale veined lip |
+| `white-clover` | White Clover · Shirotsumekusa | 1 | meadow, path | 86×86 · .5/.88 | `#f5f0e0` | yes | trifoliate leaves on runners; ball heads, old florets droop blush |
+| `forget-me-not` | Forget-me-not · Wasurenagusa | 1 | shore, meadow | 86×86 · .5/.88 | `#8ca9e3` | yes | curled sprays, open from the bottom, pink buds at the tip |
+| `wild-strawberry` | Wild Strawberry · No-ichigo | 1 | meadow, path, rock | 86×86 · .5/.86 | `#f7f1e3` | yes | toothed trifoliate leaves, runner + plantlet, white flowers, a berry |
+| `dandelion` | Dandelion · Tanpopo | 1 | meadow, path | 86×86 · .5/.88 | `#e8bc1f` | yes | runcinate rosette; ringed gold heads; 40 % of seeds hold a seed clock |
+| `maidenhair-fern` | Maidenhair Fern · Kujakushida | 1 | rock, shore | 70×70 · .5/.88 | `#a7b66e` | no | near-black wiry stipes, fan leaflets in tiers; fiddleheads uncurl |
+| `japanese-iris` | Japanese Iris · Hanashōbu | 2 | shore | 120×160 · .5/.94 | `#7d66b6` | yes | sword-leaf fan; 3 broad falls with gold signal + veins, small standards; 4 colourways |
+| `anemone` | Anemone · Shūmeigiku | 2 | meadow, path | 120×160 · .5/.94 | `#f7f0e8` | yes | cut-leaf mound, tall wiry stems with a ruff; white/blush with dark eye, or pink with gold |
+| `balloon-flower` | Balloon Flower · Kikyō | 2 | meadow, path | 120×160 · .5/.94 | `#7a82cc` | yes | five-seamed balloon buds that split into veined blue-violet stars; top buds stay balloons |
+| `cosmos` | Cosmos · Kosumosu | 2 | meadow, back | 120×160 · .5/.94 | `#f4a0a4` | yes | feathery thread leaves; 8 petals; pink / blush / white / rose |
+| `spider-lily` | Red Spider Lily · Higanbana | 2 | meadow, shore | 120×160 · .5/.94 | `#c94d33` | yes | bare scapes; umbels of recurved petals and long stamens; muted red only in the heads |
+| `water-lily` | Water Lily · Suiren | 2 | water | 130×80 · .5/.62 | `#f7e5e2` | yes | slit pads in perspective (squash 0.36), cupped white or pink flowers on the surface |
+| `susuki-grass` | Silver Grass · Susuki | 2 | back, meadow, shore | 120×160 · .5/.94 | `#d1be9e` | no | arching fountain with pale midribs; russet spikes open into silver tassels downwind |
 
 Medium sprites share the 120×160 box except the water lily, which is wide and flat (it lies on
 the water; anchor = the centre of its pad group on the surface). The five tier-1 flowers use
@@ -77,7 +77,8 @@ straighten/nod), `pointAt`, `subPath`, `pathLen`, `arc`, `add`, `lerpAngle`, `pe
 from the closed bud direction to its foreshortened open direction).
 
 `small-paint.ts` —
-- `plantFrame(p, def, opts)` sets world units with the base at the anchor (returns restore).
+- `plantFrame(p, def, opts, design?)` sets world units with the base at the anchor (returns
+  restore); `design` is the box the species is drawn in (default `def.size`).
 - `groundShadow`, `seedMound`.
 - `paintStem` (tapered stroke + optional broken ink over part of it), `paintLeaf` (dab with
   pooled shaded flank, cool shadow glaze, optional ink midrib; `k` unfurls it, `fold` swings it
@@ -88,6 +89,9 @@ from the closed bud direction to its foreshortened open direction).
   petals are painted source-over), `petalFlower` (radial flower in perspective, back to front),
   `paintBud` (body greens → colour, merged sepals), `bloom` (bud → flower dissolve),
   `smallBlossom` (tiny flower in one layer — forget-me-not), `stamens`.
+
+`small-size.ts` — `SMALL_SIZE` (86, the garden box of the tier-1 flowers) and `SMALL_DESIGN`
+(70×70, the box they are drawn in). `small-species-list.ts` — `SPECIES_A` by tier.
 
 `small-recorder.ts` — `recordingPainter()` for node tests: logs every engine call with rng
 streams replaced by seeds, back-fills layer opacity onto `dabInto` marks; `callNumbers`,

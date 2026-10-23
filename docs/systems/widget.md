@@ -12,7 +12,7 @@ plant for the card.
 | `contract.ts` | `WidgetController` / `WidgetStatus` / `WidgetBus`: the slice of core the widget uses (ADR 0003 API) |
 | `ticker.ts` | `createWorkerTicker()`: `Ticker` backed by an inline Blob worker, `setInterval` fallback (ADR 0090) |
 | `title.ts` | `titleFor()`: pure title text |
-| `favicon.ts` | `faviconModel()` / `faviconKey()` / `drawFavicon()`: quantised brush-ring icon |
+| `favicon.ts` | `faviconModel()` / `faviconKey()` / `drawFavicon()` / `faviconDataUrl()`: quantised brush-ring icon |
 | `tab.ts` | `createTabSurfaces()`: applies title + icon, remembers an unseen bloom, restores on dispose |
 | `notifications.ts` | policy (`decideNotification`, `reconcileSetting`, `shouldAsk`), `createNotifier`, browser env (ADRs 0091, 0092) |
 | `view.ts` | `widgetView(status)`: pure card model (mode, task, times, state line, segments, buttons) |
@@ -53,7 +53,7 @@ active, lastLeft? }`, ADR 0150) with
 and `session = { id, taskName, plan: { id, name, blocks }, speciesId, seed }`; `onTick`, `pause`, `resume`,
 `water`, `skipBreak`, `switchTo?(id)` (optional: without it the card offers no switch), `setTicker`,
 `updateSettings`. Bus events used: `session:start | break | focus | water | complete | cancel |
-switch` (payloads read defensively; `sessionId` used when present).
+switch` and `schedule:due` (payloads read defensively; `sessionId` used when present).
 
 **Several sessions** (ADRs 0150, 0157): every surface follows the **active** session — the title and
 favicon, the notifications (only the active session has breaks, focus blocks and completions) and
@@ -94,16 +94,19 @@ restores title, href and type.
   for unknown species;
 - task name (italic), time left in the block (Shippori Mincho numerals), a thin brush progress
   line with plan segments (breaks are gaps holding a water drop), one state line
-  (`focus 1 of 2 · 52:10 in all`, `Break — your Japanese Iris is thirsty`, `paused`,
+  (`focus 1 of 2 · 52:10 in all`, `growing quietly` for a plan with one focus block,
+  `Break — your Japanese Iris is thirsty`, `Watered — your Japanese Iris is resting`, `paused`,
   `Your Japanese Iris has bloomed — return to your garden`, `No session running`);
 - buttons: Pause / Resume, and **Switch** when another session is in progress (focus or paused;
   not in breaks, where the row is full): it makes the next session in start order active
   (`controller.switchTo`), cycling through all of them; with none active the idle card says who is
   waiting ("“Essay” is waiting" / "2 sessions are waiting") and offers **Resume** on the one left
-  last — it never resumes on its own (ADR 0152); in breaks **Water** (vermilion seal, `controller.water()` + a 2.5 s
+  last — it never resumes on its own (ADR 0152), beside **Open garden**; in breaks **Water** (the
+  primary, a small tilted vermilion square before the word; `controller.water()` + a 2.5 s
   watering animation, also played on every `session:water` — from the garden, and the automatic
   focus watering every 4–10 focused minutes, ADR 0153 — with nothing to tap), **Skip break**, Pause;
-  after completion **Open garden** (focuses the opener — best effort — and closes the widget).
+  after completion **Open garden** (focuses the opener — best effort — and closes the widget; on
+  the idle card it only focuses the opener).
 
 Updates every tick and on store changes; growth eases toward its target (0.6 s), and a freshly
 opened card grows the plant in from seed. Closing the PiP window (`pagehide`) tears down; `open()`
@@ -162,7 +165,8 @@ Policy (ADR 0091):
 - Unit (`src/plants/view.test.ts` for the plant view): `ticker.test.ts` (fake worker, fallback,
   errors, the worker script, driving the real controller), `title.test.ts`, `favicon.test.ts`
   (model + drawing), `tab.test.ts`, `notifications.test.ts` (policy, permission flow, per-moment
-  notifications), `view.test.ts` (view model), `pip.test.ts` (card DOM via `mountCard`, PiP
+  notifications), `view.test.ts` (view model), `card-art.test.ts` (card type sizes, line stacking,
+  `fitStateLine`), `pip.test.ts` (card DOM via `mountCard`, PiP
   open/close/reopen/actions/bloom), `index.test.ts` (integration install/dispose).
 - E2E (`tests/e2e/widget.spec.ts`): worker ticker, title countdown with `?speed=60`, favicon
   changes, pause, `Bloomed` while away, background notification via the SW (stubbed

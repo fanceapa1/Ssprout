@@ -15,6 +15,8 @@ const ui = createUI({
   widget: surfaces.widget,     // WidgetIntegration — optional (floating timer button)
   isKnownSpecies, reducedMotion,
   timeScale,                   // multiplies UI delays (dev `?uitime`); default 1
+  schedules: scheduler,        // Scheduler — optional (Calendar section, waiting card)
+  camera: { camera: renderer.camera, hitTest: (p, tol) => plants.hitTest(p, tol) }, // optional
 });
 plants.connectPlacement(ui.placement);
 ```
@@ -47,10 +49,10 @@ the widget surfaces — the UI then asks in the Begin click itself.
 | `schedule-sheet.ts` | the schedule editor sheet: name, day and time (painted pickers), open-by-default length and plan, repeat; only this one / this and following (ADR 0177) |
 | `pickers.ts` | painted day and time pickers in the calendar's `Intl` formats (ADR 0192): a field that unfolds a month grid or hour / minute / AM-PM chips inline; pure `pickerFormat`, `uses12h`, `dayLabel`, `timeLabel`, `splitTime`, `joinTime`, `stepDay` |
 | `schedule-card.ts` | the waiting card at the top of the Study section and its slip above the pill (ADR 0176) |
-| `calendar.studio.ts` | studio section `calendar`: washes, day / week / month fixtures, the waiting card |
+| `calendar.studio.ts` | studio section `calendar`: washes, day / week / month fixtures, the waiting card, the pickers |
 | `tools.ts` | garden tools, one implementation rendered twice: corner chips (`nav.menu`) and the dock list (`ul.tool-list`) (ADR 0135) |
 | `session-view.ts` | the one adapter from `controller.status()` to what the panel shows |
-| `planting-sheet.ts` | `<dialog>`: task name (≤ 40), total time, recommended plans, plant grid → "Choose a spot" (ADR 0053) |
+| `planting-sheet.ts` | `<dialog>`: task name (≤ 40), total time, recommended plans, plant grid → "Choose a spot" (ADR 0053); `applyPrefill` / `clearPrefill` for a scheduled start (ADR 0173) |
 | `duration.ts` | numeral + slider 10–180/5 + chips 25/50/90 + tier words |
 | `plan-line.ts` | plan as a segmented brush line (focus strokes, water-drop breaks); pure geometry `planSegments`, `xAtMinutes`, `planSummary` |
 | `placement.ts` | markers `button[data-slot-id]` for `controller.placementOptions(speciesId)`, swap markers, Back/Begin bar, `highlight` observable |
@@ -73,14 +75,15 @@ the widget surfaces — the UI then asks in the Begin click itself.
 | `sheet.ts` | `createSheet`: the modal washi `<dialog>` shell for every sheet (planting, schedule, herbarium, garden data, hints); in CSS the backdrop is the page's paper at 0.965, the page is locked while one is open, and `::after` draws the torn edge over the content (ADR 0190) |
 | `types.ts` | `UIDeps`, `UI`, `UIState`, `PlantingDraft`, `PlacementHighlight`, widget/audio/notification integrations |
 | `notifications.ts` | `browserNotifications()`: the Notification API as a `NotificationIntegration` |
-| `ui.studio.ts` | studio section: plant previews at a few growth values, pressed-flower treatment |
-| `shell.studio.ts` | studio section `ui-shell`: icons, corner chips, scrollbar, pill states, plant-view states, the garden's edge |
+| `ui.studio.ts` | studio section `ui`: plant previews at a few growth values, pressed-flower treatment |
+| `shell.studio.ts` | studio section `ui-shell`: icons, the sprout and brush marks, corner chips, scrollbar, pill states and "+N", session thumbnails and rows, plant-view states, the seed bed, the garden's edge |
+| `stage-camera.studio.ts` | studio section `ui-camera`: the zoom chips with "Whole garden", the plant card beside a plant, growing, docked on a phone, and a long docked card cut with its mark |
 | `ui.css` | all UI styles; tokens on `:root` (`--ui-ink`, `--ui-ink-soft`, `--ui-ink-mute`, `--ui-paper`, `--ui-vermilion`, fonts); base 21 px (ADR 0136, checked by `ink.test.ts`) |
 
 ## Page layout
 ```
 #ui (page, .ui-root) ─ section#stage ─ canvas#garden (masked edge)
-                     │                └ .stage-ui: quiet line · plant label · markers · pill · nav.menu · placement bar · zoom chips · plant card
+                     │                └ .stage-ui: quiet line · plant label · markers · pill · nav.menu · placement bar · planned slip · zoom chips · plant card
                      ├ .dock: svg.wayfinding (behind) · Study (waiting cards + controls | sessions in progress) · Your plant · Calendar · Garden tools
                      │        each: header.dock-head (h2 + helper line) · div.dock-body
                      ├ absolute (document coordinates): .tips (ADR 0181)
@@ -103,7 +106,7 @@ the widget surfaces — the UI then asks in the Begin click itself.
   top margin to the lane, down the lane with a stepping stone beside each visible heading. It lays
   out again on dock changes, resizes and content changes. The stone of the section being read is
   darker. It draws in once on first view, never with reduced motion. On phones the line is straight.
-- The pill (ADR 0203): top-left on wide screens, bottom centre on phones; `pill-aside` (fade, inert,
+- The pill (ADR 0203): top-left on wide screens, bottom centre on phones and narrow screens; `pill-aside` (fade, inert,
   with the planned slip) while the Study body is on screen.
 - Session controls exist in the dock; the pill keeps time, pause/resume and the way down. While
   focusing, the pill and the corner tools rest; the dock never fades. Resting is a small step back
@@ -155,7 +158,8 @@ bloom / End ──▶ nothing active: rows offer Resume (the one left last as a 
 `{ mode, panel: 'idle'|'focus'|'break'|'paused'|'longPause', pill (same values), plantView: { mode:
 'growing'|'bloom'|'empty', speciesId, growth, watering, wilting }, sessions: { visible, rows: [{ id,
 taskName, active, running, action: 'switch'|'resume'|null, suggested, totalRemainingMs, growth }],
-limit }, pillMore, confirm, resting, dialogs, tips, markers, line, plantLabel, draft }`.
+limit }, pillMore, pillAside, confirm, resting, dialogs, tips, markers, line, plantLabel, plantCard,
+draft, calendar, due, scheduleSheet }` (the last three are null without a scheduler).
 
 ## Sheets over the page (ADR 0190)
 Every sheet is a `<dialog>` opened with `showModal()` through `ctx.openDialog`. Behind it the page
@@ -164,7 +168,7 @@ grey scrim or a blur. `html.has-sheet` (set by `syncSheetLock` in `index.ts`) hi
 the wheel beside the sheet, PageDown/Space/End and touch do not move the page, and the smooth scroll
 already stands aside while a modal is open. The sheet's own paper scrolls (`overscroll-behavior:
 contain`). The torn edge is drawn by `dialog.sheet::after` from `--slip-dense-edge-*` over the
-content; the planting footer stops 7 px short of it.
+content; the planting footer stops 8 px short of it (6 px on phones).
 
 Keyboard focus never leaves a control under a sheet's sticky parts (Q14). `.sheet-inner` has
 `scroll-padding-block` of the torn edge's clearance (`--sheet-edge-clear`, 14 px, room for the
@@ -186,14 +190,14 @@ no fades.
 ## Tooltips
 Tips come from the core registry (`activeTips(state, ctx)`); the UI only decides placement.
 **One note at a time** (ADR 0124): `pickTips` (format.ts) takes the highest `TIP_PRIORITY`
-(placement, swap, water, task, duration, plan, notifications, switch, widget, pressed, sound) whose control
+(placement, swap, water, task, duration, plan, notifications, switch, widget, pressed, schedule, sound) whose control
 is in view; the rest wait their turn. On first load that is the note by Start studying. A control
 that exists twice (Start studying on the pill and in the dock; the tools in the corner and the dock)
 is resolved to the dock's copy when it is in view, else the one on the garden, so notes follow the
 page as it scrolls (`resolveAnchor` returns candidates, `tips.ts` takes the first visible). Sheet notes
 retire when their control is used (task named, time committed, plan picked); a control in a sheet
 counts as in view only while scrolled into it, and notes follow on scroll. Notes wait while the
-quiet line speaks. `format.ts` also holds `TIP_GROUP` (sheet / panel / menu / garden) and
+quiet line speaks. `format.ts` also holds `TIP_GROUP` (sheet / panel / menu / garden / calendar) and
 `tipSides`. A tip's `anchor` is resolved as `[data-anchor="<anchor>"]` (except `garden`:
 placement bar, or the first swap marker for `swap`). Tips never take pointer events; they retire
 when the controller retires them (or the UI calls `controller.retireTip` for UI-only mechanisms:
@@ -240,7 +244,8 @@ in-canvas highlight of the hovered/selected slot (ADR 0117).
 ## Ambient light
 `main.ts`: once the painting is ready, `ambience.onLight((grade) => applyUiLight(uiRoot, grade))`
 dims the DOM slips and paper dabs with the garden's light (ADR 0121): on the stage the pill,
-placement bar, plant label, the corner chips and their labels, and the tips. The dock is not dimmed:
+placement bar, plant label, the corner chips and their labels, the zoom chips, the plant card, the
+planned slip, and the tips on the painting. The dock is not dimmed:
 it is read on the page, like a sheet.
 
 ## Audio
@@ -255,11 +260,13 @@ it is read on the page, like a sheet.
 `scrollTo(y | sectionId, { instant? })`, `dock()`, `dockReady()`, `waterPlantView()`,
 `onZoomGesture(fn)`, `wayfinding({ layout? })`, `setSectionHidden(id, hidden)`. `ui.state().plantCard` is the open card. The camera's hooks are
 `window.sprout.camera` (docs/systems/camera.md). `window.sprout.advance(ms)` jumps the dev
-clock and refreshes the UI (e.g. into a break or a long pause).
+clock and refreshes the UI (e.g. into a break or a long pause); `window.sprout.advanceTo('HH:MM')`
+jumps it forward to the next local time of day (pins the hour for tests).
 
 ## Tests
 Unit: `dock-guide.test.ts`, `wayfinding-path.test.ts`, `session-list.test.ts`, `format.test.ts`, `plan-line.test.ts`, `plant-labels.test.ts`, `previews.test.ts`,
-`ambient-light.test.ts`, `scroll-math.test.ts`, `dock.test.ts`, `stage-edge.test.ts`, `ink.test.ts`.
+`ambient-light.test.ts`, `scroll-math.test.ts`, `smooth-scroll.test.ts`, `dock.test.ts`, `stage-edge.test.ts`, `ink.test.ts`,
+`tip-place.test.ts`, `plant-card.test.ts`, `pickers.test.ts`, `prefill.test.ts` (calendar: `calendar-model.test.ts`).
 E2E: `tests/e2e/wayfinding.spec.ts` (the spine, the path at desktop and phone, never over text,
 re-layout on section/content/resize changes, the stop being read, helper lines by state, one primary
 per state, the pill stepping aside, hover and focus, the draw-in and reduced motion),
@@ -272,4 +279,8 @@ duplicated tools, Your plant, tips in their new homes), `tests/e2e/ui-session.sp
 swap → herbarium, reload mid-session, keyboard), `ui-menu.spec.ts` (tips + hints, sound persistence,
 widget button, export/import, creature line, resting panel, mobile), `ui-start-flow.spec.ts` (task
 name, total time, plant cards), `session-rules.spec.ts`, `polish.spec.ts` (one tip at a time,
-keyboard focus, `plantsReady`, paper edges, tall phones). Screenshots: `npm run shots -- --query "fixtures" --eval "…"`.
+keyboard focus, `plantsReady`, paper edges, tall phones), `overlays.spec.ts` (sheets on washi, the
+page locked, focus clear of a sheet's sticky parts), `marks.spec.ts` (no round red dot; sprout marks),
+`tips-scroll.spec.ts` (notes ride with the page), `tools-visibility.spec.ts` (tools at rest in every
+light), `plant-card-phone.spec.ts` (long cards on small phones), `v2-acceptance.spec.ts` (one primary
+action, the hover language, the switch tip). Screenshots: `npm run shots -- --query "fixtures" --eval "…"`.

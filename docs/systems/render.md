@@ -104,4 +104,5 @@ caching, depth sort, async init, resize re-init, dt clamping, freeze and error i
 `viewport.test.ts` covers cover scaling, focus clamping, `MIN_VISIBLE_W`, DPR cap and conversions.
 `camera.test.ts` covers composing, clamping and reach, zoom about a point, pan, framing, the glide
 path, easing and durations, and the controller; `renderer.test.ts` the camera's caches.
-Visuals are checked with `npm run shots` and the studio.
+Visuals are checked with `npm run shots` and the studio (`camera.studio.ts`: **Camera ·
+playground**, the view on a map of the garden and the garden through the camera, gliding).

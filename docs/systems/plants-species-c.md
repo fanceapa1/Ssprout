@@ -39,7 +39,7 @@ depends on `growth`. Rendering then reveals the plan:
 functions of `g`.
 Each branch has a growth window `[t0, t1]` in τ; a child's window opens when its parent's growth
 front passes its attach point, so branches unfurl outward. Wisteria uses `minScale: 1` (the
-trellis is full size from the start; only the vine grows).
+trellis is full size from the start; only the vine grows) and `structureEnd: 0.55`.
 
 ## Helpers (`src/plants/lib/`)
 - `tree-structure.ts` — pure: `growLimb` (heading noise, curl, kinks, gravity/phototropism,

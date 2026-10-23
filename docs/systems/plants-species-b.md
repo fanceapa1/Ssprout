@@ -12,14 +12,17 @@ each species' own section (`species-<id>`).
 
 | id | name · native | habitats | size class · box (w×h) · anchor | bloom colour | the look |
 |---|---|---|---|---|---|
-| `tree-peony` | Tree Peony · Botan | meadow, back | large · 200×220 · (0.5, 0.93) | `#e6a2b0` | loose dome of three-lobed compound leaves, 2–4 huge ruffled blooms in 3 rings (shell pink, rose, white or deep peony) with a magenta flare and gold stamens; most seeds keep one fat bud |
-| `hydrangea` | Hydrangea · Ajisai | meadow, shore, back | large · 200×210 · (0.5, 0.93) | `#9a9fd0` | broad mound of oval leaves in opposite pairs, 5–8 mopheads of ~50 four-lobed florets; per-seed "soil" shades the heads from blue through violet to pink; heads start lime-green and colour as they open |
-| `azalea` | Azalea · Tsutsuji | meadow, rock, path | medium · 140×120 · (0.5, 0.9) | `#d987a8` | clipped low mound of small dark leaves covered in patches of five-lobed flowers (magenta-pink, soft pink, coral or white) with dark throat spots and a few long stamens |
-| `camellia` | Camellia · Tsubaki | back, meadow | large · 180×220 · (0.5, 0.94) | `#c95f63` | upright oval evergreen on 2–3 grey stems, dark foliage with glossy lifted leaf highlights, 8–12 cupped flowers (red, pink or white) with a brush of yellow stamens; one or two whole flowers fall to the ground at the very end |
-| `chrysanthemum` | Chrysanthemum · Kiku | meadow, path | medium · 125×110 · (0.5, 0.92) | `#e3bc6c` | grey-green cushion of 34–42 small ray-floret blooms (gold, rust, white or mauve) with a deeper inner rosette and a disc |
-| `lotus` | Lotus · Hasu | water | large · 200×220 · (0.5, 0.84) | `#e9a7b8` | 3–5 floating pads and 2–4 raised bowl-shaped leaves with radial veins, one or two tall pink-tipped blooms, often a bud, usually a ripening seed pod |
+| `tree-peony` | Tree Peony · Botan | meadow, back | large · 200×220 · (0.5, 0.93) | `#f29aae` | loose dome of three-lobed compound leaves, 2–4 huge ruffled blooms in 3 rings (shell pink, rose, white or deep peony) with a magenta flare and gold stamens; most seeds keep one fat bud |
+| `hydrangea` | Hydrangea · Ajisai | meadow, shore, back | large · 200×210 · (0.5, 0.93) | `#989ddd` | broad mound of oval leaves in opposite pairs, 5–8 mopheads of ~50 four-lobed florets; per-seed "soil" shades the heads from blue through violet to pink; heads start lime-green and colour as they open |
+| `azalea` | Azalea · Tsutsuji | meadow, rock, path | medium · 140×120 · (0.5, 0.9) | `#e77ca9` | clipped low mound of small dark leaves covered in patches of five-lobed flowers (magenta-pink, soft pink, coral or white) with dark throat spots and a few long stamens |
+| `camellia` | Camellia · Tsubaki | back, meadow | large · 180×220 · (0.5, 0.94) | `#da4d58` | upright oval evergreen on 2–3 grey stems, dark foliage with glossy lifted leaf highlights, 8–12 cupped flowers (red, pink or white) with a brush of yellow stamens; one or two whole flowers fall to the ground at the very end |
+| `chrysanthemum` | Chrysanthemum · Kiku | meadow, path | medium · 125×110 · (0.5, 0.92) | `#edb946` | grey-green cushion of 34–42 small ray-floret blooms (gold, rust, white or mauve) with a deeper inner rosette and a disc |
+| `lotus` | Lotus · Hasu | water | large · 200×220 · (0.5, 0.84) | `#f5a0b7` | 3–5 floating pads and 2–4 raised bowl-shaped leaves with radial veins, one or two tall pink-tipped blooms, often a bud, usually a ripening seed pod |
 
-All have `pollinators: true`; lotus and hydrangea reflect (water/shore habitats).
+All have `pollinators: true`; lotus and hydrangea reflect (water/shore habitats). The lotus fits
+exactly two garden slots, the large open-water `water-1` and `water-3`; when seedlings of other
+sessions in progress hold both, the planting sheet shows it full instead of offering it (ADR 0205,
+`src/plants/plantable.test.ts`).
 Each species file exports its pure builder (`buildPeony`, `buildHydrangea`, …) for tests.
 
 ## Approach: build once, reveal by growth (ADR 0064)
