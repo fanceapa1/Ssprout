@@ -188,7 +188,7 @@ dialog :focus-visible {
 .stage-ui .plant-label,
 .stage-ui .menu-item::before,
 .stage-ui .menu-label,
-.ui-root .tip {
+.ui-root .tip[data-on='stage'] {
   filter: brightness(var(--ui-dim));
 }
 
@@ -1160,9 +1160,16 @@ dialog :focus-visible {
 }
 
 /* ── tooltips ───────────────────────────────────────────────────────────────────────────── */
+/* page notes live in document coordinates: the layer scrolls with the page, so a note stays on
+   its control through any scroll without being moved (ADR 0181); notes inside a sheet use the
+   sheet's fixed layer (.tips-in-dialog) */
 .tips {
-  position: fixed;
-  inset: 0;
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+  overflow: visible;
   z-index: 2;
   pointer-events: none !important;
   transition: opacity var(--ui-slow) var(--ui-breath);
@@ -1172,11 +1179,13 @@ dialog :focus-visible {
   opacity: 0;
   transition-duration: 160ms;
 }
+/* leaders are drawn in the layer's own pixels; the svg is a point that lets them overflow */
 .tip-leaders {
   position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
+  left: 0;
+  top: 0;
+  width: 1px;
+  height: 1px;
   overflow: visible;
 }
 .tip-leader {
@@ -1185,10 +1194,17 @@ dialog :focus-visible {
   stroke-width: 0.9;
   stroke-linecap: round;
   opacity: 0;
-  transition: opacity var(--ui-slow) var(--ui-breath);
+  visibility: hidden;
+  transition:
+    opacity var(--ui-slow) var(--ui-breath),
+    visibility 0s linear var(--ui-slow);
 }
 .tip-leader.is-in {
   opacity: 0.55;
+  visibility: visible;
+  transition:
+    opacity var(--ui-slow) var(--ui-breath),
+    visibility 0s;
 }
 .tip {
   position: absolute;
@@ -1208,10 +1224,22 @@ dialog :focus-visible {
   background-repeat: no-repeat;
   rotate: -0.6deg;
   opacity: 0;
-  transition: opacity var(--ui-slow) var(--ui-breath);
+  /* a note that has faded out stops painting (no ghosts over the page) */
+  visibility: hidden;
+  transition:
+    opacity var(--ui-slow) var(--ui-breath),
+    visibility 0s linear var(--ui-slow);
 }
 .tip.is-in {
   opacity: 1;
+  visibility: visible;
+  transition:
+    opacity var(--ui-slow) var(--ui-breath),
+    visibility 0s;
+}
+.tip.tip-measure {
+  visibility: hidden !important;
+  transition: none;
 }
 .tip.tip-inline {
   position: static;
@@ -1654,6 +1682,10 @@ input.duration:focus-visible {
   color: var(--ui-ink-soft);
 }
 .tips-in-dialog {
+  position: fixed;
+  inset: 0;
+  width: auto;
+  height: auto;
   z-index: 2;
 }
 

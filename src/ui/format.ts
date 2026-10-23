@@ -129,11 +129,11 @@ const TIP_SIDES: Readonly<Record<string, Side[]>> = {
   notifications: ['above', 'right'],
   water: ['above', 'right', 'left'],
   switch: ['above', 'left', 'right'],
-  widget: ['below', 'left'],
+  widget: ['below', 'left', 'above'],
   placement: ['below', 'above'],
   swap: ['above', 'below', 'right', 'left'],
-  pressed: ['below', 'left'],
-  sound: ['below', 'left'],
+  pressed: ['below', 'left', 'above'],
+  sound: ['below', 'left', 'above'],
   schedule: ['below', 'left', 'above'],
 };
 

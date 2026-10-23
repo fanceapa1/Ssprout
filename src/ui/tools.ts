@@ -139,7 +139,8 @@ export function createTools(ctx: UIContext, actions: ToolActions): Tools {
   }
 
   const corner = h('nav.menu', { 'aria-label': 'Garden menu', 'data-ui': 'menu' }, ...defs.map((d) => button(d, 'corner')));
-  const dock = h('ul.tool-list', { role: 'list' }, ...defs.map((d) => h('li', {}, button(d, 'dock'))));
+  // the dock's list is one slip for tips: a note sits below or above the whole row, never over a neighbour
+  const dock = h('ul.tool-list', { role: 'list', 'data-ui': 'tools' }, ...defs.map((d) => h('li', {}, button(d, 'dock'))));
 
   function render(): void {
     for (const def of defs) {

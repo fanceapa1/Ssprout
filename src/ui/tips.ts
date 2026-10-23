@@ -2,14 +2,21 @@ import { activeTips, getTip, type TipContext, type TipId } from '../core/tips';
 import type { UIContext } from './context';
 import { h, setText } from './dom';
 import { pickTips, tipSides } from './format';
+import { placeTip, type Box, type TipSpot } from './tip-place';
 
 /**
  * Tooltips (SPEC §7): tiny handwritten-feel notes on a faint paper slip with a thin ink leader
  * line to their control. Shown only while relevant and not retired (core `activeTips`), one at
- * a time — the most relevant (`TIP_PRIORITY`) whose control is in view; the others wait their
- * turn. They never take pointer events. Tips for controls
+ * a time — the most relevant (`TIP_PRIORITY`) whose control is wholly on screen and has room for
+ * its note; the others wait their turn. They never take pointer events. Tips for controls
  * inside an open sheet render inside that <dialog> (the top layer); with a sheet open, only its
  * controls carry tips.
+ *
+ * Page notes live in document coordinates (ADR 0181): the layer scrolls with the page, so a note
+ * stays on its control through every scroll (wheel glides, jumps, touch) without chasing it frame
+ * by frame. A scroll only re-decides *whether* a note shows: when its control leaves the screen
+ * the note goes (another copy of the control, e.g. the dock's, may take it), and a note that has
+ * faded out no longer paints.
  */
 export interface Tips {
   readonly el: HTMLElement;
@@ -19,38 +26,36 @@ export interface Tips {
   dispose(): void;
 }
 
-type Side = 'above' | 'below' | 'left' | 'right';
-
-const GAP = 22;
-const MARGIN = 12;
 const SVG_NS = 'http://www.w3.org/2000/svg';
-
-interface Box {
-  left: number;
-  top: number;
-  right: number;
-  bottom: number;
-}
+const FADE_MS = 700;
 
 interface Host {
   el: HTMLElement;
   leaders: SVGSVGElement;
+  /** an invisible note used to measure a tip's size before deciding where it goes (detached) */
+  measure: HTMLElement;
 }
 
-const intersects = (a: Box, b: Box) => a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
+interface Shown {
+  note: HTMLElement;
+  leader: SVGPathElement;
+  host: Host;
+}
 
 function makeHost(): Host {
   const leaders = document.createElementNS(SVG_NS, 'svg');
   leaders.classList.add('tip-leaders');
   leaders.setAttribute('aria-hidden', 'true');
+  const measure = h('p.tip.tip-measure', { 'aria-hidden': 'true' });
   const el = h('div.tips');
-  el.appendChild(leaders);
-  return { el, leaders };
+  el.append(leaders);
+  return { el, leaders, measure };
 }
 
 /**
  * `resolve` may return several candidates for one anchor (a control that exists twice, e.g. on the
- * garden and in the dock): the note goes to the first one currently in view, in the given order.
+ * garden and in the dock): the note goes to the first one that is on screen and has room, in the
+ * given order.
  */
 export function createTips(
   ctx: UIContext,
@@ -59,7 +64,9 @@ export function createTips(
   const { store } = ctx.deps;
   const main = makeHost();
   const dialogHosts = new WeakMap<HTMLDialogElement, Host>();
-  const shown = new Map<TipId, { note: HTMLElement; leader: SVGPathElement; host: Host }>();
+  const shown = new Map<TipId, Shown>();
+  /** notes fading out (at most a moment; removed at once when another note comes in) */
+  const leaving = new Set<Shown>();
   let raf: number | null = null;
   let current: TipId[] = [];
 
@@ -89,96 +96,83 @@ export function createTips(
     return r.bottom > 0 && r.top < window.innerHeight;
   };
 
-  function retire(id: TipId): void {
+  const drop = (t: Shown) => {
+    t.note.remove();
+    t.leader.remove();
+    leaving.delete(t);
+  };
+
+  function retire(id: TipId, now = false): void {
     const t = shown.get(id);
     if (!t) return;
     shown.delete(id);
+    if (now || ctx.deps.reducedMotion) {
+      drop(t);
+      return;
+    }
     t.note.classList.remove('is-in');
     t.leader.classList.remove('is-in');
     t.note.dataset.leaving = 'true';
-    setTimeout(() => {
-      t.note.remove();
-      t.leader.remove();
-    }, ctx.deps.reducedMotion ? 0 : 700);
+    leaving.add(t);
+    setTimeout(() => drop(t), FADE_MS);
   }
 
-  function ensure(id: TipId, host: Host): { note: HTMLElement; leader: SVGPathElement } {
+  function ensure(id: TipId, host: Host): Shown {
     const existing = shown.get(id);
     if (existing && existing.host === host) return existing;
-    if (existing) retire(id);
+    if (existing) retire(id, true);
     const note = h('p.tip', { 'data-tip-id': id, role: 'note' });
     const leader = document.createElementNS(SVG_NS, 'path');
     leader.classList.add('tip-leader');
     leader.dataset.tipId = id;
     host.el.appendChild(note);
     host.leaders.appendChild(leader);
-    shown.set(id, { note, leader, host });
+    const t: Shown = { note, leader, host };
+    shown.set(id, t);
     requestAnimationFrame(() => {
+      if (shown.get(id) !== t) return;
       note.classList.add('is-in');
       leader.classList.add('is-in');
     });
-    return { note, leader };
+    return t;
   }
 
-  function place(id: TipId, anchor: HTMLElement, note: HTMLElement, leader: SVGPathElement, avoid: Box[]): void {
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
+  /** A note's size for this tip in this host (its live note when shown, else the measuring one). */
+  function sizeOf(id: TipId, host: Host): { w: number; h: number } {
+    const live = shown.get(id);
+    if (live && live.host === host) {
+      setText(live.note, getTip(id)?.copy ?? '');
+      return { w: live.note.offsetWidth, h: live.note.offsetHeight };
+    }
+    // measured in place for a moment (never left in the page, where it would count as a note)
+    setText(host.measure, getTip(id)?.copy ?? '');
+    host.el.appendChild(host.measure);
+    const size = { w: host.measure.offsetWidth, h: host.measure.offsetHeight };
+    host.measure.remove();
+    return size;
+  }
+
+  function spotFor(id: TipId, anchor: HTMLElement, avoid: Box[]): TipSpot | null {
     const a = anchor.getBoundingClientRect();
     const container = anchor.closest<HTMLElement>('[data-ui]')?.getBoundingClientRect() ?? a;
-    const w = note.offsetWidth;
-    const hgt = note.offsetHeight;
-    const cx = a.left + a.width / 2;
-    const cy = a.top + a.height / 2;
-    const clampX = (x: number) => Math.min(vw - MARGIN - w, Math.max(MARGIN, x));
-    const clampY = (y: number) => Math.min(vh - MARGIN - hgt, Math.max(MARGIN, y));
-    const candidate = (side: Side): Box & { side: Side } => {
-      let x = 0;
-      let y = 0;
-      if (side === 'above') {
-        x = clampX(cx - w * 0.7);
-        y = Math.min(a.top, container.top) - GAP - hgt;
-      } else if (side === 'below') {
-        x = clampX(cx - w * 0.75);
-        y = Math.max(a.bottom, container.bottom) + GAP;
-      } else if (side === 'left') {
-        x = Math.min(a.left, container.left) - GAP * 1.5 - w;
-        y = clampY(cy - hgt / 2);
-      } else {
-        x = Math.max(a.right, container.right) + GAP * 1.5;
-        y = clampY(cy - hgt / 2);
-      }
-      return { side, left: x, top: y, right: x + w, bottom: y + hgt };
-    };
-    const fits = (b: Box) => b.left >= MARGIN - 0.5 && b.top >= MARGIN - 0.5 && b.right <= vw - MARGIN + 0.5 && b.bottom <= vh - MARGIN + 0.5;
-    const options = tipSides(id).map(candidate);
-    const pick = options.find((o) => fits(o) && !avoid.some((r) => intersects(o, r))) ?? options.find(fits) ?? options[0]!;
-    note.style.transform = `translate(${pick.left.toFixed(0)}px, ${pick.top.toFixed(0)}px)`;
-    note.dataset.side = pick.side;
-    avoid.push(pick);
-
-    // leader: from the note's facing edge to just short of the anchor, gently curved
-    let x1: number;
-    let y1: number;
-    let x2: number;
-    let y2: number;
-    // the line stops at the control's slip edge, never crossing the slip's text
-    if (pick.side === 'above' || pick.side === 'below') {
-      x1 = Math.min(Math.max(cx, pick.left + 16), pick.right - 16);
-      y1 = pick.side === 'above' ? pick.bottom + 2 : pick.top - 2;
-      x2 = cx;
-      y2 = pick.side === 'above' ? Math.min(a.top, container.top) - 4 : Math.max(a.bottom, container.bottom) + 4;
-    } else {
-      x1 = pick.side === 'left' ? pick.right + 2 : pick.left - 2;
-      y1 = Math.min(Math.max(cy, pick.top + 10), pick.bottom - 10);
-      x2 = pick.side === 'left' ? Math.min(a.left, container.left) - 5 : Math.max(a.right, container.right) + 5;
-      y2 = cy;
-    }
-    const mx = (x1 + x2) / 2 + (y2 - y1) * 0.12;
-    const my = (y1 + y2) / 2 - (x2 - x1) * 0.12;
-    leader.setAttribute('d', `M${x1.toFixed(1)} ${y1.toFixed(1)}Q${mx.toFixed(1)} ${my.toFixed(1)} ${x2.toFixed(1)} ${y2.toFixed(1)}`);
+    return placeTip(tipSides(id), a, container, sizeOf(id, hostFor(anchor)), { w: window.innerWidth, h: window.innerHeight }, avoid);
   }
 
-  const inlineHost: Host = { el: h('div'), leaders: document.createElementNS(SVG_NS, 'svg') };
+  /** Draw a placed note in its host's own coordinates (the page for page notes). */
+  function apply(t: Shown, spot: TipSpot): void {
+    const o = t.host.el.getBoundingClientRect();
+    // the `translate` property, not `transform`: it applies outside the slip's small `rotate`, so a
+    // long way down the page does not swing the note sideways
+    t.note.style.translate = `${(spot.left - o.left).toFixed(0)}px ${(spot.top - o.top).toFixed(0)}px`;
+    t.note.dataset.side = spot.side;
+    const { x1, y1, x2, y2 } = spot.leader;
+    const mx = (x1 + x2) / 2 + (y2 - y1) * 0.12;
+    const my = (y1 + y2) / 2 - (x2 - x1) * 0.12;
+    const p = (x: number, y: number) => `${(x - o.left).toFixed(1)} ${(y - o.top).toFixed(1)}`;
+    t.leader.setAttribute('d', `M${p(x1, y1)}Q${p(mx, my)} ${p(x2, y2)}`);
+  }
+
+  const inlineHost: Host = { el: h('div'), leaders: document.createElementNS(SVG_NS, 'svg'), measure: h('p') };
 
   function placeInline(id: TipId, anchor: HTMLElement): void {
     const container = anchor.closest<HTMLElement>('.step') ?? anchor.parentElement!;
@@ -187,12 +181,15 @@ export function createTips(
       setText(existing.note, getTip(id)?.copy ?? '');
       return;
     }
-    if (existing) retire(id);
+    if (existing) retire(id, true);
     const note = h('p.tip.tip-inline', { 'data-tip-id': id, role: 'note' }, getTip(id)?.copy ?? '');
     const leader = document.createElementNS(SVG_NS, 'path');
     container.appendChild(note);
-    shown.set(id, { note, leader, host: inlineHost });
-    requestAnimationFrame(() => note.classList.add('is-in'));
+    const t: Shown = { note, leader, host: inlineHost };
+    shown.set(id, t);
+    requestAnimationFrame(() => {
+      if (shown.get(id) === t) note.classList.add('is-in');
+    });
   }
 
   function layout(): void {
@@ -203,33 +200,46 @@ export function createTips(
     // one quiet thing at a time: notes wait while the quiet line is speaking (a bloom, a koi)
     const lineSpeaking = !openDialog && root.querySelector('.quiet-line.is-in') !== null;
     const active = anyClosing || lineSpeaking ? [] : activeTips(store.get(), opts.tipContext());
-    const anchors = new Map<TipId, HTMLElement>();
-    const next = pickTips(active, (anchor, id) => {
-      const found = opts.resolve(anchor, id);
-      const a = (Array.isArray(found) ? found : [found]).find((c): c is HTMLElement => isVisible(c as HTMLElement | null)) ?? null;
-      if (!a) return false;
-      const inDialog = a.closest('dialog');
-      if (openDialog ? inDialog !== openDialog : inDialog !== null) return false;
-      anchors.set(id, a);
-      return true;
-    });
-    for (const id of [...shown.keys()]) if (!next.includes(id)) retire(id);
+    const narrow = window.innerWidth < 600;
+    // notes keep clear of the other slips on the painting and of the dock's section headings
     const avoid: Box[] = openDialog
       ? []
-      : [...root.querySelectorAll<HTMLElement>('[data-ui]')].filter((n) => !n.hidden).map((n) => n.getBoundingClientRect());
-    const narrow = window.innerWidth < 600;
+      : [...root.querySelectorAll<HTMLElement>('[data-ui], .dock-title')].filter((n) => !n.hidden).map((n) => n.getBoundingClientRect());
+    const placed = new Map<TipId, { anchor: HTMLElement; spot: TipSpot | null }>();
+    const next = pickTips(active, (anchor, id) => {
+      const found = opts.resolve(anchor, id);
+      for (const c of Array.isArray(found) ? found : [found]) {
+        const a = c as HTMLElement | null;
+        if (!isVisible(a)) continue;
+        const inDialog = a.closest('dialog');
+        if (openDialog ? inDialog !== openDialog : inDialog !== null) continue;
+        if (narrow && inDialog) {
+          // phones: inside a sheet the note sits inline at the end of its step (no room to float)
+          placed.set(id, { anchor: a, spot: null });
+          return true;
+        }
+        const spot = spotFor(id, a, avoid);
+        if (!spot) continue; // half off screen or no room around it: try the other copy, else wait
+        placed.set(id, { anchor: a, spot });
+        avoid.push(spot);
+        return true;
+      }
+      return false;
+    });
+    for (const id of [...shown.keys()]) if (!next.includes(id)) retire(id);
+    // a new note never shares the page with one still fading out
+    if (next.some((id) => !shown.has(id))) for (const t of [...leaving]) drop(t);
     for (const id of next) {
-      const anchor = anchors.get(id)!;
-      if (narrow && anchor.closest('dialog')) {
-        // phones: inside a sheet the note sits inline at the end of its step (no room to float)
+      const { anchor, spot } = placed.get(id)!;
+      if (!spot) {
         placeInline(id, anchor);
         continue;
       }
-      const host = hostFor(anchor);
-      host.leaders.setAttribute('viewBox', `0 0 ${window.innerWidth} ${window.innerHeight}`);
-      const { note, leader } = ensure(id, host);
-      setText(note, getTip(id)?.copy ?? '');
-      place(id, anchor, note, leader, avoid);
+      const t = ensure(id, hostFor(anchor));
+      setText(t.note, getTip(id)?.copy ?? '');
+      // a note on the painting dims with the garden's light; one on the page does not (ADR 0121)
+      t.note.dataset.on = anchor.closest('.stage') ? 'stage' : 'page';
+      apply(t, spot);
     }
     current = next;
   }
@@ -238,7 +248,7 @@ export function createTips(
     raf ??= requestAnimationFrame(layout);
   };
   window.addEventListener('resize', schedule);
-  // a sheet scrolled: notes follow their controls (or step aside when they scroll out of view)
+  // the page or a sheet scrolled: decide again which notes are on screen (they move with the page)
   document.addEventListener('scroll', schedule, { capture: true, passive: true });
   void document.fonts?.ready.then(schedule);
 
