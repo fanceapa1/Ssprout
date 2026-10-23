@@ -175,20 +175,23 @@ test.describe('app shell · reduced motion', () => {
 });
 
 test.describe('app shell · dock', () => {
-  test('sections in order: Study and Your plant side by side, the calendar waiting hidden, tools across', async ({ page }) => {
+  test('sections in order: Study and Your plant side by side, the calendar across, tools across', async ({ page }) => {
     await openUi(page, '');
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.evaluate(() => window.sprout!.ui.dockReady());
     const sections = await page.evaluate(() => window.sprout!.ui.dock());
     expect(sections.map((s) => s.id)).toEqual(['session', 'plant', 'calendar', 'tools']);
-    expect(sections.find((s) => s.id === 'calendar')).toMatchObject({ title: 'Calendar', filled: false, visible: false });
-    await expect(page.locator('[data-section="calendar"]')).toBeHidden();
+    // filled by the calendar (phase 8, ADR 0175): full width, between the pair and the tools
+    expect(sections.find((s) => s.id === 'calendar')).toMatchObject({ title: 'Calendar', span: 'full', filled: true, visible: true });
+    const calendar = (await page.locator('[data-section="calendar"]').boundingBox())!;
     const study = (await page.locator('[data-section="session"]').boundingBox())!;
     const plant = (await page.locator('[data-section="plant"]').boundingBox())!;
     const tools = (await page.locator('[data-section="tools"]').boundingBox())!;
     expect(Math.abs(study.y - plant.y)).toBeLessThan(2);
     expect(plant.x).toBeGreaterThan(study.x + study.width - 1);
-    expect(tools.y).toBeGreaterThan(Math.max(study.y + study.height, plant.y + plant.height) - 1);
+    expect(calendar.y).toBeGreaterThan(Math.max(study.y + study.height, plant.y + plant.height) - 1);
+    expect(calendar.width).toBeGreaterThan(study.width + plant.width);
+    expect(tools.y).toBeGreaterThan(calendar.y + calendar.height - 1);
     expect(tools.width).toBeGreaterThan(study.width + plant.width);
   });
 

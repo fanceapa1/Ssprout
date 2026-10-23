@@ -1,0 +1,360 @@
+import type { Page } from '@playwright/test';
+import { expect, test } from './fixtures';
+import { MIN, openUi, reloadUi } from './ui-helpers';
+
+/**
+ * Calendar & scheduling (SPEC §13, ADRs 0170–0177): the Daily / Weekly / Monthly calendar in the
+ * dock (daily by default, the choice remembered), scheduling from it, repeats, the waiting card at
+ * the scheduled time with one-tap Start into the prefilled planting sheet, the link back (done),
+ * missed, the limit of three, the soft notification, and the phone layout. Time moves with the dev
+ * clock (`sprout.schedule.jumpToDue`, `jumpPast`, `advance`), never by sleeping.
+ */
+
+const cal = (page: Page) => page.locator('[data-section="calendar"] .calendar');
+const calState = (page: Page) => page.evaluate(() => window.sprout!.calendar.state()!);
+const dayKeyIn = (page: Page, offsetDays = 0) =>
+  page.evaluate((o) => {
+    const d = new Date(window.sprout!.now() + o * 86_400_000);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }, offsetDays);
+
+async function openCalendar(page: Page, query = ''): Promise<void> {
+  await openUi(page, query);
+  await page.evaluate(async () => {
+    window.sprout!.calendar.setView('day');
+    window.sprout!.calendar.go(window.sprout!.now());
+    await window.sprout!.ui.scrollTo('calendar', { instant: true });
+  });
+  await expect(cal(page)).toBeVisible();
+}
+
+/** Add a schedule due at the next minute and jump the dev clock to it; returns its occurrence key. */
+async function dueNow(page: Page, input: Record<string, unknown> = {}): Promise<string> {
+  return page.evaluate((i) => {
+    const s = window.sprout!.schedule.add(i);
+    if (!s) throw new Error('schedule not added');
+    const o = window.sprout!.schedule.jumpToDue(s.id);
+    if (!o) throw new Error('no occurrence');
+    return o.key;
+  }, input);
+}
+
+test.describe('calendar', () => {
+  test('daily by default; toggle views, navigate, and the choice is remembered', async ({ page }) => {
+    await openCalendar(page);
+    await expect(cal(page)).toHaveAttribute('data-view', 'day');
+    await expect(cal(page).getByRole('button', { name: 'Daily' })).toHaveAttribute('aria-pressed', 'true');
+    const today = await dayKeyIn(page);
+    expect((await calState(page)).date).toBe(today);
+
+    // a day back and forth, then Today
+    await cal(page).getByRole('button', { name: 'Next day' }).click();
+    expect((await calState(page)).date).toBe(await dayKeyIn(page, 1));
+    await cal(page).getByRole('button', { name: 'Previous day' }).click();
+    await cal(page).getByRole('button', { name: 'Previous day' }).click();
+    expect((await calState(page)).date).toBe(await dayKeyIn(page, -1));
+    await cal(page).getByRole('button', { name: 'Today' }).click();
+    expect((await calState(page)).date).toBe(today);
+
+    // weekly: seven days, the week starting as the locale says
+    await cal(page).getByRole('button', { name: 'Weekly' }).click();
+    await expect(cal(page)).toHaveAttribute('data-view', 'week');
+    let st = await calState(page);
+    expect(st.days).toHaveLength(7);
+    expect(st.days).toContain(today);
+    expect(new Date(`${st.days[0]}T12:00`).getDay()).toBe(st.weekStartsOn);
+    await expect(cal(page).locator('.cal-dayhead')).toHaveCount(7);
+    const firstDay = st.days[0]!;
+    await cal(page).getByRole('button', { name: 'Next week' }).click();
+    st = await calState(page);
+    expect(Math.round((new Date(`${st.days[0]}T12:00`).getTime() - new Date(`${firstDay}T12:00`).getTime()) / 86_400_000)).toBe(7);
+    expect(st.days).not.toContain(today);
+
+    // monthly: a grid of whole weeks; tapping a day opens it in the daily view
+    await cal(page).getByRole('button', { name: 'Monthly' }).click();
+    await expect(cal(page)).toHaveAttribute('data-view', 'month');
+    const cells = cal(page).locator('.cal-day');
+    expect((await cells.count()) % 7).toBe(0);
+    await cal(page).getByRole('button', { name: 'Today' }).click();
+    const tomorrow = await dayKeyIn(page, 1);
+    await cal(page).locator(`.cal-day[data-date="${tomorrow}"]`).click();
+    await expect(cal(page)).toHaveAttribute('data-view', 'day');
+    expect((await calState(page)).date).toBe(tomorrow);
+
+    // the last choice is remembered for this viewer
+    await cal(page).getByRole('button', { name: 'Weekly' }).click();
+    await reloadUi(page);
+    await expect(cal(page)).toHaveAttribute('data-view', 'week');
+  });
+
+  test('schedule a session from the calendar; it shows, and a daily repeat shows on the following days', async ({ page }) => {
+    await openCalendar(page);
+    const tomorrow = await dayKeyIn(page, 1);
+    await cal(page).getByRole('button', { name: 'Schedule a session' }).click();
+    const sheet = page.locator('dialog[data-dialog="schedule"]');
+    await expect(sheet).toBeVisible();
+    await sheet.getByLabel('What will you study?').fill('Biology ch. 4');
+    await sheet.locator('#sched-date').fill(tomorrow);
+    await sheet.locator('#sched-time').fill('09:30');
+    await sheet.locator('.sched-chip[data-length="50"]').click();
+    await sheet.locator('.sched-chip[data-plan-id="pomodoro"]').click();
+    await sheet.locator('.sched-chip[data-repeat="daily"]').click();
+    await sheet.getByRole('button', { name: 'Save' }).click();
+    await expect(sheet).toBeHidden();
+
+    const [s] = await page.evaluate(() => window.sprout!.schedule.list());
+    expect(s).toMatchObject({ name: 'Biology ch. 4', date: tomorrow, time: '09:30', lengthMinutes: 50, planId: 'pomodoro', repeat: 'daily' });
+
+    // not today; tomorrow and the day after, at 9:30
+    expect((await calState(page)).items.filter((i) => i.kind === 'scheduled')).toEqual([]);
+    for (const offset of [1, 2, 3]) {
+      await cal(page).getByRole('button', { name: 'Next day' }).click();
+      const block = cal(page).locator('.cal-block[data-kind="scheduled"]');
+      await expect(block).toHaveCount(1);
+      await expect(block).toHaveAttribute('data-status', 'upcoming');
+      await expect(block).toContainText('Biology ch. 4');
+      expect((await calState(page)).date).toBe(await dayKeyIn(page, offset));
+    }
+    // the week shows one a day from tomorrow
+    await cal(page).getByRole('button', { name: 'Weekly' }).click();
+    const week = await calState(page);
+    expect(week.items.filter((i) => i.kind === 'scheduled').map((i) => i.date)).toEqual(week.days.filter((d) => d >= tomorrow));
+  });
+
+  test('a tap on an empty time opens the editor at that time', async ({ page }) => {
+    await openCalendar(page);
+    await cal(page).getByRole('button', { name: 'Next day' }).click();
+    const col = cal(page).locator('.cal-col').first();
+    // bring 14:00 into the timeline's window, then tap a little after it
+    await cal(page).locator('.cal-timeline').evaluate((el) => (el.scrollTop = (13 / 24) * el.scrollHeight));
+    const box = (await col.boundingBox())!;
+    await page.mouse.click(box.x + box.width * 0.6, box.y + box.height * (14.2 / 24));
+    const sheet = page.locator('dialog[data-dialog="schedule"]');
+    await expect(sheet).toBeVisible();
+    await expect(sheet.locator('#sched-time')).toHaveValue('14:00');
+    await expect(sheet.locator('#sched-date')).toHaveValue(await dayKeyIn(page, 1));
+    await expect(sheet.locator('.sched-chip[data-length="open"]')).toHaveAttribute('aria-checked', 'true');
+  });
+
+  test('at the scheduled time a card waits with one-tap Start; the sheet is prefilled; the bloom marks it done', async ({ page }) => {
+    await openCalendar(page);
+    const key = await dueNow(page, { name: 'Essay draft', lengthMinutes: 50, planId: 'pomodoro' });
+
+    // the card waits in the Study section and a slip on the garden; nothing starts on its own
+    const card = page.locator('.due-card');
+    await expect(card).toHaveCount(1);
+    await expect(card).toHaveAttribute('data-occurrence', key);
+    await expect(card).toContainText('Essay draft');
+    await expect(card).toContainText('50 min · Pomodoro');
+    await expect(page.locator('.stage-ui .due-slip')).toBeVisible();
+    expect(await page.evaluate(() => window.sprout!.sessions())).toEqual([]);
+    await page.evaluate((ms) => window.sprout!.advance(ms), 5 * MIN);
+    expect(await page.evaluate(() => window.sprout!.sessions())).toEqual([]);
+    await expect(card).toHaveCount(1);
+
+    // one tap: the planting sheet, prefilled with name, length and plan
+    await card.getByRole('button', { name: 'Start “Essay draft”' }).click();
+    const sheet = page.locator('dialog[data-dialog="planting"]');
+    await expect(sheet).toBeVisible();
+    await expect(sheet.getByLabel('What are you studying?')).toHaveValue('Essay draft');
+    await expect(sheet.locator('input.duration')).toHaveValue('50');
+    await expect(sheet.locator('.plan-card[data-plan-id="pomodoro"]')).toHaveAttribute('aria-checked', 'true');
+    expect((await page.evaluate(() => window.sprout!.ui.state().draft)).link).toBeTruthy();
+
+    // the plant and the spot are chosen now
+    await sheet.locator('.plant-card[data-species-id="fx-violet"]').click();
+    await sheet.getByRole('button', { name: 'Choose a spot' }).click();
+    await page.locator('button.marker[data-occupied="false"]').first().click();
+    await page.locator('.placement-bar').getByRole('button', { name: 'Begin' }).click();
+    await expect(page.locator('.panel')).toHaveAttribute('data-view', 'focus');
+    await expect(page.locator('.panel .task-name')).toHaveText('Essay draft');
+    await expect(card).toHaveCount(0);
+    expect((await page.evaluate((k) => window.sprout!.schedule.get(k), key))!.status).toBe('started');
+
+    // the calendar shows the session, linked to the plan
+    await page.evaluate(() => window.sprout!.calendar.go(window.sprout!.now()));
+    const growing = cal(page).locator(`.cal-block[data-occurrence="${key}"]`);
+    await expect(growing).toHaveAttribute('data-kind', 'growing');
+    await expect(growing).toHaveAttribute('data-occurrence-status', 'started');
+
+    // it blooms: done as planned
+    await page.evaluate(() => window.sprout!.completeSession());
+    await page.evaluate(() => window.sprout!.ui.refresh());
+    const done = cal(page).locator(`.cal-block[data-occurrence="${key}"]`);
+    await expect(done).toHaveAttribute('data-kind', 'session');
+    await expect(done).toHaveAttribute('data-status', 'completed');
+    await expect(done).toHaveAttribute('data-occurrence-status', 'done');
+    expect((await page.evaluate((k) => window.sprout!.schedule.get(k), key))!.status).toBe('done');
+    await expect(cal(page).locator('.cal-block[data-kind="scheduled"]')).toHaveCount(0);
+  });
+
+  test('not started within its window, it passes quietly into missed; "Not this time" lets one pass', async ({ page }) => {
+    await openCalendar(page);
+    const key = await dueNow(page, { name: 'Reading', lengthMinutes: 25 });
+    await expect(page.locator('.due-card')).toHaveCount(1);
+    await page.evaluate((k) => window.sprout!.schedule.jumpPast(k), key);
+    await expect(page.locator('.due-card')).toHaveCount(0);
+    await expect(page.locator('.stage-ui .due-slip')).toBeHidden();
+    expect((await page.evaluate((k) => window.sprout!.schedule.get(k), key))!.status).toBe('missed');
+    await page.evaluate(() => window.sprout!.calendar.go(window.sprout!.now()));
+    const ghost = cal(page).locator(`.cal-block[data-id="${key}"]`);
+    await expect(ghost).toHaveAttribute('data-status', 'missed');
+    await expect(ghost).toContainText('passed');
+    await expect(cal(page)).not.toContainText(/missed|streak|failed/i);
+
+    const second = await dueNow(page, { name: 'Vocabulary' });
+    const card = page.locator(`.due-card[data-occurrence="${second}"]`);
+    await card.getByRole('button', { name: 'Not this time' }).click();
+    await expect(card).toHaveCount(0);
+    expect((await page.evaluate((k) => window.sprout!.schedule.get(k), second))!.status).toBe('dismissed');
+  });
+
+  test('with three sessions in progress the card says so gently and offers to switch', async ({ page }) => {
+    await openCalendar(page);
+    await page.evaluate(() => window.sprout!.startSessions(3, 25));
+    await dueNow(page, { name: 'Physics' });
+    const card = page.locator('.due-card');
+    await expect(card).toHaveAttribute('data-mode', 'limit');
+    await expect(card).toContainText('Three seedlings are already growing');
+    await expect(card.getByRole('button', { name: /^Start/ })).toHaveCount(0);
+    await card.getByRole('button', { name: 'See them' }).click();
+    await expect(page.locator('dialog[data-dialog="planting"]')).toBeHidden();
+    await expect(page.locator('.session-list .limit-note')).toBeVisible();
+    await expect(page.locator('.session-list button.session-switch').first()).toBeFocused();
+    // ending one lets the card offer Start again
+    await page.evaluate(() => window.sprout!.cancel());
+    await expect(card).toHaveAttribute('data-mode', 'start');
+    await expect(card.getByRole('button', { name: 'Start “Physics”' })).toBeVisible();
+  });
+
+  test('edit only this one, or this and the following; remove', async ({ page }) => {
+    await openCalendar(page);
+    const today = await dayKeyIn(page);
+    await page.evaluate((date) => window.sprout!.schedule.add({ name: 'Kanji', date, time: '20:00', repeat: 'daily' }), await dayKeyIn(page, 1));
+    await cal(page).getByRole('button', { name: 'Next day' }).click();
+    const sheet = page.locator('dialog[data-dialog="schedule"]');
+
+    // only this one: tomorrow moves to 21:15, the day after keeps 20:00
+    await cal(page).locator('.cal-block[data-kind="scheduled"]').click();
+    await expect(sheet).toBeVisible();
+    await expect(sheet.getByLabel('What will you study?')).toHaveValue('Kanji');
+    await sheet.locator('#sched-time').fill('21:15');
+    await sheet.getByRole('button', { name: 'Save' }).click();
+    await expect(sheet.locator('.sched-scope-q')).toHaveText('Change only this one, or this and the following?');
+    await sheet.getByRole('button', { name: 'Only this one' }).click();
+    await expect(sheet).toBeHidden();
+    const times = await page.evaluate(
+      ([a, b]) => window.sprout!.schedule.occurrences(a, b).map((o) => `${o.date} ${o.time}`),
+      [today, await dayKeyIn(page, 4)],
+    );
+    expect(times).toEqual([`${await dayKeyIn(page, 1)} 21:15`, `${await dayKeyIn(page, 2)} 20:00`, `${await dayKeyIn(page, 3)} 20:00`]);
+
+    // remove this and the following from the day after tomorrow
+    await cal(page).getByRole('button', { name: 'Next day' }).click();
+    await cal(page).locator('.cal-block[data-kind="scheduled"]').click();
+    await sheet.getByRole('button', { name: 'Remove' }).click();
+    await sheet.getByRole('button', { name: 'This and the following' }).click();
+    await expect(sheet).toBeHidden();
+    await expect(cal(page).locator('.cal-block[data-kind="scheduled"]')).toHaveCount(0);
+    const left = await page.evaluate(([a, b]) => window.sprout!.schedule.occurrences(a, b).map((o) => o.date), [today, await dayKeyIn(page, 9)]);
+    expect(left).toEqual([await dayKeyIn(page, 1)]);
+  });
+
+  test('one quiet tip points at Schedule a session after a first bloom, and retires once a session is planned', async ({ page }) => {
+    await openCalendar(page);
+    const tips = () => page.evaluate(() => window.sprout!.ui.state().tips);
+    expect(await tips()).not.toContain('schedule');
+    await page.evaluate(() => {
+      window.sprout!.start(25, { taskName: 'First', speciesId: 'fx-violet' });
+      window.sprout!.completeSession();
+    });
+    await page.evaluate(() => window.sprout!.ui.scrollTo('calendar', { instant: true }));
+    await expect.poll(tips).toEqual(['schedule']);
+    await expect(page.locator('.tip')).toContainText('Plan a study time ahead');
+    await page.evaluate(() => window.sprout!.schedule.add({ name: 'Next' }));
+    await expect.poll(tips).not.toContain('schedule');
+    expect(await page.evaluate(() => window.sprout!.state().tips.schedule)).toBe('seen');
+  });
+
+  test('past sessions show in the calendar: completed in their plant’s colour, ended early faintly', async ({ page }) => {
+    await openCalendar(page);
+    await page.evaluate(() => {
+      window.sprout!.start(25, { taskName: 'Bloomed', speciesId: 'fx-violet' });
+      window.sprout!.completeSession();
+      window.sprout!.start(25, { taskName: 'Ended', speciesId: 'fx-violet' });
+      window.sprout!.advance(6 * 60_000);
+      window.sprout!.cancel();
+      window.sprout!.calendar.go(window.sprout!.now());
+    });
+    const bloomed = cal(page).locator('.cal-block[data-kind="session"][data-status="completed"]');
+    await expect(bloomed).toContainText('Bloomed');
+    await expect(bloomed).toContainText('Wood Violet');
+    expect(await bloomed.evaluate((el) => (el as HTMLElement).style.getPropertyValue('--wash'))).toContain('svg');
+    await expect(cal(page).locator('.cal-block[data-status="cancelled"]')).toContainText('Ended');
+    await expect(cal(page).locator('.cal-block[data-status="cancelled"]')).toContainText('ended early');
+  });
+});
+
+test.describe('calendar · notification', () => {
+  test('the scheduled time brings a soft notification while the page is in the background', async ({ page }) => {
+    await page.addInitScript(() => {
+      const w = window as unknown as { __vis: string; __notes: string[] };
+      w.__vis = 'visible';
+      w.__notes = [];
+      Object.defineProperty(Document.prototype, 'visibilityState', { configurable: true, get: () => w.__vis });
+      Object.defineProperty(Document.prototype, 'hidden', { configurable: true, get: () => w.__vis === 'hidden' });
+      Document.prototype.hasFocus = () => w.__vis === 'visible';
+      if (typeof ServiceWorkerRegistration !== 'undefined') {
+        ServiceWorkerRegistration.prototype.showNotification = async (title: string) => void w.__notes.push(title);
+      }
+      class FakeNotification {
+        static permission = 'granted';
+        static requestPermission = () => Promise.resolve('granted');
+        onclick = null;
+        constructor(title: string) {
+          w.__notes.push(title);
+        }
+        close() {}
+      }
+      Object.defineProperty(window, 'Notification', { configurable: true, value: FakeNotification });
+    });
+    await openCalendar(page);
+    await page.evaluate(() => window.sprout!.setState({ settings: { ...window.sprout!.state().settings, notifications: 'granted' } }));
+    await page.evaluate(() => ((window as unknown as { __vis: string }).__vis = 'hidden'));
+    await dueNow(page, { name: 'Essay draft' });
+    await expect.poll(() => page.evaluate(() => (window as unknown as { __notes: string[] }).__notes)).toEqual(['It’s time for “Essay draft”.']);
+    expect(await page.evaluate(() => window.sprout!.widget.lastNotification())).toEqual({ kind: 'scheduled', decision: 'notify' });
+    await page.evaluate(() => ((window as unknown as { __vis: string }).__vis = 'visible'));
+    await expect(page.locator('.due-card')).toContainText('Essay draft');
+  });
+});
+
+test.describe('calendar · phone', () => {
+  test.use({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+
+  test('one column, nothing wider than the screen, views and the card reachable', async ({ page }) => {
+    await openCalendar(page);
+    await page.evaluate(() => window.sprout!.schedule.demo());
+    await page.evaluate(() => window.sprout!.ui.scrollTo('calendar', { instant: true }));
+    for (const view of ['Daily', 'Weekly', 'Monthly'] as const) {
+      await cal(page).getByRole('button', { name: view }).click();
+      const over = await page.evaluate(() => ({
+        doc: document.documentElement.scrollWidth - window.innerWidth,
+        cal: Math.round(document.querySelector('.calendar')!.getBoundingClientRect().right - window.innerWidth),
+      }));
+      expect(over.doc, `${view}: page wider than the screen`).toBeLessThanOrEqual(0);
+      expect(over.cal, `${view}: calendar wider than the screen`).toBeLessThanOrEqual(0);
+    }
+    await expect(cal(page).locator('.cal-day')).not.toHaveCount(0);
+    const tap = await cal(page).getByRole('button', { name: 'Schedule a session' }).boundingBox();
+    expect(tap!.height).toBeGreaterThanOrEqual(44);
+    // the waiting card sits in the Study section, inside the screen
+    await dueNow(page, { name: 'On the bus' });
+    await page.evaluate(() => window.sprout!.ui.scrollTo('session', { instant: true }));
+    const card = page.locator('.due-card').first();
+    await expect(card).toBeVisible();
+    const box = (await card.boundingBox())!;
+    expect(box.x).toBeGreaterThanOrEqual(0);
+    expect(box.x + box.width).toBeLessThanOrEqual(390);
+  });
+});
