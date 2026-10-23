@@ -30,7 +30,9 @@ function panel(ctx: CanvasRenderingContext2D, x: number, pr: number, rect: Rect,
   ctx.restore();
 }
 
-const sky = createSkyLight({ pond: GARDEN_ART.scene.pond, seed: GARDEN_ART.seed });
+let skyLight: ReturnType<typeof createSkyLight> | null = null;
+/** created on first render (never at import: the studio registry is also loaded by unit tests) */
+const skyOf = () => (skyLight ??= createSkyLight({ pond: GARDEN_ART.scene.pond, seed: GARDEN_ART.seed }));
 
 function castFor(phase: DayPhase, rect: Rect) {
   const cast = createCastLight(GARDEN_ART.scene, { trees: TREES, shrubs: SHRUBS }, `studio-detail-${phase}`);
@@ -55,6 +57,7 @@ const section: StudioSection = {
       render(canvas, { pixelRatio }) {
         const ctx = canvas.getContext('2d')!;
         const state = pinnedState(only('night'));
+        const sky = skyOf();
         sky.update(state, true);
         const m = moonDisc(state);
         const rect = { x: m.x - 60, y: m.y - 60, w: 120, h: 120 };
