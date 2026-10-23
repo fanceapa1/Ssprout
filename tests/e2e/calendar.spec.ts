@@ -649,3 +649,32 @@ test.describe('calendar · the editor speaks the calendar’s clock (ADR 0193)',
     });
   }
 });
+
+test.describe('calendar · a phone’s day with sessions side by side', () => {
+  test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+
+  test('three sessions in progress share the column with short times, and one grows to read whole when focused', async ({ page }) => {
+    await openCalendar(page);
+    await page.evaluate(async () => {
+      window.sprout!.startSessions(3);
+      window.sprout!.calendar.go(window.sprout!.now());
+      await window.sprout!.ui.scrollTo('calendar', { instant: true });
+    });
+    const narrow = cal(page).locator('.cal-block[data-narrow]');
+    await expect(narrow).toHaveCount(3);
+    for (const b of await narrow.all()) {
+      await expect(b).toHaveAttribute('tabindex', '0');
+      expect(await b.locator('.cal-block-time').textContent()).not.toMatch(/AM|PM/);
+    }
+    const last = narrow.last();
+    await expect(last).toHaveAttribute('data-flip', 'true');
+    const before = (await last.boundingBox())!;
+    await last.focus();
+    await expect.poll(async () => (await last.boundingBox())!.width).toBeGreaterThan(before.width * 1.5);
+    const grown = (await last.boundingBox())!;
+    const tl = (await cal(page).locator('.cal-timeline').boundingBox())!;
+    expect(grown.x).toBeGreaterThanOrEqual(tl.x - 1);
+    expect(grown.x + grown.width).toBeLessThanOrEqual(tl.x + tl.width + 1);
+    await expect(last.locator('.cal-block-meta')).toBeVisible();
+  });
+});
