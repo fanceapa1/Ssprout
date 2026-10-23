@@ -746,6 +746,15 @@ dialog.schedule {
   outline-offset: 2px;
   border-bottom-color: var(--ui-ink);
 }
+/* the browser's date and clock glyphs: in the sheet's ink, quieter than the words (they were stark black) */
+.sched-input::-webkit-calendar-picker-indicator {
+  opacity: 0.55;
+  cursor: pointer;
+  filter: sepia(0.6) saturate(0.6);
+}
+.sched-input::-webkit-calendar-picker-indicator:hover {
+  opacity: 0.85;
+}
 .sched-name {
   width: 100%;
   font-family: var(--ui-display);
@@ -935,9 +944,10 @@ dialog.schedule {
     width: 10px;
     height: 9px;
   }
+  /* big enough that the brushed ring reads as a ring, not a tiny square box */
   .cal-ring {
-    width: 9.5px;
-    height: 9.5px;
+    width: 11px;
+    height: 11px;
   }
   .cal-mins {
     font-size: 13px;
@@ -946,15 +956,9 @@ dialog.schedule {
     bottom: 74px;
     padding-left: 12px;
   }
-  /* wide screens: above the pill in the lower-left corner, the path stays clear (ADR 0133) */
-@media (min-width: 900px) and (min-aspect-ratio: 5/4) {
-  .stage-ui .due-slip {
-    left: 22px;
-    bottom: 90px;
-    transform: none;
-  }
-}
-.due-slip-text {
+  /* (a copy of the wide-screen placement used to sit here, inside the phone query, where it
+     could never apply; the real one is next to .due-slip above) */
+  .due-slip-text {
     font-size: 17px;
   }
 }
