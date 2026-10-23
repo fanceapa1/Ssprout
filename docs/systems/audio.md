@@ -73,14 +73,27 @@ audio.setTimeOfDay(23);         // override; null → follow the clock's local h
 audio.playBloom(); audio.playComplete(); audio.playPour();
 audio.dispose();
 ```
-Bus events consumed: `settings:changed` (mute), `session:start` (weather + active),
-`session:pause` / `session:resume` (also emitted around a `session:switch`), `session:cancel` /
-`session:complete` (clear weather and activity, whichever session ended; complete also plays the phrase), `plant:placed` (bloom chime), `session:water` (the pour), `fauna:arrived` (adds a creature).
-**Known gap:** there is no `session:switch` handler, so the weather bed keeps the session started
-last, and cancelling a *waiting* session (`controller.cancel(id)`) silences the active one's weather
-(SPEC §2 › Parallel sessions status; devlog 35).
-Initial muted/weather/activity/fauna come from `getState()` (a reload mid-session sounds right).
-Setters and bus events write the same fields; the last write wins.
+Bus events consumed: `settings:changed` (mute), `plant:placed` (bloom chime), `session:water`
+(the pour), `fauna:arrived` (adds a creature), and the session events below.
+
+**The ambience follows the active session** (SPEC §2 › Parallel sessions, ADR 0150). On every
+`session:start`, `session:pause`, `session:resume`, `session:switch`, `session:cancel` and
+`session:complete` the audio re-reads `getState().session` (the session controller emits after the
+store changed) and takes weather and activity from it; it never uses the event's session id:
+
+| Situation | Weather bed | Activity |
+|---|---|---|
+| active session running | its weather | running (fuller bed, warmth) |
+| active session paused | its weather | paused (the held breath) |
+| a switch | the session switched to | it runs (a switch resumes it) |
+| a waiting session cancelled | unchanged (no mix is re-applied) | unchanged |
+| the active one completes or is cancelled, others waiting | none (clear) | idle; waiting sessions never sound |
+
+`session:complete` also plays the phrase. Sessions that only wait are always silent.
+Initial muted/weather/activity/fauna come from `getState()` the same way (a reload mid-session
+sounds right). `setWeather` / `setActivity` write the same fields (the studio uses them); the last
+write wins until the next session event re-reads the state. A `state/replace` (import) or reset
+emits no session event, so the bed changes with the next one.
 
 ## Integration (as wired)
 - `src/main.ts` builds `createGardenAudio({ bus, getState: store.get, clock })` and passes it to
@@ -116,4 +129,5 @@ Setters and bus events write the same fields; the last write wins.
 (determinism, rate accuracy, step-size independence, voice cap, gaps), `gate.test.ts`
 (autoplay gating, fades, dispose), `recipes.test.ts` (valid quiet specs, warbler shape,
 pentatonic phrase), `noise.test.ts` (spectral tilt, seamless loops, decaying IR),
-`garden-audio.test.ts` (controller with a fake backend and manual timers).
+`garden-audio.test.ts` (controller with a fake backend and manual timers; the parallel-session
+cases run the real session controller and store so events arrive in the app's order).

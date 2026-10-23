@@ -89,9 +89,6 @@ weather, Your plant, the widget, the tab title and notifications follow it.
 | History | Every completed and cancelled session is kept in a session log (times, focused minutes, plan, plant, task) for the calendar (ADR 0151). |
 
 *Status:* done (phase 7). The camera glides to the active plant on start and on switch (§12a).
-Not met for sound (§8): the audio's weather bed does not follow a switch (it keeps the session
-started last), and ending a waiting session clears the active one's weather and activity
-(`src/audio/garden-audio.ts` ignores `session:switch` and which session ended; devlog 35).
 
 ### Active-session ambience (subtle!)
 While a session runs, the garden visibly "works with you":
@@ -251,7 +248,7 @@ watercolour, never neon.
 
 ## 8. Sound
 Procedural Web Audio ambience (no audio files): soft water, wind in leaves, occasional distant
-bird; light rain during rain sessions; a gentle bloom chime; a soft, short pour whenever the plant
+bird; light rain during rain sessions (the active session's weather, §2 › Parallel sessions); a gentle bloom chime; a soft, short pour whenever the plant
 is watered (the automatic focus watering and the can in a break, ADR 0182). **Muted by default**, speaker
 toggle in the garden's corner and in the dock's Garden tools (one shared state); setting
 remembered.
