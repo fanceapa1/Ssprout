@@ -289,7 +289,7 @@ const windEntry: StudioEntry = {
 };
 
 /**
- * The night edge (ADR 0182) at the corner of a stage, at strengths 0 (midday), 0.5 (dusk) and 1
+ * The night edge (ADR 0184) at the corner of a stage, at strengths 0 (midday), 0.5 (dusk) and 1
  * (night): an indigo night wash stands in for the lit garden; the lift and the pooled rim are drawn
  * exactly as the lighting layer draws them, then the paper multiplied.
  */

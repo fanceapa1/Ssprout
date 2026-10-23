@@ -463,7 +463,7 @@ export function createAmbience(opts: AmbienceOptions): Ambience {
       if (view.y < 0) ctx.drawImage(lc, 0, 0, lc.width, 1, 0, view.y, WORLD_W, -view.y);
       const below = view.y + view.h - WORLD_H;
       if (below > 0) ctx.drawImage(lc, 0, lc.height - 1, lc.width, 1, 0, WORLD_H, WORLD_W, below);
-      // in dark light the wash stops short of the stage's dissolve with a watercolour edge (ADR 0182)
+      // in dark light the wash stops short of the stage's dissolve with a watercolour edge (ADR 0184)
       ctx.globalAlpha = 1;
       ctx.globalCompositeOperation = 'source-over';
       nightEdge.draw(ctx as CanvasRenderingContext2D, edgeStrength(light) * alpha);

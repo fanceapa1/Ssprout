@@ -70,7 +70,7 @@ test.describe('daylight phases', () => {
       await show(page, p);
       const d = await page.evaluate(() => window.sprout!.daylight());
       expect(d.phase).toBe(p);
-      // the painting itself, not the margins the stage's edge dissolves (paper at night, ADR 0182)
+      // the painting itself, not the margins the stage's edge dissolves (paper at night, ADR 0184)
       looks[p] = { ...(await band(page, 0.06, 0.82, 0.05)), sky: await band(page, 0.06, 0.25, 0.05) };
     }
     const { sunrise, midday, sunset, night } = looks;
@@ -173,7 +173,7 @@ test.describe('daylight phases', () => {
     expect(plants.avgMs).toBeLessThan(4);
   });
 
-  test('at night the wash stops short of the margin and the margin is paper, not a grey haze (ADR 0182)', async ({ page }) => {
+  test('at night the wash stops short of the margin and the margin is paper, not a grey haze (ADR 0184)', async ({ page }) => {
     await openDev(page);
     /** Mean colour of a vertical strip of the canvas, between two CSS-px distances from its left edge. */
     const strip = (x0: number, x1: number) =>

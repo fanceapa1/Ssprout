@@ -4,7 +4,7 @@ import type { AnyCanvas } from '../paint';
 import type { DaylightState } from './daylight';
 
 /**
- * Where a dark light stops (ADR 0182). The stage's CSS mask (src/ui/stage-edge.ts, ADR 0132)
+ * Where a dark light stops (ADR 0184). The stage's CSS mask (src/ui/stage-edge.ts, ADR 0132)
  * dissolves the painting into the page with a soft alpha gradient. Over the pale midday garden that
  * reads as a wash thinning out; over the night's indigo it read as a grey, milky haze, because a
  * dark colour fading in opacity over cream paper *is* haze. A watercolourist's night wash does

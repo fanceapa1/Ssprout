@@ -3,7 +3,7 @@ import { fadeHeight, featherWidth } from '../ui/stage-edge';
 import { blendWeights, only, pinnedState } from './daylight';
 import { edgeBand, edgeStrength, nightEdgeFields } from './night-edge';
 
-describe('night edge (ADR 0182)', () => {
+describe('night edge (ADR 0184)', () => {
   it('uses the same bands as the stage mask it sits inside', () => {
     for (const [w, h] of [
       [1412, 790],

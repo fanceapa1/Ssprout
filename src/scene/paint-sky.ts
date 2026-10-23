@@ -105,7 +105,7 @@ function streak(p: Painter, rng: Rng, x: number, y: number, len: number, h: numb
 }
 
 /**
- * Midday whites lifted out of the wet blue (ADR 0181): not a cloud *shape* but the places where a
+ * Midday whites lifted out of the wet blue (ADR 0184): not a cloud *shape* but the places where a
  * damp brush took the pigment back up — several soft, overlapping lifts of uneven strength strung
  * along a slightly tilted drift, most with lost edges, one or two left to dry with a crisp rim or a
  * crinkled bloom, and a few torn wisps trailing off. No outline, no flat belly, no glaze under it.
@@ -193,7 +193,7 @@ export function paintSkyPlate(p: Painter, rng: Rng, phase: DayPhase): void {
       }
       // a little warmth low down
       p.glaze(band(300, 390), lighten(PIGMENTS.gold, 0.4), { rng, opacity: 0.1, fade: { angle: -Math.PI / 2, start: 0.3, amount: 1 } });
-      // the whites lifted out of the wet blue: drifts, never cloud shapes (ADR 0181)
+      // the whites lifted out of the wet blue: drifts, never cloud shapes (ADR 0184)
       liftedDrift(p, rng, 330, 40, 520, 70);
       liftedDrift(p, rng, 1120, 130, 620, 60);
       liftedDrift(p, rng, 1580, 10, 360, 50);
