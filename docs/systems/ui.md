@@ -166,6 +166,16 @@ already stands aside while a modal is open. The sheet's own paper scrolls (`over
 contain`). The torn edge is drawn by `dialog.sheet::after` from `--slip-dense-edge-*` over the
 content; the planting footer stops 7 px short of it.
 
+Keyboard focus never leaves a control under a sheet's sticky parts (Q14). `.sheet-inner` has
+`scroll-padding-block` of the torn edge's clearance (`--sheet-edge-clear`, 14 px, room for the
+focus ring) plus `--sheet-foot-h` / `--sheet-head-h`. `createSheet` measures a sticky `.sheet-foot`
+(and a `.sheet-head-sticky`, if a sheet ever has one) with a `ResizeObserver` when the sheet
+opens, so the padding follows the footer as its summary wraps on phones. Today only the planting
+sheet has a sticky part. The schedule sheet, its pickers, the herbarium, garden data and hints get
+the edge clearance from the same rule, and a sticky `.sheet-foot` added to any of them is measured
+too. The reveal is the browser's instant scroll (`scroll-behavior: auto`), so nothing glides and
+reduced motion has nothing to turn off.
+
 ## Accessibility
 Real buttons with labels; `role=radiogroup` for plans; locked plants, and plants whose every spot holds a growing seedling (`data-full`, ADR 0205), `aria-disabled`; ink focus
 rings (`:focus-visible`); sheets are `<dialog>` with focus on the heading and focus returned to

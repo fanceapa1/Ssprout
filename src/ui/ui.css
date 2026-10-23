@@ -1494,6 +1494,14 @@ dialog.sheet.is-closing::backdrop {
   max-height: calc(100dvh - 32px);
   overflow: auto;
   overscroll-behavior: contain;
+  /*
+   * Keyboard focus reveals the whole control, ring included: clear of the torn edge at the top and
+   * bottom, and of a sticky footer (`.sheet-foot`, measured into --sheet-foot-h by sheet.ts) or
+   * header (--sheet-head-h). The reveal is the browser's instant one; nothing glides (Q14).
+   */
+  --sheet-edge-clear: 14px;
+  scroll-padding-block: calc(var(--sheet-head-h, 0px) + var(--sheet-edge-clear)) calc(var(--sheet-foot-h, 0px) + var(--sheet-edge-clear));
+  scroll-behavior: auto;
   padding: 32px 38px 28px;
   background-image: var(--grain), var(--slip-dense-0);
   background-size: auto, 100% 100%;
