@@ -1,6 +1,6 @@
 # ADR 0112 — Byte-budgeted sprite LRU and resolution buckets
 
-- Status: accepted
+- Status: accepted; amended by ADR 0165
 - Date: 2026-10-22
 
 ## Decision

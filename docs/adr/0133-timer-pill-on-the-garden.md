@@ -1,6 +1,6 @@
 # ADR 0133 — A timer pill is the only session control on the painting
 
-- Status: accepted; amended by ADR 0156 (“+N” when other sessions are in progress)
+- Status: accepted; amended by ADRs 0156 (“+N” when other sessions are in progress), 0194, 0201, 0203
 - Date: 2026-10-23
 - Supersedes: ADR 0127 (timer slip in the corner)
 

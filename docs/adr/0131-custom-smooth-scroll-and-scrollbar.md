@@ -1,6 +1,6 @@
 # ADR 0131 — Custom smooth scroll over native scrolling; a brush scrollbar
 
-- Status: accepted
+- Status: accepted; amended by ADR 0190
 - Date: 2026-10-23
 - Context: ADR 0005 (custom smooth scroll and scrollbar, touch native, reduced motion)
 

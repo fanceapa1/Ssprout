@@ -1,6 +1,6 @@
 # ADR 0051 — Native `<dialog>` for sheets; placement is a non-modal mode
 
-- Status: accepted
+- Status: accepted; amended by ADR 0190
 - Date: 2026-10-21
 
 ## Decision

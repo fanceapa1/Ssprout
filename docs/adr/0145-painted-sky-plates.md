@@ -1,6 +1,6 @@
 # ADR 0145 — Painted sky plates under the landscape
 
-- Status: accepted
+- Status: accepted; amended by ADRs 0163, 0184, 0185
 - Date: 2026-10-23
 
 ## Context

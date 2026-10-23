@@ -1,6 +1,6 @@
 # ADR 0176 — The waiting card in the Study section, a slip above the pill
 
-- Status: accepted
+- Status: accepted; amended by ADRs 0194, 0201, 0203
 - Date: 2026-10-23
 
 ## Context

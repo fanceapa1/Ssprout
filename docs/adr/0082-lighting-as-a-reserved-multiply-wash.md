@@ -1,6 +1,6 @@
 # ADR 0082 — Time-of-day lighting as a cached multiply wash with reserved lights
 
-- Status: accepted
+- Status: accepted; amended by ADRs 0141 (four daylight phases replace the hour keyframes), 0147 (the wash becomes the base of a painted light plate)
 - Date: 2026-10-22
 
 ## Context

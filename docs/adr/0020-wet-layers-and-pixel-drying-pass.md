@@ -1,6 +1,6 @@
 # ADR 0020 — Wet layers with a per-pixel drying pass
 
-- Status: accepted
+- Status: accepted; amended by ADR 0185
 - Date: 2026-10-22
 
 ## Context

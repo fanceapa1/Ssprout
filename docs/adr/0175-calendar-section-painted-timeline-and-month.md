@@ -1,6 +1,6 @@
 # ADR 0175 — The calendar section: a painted timeline and a month of dabs
 
-- Status: accepted; amended by ADR 0210 (wall-clock face)
+- Status: accepted; amended by ADRs 0183, 0191, 0194, 0210 (wall-clock face)
 - Date: 2026-10-23
 
 ## Context

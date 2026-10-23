@@ -1,6 +1,6 @@
 # ADR 0130 — The page: a garden stage on top, a dock of sections below
 
-- Status: accepted; amended by ADR 0156 (the Study section lists the sessions in progress)
+- Status: accepted; amended by ADRs 0156 (the Study section lists the sessions in progress), 0160, 0164, 0200, 0201
 - Date: 2026-10-23
 - Context: ADR 0005 (owner's v2 requests); amends ADR 0050 (the UI is no longer only an overlay)
 

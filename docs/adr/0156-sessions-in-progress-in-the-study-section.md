@@ -1,6 +1,6 @@
 # ADR 0156 — Sessions in progress live in the Study section; the pill says "+2"
 
-- Status: accepted (amends ADRs 0130, 0133)
+- Status: accepted (amends ADRs 0130, 0133); amended by ADR 0194
 - Date: 2026-10-23
 
 ## Context

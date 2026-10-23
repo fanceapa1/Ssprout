@@ -1,6 +1,6 @@
 # ADR 0165 — Plant sprite resolution follows the camera
 
-- Status: accepted (amends ADR 0112)
+- Status: accepted (amends ADR 0112); amended by ADR 0187
 - Date: 2026-10-23
 
 ## Context

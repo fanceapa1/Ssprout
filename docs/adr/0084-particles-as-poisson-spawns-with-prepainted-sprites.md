@@ -1,6 +1,6 @@
 # ADR 0084 — Particles as Poisson spawns drawn with pre-painted sprites
 
-- Status: accepted
+- Status: accepted; amended by ADR 0193
 - Date: 2026-10-22
 
 ## Context

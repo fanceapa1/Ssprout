@@ -1,6 +1,6 @@
 # ADR 0134 — "Your plant": a live painted view in the dock, with a watering hook
 
-- Status: accepted
+- Status: accepted; amended by ADR 0184
 - Date: 2026-10-23
 - Context: ADR 0005 (more focus on the plant; automatic focus watering in phase 7), ADRs 0094/0118
 

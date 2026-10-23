@@ -1,6 +1,6 @@
 # ADR 0132 — The garden dissolves into the page through a CSS mask; the page is the garden's paper
 
-- Status: accepted
+- Status: accepted; amended by ADR 0184
 - Date: 2026-10-23
 - Context: ADR 0021 (paint on white, paper multiplied last), ADR 0040 (the scene owns the paper layer)
 

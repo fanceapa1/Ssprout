@@ -1,6 +1,6 @@
 # ADR 0111 — Sprites are painted in module workers
 
-- Status: accepted
+- Status: accepted; amended by ADR 0187
 - Date: 2026-10-22
 
 ## Context

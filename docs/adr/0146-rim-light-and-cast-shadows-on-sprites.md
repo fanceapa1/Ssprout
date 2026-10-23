@@ -1,6 +1,6 @@
 # ADR 0146 — Rim light and cast shadows on sprites
 
-- Status: accepted
+- Status: accepted; amended by ADR 0187
 - Date: 2026-10-23
 
 ## Context

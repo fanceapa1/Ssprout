@@ -1,6 +1,6 @@
 # ADR 0050 — The UI is plain DOM over the canvas, driven only by the session controller
 
-- Status: accepted
+- Status: accepted; amended by ADR 0130
 - Date: 2026-10-21
 
 ## Context

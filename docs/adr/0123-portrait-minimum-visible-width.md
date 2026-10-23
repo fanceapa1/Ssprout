@@ -1,6 +1,6 @@
 # ADR 0123 — Tall phones show at least 600 units of the world's width
 
-- Status: accepted
+- Status: accepted; amended by ADR 0160
 - Date: 2026-10-22
 - Amends: the viewport contract in docs/ARCHITECTURE.md ("clamped so nothing outside the world is
   ever shown")

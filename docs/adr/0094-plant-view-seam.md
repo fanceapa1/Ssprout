@@ -1,6 +1,6 @@
 # ADR 0094 — `renderPlantView`: one seam for "this species at this growth"
 
-- Status: accepted; the signature stands, the internals described here were replaced by ADR 0118
+- Status: accepted; the signature stands, the internals described here were replaced by ADR 0118; amended by ADR 0189
 - Date: 2026-10-22
 
 ## Context

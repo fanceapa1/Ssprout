@@ -1,6 +1,6 @@
 # ADR 0177 — The schedule editor: a washi sheet, open by default
 
-- Status: accepted
+- Status: accepted; amended by ADRs 0192, 0194
 - Date: 2026-10-23
 
 ## Context

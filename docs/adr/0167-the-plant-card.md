@@ -1,6 +1,6 @@
 # ADR 0167 — The plant card
 
-- Status: accepted
+- Status: accepted; amended by ADR 0190
 - Date: 2026-10-23
 
 ## Context

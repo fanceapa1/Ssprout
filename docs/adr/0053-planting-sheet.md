@@ -1,6 +1,6 @@
 # ADR 0053 — One scrolling planting sheet, then placement, then Begin
 
-- Status: accepted
+- Status: accepted; amended by ADRs 0194, 0205
 - Date: 2026-10-21
 - Context: ADR 0003 (the plant is chosen at session start)
 

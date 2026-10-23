@@ -1,6 +1,6 @@
 # ADR 0147 — Painted light plates per phase
 
-- Status: accepted (extends ADR 0082: the multiply wash becomes the base of a painted plate)
+- Status: accepted (extends ADR 0082: the multiply wash becomes the base of a painted plate); amended by ADR 0163
 - Date: 2026-10-23
 
 ## Context

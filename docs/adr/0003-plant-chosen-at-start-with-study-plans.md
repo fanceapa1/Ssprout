@@ -1,6 +1,6 @@
 # ADR 0003 — The plant is chosen at session start; study plans with watering breaks
 
-- Status: accepted (supersedes ADR 0002 and the end-of-session reward picker in ADR 0001 §2)
+- Status: accepted (supersedes ADR 0002 and the end-of-session reward picker in ADR 0001 §2); amended by ADR 0189
 - Date: 2026-10-21
 - Decided by: project owner; details recorded by the orchestrator
 

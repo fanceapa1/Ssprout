@@ -1,6 +1,6 @@
 # ADR 0071 — Creatures are engine-painted parts composed per frame
 
-- Status: accepted
+- Status: accepted; amended by ADR 0188
 - Date: 2026-10-22
 
 ## Context

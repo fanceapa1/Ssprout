@@ -1,6 +1,6 @@
 # ADR 0041 — Background painting: paint view, 10 % repaint rule, cooperative paint, fade
 
-- Status: accepted
+- Status: accepted; amended by ADRs 0161, 0163, 0185
 - Date: 2026-10-22
 
 ## Context

@@ -1,6 +1,6 @@
 # ADR 0043 — Slot perspective scale and canonical plant sizes
 
-- Status: accepted
+- Status: accepted; amended by ADR 0148
 - Date: 2026-10-22
 
 ## Context

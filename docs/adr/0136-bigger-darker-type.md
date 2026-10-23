@@ -1,6 +1,6 @@
 # ADR 0136 — Bigger, darker type, checked against the paper
 
-- Status: accepted
+- Status: accepted; amended by ADR 0200
 - Date: 2026-10-23
 - Context: ADR 0005 (slightly bigger, more contrasted fonts everywhere)
 

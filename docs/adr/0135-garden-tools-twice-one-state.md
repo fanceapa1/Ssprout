@@ -1,6 +1,6 @@
 # ADR 0135 — Garden tools: one implementation, two views; icons redrawn
 
-- Status: accepted
+- Status: accepted; amended by ADR 0180
 - Date: 2026-10-23
 - Context: ADR 0005 (icons not intuitive or visible enough; duplicate them below the canvas)
 

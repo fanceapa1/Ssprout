@@ -1,6 +1,6 @@
 # ADR 0150 — Parallel sessions: one active session and up to two waiting
 
-- Status: accepted (implements ADR 0005 › Parallel sessions; amends ADRs 0032, 0036)
+- Status: accepted (implements ADR 0005 › Parallel sessions; amends ADRs 0032, 0036); amended by ADR 0205
 - Date: 2026-10-23
 
 ## Context
