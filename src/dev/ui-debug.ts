@@ -3,6 +3,7 @@ import type { Pt, Viewport } from '../render/viewport';
 import type { Slot } from '../scene/geometry';
 import type { UI, UIState, WidgetIntegration } from '../ui';
 import { extendDebug } from './debug';
+import { msUntilLocalTime } from './local-time';
 
 /** UI additions to `window.sprout` (docs/systems/ui.md › Debug API). */
 declare module './debug' {
@@ -48,6 +49,11 @@ declare module './debug' {
     };
     /** Jump the dev clock forward by `ms` (e.g. into a break or a long pause) and refresh the UI. */
     advance(ms: number): void;
+    /**
+     * Pin the time of day: jump the dev clock forward to the next local `HH:MM` (later today, else
+     * tomorrow; the clock never goes back) and refresh the UI. Returns the new time (epoch ms).
+     */
+    advanceTo(hhmm: string): number;
   }
 }
 
@@ -138,6 +144,11 @@ export function installUiDebug({ ui, clock, widget, viewport, slots }: UiDebugDe
     advance(ms: number) {
       clock.advance(ms);
       ui.refresh();
+    },
+    advanceTo(hhmm: string) {
+      clock.advance(msUntilLocalTime(clock.now(), hhmm));
+      ui.refresh();
+      return clock.now();
     },
   });
 }
