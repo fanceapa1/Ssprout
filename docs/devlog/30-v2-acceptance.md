@@ -51,5 +51,5 @@ Real touch (pinch, native scroll momentum, a real double tap), listening to the 
 devices and browsers, real OS notifications with the tab closed, and a real PiP window.
 
 ## Suites
-`npm run typecheck`, `npm test`, and `nice -n 10 env E2E_PORT=4198 npm run e2e` (2 workers). See
-the report for the counts.
+`npm run typecheck` passes. `npm test`: 107 files, 1309 tests pass. `nice -n 10 env E2E_PORT=4198
+npm run e2e` (2 workers): 192 passed in 11.2 min, the two known gaps among them as expected failures.
