@@ -24,6 +24,8 @@
 }
 
 .ui-root {
+  /* the sheets' washes reach a little past the dock's right edge (ADR 0208): never a sideways scroll */
+  overflow-x: clip;
   /* paper under the garden's current light, and a dimming for slips (ambient-light.ts) */
   --ui-dab: 243, 236, 217;
   --ui-dim: 1;

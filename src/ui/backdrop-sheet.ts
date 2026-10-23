@@ -22,7 +22,7 @@ export type SheetStrength = 'leaf' | 'firm';
 export interface SheetStyle {
   /** opacity of the white lifted over the shared paper tile: how much lighter than the page */
   lift: number;
-  /** how far the shadow's wash reaches past the lower edge (px); the right edge gets 55 % of it */
+  /** how far the shadow's wash reaches past the lower edge (px); the right edge gets 45 % of it */
   depth: number;
   /** opacity of each glaze in the shadow */
   glaze: number;
@@ -172,7 +172,7 @@ export function sheetFibres(seed: string, w: number, h: number, style: SheetStyl
 }
 
 /** How far the shadow's wash reaches out past each side (negative: it stays under the sheet). */
-const SHADOW_SIDE: Record<Side, number> = { top: -0.7, right: 0.55, bottom: 1, left: -0.7 };
+const SHADOW_SIDE: Record<Side, number> = { top: -0.7, right: 0.45, bottom: 1, left: -0.7 };
 
 /**
  * The pooled wash under the sheet: `GLAZES` jittered outlines, each reaching a little less far
