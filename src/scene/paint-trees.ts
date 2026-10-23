@@ -36,12 +36,21 @@ export function paintTree(p: Painter, rng: Rng, tree: TreeSpec): void {
   // stems: brush strokes with a little pressure flare at the root
   for (const [i, stem] of tree.stems.entries()) {
     const sw = i === 0 ? w : w * 0.72;
-    p.stroke(stem, { rng, pigment: bark, width: sw, wetness: 0.25, wobble: 0.25, taper: [0, 0.35], pressure: thinning(1.25, 0.55), opacity: 0.85 });
+    p.stroke(stem, { rng, pigment: bark, width: sw, wetness: 0.25, wobble: 0.25, taper: [0, 0.03], pressure: thinning(1.25, 0.5), opacity: 0.85 });
   }
-  // limbs: thinner strokes, then fine ink twigs that reach into the pads
+  // limbs: thinner strokes, then fine ink twigs that reach into the pads; the stems keep their
+  // width almost to the top and each limb starts rounded, so a joint never shows a square-cut end
+  // close up
   for (const limb of tree.limbs) {
     p.stroke(limb, { rng, pigment: bark, width: w * 0.5, wetness: 0.3, wobble: 0.3, taper: [0, 0.6], pressure: thinning(1, 0.4), opacity: 0.8 });
+    // the fork itself: a small rounded node where the limb leaves the stem
+    const j = limb[0]!;
+    p.glaze({ cx: j.x, cy: j.y + w * 0.1, rx: w * 0.34, ry: w * 0.42 }, bark, { rng, opacity: 0.28, deform: 0.2, layers: 5 });
   }
+  // bark: the modelling a close look finds (ADR 0186), painted from the tree's own rng fork so
+  // the rest of the tree is untouched — a cool shadow side bled into the wet trunk, broken
+  // dry-brush striations along the grain, a knot or two
+  barkDetail(p, rng.fork('bark'), tree, bark);
   for (const [x, y, r] of tree.pads) {
     const from = nearestPoint([...tree.stems.flat(), ...tree.limbs.flat()], { x, y: y + r * 0.3 });
     const end = { x: x + rng.range(-0.2, 0.2) * r, y: y + r * 0.12 };
@@ -69,9 +78,91 @@ export function paintTree(p: Painter, rng: Rng, tree: TreeSpec): void {
   // shadow side of the main trunk: a broken ink accent
   const main = tree.stems[0]!;
   p.inkLine(
-    main.map((q) => ({ x: q.x + w * 0.35, y: q.y })),
+    main.map((q, i) => ({ x: q.x + w * 0.3 * (1 - (i / Math.max(1, main.length - 1)) * 0.5), y: q.y })),
     { rng, width: Math.max(0.8, w * 0.22), pigment: shade(bark, 0.15), opacity: 0.55 - d * 0.3, breaks: 0.45 },
   );
+}
+
+/** The part of a polyline between fractions `t0` and `t1` of its length. */
+function subPath(pts: readonly Pt[], t0: number, t1: number): Pt[] {
+  const segs: number[] = [];
+  let total = 0;
+  for (let i = 1; i < pts.length; i++) {
+    const d = Math.hypot(pts[i]!.x - pts[i - 1]!.x, pts[i]!.y - pts[i - 1]!.y);
+    segs.push(d);
+    total += d;
+  }
+  const at = (t: number): Pt => {
+    let d = t * total;
+    for (let i = 0; i < segs.length; i++) {
+      if (d <= segs[i]! || i === segs.length - 1) {
+        const k = segs[i]! > 0 ? Math.min(1, d / segs[i]!) : 0;
+        return { x: pts[i]!.x + (pts[i + 1]!.x - pts[i]!.x) * k, y: pts[i]!.y + (pts[i + 1]!.y - pts[i]!.y) * k };
+      }
+      d -= segs[i]!;
+    }
+    return pts[pts.length - 1]!;
+  };
+  const out: Pt[] = [];
+  const n = 5;
+  for (let k = 0; k <= n; k++) out.push(at(t0 + ((t1 - t0) * k) / n));
+  return out;
+}
+
+/** Shadow side, striations and knots on a tree's stems (and its thicker limbs). */
+function barkDetail(p: Painter, rng: Rng, tree: TreeSpec, bark: string): void {
+  const d = tree.distance;
+  const w = tree.width;
+  const fade = 1 - d * 0.8;
+  const dark = shade(bark, 0.3);
+  // light from the upper left: the shadow lies along each stem's right flank
+  const flank = (path: readonly Pt[], k: number) => path.map((q, i) => ({ x: q.x + k * (1 - (i / Math.max(1, path.length - 1)) * 0.45), y: q.y }));
+  for (const [i, stem] of tree.stems.entries()) {
+    const sw = i === 0 ? w : w * 0.72;
+    p.stroke(flank(stem, sw * 0.14), {
+      rng,
+      pigment: mix(dark, PIGMENTS.ultramarine, 0.12),
+      width: sw * 0.5,
+      wetness: 0.8,
+      wobble: 0.2,
+      taper: [0.02, 0.45],
+      pressure: thinning(1.2, 0.5),
+      opacity: 0.42 * fade,
+      edge: 0.3,
+    });
+    if (d > 0.6 || sw < 3.5) continue;
+    // striations: short broken strokes following the grain, mostly on the shadow half
+    const marks = Math.round(3 + sw * 0.6);
+    for (let m = 0; m < marks; m++) {
+      const t0 = rng.range(0, 0.75);
+      const seg = subPath(stem, t0, Math.min(1, t0 + rng.range(0.08, 0.2)));
+      const off = rng.range(-0.1, 0.32) * sw * (1 - t0 * 0.4);
+      p.dryBrush(
+        seg.map((q) => ({ x: q.x + off, y: q.y })),
+        { rng, pigment: dark, width: Math.max(0.7, sw * rng.range(0.1, 0.2)), opacity: rng.range(0.35, 0.6) * fade, dryness: 0.5, wobble: 0.3 },
+      );
+    }
+    // a knot or two: a small dark crescent with a lighter centre left as it was
+    const knots = sw > 6 ? 2 : 1;
+    for (let k = 0; k < knots; k++) {
+      const c = subPath(stem, rng.range(0.15, 0.6), 1)[0]!;
+      const r = sw * rng.range(0.14, 0.22);
+      const a0 = rng.range(-0.4, 0.4);
+      p.inkLine(
+        [
+          { x: c.x - r, y: c.y + Math.sin(a0) * r * 0.3 },
+          { x: c.x, y: c.y + r * 0.55 },
+          { x: c.x + r, y: c.y - Math.sin(a0) * r * 0.3 },
+        ],
+        { rng, width: Math.max(0.6, sw * 0.07), pigment: dark, opacity: 0.5 * fade, breaks: 0.2, pressure: [0.4, 1, 0.3] },
+      );
+    }
+  }
+  // thicker limbs get a shadow flank too
+  for (const limb of tree.limbs) {
+    if (w * 0.5 < 2.6) continue;
+    p.stroke(flank(limb, w * 0.12), { rng, pigment: dark, width: w * 0.24, wetness: 0.8, wobble: 0.25, taper: [0.1, 0.6], opacity: 0.25 * fade, edge: 0.2 });
+  }
 }
 
 function nearestPoint(pts: Pt[], q: Pt): Pt {
