@@ -66,8 +66,8 @@ Task queue (atomic tasks, at most 2 agents at a time; owner feedback 2026-10-23:
 | Q13 | Calendar day view: opens an hour off on a DST day (25 Oct), and stops following now if redrawn mid-glide (TESTING open gaps 7, 8) | `src/ui/calendar*` | done (ADR 0210) |
 | Q14 | Planting sheet: a keyboard-focused card can sit under the sticky footer (scroll-padding) | `src/ui/**` | done |
 | Q11 | **Priority (owner):** a painted backdrop for each dock section, the calendar most of all | `src/ui/**` | done (ADR 0208) |
-| Q12 | **Owner:** a small × on each tooltip to dismiss it (dismissed = retired, still listed under ⓘ) | `src/ui/tips*`, `src/core/tips.ts` | in progress |
+| Q12 | **Owner:** a small × on each tooltip to dismiss it (dismissed = retired, still listed under ⓘ) | `src/ui/tips*`, `src/core/tips.ts` | done (ADR 0211) |
 | Q15 | Audio weather follows the active session (`session:switch`); ending a waiting session must not silence the active one | `src/audio` | done |
 | Q16 | Favicon/notification icon: replace the unseen-bloom round dot with the inked sprout (ADR 0194) | `src/widget/favicon.ts` | done |
 | Q17 | **Owner:** garden stage 7 % taller (≈ 88 → 94 vh), so more sky shows above the hills | `src/ui` stage CSS, viewport tests | done (ADR 0212) |
-| Q10 | Flakiness: three consecutive green e2e runs, root-cause fixes | `tests/**` | queued (last) |
+| Q10 | Flakiness: three consecutive green e2e runs, root-cause fixes | `tests/**` | in progress (also: backdrops contrast "2.21 Start" fails locally, passes in CI) |
