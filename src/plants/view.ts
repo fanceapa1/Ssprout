@@ -225,10 +225,10 @@ export function renderPlantView(canvas: AnyCanvas, opts: PlantViewOptions): bool
   // sized to the frame; seeds painted with their own mound, and water plants, keep theirs
   const bed = opts.framing === 'growth' && !(def.habitats ?? []).every((x) => x === 'water') && bounds && (def.anchor.y - bounds.top) * L.h < H * 0.1 ? seedBedAlpha(opts.growth) : 0;
   const groundY = L.baseY;
-  if (bed > 0) {
-    const raise = bed * H * BED_RAISE;
-    L = { ...L, y: L.y - raise, baseY: L.baseY - raise };
-  }
+  // an enlarged seed's own mound reaches below its base: raise it so the frame does not cut it flat
+  const below = opts.framing === 'growth' && bounds ? Math.max(0, (bounds.bottom - def.anchor.y) * L.h + L.baseY - (H - 2)) : 0;
+  const raise = Math.max(bed * H * BED_RAISE, below);
+  if (raise > 0) L = { ...L, y: L.y - raise, baseY: L.baseY - raise };
   const box = { x: L.x, y: L.y, w: L.w, h: L.h };
   const top = bounds ? L.y + bounds.top * L.h : L.baseY - L.h * Math.max(0.2, opts.growth) * 0.8;
   const half = bounds ? ((bounds.right - bounds.left) / 2) * L.w : L.w * 0.25;
