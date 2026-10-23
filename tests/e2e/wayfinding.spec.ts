@@ -42,7 +42,10 @@ const textRects = (page: Page) =>
 
 const wayfinding = (page: Page, layout = true) => page.evaluate((l) => window.sprout!.ui.wayfinding({ layout: l }), layout);
 
-/** The path passes each visible heading in order, with its stop on the heading's line, just left of it. */
+/**
+ * The path passes each visible heading in order, with its stop on the heading's line, left of it:
+ * outside the section's sheet, whose margin lies between the stop and the heading (ADR 0208).
+ */
 async function expectStopsBesideHeadings(page: Page, gap: { min: number; max: number }) {
   const heads = await headings(page);
   const w = await wayfinding(page);
@@ -89,7 +92,7 @@ test.describe('wayfinding · desktop', () => {
   test('the path leaves the stepping stones and passes every heading in order, beside it', async ({ page }) => {
     await openUi(page);
     await page.evaluate(() => window.sprout!.ui.dockReady());
-    const w = await expectStopsBesideHeadings(page, { min: 18, max: 48 });
+    const w = await expectStopsBesideHeadings(page, { min: 50, max: 90 });
     expect(w.mode).toBe('wide');
     // it begins on the garden, near the stones in the middle of the stage, above the dock
     const stage = (await page.locator('#stage').boundingBox())!;
@@ -112,14 +115,14 @@ test.describe('wayfinding · desktop', () => {
     await expect(page.locator('.due-card')).toHaveCount(1);
     await expect(page.locator('.session-list .session-row')).toHaveCount(3);
     await page.evaluate(() => window.sprout!.ui.dockReady());
-    await expectStopsBesideHeadings(page, { min: 18, max: 48 });
+    await expectStopsBesideHeadings(page, { min: 50, max: 90 });
     await expectNoTextCrossed(page);
   });
 
   test('lays itself out again when a section appears or goes, when content grows, and on resize', async ({ page }) => {
     await openUi(page);
     await page.evaluate(() => window.sprout!.ui.dockReady());
-    await expectStopsBesideHeadings(page, { min: 18, max: 48 });
+    await expectStopsBesideHeadings(page, { min: 50, max: 90 });
     const centre = async (id: string) => {
       const h = (await headings(page)).find((x) => x.id === id)!;
       return h.top + h.height / 2;
@@ -277,7 +280,7 @@ test.describe('wayfinding · phone', () => {
       window.sprout!.ui.refresh();
     });
     await page.evaluate(() => window.sprout!.ui.dockReady());
-    const w = await expectStopsBesideHeadings(page, { min: 12, max: 30 });
+    const w = await expectStopsBesideHeadings(page, { min: 30, max: 50 });
     expect(w.mode).toBe('gutter');
     const heads = await headings(page);
     const lane = w.stops[0]!.x;

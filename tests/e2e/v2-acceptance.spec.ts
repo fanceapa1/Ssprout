@@ -334,7 +334,7 @@ test.describe('v2 acceptance · hover language beyond Pause and End (ADR 0204)',
 });
 
 test.describe('v2 acceptance · the look in numbers', () => {
-  test('bigger, higher-contrast type: base ≥ 20 px at weight ≥ 500, headings ≥ 24 px, every dock text ≥ 4.5:1 on the paper', async ({ page }) => {
+  test('bigger, higher-contrast type: base ≥ 20 px at weight ≥ 500, headings ≥ 24 px, every dock text ≥ 4.5:1 on its sheet', async ({ page }) => {
     await openUi(page);
     await page.evaluate(() => {
       // the demo first: it moves the clock to its time of day, which would end sessions already growing
@@ -375,8 +375,12 @@ test.describe('v2 acceptance · the look in numbers', () => {
         for (let e: Element | null = el; e; e = e.parentElement) opacity *= Number(getComputedStyle(e).opacity);
         const c = parse(cs.color);
         const a = c.a * opacity;
-        // a seal's cream label sits on its vermilion; everything else on the paper
-        const ground = el.closest('.seal') ? vermilion : paper;
+        // a seal's cream label sits on its vermilion; everything else on its section's sheet: the
+        // paper under the sheet's lift of white (ADR 0208; pixels: backdrops.spec.ts)
+        const sheet = el.closest('.dock-section')?.querySelector<HTMLElement>(':scope > .backdrop');
+        const lift = sheet ? Number(sheet.style.getPropertyValue('--sheet-lift')) : 0;
+        const leaf = { r: paper.r + (255 - paper.r) * lift, g: paper.g + (253 - paper.g) * lift, b: paper.b + (247 - paper.b) * lift };
+        const ground = el.closest('.seal') ? vermilion : leaf;
         const seen = { r: c.r * a + ground.r * (1 - a), g: c.g * a + ground.g * (1 - a), b: c.b * a + ground.b * (1 - a) };
         const [x, y] = [lum(seen), lum(ground)];
         const ratio = (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05);
