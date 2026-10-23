@@ -28,6 +28,35 @@ async function openCalendar(page: Page, query = ''): Promise<void> {
   await expect(cal(page)).toBeVisible();
 }
 
+type Loc = ReturnType<Page['locator']>;
+
+/** Choose a day in the schedule editor's painted day picker (ADR 0193): open it, turn to the month, tap the day. */
+async function pickDay(sheet: Loc, date: string): Promise<void> {
+  await sheet.locator('#sched-date').click();
+  const panel = sheet.locator('#sched-date-panel');
+  await expect(panel).toBeVisible();
+  for (let i = 0; i < 24 && (await panel.locator(`button.pick-day[data-date="${date}"][data-other="false"]`).count()) === 0; i++) {
+    await panel.getByRole('button', { name: 'Next month' }).click();
+  }
+  await panel.locator(`button.pick-day[data-date="${date}"][data-other="false"]`).click();
+  await expect(panel).toBeHidden();
+  await expect(sheet.locator('#sched-date')).toHaveAttribute('data-value', date);
+}
+
+/** Choose a time (`HH:MM`, minutes in fives) in the painted time picker, on either clock. */
+async function pickTime(sheet: Loc, hhmm: string): Promise<void> {
+  const [H, M] = hhmm.split(':').map(Number) as [number, number];
+  await sheet.locator('#sched-time').click();
+  const panel = sheet.locator('#sched-time-panel');
+  await expect(panel).toBeVisible();
+  const twelve = (await panel.locator('.pick-periods').count()) > 0;
+  if (twelve) await panel.locator(`[data-period="${H >= 12 ? 'pm' : 'am'}"]`).click();
+  await panel.locator(`[data-hour="${twelve ? ((H + 11) % 12) + 1 : H}"]`).click();
+  await panel.locator(`[data-minute="${M}"]`).click();
+  await panel.getByRole('button', { name: 'Done' }).click();
+  await expect(sheet.locator('#sched-time')).toHaveAttribute('data-value', hhmm);
+}
+
 /** Add a schedule due at the next minute and jump the dev clock to it; returns its occurrence key. */
 async function dueNow(page: Page, input: Record<string, unknown> = {}): Promise<string> {
   return page.evaluate((i) => {
@@ -94,8 +123,8 @@ test.describe('calendar', () => {
     const sheet = page.locator('dialog[data-dialog="schedule"]');
     await expect(sheet).toBeVisible();
     await sheet.getByLabel('What will you study?').fill('Biology ch. 4');
-    await sheet.locator('#sched-date').fill(tomorrow);
-    await sheet.locator('#sched-time').fill('09:30');
+    await pickDay(sheet, tomorrow);
+    await pickTime(sheet, '09:30');
     await sheet.locator('.sched-chip[data-length="50"]').click();
     await sheet.locator('.sched-chip[data-plan-id="pomodoro"]').click();
     await sheet.locator('.sched-chip[data-repeat="daily"]').click();
@@ -131,8 +160,8 @@ test.describe('calendar', () => {
     await page.mouse.click(box.x + box.width * 0.6, box.y + box.height * (14.2 / 24));
     const sheet = page.locator('dialog[data-dialog="schedule"]');
     await expect(sheet).toBeVisible();
-    await expect(sheet.locator('#sched-time')).toHaveValue('14:00');
-    await expect(sheet.locator('#sched-date')).toHaveValue(await dayKeyIn(page, 1));
+    await expect(sheet.locator('#sched-time')).toHaveAttribute('data-value', '14:00');
+    await expect(sheet.locator('#sched-date')).toHaveAttribute('data-value', await dayKeyIn(page, 1));
     await expect(sheet.locator('.sched-chip[data-length="open"]')).toHaveAttribute('aria-checked', 'true');
   });
 
@@ -238,7 +267,7 @@ test.describe('calendar', () => {
     await cal(page).locator('.cal-block[data-kind="scheduled"]').click();
     await expect(sheet).toBeVisible();
     await expect(sheet.getByLabel('What will you study?')).toHaveValue('Kanji');
-    await sheet.locator('#sched-time').fill('21:15');
+    await pickTime(sheet, '21:15');
     await sheet.getByRole('button', { name: 'Save' }).click();
     await expect(sheet.locator('.sched-scope-q')).toHaveText('Change only this one, or this and the following?');
     await sheet.getByRole('button', { name: 'Only this one' }).click();
@@ -521,6 +550,16 @@ test.describe('calendar · the day follows now (ADR 0192)', () => {
     await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
     await page.mouse.wheel(0, -200);
     await expect.poll(async () => (await calState(page)).follow).toBe(false);
+    // the wheel's own scroll animation settles where the gardener put it
+    const settled = () =>
+      page.evaluate(async () => {
+        const tl = document.querySelector<HTMLElement>('[data-section="calendar"] .cal-timeline')!;
+        const frame = () => new Promise((r) => requestAnimationFrame(r));
+        const a = tl.scrollTop;
+        for (let i = 0; i < 6; i++) await frame();
+        return a === tl.scrollTop;
+      });
+    await expect.poll(settled).toBe(true);
     const top = await hoursTop(page);
     const line0 = await page.evaluate(() => document.querySelector<HTMLElement>('.cal-now')!.style.top);
     await page.evaluate(() => window.sprout!.advance(5 * 3_600_000));
@@ -543,4 +582,70 @@ test.describe('calendar · the day follows now (ADR 0192)', () => {
     expect(at).toBeGreaterThanOrEqual(0);
     expect(at).toBeLessThan(0.5);
   });
+});
+
+test.describe('calendar · the editor speaks the calendar’s clock (ADR 0193)', () => {
+  for (const locale of ['en-US', 'en-GB']) {
+    test.describe(locale, () => {
+      test.use({ locale });
+
+      test(`day and time read as the calendar reads them (${locale}), by keyboard alone`, async ({ page }) => {
+        await openCalendar(page);
+        await cal(page).getByRole('button', { name: 'Schedule a session' }).click();
+        const sheet = page.locator('dialog[data-dialog="schedule"]');
+        await expect(sheet).toBeVisible();
+        await sheet.getByLabel('What will you study?').fill('Essay');
+        // the fields are buttons named by their label and value
+        const day = sheet.getByRole('button', { name: /^day / });
+        const time = sheet.getByRole('button', { name: /^time / });
+        await expect(day).toHaveAttribute('aria-expanded', 'false');
+
+        // keyboard: open the day, one week on, choose
+        await day.focus();
+        await page.keyboard.press('Enter');
+        await expect(day).toHaveAttribute('aria-expanded', 'true');
+        await expect(sheet.locator('#sched-date-panel [role="grid"]')).toBeVisible();
+        const start = (await day.getAttribute('data-value'))!;
+        await page.keyboard.press('ArrowDown');
+        await page.keyboard.press('Enter');
+        await expect(day).toHaveAttribute('aria-expanded', 'false');
+        await expect(day).toBeFocused();
+        const chosen = (await day.getAttribute('data-value'))!;
+        const weekOn = await page.evaluate((d) => {
+          const [y, m, dd] = d.split('-').map(Number);
+          const t = new Date(y!, m! - 1, dd! + 7, 12);
+          return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
+        }, start);
+        expect(chosen).toBe(weekOn);
+
+        // keyboard: open the time, the hour group takes focus; Escape folds it, not the sheet
+        await time.focus();
+        await page.keyboard.press('Enter');
+        await expect(sheet.getByRole('radiogroup', { name: 'Hour' })).toBeVisible();
+        await page.keyboard.press('ArrowRight');
+        await page.keyboard.press('Escape');
+        await expect(time).toHaveAttribute('aria-expanded', 'false');
+        await expect(sheet).toBeVisible();
+        const hhmm = (await time.getAttribute('data-value'))!;
+
+        // the field says it exactly as the calendar's own formatter does
+        const expected = await page.evaluate((v) => {
+          const [hr, mi] = v.split(':').map(Number);
+          return new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' }).format(new Date(2026, 0, 1, hr!, mi!));
+        }, hhmm);
+        await expect(time.locator('.pick-value')).toHaveText(expected);
+        const twelve = locale === 'en-US';
+        expect(/AM|PM/.test(expected)).toBe(twelve);
+        expect(await sheet.locator('#sched-time-panel .pick-periods').count()).toBe(twelve ? 1 : 0);
+        // …and the calendar's hours agree on the clock
+        const rail = await cal(page).locator('.cal-hour').first().textContent();
+        expect(/AM|PM/.test(rail ?? '')).toBe(twelve);
+
+        await sheet.getByRole('button', { name: 'Save' }).click();
+        await expect(sheet).toBeHidden();
+        const [s] = await page.evaluate(() => window.sprout!.schedule.list());
+        expect(s).toMatchObject({ name: 'Essay', date: chosen, time: hhmm });
+      });
+    });
+  }
 });
