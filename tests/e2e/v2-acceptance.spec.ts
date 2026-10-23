@@ -134,14 +134,22 @@ test.describe('v2 acceptance · one primary action', () => {
     await expect(primary).toHaveAccessibleName('Start “Kanji”');
   });
 
-  test('a planned session due during a long pause: only one vermilion seal in Study (known gap)', async ({ page }) => {
-    // Known gap (devlog 25 › Left open; docs/TESTING.md › v2 acceptance): the long pause's Resume
-    // is built as a seal and keeps it when a due card's Start takes the lead, so Study shows two
-    // vermilion seals. Expected to fail until the UI is fixed; then drop `test.fail()`.
-    test.fail();
+  test('a planned session due during a long pause: only one vermilion seal in Study, and Resume is the seal again once the card goes', async ({ page }) => {
+    // the look follows `data-primary`: the long pause's Resume steps back to an ink slip
     await longPauseWithDue(page);
     const seals = page.locator('[data-section="session"] button.seal:visible');
-    await expect(seals).toHaveCount(1, { timeout: 2_000 });
+    await expect(seals).toHaveCount(1);
+    await expect(seals).toHaveAccessibleName('Start “Kanji”');
+    const resume = page.locator('.panel button.long-resume');
+    await expect(resume).toHaveClass(/\bquiet\b/);
+    await expect(resume).toHaveClass(/\bink\b/);
+
+    await page.locator('.due-card').getByRole('button', { name: 'Not this time' }).click();
+    await expect(page.locator('.due-card')).toHaveCount(0);
+    await expect(resume).toHaveAttribute('data-primary', 'true');
+    await expect(resume).toHaveClass(/\bseal\b/);
+    await expect(resume).not.toHaveClass(/\bquiet\b/);
+    await expect(seals).toHaveCount(1);
   });
 });
 
