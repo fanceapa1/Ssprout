@@ -50,7 +50,8 @@ Task queue (atomic tasks, at most 2 agents at a time; owner feedback 2026-10-23:
 | # | Task | Area | Status |
 |---|---|---|---|
 | Q1 | Lotus plantable again after the 1.25× slot changes (real flow + plantable test) | `src/scene/slots.ts`, `src/plants` | done (already plantable; dead end when both spots are held fixed, ADR 0205) |
-| Q2 | Night zoom artefact: a pale hard-edged rectangle and a clipped sprite at zoom 3 | `src/render`, `src/scene`, `src/ambience` | in progress |
+| Q2 | Night zoom artefact: a pale hard-edged rectangle and a clipped sprite at zoom 3 | `src/render`, `src/scene`, `src/ambience` | done (ADR 0206) |
+| Q2b | Restore the night's depth after ADR 0206 lightened thin paint (tune the night grade, not the grey) | `src/ambience` | in progress |
 | Q3 | Frame cost at rest while zoomed (20–47 ms headless at 2.6×, 30 plants) | `src/render`, `src/plants` | in progress |
 | Q4 | "Growing now" list order is nondeterministic | `src/ui/session-list*`, `src/core` | done (with wayfinding, ADRs 0200–0204) |
 | Q5 | Seedling at growth ≈ 0 reads as empty in thumbnails / Your plant | `src/plants/view.ts` | done (with wayfinding, ADRs 0200–0204) |
