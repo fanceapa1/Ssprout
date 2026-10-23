@@ -9,7 +9,8 @@ ADR numbering ranges (to avoid collisions in parallel work):
 0070–0079 fauna · 0080–0089 ambience/lighting · 0090–0099 widget/notifications ·
 0100–0109 audio · 0110–0119 plant view/growth/watering · 0120–0129 integration/polish ·
 0130–0139 app shell & dock · 0140–0149 daylight & colour · 0150–0159 parallel sessions & watering ·
-0160–0169 camera & plant descriptions · 0170–0179 calendar & scheduling · 0180–0189 v2 QA/polish.
+0160–0169 camera & plant descriptions · 0170–0179 calendar & scheduling · 0180–0189 v2 polish 1 & close views ·
+0190–0194 v2 polish 2 · 0200–0204 dock wayfinding · 0205+ queue tasks (Q1 0205, Q2 0206, Q3 0207, Q11 0208–0209, Q13 0210).
 
 | Phase | Task | Area (owned paths) | Status |
 |---|---|---|---|
@@ -57,13 +58,15 @@ Task queue (atomic tasks, at most 2 agents at a time; owner feedback 2026-10-23:
 | Q5 | Seedling at growth ≈ 0 reads as empty in thumbnails / Your plant | `src/plants/view.ts` | done (with wayfinding, ADRs 0200–0204) |
 | Q6 | Hover / focus / press states for every UI control (owner request) | `src/ui/**` CSS | done (with wayfinding, ADRs 0200–0204) |
 | Q7 | The two "Start studying" buttons sit too close: new placement for the garden pill (owner request) | `src/ui/**` | done (with wayfinding, ADRs 0200–0204) |
-| Q8 | v2 acceptance: owner requests → tests, TESTING matrix gaps | `tests/**`, `docs/TESTING.md` | done (41 rows: 36 ✔, 3 ◐, 2 ✘) |
+| Q8 | v2 acceptance: owner requests → tests, TESTING matrix gaps | `tests/**`, `docs/TESTING.md` | done (41 rows; after Q8a/Q8b: 38 ✔, 3 ◐, 0 ✘) |
 | Q8a | Long pause: Resume keeps its vermilion seal beside a due card's Start (two primaries) | `src/ui/timer-panel.ts` | done |
 | Q8b | Keyboard focus lacks the hover lift on dock tools and the sheet's plan/plant cards (ADR 0204) | `src/ui/hover.css` | done |
-| Q9 | Docs audit: SPEC/ARCHITECTURE/AGENTS/README vs code | `docs/**`, `README.md`, `AGENTS.md` | in progress |
-| Q11 | **Priority (owner):** a painted backdrop for each dock section, the calendar most of all | `src/ui/**` | in progress |
-| Q12 | **Owner:** a small × on each tooltip to dismiss it (dismissed = retired, still listed under ⓘ) | `src/ui/tips*`, `src/core/tips.ts` | queued (after Q11) |
+| Q9 | Docs audit: SPEC/ARCHITECTURE/AGENTS/README vs code | `docs/**`, `README.md`, `AGENTS.md` | done |
 | Q9a | Time-of-day dependent e2e failures: `calendar.spec.ts:702`, `marks.spec.ts:41` fail on main around 17:00 | `tests/e2e` | done (E2E_CLOCK, sprout.advanceTo) |
 | Q13 | Calendar day view: opens an hour off on a DST day (25 Oct), and stops following now if redrawn mid-glide (TESTING open gaps 7, 8) | `src/ui/calendar*` | done (ADR 0210) |
 | Q14 | Planting sheet: a keyboard-focused card can sit under the sticky footer (scroll-padding) | `src/ui/**` | done |
+| Q11 | **Priority (owner):** a painted backdrop for each dock section, the calendar most of all | `src/ui/**` | in progress |
+| Q12 | **Owner:** a small × on each tooltip to dismiss it (dismissed = retired, still listed under ⓘ) | `src/ui/tips*`, `src/core/tips.ts` | queued (after Q11) |
+| Q15 | Audio weather follows the active session (`session:switch`); ending a waiting session must not silence the active one | `src/audio` | in progress |
+| Q16 | Favicon/notification icon: replace the unseen-bloom round dot with the inked sprout (ADR 0194) | `src/widget/favicon.ts` | queued |
 | Q10 | Flakiness: three consecutive green e2e runs, root-cause fixes | `tests/**` | queued (last) |
