@@ -81,6 +81,10 @@ agent) picks up the work next.
   registry. Use `?fixtures` (`fx-*`) species for UI flows and real species for art.
 - **The studio paints lazily** (ADR 0006): cards paint near the screen within a frame budget.
   Await `window.studio.settle()` before reading studio pixels.
+- **CPU budget on the owner's laptop.** Two agents run at once on 8 cores. Local e2e uses 2
+  workers (`E2E_WORKERS`, default 2). While iterating, run only the specs you touch
+  (`npx playwright test tests/e2e/<spec>`), and run the full suite once at the end, under
+  `nice -n 10`. Don't leave dev servers or watchers running.
 - **The e2e server is the production build.** With `E2E_REUSE=1`, rebuild after every `src/` change
   or you are testing stale code.
 

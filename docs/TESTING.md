@@ -90,6 +90,8 @@ tests (`test-results/`).
   stylesheet to the DOM UI only: no CSS animations, 1 ms transitions. `?uitime` scales the UI's JS
   delays, but CSS keeps real durations. Playwright also waits for a clicked element to stop
   moving. The garden is not put into reduced motion.
+- **CPU budget.** Local e2e runs 2 workers by default (`E2E_WORKERS`); iterate on single specs and
+  run the full suite once per task, niced, because two agents share the owner's laptop.
 - **Heavy pages are scoped.** The studio is checked one section at a time in 4 parallel shards
   (`#<section>`), never all at once. Tests that paint 30+ sprites call `test.slow()`.
 - Budgets (`plants.perf().avgMs < 2`, `ambience().ms < 1.5`, `fauna.bench().total < 8`) are
