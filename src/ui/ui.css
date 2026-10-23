@@ -1292,7 +1292,7 @@ dialog.sheet::backdrop {
   transition: opacity 360ms;
 }
 /* the page under an open sheet does not scroll: not by wheel, keys, touch or the smooth scroll */
-html:has(dialog.sheet[open]:not(.is-closing)) {
+html.has-sheet {
   overflow: hidden;
 }
 /* the torn edge is drawn over the sheet's content, so a sticky footer never covers it */

@@ -141,6 +141,7 @@ export function createUI(deps: UIDeps): UI {
         openers.set(dialog, opener ?? (document.activeElement as HTMLElement | null));
         dialog.showModal();
       }
+      syncSheetLock();
       ctx.changed();
     },
     closeDialog(dialog) {
@@ -151,6 +152,7 @@ export function createUI(deps: UIDeps): UI {
         dialog,
         setTimeout(() => closeNow(dialog), 360),
       );
+      syncSheetLock();
       ctx.changed();
     },
     openDialogs: () => allDialogs().filter((d) => d.open && !closing.has(d)).map((d) => d.dataset.dialog!),
@@ -162,7 +164,20 @@ export function createUI(deps: UIDeps): UI {
     closing.delete(dialog);
     dialog.classList.remove('is-closing');
     if (dialog.open) dialog.close();
+    syncSheetLock();
   }
+
+  /**
+   * The page does not scroll under an open sheet (ADR 0190): `html.has-sheet` hides its overflow
+   * while a sheet is open and not fading out. A class set here rather than an `html:has(…)` rule,
+   * which would re-match the root on every change inside the page.
+   */
+  function syncSheetLock(): void {
+    const open = allDialogs().some((d) => d.open && !closing.has(d));
+    document.documentElement.classList.toggle('has-sheet', open);
+  }
+  // a sheet closed natively (Esc) also unlocks the page
+  root.addEventListener('close', () => syncSheetLock(), true);
 
   // ── components ────────────────────────────────────────────────────────────────────────
   const panel = createTimerPanel(ctx, { plant: (opener) => openPlanting(opener) });
@@ -477,6 +492,7 @@ export function createUI(deps: UIDeps): UI {
       : null,
     dispose() {
       disposed = true;
+      document.documentElement.classList.remove('has-sheet');
       offStore();
       offTick();
       offComplete();
