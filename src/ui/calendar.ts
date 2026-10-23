@@ -465,6 +465,15 @@ export function createCalendar(ctx: UIContext, deps: CalendarDeps): Calendar {
     return wrap;
   }
 
+  /** A selector that finds the same control again after a redraw (null: nothing to keep). */
+  function focusKey(el: HTMLElement): string | null {
+    const esc = (v: string) => (typeof CSS !== 'undefined' && CSS.escape ? CSS.escape(v) : v);
+    if (el.matches('.cal-block[data-id]')) return `.cal-block[data-id="${esc(el.dataset.id!)}"]`;
+    if (el.matches('[data-date]')) return `${el.tagName.toLowerCase()}.${el.classList[0]}[data-date="${esc(el.dataset.date!)}"]`;
+    if (el.matches('.cal-timeline')) return '.cal-timeline';
+    return null;
+  }
+
   // ── following now (ADR 0192) ──────────────────────────────────────────────────────────────
   function minuteOfDay(t: number): number {
     const d = new Date(t);
@@ -550,6 +559,8 @@ export function createCalendar(ctx: UIContext, deps: CalendarDeps): Calendar {
     measure(view === 'week' ? 7 : 1);
     const timelineBefore = body.querySelector<HTMLElement>('.cal-timeline');
     const keepScroll = timelineBefore?.scrollTop ?? 0;
+    // the hours are redrawn every minute: keyboard focus inside them stays where it was
+    const focused = body.contains(document.activeElement) ? focusKey(document.activeElement as HTMLElement) : null;
     body.replaceChildren();
     if (view === 'month') body.appendChild(month(items, now));
     else {
@@ -579,6 +590,8 @@ export function createCalendar(ctx: UIContext, deps: CalendarDeps): Calendar {
       fit();
       if (tl.scrollHeight === 0 && typeof requestAnimationFrame === 'function') requestAnimationFrame(fit);
     }
+
+    if (focused) body.querySelector<HTMLElement>(focused)?.focus({ preventScroll: true });
 
     current = {
       view,
