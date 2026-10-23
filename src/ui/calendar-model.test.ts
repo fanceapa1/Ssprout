@@ -6,6 +6,8 @@ import {
   calendarItems,
   dayFraction,
   dayMarks,
+  dayMinute,
+  daySpan,
   daysOf,
   FOLLOW,
   followTarget,
@@ -13,6 +15,7 @@ import {
   glideScroll,
   itemsOnDay,
   layoutColumns,
+  layoutDay,
   localeWeekStart,
   MIN_BLOCK_MS,
   minuteAt,
@@ -22,7 +25,9 @@ import {
   openingMinute,
   shiftAnchor,
   viewRange,
+  wallMinute,
 } from './calendar-model';
+import { dayRange } from '../core/session-log';
 
 /** Calendar range queries and layout maths (ADR 0175), in Europe/London for real DST days. */
 const TZ = process.env.TZ;
@@ -309,5 +314,82 @@ describe('following now (ADR 0191)', () => {
     expect(glideScroll(100, 300, 100, 1000) - 100).toBeLessThan(10);
     expect(glideScroll(100, 300, 1000, 1000)).toBe(300);
     expect(glideScroll(100, 300, 5000, 1000)).toBe(300);
+  });
+});
+
+describe('daylight-saving days on the wall-clock face (ADR 0210)', () => {
+  // Europe/London 2026: spring forward Sun 29 Mar at 01:00 GMT (01:00–02:00 never happens, a 23 h
+  // day); fall back Sun 25 Oct at 02:00 BST (01:00–02:00 happens twice, a 25 h day)
+  const spring = '2026-03-29';
+  const autumn = '2026-10-25';
+  const utc = (m: number, d: number, h: number, min = 0) => Date.UTC(2026, m - 1, d, h, min);
+
+  it('the days are 23 and 25 hours long, but the clock still reads its own minutes', () => {
+    const s = dayRange(noonOf(spring));
+    const a = dayRange(noonOf(autumn));
+    expect(s.to - s.from).toBe(23 * HOUR);
+    expect(a.to - a.from).toBe(25 * HOUR);
+    // 15:00 on the clock is 14 h after midnight in spring and 16 h in autumn: always minute 900
+    expect(local(2026, 3, 29, 15) - s.from).toBe(14 * HOUR);
+    expect(local(2026, 10, 25, 15) - a.from).toBe(16 * HOUR);
+    expect(wallMinute(local(2026, 3, 29, 15))).toBe(900);
+    expect(wallMinute(local(2026, 10, 25, 15))).toBe(900);
+    expect(wallMinute(local(2026, 10, 25, 15, 30) + 30_000)).toBe(930.5);
+  });
+
+  it('spring: the now line and blocks sit on the hour the clock reads; the skipped hour is an empty band', () => {
+    // the now line at 09:00 BST sits on the 9 o'clock line (elapsed time would put it at 8/23)
+    expect(dayFraction(local(2026, 3, 29, 9), local(2026, 3, 29, 9), spring).top).toBe(9 / 24);
+    expect(dayFraction(local(2026, 3, 29, 9), local(2026, 3, 29, 10), spring)).toEqual({ top: 9 / 24, height: 1 / 24 });
+    // the last minute before the change and the first after it: the hour between is skipped
+    expect(dayMinute(utc(3, 29, 0, 59), spring)).toBe(59);
+    expect(dayMinute(utc(3, 29, 1, 0), spring)).toBe(120);
+    // an hour's session across the change is drawn from 00:30 to 02:30, across the empty band
+    expect(daySpan(utc(3, 29, 0, 30), utc(3, 29, 1, 30), spring)).toEqual({ from: 30, to: 150 });
+  });
+
+  it('autumn: both passes of the repeated hour fold onto one band', () => {
+    // 01:15 BST (00:15 UTC) and 01:15 GMT (01:15 UTC), an hour apart, read the same on the clock
+    expect(dayMinute(utc(10, 25, 0, 15), autumn)).toBe(75);
+    expect(dayMinute(utc(10, 25, 1, 15), autumn)).toBe(75);
+    // the now line at 09:00 GMT sits on the 9 o'clock line (elapsed time would put it at 10/25)
+    expect(dayFraction(local(2026, 10, 25, 9), local(2026, 10, 25, 9), autumn).top).toBe(9 / 24);
+    // a session ending in the second pass "before" it started on the clock keeps its real length
+    expect(daySpan(utc(10, 25, 0, 40), utc(10, 25, 1, 10), autumn)).toEqual({ from: 100, to: 130 });
+    // one that runs on past the repeated hour is drawn from its start to its end on the clock
+    expect(daySpan(utc(10, 25, 0, 30), utc(10, 25, 2, 30), autumn)).toEqual({ from: 90, to: 150 });
+  });
+
+  it('blocks that share a band on the face share the column, even an hour apart in elapsed time', () => {
+    const first = { id: 'bst', start: utc(10, 25, 0, 15), end: utc(10, 25, 0, 45) };
+    const second = { id: 'gmt', start: utc(10, 25, 1, 15), end: utc(10, 25, 1, 45) };
+    // by elapsed time they never overlap…
+    expect(layoutColumns([first, second]).map((p) => p.cols)).toEqual([1, 1]);
+    // …but they are drawn on the same band, so they sit side by side
+    const placed = layoutDay([first, second], autumn);
+    expect(placed.map((p) => [p.item.id, p.col, p.cols, p.top])).toEqual([
+      ['bst', 0, 2, 75 / 1440],
+      ['gmt', 1, 2, 75 / 1440],
+    ]);
+    // on an ordinary day the same layout as layoutColumns, with the drawn minimum
+    const day = '2026-10-22';
+    const a = { start: local(2026, 10, 22, 9), end: local(2026, 10, 22, 9, 5) };
+    const b = { start: local(2026, 10, 22, 9, 20), end: local(2026, 10, 22, 10) };
+    expect(layoutDay([a, b], day, MIN_BLOCK_MS.day).map((p) => [p.col, p.cols, p.height])).toEqual(
+      layoutColumns([a, b], MIN_BLOCK_MS.day).map((p) => [p.col, p.cols, dayFraction(p.item.start, p.item.end, day, MIN_BLOCK_MS.day).height]),
+    );
+  });
+
+  it('the day opens at the hour the clock reads, on both changes', () => {
+    // now 15:00: open at 13:30 on the clock (elapsed minutes would open at 12:30 in spring, 14:30 in autumn)
+    expect(openingMinute([], spring, local(2026, 3, 29, 15))).toBe(13 * 60 + 30);
+    expect(openingMinute([], autumn, local(2026, 10, 25, 15))).toBe(13 * 60 + 30);
+    // another day's view opens half an hour before its first item, as the clock reads it
+    const items = [{ start: local(2026, 10, 25, 10), end: local(2026, 10, 25, 11) }] as never[];
+    expect(openingMinute(items, autumn, local(2026, 10, 30, 12))).toBe(9 * 60 + 30);
+    const springItems = [{ start: local(2026, 3, 29, 10), end: local(2026, 3, 29, 11) }] as never[];
+    expect(openingMinute(springItems, spring, local(2026, 3, 30, 12))).toBe(9 * 60 + 30);
+    // a tap on the face gives the time the clock reads there (unchanged: the face is 24 hours)
+    expect(minuteAt(9.5 / 24)).toBe(9 * 60 + 30);
   });
 });

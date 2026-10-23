@@ -222,13 +222,66 @@ export function layoutColumns<T extends { start: number; end: number }>(items: r
   return out;
 }
 
-/** Where a timeline block sits in its day, as fractions of the day's height (0–1). */
-export function dayFraction(start: number, end: number, date: string, minMs = 0): { top: number; height: number } {
+/**
+ * The local wall-clock minute of `t` (seconds included): what the clock reads, not the time elapsed
+ * since midnight. The two differ by an hour after a daylight-saving change, on a 23 or 25 hour day.
+ * The day and week timelines are a 24-hour wall-clock face (ADR 0210): hours are labelled by the
+ * clock, the now line, the blocks, the opening window and following all count these minutes.
+ */
+export function wallMinute(t: number): number {
+  const d = new Date(t);
+  return d.getHours() * 60 + d.getMinutes() + d.getSeconds() / 60 + d.getMilliseconds() / MIN;
+}
+
+/** Where `t` sits on the 24-hour face of the local day `date`, in wall minutes: 0 before it, 1440 after it. */
+export function dayMinute(t: number, date: string): number {
   const r = dayRange(noonOf(date));
-  const span = r.to - r.from;
-  const a = Math.max(start, r.from);
-  const b = Math.min(Math.max(end, start + minMs), r.to);
-  return { top: (a - r.from) / span, height: Math.max(0, b - a) / span };
+  if (t < r.from) return 0;
+  if (t >= r.to) return 1440;
+  return wallMinute(t);
+}
+
+/**
+ * The wall minutes (0–1440) a block from `start` to `end` covers on the face of `date` (ADR 0210):
+ * from the clock time it starts at to the clock time it ends at, clipped to the day, at least `minMs`
+ * long as drawn. A block across the spring change spans the skipped hour, which stays an empty band.
+ * In the hour repeated in autumn both passes fold onto the same band; a block that ends in the second
+ * pass "before" it started on the clock is drawn its elapsed length from its start instead.
+ */
+export function daySpan(start: number, end: number, date: string, minMs = 0): { from: number; to: number } {
+  const r = dayRange(noonOf(date));
+  const from = dayMinute(start, date);
+  let to = dayMinute(end, date);
+  if (to < from || (to === from && end > start)) to = from + (Math.min(end, r.to) - Math.max(start, r.from)) / MIN;
+  // the drawn minimum counts from the real start (a block from yesterday ends where it would have)
+  const least = start >= r.from ? from + minMs / MIN : dayMinute(start + minMs, date);
+  return { from, to: Math.min(1440, Math.max(to, least)) };
+}
+
+/** Where a timeline block sits in its day, as fractions of the day's 24-hour face (0–1; ADR 0210). */
+export function dayFraction(start: number, end: number, date: string, minMs = 0): { top: number; height: number } {
+  const s = daySpan(start, end, date, minMs);
+  return { top: s.from / 1440, height: Math.max(0, s.to - s.from) / 1440 };
+}
+
+/**
+ * The side-by-side layout of one day's blocks as drawn (ADR 0183): `layoutColumns` over their wall
+ * spans (ADR 0210), so blocks that share a band on the face share the column, also when they are an
+ * hour apart in elapsed time across the autumn change. Each entry carries its `top` and `height`.
+ */
+export function layoutDay<T extends { start: number; end: number }>(
+  items: readonly T[],
+  date: string,
+  minMs = 0,
+): Array<{ item: T; col: number; cols: number; top: number; height: number }> {
+  const spans = items.map((item) => ({ item, ...daySpan(item.start, item.end, date, minMs) }));
+  return layoutColumns(spans.map((s) => ({ s, start: s.from, end: s.to }))).map((p) => ({
+    item: p.item.s.item,
+    col: p.col,
+    cols: p.cols,
+    top: p.item.s.from / 1440,
+    height: Math.max(0, p.item.s.to - p.item.s.from) / 1440,
+  }));
 }
 
 /** The quiet marks of one day in the month grid. */
@@ -263,8 +316,8 @@ export function dayMarks(items: readonly CalendarItem[], date: string): DayMarks
 }
 
 /**
- * Minutes after midnight a timeline of `dates` should open at: on today, in waking hours (6:00 on),
- * an hour and a half before now; otherwise half an hour before the first item; else 8:00.
+ * The wall minute (ADR 0210) a timeline of `dates` should open at: on today, in waking hours (6:00
+ * on), an hour and a half before now; otherwise half an hour before the first item; else 8:00.
  * Clamped so the window stays inside the day.
  */
 export function openingMinute(items: readonly CalendarItem[], dates: string | readonly string[], now: number, windowMinutes = 8 * 60): number {
@@ -276,14 +329,11 @@ export function openingMinute(items: readonly CalendarItem[], dates: string | re
     return now >= r.from && now < r.to;
   });
   if (today) {
-    const m = (now - dayRange(noonOf(today)).from) / MIN;
+    const m = wallMinute(now);
     if (m >= 6 * 60) return clamp(m - 90);
   }
   let first = Infinity;
-  for (const d of list) {
-    const from = dayRange(noonOf(d)).from;
-    for (const i of itemsOnDay(items, d)) first = Math.min(first, Math.max(0, (i.start - from) / MIN));
-  }
+  for (const d of list) for (const i of itemsOnDay(items, d)) first = Math.min(first, dayMinute(i.start, d));
   return Number.isFinite(first) ? clamp(first - 30) : clamp(8 * 60);
 }
 

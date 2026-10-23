@@ -14,7 +14,7 @@ import {
   formatMinutes,
   glideScroll,
   itemsOnDay,
-  layoutColumns,
+  layoutDay,
   localeWeekStart,
   MIN_BLOCK_MS,
   minuteAt,
@@ -24,6 +24,7 @@ import {
   shiftAnchor,
   shortTime,
   viewRange,
+  wallMinute,
   type CalendarItem,
   type CalendarView,
 } from './calendar-model';
@@ -275,10 +276,9 @@ export function createCalendar(ctx: UIContext, deps: CalendarDeps): Calendar {
     metrics = { colPx: Math.max(30, (width - rail) / days - 6), hourPx: px('--cal-hour', 56) };
   }
 
-  function block(i: CalendarItem, date: string, col: number, cols: number, days: readonly string[]): HTMLElement {
+  function block(i: CalendarItem, date: string, f: { top: number; height: number }, col: number, cols: number, days: readonly string[]): HTMLElement {
     const week = days.length > 1;
     const minMs = MIN_BLOCK_MS[week ? 'week' : 'day'];
-    const f = dayFraction(i.start, i.end, date, minMs);
     const len = (i.end - i.start) / MIN;
     const size = len < 40 ? 's' : len < 80 ? 'm' : 'l';
     const interactive = i.kind === 'scheduled';
@@ -343,8 +343,9 @@ export function createCalendar(ctx: UIContext, deps: CalendarDeps): Calendar {
   /** One day column of the timeline. */
   function column(date: string, items: CalendarItem[], now: number, days: readonly string[]): HTMLElement {
     const col = h('div.cal-col', { 'data-date': date, 'data-today': String(date === dayKey(now)) });
-    const placed = layoutColumns(items, MIN_BLOCK_MS[days.length > 1 ? 'week' : 'day']);
-    for (const p of placed) col.appendChild(block(p.item, date, p.col, p.cols, days));
+    // placed on the day's 24-hour wall-clock face, as the hours are labelled (ADR 0210)
+    const placed = layoutDay(items, date, MIN_BLOCK_MS[days.length > 1 ? 'week' : 'day']);
+    for (const p of placed) col.appendChild(block(p.item, date, p, p.col, p.cols, days));
     if (date === dayKey(now)) {
       const f = dayFraction(now, now, date);
       col.appendChild(h('div.cal-now', { style: { top: `${(f.top * 100).toFixed(4)}%` }, 'aria-hidden': 'true' }));
@@ -475,18 +476,15 @@ export function createCalendar(ctx: UIContext, deps: CalendarDeps): Calendar {
     return null;
   }
 
-  // ── following now (ADR 0191) ──────────────────────────────────────────────────────────────
-  function minuteOfDay(t: number): number {
-    const d = new Date(t);
-    return d.getHours() * 60 + d.getMinutes() + d.getSeconds() / 60;
-  }
-  /** now's offset in the hours' scroller (px), from the grid's own box */
-  function nowOffset(tl: HTMLElement, now: number): number {
+  // ── following now (ADR 0191), in wall-clock minutes (ADR 0210) ─────────────────────────────
+  /** a wall minute's offset in the hours' scroller (px), from the grid's own box */
+  function minuteOffset(tl: HTMLElement, minute: number): number {
     const grid = tl.querySelector<HTMLElement>('.cal-grid');
     const top = grid?.offsetTop ?? 0;
     const height = grid?.offsetHeight || tl.scrollHeight;
-    return top + (minuteOfDay(now) / 1440) * height;
+    return top + (minute / 1440) * height;
   }
+  const nowOffset = (tl: HTMLElement, now: number) => minuteOffset(tl, wallMinute(now));
   function nowInWindow(tl: HTMLElement, now: number): boolean {
     const y = nowOffset(tl, now);
     return y >= tl.scrollTop && y <= tl.scrollTop + tl.clientHeight;
@@ -575,8 +573,8 @@ export function createCalendar(ctx: UIContext, deps: CalendarDeps): Calendar {
         if (openedFor !== openKey) {
           // a day follows now; a week opens on its earliest work
           stopGlide();
-          const m = rolled ? Math.max(0, minuteOfDay(now) - FOLLOW.leadMinutes) : openingMinute(items, days, view === 'day' ? now : NaN);
-          tl.scrollTop = (m / 1440) * tl.scrollHeight;
+          const m = rolled ? Math.max(0, wallMinute(now) - FOLLOW.leadMinutes) : openingMinute(items, days, view === 'day' ? now : NaN);
+          tl.scrollTop = minuteOffset(tl, m);
           lastSet = tl.scrollTop;
           if (tl.scrollHeight > 0) {
             openedFor = openKey;
