@@ -113,8 +113,19 @@ Rebased on main after close-view art (ADRs 0185–0189) with no conflicts.
   - `ui-shell/marks`, plus `ui-shell/pill` and `ui-shell/session-rows` and the calendar fixtures,
     redrawn with the sprout
   - `ambience-weather/sun` (relabelled)
-- **Suites:** `npm run typecheck`, `npm test` (103 files, 1281 tests) and `E2E_PORT=4188 npm run e2e`
-  (RESULT) pass after the rebase.
+- **Suites** (after rebasing on main at the studio's lazy painting):
+  - `npm run typecheck` and `npm test` (103 files, 1281 tests) pass.
+  - `E2E_PORT=4188 npm run e2e`: 161 of 163 passed, with the machine at a load average of 60–110
+    from other agents.
+  - The two that failed timed out under that load: `parallel-sessions › three can grow at once…`
+    (teardown) and `ui-shell › tips point at the controls…` (the note did not settle in 10 s). Both
+    pass on rerun (`--repeat-each=2`, 4/4).
+  - Earlier full runs at a load of over 100 timed out in a similar handful of camera, ui-session and
+    start-flow tests. Those all passed when rerun.
+- **Perf:** the page lock first used an `html:has(dialog.sheet[open])` rule. The planting sheet's
+  ~37 synchronous previews made the root re-match on every change, and sheet-heavy tests slowed
+  under load. It is now a class (`html.has-sheet`) that the UI sets, and the start-flow and session
+  specs are back to their usual times.
 
 Screenshots reviewed (`artifacts/polish2/{before,after,fresh,dots}`, gitignored):
 - the card at 390 × 844 and 360 × 740 (top, scrolled to the end, lotus);
