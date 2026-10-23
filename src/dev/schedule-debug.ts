@@ -11,6 +11,7 @@ import type { UI } from '../ui';
 import type { CalendarView } from '../ui/calendar-model';
 import { extendDebug, type SproutDebug } from './debug';
 import { buildHistory, withHistory } from './fill-history';
+import { msUntilLocalTime } from './local-time';
 
 /** Scheduled sessions and the calendar in `window.sprout` (docs/systems/calendar.md › Debug API). */
 declare module './debug' {
@@ -39,9 +40,11 @@ declare module './debug' {
       /** add `days` of realistic history to the session log (screenshots); returns how many sessions */
       fillHistory(days?: number, seed?: number): number;
       /**
-       * A realistic month for looking at the calendar: moves the dev clock to `hour`:10 today when
-       * that is later (default 16), adds `days` (35) of history and three schedules (weekdays, a daily
-       * with the time open, a weekly). Returns how many past sessions it added.
+       * A realistic month for looking at the calendar: moves the dev clock forward to the next
+       * `hour`:10 (default 16; later today, else tomorrow), adds `days` (35) of history and three
+       * schedules (weekdays, a daily with the time open, a weekly). Whatever hour it is called at, it
+       * opens at the same time of day, with the daily (15:40, open length) due and waiting for Start.
+       * Returns how many past sessions it added.
        */
       demo(opts?: { days?: number; hour?: number }): number;
     };
@@ -118,10 +121,11 @@ export function installScheduleDebug({ store, scheduler, clock, ui, species }: S
       remove: (key, scope = 'this') => after(scheduler.remove(ref(key), scope)),
       check: () => after(scheduler.check()),
       demo(opts = {}): number {
-        // daytime, so the timelines open on the afternoon's work (the dev clock only moves forward)
-        const now = new Date(clock.now());
-        const at = new Date(now.getFullYear(), now.getMonth(), now.getDate(), opts.hour ?? 16, 10).getTime();
-        if (at > clock.now()) clock.advance(at - clock.now());
+        // Always the same time of day, so what is due does not depend on when it runs (ADR 0172:
+        // the 15:40 daily is due until 16:40). The dev clock only moves forward: past `hour`:10
+        // today, that is tomorrow's.
+        const hour = String(opts.hour ?? 16).padStart(2, '0');
+        clock.advance(msUntilLocalTime(clock.now(), `${hour}:10`));
         const t = clock.now();
         const n: number = api.schedule.fillHistory(opts.days ?? 35);
         const day = (offset: number) => dayKey(t + offset * 86_400_000);

@@ -122,8 +122,10 @@ Esc in a panel never closes the sheet. Values stay `YYYY-MM-DD` / `HH:MM`.
 `list()`, `occurrences(from?, to?)` (dates or ms; default this week), `due()`, `get(key)`,
 `jumpToDue(scheduleId?)` (jumps the dev clock to the next occurrence and runs the check), `jumpPast(key)`
 (past its window → missed), `edit(key, edit, scope?)`, `remove(key, scope?)`, `check()`,
-`fillHistory(days = 30, seed?)` (a realistic log), `demo({ days?, hour? })` (moves the dev clock to
-16:10 today when earlier, adds 35 days of history and three schedules).
+`fillHistory(days = 30, seed?)` (a realistic log), `demo({ days?, hour? })` (moves the dev clock forward to
+the next 16:10, today or tomorrow, so it always opens at the same time of day with the 15:40 daily
+due; adds 35 days of history and three schedules). `sprout.advanceTo('HH:MM')` pins the time of day
+before anything else that depends on the hour (docs/TESTING.md › Conventions).
 `sprout.calendar`: `state()` (`{ view, date, weekStartsOn, title, days, follow, items: [{ id, kind, status, date,
 title, occurrence, occurrenceStatus }] }`), `setView(view)`, `go(date)`.
 `sprout.ui.state()` also has `calendar`, `due` (`{ due: keys, mode: 'start' | 'limit' | null, slip }`) and
