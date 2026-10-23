@@ -191,6 +191,8 @@ test.describe('wayfinding · desktop', () => {
   });
 
   test('one primary action in each state', async ({ page }) => {
+    // a whole planting flow and five states: over a minute on a loaded machine
+    test.slow();
     await openUi(page);
     const primary = page.locator('[data-section="session"] [data-primary="true"]:visible');
     await expect(primary).toHaveCount(1);
