@@ -51,6 +51,8 @@ export interface SessionList {
 export interface SessionListActions {
   /** open the planting sheet for another session */
   plantAnother(opener: HTMLElement): void;
+  /** a planned session's card offers Start: it is the one primary action (ADR 0201) */
+  dueWaiting?(): boolean;
 }
 
 export const LIMIT_NOTE = (max: number) =>
@@ -183,6 +185,8 @@ export function createSessionList(ctx: UIContext, actions: SessionListActions): 
     show(el, visible || anyActive);
     show(title, visible);
     show(list, visible);
+    // the rows take the Study section's second track on wide screens (ADR 0200)
+    el.dataset.rows = String(visible);
     el.dataset.state = anyActive ? 'active' : 'waiting';
     setText(title, anyActive ? 'Growing now' : 'Waiting for you');
     show(another, anyActive);
@@ -199,7 +203,7 @@ export function createSessionList(ctx: UIContext, actions: SessionListActions): 
       const def = getSpecies(x.session.speciesId);
       const plant = def?.name ?? 'seedling';
       const action: SessionRowState['action'] = x.active ? null : anyActive ? 'switch' : 'resume';
-      const suggested = action === 'resume' && x.lastLeft;
+      const suggested = action === 'resume' && x.lastLeft && !(actions.dueWaiting?.() ?? false);
       r.li.dataset.active = String(x.active);
       r.li.dataset.running = String(x.running);
       setText(r.task, x.session.taskName);
@@ -213,6 +217,8 @@ export function createSessionList(ctx: UIContext, actions: SessionListActions): 
       show(r.now, x.active && x.running);
       show(r.button, action !== null);
       r.button.className = `session-switch ${suggested ? 'seal' : 'quiet'}`;
+      if (suggested) r.button.dataset.primary = 'true';
+      else delete r.button.dataset.primary;
       if (action === 'switch') r.button.dataset.anchor = 'switch';
       else delete r.button.dataset.anchor;
       setText(r.button, action === 'resume' ? 'Resume' : 'Switch');

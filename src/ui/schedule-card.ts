@@ -62,8 +62,10 @@ export function createDueCards(ctx: UIContext, deps: DueCardsDeps): DueCards {
   let first: OccurrenceView | null = null;
   slipStart.addEventListener('click', () => first && deps.start(first, slipStart));
 
-  function card(o: OccurrenceView, limit: boolean): HTMLLIElement {
-    const start = h('button.seal.due-start', { type: 'button', 'aria-label': `Start “${o.name}”`, onclick: () => deps.start(o, start) }, 'Start');
+  function card(o: OccurrenceView, limit: boolean, first: boolean): HTMLLIElement {
+    // the first card's Start is the section's one primary action (ADR 0201); later ones step back
+    const start = h(first ? 'button.seal.due-start' : 'button.quiet.ink.due-start', { type: 'button', 'aria-label': `Start “${o.name}”`, onclick: () => deps.start(o, start) }, 'Start');
+    if (first) start.dataset.primary = 'true';
     const pass = h(
       'button.quiet.due-pass',
       {
@@ -92,7 +94,7 @@ export function createDueCards(ctx: UIContext, deps: DueCardsDeps): DueCards {
     const key = due.map((o) => `${o.key}:${o.name}:${o.lengthMinutes}:${o.planId}`).join('|') + `|${limit}`;
     if (el.dataset.key !== key) {
       el.dataset.key = key;
-      el.replaceChildren(...due.map((o) => card(o, limit)));
+      el.replaceChildren(...due.map((o, i) => card(o, limit, i === 0)));
     }
     show(el, due.length > 0);
     first = due[0] ?? null;

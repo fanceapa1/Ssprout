@@ -29,6 +29,11 @@ export interface TimerPanel extends TimerPanelExtras {
 export interface TimerPanelActions {
   /** open the planting sheet */
   plant(opener: HTMLElement): void;
+  /**
+   * A planned session's card offers Start at the top of the section (ADR 0176): it is then the
+   * one primary action, and the controls here step back (ADR 0201).
+   */
+  dueWaiting?(): boolean;
 }
 
 export interface TimerPanelExtras {
@@ -61,7 +66,7 @@ export function createTimerPanel(ctx: UIContext, actions: TimerPanelActions): Ti
   const plan = createPlanLineSvg();
   plan.classList.add('panel-plan');
 
-  const pauseBtn = h('button.quiet.pause', { type: 'button', onclick: () => controller.pause() }, 'Pause');
+  const pauseBtn = h('button.quiet.pause', { type: 'button', onclick: () => controller.pause() }, h('span.pause-mark', { 'aria-hidden': 'true' }, fragment(ICONS.pause)), 'Pause');
   const resumeBtn = h('button.seal.resume', { type: 'button', onclick: () => controller.resume() }, 'Resume');
   const endBtn = h('button.quiet.end', { type: 'button', onclick: () => openConfirm() }, 'End');
   const waterBtn = h(
@@ -100,6 +105,15 @@ export function createTimerPanel(ctx: UIContext, actions: TimerPanelActions): Ti
   const el = h('div.panel', { 'data-panel': '' }, idle, session);
 
   // ── behaviour ───────────────────────────────────────────────────────────────────────────
+  const leads = [plantBtn, pauseBtn, resumeBtn, waterBtn, skipBtn, longResume];
+  /** `data-primary` on the one control that is the next step (tests and styles read it) */
+  function markPrimary(lead: HTMLElement | null): void {
+    for (const b of leads) {
+      if (b === lead) b.dataset.primary = 'true';
+      else delete b.dataset.primary;
+    }
+  }
+
   function water(): void {
     if (controller.water()) ctx.announce('Watered. It drinks it in.');
   }
@@ -150,11 +164,15 @@ export function createTimerPanel(ctx: UIContext, actions: TimerPanelActions): Ti
     show(idle, view === 'idle');
     show(session, view !== 'idle');
 
+    // one primary action at a time (ADR 0201): a planned session's Start wins, then the panel's own
+    const due = actions.dueWaiting?.() ?? false;
     if (!v) {
       const n = ctx.deps.store.get().plants.length;
       const waiting = controller.status().sessions;
       // others wait (after a bloom): the list below offers Resume, so starting anew steps back
-      plantBtn.className = `${waiting.length > 0 ? 'quiet ink' : 'seal'} plant-session`;
+      const primary = waiting.length === 0 && !due;
+      plantBtn.className = `${primary ? 'seal' : 'quiet ink'} plant-session`;
+      markPrimary(primary ? plantBtn : null);
       setText(
         idleLine,
         waiting.length === 1
@@ -162,7 +180,7 @@ export function createTimerPanel(ctx: UIContext, actions: TimerPanelActions): Ti
           : waiting.length > 1
             ? `${waiting.length === 2 ? 'Two' : 'Three'} sessions are waiting for you.`
             : n === 0
-              ? 'Name a task, choose a plant, and watch it grow while you work.'
+              ? 'Your garden is ready for its first plant.'
               : n === 1
                 ? 'One plant is growing in your garden.'
                 : `${n} plants are growing in your garden.`,
@@ -194,6 +212,27 @@ export function createTimerPanel(ctx: UIContext, actions: TimerPanelActions): Ti
       show(resumeBtn, view === 'paused');
       show(cancelConfirm, confirming && view !== 'longPause');
       show(longPause, view === 'longPause');
+      // the next step is the primary: Pause while focusing, Water in a break (then Skip break),
+      // Resume when paused; the rest recede (quiet ink)
+      const lead =
+        confirming || due
+          ? null
+          : view === 'focus'
+            ? pauseBtn
+            : view === 'break'
+              ? v.watered
+                ? skipBtn
+                : waterBtn
+              : view === 'paused'
+                ? resumeBtn
+                : view === 'longPause'
+                  ? longResume
+                  : null;
+      pauseBtn.className = `${lead === pauseBtn ? 'calm' : 'quiet'} pause`;
+      skipBtn.className = `${lead === skipBtn ? 'calm' : 'quiet'} skip-break`;
+      resumeBtn.className = `${lead === resumeBtn || view !== 'paused' ? 'seal' : 'quiet ink'} resume`;
+      waterBtn.classList.toggle('is-lead', lead === waterBtn);
+      markPrimary(lead);
     }
     applyResting();
   }
