@@ -37,9 +37,9 @@ filter:
 | Phase | Sky | Light on the garden |
 |---|---|---|
 | Sunrise | cool violet-blue overhead into peach/apricot behind the right-hand hills; rose-lit cloud banks with lost lower edges; hills cool blue | thin lavender, warmer toward the sun; mist lying on the pond and lifting; long cool shadows to the left; light caught on the right of the crowns; dew |
-| Midday | clear cerulean graded to warm paper at the horizon, a few clouds left as paper with a cool belly | almost bare paper — the most saturated, crisp moment; short pools of shadow; sparkle on the water |
+| Midday | wet-in-wet cerulean graded to warm paper at the horizon, soft whites lifted out of the wet blue in drifts (lost edges, now and then a dried edge or bloom), never cloud shapes | almost bare paper — the most saturated, crisp moment; short pools of shadow; sparkle on the water |
 | Sunset | rose-violet → crimson band → ochre-gold glow on the left; dark violet clouds with burning undersides; hills as violet silhouettes; the sun a pale disc sinking behind the far ridge | warm amber, gold rim light from the left, long violet shadows to the right, the pond reflecting the warm sky, the lantern and shoji coming on |
-| Night | granulating indigo into a paler ultramarine horizon, darker hills, a few stars and the moon left as paper (its real phase) | a moonlit indigo glaze the paper breathes through — never black or muddy — colours faded first, the moon's broken path on the water, the lantern's pool and a warm window |
+| Night | granulating indigo into a paler ultramarine horizon, darker hills, a few stars and the moon left as paper (its real phase) | a moonlit indigo glaze the paper breathes through — never black or muddy — colours faded first, the moon's broken path on the water, the lantern's pool and a warm window; the night wash stops short of the page with a ragged, pooled watercolour edge (the margin is paper, never a grey haze) |
 Lights are **reserved paper**, not added glow: the sun, the moon, stars, the lamp light and the
 light on the crowns are where pigment was left out. Shadows are cool violet-blue glazes, soft at
 the tip, never grey drop shadows.

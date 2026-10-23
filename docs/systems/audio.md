@@ -58,6 +58,7 @@ Everything above `backend.ts` is unit-tested against a fake backend and fake tim
 | session paused | | bed ×0.55, events ×0.5, wind ×0.7 (the garden holds its breath) |
 | bloom chime | `plant:placed`, `playBloom()` | rin bowl: inharmonic partials 1 / 2.74 / 5.1 / 8.2, detuned twin → slow beat |
 | completion | `session:complete`, `playComplete()` | 2–3 kalimba notes from the yo pentatonic (D E G A B) |
+| watering pour | every `session:water` (automatic in focus, tapped in a break), `playPour()` | ~2 s trickle: band-passed water noise swelling in over ≥ 0.25 s, an airy top, 10–15 rising bubbles under the stream; one at a time (ADR 0182) |
 
 ## API
 ```ts
@@ -69,12 +70,12 @@ audio.setWeather('rain' | 'mist' | 'sun' | null);
 audio.setActivity({ sessionActive, paused });
 audio.setFauna(['small-birds', 'swallows']);
 audio.setTimeOfDay(23);         // override; null → follow the clock's local hour
-audio.playBloom(); audio.playComplete();
+audio.playBloom(); audio.playComplete(); audio.playPour();
 audio.dispose();
 ```
 Bus events consumed: `settings:changed` (mute), `session:start` (weather + active),
 `session:pause` / `session:resume`, `session:cancel` / `session:complete` (clear weather;
-complete also plays the phrase), `plant:placed` (bloom chime), `fauna:arrived` (adds a creature).
+complete also plays the phrase), `plant:placed` (bloom chime), `session:water` (the pour), `fauna:arrived` (adds a creature).
 Initial muted/weather/activity/fauna come from `getState()` (a reload mid-session sounds right).
 Setters and bus events write the same fields; the last write wins.
 

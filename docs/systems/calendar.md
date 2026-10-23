@@ -80,12 +80,16 @@ the set of due occurrences changes.
 5. **At three in progress** the card says so and offers **See them** (the limit note and Switch).
 
 ## The calendar (ADR 0175)
-- Views: **Daily** (default), **Weekly** (seven columns, the locale's first day — Monday when unknown),
+- Views: **Daily** (default), **Weekly** (seven columns, the locale's first day — deliberately, as the
+  gardener's own calendar: Sunday in en-US, Monday in en-GB, Monday when unknown; ADR 0183),
   **Monthly** (whole weeks). Prev / Today / next. The choice is remembered in `localStorage`
   (`studysprout:calendar-view`).
 - Day and week: an hour timeline in a 9-hour window that opens near now (today, waking hours), at the
-  first item, or at 8:00. Blocks are laid out side by side when they overlap (`layoutColumns`); a block
-  is at least 26 minutes tall. A tap on an empty time opens the editor there (snapped to 30 min).
+  first item, or at 8:00. Blocks are laid out side by side when they overlap (`layoutColumns`), at their
+  drawn size: at least 26 minutes tall in a day, 44 in a week (`MIN_BLOCK_MS`, ADR 0183). In a week a
+  block shows its short time ("4:10", `shortTime`) over its title (two lines when long; first letters
+  fading out on phones), the "now" seal sits before the time, and a hovered or focused block grows to
+  read whole (leftwards on the last two days). A tap on an empty time opens the editor there (snapped to 30 min).
 - Blocks: washes in the plant's colour (bloomed), lighter (growing / waiting), faintest (ended early);
   planned as a broken ink outline; passed as a fainter outline with "passed".
 - Month: a dab per bloom, an ink ring per plan (faint when passed), minutes studied; tap a day → daily.

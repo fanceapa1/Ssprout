@@ -179,7 +179,7 @@ Legend: unit tests as `folder/file › test`, under `src/` (`.test.ts` omitted).
 | 2.31 | Every seedling grows at its own growth; waiting ones look calm | plants/system › several sessions in progress (all) | — (screenshots: `three-*`, devlog 18) | ✔ |
 | 2.32 | "Still with us?" only for the active session the gardener paused | core/parallel › "Still with us?" and waiting sessions (all); core/controller-parallel › “Still with us?” is only for the active session… | parallel-sessions › start two… (no long pause after switching) | ✔ |
 | 2.33 | Reload continues every session; only the active one ran while away | core/controller-parallel › reload with several sessions…; plants/system › after a reload every seedling shows at its own growth | parallel-sessions › a reload continues every session… | ✔ |
-| 2.34 | Automatic focus watering every 4–10 focused minutes, seeded; in the garden, Your plant and the widget; nothing to tap | core/focus-watering (all); core/controller-parallel › waters the active plant when focused time reaches each scheduled moment…; › several due at once (a long gap) water once; core/parallel › session/focusWater (all); plants/system › waters the seedling the event names… | parallel-sessions › plays in Your plant and the garden…; › the floating card and the tab title follow the active session… (card watering) | ✔ (silent: no pour sound yet) |
+| 2.34 | Automatic focus watering every 4–10 focused minutes, seeded; in the garden, Your plant and the widget; nothing to tap; a soft pour when unmuted | core/focus-watering (all); core/controller-parallel › waters the active plant when focused time reaches each scheduled moment…; › several due at once (a long gap) water once; core/parallel › session/focusWater (all); plants/system › waters the seedling the event names… | parallel-sessions › plays in Your plant and the garden…; › the floating card and the tab title follow the active session… (card watering) | ✔ (pour: audio/garden-audio › pours softly on every watering…; audio/recipes › the watering pour is a gentle two-second trickle…) |
 | 2.35 | Never while paused or in a break; breaks keep tap-to-water | core/focus-watering › a pause holds…; › a break holds them too…; core/controller-parallel › never while paused…; › never during a break… | parallel-sessions › never while paused or during a break | ✔ |
 | 2.36 | Pill shows the active session and "+N"; Your plant, widget, title, favicon, notifications follow the active session; the widget can switch | widget/view › several sessions in progress (all); widget/pip › with other sessions in progress the card offers Switch… | parallel-sessions › start two… (pill "+1"); › three… (pill "+2"); › the floating card and the tab title follow the active session… | ✔ |
 | 2.37 | One quiet switch tip | core/tips › has the contract ids… (`switch`) | — (tip ordering covered by polish › one tip at a time) | ◐ e2e by review |
@@ -224,7 +224,8 @@ Legend: unit tests as `folder/file › test`, under `src/` (`.test.ts` omitted).
 |---|---|---|---|---|
 | 5.1 | Real sun times for today at a location guessed from the time zone; no prompt | ambience/solar (all: London, New York, Tokyo, Sydney ±3 min; polar day, polar twilight, deep polar night, poles; moon phase); ambience/zones (all) | daylight › follows the clock: the location is guessed from the time zone, sun times are real | ✔ |
 | 5.2 | Four phases (sunrise, midday, sunset, night) on civil dawn, sunrise + 60, sunset − 60, civil dusk; 40-min blends | ambience/daylight › phase windows (all); › unusual days (all); › weights always sum to 1 and change smoothly…; ambience/daylight-source (all) | daylight › each phase paints its own light…; › blends sit between their phases… | ✔ |
-| 5.3 | Each phase painted: sunrise (peach horizon, cool hills, mist on the pond, long shadows, dew), midday (clear, most saturated, short shadows, sparkle), sunset (amber/crimson, rim light, long shadows the other way, warm pond, lantern), night (indigo, moon, stars, moonlit water, lantern and window) | ambience/sky-layout (all: sun side and height, moon arc, shadows away from the sun, rims, stars); ambience/timeofday › phase grades (all); scene/sky-light (all); plants/shadow (all); paint/rim (all) | daylight › each phase paints its own light: night darkest and blue, sunset warm, midday richest; › the moon is a light in the night sky and the sun a light low over the hills | ◐ look by review (studio `daylight`, shots) |
+| 5.3 | Each phase painted: sunrise (peach horizon, cool hills, mist on the pond, long shadows, dew), midday (clear, most saturated, short shadows, sparkle), sunset (amber/crimson, rim light, long shadows the other way, warm pond, lantern), night (indigo, moon, stars, moonlit water, lantern and window) | ambience/sky-layout (all: sun side and height, moon arc, shadows away from the sun, rims, stars); ambience/timeofday › phase grades (all); scene/sky-light (all); plants/shadow (all); paint/rim (all) | daylight › each phase paints its own light: night darkest and blue, sunset warm, midday richest; › the moon is a light in the night sky and the sun a light low over the hills | ◐ look by review (studio `daylight`, shots; midday sky of lifted whites, ADR 0184) |
+| 5.3a | At night the wash stops short of the stage's dissolve with a watercolour edge; the margin is paper, not a grey haze (ADR 0184) | ambience/night-edge (all) | daylight › at night the wash stops short of the margin and the margin is paper… | ◐ look by shots + studio `ambience-lighting/night-edge` |
 | 5.4 | Plants readable at all times | ambience/timeofday › night is the darkest but plants stay readable… | daylight › each phase… (night luminance ≥ 45 % of midday) | ✔ |
 | 5.5 | `setTime` phases, blends, v1 aliases, hours, null | ambience/daylight › setTime overrides (all) | ambience › setTime accepts phases, v1 names, blends, hours and null…; daylight › blends sit between their phases and the sky follows setTime at once | ✔ |
 | 5.6 | Fauna follows the phases (diurnal creatures rest at night) | fauna/schedule › rests diurnal creatures at night but not leaves | daylight › fauna rests at night by the daylight phases | ✔ |
@@ -238,20 +239,22 @@ Legend: unit tests as `folder/file › test`, under `src/` (`.test.ts` omitted).
 | 6.2 | Tab title countdown and filling favicon | widget/title (all); widget/tab (all); widget/favicon (all) | widget › tab title counts down, the favicon fills…; › breaks show in the title and favicon | ✔ |
 | 6.3 | Notifications via the service worker; background only; closed tab → none, the reward waits | widget/notifications › decideNotification (all); › session moments (all) | widget › completion notifies when the page is in the background (via sw); › no notification while the page is visible and focused; › denied permission is respected; session-rules › … ended while the app was closed… | ✔ |
 | 6.4 | Ticks from a Web Worker (no background throttling) | widget/ticker (all) | widget › ticks come from a Web Worker | ✔ |
+| 6.5 | The card's type is bigger and in solid ink (≥ 4.5:1) and fits the 260 × 340 window | widget/card-art (all) | widget › opens in a (faked) PiP window… (no line cut, buttons inside, in focus and in a break) | ✔ |
 
 ### §7 Tooltips / onboarding
 
 | # | Rule | Unit | E2E | Status |
 |---|---|---|---|---|
-| 7.1 | Subtle hints near non-obvious controls; one at a time (ADR 0124) | core/tips › tip registry; › activeTips (all); ui/format › pickTips (all) | ui-menu › tips show near their control…; polish › one tip at a time… | ✔ |
+| 7.1 | Subtle hints near non-obvious controls; one at a time (ADR 0124) | core/tips › tip registry; › activeTips (all); ui/format › pickTips (all) | ui-menu › tips show near their control…; polish › one tip at a time…; tips-scroll › a note rides with its control through a smooth glide… (one painting note per frame) | ✔ |
 | 7.2 | A tip retires when its mechanism is first used | core/tips › tipsRetiredBy (all); core/controller › retires the start-flow tips; core/reducer › tip/retire | ui-menu › tips … retire when used (sound); polish › one tip at a time… (task); ui-menu › floating timer button… (widget); ui-session › swap… (pressed); core-loop › … (task, duration, plan, water) | ✔ |
+| 7.4 | Notes stay on their control through every scroll, wait while it is off screen or has no room, pick the copy on screen (corner or dock), never paint faded, step aside for a plant card (ADR 0181) | ui/tip-place (all) | tips-scroll (all) | ✔ |
 | 7.3 | ⓘ lists every tip, the learned ones marked | core/tips › allTips lists every tip with its retired flag | ui-menu › tips … stay listed under ⓘ | ✔ |
 
 ### §8 Sound
 
 | # | Rule | Unit | E2E | Status |
 |---|---|---|---|---|
-| 8.1 | Procedural Web Audio: water, wind, distant birds, rain in rain sessions, bloom chime | audio/recipes (all); audio/noise (all); audio/planner (all); audio/params › rain brings patter and drips…; audio/garden-audio › reacts to session events: rain during a session… | — | ◐ audible result by ear (headless output not asserted) |
+| 8.1 | Procedural Web Audio: water, wind, distant birds, rain in rain sessions, bloom chime, a watering pour (ADR 0182) | audio/recipes (all); audio/noise (all); audio/planner (all); audio/params › rain brings patter and drips…; audio/garden-audio › reacts to session events: rain during a session… | — | ◐ audible result by ear (headless output not asserted) |
 | 8.2 | Muted by default; speaker toggle; remembered | audio/garden-audio › is muted by default…; audio/gate (all); core/controller › updateSettings … retires the sound tip | ui-menu › sound toggle persists across reloads | ✔ |
 
 ### §9 Persistence
@@ -292,11 +295,11 @@ Legend: unit tests as `folder/file › test`, under `src/` (`.test.ts` omitted).
 | 12.8 | Dock: sections in order, two columns on wide screens, one on phones; the calendar full width once filled (a placeholder stays hidden) | ui/dock (all) | ui-shell › sections in order… the calendar across…; ui-menu · phone › the garden fills the screen… | ✔ |
 | 12.9 | Session controls work from the dock; the pill shows the same session | — | ui-shell › the session controls work from the dock…; ui-session (all flows); session-rules (all) | ✔ |
 | 12.10 | Pill: pause/resume, glide to the controls; idle Start studying | — | ui-shell › the pill pauses and resumes…; › idle, the pill is a small Start studying… | ✔ |
-| 12.11 | Your plant: live growth, watering animation (hook), latest bloom / empty bed when idle | — | ui-shell › "Your plant" shows the session plant growing… | ◐ look by studio `ui-shell/plant-view-*` |
-| 12.12 | Tools twice (corner + dock), visible names, one shared state; icons ≥ 22 px, targets ≥ 44 px, labelled | — | ui-shell › garden tools exist twice…; ui-menu (sound, widget, data, hints) | ◐ night legibility by shots |
+| 12.11 | Your plant: live growth, watering animation (hook), latest bloom / empty bed when idle; a soft round window wash (ADR 0184) | — | ui-shell › "Your plant" shows the session plant growing…; studio › the wash is round with a pooled rim, and lost at the bottom | ◐ look by studio `ui-shell/plant-view-*` |
+| 12.12 | Tools twice (corner + dock), visible names, one shared state; icons ≥ 22 px, targets ≥ 44 px, labelled | — | ui-shell › garden tools exist twice…; ui-menu (sound, widget, data, hints) | ✔ (night legibility: tools-visibility › corner tools and zoom chips read clearly while resting, in all four lights) |
 | 12.13 | Bigger, darker type: base ≥ 20 px, text ink ≥ 4.5:1 | ui/ink (all) | — | ✔ |
 | 12.14 | Tips point at the controls' new homes | ui/format › pickTips (all) | ui-shell › tips point at the controls in their new homes | ✔ |
-| 12.15 | The controls on the painting rest while focusing; the dock does not | — | ui-menu › the controls on the painting rest while studying… | ✔ |
+| 12.15 | The controls on the painting rest while focusing (a small step back: tools 0.88, pill 0.72, ADR 0180); the dock does not | — | ui-menu › the controls on the painting rest while studying…; tools-visibility › … ≥ 3:1 ink in all four lights | ✔ |
 
 ### §12a Camera & plant cards (ADRs 0160–0168)
 
@@ -322,10 +325,10 @@ Legend: unit tests as `folder/file › test`, under `src/` (`.test.ts` omitted).
 | # | Rule | Unit | E2E | Status |
 |---|---|---|---|---|
 | 13.1 | Daily / Weekly / Monthly, Daily by default, remembered per viewer; prev / next / Today | ui/calendar-model › ranges and navigation (all) | calendar › daily by default; toggle views, navigate, and the choice is remembered | ✔ |
-| 13.2 | Weekly: seven columns from the locale's first day (Monday when unknown); DST weeks are seven days | ui/calendar-model › the week starts as the locale says…; › a week across the autumn DST change… | calendar › daily by default… (7 heads, first day = weekStartsOn) | ✔ |
+| 13.2 | Weekly: seven columns from the locale's first day (Monday when unknown); DST weeks are seven days | ui/calendar-model › the week starts as the locale says… (en-US Sunday, en-GB/fr Monday, ar-EG Saturday); › a week across the autumn DST change… | calendar › daily by default… (7 heads, first day = weekStartsOn); calendar · week layout › the week starts on Sunday in en-US; calendar · week start elsewhere › … Monday in en-GB | ✔ |
 | 13.3 | Monthly: whole weeks, a dab per bloom, minutes, rings for plans (faint when passed); tap a day → daily | ui/calendar-model › month marks (all); › the month grid’s whole weeks | calendar › daily by default… (tap a day) | ◐ look by shots + studio `calendar/month` |
 | 13.4 | Past sessions (completed in the plant's colour, cancelled faintly), sessions in progress, planned, a now line | ui/calendar-model › calendarItems (all) | calendar › past sessions show in the calendar…; › at the scheduled time… (growing block) | ◐ look by shots + studio `calendar/*` |
-| 13.5 | Overlapping blocks side by side; tiny blocks keep a readable height | ui/calendar-model › timeline layout (all) | — | ✔ |
+| 13.5 | Overlapping blocks side by side, laid out at their drawn size; tiny blocks keep a readable height; a week's blocks keep their short time and grow to read whole on hover/focus (ADR 0183) | ui/calendar-model › timeline layout (all); › in a week, a plan and a session half an hour apart share the column…; › a week shows short times | calendar · week layout › concurrent blocks share the column, the seal never covers words… | ✔ |
 | 13.6 | The day opens on a sensible window; a tap on an empty time opens the editor there (half hour) | ui/calendar-model › opens an hour and a half before now…; › a tap snaps to the half hour | calendar › a tap on an empty time opens the editor at that time | ✔ |
 | 13.7 | Schedule: name, date and time, length and plan optional (open), no plant or spot | core/schedule › validation (all); core/schedule-controller › adds schedules… | calendar › schedule a session from the calendar… | ✔ |
 | 13.8 | Repeats: once, daily, weekdays, weekly; exceptions; DST-safe | core/schedule › recurrence (all, Europe/London DST) | calendar › schedule a session… (a daily repeat on the following days) | ✔ |
@@ -358,4 +361,4 @@ daylight › plantsReady waits for plants added just before it…).
 2. **Cross-browser**: no Firefox/WebKit e2e run (10.2).
 3. **Audio** is verified as data (unit) only (8.1); **real PiP** is faked (6.1). Both are headless
    limits.
-4. **Automatic focus watering is silent**: no soft pour sound in `src/audio` yet (2.34).
+4. ~~Automatic focus watering is silent~~: a soft pour plays on every watering since v2 polish (2.34, 8.1).

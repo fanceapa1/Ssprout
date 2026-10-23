@@ -55,8 +55,9 @@ pure phases with the blends between them: night until 03:36 · sunrise 04:16–0
 
 ## The painting
 - **Sky plates** (scene, ADR 0145): one per phase, 0.7 px/unit over world y −240 … 500, multiplied
-  over the landscape in the cached background. Midday: cerulean graded to warm paper, three
-  paper clouds. Sunrise: violet-blue into peach and apricot on the right, rose cloud banks, cool
+  over the landscape in the cached background. Midday: wet-in-wet cerulean graded to warm paper, a
+  second wet pass of darker pools, and whites lifted out of the wet blue in drifts (soft lifts, a
+  rare crisp dried edge or bloom, torn wisps; never cloud shapes, ADR 0184). Sunrise: violet-blue into peach and apricot on the right, rose cloud banks, cool
   blue hills. Sunset: rose-violet, crimson band, ochre glow on the left, crimson/gold cloud banks,
   violet hills. Night: indigo into a paler ultramarine horizon, darker hills, 30 stars left as
   paper. The sun (low, `SUN_R` 22) and the moon (`MOON_R` 17, lunar phase shown) are punched out;
@@ -78,6 +79,11 @@ pure phases with the blends between them: night until 03:36 · sunrise 04:16–0
   `sprout.lightDetail()`, `skyStats().detail`.
 - **Sprites** (ADR 0146): rim light (screen, sunrise peach from the right, sunset gold from the
   left) on plants (0.85) and boulders (0.7); plants' shadow blots (`SHADOW_PLANT` 0.6).
+- **The night edge** (ADR 0184, `ambience/night-edge.ts`): in dark light (night + 0.35 · sunset +
+  0.15 · sunrise) the lighting layer lifts the painting back to paper in a band just inside the
+  stage's CSS dissolve: the wash stops at a ragged line with a pooled rim and thins into paper on the
+  grain, so the margins read as paper rather than a grey haze. Screen space, built once per canvas
+  size, two blits per frame only in dark light. Studio `ambience-lighting/night-edge`.
 - **Ambience extras**: dawn mist on the far bank and the water, rising 26 units and thinning as the
   sun climbs (`LOOK.dawnMist*`); 16 dew glints twinkling on the near grass at sunrise.
 
@@ -108,6 +114,7 @@ pixels, the moon and the setting sun as lights, blends, the clock-driven locatio
 frame budget, plantsReady).
 
 ## How to tweak
-Sky colours and clouds: `paint-sky.ts` (studio `daylight/sky-*`). Light, shadows, crown lights:
+Sky colours and the lifted whites: `paint-sky.ts` (studio `daylight/sky-*`). The night edge:
+`night-edge.ts` (`edgeStrength`, the line and break widths in `nightEdgeFields`). Light, shadows, crown lights:
 `cast.ts` and `PHASE_GRADES` (studio `daylight/cast-*`, `daylight/garden-*`). Where the sun and
 moon are: `sky-layout.ts`. Phase windows: `BLEND_MS`, `GOLDEN_MS` in `daylight.ts`.

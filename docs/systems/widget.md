@@ -110,6 +110,13 @@ opened card grows the plant in from seed. Closing the PiP window (`pagehide`) te
 again works. Fonts are copied as `@font-face` rules (URLs made absolute) from the app document.
 Reduced motion: no easing, no watering animation.
 
+**Type** (v2 polish, the app's "bigger, darker" rule of ADR 0136 brought to the card): task 17 px
+italic, time 38 px Shippori Mincho, state 15 px italic, buttons 15.5 px, all in solid inks from the
+app's palette (`CARD_INK`: `#3b352e` / `#5c5449`, `#6b6256` for a paused time; ≥ 4.5 : 1 on the
+paper) instead of faded opacities. The footer is 150 px of the 340 px card. The state line keeps the
+session total only when it fits (`fitStateLine`), so "Break — your Japanese Iris is thirsty" is never
+cut mid-word. The DOM card and the studio preview share `CARD_FONTS`, `CARD_INK` and `LAYOUT`.
+
 ### Notifications
 | Moment | Title | Body |
 |---|---|---|

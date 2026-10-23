@@ -52,7 +52,8 @@ the widget surfaces — the UI then asks in the Begin click itself.
 | `herbarium.ts` | Pressed Flowers book: each pressed plant's own sprite, desaturated and laid flat, with dates |
 | `garden-data.ts` | export (`study-sprout-garden-YYYY-MM-DD.json`) / import (validated, errors inline, confirm before replacing) |
 | `hints.ts` | ⓘ list of every tip incl. learned (retired) ones |
-| `tips.ts` | floating hint notes with leader lines, one at a time (ADR 0124) |
+| `tips.ts` | floating hint notes with leader lines, one at a time (ADR 0124), riding with the page (ADR 0181) |
+| `tip-place.ts` | pure note placement: on-screen control, preferred sides, room, leader line (ADR 0181) |
 | `quiet-line.ts` | one sentence at the top: completion, fauna arrivals (ADR 0054, ADR 0120) |
 | `plant-labels.ts` | hover a finished plant → "task · minutes · date" (the plant system's painted-pixel hit-test with a camera, else `hitPlant` over sprite boxes and taps too); hidden while a plant card is open |
 | `stage-camera.ts` | the camera on the stage (ADRs 0164, 0168): ctrl/⌘ wheel and pinch zoom, double-click/tap, drag only when zoomed, touch-action switch, + / − / Whole garden chips, keys on the focused canvas, cursor hints, clicks → plant card; glides to the seedling on start/switch, to the whole garden on placement |
@@ -76,12 +77,15 @@ the widget surfaces — the UI then asks in the Begin click itself.
 #ui (page, .ui-root) ─ section#stage ─ canvas#garden (masked edge)
                      │                └ .stage-ui: quiet line · plant label · markers · pill · nav.menu · placement bar · zoom chips · plant card
                      ├ .dock: [Study (waiting cards + controls + sessions in progress) | Your plant] · Calendar · Garden tools
-                     └ fixed: .tips · .scrollbar · live region · dialogs (top layer)
+                     ├ absolute (document coordinates): .tips (ADR 0181)
+                     └ fixed: .scrollbar · live region · dialogs (top layer)
 ```
 - Desktop: two columns (Study, Your plant), tools across; under 860 px one column; phones (≤ 600 px)
   an 8 px margin and a 20 px base.
 - Session controls exist in the dock; the pill keeps time, pause/resume and the way down. While
-  focusing, the pill and the corner tools rest; the dock never fades.
+  focusing, the pill and the corner tools rest; the dock never fades. Resting is a small step back
+  (`--rest-tools: 0.88` for the corner tools and the zoom chips, `--rest-pill: 0.72`; ADR 0180): the
+  chips stay ≥ 3 : 1 in every light.
 - **Add a dock section:** `ui.dock.addSection({ id, title, order, span, mount(body) { … } })` from
   `src/ui` (or `main.ts`). The calendar fills the reserved `calendar` section when `createUI` gets a
   scheduler (`schedules`); without one it stays a hidden placeholder.
@@ -151,6 +155,15 @@ quiet line speaks. `format.ts` also holds `TIP_GROUP` (sheet / panel / menu / ga
 placement bar, or the first swap marker for `swap`). Tips never take pointer events; they retire
 when the controller retires them (or the UI calls `controller.retireTip` for UI-only mechanisms:
 `widget` on opening the floating timer, `pressed` on opening the book).
+
+**On a scrolling page** (ADR 0181): page notes live in document coordinates (the `.tips` layer sits
+at the document's origin and scrolls with the page), so a note stays on its control through every
+scroll with no per-frame work; notes in a sheet use the sheet's fixed layer. Placement is pure
+(`tip-place.ts › placeTip`): only when the control is wholly on screen and the note fits on one of
+its sides without covering other slips (`[data-ui]`, the dock's tool list counts as one) or the dock's
+headings; otherwise the tip waits, or the other copy of the control takes it. A faded note stops
+painting (`visibility`), a new note removes one still fading, and notes wait while a plant card is
+open. Only notes on the painting (`data-on="stage"`) dim with the garden's light.
 
 **Add a tip**: add it to `src/core/tips.ts` (copy, anchor, relevance, retire rule), put
 `data-anchor="<anchor>"` on its control, and (optionally) give it a group/priority/sides in

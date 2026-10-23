@@ -65,7 +65,7 @@ grows live from seed to full bloom while you study. (Revised 2026-10-21, see ADR
 | Cancel | Light confirmation ("End this session? Your <plant> won't bloom this time."). The seedling gently withers and fades. A plant it was replacing returns. No penalty, counted in stats only. |
 | Complete | When the plan finishes: the plant reaches full bloom, notification + chime (if unmuted), a quiet line "Your Japanese Iris for “Biology ch. 4” has bloomed." It becomes a permanent plant carrying its task name, minutes and date (shown on hover/tap). If it replaced a plant, the old one is pressed into the herbarium. |
 | Persistence | Timestamp-based and saved. Reload/close and return → continues correctly (or completes if the plan ended while away). |
-| Focus watering | During focus the plant is watered on its own **every 4–10 minutes of focus time** (random, but the same for a session wherever it is opened): the painted watering can visits it in the garden, in Your plant and in the floating widget. Nothing to tap, no notification, no tip, no sound spike. Never while paused or in a break — breaks keep tap-to-water — and not in the last minute of focus. After time away, missed waterings make one quiet watering, not a burst. *Status:* done (ADR 0153); the audio has no pour sound yet, so it is silent. |
+| Focus watering | During focus the plant is watered on its own **every 4–10 minutes of focus time** (random, but the same for a session wherever it is opened): the painted watering can visits it in the garden, in Your plant and in the floating widget. Nothing to tap, no notification, no tip, no sound spike. Never while paused or in a break — breaks keep tap-to-water — and not in the last minute of focus. After time away, missed waterings make one quiet watering, not a burst. *Status:* done (ADR 0153); a soft pour plays when the sound is on (ADR 0182). |
 
 ### Parallel sessions (v2, ADR 0005; ADRs 0150–0157)
 Up to **three** sessions can be in progress — say, an essay, a problem set and some reading — each
@@ -187,7 +187,8 @@ Each phase is painted (sky, light, shadows), not a filter:
   right, rose-lit cloud banks, the hills cool and blue; the sun rises over the right-hand hills;
   mist lying on the pond and the far bank, lifting as the sun climbs; long soft shadows to the
   left; light on the right side of the crowns; dew glints on the near grass.
-- **Midday**: a clear graded cerulean with a few clouds left as paper; the painting at its most
+- **Midday**: a wet-in-wet graded cerulean with soft whites lifted out of it (drifts, never cartoon
+  cloud shapes, ADR 0184); the painting at its most
   saturated and crisp; short shadow pools under boulders, trees and plants; sparkle on the water.
 - **Sunset**: rose-violet into crimson into an amber-gold glow on the left where the sun sinks
   behind the hills; crimson and gold cloud banks; warm rim light on crowns, boulders and plants;
@@ -196,7 +197,8 @@ Each phase is painted (sky, light, shadows), not a filter:
 - **Night**: a deep, granulating indigo (readable, never black or muddy), a painted moon showing
   its real phase arcing through the gap between the trees, a few faint stars, moonlight broken on
   the water, the lantern and a warm window glow; colours fade before they darken; plants remain
-  readable.
+  readable. The night wash stops short of the page with a watercolour edge, so the margins stay
+  paper and never turn into a grey haze (ADR 0184).
 
 Diurnal creatures rest while it is night (§4). Plants remain readable at all times. No seasons.
 
@@ -230,13 +232,17 @@ watercolour, never neon.
   features: duration slider/presets, the floating widget, placement (choose a glowing spot),
   swapping, pressed flowers, sound toggle. (Also: the task name, the study plan, watering and the
   notification question, switching sessions and scheduling — 12 tips in `src/core/tips.ts`.)
-- One tip at a time, the most relevant first; tips wait while the quiet line speaks (ADR 0124).
+- One tip at a time, the most relevant first; tips wait while the quiet line speaks or a plant card
+  is open (ADR 0124).
+- A tip stays on its control while the page scrolls, shows only when that control is on screen and
+  the note has room (never over other controls), and a faded tip leaves nothing behind (ADR 0181).
 - Each tip shows until the user first uses that mechanism, then is retired. The small ⓘ lists
   every tip, the retired ones marked as learned.
 
 ## 8. Sound
 Procedural Web Audio ambience (no audio files): soft water, wind in leaves, occasional distant
-bird; light rain during rain sessions; a gentle bloom chime. **Muted by default**, speaker
+bird; light rain during rain sessions; a gentle bloom chime; a soft, short pour whenever the plant
+is watered (the automatic focus watering and the can in a break, ADR 0182). **Muted by default**, speaker
 toggle in the garden's corner and in the dock's Garden tools (one shared state); setting
 remembered.
 
@@ -278,7 +284,8 @@ The page is no longer only a canvas. It scrolls as a normal document:
   - **Garden tools** — sound, floating timer, pressed flowers, garden data, hints, with icons and
     visible names; the same tools stay as icons in the garden's corner and share their state.
 - **Timer pill** on the garden: time left in the block, pause/resume, and a way down to the
-  controls; "Start studying" when idle. It and the corner icons rest (fade) while you focus.
+  controls; "Start studying" when idle. It and the corner icons rest while you focus: a small step
+  back, still clearly readable (ADR 0180).
 - **Corner icons** are ~24 px ink glyphs on soft paper chips with ≥ 44 px targets, readable over
   any part of the painting at any time of day, labelled on hover and focus.
 - **Scrolling.** Wheel (also over the garden), keyboard and in-page jumps move the page with a
@@ -336,7 +343,7 @@ plan sessions ahead. A planned session never starts on its own: at its time it w
 |---|---|
 | Views | **Daily / Weekly / Monthly**, **Daily by default**; the last choice is remembered on this device. Previous / next and **Today**. |
 | Daily | An hour timeline of the day in a scrolling window, opened near now (today), else at the first entry, else 8:00. |
-| Weekly | Seven columns starting on the locale's first day (Monday when unknown); tapping a day's head opens it. |
+| Weekly | Seven columns starting on the locale's first day, on purpose (Sunday in en-US, Monday in en-GB; Monday when unknown); tapping a day's head opens it. Blocks that look concurrent share the column; each keeps its short time ("4:10") and the start of its title, and a hovered or focused block grows to be read whole (ADR 0183). |
 | Monthly | A month grid with quiet marks per day: a painted dab in the plant's colour for each bloom, the minutes studied, a small ink ring for each planned session (faint when it passed). Tapping a day opens its daily view. |
 | Past sessions | From the session log: completed ones show the task, the plant, the minutes and the time, as a soft wash in the plant's colours; ended early ones appear very faintly. |
 | In progress | Sessions growing (or waiting) appear in their place, the active one marked. |
