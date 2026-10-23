@@ -69,8 +69,15 @@ store (plants, session) ──sync──▶ records ──requests──▶ spri
 - Key: `speciesId | seed | step | w×h`. `w×h = species.size × plantScale(slot) × resolution` (the
   garden plant scale 1.25 is painted in, never upscaled — ADR 0148), where
   `resolution = resolutionBucket(viewport.pixelScale)` — quarter-octave buckets (≈19 %), capped at
-  2.4 px per world unit. A resize inside the bucket reuses everything; a significant one queues
-  re-renders (priority `rescale`) while the old resolution keeps drawing scaled.
+  6 px per world unit (`MAX_SPRITE_RES`), and no side longer than 2048 px (`MAX_SPRITE_SIDE`,
+  aspect kept). A resize inside the bucket reuses everything; a significant one queues re-renders
+  (priority `rescale`) while the old resolution keeps drawing scaled.
+- **The camera** (ADR 0165): plants overlapping the camera's detail view (+12 %) use
+  `resolutionBucket(detailView.pixelScale)`, every other plant the overview's. The detail view is a
+  glide's destination, so close sprites paint in the workers while the camera travels. On a new
+  detail view, queued renders for the old one are dropped (`cache.dropQueued`); once the camera
+  rests, high-resolution sprites of plants out of view are evicted (`cache.evictWhere`). Culling
+  and `toDevice` use the camera's view. Details: docs/systems/camera.md.
 - Growth is quantised to **24 steps** (`GROWTH_STEPS`). Finished plants use only step 24. The
   growing plant draws the two steps around its growth, **cross-faded exactly** (`lighter` into a
   scratch buffer = per-pixel lerp, no double darkening) and **morphed**: the lower step is scaled
@@ -82,7 +89,7 @@ store (plants, session) ──sync──▶ records ──requests──▶ spri
   `ImageBitmap`s. A species a worker doesn't know (runtime-injected) or a failure is retried on
   the main thread; a dead worker's jobs are requeued. Without Worker/OffscreenCanvas the queue is
   drained one sprite per `requestIdleCallback` (≥ 1, more if the idle period allows).
-- **LRU**: 64 MB default budget (`budgetBytes`), `w × h × 4` bytes per sprite. Entries used in the
+- **LRU**: 96 MB default budget (`budgetBytes`), `w × h × 4` bytes per sprite. Entries used in the
   current frame epoch are never evicted (the budget may overshoot instead); evicted bitmaps are
   `close()`d. 50 finished plants at desktop DPR 2 ≈ 15–25 MB.
 - `init` (every resize) requests everything visible and waits for the queue (≤ 8 s), so
@@ -163,10 +170,15 @@ idle time and faded in once ready), damp soil + the can + droplets for `watering
 kept inside the canvas with `fitRigToCanvas`), and the wither for `wilt`. Its cache is a separate
 24 MB main-thread `SpriteCache`. `setPlantViewSpecies(fn)` adds species the registry lacks.
 
-## Bounds & labels
+## Bounds, hit-test & notes
 `plantWorldBounds(def, slot)` — `species.size × plantScale(slot)` (= slot scale × 1.25), anchored on the slot point; the exact
-rect sprites are drawn into. The UI's label hit-test (`src/ui/plant-labels.ts › plantBox`) uses
-it; `system.plantBounds(plantId)` returns it for finished plants and the growing one.
+rect sprites are drawn into; `system.plantBounds(plantId)` returns it for finished plants and the
+seedlings. `system.hitTest(world, tolerance)` (ADR 0166, `hit-test.ts`) returns the front-most
+plant whose **painted pixels** are at a world point (finished plants and every seedling), using a
+coarse alpha mask per sprite bitmap (≤ 96 cells, alpha ≥ 28); the hover label and the plant card
+use it. `notes.ts` holds `SPECIES_NOTES`, a two-to-three-sentence note on each species' place in
+Japanese gardens and culture, shown on the plant card (ADR 0167; `notes.test.ts`: every species
+has one).
 
 ## How species integrate
 Drop `species/<id>.ts` (see ARCHITECTURE › Species). The system relies only on: `size`/`anchor`
@@ -183,7 +195,7 @@ at growths `k / 24` only. Keep each call under ~100 ms at 600 px.
   growing (CPU side) passes the same bound.
 - Painting: off the main thread with workers; the main-thread fallback paints one sprite per
   idle period (a single sprite can still exceed 8 ms there).
-- Memory: 64 MB garden + 24 MB view LRU; reflections ≤ 48 cached images at half resolution.
+- Memory: 96 MB garden + 24 MB view LRU; reflections ≤ 48 cached images at half resolution.
 
 ## Debug API (`?dev`, `window.sprout.plants`)
 `sprout.plantsReady()` resolves once the system has picked up the latest store change (even one made

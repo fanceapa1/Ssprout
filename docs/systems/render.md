@@ -18,6 +18,19 @@
 - `visible` is the visible world rectangle `{ x, y, w, h }` (on tall phones it extends past the
   world's top/bottom). `applyTo(ctx)` sets a world-unit transform.
 
+## Camera (`camera.ts`, ADRs 0160–0162; docs/systems/camera.md)
+- The cover viewport above is the **overview** (zoom 1). `renderer.camera` holds a pose (zoom
+  1–3, the world point at the stage's centre); `composeView(base, pose)` is the view.
+  `renderer.viewport` is the camera's view (DOM overlays and pointer mapping follow it);
+  `renderer.baseViewport` is the overview.
+- `camera.update(dt)` runs at the top of each frame (glides, gesture follow); `FrameInfo.view` is
+  the view a draw is for. `SystemContext.viewport` stays the overview; `SystemContext.camera`
+  (`view`, `detailView`, `detailVersion`, `moving`, `isOverview`) is live.
+- World layers are drawn through the view; the paper stays screen-fixed.
+- Background caches (ADR 0161): the overview cache (blitted as a sub-rect while the camera moves),
+  a resting-view cache (built once when it rests; reused until invalidated), and a direct draw
+  while moving outside the overview's crop.
+
 ## Layers
 Back → front: `background`, `underwater`, `waterSurface`, `entities`, `air`, `ambience`,
 `lighting`, `paper` (`LAYERS` in `types.ts`).
@@ -49,7 +62,7 @@ Back → front: `background`, `underwater`, `waterSurface`, `entities`, `air`, `
   `renderOnce()` draws a frame now. `whenReady()` resolves after all inits for the current size.
 
 ## Renderer API (`createRenderer({ canvas, store, bus, clock, scene, reducedMotion?, … })`)
-- `viewport`, `frozen`, `running` (getters).
+- `viewport` (the camera's view), `baseViewport` (the overview), `camera`, `frozen`, `running` (getters).
 - `add(system)` → Promise (rejects if a system with that `id` is already registered);
   `remove(id)` (disposes it); `systems()`.
 - `start()` / `stop()` (rAF loop plus resize listeners), `freeze()` / `unfreeze()`, `renderOnce()`,
@@ -58,7 +71,7 @@ Back → front: `background`, `underwater`, `waterSurface`, `entities`, `air`, `
   the last 600 frames (main-thread update + composite cost, and frame intervals);
   `resetFrameStats()`.
 
-`SystemContext` (passed to `init`): `{ viewport, store, bus, clock, scene, reducedMotion }`.
+`SystemContext` (passed to `init`): `{ viewport /* overview */, camera /* live CameraView */, store, bus, clock, scene, reducedMotion }`.
 
 ## Adding a system
 ```ts
@@ -86,4 +99,6 @@ Rules: never touch the DOM from a system; time via `f.now`/`f.t`; randomness via
 (`measure`, `createCanvas`, `requestFrame`, `cancelFrame` options) to cover layer order,
 caching, depth sort, async init, resize re-init, dt clamping, freeze and error isolation.
 `viewport.test.ts` covers cover scaling, focus clamping, `MIN_VISIBLE_W`, DPR cap and conversions.
+`camera.test.ts` covers composing, clamping and reach, zoom about a point, pan, framing, the glide
+path, easing and durations, and the controller; `renderer.test.ts` the camera's caches.
 Visuals are checked with `npm run shots` and the studio.

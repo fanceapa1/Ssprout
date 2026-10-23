@@ -42,6 +42,7 @@ src/
     species/<id>.ts       one file per species, default export SpeciesDef (25 real species)
     lib/                  shared species helpers (small-*, shrub-*, tree-*)
     sprites.ts            renders + caches plant sprites per instance & growth step (workers, LRU)
+    hit-test.ts · notes.ts  painted-pixel hit-test (alpha masks); a note per species for the plant card
     sprite-worker.ts      the module worker that paints sprites
     system.ts             PlantSystem: garden drawables, growth, sway, bloom, wither, watering, reflections
     draw.ts · watering.ts · wither.ts · reflection.ts · highlight.ts · bounds.ts · wind-adapter.ts
@@ -50,7 +51,7 @@ src/
   fauna/                  creatures (one file each) + FaunaSystem — docs/systems/fauna.md
   ambience/               session weather (sun/rain/mist), motes, wind field, the daylight (sun times,
                           four phases, the shared source, light plates) — docs/systems/daylight.md
-  render/                 Renderer, layers, viewport (world↔screen), System interface, frame loop
+  render/                 Renderer, layers, viewport (world↔screen), camera (zoom/pan over it), System interface, frame loop
   ui/                     the page: garden stage overlay (pill, corner tools, markers, labels), dock of
                           sections (session controls, your plant, tools), planting sheet, tips, herbarium,
                           smooth scroll + scrollbar
@@ -80,17 +81,35 @@ docs/                     SPEC, ARCHITECTURE, ART_DIRECTION, ROADMAP, adr/, syst
   pixels; client (window) coordinates = viewport coordinates + the canvas's client rect, whatever
   the page's scroll.
 
+### Camera (`src/render/camera.ts`, ADRs 0160–0168; docs/systems/camera.md)
+The cover viewport is the **overview** (zoom 1). The renderer owns a camera — a pose `{ zoom 1–3,
+x, y }` (the world point at the stage's centre) — and `composeView(base, pose)` is an ordinary
+`Viewport`. **`renderer.viewport` is the camera's view** (DOM overlays and pointer mapping follow
+it); `renderer.baseViewport` the overview; `renderer.camera` the controller (`glideTo`,
+`focusRect`, `overview`, `zoomTo`, `zoomBy`, `panBy`, `settle`, `interrupt`, `setInset`,
+`onChange`, `state()`, plus the `CameraView` below). Views stay inside `reachRect`: the overview's
+rect at zoom 1, widening to it ∪ the world by 1.25×. Glides follow van Wijk & Nuij's zoom-and-pan
+path with a breathing ease (cuts under reduced motion); gestures follow their target (τ 75 ms).
+```ts
+interface CameraView { view(): Viewport; detailView(): Viewport /* glide destination, else the view at rest */;
+  readonly detailVersion: number; moving(): boolean; isOverview(): boolean }
+```
+`SystemContext.viewport` stays the overview (camera moves never re-init a system);
+`SystemContext.camera?: CameraView` is live; `FrameInfo.view?` is the view a draw is for. Systems
+that keep resolution-dependent caches watch `detailVersion` and repaint for the resting view
+(scene, sky, light plate, plant sprites — ADRs 0163, 0165).
+
 ## Rendering pipeline (back → front)
 | # | Layer | Contents | Redraw |
 |---|---|---|---|
-| 0 | `background` | sky, hills, far trees, pavilion, banks, pond base, path; then the daylight sky plate multiplied over it, sun and moon left as paper (ADR 0145) | once per resize and when the sky moves (cached canvas) |
+| 0 | `background` | sky, hills, far trees, pavilion, banks, pond base, path; then the daylight sky plate multiplied over it, sun and moon left as paper (ADR 0145); zoomed in and at rest, the scene's detail painting and the sky's detail plate (ADR 0163) | cached twice (ADR 0161): at the overview (blitted as a sub-rect while the camera moves) and at the resting view; rebuilt per resize, when the sky moves, when detail fades in |
 | 1 | `underwater` | koi — clipped to pond shape | per frame |
 | 2 | `waterSurface` | the mirrored daylight sky, water shimmer and glints, reflections (trees, rocks, plants near shore), rain rings, eave drips, water striders, floating leaves | per frame (reflections cached) |
 | 3 | `entities` | depth-sorted (by base y): foreground rocks/tufts from scene (+ rim light), plants (cast shadow, plant, rim light — ADR 0146), ground fauna (birds on rocks, frog, heron) | per frame (sprites cached) |
 | 4 | `air` | bees, butterflies, dragonflies, flying birds, swallows, falling leaves, the watering can | per frame |
 | 5 | `ambience` | sun shafts, rain strokes, mist, light motes | per frame |
-| 6 | `lighting` | the daylight light plate: the blended phase plates (grade wash, shadows, crown lights, lamp light) with the moving lights lifted out, a night desaturation glaze (ADRs 0082, 0147); the `?dev&slots` overlay | composite rebuilt when the light moves; one blit per frame |
-| 7 | `paper` | static washi grain + vignette over everything (multiply) | once per resize |
+| 6 | `lighting` | the daylight light plate: the blended phase plates (grade wash, shadows, crown lights, lamp light) with the moving lights lifted out, a night desaturation glaze (ADRs 0082, 0147); zoomed in, a detail plate with the marks repainted for the view (ADR 0163); the `?dev&slots` overlay | composite rebuilt when the light moves; one blit per frame |
+| 7 | `paper` | static washi grain + vignette over everything (multiply); **screen-fixed**, it does not follow the camera | once per resize |
 
 The renderer (`createRenderer` in `src/render/renderer.ts`) owns the frame loop, the cached
 `background`/`paper` canvases (paper is composited with `multiply`) and the depth sort; its API
@@ -111,7 +130,7 @@ dock below the garden (see Page, stage and dock).
 ### System contract (`src/render/types.ts`)
 ```ts
 export type LayerId = 'background'|'underwater'|'waterSurface'|'entities'|'air'|'ambience'|'lighting'|'paper';
-export interface FrameInfo { t: number; dt: number; /* seconds */ now: number; /* epoch ms via Clock */ }
+export interface FrameInfo { t: number; dt: number; /* seconds */ now: number; /* epoch ms via Clock */ view?: Viewport /* the view this draw is for */ }
 export interface Drawable { depth: number; draw(ctx: CanvasRenderingContext2D, f: FrameInfo): void; }
 export interface System {
   id: string;
@@ -124,7 +143,7 @@ export interface System {
   entities?(f: FrameInfo): Drawable[];
   dispose?(): void;
 }
-export interface SystemContext { viewport: Viewport; store: Store; bus: EventBus; clock: Clock; scene: SceneGeometry; reducedMotion: boolean; }
+export interface SystemContext { viewport: Viewport /* the overview */; camera?: CameraView /* live */; store: Store; bus: EventBus; clock: Clock; scene: SceneGeometry; reducedMotion: boolean; }
 ```
 The renderer sets `ctx` to world units before calling `draw`. Systems never touch the DOM.
 
@@ -463,22 +482,29 @@ totalRemainingMs, growth, pausedAt, focusWaterings), `switchTo(id)`, `log()`, `n
 
 Scene (`src/scene/debug.ts`): `slots()`, `sceneStats()` (paints, rescales, per-step timings),
 `scenePainted()` (resolves when no background repaint is pending), `skyStats()` (daylight sky plates painted,
-composites, paint ms). `?dev&slots` draws the slot
-overlay.
+composites, paint ms, the detail composite), `sceneDetail()` (the camera's detail painting: view,
+painting, fade, extension). `?dev&slots` draws the slot overlay.
 
 Plants (`src/plants/debug.ts`): `plantsReady()` (resolves once the plant system has picked up the
 latest store change, every sprite the garden needs is
 painted and new plants have faded in, without snapping growth or blooms — use before screenshots,
 ADR 0149) and `window.sprout.plants` —
 `state()` (each finished plant with `shown` 0…1), `settle()` (snap growth/fades and resolve once their sprites are painted), `whenIdle()`,
-`bounds(plantId)`, `boundsFor(speciesId, slotId)`, `toDevice(rect)`, `perf()`, `resetPerf()`,
-`ambienceWind()`.
+`bounds(plantId)`, `boundsFor(speciesId, slotId)`, `toDevice(rect)` (the camera's view), `hitTest(world,
+tolerance?)` (front-most painted plant), `perf()`, `resetPerf()`, `ambienceWind()`.
+
+Camera (`src/dev/camera-debug.ts`): `window.sprout.camera` — `state()`, `focusSlot(id)`,
+`focusPlant(id)`, `zoomTo(z, about?)`, `glideTo(pose)`, `overview()` (each `{ animate: false }` to
+cut), `settle()` (finish the glide and wait for the resting view's detail), `autoFocus(on)` (follow
+session starts/switches; tests that read the overview pin it), `toClient(world)`, `openCard(id)`,
+`closeCard()`.
 
 Ambience (`src/ambience/dev.ts`): `setTime('sunrise'|'midday'|'sunset'|'night'|{ from, to, t }|hour|null)`
 (v1 names `morning`, `noon`, `evening`, `dusk`, `dawn` kept as aliases), `daylight()` (phase weights, sun,
 moon, shadow, rim, location, sun times),
 `setWeather('sun'|'rain'|'mist'|null)` (preview without a session), `settleAmbience()` (jump
-transitions to steady state), `ambience()` (phase, levels, daylight phase and weights, particle counts, ms/frame).
+transitions to steady state), `ambience()` (phase, levels, daylight phase and weights, particle counts, ms/frame),
+`lightDetail()` (the light plate's detail for the camera's resting view: rect, scale, ready).
 `setTime` moves the shared daylight: sky, light, shadows, rims and fauna's night (`fauna.setHour` still pins an
 hour for fauna; audio keeps the real clock).
 
@@ -498,7 +524,7 @@ Widget (`src/widget/dev.ts`, `installWidgetDebug`): `window.sprout.widget` — `
 `closeHarness()`, `harnessMode()`, `harnessWatering()`.
 
 UI (`src/dev/ui-debug.ts`): `window.sprout.ui` — `state()` (mode, panel view, pill view, plantView,
-confirm, resting, dialogs, tips, markers, line, plantLabel, draft), `refresh()`, `setTimeScale(n)`,
+confirm, resting, dialogs, tips, markers, line, plantLabel, plantCard, draft, …), `refresh()`, `setTimeScale(n)`,
 `placement()`, `showPlantLabel(world)`, `slotScreen(id)` (client pixels: stage offset and scroll
 included), `scroll()`, `scrollTo(y | sectionId, { instant? })`, `dock()`, `dockReady()`,
 `waterPlantView()`, `onZoomGesture(fn)`, `widget` (fake only); `window.sprout.advance(ms)`.
@@ -507,9 +533,12 @@ Query flags: `?fixtures` (dev `fx-*` species, ADR 0055), `?uitime=0.05` (UI dela
 
 ## UI (`src/ui/`, ADRs 0050–0055, 0121, 0124, 0130–0136)
 `createUI({ root, stage?, controller, store, bus, clock, getSpecies, slots, viewport, audio?, widget?,
-notifications?, isKnownSpecies?, reducedMotion?, timeScale?, schedules? })` → `{ dock, stage, scroll, plantView,
-calendar, placement: { current(), subscribe(fn) }, state(), refresh(), setTimeScale(), showPlantLabel(),
-dispose() }`. With `schedules` (the scheduler) it fills the Calendar section, mounts the waiting card
+notifications?, isKnownSpecies?, reducedMotion?, timeScale?, schedules?, camera? })` → `{ dock, stage, scroll, plantView,
+calendar, camera, placement: { current(), subscribe(fn) }, state(), refresh(), setTimeScale(), showPlantLabel(),
+dispose() }`. With `camera` (`{ camera: renderer.camera, hitTest: plants.hitTest }`) it adds the zoom
+gestures and chips, the focus on the growing plant and the plant card (`src/ui/stage-camera.ts`,
+`src/ui/plant-card.ts`; ADRs 0164, 0167, 0168); `ui.camera` is then `{ openCard(id), closeCard(),
+setAutoFocus(on), state() }`, else null. With `schedules` (the scheduler) it fills the Calendar section, mounts the waiting card
 and links a session started from a schedule (ADRs 0173–0177); `calendar` is then `{ state(),
 setView(view), go(date) }`, else null. DOM only, drives the app through the controller. `root` is the page (`#ui`), `stage`
 the element holding the canvas (default: `root`'s `.stage`). `viewport` is a function returning the
@@ -529,8 +558,10 @@ adds the stage overlay and puts the dock after the stage.
 **Stage** — `ui.stage = { el, onZoomGesture(fn) => unsubscribe }`. Things on the painting live in
 `.stage-ui` (absolute, viewport CSS pixels). ctrl/⌘ + wheel over the stage (trackpad pinch arrives
 so) never scrolls the page; with a zoom handler registered it gets the event (default prevented),
-otherwise the browser zooms the page as usual. One-finger touch scrolls the page natively
-(`touch-action: manipulation` on the canvas); a camera that pans or pinches must change that.
+otherwise the browser zooms the page as usual (the camera registers one: ctrl/⌘ + wheel zooms the
+garden). One-finger touch scrolls the page natively at the overview (`touch-action: pan-x pan-y`
+on the canvas, so a two-finger pinch reaches the camera); zoomed in it is `none` and a finger pans
+the painting (ADR 0164).
 The canvas edge dissolves into the page's paper through a CSS mask (ADR 0132).
 
 **Dock** — `ui.dock` (`src/ui/dock.ts`), the contract for features below the garden:

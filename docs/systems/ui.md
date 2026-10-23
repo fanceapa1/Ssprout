@@ -54,7 +54,9 @@ the widget surfaces — the UI then asks in the Begin click itself.
 | `hints.ts` | ⓘ list of every tip incl. learned (retired) ones |
 | `tips.ts` | floating hint notes with leader lines, one at a time (ADR 0124) |
 | `quiet-line.ts` | one sentence at the top: completion, fauna arrivals (ADR 0054, ADR 0120) |
-| `plant-labels.ts` | hover/tap a finished plant → "task · minutes · date" (DOM hit-test, `hitPlant`) |
+| `plant-labels.ts` | hover a finished plant → "task · minutes · date" (the plant system's painted-pixel hit-test with a camera, else `hitPlant` over sprite boxes and taps too); hidden while a plant card is open |
+| `stage-camera.ts` | the camera on the stage (ADRs 0164, 0168): ctrl/⌘ wheel and pinch zoom, double-click/tap, drag only when zoomed, touch-action switch, + / − / Whole garden chips, keys on the focused canvas, cursor hints, clicks → plant card; glides to the seedling on start/switch, to the whole garden on placement |
+| `plant-card.ts` | the plant card (ADR 0167): `plantStory()` / `storyLines()` (pure), a dialog `.plant-story` beside the plant or docked on phones; Esc / close / click away; a seedling's card refreshes each tick |
 | `previews.ts` | `renderPlantPreview(canvas, species, seed, growth?, createCanvas?)`, `createPreviewCache(getSpecies, createCanvas?)`, pressed-flower pixels |
 | `paper.ts` | seeded deckled washi slips + grain as CSS custom properties (ADR 0052) |
 | `icons.ts` | ink icons as stroke data: inline SVG (`ICONS`) and Path2D (`drawIcon`) (no emoji, no icon fonts) |
@@ -72,7 +74,7 @@ the widget surfaces — the UI then asks in the Begin click itself.
 ## Page layout
 ```
 #ui (page, .ui-root) ─ section#stage ─ canvas#garden (masked edge)
-                     │                └ .stage-ui: quiet line · plant label · markers · pill · nav.menu · placement bar
+                     │                └ .stage-ui: quiet line · plant label · markers · pill · nav.menu · placement bar · zoom chips · plant card
                      ├ .dock: [Study (waiting cards + controls + sessions in progress) | Your plant] · Calendar · Garden tools
                      └ fixed: .tips · .scrollbar · live region · dialogs (top layer)
 ```
@@ -195,13 +197,15 @@ it is read on the page, like a sheet.
 `window.sprout.ui`: `state()`, `refresh()`, `setTimeScale(n)`, `placement()`, `widget`
 (fake only), `showPlantLabel(world)`, `slotScreen(id)` (client pixels), `scroll()`,
 `scrollTo(y | sectionId, { instant? })`, `dock()`, `dockReady()`, `waterPlantView()`,
-`onZoomGesture(fn)`. `window.sprout.advance(ms)` jumps the dev
+`onZoomGesture(fn)`. `ui.state().plantCard` is the open card. The camera's hooks are
+`window.sprout.camera` (docs/systems/camera.md). `window.sprout.advance(ms)` jumps the dev
 clock and refreshes the UI (e.g. into a break or a long pause).
 
 ## Tests
 Unit: `format.test.ts`, `plan-line.test.ts`, `plant-labels.test.ts`, `previews.test.ts`,
 `ambient-light.test.ts`, `scroll-math.test.ts`, `dock.test.ts`, `stage-edge.test.ts`, `ink.test.ts`.
-E2E: `tests/e2e/parallel-sessions.spec.ts` (start two, switch, waiting time frozen, limit of three,
+E2E: `tests/e2e/camera.spec.ts` (zoom gestures and controls, focus on start/switch, the plant
+card, placement while zoomed, docked card on phones), `tests/e2e/parallel-sessions.spec.ts` (start two, switch, waiting time frozen, limit of three,
 automatic watering in Your plant, the widget and title follow the active session, reload),
 `tests/e2e/ui-shell.spec.ts` (page and stage sizing, wheel/keys/reduced-motion scrolling,
 scrollbar drag, pointer mapping when scrolled, dock order and columns, dock controls + pill,

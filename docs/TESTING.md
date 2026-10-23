@@ -71,7 +71,10 @@ tests (`test-results/`).
   are lost (the saved timestamps are ahead of the new clock), so a reload test jumps only after it
   (`parallel-sessions › a reload continues every session…`).
 - **Pin what is not under test.** Lighting follows the app clock: advancing the dev clock moves
-  the time of day. Use `sprout.setTime('noon')` and `settleAmbience()` for pixel comparisons. Use
+  the time of day. Use `sprout.setTime('noon')` and `settleAmbience()` for pixel comparisons.
+  A session start glides the camera to its seedling (ADR 0168): a test that reads the garden at
+  the overview calls `sprout.camera.autoFocus(false)` first; one that hovers or taps a plant after
+  a start calls `await sprout.camera.settle()` (it also waits for the close view's detail). Use
   `reducedMotion: 'reduce'` when sway would add noise. Clear fauna before reading a region.
 - **Drive simulations in one round trip.** Fauna loops run inside one `page.evaluate`, with the
   renderer frozen, so the frame loop does not compete with `fauna.step()`.
@@ -203,7 +206,7 @@ Legend: unit tests as `folder/file › test`, under `src/` (`.test.ts` omitted).
 | 3.6 | Swap: old plant steps aside, pressed into the herbarium on completion, returns on cancel | plants/system › fades a displaced plant out…; core/reducer › records the finished plant in the chosen slot as displaced…; › presses the displaced plant… | ui-session › swap into an occupied spot…; plants › cancel withers … returns the plant it replaced; core-loop › cancel… | ✔ |
 | 3.7 | Upgrades = a higher tier into an occupied slot | core/reducer › records the finished plant in the chosen slot as displaced… | ui-session › swap into an occupied spot… | ✔ |
 | 3.8 | Finished plants sway gently | plants/draw › sway maths (all); plants/system › finished plants sway with the wind, and hold still under reduced motion | — | ✔ |
-| 3.9 | Hover/tap a finished plant → ink label: task · minutes · date | ui/plant-labels (all) | ui-session › completion… (hover); plants › plant bounds drive the hover label…; session-rules · phone › tapping a finished plant shows its ink label | ✔ |
+| 3.9 | Hover a finished plant → ink label: task · minutes · date; a tap opens its card | ui/plant-labels (all) | ui-session › completion… (hover); plants › plant bounds drive the hover label…; session-rules · phone › tapping a finished plant opens its card… | ✔ |
 | 3.10 | Plants 1.25× bigger in the garden, painted at that size; neighbours read; nothing on the stones or over the engawa | scene/geometry › plants at the garden scale (all); plants/system › sizes sprites by species size × slot scale × viewport pixel scale (× the garden scale); › reports world bounds…; ui/plant-labels › computes sprite boxes… | plants › plant bounds drive the hover label… | ✔ |
 
 ### §4 Wildlife
@@ -282,7 +285,7 @@ Legend: unit tests as `folder/file › test`, under `src/` (`.test.ts` omitted).
 | 12.1 | Stage ~88 % of the window under a small margin; the dock peeks out; the renderer sizes to the stage | stage-edge › sizes the dissolve to the stage… | ui-shell › the garden stage fills ~88 %…; ui-menu · phone › the garden fills the screen… | ✔ |
 | 12.2 | The garden dissolves into the page's paper (no hard line); the page is the garden's washi | ui/stage-edge (all) | ui-shell › the garden stage fills… (`data-edge="masked"`) | ◐ look by shots + studio `ui-shell/stage-edge` |
 | 12.3 | Smooth scroll: wheel (also over the garden) and keys ease, jumps glide; no repaint on scroll | ui/scroll-math (all) | ui-shell › wheel over the garden scrolls the page with an eased glide…; › keyboard scrolls the page… | ✔ |
-| 12.4 | ctrl/⌘ + wheel and pinch over the garden never scroll the page (zoom hook) | — | ui-shell › wheel over the garden… (ctrl+wheel part) | ✔ |
+| 12.4 | ctrl/⌘ + wheel and pinch over the garden never scroll the page (they zoom the garden) | — | ui-shell › wheel over the garden… ctrl+wheel zooms the garden instead; camera › ctrl+wheel zooms about the pointer… | ✔ |
 | 12.5 | Touch native; reduced motion: no smoothing | — | ui-shell · reduced motion › no smoothing… | ◐ touch momentum is the platform's (not asserted) |
 | 12.6 | Custom scrollbar: shows the position, drags, fades, native bar hidden, not a focus stop | ui/scroll-math › scrollbar thumb (all) | ui-shell › the custom scrollbar shows the position and drags… | ✔ |
 | 12.7 | Pointer mapping stays right when scrolled | — | ui-shell › pointer mapping stays right on a scrolled page… | ✔ |
@@ -294,6 +297,25 @@ Legend: unit tests as `folder/file › test`, under `src/` (`.test.ts` omitted).
 | 12.13 | Bigger, darker type: base ≥ 20 px, text ink ≥ 4.5:1 | ui/ink (all) | — | ✔ |
 | 12.14 | Tips point at the controls' new homes | ui/format › pickTips (all) | ui-shell › tips point at the controls in their new homes | ✔ |
 | 12.15 | The controls on the painting rest while focusing; the dock does not | — | ui-menu › the controls on the painting rest while studying… | ✔ |
+
+### §12a Camera & plant cards (ADRs 0160–0168)
+
+| # | Rule | Unit | E2E | Status |
+|---|---|---|---|---|
+| 12a.1 | The overview is the stage's framing (zoom 1); zoom up to 3×; views never leave the painting (overview ∪ world, wider only past a zoom of 1.25; lit paper rows on tall phones) | render/camera › composeView (all); › clampPose (all); › inset slack (all) | camera › double-click zooms in…; › drag pans only while zoomed in… | ✔ |
+| 12a.2 | The camera composes with the cover viewport; every world layer follows it, the paper stays fixed | render/camera › composeView…; render/renderer › camera (all) | camera › ctrl+wheel… (point under the pointer stays); ui-shell › pointer mapping stays right on a scrolled page… | ✔ |
+| 12a.3 | ctrl/⌘ + wheel / trackpad pinch zoom about the pointer and never scroll; a plain wheel scrolls | render/camera › zoomAbout and panBy (all); › createCamera › a gesture zoom eases toward its target about the pointer | camera › ctrl+wheel zooms about the pointer and never scrolls; a plain wheel still scrolls the page | ✔ |
+| 12a.4 | Double-click / double-tap zooms in; + / − / Whole garden; keys + − 0 arrows Enter | — | camera › double-click zooms in about the point; + / − and Whole garden; › keyboard on the focused garden… | ◐ double-tap only by code review (touch dblclick timing) |
+| 12a.5 | Drag pans only while zoomed; touch: one finger scrolls the page at the overview, pans when zoomed; two fingers pinch | render/camera › a drag moves the painting… | camera › drag pans only while zoomed in…; › a two-finger pinch zooms the garden | ◐ real touch devices by hand (the pinch is synthetic pointer events) |
+| 12a.6 | Glides: eased, never linear, pull back on long moves; input interrupts; reduced motion cuts | render/camera › glides (all); › user input interrupts a glide…; › cuts instead of gliding under reduced motion | camera · reduced motion › glides become cuts | ✔ |
+| 12a.7 | A session start glides to its seedling (off-centre, garden around it); a switch glides to the new active one; nothing re-zooms on its own | render/camera › framePose (all) | camera › a session start glides the camera onto its seedling…; › switching sessions glides… | ✔ |
+| 12a.8 | Placement works at any zoom; entering it glides to the whole garden | — | camera › placement works at any zoom… | ✔ |
+| 12a.9 | Click/tap a plant → glide onto it + a card: species, Japanese name, note, poetic line, task, minutes, date; a seedling's progress and time to go; replaced plant | ui plantStory via e2e; plants/notes (all) | camera › click a plant: the camera glides onto it and its card tells its story…; › a growing seedling's card shows its progress…; session-rules · phone › tapping a finished plant opens its card | ◐ the replaced-plant line by code review |
+| 12a.10 | The hit-test is the front-most painted plant; transparent parts miss; the cursor offers plants | plants/hit-test (all); plants/system › hit-tests the front-most plant, finished or growing | camera › click a plant… (cursor `pointer`) | ✔ |
+| 12a.11 | The card closes by Esc, the close mark, a click elsewhere; keyboard focus in and back; a named dialog; docked at the bottom on phones with the plant framed above | — | camera › click a plant… (Esc); › the card opens from the keyboard…; camera · phone › the card docks at the bottom… | ✔ |
+| 12a.12 | A note for every species (2–3 quiet sentences) | plants/notes (all) | — | ✔ |
+| 12a.13 | Close views stay sharp: scene detail painting, sky detail (moon, stars), light-plate marks repainted, sprites at the zoomed resolution for plants in view; far-off high-res sprites evicted | plants/sprites › follows the zoomed scale…; › evicts what a predicate picks…; plants/system › the camera (all) | camera › close views are painted in detail… | ◐ the look by shots and studio `camera-detail/*` |
+| 12a.14 | Camera moves never repaint in a frame; glides stay smooth | render/renderer › while the camera moves the background is the overview cache scaled up… | camera › a glide stays smooth: main-thread frame cost while the camera moves | ✔ |
 
 ### §13 Calendar & scheduling (ADRs 0170–0177)
 

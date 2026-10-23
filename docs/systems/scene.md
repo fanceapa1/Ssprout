@@ -128,6 +128,16 @@ crowded `meadow-8`).
   ~20 ms, so the frame loop and input stay alive during a paint.
 - `createSceneSystem({ invalidate })` needs `renderer.invalidate` to redraw the cached
   background while fading.
+- **The camera** (ADR 0163): once the camera rests closer than the painting resolves, the view's
+  rect (+40 units) is painted again at `min(view.pixelScale, maxDetailScale = 2.8)` by the same
+  cooperative job and cross-fades in over the overview painting (`1−e`, `e`); its boulders and
+  tufts replace the overview's while zoomed. A draw whose `f.view` the detail does not cover (the
+  overview cache) uses the overview painting. Back at the overview the detail is dropped. The
+  first time a view or a glide's destination leaves the painted rect (a phone's cropped sides),
+  the overview painting is extended to the whole world in the background and swapped in at once
+  (`detailStats().extending`, not counted in `paints`). The sky composes its own detail
+  (`SkyLight.setDetail`: plates upscaled, sun, moon and stars punched at ≤ 3 px/unit).
+  `sprout.sceneDetail()`; docs/systems/camera.md.
 
 ### Performance (headless Chromium, Apple M3, machine shared with other jobs — load avg ≈ 4)
 | Viewport | paint view | painting (CPU) | wall incl. yields |

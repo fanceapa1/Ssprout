@@ -88,8 +88,7 @@ weather, Your plant, the widget, the tab title and notifications follow it.
 | Reload | Every session continues: only the active one ran while away; the waiting ones stayed paused. |
 | History | Every completed and cancelled session is kept in a session log (times, focused minutes, plan, plant, task) for the calendar (ADR 0151). |
 
-*Status:* done (phase 7). The camera's glide to the active plant on start and switch comes with the
-camera task.
+*Status:* done (phase 7). The camera glides to the active plant on start and on switch (§12a).
 
 ### Active-session ambience (subtle!)
 While a session runs, the garden visibly "works with you":
@@ -138,8 +137,8 @@ plum blossom. Not yet: moss and dianthus. **Bug:** the lotus (size class `large`
   spaced so neighbours still read and nothing stands on the stepping stones or hides the engawa.
   The widget and the planting-sheet previews keep their own framing. Each plant casts a shadow
   away from the sun and catches a rim of light at sunrise and sunset (§5).
-- Hover/tap a finished plant → tiny ink label: task name · minutes · date (the day the session
-  started).
+- Hover a finished plant → tiny ink label: task name · minutes · date (the day the session
+  started). Click or tap any plant → its card (§12a); on touch a tap opens the card, not the label.
 
 ## 4. Wildlife (gradual, subtle)
 
@@ -286,8 +285,47 @@ The page is no longer only a canvas. It scrolls as a normal document:
   calm eased motion; touch scrolling is the platform's own; with `prefers-reduced-motion` there is
   no smoothing. A hand-made brush scrollbar on the right shows the position, can be dragged and
   fades when idle; it is decoration over normal scrolling (keyboard scrolling and focus are the
-  browser's). ctrl/⌘ + wheel and pinch over the garden never scroll the page (reserved for zoom).
+  browser's). ctrl/⌘ + wheel and pinch over the garden never scroll the page: they zoom the
+  garden (§12a).
 - **Type.** Bigger (base 21 px) and darker: body text ≥ 4.5:1 against the paper.
+
+## 12a. Camera & plant cards (v2, ADR 0005; ADRs 0160–0168)
+The garden can be looked at closely, like leaning into a painting.
+
+- **Zoom.** From the whole garden (the stage's usual framing, the farthest view) up to **3×**,
+  where a small flower fills a good part of the stage. A close view can look anywhere on the
+  painting — on a phone also at the sides the whole-garden view crops — but never past it.
+- **Moving the view.** ctrl/⌘ + wheel and trackpad pinch zoom about the pointer; a plain wheel
+  keeps scrolling the page. Double-click or double-tap zooms in (at the closest view: back to the
+  whole garden). Dragging pans **only while zoomed in**; on touch one finger scrolls the page at
+  the whole-garden view and pans the painting when zoomed in; two fingers pinch. **+ / −** chips
+  and, when zoomed, **"Whole garden"** sit at the garden's bottom right in the corner tools'
+  paper-chip style, clear of the pill and the corner icons; with the garden focused, + / − / 0 and
+  the arrow keys do the same and Enter opens the card of the plant in the middle.
+- **Motion.** The view glides (a slow eased move that pulls back a little on long moves, never
+  linear) and any touch of the wheel, a drag or a pinch takes over at once. With
+  `prefers-reduced-motion` the view cuts instead of gliding.
+- **Focus on the plant being grown.** When a session starts, the view glides to its seedling,
+  framed a little off-centre with garden around it; switching to another session glides to that
+  one. Choosing a spot (placement) glides back to the whole garden, and placement works at any
+  zoom. Completing or cancelling leaves the view where it is. Nothing else zooms on its own: once
+  the gardener zooms out, the view stays out until the next start or switch.
+- **Close views stay a painting.** Once the view rests, the painting, the sky (moon, stars, sun)
+  and the light (shadows, crown lights) are painted again for that view, and the plants in view
+  get sharper sprites; the change fades in within a few seconds. Fauna, weather, labels, markers,
+  watering and reflections follow the view.
+- **Plant card.** Clicking or tapping a plant (where it is painted, not its empty box; the
+  front-most wins; the cursor shows a hand over plants) glides onto it and opens a washi card:
+  the species and its Japanese name; a short note on its place in Japanese gardens and culture
+  (every species has one); its poetic line; and the plant's own story — what it was planted for,
+  minutes of study, the day it was planted; for a seedling its growth and time to go (or that it
+  rests while paused or waits while another session is active); the plant it replaced. On wide
+  screens the card stands beside the plant; on phones it docks at the bottom of the garden. Esc,
+  the close mark, or a click elsewhere closes it; it is keyboard accessible (focus moves into it
+  and back). The hover label stays as the quick glance on desktop.
+
+*Status:* done (phase 7). Real touch pinch on devices is only covered by a synthetic e2e test;
+ambience particles (rain, motes) are not repainted for close views (they are soft by nature).
 
 ## 13. Calendar & scheduling (v2, ADR 0005; ADRs 0170–0177)
 A calendar in the dock shows the garden's study by **day, week or month**, and lets the gardener

@@ -70,6 +70,12 @@ pure phases with the blends between them: night until 03:36 · sunrise 04:16–0
 - **Grades** (`PHASE_GRADES`): midday 0.03 (bare paper); sunrise lavender 0.2 warmed toward the
   right; sunset amber 0.34 glowing toward the left, lantern 0.45; night indigo 0.5 (+0.26 toward the
   sky), lantern 1, colour taken out first (`LOOK.nightDesaturate` 0.38).
+- **Close views** (ADR 0163): when the camera rests zoomed in, the sky composes a detail plate for
+  the view (plates upscaled; sun, moon with its phase and stars punched at up to 3 px/unit) and
+  the light plate repaints its marks for the view at up to 2 px/unit (`CAST_DETAIL_MAX`) over its
+  upscaled grade wash (kept per phase before the marks), one phase per idle callback; the moving
+  lights are lifted in the detail composite. Each is used only when it covers the whole view.
+  `sprout.lightDetail()`, `skyStats().detail`.
 - **Sprites** (ADR 0146): rim light (screen, sunrise peach from the right, sunset gold from the
   left) on plants (0.85) and boulders (0.7); plants' shadow blots (`SHADOW_PLANT` 0.6).
 - **Ambience extras**: dawn mist on the far bank and the water, rising 26 units and thinning as the
