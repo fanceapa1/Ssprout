@@ -2,7 +2,7 @@ import { tierForMinutes } from '../core/rewards';
 import { clampGoalMinutes, GOAL_PRESETS, GOAL_STEP_MINUTES, MAX_GOAL_MINUTES, MIN_GOAL_MINUTES } from '../core/session';
 import { TIERS } from '../plants/types';
 import { h, setText } from './dom';
-import { spokenMinutes, TIER_SWATCH, TIER_WORDS } from './format';
+import { spokenMinutes, TIER_WORDS } from './format';
 
 /**
  * Total-time picker: big serif numeral + "min", a thin ink slider (10–180, step 5), quick picks
@@ -29,7 +29,7 @@ export function createDurationControl(initial: number, onChange: (minutes: numbe
     h('button.preset', { type: 'button', 'data-minutes': m, 'aria-label': `${m} minutes`, onclick: () => set(m, true) }, String(m)),
   );
   const tierWords = TIERS.map((t) =>
-    h('span.tier-word', { 'data-tier': t }, h('span.swatch', { style: { background: TIER_SWATCH[t] }, 'aria-hidden': 'true' }), TIER_WORDS[t]),
+    h('span.tier-word', { 'data-tier': t }, TIER_WORDS[t]),
   );
   const tierSr = h('span.visually-hidden');
   const tierLine = h('p.tier-scale', {}, tierSr, ...tierWords);

@@ -150,6 +150,18 @@ const INK = '#3b352e';
 /** deep enough for the cream label to read at 5:1 (ADR 0136) */
 const VERMILION = '#ad452d';
 
+/**
+ * The brush mark under a chosen thing (a chip, a plan, a tool that is on, the current tier):
+ * a short vermilion stroke, never a dot (ADR 0194), `w × 8` px.
+ */
+export function brushMarkSvg(seed: number | string, w = 64): string {
+  const d = brushStrokePath(seed, { length: w, width: 2.4, wobble: 0.4, steps: 18 });
+  return (
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} 8" width="${w}" height="8" preserveAspectRatio="none">` +
+    `<path d="${d}" transform="translate(0 6.5) rotate(-90)" fill="${VERMILION}" fill-opacity="0.8"/></svg>`
+  );
+}
+
 /** A short horizontal brush rule (section headings in the dock), `w × 8` px. */
 export function brushRuleSvg(seed: number | string, w = 84): string {
   const d = brushStrokePath(seed, { length: w, width: 2.6, wobble: 0.35, steps: 22 });
@@ -181,6 +193,7 @@ export function installPaper(doc: Document = document): void {
   }
   vars.push(`--slip-faint: ${svgUrl(slipSvg('faint', { fill: PAPER, fillOpacity: 0.9, stroke: INK, strokeOpacity: 0.2 }))};`);
   vars.push(`--brush-rule: ${svgUrl(brushRuleSvg('rule'))};`);
+  vars.push(`--brush-mark: ${svgUrl(brushMarkSvg('mark'))};`);
   const grain = grainDataUrl('washi');
   vars.push(`--grain: ${grain ? `url("${grain}")` : 'none'};`);
   const style = doc.createElement('style');

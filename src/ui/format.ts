@@ -14,14 +14,6 @@ export const TIER_WORDS: Readonly<Record<Tier, string>> = {
   4: 'centrepiece',
 };
 
-/** A tiny pigment swatch per tier (ART_DIRECTION palette). */
-export const TIER_SWATCH: Readonly<Record<Tier, string>> = {
-  1: '#9a8cc4',
-  2: '#7f97c8',
-  3: '#e8a7a9',
-  4: '#d9b36c',
-};
-
 export const HABITAT_WORDS: Readonly<Record<Habitat, string>> = {
   water: 'on the water',
   shore: 'at the pond’s edge',

@@ -119,6 +119,57 @@ const svg = (strokes: readonly IconStroke[]) =>
 /** Inline SVG markup for every icon. */
 export const ICONS = Object.fromEntries(Object.entries(ICON_STROKES).map(([k, v]) => [k, svg(v)])) as Record<IconName, string>;
 
+/**
+ * The sprout mark (ADR 0194): the one small sign beside what begins a planting ("Start studying",
+ * "Plant another", "Schedule a session") and what is growing now. It is the sprout icon's own ink
+ * strokes with its two leaves washed in sap green, cropped to the glyph, in place of the round red
+ * "recording" dot, a generic web trope the owner rejected. Never pulses or glows.
+ */
+export const MARK_LEAF = '#8b9c5a';
+/** the sprout glyph's box inside the 24 grid (x, y, w, h) */
+export const MARK_BOX = [5.6, 7.6, 14.8, 14] as const;
+
+export function sproutMarkSvg(cls = ''): string {
+  const [stem, right, left, ground] = ICON_STROKES.sprout;
+  return (
+    `<svg class="sprout-mark${cls ? ` ${cls}` : ''}" viewBox="${MARK_BOX.join(' ')}" width="18" height="17" aria-hidden="true" focusable="false" ` +
+    `fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round">` +
+    `<path class="leaf" d="${right!.d}" fill="${MARK_LEAF}" fill-opacity="0.78"/>` +
+    `<path class="leaf" d="${left!.d}" fill="${MARK_LEAF}" fill-opacity="0.66" opacity="0.9"/>` +
+    `<path d="${stem!.d}"/><path d="${ground!.d}" opacity="0.55"/></svg>`
+  );
+}
+
+/** The sprout mark on a canvas (studio): `size` px wide with its top-left at (x, y). */
+export function drawSproutMark(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, ink: string, leaf = MARK_LEAF): void {
+  const [bx, by, bw] = MARK_BOX;
+  const k = size / bw;
+  const [stem, right, left, ground] = ICON_STROKES.sprout;
+  ctx.save();
+  ctx.translate(x - bx * k, y - by * k);
+  ctx.scale(k, k);
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.lineWidth = 1.35;
+  ctx.strokeStyle = ink;
+  for (const [s, fill, o] of [
+    [right!, 0.78, 1],
+    [left!, 0.66, 0.9],
+  ] as const) {
+    const p = new Path2D(s.d);
+    ctx.globalAlpha = fill * o;
+    ctx.fillStyle = leaf;
+    ctx.fill(p);
+    ctx.globalAlpha = o;
+    ctx.stroke(p);
+  }
+  ctx.globalAlpha = 1;
+  ctx.stroke(new Path2D(stem!.d));
+  ctx.globalAlpha = 0.55;
+  ctx.stroke(new Path2D(ground!.d));
+  ctx.restore();
+}
+
 /** Draw an icon into a 2D context (studio): `size` px square with its top-left at (x, y). */
 export function drawIcon(ctx: CanvasRenderingContext2D, name: IconName, x: number, y: number, size: number, color: string): void {
   ctx.save();

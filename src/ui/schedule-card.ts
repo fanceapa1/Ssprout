@@ -3,7 +3,8 @@ import type { OccurrenceView } from '../core/schedule';
 import type { Scheduler } from '../core/schedule-controller';
 import { MAX_SESSIONS } from '../core/state';
 import type { UIContext } from './context';
-import { h, setText, show } from './dom';
+import { fragment, h, setText, show } from './dom';
+import { sproutMarkSvg } from './icons';
 import { formatMinutes } from './calendar-model';
 
 /**
@@ -77,7 +78,7 @@ export function createDueCards(ctx: UIContext, deps: DueCardsDeps): DueCards {
     return h(
       'li.due-card',
       { 'data-occurrence': o.key, 'data-mode': limit ? 'limit' : 'start' },
-      h('p.due-when', {}, `Planned for ${fmtTime.format(o.at)}`),
+      h('p.due-when', {}, fragment(sproutMarkSvg('due-mark')), `Planned for ${fmtTime.format(o.at)}`),
       h('p.due-name', {}, o.name),
       h('p.due-meta', {}, dueMeta(o)),
       limit ? h('p.due-note', { role: 'note' }, LIMIT_CARD_NOTE) : null,

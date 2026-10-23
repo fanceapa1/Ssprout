@@ -29,6 +29,7 @@ import {
 } from './calendar-model';
 import type { UIContext } from './context';
 import { fragment, h, setText } from './dom';
+import { sproutMarkSvg } from './icons';
 import { keyDirection } from './smooth-scroll';
 
 /**
@@ -168,7 +169,7 @@ export function createCalendar(ctx: UIContext, deps: CalendarDeps): Calendar {
   const add = h(
     'button.quiet.cal-add',
     { type: 'button', 'data-anchor': 'schedule-add', onclick: () => newAt(addDefault(), add) },
-    h('span.cal-add-seal', { 'aria-hidden': 'true' }),
+    fragment(sproutMarkSvg('cal-add-mark')),
     'Schedule a session',
   );
   const head = h(
@@ -315,7 +316,7 @@ export function createCalendar(ctx: UIContext, deps: CalendarDeps): Calendar {
       title: blockLabel(i),
     };
     // the seal for "now" (due, growing) sits in the line before the time, never over the words
-    const dot = i.status === 'due' || i.status === 'growing' ? h('span.cal-block-dot', { 'aria-hidden': 'true' }) : null;
+    const dot = i.status === 'due' || i.status === 'growing' ? fragment(sproutMarkSvg('cal-block-mark')) : null;
     const content = [
       h(
         'span.cal-block-line',

@@ -2,7 +2,7 @@ import { MINUTE_MS } from '../core/session';
 import type { UIContext } from './context';
 import { fragment, h, setText, show } from './dom';
 import { crossedMilestone, formatTimer, inSentence, spokenMinutes } from './format';
-import { ICONS } from './icons';
+import { ICONS, sproutMarkSvg } from './icons';
 import { createPlanLineSvg, renderPlanLine } from './plan-line';
 import { sessionView, type SessionView } from './session-view';
 import type { UIState } from './types';
@@ -48,7 +48,7 @@ export function createTimerPanel(ctx: UIContext, actions: TimerPanelActions): Ti
   let lastView: PanelView | null = null;
 
   // ── idle ────────────────────────────────────────────────────────────────────────────────
-  const plantBtn = h('button.seal.plant-session', { type: 'button', 'data-anchor': 'start', onclick: () => actions.plant(plantBtn) }, 'Start studying');
+  const plantBtn = h('button.seal.plant-session', { type: 'button', 'data-anchor': 'start', onclick: () => actions.plant(plantBtn) }, fragment(sproutMarkSvg('seal-mark')), 'Start studying');
   const idleLine = h('p.idle-line');
   const idle = h('div.view.view-idle', {}, h('span.idle-sprout', { 'aria-hidden': 'true' }, fragment(ICONS.sprout)), idleLine, h('div.actions', {}, plantBtn));
 

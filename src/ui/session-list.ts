@@ -1,7 +1,8 @@
 import type { SessionSummary } from '../core/controller';
 import { renderPlantView } from '../plants/view';
 import type { UIContext } from './context';
-import { h, setText, show } from './dom';
+import { fragment, h, setText, show } from './dom';
+import { sproutMarkSvg } from './icons';
 import { formatTimer, inSentence } from './format';
 import { createPlanLineSvg, renderPlanLine } from './plan-line';
 import { paintRoundWindow } from './plant-section';
@@ -78,7 +79,7 @@ export function createSessionList(ctx: UIContext, actions: SessionListActions): 
   const another = h(
     'button.quiet.plant-another',
     { type: 'button', onclick: () => plantAnother() },
-    h('span.plant-another-seal', { 'aria-hidden': 'true' }),
+    fragment(sproutMarkSvg('plant-another-mark')),
     'Plant another',
   );
   const note = h('p.limit-note', { role: 'note' });
@@ -117,7 +118,7 @@ export function createSessionList(ctx: UIContext, actions: SessionListActions): 
     const plan = createPlanLineSvg();
     plan.classList.add('session-row-plan');
     const meta = h('p.session-row-meta');
-    const now = h('span.session-row-now', {}, h('span.now-dot', { 'aria-hidden': 'true' }), 'growing now');
+    const now = h('span.session-row-now', {}, fragment(sproutMarkSvg('now-mark')), 'growing now');
     const button = h('button.session-switch', { type: 'button', onclick: () => choose(id) });
     const li = h('li.session-row', { dataset: { sessionId: id } }, frame, h('div.session-row-text', {}, task, plan, meta), h('div.session-row-act', {}, now, button));
     r = { li, canvas, backdrop, task, plan, meta, now, button, paintKey: '' };

@@ -285,15 +285,31 @@ dialog :focus-visible {
   font-size: 18.5px;
   letter-spacing: 0.05em;
 }
-.pill-seal {
-  width: 11px;
-  height: 11px;
-  border-radius: 46% 54% 40% 60% / 58% 44% 56% 42%;
-  background: var(--ui-vermilion);
-  transition: transform var(--ui-mid) var(--ui-breath);
+/*
+ * The sprout mark (ADR 0194): an inked sprout with sap-green leaves beside what begins a planting
+ * and what is growing now. It replaces the round red "recording" dot. It never pulses or glows.
+ */
+.sprout-mark {
+  flex: none;
+  width: 20px;
+  height: 19px;
+  color: var(--ui-ink-soft);
+  overflow: visible;
 }
-.pill-start:hover .pill-seal {
-  transform: scale(1.25) rotate(12deg);
+.pill-mark {
+  width: 22px;
+  height: 21px;
+  margin: -2px -2px 0 0;
+}
+/* on the vermilion seal of the dock's Start studying the sprout is drawn in the cream of its words */
+.seal .sprout-mark {
+  color: currentColor;
+  margin-right: 10px;
+  vertical-align: -2px;
+}
+.seal .sprout-mark .leaf {
+  fill: currentColor;
+  fill-opacity: 0.32;
 }
 .pill-session {
   display: flex;
@@ -929,12 +945,9 @@ dialog :focus-visible {
   color: var(--ui-ink-soft);
   padding-right: 6px;
 }
-.now-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 46% 54% 40% 60% / 58% 44% 56% 42%;
-  background: var(--ui-vermilion);
-  opacity: 0.85;
+.now-mark {
+  width: 16px;
+  height: 15px;
 }
 .session-switch.quiet {
   font-size: 19.5px;
@@ -959,13 +972,7 @@ dialog :focus-visible {
   gap: 10px;
   font-size: 20px;
 }
-.plant-another-seal {
-  width: 9px;
-  height: 9px;
-  border-radius: 46% 54% 40% 60% / 58% 44% 56% 42%;
-  background: var(--ui-vermilion);
-  opacity: 0.8;
-}
+
 .limit-note {
   margin: 4px 0 0 13px;
   max-width: 26em;
@@ -1099,15 +1106,10 @@ dialog :focus-visible {
   line-height: 1.3;
   color: var(--ui-ink-soft);
 }
-.tool[aria-pressed='true'] .tool-name::after {
-  content: '';
-  display: inline-block;
-  width: 8px;
-  height: 8px;
-  margin-left: 9px;
-  vertical-align: 2px;
-  border-radius: 46% 54% 40% 60% / 58% 44% 56% 42%;
-  background: var(--ui-vermilion);
+/* a tool that is on: its name carries the brush mark (ADR 0194) */
+.tool[aria-pressed='true'] .tool-name {
+  padding-bottom: 3px;
+  background: var(--brush-mark) left bottom / 2.6em 6px no-repeat;
 }
 
 /* ── the custom scrollbar (ADR 0131) ────────────────────────────────────────────────────── */
@@ -1526,23 +1528,15 @@ input.duration:focus-visible {
   content: ' · ';
   color: var(--ui-ink-mute);
 }
-.tier-word .swatch {
-  display: inline-block;
-  width: 0;
-  height: 8px;
-  margin-right: 0;
-  border-radius: 48% 52% 40% 60% / 60% 44% 56% 40%;
-  vertical-align: 1px;
-  opacity: 0;
-  transition: opacity var(--ui-slow) var(--ui-breath), width var(--ui-mid), margin var(--ui-mid);
-}
 .tier-word.is-current {
   color: var(--ui-ink);
+  padding-bottom: 2px;
+  background: var(--brush-mark) center bottom / 100% 5px no-repeat;
 }
-.tier-word.is-current .swatch {
-  width: 9px;
-  margin-right: 5px;
-  opacity: 0.9;
+/* past the " · " that leads it */
+.tier-word + .tier-word.is-current {
+  background-position: right bottom;
+  background-size: calc(100% - 0.85em) 5px;
 }
 .plans {
   display: grid;
@@ -1583,16 +1577,9 @@ input.duration:focus-visible {
   font-size: 17.5px;
   letter-spacing: 0.03em;
 }
-.plan-card[aria-checked='true'] .plan-name::after {
-  content: '';
-  display: inline-block;
-  width: 7px;
-  height: 7px;
-  margin-left: 8px;
-  vertical-align: 2px;
-  border-radius: 46% 54% 40% 60% / 58% 44% 56% 42%;
-  background: var(--ui-vermilion);
-  opacity: 0.9;
+.plan-card[aria-checked='true'] .plan-name {
+  padding-bottom: 3px;
+  background: var(--brush-mark) left bottom / 2.6em 6px no-repeat;
 }
 .plan-summary {
   font-size: 17px;

@@ -83,13 +83,6 @@
   gap: 10px;
   font-size: 20px;
 }
-.cal-add-seal {
-  width: 9px;
-  height: 9px;
-  border-radius: 46% 54% 40% 60% / 58% 44% 56% 42%;
-  background: var(--ui-vermilion);
-  opacity: 0.8;
-}
 .cal-caption {
   display: flex;
   align-items: baseline;
@@ -197,26 +190,17 @@
   pointer-events: none;
   z-index: 0;
 }
-.cal-now::before {
-  content: '';
-  position: absolute;
-  left: -3px;
-  top: -5.2px;
-  width: 9px;
-  height: 9px;
-  border-radius: 46% 54% 40% 60% / 58% 44% 56% 42%;
-  background: var(--ui-vermilion);
-  opacity: 0.85;
-}
+/* the line starts with a firm brush stroke, loaded at the rail and thinning out: no round head (ADR 0194) */
 .cal-now::after {
   content: '';
   position: absolute;
-  left: 4px;
-  top: -1.2px;
-  width: 22px;
-  height: 1.6px;
-  border-radius: 1px;
-  background: linear-gradient(to right, rgba(173, 69, 45, 0.8), rgba(173, 69, 45, 0));
+  left: -6px;
+  top: -2.6px;
+  width: 34px;
+  height: 5px;
+  background: var(--brush-mark) left center / 100% 100% no-repeat;
+  -webkit-mask-image: linear-gradient(to right, #000 40%, transparent);
+  mask-image: linear-gradient(to right, #000 40%, transparent);
 }
 
 /* ── blocks ─────────────────────────────────────────────────────────────────────────────── */
@@ -293,16 +277,13 @@ button.cal-block {
   font-size: 15px;
   color: var(--ui-vermilion-ink);
 }
-/* the seal for "now" (due, growing): in the line, before the time, never over the words */
-.cal-block-dot {
+/* the sprout for "now" (due, growing): in the line, before the time, never over the words */
+.cal-block-mark {
   display: inline-block;
-  width: 7px;
-  height: 7px;
-  margin: 0 5px 1px 0;
-  vertical-align: middle;
-  border-radius: 46% 54% 40% 60% / 58% 44% 56% 42%;
-  background: var(--ui-vermilion);
-  opacity: 0.85;
+  width: 13px;
+  height: 12px;
+  margin: 0 4px 1px 0;
+  vertical-align: -1px;
 }
 .cal-block[data-size='s'] {
   justify-content: center;
@@ -594,14 +575,6 @@ button.cal-block[data-kind='scheduled']:hover {
   font-style: italic;
   font-size: 18px;
   color: var(--ui-ink-soft);
-}
-.due-when::before {
-  content: '';
-  width: 9px;
-  height: 9px;
-  border-radius: 46% 54% 40% 60% / 58% 44% 56% 42%;
-  background: var(--ui-vermilion);
-  opacity: 0.85;
 }
 .due-name {
   margin: 2px 0 0;
@@ -907,8 +880,6 @@ td[aria-selected='true'] > .pick-day {
   background-image: var(--slip-faint);
 }
 .pick-chip[aria-checked='true'] {
-  opacity: 1;
-  background-image: var(--slip-1);
   font-weight: 600;
 }
 .pick-chip:focus-visible {
@@ -983,20 +954,13 @@ td[aria-selected='true'] > .pick-day {
 .sched-chip:hover {
   opacity: 1;
 }
-.sched-chip[aria-checked='true'] {
+/* the chosen chip: its paper and the brush mark under the words (never a dot, ADR 0194) */
+.sched-chip[aria-checked='true'],
+.pick-chip[aria-checked='true'] {
   opacity: 1;
-  background-image: var(--slip-1);
-}
-.sched-chip[aria-checked='true']::after {
-  content: '';
-  display: inline-block;
-  width: 7px;
-  height: 7px;
-  margin-left: 8px;
-  vertical-align: 2px;
-  border-radius: 46% 54% 40% 60% / 58% 44% 56% 42%;
-  background: var(--ui-vermilion);
-  opacity: 0.9;
+  background-image: var(--brush-mark), var(--slip-1);
+  background-size: calc(100% - 26px) 5px, 100% 100%;
+  background-position: center calc(100% - 7px), 0 0;
 }
 .sched-other {
   display: inline-flex;
@@ -1115,9 +1079,9 @@ td[aria-selected='true'] > .pick-day {
   .cal-cols[data-days='7'] .cal-block-planned {
     display: none;
   }
-  .cal-cols[data-days='7'] .cal-block-dot {
-    width: 5px;
-    height: 5px;
+  .cal-cols[data-days='7'] .cal-block-mark {
+    width: 10px;
+    height: 9px;
     margin-right: 2px;
   }
   .cal-cols[data-days='7'] .cal-block:is(:hover, :focus-visible) {

@@ -1,7 +1,7 @@
 import type { UIContext } from './context';
 import { fragment, h, setText, show } from './dom';
 import { formatTimer } from './format';
-import { ICONS } from './icons';
+import { ICONS, sproutMarkSvg } from './icons';
 import { sessionView } from './session-view';
 import type { UIState } from './types';
 
@@ -37,7 +37,7 @@ export function createPill(ctx: UIContext, actions: PillActions): Pill {
   const startBtn = h(
     'button.pill-start',
     { type: 'button', 'data-anchor': 'start', onclick: () => actions.start(startBtn) },
-    h('span.pill-seal', { 'aria-hidden': 'true' }),
+    fragment(sproutMarkSvg('pill-mark')),
     'Start studying',
   );
 
