@@ -124,3 +124,56 @@ test.describe('studio', () => {
     expect(await blankCanvases(page)).toEqual([]);
   });
 });
+
+test.describe('studio · the plant view’s round window (ADR 0184)', () => {
+  test('the wash is round with a pooled rim, and lost at the bottom', async ({ page }) => {
+    await openStudio(page, '?entry=ui-shell/plant-view-window&t=0');
+    const result = await page.evaluate(() => {
+      const c = document.querySelector<HTMLCanvasElement>('canvas[data-entry]')!;
+      const g = c.getContext('2d')!;
+      const out: Array<{ cv: number; top: number; bottom: number }> = [];
+      const third = Math.floor(c.width / 3);
+      for (let k = 0; k < 3; k++) {
+        const { data, width, height } = g.getImageData(k * third, 0, third, c.height);
+        const a = (x: number, y: number) => data[(Math.round(y) * width + Math.round(x)) * 4 + 3]!;
+        let minX = width;
+        let maxX = 0;
+        let minY = height;
+        for (let y = 0; y < height; y++) {
+          for (let x = 0; x < width; x++) {
+            if (a(x, y) <= 8) continue;
+            minX = Math.min(minX, x);
+            maxX = Math.max(maxX, x);
+            minY = Math.min(minY, y);
+          }
+        }
+        const cx = (minX + maxX) / 2;
+        const cy = minY + (maxX - minX) / 2;
+        const edgeAt = (t: number) => {
+          let r = 0;
+          for (let s = 1; s < width; s++) {
+            const x = cx + Math.cos(t) * s;
+            const y = cy + Math.sin(t) * s;
+            if (x < 0 || y < 0 || x >= width || y >= height) break;
+            if (a(x, y) > 8) r = s;
+          }
+          return r;
+        };
+        // the upper three quarters of the rim (the bottom is lost into the paper on purpose)
+        const radii: number[] = [];
+        for (let d = -200; d <= 20; d += 4) radii.push(edgeAt((d * Math.PI) / 180));
+        const mean = radii.reduce((s, r) => s + r, 0) / radii.length;
+        const sd = Math.sqrt(radii.reduce((s, r) => s + (r - mean) ** 2, 0) / radii.length);
+        out.push({ cv: sd / mean, top: a(cx, cy - mean * 0.97), bottom: a(cx, Math.min(height - 1, cy + mean * 0.97)) });
+      }
+      return out;
+    });
+    expect(result).toHaveLength(3);
+    for (const w of result) {
+      // round: the rim wanders less than 2.5 % of the radius (the first, lumpy wash wandered ~8 %)
+      expect(w.cv).toBeLessThan(0.025);
+      // pigment pooled at the top of the rim, the bottom fading into the paper
+      expect(w.top).toBeGreaterThan(w.bottom * 1.5);
+    }
+  });
+});
