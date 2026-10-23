@@ -152,8 +152,13 @@ export function createCalendar(ctx: UIContext, deps: CalendarDeps): Calendar {
   let openedFor = '';
   /** today's day window keeps up with now (ADR 0191) */
   let follow = false;
-  /** where we last put the hours' scroll (a scroll elsewhere is the gardener's) */
-  let lastSet = 0;
+  /** where we last put each timeline's scroll (a scroll elsewhere is the gardener's) */
+  const lastSet = new WeakMap<HTMLElement, number>();
+  /** put the hours' scroll somewhere ourselves (not the gardener's scroll) */
+  const setScroll = (tl: HTMLElement, y: number) => {
+    tl.scrollTop = y;
+    lastSet.set(tl, tl.scrollTop);
+  };
   /** a gentle glide of the hours in progress */
   let glide: { from: number; to: number; start: number } | null = null;
   let glideRaf: number | null = null;
@@ -382,7 +387,10 @@ export function createCalendar(ctx: UIContext, deps: CalendarDeps): Calendar {
     scroller.addEventListener(
       'scroll',
       () => {
-        if (glide === null && Math.abs(scroller.scrollTop - lastSet) > 2) follow = false;
+        // only the gardener's own scroll stops following: not one we made (a glide, a redraw
+        // putting the window back), and not a late event from a timeline a redraw replaced
+        if (!scroller.isConnected || scroller !== body.querySelector('.cal-timeline') || glide !== null) return;
+        if (Math.abs(scroller.scrollTop - (lastSet.get(scroller) ?? scroller.scrollTop)) > 2) follow = false;
       },
       { passive: true },
     );
@@ -498,8 +506,7 @@ export function createCalendar(ctx: UIContext, deps: CalendarDeps): Calendar {
     if (glide && Math.abs(glide.to - to) < 1) return;
     if (reduced() || typeof requestAnimationFrame !== 'function') {
       stopGlide();
-      tl.scrollTop = to;
-      lastSet = tl.scrollTop;
+      setScroll(tl, to);
       return;
     }
     glide = { from: tl.scrollTop, to, start: typeof performance === 'undefined' ? Date.now() : performance.now() };
@@ -510,8 +517,7 @@ export function createCalendar(ctx: UIContext, deps: CalendarDeps): Calendar {
     const tl = body.querySelector<HTMLElement>('.cal-timeline');
     if (!glide || !tl) return void (glide = null);
     const y = glideScroll(glide.from, glide.to, ts - glide.start, FOLLOW.glideMs);
-    tl.scrollTop = y;
-    lastSet = tl.scrollTop;
+    setScroll(tl, y);
     if (y === glide.to) glide = null;
     else glideRaf = requestAnimationFrame(stepGlide);
   }
@@ -574,15 +580,13 @@ export function createCalendar(ctx: UIContext, deps: CalendarDeps): Calendar {
           // a day follows now; a week opens on its earliest work
           stopGlide();
           const m = rolled ? Math.max(0, wallMinute(now) - FOLLOW.leadMinutes) : openingMinute(items, days, view === 'day' ? now : NaN);
-          tl.scrollTop = minuteOffset(tl, m);
-          lastSet = tl.scrollTop;
+          setScroll(tl, minuteOffset(tl, m));
           if (tl.scrollHeight > 0) {
             openedFor = openKey;
             follow = isToday && nowInWindow(tl, now);
           }
         } else {
-          tl.scrollTop = keepScroll;
-          lastSet = tl.scrollTop;
+          setScroll(tl, keepScroll);
           if (follow && isToday) keepUp(tl, now);
         }
       };
