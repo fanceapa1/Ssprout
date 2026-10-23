@@ -69,7 +69,10 @@ Back → front: `background`, `underwater`, `waterSurface`, `entities`, `air`, `
   `resize()` (re-measure and re-init now), `invalidate(layer?)`, `whenReady()`, `dispose()`.
 - `frameStats()` → `{ frames, workAvg, workP95, workMax, intervalAvg, intervalP95 }` in ms over
   the last 600 frames (main-thread update + composite cost, and frame intervals);
-  `resetFrameStats()`.
+  `resetFrameStats()`. With a CPU rasteriser (headless Chromium) the canvas is rasterised on the
+  main thread wherever Chromium flushes it, often after the frame callback, so `workAvg` may
+  include it or not; compare whole main-thread time (CDP `TaskDuration` per frame) instead
+  (ADR 0207, `camera.spec.ts` › cost at rest).
 
 `SystemContext` (passed to `init`): `{ viewport /* overview */, camera /* live CameraView */, store, bus, clock, scene, reducedMotion }`.
 

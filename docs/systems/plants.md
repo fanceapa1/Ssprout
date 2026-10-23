@@ -78,6 +78,11 @@ store (plants, session) ──sync──▶ records ──requests──▶ spri
   detail view, queued renders for the old one are dropped (`cache.dropQueued`); once the camera
   rests, high-resolution sprites of plants out of view are evicted (`cache.evictWhere`). Culling
   and `toDevice` use the camera's view. Details: docs/systems/camera.md.
+- **Ink** (ADR 0207): `paintSprite` also measures each sprite's ink (`bounds.ink`, `inkRect`: every
+  pixel with alpha > 0, padded by `INK_PAD` 2 px, in sprite px). Finished plants, single-step
+  seedlings and rim masks blit only that part (`inkCrop` → `drawPlant(…, crop)`), in the same place
+  and through the same bend slices (slices that miss it are skipped): about half the fill of the
+  whole box. A cross-fade buffer is drawn whole.
 - Growth is quantised to **24 steps** (`GROWTH_STEPS`). Finished plants use only step 24. The
   growing plant draws the two steps around its growth, **cross-faded exactly** (`lighter` into a
   scratch buffer = per-pixel lerp, no double darkening) and **morphed**: the lower step is scaled
@@ -201,7 +206,9 @@ at growths `k / 24` only. Keep each call under ~100 ms at 600 px.
   the worker, deterministically, without touching the box's sides or top, in 4–127 ms at 1.6×.
 - Frame: < 2 ms for the plant system (update + all draws). Measured: 0.54 ms avg / 1.8 ms max in
   headless Chromium on the painted scene with 31 plants + 1 growing (e2e); the unit benchmark with 50 plants + 1
-  growing (CPU side) passes the same bound.
+  growing (CPU side) passes the same bound. That is command recording: with a CPU rasteriser the
+  plants' fill at a resting 2.6× view (desktop DPR 2, 30 plants) costs ~5–9 ms of raster, ~17 before
+  the ink crop (devlog 28).
 - Painting: off the main thread with workers; the main-thread fallback paints one sprite per
   idle period (a single sprite can still exceed 8 ms there).
 - Memory: 96 MB garden + 24 MB view LRU; reflections ≤ 48 cached images at half resolution.

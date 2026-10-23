@@ -14,7 +14,8 @@ weather**, **· photosynthesis motes & wind**, **· time of day**) or with `npm 
 | `motes.ts` | pure: mote emitters from plants + session slot, spawn rate |
 | `sim.ts` | pure: particles (rain ×3 depths, ripples, glints, motes) as Poisson spawns (ADR 0084) |
 | `lighting.ts` | per-pixel grade wash (`paintGradeWash`, pure), `washField`, `gradePlate`; lantern reserve |
-| `cast.ts` | the painted light plate of each daylight phase and their blended composite (ADR 0147) |
+| `cast.ts` | the painted light plate of each daylight phase and their blended composite (ADR 0147); `version()` bumps on every repaint |
+| `device-plate.ts` | the resting light plate at device resolution (ADR 0207) |
 | `solar.ts`, `zones.ts`, `daylight.ts`, `daylight-source.ts`, `sky-layout.ts` | the daylight: sun times, location, phases, the shared source, where the light falls — docs/systems/daylight.md |
 | `sprites.ts` | pre-painted textures: the sun's lifted glaze (`sunBands`, `sunGround`, `sunGlazeAt`, pure), rain strokes, ripple rings, glints, leaf glints, motes, mist bands, flame |
 | `ambience.ts` | the engine: update + draw into world-unit contexts (no store, no renderer — ADR 0080) |
@@ -147,7 +148,10 @@ npm run shots -- --name night-rain --eval "sprout.setTime('night'); sprout.start
 ## Performance
 Headless Chromium, 1440×900: rain (132 strokes + ripples) ≈ 0.35 ms/frame, sun ≈ 0.14, mist ≈ 0.06
 (update + draw command recording); the lighting blit is one full-frame `drawImage` with
-`imageSmoothingQuality = 'low'` (bilinear — `'high'` made each blit dramatically slower on software
+`imageSmoothingQuality = 'low'`. While the view rests the plate is resampled once into a
+frame-sized buffer and laid 1:1 (`device-plate.ts`, ADR 0207; rebuilt when `cast.version()`, the
+transform or the canvas size changes): on a CPU rasteriser ~4 ms instead of ~17–30 ms a frame at
+2824×1584, the same on a GPU, one frame-sized buffer of memory (bilinear — `'high'` made each blit dramatically slower on software
 GPUs and is invisible on a soft wash). Sprites and the lighting noise field are built once per
 scene + seed and shared between engines (the studio runs several). Budget 1.5 ms is
 asserted in `tests/e2e/ambience.spec.ts`. Sprites are painted once per scene (~100 ms total).

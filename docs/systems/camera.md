@@ -100,4 +100,5 @@ durations, controller), `renderer.test.ts` (camera views, caches), `hit-test.tes
 `tests/e2e/close-view.spec.ts` (no seams at a pinned close view; a plant as solid at 3× as at 1×; no line where the sky plate ends at night),
 `tests/e2e/camera.spec.ts` (focus on start and switch, ctrl+wheel about the pointer, plain wheel,
 drag only zoomed, pinch, double-click, controls, keys, the card, placement while zoomed, detail
-painted, glide frame cost, reduced motion, the docked card).
+painted, glide frame cost, a close view's cost at rest against the overview's (ADR 0207), reduced motion, the
+docked card).
