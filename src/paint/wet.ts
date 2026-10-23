@@ -341,6 +341,9 @@ export function dryPixels(
 // ---------------------------------------------------------------------------------------------
 // the layer
 
+/** Flow offsets are drawn in noise units: ±5000 work px used to be ±125 units at 40 px per unit. */
+const FLOW_UNITS = 40;
+
 /** Work resolution (work pixels per device pixel) for a layer of `devArea` device pixels. */
 export function layerResolution(quality: Quality, devArea: number): number {
   if (quality === 'draft') return 0.5;
@@ -378,6 +381,9 @@ export class WetLayer {
   private readonly H: number;
   /** sides cut off by the target canvas (the shape continues beyond them) */
   private readonly open: OpenSides;
+  /** where the area's own corner lies (device px, before clipping to the canvas): flow is anchored there */
+  private readonly ax: number;
+  private readonly ay: number;
   private done = false;
 
   constructor(target: Ctx2D, area: Rect | null, env: PaintEnv, res?: number) {
@@ -391,6 +397,8 @@ export class WetLayer {
     let x1 = cw;
     let y1 = ch;
     let open: OpenSides = { l: true, t: true, r: true, b: true };
+    let ax = 0;
+    let ay = 0;
     if (area) {
       const cs: [number, number][] = [
         [area.x, area.y],
@@ -411,12 +419,16 @@ export class WetLayer {
         y1 = Math.max(y1, Y);
       }
       open = { l: x0 < 0, t: y0 < 0, r: x1 > cw, b: y1 > ch };
+      ax = x0;
+      ay = y0;
       x0 = Math.max(0, Math.floor(x0));
       y0 = Math.max(0, Math.floor(y0));
       x1 = Math.min(cw, Math.ceil(x1));
       y1 = Math.min(ch, Math.ceil(y1));
     }
     this.open = open;
+    this.ax = ax;
+    this.ay = ay;
     this.empty = !(x1 > x0 && y1 > y0);
     const dw = Math.max(1, x1 - x0);
     const dh = Math.max(1, y1 - y0);
@@ -461,20 +473,27 @@ export class WetLayer {
     if (this.done) return;
     this.done = true;
     try {
-      if (this.empty) return;
       const o = resolveDry(opts, base);
+      // the flow field's offset is drawn even for a layer that paints nothing here, so every
+      // later layer of a painting draws the same numbers whatever part of the world it covers
+      const fx = o.flow > 0 ? this.env.rng.range(-5000, 5000) / FLOW_UNITS : 0;
+      const fy = o.flow > 0 ? this.env.rng.range(-5000, 5000) / FLOW_UNITS : 0;
+      if (this.empty) return;
       const { W, H } = this;
       const ctx = this.ctx;
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       const img = ctx.getImageData(0, 0, W, H);
       const grain = this.grainLookup();
       const flowPx = Math.max(4, o.flowScale * this.scale);
+      // flow is a function of the place (anchored at the area's own corner, in flow-scale units),
+      // not of the buffer: a layer cut by the canvas, or painted at another resolution, mottles
+      // exactly like the whole one (ADR 0185)
       const flow =
         o.flow > 0
           ? noiseGrid(this.env.flowNoise, W, H, Math.max(3, Math.min(24, flowPx / 5)), flowPx, {
               octaves: 3,
-              ox: this.env.rng.range(-5000, 5000),
-              oy: this.env.rng.range(-5000, 5000),
+              ox: fx * flowPx + (this.dx - this.ax) * this.res,
+              oy: fy * flowPx + (this.dy - this.ay) * this.res,
             })
           : null;
       const edgePx = Math.max(1, Math.min(48, o.edgeWidth * this.scale));
