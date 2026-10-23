@@ -60,6 +60,25 @@ const ARROW_OWNERS = '[role="radio"], [role="radiogroup"], [role="slider"], [rol
 /** Space activates these instead of scrolling. */
 const ACTIVATES = 'button, a[href], summary, label, [role="button"], [role="link"], [role="checkbox"], [role="switch"], [tabindex]:not([tabindex="-1"])';
 
+/** Which way a scrolling key moves (1 down, -1 up, 0 not a vertical scrolling key). */
+export function keyDirection(key: string, shift = false): -1 | 0 | 1 {
+  switch (key) {
+    case 'ArrowDown':
+    case 'PageDown':
+    case 'End':
+      return 1;
+    case 'ArrowUp':
+    case 'PageUp':
+    case 'Home':
+      return -1;
+    case ' ':
+    case 'Spacebar':
+      return shift ? -1 : 1;
+    default:
+      return 0;
+  }
+}
+
 export function createSmoothScroll(deps: SmoothScrollDeps = {}): SmoothScroll {
   const win = deps.win ?? window;
   const doc = win.document;
@@ -194,6 +213,9 @@ export function createSmoothScroll(deps: SmoothScrollDeps = {}): SmoothScroll {
     if (t?.closest(EDITABLE)) return;
     if (e.key.startsWith('Arrow') && t?.closest(ARROW_OWNERS)) return;
     if ((e.key === ' ' || e.key === 'Spacebar') && t && t !== doc.body && t.closest(ACTIVATES)) return;
+    // a focused inner scroller (the calendar's hours, a plant card's long story) scrolls itself
+    const dir = keyDirection(e.key, e.shiftKey);
+    if (dir !== 0 && t && t !== doc.body && innerScroller(t, dir)) return;
     const from = mode === 'idle' ? win.scrollY : target;
     const next = keyScroll(e.key, e.shiftKey, from, maxScroll(), win.innerHeight);
     if (!next) return;
