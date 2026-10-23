@@ -49,6 +49,11 @@ export interface SceneSystemOptions {
   now?: () => number;
   /** the garden's daylight (sky phases, rim light on the boulders); default: pinned midday */
   daylight?: DaylightSource;
+  /**
+   * ms after the first paint before a painting that covers only part of the world (a phone's
+   * strip) is extended to the whole world in idle time (default 1500; negative: only on demand)
+   */
+  extendDelayMs?: number;
 }
 
 /** Seconds between checks whether the sky composite needs rebuilding (it changes over minutes). */
@@ -112,6 +117,7 @@ export function createSceneSystem(opts: SceneSystemOptions = {}): SceneSystem {
   const yieldTo = opts.yieldTo ?? macrotask;
   const now = opts.now ?? (() => performance.now());
   const invalidate = opts.invalidate ?? (() => {});
+  const extendDelayMs = opts.extendDelayMs ?? 1500;
 
   let current: PaintResult | null = null;
   let previous: PaintResult | null = null;
@@ -151,6 +157,7 @@ export function createSceneSystem(opts: SceneSystemOptions = {}): SceneSystem {
     const run = paintScene(art, view, { quality, yieldTo, now, cancelled: () => id !== jobId })
       .then((res) => {
         if (id !== jobId) return;
+        softenCutEdges(res);
         previous = swap ? null : current;
         current = res;
         fade = swap ? 1 : 0;
@@ -173,6 +180,22 @@ export function createSceneSystem(opts: SceneSystemOptions = {}): SceneSystem {
       });
     job = run;
     return run;
+  };
+
+  /**
+   * A painting of a strip of the world (a phone's overview) is extended to the whole world soon
+   * after it lands, in idle time, so the first glide toward the sides the overview crops finds
+   * them painted (ADR 0189). (A view that leaves the strip before that starts it at once.)
+   */
+  let extendTimer: ReturnType<typeof setTimeout> | null = null;
+  const extendSoon = () => {
+    if (!camera || extendDelayMs < 0 || extendTimer !== null) return;
+    extendTimer = setTimeout(() => {
+      extendTimer = null;
+      whenIdle(() => {
+        if (camera && current && !job && !contains(current.view.rect, WORLD)) startPaint({ rect: { ...WORLD }, scale: current.view.scale }, true);
+      });
+    }, extendDelayMs);
   };
 
   /** the detail view wanted for the camera's resting view, or null when the overview painting resolves it */
@@ -270,9 +293,9 @@ export function createSceneSystem(opts: SceneSystemOptions = {}): SceneSystem {
         skyVersion = daylight.version;
         sinceSky = 0;
       }
-      if (current && canReuse(current.view, paintViewFor(ctx.viewport, maxScale, 0), tolerance)) {
-        // close enough: keep the bitmap and let drawImage rescale it; drop any repaint that was
-        // started for an intermediate size
+      if (current && canReuse(current.view, paintViewFor(ctx.viewport, maxScale, CUT_FADE), tolerance)) {
+        // close enough: keep the bitmap and let drawImage rescale it (never showing the faded cut
+        // of a strip painting); drop any repaint that was started for an intermediate size
         jobId++;
         job = null;
         stats.painting = false;
@@ -283,7 +306,10 @@ export function createSceneSystem(opts: SceneSystemOptions = {}): SceneSystem {
       const view = paintViewFor(ctx.viewport, maxScale, margin);
       const p = startPaint(view);
       // first paint: block init so ready() means painted; afterwards repaint in the background
-      if (first) await p;
+      if (first) {
+        await p;
+        extendSoon();
+      }
     },
     update(f) {
       // the sky follows the daylight: checked every couple of seconds (at once after setTime)
@@ -370,6 +396,8 @@ export function createSceneSystem(opts: SceneSystemOptions = {}): SceneSystem {
       }));
     },
     dispose() {
+      if (extendTimer !== null) clearTimeout(extendTimer);
+      extendTimer = null;
       jobId++;
       detailJobId++;
       current = null;
@@ -394,6 +422,38 @@ export function createSceneSystem(opts: SceneSystemOptions = {}): SceneSystem {
     stats: () => ({ ...stats, timings: [...stats.timings] }),
     skyStats: () => sky?.stats() ?? null,
   };
+}
+
+/** World units over which a painting's cut side fades to paper (beyond what the overview shows). */
+export const CUT_FADE = 36;
+
+/**
+ * A painting of only part of the world ends in a hard cut where the strip stops. The overview
+ * never shows it (the strip has a margin), but a glide toward the sides before the whole world is
+ * painted would: fade the cut sides into paper, like the edge of a painting, instead.
+ */
+function softenCutEdges(res: PaintResult): void {
+  const { rect, scale } = res.view;
+  const left = rect.x > 0.5;
+  const right = rect.x + rect.w < WORLD_W - 0.5;
+  if (!left && !right) return;
+  const ctx = res.canvas.getContext('2d') as CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null;
+  if (!ctx) return;
+  const w = res.canvas.width;
+  const h = res.canvas.height;
+  const f = Math.min(w / 3, CUT_FADE * scale);
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.globalCompositeOperation = 'destination-out';
+  for (const [on, x0, x1] of [[left, 0, f], [right, w, w - f]] as const) {
+    if (!on) continue;
+    const g = ctx.createLinearGradient(x0, 0, x1, 0);
+    g.addColorStop(0, 'rgba(0,0,0,1)');
+    g.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(Math.min(x0, x1), 0, f, h);
+  }
+  ctx.restore();
 }
 
 /** How strongly the boulders take the rim light (they are matte stone). */
