@@ -31,6 +31,10 @@ the widget surfaces — the UI then asks in the Begin click itself.
 | `stage-edge.ts` | pure alpha mask for the dissolving edge (`stageEdgeAlpha`, `fadeHeight`, `featherWidth`) |
 | `page-paper.ts` | the page's paper tile from `paperTexture` (same washi as the garden, ADR 0132) |
 | `dock.ts` | the dock section registry (`createDock`, `orderSections`; contract in ARCHITECTURE › Dock) |
+| `dock-guide.ts` | the helper line under each heading, by state (`guideLines`, `GUIDE`; ADR 0201) |
+| `wayfinding.ts` · `wayfinding-path.ts` | the guiding path from the stepping stones down the dock's lane, a stone beside each visible heading (ADR 0202); pure geometry `layoutPath`, `brushOutline`, `stonePath` |
+| `wayfinding.studio.ts` | studio section `ui-wayfinding`: the wide lane, the phone gutter, the stops, the draw-in |
+| `hover.css` | the one hover language (ADR 0204): ink words, lifting slips, opening sprouts; focus and press; colour only with reduced motion |
 | `smooth-scroll.ts` · `scroll-math.ts` | custom smooth scrolling (wheel/keys/jumps, native adoption, reduced motion) and its pure maths (ADR 0131); a focused inner scroller keeps its scrolling keys (`keyDirection`, ADR 0190) |
 | `scrollbar.ts` · `brush-path.ts` | the brush-stroke scrollbar; seeded vertical brush strokes |
 | `timer-panel.ts` | session controls in the dock's "Study" section: idle "Start studying"; studying: task, block label, block + total remaining, plan line with progress, Pause/End, break Water/Skip, cancel confirm, long-pause prompt; `resting` drives the root's `is-resting` |
@@ -77,19 +81,35 @@ the widget surfaces — the UI then asks in the Begin click itself.
 ```
 #ui (page, .ui-root) ─ section#stage ─ canvas#garden (masked edge)
                      │                └ .stage-ui: quiet line · plant label · markers · pill · nav.menu · placement bar · zoom chips · plant card
-                     ├ .dock: [Study (waiting cards + controls + sessions in progress) | Your plant] · Calendar · Garden tools
+                     ├ .dock: svg.wayfinding (behind) · Study (waiting cards + controls | sessions in progress) · Your plant · Calendar · Garden tools
+                     │        each: header.dock-head (h2 + helper line) · div.dock-body
                      ├ absolute (document coordinates): .tips (ADR 0181)
                      └ fixed: .scrollbar · live region · dialogs (top layer)
 ```
-- Desktop: two columns (Study, Your plant), tools across; under 860 px one column; phones (≤ 600 px)
+- One reading spine at every width (ADR 0200): Study → Your plant → Calendar → Garden tools, one
+  under the other on one left edge, with the path's lane to its left (84 px wide, 64 px under 860 px,
+  a 38 px gutter on phones). Wide screens set two tracks inside Study (controls | sessions in
+  progress, `.session-list[data-rows='true']`) and Your plant (window | caption). Phones (≤ 600 px):
   an 8 px margin and a 20 px base.
+- One rhythm and one heading: `--rhythm-section` between sections, `--rhythm-head` under the heading
+  block; `h2.dock-title` 27 px full ink (25 px on phones), `p.dock-helper` 20.5 px italic soft ink.
+- One primary action in Study (`data-primary`, ADR 0201): Start studying (idle), Pause as the calm
+  slip `.calm` (focus), Water then Skip break (a break), Resume (paused), the first due card's Start
+  (a planned session due: the panel steps back). Secondary words rest in the soft ink.
+- The guiding path (ADR 0202): from where the stepping stones leave the painting, across the dock's
+  top margin to the lane, down the lane with a stepping stone beside each visible heading. It lays
+  out again on dock changes, resizes and content changes. The stone of the section being read is
+  darker. It draws in once on first view, never with reduced motion. On phones the line is straight.
+- The pill (ADR 0203): top-left on wide screens, bottom centre on phones; `pill-aside` (fade, inert,
+  with the planned slip) while the Study body is on screen.
 - Session controls exist in the dock; the pill keeps time, pause/resume and the way down. While
   focusing, the pill and the corner tools rest; the dock never fades. Resting is a small step back
   (`--rest-tools: 0.88` for the corner tools and the zoom chips, `--rest-pill: 0.72`; ADR 0180): the
   chips stay ≥ 3 : 1 in every light.
-- **Add a dock section:** `ui.dock.addSection({ id, title, order, span, mount(body) { … } })` from
+- **Add a dock section:** `ui.dock.addSection({ id, title, helper, order, span, mount(body) { … } })` from
   `src/ui` (or `main.ts`). The calendar fills the reserved `calendar` section when `createUI` gets a
-  scheduler (`schedules`); without one it stays a hidden placeholder.
+  scheduler (`schedules`); without one it stays a hidden placeholder. The guiding path gives a new
+  visible section its stone by itself; keep its helper line current with `section.setHelper(…)`.
 - **Scheduled sessions** (docs/systems/calendar.md): the waiting card's Start calls
   `openPlanting(opener, startPrefill(o))`, which applies the prefill to the shared draft
   (`applyPrefill`); Begin links the new session to the occurrence (`scheduler.link`). A normal Start
@@ -220,14 +240,17 @@ it is read on the page, like a sheet.
 `window.sprout.ui`: `state()`, `refresh()`, `setTimeScale(n)`, `placement()`, `widget`
 (fake only), `showPlantLabel(world)`, `slotScreen(id)` (client pixels), `scroll()`,
 `scrollTo(y | sectionId, { instant? })`, `dock()`, `dockReady()`, `waterPlantView()`,
-`onZoomGesture(fn)`. `ui.state().plantCard` is the open card. The camera's hooks are
+`onZoomGesture(fn)`, `wayfinding({ layout? })`, `setSectionHidden(id, hidden)`. `ui.state().plantCard` is the open card. The camera's hooks are
 `window.sprout.camera` (docs/systems/camera.md). `window.sprout.advance(ms)` jumps the dev
 clock and refreshes the UI (e.g. into a break or a long pause).
 
 ## Tests
-Unit: `format.test.ts`, `plan-line.test.ts`, `plant-labels.test.ts`, `previews.test.ts`,
+Unit: `dock-guide.test.ts`, `wayfinding-path.test.ts`, `session-list.test.ts`, `format.test.ts`, `plan-line.test.ts`, `plant-labels.test.ts`, `previews.test.ts`,
 `ambient-light.test.ts`, `scroll-math.test.ts`, `dock.test.ts`, `stage-edge.test.ts`, `ink.test.ts`.
-E2E: `tests/e2e/camera.spec.ts` (zoom gestures and controls, focus on start/switch, the plant
+E2E: `tests/e2e/wayfinding.spec.ts` (the spine, the path at desktop and phone, never over text,
+re-layout on section/content/resize changes, the stop being read, helper lines by state, one primary
+per state, the pill stepping aside, hover and focus, the draw-in and reduced motion),
+`tests/e2e/camera.spec.ts` (zoom gestures and controls, focus on start/switch, the plant
 card, placement while zoomed, docked card on phones), `tests/e2e/parallel-sessions.spec.ts` (start two, switch, waiting time frozen, limit of three,
 automatic watering in Your plant, the widget and title follow the active session, reload),
 `tests/e2e/ui-shell.spec.ts` (page and stage sizing, wheel/keys/reduced-motion scrolling,

@@ -530,13 +530,15 @@ UI (`src/dev/ui-debug.ts`): `window.sprout.ui` — `state()` (mode, panel view, 
 confirm, resting, dialogs, tips, markers, line, plantLabel, plantCard, draft, …), `refresh()`, `setTimeScale(n)`,
 `placement()`, `showPlantLabel(world)`, `slotScreen(id)` (client pixels: stage offset and scroll
 included), `scroll()`, `scrollTo(y | sectionId, { instant? })`, `dock()`, `dockReady()`,
+`wayfinding({ layout? })` (the guiding path's stops and centre line in client coordinates, the stop
+being read, draw state, layout count), `setSectionHidden(id, hidden)`,
 `waterPlantView()`, `onZoomGesture(fn)`, `widget` (fake only); `window.sprout.advance(ms)`.
 Query flags: `?fixtures` (dev `fx-*` species, ADR 0055), `?uitime=0.05` (UI delays),
 `?widget=fake`.
 
 ## UI (`src/ui/`, ADRs 0050–0055, 0121, 0124, 0130–0136)
 `createUI({ root, stage?, controller, store, bus, clock, getSpecies, slots, viewport, audio?, widget?,
-notifications?, isKnownSpecies?, reducedMotion?, timeScale?, schedules?, camera? })` → `{ dock, stage, scroll, plantView,
+notifications?, isKnownSpecies?, reducedMotion?, timeScale?, schedules?, camera? })` → `{ dock, stage, scroll, plantView, wayfinding,
 calendar, camera, placement: { current(), subscribe(fn) }, state(), refresh(), setTimeScale(), showPlantLabel(),
 dispose() }`. With `camera` (`{ camera: renderer.camera, hitTest: plants.hitTest }`) it adds the zoom
 gestures and chips, the focus on the growing plant and the plant card (`src/ui/stage-camera.ts`,
@@ -569,18 +571,34 @@ The canvas edge dissolves into the page's paper through a CSS mask (ADR 0132).
 
 **Dock** — `ui.dock` (`src/ui/dock.ts`), the contract for features below the garden:
 ```ts
-interface DockSectionDef { id: string /* kebab-case, unique */; title: string; order?: number /* default 100 */;
-  span?: 'half' | 'full' /* wide screens; phones: one column */; mount?(body: HTMLElement, section: DockSection): void | (() => void) }
-interface DockSection { id; el /* <section data-section=id> */; body; heading /* h2#dock-<id>, tabindex -1 */; setTitle(t); setHidden(b) }
+interface DockSectionDef { id: string /* kebab-case, unique */; title: string; helper?: string /* ADR 0201 */;
+  order?: number /* default 100 */; span?: 'half' | 'full' /* kept; every section takes the row since ADR 0200 */;
+  mount?(body: HTMLElement, section: DockSection): void | (() => void) }
+interface DockSection { id; el /* <section data-section=id> */; body; heading /* h2#dock-<id>, tabindex -1 */;
+  helper /* p.dock-helper#dock-<id>-helper, describes the section */; setTitle(t); setHelper(t | null); setHidden(b) }
 interface Dock { el; addSection(def): DockSection /* throws on duplicate/malformed id */; fill(id, mount): DockSection;
-  removeSection(id); get(id): DockSection | null; sections(): { id, title, order, span, filled, visible }[]; onChange(fn): () => void }
+  removeSection(id); get(id): DockSection | null; sections(): { id, title, helper, order, span, filled, visible }[]; onChange(fn): () => void }
 ```
+Markup: `section > header.dock-head > (h2.dock-title, p.dock-helper)` then `div.dock-body`.
 Order: by `order`, then registration. A section without `mount` is a hidden placeholder until
 `fill`. Registered by the UI: `session` "Study" (10; the waiting cards of due scheduled sessions,
 the controls, then the sessions in progress, ADRs 0156, 0176), `plant` "Your plant" (20), `calendar`
 "Calendar" (30, full; a placeholder filled by the calendar when `createUI` has a scheduler, ADR 0175),
-`tools` "Garden tools" (90, full). Wide screens: two
-columns (`half` sections side by side); under 860 px one column.
+`tools` "Garden tools" (90, full). One reading spine at every width (ADR 0200): each section
+takes the row, in order, on one left edge; wide screens may set two tracks inside a section
+(`--dock-main` / `--dock-aside`). The UI keeps the helper lines current from `ui/dock-guide.ts`
+(`guideLines`, ADR 0201).
+
+**Guiding path** — `ui/wayfinding.ts` (`createWayfinding({ dock, stage, viewport, reducedMotion })`,
+ADR 0202), with pure geometry in `ui/wayfinding-path.ts` (`layoutPath`, `brushOutline`,
+`stonePath`). It hooks into the dock registry only: an `svg.wayfinding` as the dock's first child,
+one stop per **visible** `dock.sections()` entry, measured at its `heading`. It lays out again
+(once per frame) on `dock.onChange`, on ResizeObserver changes of the dock, the stage and every
+section and heading, and on window resize. A section added later gets its stop with no change
+here. The line starts where the stepping stones (`scene/geometry` `PATH`, through the renderer's
+viewport) leave the stage. Widths differ only in custom properties on `.dock`: `--lane`,
+`--stop-gap`, `--path-sway`, `--path-rise`, `--path-width`, `--stop-size`. `ui.wayfinding =
+{ state(), layout() }`.
 
 **Scroll** — `ui.scroll = { state(): { y, max, target, animating, smooth }, to(y | sectionId, { instant? }) }`
 (ADR 0131). Wheel and arrow keys ease, page keys/Home/End/jumps glide, touch is native, reduced

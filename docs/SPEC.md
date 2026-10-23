@@ -274,8 +274,10 @@ The page is no longer only a canvas. It scrolls as a normal document:
   phones) and is ~88 % of the window's height on first load, so the top of the UI peeks out below.
   Its edges dissolve into the page's paper like a wash thinning out — broadly at the bottom, where
   the UI begins, and softly at the top and sides. The page is the same washi as the painting.
-- **Dock.** Below the garden, sections registered by features, in a calm two-column layout on wide
-  screens and one column on phones:
+- **Dock.** Below the garden, sections registered by features, read in one order at every width
+  (ADR 0200): **Study → Your plant → Calendar → Garden tools**, one under the other on one left
+  edge. On wide screens a section may set two tracks inside it (the Study controls beside the
+  sessions in progress; the plant's window beside its caption):
   - **Study** — the session controls: Start studying; task, block and total time, plan line,
     Pause/Resume, End with its gentle question, Water and Skip break in breaks, "Still with us?";
     below them the sessions in progress (§2 › Parallel sessions) and "Plant another".
@@ -288,9 +290,31 @@ The page is no longer only a canvas. It scrolls as a normal document:
   - **Calendar** — what was studied, what is growing and what is planned, by day, week or month (§13).
   - **Garden tools** — sound, floating timer, pressed flowers, garden data, hints, with icons and
     visible names; the same tools stay as icons in the garden's corner and share their state.
+- **Wayfinding** (ADRs 0200–0202):
+  - *Headings.* Every section has the same heading (27 px, full ink; 25 px on phones). Under it is
+    one short **helper line** in the quiet italic voice. It says what the section is for and what to
+    do next, and it changes with the state: idle, waiting sessions, a planned session due, focus, a
+    break before and after watering, paused. It has no exclamation marks, no guilt copy, and repeats
+    no tip. The same spacing separates heading, helper and content in every section.
+  - *One primary action* in Study at a time:
+    - idle: **Start studying**;
+    - focusing: **Pause** (a calm slip);
+    - a break: **Water**, then Skip break;
+    - paused: **Resume**;
+    - a planned session due: its card's **Start**.
+    Secondary words (End, Skip break, Not this time, Plant another, Switch) recede to the soft ink.
+  - *The guiding path.* A faint hand-inked line continues the garden's stepping stones out of the
+    stage's dissolving edge. It runs down a lane left of the dock's content, with a small stepping
+    stone beside each visible section heading, in order. It sits behind the content and never
+    crosses text. It follows every change of the page: resize, a section appearing or going (the
+    calendar, the waiting card), content growing. On phones it is a straight line down the left
+    gutter. The stone of the section being read is a shade darker. It draws itself in gently once,
+    the first time the dock comes into view; with reduced motion it is simply there.
 - **Timer pill** on the garden: time left in the block, pause/resume, and a way down to the
   controls; "Start studying" when idle. It and the corner icons rest while you focus: a small step
-  back, still clearly readable (ADR 0180).
+  back, still clearly readable (ADR 0180). On wide screens it sits in the top-left corner,
+  mirroring the tools; on phones, at the bottom. It steps aside (fades, inert) while the dock's Study
+  controls are on screen, so two "Start studying" never show at once (ADR 0203).
 - **Corner icons** are ~24 px ink glyphs on soft paper chips with ≥ 44 px targets, readable over
   any part of the painting at any time of day, labelled on hover and focus.
 - **Scrolling.** Wheel (also over the garden), keyboard and in-page jumps move the page with a
@@ -300,6 +324,10 @@ The page is no longer only a canvas. It scrolls as a normal document:
   browser's). ctrl/⌘ + wheel and pinch over the garden never scroll the page: they zoom the
   garden (§12a).
 - **Type.** Bigger (base 21 px) and darker: body text ≥ 4.5:1 against the paper.
+- **Hover.** One calm language for every control (ADR 0204): words deepen their ink and a short
+  brush stroke draws in under them; slips of paper lift a hair; a sprout mark opens its leaves. The
+  same shows on keyboard focus; a press sinks the slip back. Nothing is said only on hover. With
+  reduced motion only the colour changes.
 
 ## 12a. Camera & plant cards (v2, ADR 0005; ADRs 0160–0168)
 The garden can be looked at closely, like leaning into a painting.
