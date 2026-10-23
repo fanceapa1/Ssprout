@@ -80,9 +80,10 @@ tests (`test-results/`).
   needs sessions growing starts them *after* the demo (a jump of up to a day would end them).
   Count days in calendar days, never in `86_400_000` ms steps: a daylight-saving day is 23 or 25 h
   (`dayKeyIn` in `calendar.spec.ts`). Read time in the page with `sprout.now()`, never
-  `Date.now()`. Prove a spec is hour-proof with `E2E_CLOCK=HH:MM` (the fixture jumps the clock
-  there once the page is ready; a reload starts at real time again): try 00:30, 09:00, 17:00 and
-  23:50 (devlog 31).
+  `Date.now()`. Prove a spec is hour-proof with `E2E_CLOCK=HH:MM`: the fixture shifts `Date` in
+  every page of the test's context to the next local `HH:MM`, by one offset kept in the origin's
+  storage, so a reload or a second page carries on from the pinned hour (devlog 41). Try 00:30,
+  09:00, 17:00 and 23:50 (devlog 31).
 - **Pin what is not under test.** Lighting follows the app clock: advancing the dev clock moves
   the time of day. Use `sprout.setTime('noon')` and `settleAmbience()` for pixel comparisons.
   A session start glides the camera to its seedling (ADR 0168): a test that reads the garden at
@@ -126,6 +127,19 @@ causes and fixes:
 | Fauna bounds walk timed out | 80 round trips while the page also rendered at 60 fps. | One in-page loop, renderer frozen. |
 | Ambience budget slept 1.5 s | Fixed sleep. | `waitFrames(page, 90)`. |
 | Unit: fauna "never leave the pond" timed out (12 s) | One `expect` per creature per simulated step (≈ 1 M calls), with the 5 s default timeout. | Problems are collected and asserted once; Vitest gets a 20 s ceiling. |
+
+### Q10: three green runs in a row (2026-10-23, devlog 41)
+
+A full local run (`nice -n 15`, 2 workers) failed 5 of 218, all in the backdrop contrast checks.
+The `E2E_CLOCK` runs, a loaded run and runs that began after 23:00 found four more causes. One was a real UI race, the only app change.
+
+| Symptom | Root cause | Fix |
+|---|---|---|
+| With `E2E_CLOCK=17:00`: `core-loop › … persisted across reloads` (phase `focus`, not `break`), `parallel-sessions › a reload continues every session…` (elapsed 0), `session-rules › a session that ended while the app was closed…` (still running) | The fixture, not the specs. `E2E_CLOCK` was applied as a dev-clock jump (`advanceTo`) after the page was ready; a reload or a new page booted at the real hour again, behind the saved timestamps, so the sessions had not run (or had run backwards). | The fixture shifts `Date` itself in every page of the context (an init script, one offset kept in the origin's storage), so the pinned hour survives reloads and new pages. Without `E2E_CLOCK` nothing changes. |
+| `polish › keyboard: focus lands on Pause after Begin…` failed once (focus on `<body>`), under load in the 00:30 run; never alone | App. Choosing a spot glides the page up to the garden; the observer that sets `pill-aside` hears of it only frames later. A Begin in between found the pill still aside (inert, hidden), so `pause.focus()` did nothing. Focusing the dock's Start first had put the Study controls on screen. | Begin settles the aside state for the scroll target before focusing (`ui/index.ts › settleAside`). New `polish › keyboard: a Begin that comes before the glide…` begins in one task and fails without the fix. |
+| `wayfinding · motion › a gentle draw-in on first view…` failed once under load (load average 33): state `drawing`, then no animation | Test. It read the draw-in state and the page's animations in two round trips; the draw-in ends 3.8 s after it starts, and a loaded machine spent that between them. | Read both in one `page.evaluate` (the convention: sample transients inside the page). |
+| `calendar › not started within its window, it passes quietly into missed…` failed in a run that began at 23:11 (no ghost block); `calendar › past sessions show in the calendar…` in one that began at 23:30 (no "Bloomed" block) | Test. The hour was not pinned. A plan due now has an hour-long window, and the past-sessions test runs 31 minutes of sessions. Late in the evening, `jumpPast` or the sessions end tomorrow, and `calendar.go(now)` shows a day without the block. The first was reproduced with `E2E_CLOCK=23:20`. | Pin 10:00 first (`jumpTo(page, 10)`). Full sweeps at `E2E_CLOCK` 23:30 and 23:50 then passed 230 of 230. |
+| `backdrops › every text on the sheets reads at ≥ 4.5 : 1 · …` failed locally with "2.21 “Start”" (a different set of phases each run), passed in CI | Test, not app. `busy()` started three sessions *before* `schedule.demo()`, whose jump to the next 16:10 (up to a day) carried them to their end unless the run began 15:20–16:10. The active session then bloomed on a later tick, in the middle of the measurement, and the waiting card re-rendered from "See them" to its seal "Start". Lines were paired across the shown-text and hidden-text passes by text-node index, so a dark ink colour from one text was measured on the seal's vermilion under another. The seal's real cream on vermilion reads ≈ 4.8 : 1. | The demo goes first, then the sessions (the convention above). Lines are paired by element identity, and the two passes must list the same lines, so a dock that re-renders mid-measure fails as "the dock changed while it was measured" instead of mis-pairing. The desktop checks assert the limit card; the phone checks start two sessions and measure the seal "Start". |
 
 ## CI
 
@@ -432,7 +446,7 @@ Legend: unit tests as `folder/file › test`, under `src/` (`.test.ts` omitted).
 | 12.31 | The calendar's sheet is the strongest: firm, lifted furthest; every view (day, week, month), empty or full, lies on it, at phone width too (ADR 0208) | ui/backdrop-sheet › the calendar’s firm sheet is lifted further…; ui/backdrop › every dock section gets one by default… | backdrops · desktop › the calendar’s sheet is the strongest…; backdrops · phone › each view of the calendar, empty or full, lies on its sheet… | ✔ |
 | 12.32 | Sheets lay out again when a section grows, the window resizes or the calendar changes view; never on a tick or a scroll; a sheet that grows keeps its top and sides | ui/backdrop › draws once per size…; ui/backdrop-sheet › keeps its edges when the sheet grows taller… | backdrops · desktop › sheets lay out again when a section grows or the window resizes, never on a tick or a scroll | ✔ |
 | 12.33 | The path's lane and its stones stay outside the sheets, a stone beside each heading on its sheet | ui/backdrop-sheet › lies under the lower and right edges, never out to the left… | backdrops · desktop › the path’s lane and its stones stay outside the sheets…; backdrops · phone › each view of the calendar… (the lane); wayfinding (all, stops measured outside the sheet's margin) | ✔ |
-| 12.34 | Text on the sheets reads at ≥ 4.5 : 1, measured from the pixels under it, in all four lights (desktop), at hd, and on phones (midday, night) | — | backdrops · desktop › every text on the sheets reads at ≥ 4.5 : 1 from its pixels · sunrise / midday / sunset / night; backdrops · hd › …; backdrops · phone › … midday / night; v2-acceptance › … every dock text ≥ 4.5:1 on its sheet | ✔ |
+| 12.34 | Text on the sheets reads at ≥ 4.5 : 1, measured from the pixels under it, in all four lights (desktop), at hd, and on phones (midday, night); the waiting card in both modes ("See them" with three growing on desktop, the seal "Start" with two on phones) | — | backdrops · desktop › every text on the sheets reads at ≥ 4.5 : 1 from its pixels · sunrise / midday / sunset / night; backdrops · hd › …; backdrops · phone › … midday / night (hour-proof: real, 00:30, 15:45, 17:00, 23:50; devlog 41); v2-acceptance › … every dock text ≥ 4.5:1 on its sheet | ✔ |
 
 ### §12a Camera & plant cards (ADRs 0160–0168)
 
