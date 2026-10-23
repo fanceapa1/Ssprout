@@ -251,7 +251,7 @@ dialog :focus-visible {
   transform: none;
 }
 .menu-item[data-menu='sound'][aria-pressed='false'] .ink-icon {
-  opacity: 0.8;
+  opacity: 0.9;
 }
 
 /* the timer pill (ADR 0133) */
@@ -423,12 +423,18 @@ dialog :focus-visible {
   opacity: 1;
 }
 
-/* resting while studying: the controls on the painting step back */
+/* resting while studying: the controls on the painting step back a little, but stay clearly
+   readable over every part of the painting in every light (ADR 0180; they used to fade to 0.32):
+   the chips' paper keeps the ink apart from the painting, so a small step back is enough */
+.ui-root {
+  --rest-pill: 0.72;
+  --rest-tools: 0.88;
+}
 .ui-root.is-resting .pill:not(:hover):not(:focus-within) {
-  opacity: 0.42;
+  opacity: var(--rest-pill);
 }
 .ui-root.is-resting .menu:not(:hover):not(:focus-within) {
-  opacity: 0.32;
+  opacity: var(--rest-tools);
 }
 .ui-root.is-resting .tips {
   opacity: 0;
@@ -2033,7 +2039,7 @@ input.duration:focus-visible {
   }
 }
 .ui-root.is-resting .zoom-controls:not(:hover):not(:focus-within) {
-  opacity: 0.32;
+  opacity: var(--rest-tools);
 }
 .ui-root.has-plant-story .plant-label {
   opacity: 0;
