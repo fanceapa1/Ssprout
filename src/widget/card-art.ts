@@ -13,11 +13,28 @@ import type { WidgetView } from './view';
 export const CARD_W = 260;
 export const CARD_H = 340;
 
+/**
+ * The card's type (ADR 0136 applied to the card, v2 polish): bigger and darker, like the app —
+ * every line in a solid ink of the app's palette instead of a faded one (`CARD_INK`). Checked for
+ * contrast in card-art.test.ts and for fit in the 260 × 340 PiP window.
+ */
 export const CARD_FONTS = {
-  task: 'italic 500 15px "Cormorant Garamond", Georgia, serif',
-  time: '500 34px "Shippori Mincho", "Cormorant Garamond", Georgia, serif',
-  state: 'italic 400 13.5px "Cormorant Garamond", Georgia, serif',
-  button: '600 13.5px "Cormorant Garamond", Georgia, serif',
+  task: 'italic 500 17px "Cormorant Garamond", Georgia, serif',
+  time: '500 38px "Shippori Mincho", "Cormorant Garamond", Georgia, serif',
+  state: 'italic 500 15px "Cormorant Garamond", Georgia, serif',
+  button: '600 15.5px "Cormorant Garamond", Georgia, serif',
+} as const;
+
+/** Ink per line (the app's `--ui-ink` / `--ui-ink-soft`), solid, never faded by opacity. */
+export const CARD_INK = {
+  ink: '#3b352e',
+  soft: '#5c5449',
+  task: '#5c5449',
+  time: '#3b352e',
+  /** the time while paused: the soft ink, still well above 4.5:1 */
+  timePaused: '#6b6256',
+  state: '#5c5449',
+  button: '#3b352e',
 } as const;
 
 /**
@@ -26,15 +43,18 @@ export const CARD_FONTS = {
  */
 export const LAYOUT = {
   /** everything under the plant */
-  footer: 134,
-  taskBaseline: 112,
-  timeBaseline: 74,
-  progressY: 60,
-  progressInset: 34,
-  stateBaseline: 43,
+  footer: 150,
+  taskBaseline: 126,
+  timeBaseline: 84,
+  progressY: 68,
+  progressInset: 30,
+  stateBaseline: 49,
   buttonsBottom: 10,
-  buttonH: 26,
+  buttonH: 29,
 } as const;
+
+/** Text width available to a line of the card. */
+export const cardTextWidth = (w: number): number => w - 28;
 
 /** The plant area (top of the card). */
 export function plantArea(w: number, h: number): { x: number; y: number; w: number; h: number } {
@@ -214,6 +234,16 @@ export function paintCardArt(ctx: Ctx, w: number, h: number, view: WidgetView, a
 export const stateLine = (view: Pick<WidgetView, 'state' | 'total'>): string => (view.total ? `${view.state} · ${view.total}` : view.state);
 
 /**
+ * The state line that fits the card: with the session total when there is room, else the state
+ * alone (the bigger type would otherwise cut "Break — your Japanese Iris is thirsty · 33:00 in all"
+ * mid-word). `measure` gives a string's width in the state font.
+ */
+export function fitStateLine(view: Pick<WidgetView, 'state' | 'total'>, measure: (s: string) => number, maxW: number): string {
+  const full = stateLine(view);
+  return view.total && measure(full) > maxW ? view.state : full;
+}
+
+/**
  * Studio preview of the whole card: the art plus the DOM parts painted with the same layout
  * (task, block time, state line, washi-slip buttons; vermilion seal on the primary action).
  */
@@ -224,18 +254,18 @@ export function paintCardPreview(ctx: Ctx, w: number, h: number, view: WidgetVie
   ctx.textBaseline = 'alphabetic';
   if (view.task) {
     ctx.font = CARD_FONTS.task;
-    ctx.fillStyle = rgba(PIGMENT.ink, 0.72);
-    ctx.fillText(view.task, w / 2, h - LAYOUT.taskBaseline);
+    ctx.fillStyle = CARD_INK.task;
+    ctx.fillText(view.task, w / 2, h - LAYOUT.taskBaseline, cardTextWidth(w));
   }
   if (view.time) {
     ctx.font = CARD_FONTS.time;
-    ctx.fillStyle = rgba(PIGMENT.ink, view.mode === 'paused' ? 0.6 : 0.92);
+    ctx.fillStyle = view.mode === 'paused' ? CARD_INK.timePaused : CARD_INK.time;
     ctx.fillText(view.time, w / 2, h - LAYOUT.timeBaseline);
   }
   ctx.font = CARD_FONTS.state;
-  ctx.fillStyle = rgba(PIGMENT.ink, 0.66);
-  if (view.time) ctx.fillText(stateLine(view), w / 2, h - LAYOUT.stateBaseline);
-  else wrapCentered(ctx, stateLine(view), w / 2, h - LAYOUT.timeBaseline - 16, w - 40, 17);
+  ctx.fillStyle = CARD_INK.state;
+  if (view.time) ctx.fillText(fitStateLine(view, (s) => ctx.measureText(s).width, cardTextWidth(w)), w / 2, h - LAYOUT.stateBaseline);
+  else wrapCentered(ctx, stateLine(view), w / 2, h - LAYOUT.timeBaseline - 16, w - 40, 19);
 
   ctx.font = CARD_FONTS.button;
   const pad = 11;
@@ -256,7 +286,7 @@ export function paintCardPreview(ctx: Ctx, w: number, h: number, view: WidgetVie
       ctx.restore();
       tx += 6;
     }
-    ctx.fillStyle = rgba(PIGMENT.ink, 0.9);
+    ctx.fillStyle = CARD_INK.button;
     ctx.textBaseline = 'middle';
     ctx.fillText(b.label, tx, by + LAYOUT.buttonH / 2 + 1);
     ctx.textBaseline = 'alphabetic';

@@ -1,4 +1,4 @@
-import { CARD_FONTS, LAYOUT, paintCardArt, stateLine, type PlantRenderer } from './card-art';
+import { CARD_FONTS, CARD_INK, cardTextWidth, fitStateLine, LAYOUT, paintCardArt, stateLine, type PlantRenderer } from './card-art';
 import { paintPaper } from './paper';
 import type { WidgetActionKind, WidgetView } from './view';
 
@@ -32,22 +32,22 @@ export interface CardHandle {
 }
 
 export const CARD_CSS = `
-:root { color-scheme: light; --ink: #4a443c; --paper: #f3ecd9; --vermilion: #d0694a; }
+:root { color-scheme: light; --ink: ${CARD_INK.ink}; --ink-soft: ${CARD_INK.soft}; --paper: #f3ecd9; --vermilion: #d0694a; }
 html, body { margin: 0; height: 100%; overflow: hidden; background: var(--paper); color: var(--ink); }
 .ss-card { position: fixed; inset: 0; font-family: "Cormorant Garamond", Georgia, serif; user-select: none; }
 .ss-art { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 .ss-card p { position: absolute; left: 14px; right: 14px; margin: 0; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.ss-task { font: ${CARD_FONTS.task}; line-height: 1; bottom: ${LAYOUT.taskBaseline - 4}px; opacity: .72; }
-.ss-time { font: ${CARD_FONTS.time}; line-height: 1; bottom: ${LAYOUT.timeBaseline - 7}px; opacity: .92;
+.ss-task { font: ${CARD_FONTS.task}; line-height: 1.1; bottom: ${LAYOUT.taskBaseline - 5}px; color: ${CARD_INK.task}; }
+.ss-time { font: ${CARD_FONTS.time}; line-height: 1; bottom: ${LAYOUT.timeBaseline - 8}px; color: ${CARD_INK.time};
   font-variant-numeric: lining-nums tabular-nums; letter-spacing: .01em; }
-.ss-state { font: ${CARD_FONTS.state}; line-height: 1; bottom: ${LAYOUT.stateBaseline - 3}px; opacity: .66; }
-.ss-card[data-mode="paused"] .ss-time { opacity: .6; }
+.ss-state { font: ${CARD_FONTS.state}; line-height: 1.1; bottom: ${LAYOUT.stateBaseline - 4}px; color: ${CARD_INK.state}; }
+.ss-card[data-mode="paused"] .ss-time { color: ${CARD_INK.timePaused}; }
 .ss-card[data-mode="complete"] .ss-state, .ss-card[data-mode="idle"] .ss-state {
-  white-space: normal; line-height: 17px; bottom: ${LAYOUT.timeBaseline - 20}px; left: 20px; right: 20px; }
+  white-space: normal; line-height: 19px; bottom: ${LAYOUT.timeBaseline - 24}px; left: 20px; right: 20px; }
 .ss-time:empty, .ss-task:empty { display: none; }
-.ss-actions { position: absolute; left: 8px; right: 8px; bottom: ${LAYOUT.buttonsBottom}px; display: flex; justify-content: center; gap: 7px; }
+.ss-actions { position: absolute; left: 6px; right: 6px; bottom: ${LAYOUT.buttonsBottom}px; display: flex; justify-content: center; gap: 7px; }
 .ss-actions button {
-  font: ${CARD_FONTS.button}; color: var(--ink); height: ${LAYOUT.buttonH}px; padding: 0 11px; cursor: pointer;
+  font: ${CARD_FONTS.button}; color: var(--ink); height: ${LAYOUT.buttonH}px; padding: 0 11px; cursor: pointer; white-space: nowrap;
   background: rgba(250, 246, 238, .6); border: 1px solid rgba(74, 68, 60, .45);
   border-radius: 2px 3px 2px 4px / 3px 2px 4px 2px; display: inline-flex; align-items: center; gap: 6px;
   transition: background-color .6s ease, border-color .6s ease;
@@ -179,6 +179,13 @@ export function mountCard(win: Window, deps: CardDeps): CardHandle {
   };
   win.addEventListener('resize', onResize);
 
+  const measurer = doc.createElement('canvas').getContext('2d');
+  const measureState = (s: string): number => {
+    if (!measurer) return 0;
+    measurer.font = CARD_FONTS.state;
+    return measurer.measureText(s).width;
+  };
+
   const setText = (el: HTMLElement, text: string) => {
     if (el.textContent !== text) el.textContent = text;
   };
@@ -192,7 +199,8 @@ export function mountCard(win: Window, deps: CardDeps): CardHandle {
       root.dataset.mode = next.mode;
       setText(task, next.task);
       setText(time, next.time);
-      setText(state, stateLine(next));
+      // with the session total only when it fits the card at the bigger type
+      setText(state, next.time ? fitStateLine(next, measureState, cardTextWidth(size().w)) : stateLine(next));
       const key = next.buttons.map((b) => `${b.kind}:${b.label}${b.primary ? '*' : ''}`).join(',');
       if (key !== buttonsKey) {
         buttonsKey = key;
