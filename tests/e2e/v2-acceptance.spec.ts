@@ -337,8 +337,9 @@ test.describe('v2 acceptance · the look in numbers', () => {
   test('bigger, higher-contrast type: base ≥ 20 px at weight ≥ 500, headings ≥ 24 px, every dock text ≥ 4.5:1 on the paper', async ({ page }) => {
     await openUi(page);
     await page.evaluate(() => {
-      window.sprout!.startSessions(2, 50);
+      // the demo first: it moves the clock to its time of day, which would end sessions already growing
       window.sprout!.schedule.demo();
+      window.sprout!.startSessions(2, 50);
       window.sprout!.ui.refresh();
     });
     await page.evaluate(() => window.sprout!.ui.dockReady());

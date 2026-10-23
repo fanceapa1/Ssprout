@@ -18,7 +18,7 @@ async function lotus(page: Page): Promise<string> {
     const s = window.sprout!;
     s.camera.autoFocus(false);
     const slot = s.placementOptions('water-lily')[0]!.id;
-    const now = Date.now();
+    const now = s.now();
     s.setState({
       plants: [{ id: 'lotus-1', speciesId: 'lotus', slotId: slot, seed: 7, plantedAt: now - 3_600_000, sessionMinutes: 50, taskName: 'Thermodynamics, problem set 6', completedAt: now - 600_000 }],
     });
@@ -33,7 +33,7 @@ async function growingSpiderLily(page: Page): Promise<string> {
     const s = window.sprout!;
     s.camera.autoFocus(false);
     const slot = s.placementOptions('spider-lily')[0]!.id;
-    const now = Date.now();
+    const now = s.now();
     s.setState({
       plants: [{ id: 'old-1', speciesId: 'white-clover', slotId: slot, seed: 3, plantedAt: now - 86_400_000, sessionMinutes: 25, taskName: 'Kanji', completedAt: now - 86_000_000 }],
     });
