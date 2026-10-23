@@ -35,7 +35,7 @@ npx vitest run src/core                # one folder
 npm run e2e                            # build + preview on :4173 + Playwright
 E2E_PORT=4187 npm run e2e              # another port (several checkouts at once)
 E2E_PORT=4187 E2E_REUSE=1 npx playwright test plants   # reuse a running preview (fresh build!)
-npx playwright test --repeat-each=3 --workers=8        # hunt flakiness under load
+npx playwright test --repeat-each=3 --workers=4        # hunt flakiness under load (CI-like box only)
 E2E_CLOCK=17:00 npx playwright test calendar marks    # run as if the page opened at 17:00 local
 npx playwright show-trace test-results/<test>/trace.zip
 ```
@@ -46,8 +46,9 @@ Vitest (`vite.config.ts`): 20 s per test. A few tests simulate hours of garden t
 every growth step and take 1–4 s on an idle laptop. Long loops collect problems and assert once
 instead of calling `expect` per step (`src/fauna/sim.test.ts`).
 
-`playwright.config.ts`: 60 s per test, 10 s per `expect`, fully parallel. In CI (`CI=true`): one
-retry, 2 workers, `github` + `list` + HTML reporters. Traces and screenshots are kept for failed
+`playwright.config.ts`: 60 s per test, 10 s per `expect`, fully parallel, 2 workers locally
+(`E2E_WORKERS`; the owner's laptop runs two agents' suites at once, so run them under `nice -n 10`,
+AGENTS.md › CPU budget). In CI (`CI=true`): one retry, 2 workers, `github` + `list` + HTML reporters. Traces and screenshots are kept for failed
 tests (`test-results/`).
 
 ## Conventions
