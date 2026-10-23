@@ -8,7 +8,8 @@ import { createPainter, makeCanvas, type AnyCanvas, type Painter, type Quality }
 import type { Rect } from '../render/viewport';
 import { gardenScene, type SceneGeometry } from './geometry';
 import { FOREGROUND_TUFTS, SHRUBS, TREES, TUFTS, type ShrubSpec, type TreeSpec, type TuftSpec } from './layout';
-import { paintBanks, paintHills, paintMargins, paintPath, paintSky, paintStones, paintTufts, reservePond } from './paint-land';
+import { PATH_GROUND, paintBanks, paintHills, paintMargins, paintPath, paintSky, paintStones, paintTufts, reservePond } from './paint-land';
+import { paintMeadow, paintMeadowGrass } from './paint-ground';
 import { paintPavilion } from './paint-pavilion';
 import { paintReflections, paintWater, paintWaterDetail } from './paint-pond';
 import { paintShrub, paintTree } from './paint-trees';
@@ -48,10 +49,14 @@ export function backgroundSteps(art: SceneArt, only?: readonly ElementId[]): Pai
   const root = createRng(art.seed);
   const r = (label: string) => root.fork(label);
   const { scene } = art;
+  const ground = { pond: scene.pond, path: PATH_GROUND, pavilion: scene.pavilion };
   const steps: (PaintStep & { el: ElementId })[] = [
     { el: 'sky', name: 'sky', soft: true, run: (p) => paintSky(p, r('sky')) },
     { el: 'hills', name: 'hills', soft: true, run: (p) => paintHills(p, r('hills')) },
     { el: 'banks', name: 'banks', soft: true, run: (p) => paintBanks(p, r('banks')) },
+    // the grass's close-up texture: only the cells near the painted rect (ADR 0186)
+    { el: 'banks', name: 'meadow', run: (p) => paintMeadow(p, r('meadow'), ground) },
+    { el: 'banks', name: 'grass', run: (p) => paintMeadowGrass(p, r('meadow'), ground) },
     ...art.trees
       .filter((t) => t.distance >= 0.4)
       .map((t) => ({ el: 'trees' as const, name: t.id, run: (p: Painter) => paintTree(p, r(t.id), t) })),
