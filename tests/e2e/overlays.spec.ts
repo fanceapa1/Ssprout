@@ -89,3 +89,106 @@ test.describe('sheets over the page', () => {
     }
   });
 });
+
+/**
+ * Keyboard focus in a sheet (Q14): Tab never leaves a focused control under a sheet's sticky footer
+ * or its torn edge. `.sheet-inner` keeps a `scroll-padding` sized to the footer (sheet.ts measures
+ * it), so the browser scrolls a focused control fully clear. The reveal is instant (no smooth
+ * scroll), so there is no motion to reduce.
+ */
+interface FocusBox {
+  top: number;
+  bottom: number;
+  limitTop: number;
+  limitBottom: number;
+  label: string;
+  plantCard: boolean;
+  last: boolean;
+}
+
+/** Where the focused control sits against its sheet's visible paper: below its top, above its footer. */
+function focusBox(page: Page): Promise<FocusBox | null> {
+  return page.evaluate(() => {
+    const el = document.activeElement as HTMLElement | null;
+    const inner = el?.closest<HTMLElement>('dialog.sheet[open] .sheet-inner');
+    if (!el || !inner || el.matches('.title') || el.closest('.sheet-foot')) return null;
+    const r = el.getBoundingClientRect();
+    const box = inner.getBoundingClientRect();
+    const foot = inner.querySelector('.sheet-foot')?.getBoundingClientRect();
+    const cards = inner.querySelectorAll('.plant-card');
+    return {
+      top: r.top,
+      bottom: r.bottom,
+      limitTop: box.top,
+      limitBottom: foot ? foot.top : box.bottom,
+      label: `${el.tagName.toLowerCase()}.${el.className} “${(el.textContent ?? '').trim().slice(0, 24)}”`,
+      plantCard: el.matches('.plant-card'),
+      last: el === cards[cards.length - 1],
+    };
+  });
+}
+
+function expectClear(b: FocusBox): void {
+  expect(b.top, `${b.label} under the sheet's top edge`).toBeGreaterThanOrEqual(b.limitTop);
+  expect(b.bottom, `${b.label} under the footer`).toBeLessThanOrEqual(b.limitBottom);
+}
+
+test.describe('keyboard focus clears a sheet’s sticky parts', () => {
+  for (const viewport of [
+    { width: 1440, height: 900 },
+    { width: 390, height: 844 },
+  ]) {
+    test(`the planting sheet: tabbing to the last plant card at ${viewport.width}×${viewport.height}`, async ({ page }) => {
+      await page.setViewportSize(viewport);
+      await openUi(page);
+      await page.locator('.panel').getByRole('button', { name: 'Start studying' }).click();
+      const sheet = page.locator('dialog[data-dialog="planting"]');
+      await expect(sheet.locator('.plant-card').last()).toBeVisible();
+      const inner = sheet.locator('.sheet-inner');
+      // the sheet must really scroll, or the checks below prove nothing
+      expect(await inner.evaluate((el) => el.scrollHeight - el.clientHeight)).toBeGreaterThan(100);
+      expect(await inner.evaluate((el) => getComputedStyle(el).scrollBehavior)).toBe('auto');
+
+      const cards = await sheet.locator('.plant-card').count();
+      let seen = 0;
+      let last = false;
+      // the task, the time, the plans (one stop), then every plant card
+      for (let i = 0; i < 60 && !last; i++) {
+        await page.keyboard.press('Tab');
+        const b = await focusBox(page);
+        if (!b) continue;
+        expectClear(b);
+        if (b.plantCard) seen++;
+        last = b.last;
+      }
+      expect(last).toBe(true);
+      expect(seen).toBe(cards);
+      expect(await inner.evaluate((el) => el.scrollTop)).toBeGreaterThan(0);
+    });
+  }
+
+  test('the schedule sheet with its pickers open at 390×844: every focused control stays on the paper', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await openUi(page);
+    await page.evaluate(() => window.sprout!.ui.scrollTo('calendar', { instant: true }));
+    await page.locator('.cal-add').click();
+    const sheet = page.locator('dialog[data-dialog="schedule"]');
+    await expect(sheet).toBeVisible();
+    // both pickers unfolded make the sheet scroll
+    for (const field of await sheet.locator('.pick-field').all()) {
+      if ((await field.getAttribute('aria-expanded')) !== 'true') await field.click();
+    }
+    await sheet.locator('.sheet-head .title').focus();
+    const inner = sheet.locator('.sheet-inner');
+    expect(await inner.evaluate((el) => el.scrollHeight - el.clientHeight)).toBeGreaterThan(100);
+    let checked = 0;
+    for (let i = 0; i < 40; i++) {
+      await page.keyboard.press('Tab');
+      const b = await focusBox(page);
+      if (!b) continue;
+      expectClear(b);
+      checked++;
+    }
+    expect(checked).toBeGreaterThan(5);
+  });
+});
