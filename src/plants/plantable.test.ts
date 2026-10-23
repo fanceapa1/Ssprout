@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { isCompatible } from '../core/placement';
+import { compatibleSlots, isCompatible } from '../core/placement';
 import { gardenScene } from '../scene/geometry';
-import { allSpecies } from './registry';
+import { allSpecies, getSpecies } from './registry';
 
 /**
  * SPEC §2 step 4 / §3 Placement: a species offered in the planting sheet must have at least one
@@ -20,5 +20,22 @@ describe('every species can be planted in the garden', () => {
       .map((s) => s.id)
       .sort();
     expect(unplantable).toEqual([...KNOWN_UNPLANTABLE].sort());
+  });
+});
+
+describe('lotus (Q1)', () => {
+  const lotus = () => {
+    const def = getSpecies('lotus');
+    if (!def) throw new Error('lotus missing from the registry');
+    return def;
+  };
+
+  it('fits the two large open-water slots', () => {
+    expect(compatibleSlots(lotus(), gardenScene.slots, []).map((o) => o.slot.id)).toEqual(['water-1', 'water-3']);
+  });
+
+  it('has no spot only when seedlings of sessions in progress hold both (the planting sheet then marks it full)', () => {
+    expect(compatibleSlots(lotus(), gardenScene.slots, [], new Set(['water-1']))).toHaveLength(1);
+    expect(compatibleSlots(lotus(), gardenScene.slots, [], new Set(['water-1', 'water-3']))).toEqual([]);
   });
 });
