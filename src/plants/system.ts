@@ -84,6 +84,11 @@ export const RIM_PLANT = 0.85;
 export const RIM_REF_RES = 1.7;
 /** sway of a waiting (paused) session's seedling, relative to a plant at rest (ADR 0155) */
 export const CALM_SWAY = 0.6;
+/** A growth cross-fade is composited again once its weight moved this much (a 1/128 step is invisible). */
+export const FADE_STEP = 1 / 128;
+
+/** plant systems made so far: keeps each system's scratch buffers its own */
+let systemCount = 0;
 
 interface Fade {
   from: number;
@@ -164,6 +169,8 @@ export interface PlantPerf {
   frames: number;
   avgMs: number;
   maxMs: number;
+  /** growth cross-fades composited since the last reset (they are reused while nothing changes) */
+  fadeComposites: number;
 }
 
 export interface PlantSystem extends System {
@@ -236,6 +243,10 @@ export function createPlantSystem(opts: PlantSystemOptions): PlantSystem {
   let shadow: CastShadow = castShadow(light);
   let rim: RimLight = rimLight(light);
   const rims = createRimCache();
+  /** the last cross-fade composited per scratch id (ids are unique to this system: `uid`) */
+  const uid = ++systemCount;
+  const fades = new Map<string, { a: CanvasImageSource; b: CanvasImageSource; weight: number; w: number; h: number; image: CanvasImageSource }>();
+  let fadeComposites = 0;
 
   // readiness (plantsReady): the first init, then "every plant that should show is fully shown"
   let markInit: () => void = () => {};
@@ -340,9 +351,17 @@ export function createPlantSystem(opts: PlantSystemOptions): PlantSystem {
     if (!one) return null;
     if (!imgs.a || !imgs.b || imgs.weight <= 0 || imgs.weight >= 1) return { image: one.image, w: one.spec.w, h: one.spec.h };
     const spec = specFor(inst, imgs.lo);
-    const buf = scratch(`grow:${id}`, spec.w, spec.h);
+    // a cross-fade is composited again only when its images or its weight moved: a waiting seedling
+    // never changes, a growing one moves a step in about two minutes, so about once a second (devlog 24)
+    const last = fades.get(id);
+    if (last && last.a === imgs.a.image && last.b === imgs.b.image && last.w === spec.w && last.h === spec.h && Math.abs(last.weight - imgs.weight) < FADE_STEP) {
+      return { image: last.image, w: spec.w, h: spec.h };
+    }
+    const buf = scratch(`grow:${uid}:${id}`, spec.w, spec.h);
     if (!buf) return { image: one.image, w: one.spec.w, h: one.spec.h };
     crossFade(buf, imgs.a.image, imgs.b.image, imgs.weight, morphBetween(imgs.a.bounds, imgs.b.bounds, inst.def.anchor));
+    fades.set(id, { a: imgs.a.image, b: imgs.b.image, weight: imgs.weight, w: spec.w, h: spec.h, image: buf.canvas });
+    fadeComposites++;
     return { image: buf.canvas, w: spec.w, h: spec.h };
   }
 
@@ -983,8 +1002,9 @@ export function createPlantSystem(opts: PlantSystemOptions): PlantSystem {
         cache: cache.stats(),
       };
     },
-    perf: () => ({ frames: perfFrames, avgMs: perfFrames ? perfAcc / perfFrames : 0, maxMs: perfMax }),
+    perf: () => ({ frames: perfFrames, avgMs: perfFrames ? perfAcc / perfFrames : 0, maxMs: perfMax, fadeComposites }),
     resetPerf() {
+      fadeComposites = 0;
       perfAcc = 0;
       perfFrames = 0;
       perfMax = 0;

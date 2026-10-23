@@ -394,6 +394,9 @@ describe('plant system', () => {
       sys.draw!('air', target, f);
     }
     sys.resetPerf();
+    // CPU time of this test process, not wall time: other processes on a loaded machine stretch
+    // wall time several times over, but not the work done here (devlog 24)
+    const cpu0 = process.cpuUsage();
     for (let i = 0; i < 120; i++) {
       const f = env.frame();
       sys.draw!('waterSurface', target, f);
@@ -401,9 +404,44 @@ describe('plant system', () => {
       for (const d of sys.entities!(f)) d.draw(target, f);
       sys.draw!('air', target, f);
     }
+    const cpu = process.cpuUsage(cpu0);
     env.frame();
     expect(sys.perf().frames).toBeGreaterThan(100);
-    expect(sys.perf().avgMs).toBeLessThan(2);
+    expect((cpu.user + cpu.system) / 1000 / 120).toBeLessThan(2);
+  });
+
+  it('composites a seedling’s cross-fade again only when its weight moves (not every frame)', async () => {
+    const restore = installFakeOffscreenCanvas();
+    try {
+      const env = setup();
+      const sys = await ready(env);
+      env.start('meadow-1');
+      env.clock.advance(10 * MIN); // growth 0.2: between steps 4 and 5 (weight 0.8)
+      env.frame(0);
+      const drawFrames = (n: number) => {
+        for (let i = 0; i < n; i++) {
+          const f = env.frame();
+          const c = new FakeCanvas(1600, 1000).ctx as unknown as CanvasRenderingContext2D;
+          for (const d of sys.entities!(f)) d.draw(c, f);
+        }
+      };
+      sys.resetPerf();
+      drawFrames(30);
+      expect(sys.debugState().growing!.weight).toBeGreaterThan(0);
+      expect(sys.debugState().growing!.weight).toBeLessThan(1);
+      expect(sys.perf().fadeComposites).toBe(1);
+      // half a focused second moves the weight by ~1/250 (a step is ~2 min of a 50-minute focus): kept
+      env.clock.advance(500);
+      drawFrames(30);
+      expect(sys.perf().fadeComposites).toBe(1);
+      // a minute moves it by half a step: composited again
+      env.clock.advance(MIN);
+      env.frame(0); // snap the displayed growth (it eases over ~1 s, composited as it moves)
+      drawFrames(30);
+      expect(sys.perf().fadeComposites).toBe(2);
+    } finally {
+      restore();
+    }
   });
 });
 
