@@ -4,6 +4,7 @@ import type { StudioSection } from '../studio/types';
 import { paintPlan, paintWash, WASH, washTone } from './calendar-art';
 import { layoutColumns, monthGrid, noonOf } from './calendar-model';
 import { dayLabel, hoursFor, pickerFormat, splitTime, timeLabel } from './pickers';
+import { drawSproutMark } from './icons';
 import { deckledPath, deckledRoundPath } from './paper';
 
 /**
@@ -116,7 +117,7 @@ function block(ctx: CanvasRenderingContext2D, f: Fx, x: number, y: number, w: nu
   text(ctx, t, x + 9, y + 11, `12px ${DISPLAY}`, faint ? MUTE : SOFT);
   text(ctx, f.title, x + 9 + ctx.measureText(t).width + 6, y + 11, faint ? `italic 15px ${BODY}` : `14.5px ${DISPLAY}`, faint ? MUTE : INK, w - 60);
   if (h > 34) text(ctx, f.meta, x + 9, y + 29, `italic 13.5px ${BODY}`, f.kind === 'due' ? VERMILION : SOFT, w - 14);
-  if (f.kind === 'due' || f.kind === 'growing') dot(ctx, x + w - 9, y + 9, 3.6, VERMILION);
+  if (f.kind === 'due' || f.kind === 'growing') drawSproutMark(ctx, x + w - 16, y + 3, 12, SOFT);
 }
 
 function hours(ctx: CanvasRenderingContext2D, from: number, to: number, top: number, hourPx: number, width: number): void {
@@ -131,9 +132,14 @@ function hours(ctx: CanvasRenderingContext2D, from: number, to: number, top: num
 function nowLine(ctx: CanvasRenderingContext2D, x: number, y: number, w: number): void {
   ctx.fillStyle = 'rgba(173,69,45,0.22)';
   ctx.fillRect(x, y, w, 1);
-  ctx.fillStyle = 'rgba(173,69,45,0.8)';
-  ctx.fillRect(x, y - 0.4, 22, 1.6);
-  dot(ctx, x - 1, y, 4.2, VERMILION);
+  // a firm brush stroke at the rail, thinning out (no round head, ADR 0194)
+  const g = ctx.createLinearGradient(x - 6, 0, x + 28, 0);
+  g.addColorStop(0, 'rgba(173,69,45,0.85)');
+  g.addColorStop(1, 'rgba(173,69,45,0)');
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.ellipse(x + 11, y, 17, 1.6, 0, 0, Math.PI * 2);
+  ctx.fill();
 }
 
 function timeline(ctx: CanvasRenderingContext2D, days: number[], w: number, from: number, to: number, hourPx: number): void {
@@ -196,7 +202,7 @@ const section: StudioSection = {
         text(ctx, 'passed', 470, row + 22, `italic 14px ${BODY}`, MUTE);
         paintPlan(ctx, 310, row + 52, 290, 26, `d${seed}`);
         text(ctx, 'due now', 320, row + 65, `14px ${DISPLAY}`);
-        dot(ctx, 590, row + 61, 3.6, VERMILION);
+        drawSproutMark(ctx, 582, row + 55, 12, SOFT);
       },
     },
     {
@@ -277,7 +283,7 @@ const section: StudioSection = {
         ctx.scale(pixelRatio, pixelRatio);
         const card = (y: number, limit: boolean) => {
           slip(ctx, 'slip-1', 10, y, 480, limit ? 196 : 150);
-          dot(ctx, 34, y + 26, 4.4, VERMILION);
+          drawSproutMark(ctx, 24, y + 18, 16, SOFT);
           text(ctx, 'Planned for 3:40 PM', 46, y + 26, `italic 17px ${BODY}`, SOFT);
           text(ctx, 'Japanese kanji', 32, y + 56, `21px ${DISPLAY}`);
           text(ctx, '50 min · Pomodoro', 32, y + 82, `17px ${BODY}`, SOFT);

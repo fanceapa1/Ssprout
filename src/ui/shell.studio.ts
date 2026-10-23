@@ -4,7 +4,7 @@ import { renderPlantView } from '../plants/view';
 import { WATERING_SECONDS } from '../plants/watering';
 import type { StudioSection } from '../studio/types';
 import { brushStrokePath } from './brush-path';
-import { drawIcon, ICON_STROKES, type IconName } from './icons';
+import { drawIcon, drawSproutMark, ICON_STROKES, type IconName } from './icons';
 import { deckledPath, deckledRoundPath } from './paper';
 import { paintEmptyBed, paintRoundWindow } from './plant-section';
 import { stageEdgeCanvas } from './stage-edge';
@@ -71,6 +71,39 @@ const section: StudioSection = {
       },
     },
     {
+      id: 'marks',
+      label: 'marks, not dots (ADR 0194): the inked sprout beside what begins a planting and what grows now, at 12–22 px, on paper and on the seal; the brush mark under a chosen chip',
+      w: 560,
+      h: 150,
+      render(canvas, { pixelRatio }) {
+        const ctx = canvas.getContext('2d')!;
+        ctx.scale(pixelRatio, pixelRatio);
+        ctx.fillStyle = '#f3ecd9';
+        ctx.fillRect(0, 0, 560, 150);
+        [12, 16, 20, 22].forEach((size, i) => drawSproutMark(ctx, 14 + i * 34, 30 - size / 2, size, '#5c5449'));
+        slip(ctx, 'dense-1', 160, 10, 200, 46);
+        drawSproutMark(ctx, 176, 23, 20, '#5c5449');
+        text(ctx, 'Start studying', 204, 34, '18px "Shippori Mincho", serif');
+        // on the vermilion seal: drawn in the cream of the words
+        ctx.fillStyle = VERMILION;
+        ctx.fillRect(380, 12, 170, 42);
+        drawSproutMark(ctx, 394, 23, 20, '#f7f0e1', 'rgba(247, 240, 225, 0.35)');
+        text(ctx, 'Start studying', 420, 34, '17px "Shippori Mincho", serif', '#f7f0e1');
+        // a chosen chip: paper and a brush mark under the words
+        slip(ctx, 'slip-1', 14, 80, 110, 44);
+        text(ctx, '50 min', 40, 101, '18px "Cormorant Garamond", serif');
+        const mark = new Path2D(brushStrokePath('mark', { length: 56, width: 2.4, wobble: 0.4, steps: 18 }));
+        ctx.save();
+        ctx.translate(40, 113);
+        ctx.rotate(-Math.PI / 2);
+        ctx.fillStyle = 'rgba(173, 69, 45, 0.8)';
+        ctx.fill(mark);
+        ctx.restore();
+        text(ctx, 'growing now', 190, 101, 'italic 16px "Cormorant Garamond", serif', '#5c5449');
+        drawSproutMark(ctx, 170, 93, 16, '#5c5449');
+      },
+    },
+    {
       id: 'corner-chips',
       label: 'corner tools on paper chips, over a painted wash',
       w: 320,
@@ -122,10 +155,7 @@ const section: StudioSection = {
         ctx.scale(pixelRatio, pixelRatio);
         // idle
         slip(ctx, 'dense-1', 10, 10, 200, 52);
-        ctx.fillStyle = VERMILION;
-        ctx.beginPath();
-        ctx.ellipse(34, 36, 5.5, 5, 0.4, 0, Math.PI * 2);
-        ctx.fill();
+        drawSproutMark(ctx, 24, 26, 20, '#5c5449');
         text(ctx, 'Start studying', 48, 37, '18px "Shippori Mincho", serif');
         const states: Array<[string, string, IconName]> = [
           ['24:13', 'focus', 'pause'],
@@ -173,10 +203,7 @@ const section: StudioSection = {
         text(ctx, '+2', 256, 38, '16px "Shippori Mincho", serif', '#5c5449');
         // idle, one waiting (after a bloom)
         slip(ctx, 'dense-1', 10, 76, 250, 52);
-        ctx.fillStyle = VERMILION;
-        ctx.beginPath();
-        ctx.ellipse(34, 102, 5.5, 5, 0.4, 0, Math.PI * 2);
-        ctx.fill();
+        drawSproutMark(ctx, 24, 92, 20, '#5c5449');
         text(ctx, 'Start studying', 48, 103, '18px "Shippori Mincho", serif');
         rule(200, 75);
         text(ctx, '+1', 214, 103, '16px "Shippori Mincho", serif', '#5c5449');
@@ -264,10 +291,7 @@ const section: StudioSection = {
           text(ctx, meta, 90, y + 50, 'italic 16px "Cormorant Garamond", serif', '#5c5449');
           if (act === 'switch' || act === 'resume') text(ctx, act === 'switch' ? 'Switch' : 'Resume', 390, y + 32, '18px "Cormorant Garamond", serif');
           if (act === 'now') {
-            ctx.fillStyle = VERMILION;
-            ctx.beginPath();
-            ctx.ellipse(352, y + 32, 4, 3.6, 0.4, 0, Math.PI * 2);
-            ctx.fill();
+            drawSproutMark(ctx, 340, y + 24, 16, '#5c5449');
             text(ctx, 'growing now', 362, y + 33, 'italic 16px "Cormorant Garamond", serif', '#5c5449');
           }
           if (act === 'seal') {
