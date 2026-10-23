@@ -14,6 +14,7 @@ import type { Emitter } from './motes';
 import { NAMED_HOURS, weightsAtHour } from './timeofday';
 import { pinnedState } from './daylight';
 import { wind } from './wind';
+import { createNightEdge } from './night-edge';
 
 const scene = gardenScene;
 const W = 800;
@@ -287,6 +288,41 @@ const windEntry: StudioEntry = {
   },
 };
 
+/**
+ * The night edge (ADR 0182) at the corner of a stage, at strengths 0 (midday), 0.5 (dusk) and 1
+ * (night): an indigo night wash stands in for the lit garden; the lift and the pooled rim are drawn
+ * exactly as the lighting layer draws them, then the paper multiplied.
+ */
+const nightEdgeEntry: StudioEntry = {
+  id: 'night-edge',
+  label: 'night edge: the wash stops short of the margin (midday 0 · dusk 0.5 · night 1)',
+  w: 900,
+  h: 260,
+  render(canvas) {
+    const ctx = canvas.getContext('2d')!;
+    const cw = Math.floor(canvas.width / 3);
+    [0, 0.5, 1].forEach((s, i) => {
+      const c = document.createElement('canvas');
+      c.width = cw - 8;
+      c.height = canvas.height;
+      const g = c.getContext('2d')!;
+      g.fillStyle = '#ffffff';
+      g.fillRect(0, 0, c.width, c.height);
+      const p = createPainter(c, { seed: 'night-edge-studio' });
+      p.wash({ cx: c.width / 2, cy: c.height / 2, rx: c.width * 0.75, ry: c.height * 0.8 }, mix(PIGMENTS.indigo, PIGMENTS.ultramarine, 0.35), {
+        opacity: 0.55,
+        deform: 0.05,
+        edge: 0,
+      });
+      createNightEdge('studio').draw(g, s);
+      g.globalCompositeOperation = 'multiply';
+      g.drawImage(paperTexture(c.width, c.height, 7) as CanvasImageSource, 0, 0);
+      g.globalCompositeOperation = 'source-over';
+      ctx.drawImage(c, i * cw, 0);
+    });
+  },
+};
+
 const lantern = scene.pavilion.lantern;
 const LANTERN_VIEW: View = { x: lantern.x - 300, y: lantern.y - 160, w: 400, h: 250 };
 
@@ -333,6 +369,7 @@ const sections: StudioSection[] = [
       ]),
       entry('lantern', 'lantern at night (close-up): reserved warm paper, light on the water', { phase: always('idle'), weather: null, hour: at('night') }, { view: LANTERN_VIEW }),
       entry('day-cycle', 'a whole day in 48 s (smooth keyframe interpolation)', { phase: always('idle'), weather: null, hour: (t) => (t / 2) % 24 }),
+      nightEdgeEntry,
     ],
   },
 ];
