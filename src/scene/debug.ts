@@ -12,6 +12,8 @@ declare module '../dev/debug' {
     scenePainted(): Promise<void>;
     /** Daylight skies: plates painted, composites built, ms spent painting skies. */
     skyStats(): ReturnType<SceneSystem['skyStats']>;
+    /** The camera's detail painting (its view, painting, fade-in) and the whole-world extension. */
+    sceneDetail(): ReturnType<SceneSystem['detailStats']>;
   }
 }
 
@@ -22,5 +24,6 @@ export function installSceneDebug(system: SceneSystem, scene: SceneGeometry): vo
     sceneStats: () => system.stats(),
     scenePainted: () => system.whenPainted(),
     skyStats: () => system.skyStats(),
+    sceneDetail: () => system.detailStats(),
   });
 }

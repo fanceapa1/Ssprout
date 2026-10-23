@@ -1,6 +1,7 @@
 import { extendDebug } from '../dev/debug';
 import type { Rect } from '../render/viewport';
-import type { PlantDebugState, PlantPerf, PlantSystem } from './system';
+import type { Pt } from '../render/viewport';
+import type { PlantDebugState, PlantHit, PlantPerf, PlantSystem } from './system';
 import { usingAmbienceWind } from './wind-adapter';
 
 /** `window.sprout.plants` (?dev): plant system state for e2e tests and screenshots. */
@@ -25,6 +26,8 @@ declare module '../dev/debug' {
       boundsFor(speciesId: string, slotId: string): Rect | null;
       /** world rect → canvas device pixels */
       toDevice(rect: Rect): Rect | null;
+      /** the front-most plant painted at a world point (`tolerance` world units of slack) */
+      hitTest(world: Pt, tolerance?: number): PlantHit | null;
       perf(): PlantPerf;
       resetPerf(): void;
       /** true when the ambience wind field is in use (else the local fallback) */
@@ -47,6 +50,7 @@ export function installPlantsDebug(system: PlantSystem): void {
       bounds: (id: string) => system.plantBounds(id),
       boundsFor: (speciesId: string, slotId: string) => system.boundsFor(speciesId, slotId),
       toDevice: (rect: Rect) => system.toDevice(rect),
+      hitTest: (world: Pt, tolerance?: number) => system.hitTest(world, tolerance),
       perf: () => system.perf(),
       resetPerf: () => system.resetPerf(),
       ambienceWind: () => usingAmbienceWind,

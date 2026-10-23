@@ -37,6 +37,8 @@ declare module '../dev/debug' {
     settleAmbience(): void;
     /** Ambience readout: phase, levels, daylight phase and weights, particle counts, average draw cost (ms/frame). */
     ambience(): ReturnType<AmbienceSystem['debug']>;
+    /** the light plate's detail for the camera's resting view: rect, scale, painted yet (null: none) */
+    lightDetail(): ReturnType<AmbienceSystem['lightDetail']>;
     /** The daylight now: phase weights, sun and moon, shadow and rim, location and sun times. */
     daylight(): DaylightDebug;
   }
@@ -48,6 +50,7 @@ export function installAmbienceDebug(system: AmbienceSystem): void {
     setWeather: (weather: Weather | null) => system.setWeather(weather),
     settleAmbience: () => system.settle(),
     ambience: () => system.debug(),
+    lightDetail: () => system.lightDetail(),
     daylight: (): DaylightDebug => {
       const t = system.now();
       const s = system.daylight.at(t);
