@@ -1,11 +1,12 @@
 import type { Page } from '@playwright/test';
-import { expect, test } from './fixtures';
+import { expect, openDev, test } from './fixtures';
 import { openUi } from './ui-helpers';
 
 /**
  * No "recording" dots (ADR 0194): what begins a planting and what is growing now carry the inked
  * sprout mark, and a chosen thing carries a brush mark under its words. Nowhere on the page, in the
- * dock, the calendar or a sheet, is there a small round red dot.
+ * dock, the calendar or a sheet, is there a small round red dot. Nor in the favicon: a session that
+ * blooms while the tab is away closes the ring around the sprout mark.
  */
 
 /** Small, round, vermilion-filled boxes (elements and their ::before / ::after) in view of the DOM. */
@@ -69,5 +70,78 @@ test.describe('marks, not dots', () => {
     const chosen = sheet.locator('.sched-chip[aria-checked="true"]').first();
     expect(await chosen.evaluate((el) => getComputedStyle(el).backgroundImage)).toContain('svg');
     expect(await roundRedDots(page)).toEqual([]);
+  });
+});
+
+test.describe('marks, not dots: the favicon', () => {
+  test('a bloom while away closes the favicon ring around the sprout, with no red dot at any tab size', async ({ page }) => {
+    // play "the tab is in the background" without real waiting
+    await page.addInitScript(() => {
+      const w = window as Window & { __away?: boolean };
+      Object.defineProperty(Document.prototype, 'visibilityState', { configurable: true, get: () => (w.__away ? 'hidden' : 'visible') });
+      Object.defineProperty(Document.prototype, 'hidden', { configurable: true, get: () => w.__away === true });
+      Document.prototype.hasFocus = () => w.__away !== true;
+    });
+    await openDev(page);
+    await page.evaluate(() => {
+      window.sprout!.reset();
+      window.sprout!.seed(42);
+      window.sprout!.start();
+      (window as Window & { __away?: boolean }).__away = true;
+      window.sprout!.completeSession();
+    });
+    await expect(page).toHaveTitle('Bloomed · Study Sprout');
+    const href = await page.locator('link[rel~="icon"]').getAttribute('href');
+    expect(href).toMatch(/^data:image\/png;base64,/);
+    expect(await page.evaluate(() => window.sprout!.widget.favicon())).toBe(href);
+
+    // decode the PNG the tab got and draw it the way a tab does: 16 / 32 / 64 device px, light and dark strips
+    const read = await page.evaluate(async (src) => {
+      const img = new Image();
+      img.src = src!;
+      await img.decode();
+      const out: { size: number; strip: string; red: number; leaf: number; contrast: number }[] = [];
+      for (const size of [16, 32, 64]) {
+        for (const [strip, bg] of [
+          ['light', '#dee1e6'],
+          ['dark', '#35363a'],
+        ] as const) {
+          const c = document.createElement('canvas');
+          c.width = c.height = size;
+          const ctx = c.getContext('2d')!;
+          ctx.fillStyle = bg;
+          ctx.fillRect(0, 0, size, size);
+          ctx.imageSmoothingQuality = 'high';
+          ctx.drawImage(img, 0, 0, size, size);
+          const { data } = ctx.getImageData(0, 0, size, size);
+          let red = 0;
+          let leaf = 0;
+          let lo = 255;
+          let hi = 0;
+          for (let y = 0; y < size; y++) {
+            for (let x = 0; x < size; x++) {
+              const i = (y * size + x) * 4;
+              const [r, g, b] = [data[i]!, data[i + 1]!, data[i + 2]!];
+              if (r > 140 && r - g > 60 && r - b > 60) red++;
+              // inside the ring, where the dot used to be
+              if (Math.hypot(x + 0.5 - size / 2, y + 0.5 - size / 2) > size * 0.2) continue;
+              if (g - b > 25 && g >= r) leaf++;
+              const l = 0.299 * r + 0.587 * g + 0.114 * b;
+              lo = Math.min(lo, l);
+              hi = Math.max(hi, l);
+            }
+          }
+          out.push({ size, strip, red, leaf, contrast: hi - lo });
+        }
+      }
+      return { width: img.naturalWidth, out };
+    }, href);
+    expect(read.width).toBe(64);
+    for (const r of read.out) {
+      const at = `${r.size} px, ${r.strip} strip`;
+      expect(r.red, `${at}: red pixels`).toBe(0);
+      expect(r.leaf, `${at}: sap-green leaves`).toBeGreaterThan(0);
+      expect(r.contrast, `${at}: ink against the disc`).toBeGreaterThan(r.size <= 16 ? 40 : 70);
+    }
   });
 });
