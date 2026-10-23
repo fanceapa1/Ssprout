@@ -7,7 +7,7 @@ import { renderPlantView } from '../plants/view';
 import type { StudioEntry, StudioSection } from '../studio/types';
 import { CARD_H, CARD_W, paintCardPreview, type CardArtState } from './card-art';
 import type { WidgetPhase, WidgetStatus } from './contract';
-import { drawFavicon, FAVICON_STEPS, type FaviconModel } from './favicon';
+import { drawFavicon, FAVICON_RENDER_PX, FAVICON_STEPS, type FaviconModel } from './favicon';
 import { session, timeline } from './test-helpers';
 import { widgetView } from './view';
 
@@ -127,6 +127,74 @@ const favicons: StudioEntry = {
   },
 };
 
+/**
+ * The favicon as a tab shows it (ADR 0194): the PNG the tab gets (`faviconDataUrl`, 64 px) scaled
+ * down with smoothing to 16, 32 and 64 CSS px at 1× and 2× DPR, on light and dark tab strips.
+ * A 1× cell is upscaled pixel for pixel, so the studio shows its real device pixels.
+ */
+const SIZES: { css: number; dpr: number }[] = [
+  { css: 16, dpr: 1 },
+  { css: 16, dpr: 2 },
+  { css: 32, dpr: 1 },
+  { css: 32, dpr: 2 },
+  { css: 64, dpr: 1 },
+  { css: 64, dpr: 2 },
+];
+const STRIPS = [
+  { label: 'light', bg: '#dee1e6' },
+  { label: 'dark', bg: '#35363a' },
+];
+const SIZE_MODELS: { label: string; model: FaviconModel }[] = [
+  { label: 'bloomed', model: { kind: 'complete' } },
+  { label: '60 %', model: { kind: 'progress', step: Math.round(FAVICON_STEPS * 0.6), tone: 'focus' } },
+];
+
+const faviconSizes: StudioEntry = {
+  id: 'favicon-sizes',
+  label: 'favicon at tab sizes: 16 / 32 / 64 px at 1× and 2× DPR, light and dark strips',
+  w: 600,
+  h: 380,
+  render(canvas, { pixelRatio }) {
+    const ctx = canvas.getContext('2d')!;
+    ctx.scale(pixelRatio, pixelRatio);
+    const png = document.createElement('canvas');
+    png.width = png.height = FAVICON_RENDER_PX;
+    const small = document.createElement('canvas');
+    const colX = (i: number) => 80 + i * 86;
+    ctx.fillStyle = 'rgba(74,68,60,0.8)';
+    ctx.font = '12px "Cormorant Garamond", Georgia, serif';
+    ctx.textAlign = 'center';
+    SIZES.forEach(({ css, dpr }, i) => ctx.fillText(`${css} px · ${dpr}×`, colX(i) + 39, 14));
+    let y = 24;
+    for (const { label, model } of SIZE_MODELS) {
+      const pctx = png.getContext('2d')!;
+      pctx.clearRect(0, 0, png.width, png.height);
+      drawFavicon(pctx, model, FAVICON_RENDER_PX);
+      for (const strip of STRIPS) {
+        ctx.fillStyle = strip.bg;
+        ctx.fillRect(76, y, SIZES.length * 86, 80);
+        SIZES.forEach(({ css, dpr }, i) => {
+          const px = css * dpr;
+          small.width = small.height = px;
+          const sctx = small.getContext('2d')!;
+          sctx.imageSmoothingEnabled = true;
+          sctx.imageSmoothingQuality = 'high';
+          sctx.drawImage(png, 0, 0, px, px);
+          ctx.save();
+          ctx.imageSmoothingEnabled = dpr === 2; // 1×: show the real pixels, enlarged
+          ctx.drawImage(small, colX(i) + (78 - css) / 2, y + (80 - css) / 2, css, css);
+          ctx.restore();
+        });
+        ctx.fillStyle = 'rgba(74,68,60,0.8)';
+        ctx.textAlign = 'right';
+        ctx.fillText(`${label} · ${strip.label}`, 70, y + 44);
+        y += 84;
+      }
+      y += 8;
+    }
+  },
+};
+
 /** 12 s loop: focus 0→25 min (5 s), break with a watering (3 s), focus 35→60 (3 s), bloom (1 s). */
 const sessionLoop: StudioEntry = {
   id: 'session-loop',
@@ -177,6 +245,7 @@ const section: StudioSection = {
     })),
     card('card-fallback', 'unknown species → generic sprout (growth 0.7)', (seed) => statusAt(45, { seed, speciesId: 'not-a-species' })),
     favicons,
+    faviconSizes,
     sessionLoop,
   ],
 };
