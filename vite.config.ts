@@ -34,6 +34,9 @@ export default defineConfig({
     // 1–4 s on an idle laptop and several times that when other agents load the machine.
     // A generous ceiling keeps a slow machine from failing them (docs/TESTING.md).
     testTimeout: 20_000,
+    // CPU budget on the owner's laptop (docs/TESTING.md): locally at most 3 test workers
+    // instead of one per core; CI keeps the default.
+    maxWorkers: process.env.CI ? undefined : Number(process.env.VITEST_WORKERS ?? 3),
     // DOM tests opt in per file with: // @vitest-environment jsdom
   },
 });

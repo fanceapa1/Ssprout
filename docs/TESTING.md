@@ -47,7 +47,7 @@ every growth step and take 1–4 s on an idle laptop. Long loops collect problem
 instead of calling `expect` per step (`src/fauna/sim.test.ts`).
 
 `playwright.config.ts`: 60 s per test, 10 s per `expect`, fully parallel, 2 workers locally
-(`E2E_WORKERS`; the owner's laptop runs two agents' suites at once, so run them under `nice -n 10`,
+(`E2E_WORKERS`; the owner's laptop runs two agents' suites at once, so run them under `nice -n 15`,
 AGENTS.md › CPU budget). In CI (`CI=true`): one retry, 2 workers, `github` + `list` + HTML reporters. Traces and screenshots are kept for failed
 tests (`test-results/`).
 

@@ -98,9 +98,9 @@ agent) picks up the work next.
   `sprout.ui.dockReady()` (fonts plus a frame); `sprout.ui.wayfinding()` lays the path out and
   returns its stops.
 - **CPU budget on the owner's laptop.** Two agents run at once on 8 cores. Local e2e uses 2
-  workers (`E2E_WORKERS`, default 2). While iterating, run only the specs you touch
+  workers (`E2E_WORKERS`, default 2) and unit tests 3 (`VITEST_WORKERS`). While iterating, run only the specs you touch
   (`npx playwright test tests/e2e/<spec>`), and run the full suite once at the end, under
-  `nice -n 10`. Don't leave dev servers or watchers running.
+  `nice -n 15`. Don't leave dev servers or watchers running.
 - **The dev clock starts at the real time of day.** A test that reads what is due, the day view or
   "today" passes at one hour and fails at another. Pin the hour (`sprout.advanceTo('HH:MM')`),
   count days in calendar days (not 24 h steps), and check with `E2E_CLOCK=17:00` (and 00:30, 23:50)
