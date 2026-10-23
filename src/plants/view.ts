@@ -23,7 +23,16 @@ export interface PlantViewOptions {
   watering: number | null;
   /** 0..1, the seedling withering away (cancel) */
   wilt?: number;
+  /**
+   * How the plant is framed: `species` (default) fits the full-grown species, so a seedling is
+   * small at the bottom (it grows into the frame); `growth` frames what has grown so far — a
+   * seedling fills a small thumbnail, up to `MAX_GROWTH_ZOOM`× the species framing.
+   */
+  framing?: 'species' | 'growth';
 }
+
+/** The most a `growth`-framed view enlarges a seedling over the species framing. */
+export const MAX_GROWTH_ZOOM = 4;
 
 export { GROWTH_STEPS, quantiseGrowth } from './sprites';
 
@@ -47,9 +56,12 @@ const VIEW_BUDGET = 24 * 1024 * 1024;
 let viewCache: SpriteCache | null = null;
 const cacheFor = (): SpriteCache => (viewCache ??= createSpriteCache({ getSpecies: resolve, createWorker: null, budgetBytes: VIEW_BUDGET }));
 
-/** Where the species sits in a W×H target: contained, base (anchor) at the bottom centre. */
-export function plantLayout(def: Pick<SpeciesDef, 'size' | 'anchor'>, W: number, H: number) {
-  const scale = Math.min((W * 0.9) / def.size.w, (H * 0.94) / def.size.h);
+/**
+ * Where the species sits in a W×H target: contained, base (anchor) at the bottom centre; `zoom`
+ * enlarges it about its base (growth framing).
+ */
+export function plantLayout(def: Pick<SpeciesDef, 'size' | 'anchor'>, W: number, H: number, zoom = 1) {
+  const scale = Math.min((W * 0.9) / def.size.w, (H * 0.94) / def.size.h) * zoom;
   const w = Math.max(1, Math.round(def.size.w * scale));
   const h = Math.max(1, Math.round(def.size.h * scale));
   const baseX = W / 2;
@@ -114,6 +126,18 @@ function groundWash(px: number): AnyCanvas | null {
 }
 
 /**
+ * How much to enlarge a plant whose painted content (`bounds`, fractions of its box laid out at
+ * zoom 1 in `L`) is small in the frame: so its height reaches ~70 % of the frame and its width
+ * ~84 %, never past `MAX_GROWTH_ZOOM`, never below 1. Pure.
+ */
+export function growthZoom(bounds: { left: number; top: number; right: number } | null | undefined, anchorY: number, L: { w: number; h: number }, W: number, H: number): number {
+  if (!bounds) return 1;
+  const ch = Math.max(1e-6, (anchorY - bounds.top) * L.h);
+  const cw = Math.max(1e-6, (bounds.right - bounds.left) * L.w);
+  return Math.max(1, Math.min(MAX_GROWTH_ZOOM, (H * 0.7) / ch, (W * 0.84) / cw));
+}
+
+/**
  * Draw the plant into `canvas` (clears it first). Returns false when the species is unknown or
  * no 2D context is available (callers may draw a fallback).
  */
@@ -128,13 +152,21 @@ export function renderPlantView(canvas: AnyCanvas, opts: PlantViewOptions): bool
   ctx.globalAlpha = 1;
   ctx.globalCompositeOperation = 'source-over';
   ctx.clearRect(0, 0, W, H);
-  const L = plantLayout(def, W, H);
+  let L = plantLayout(def, W, H);
   const seed = opts.seed >>> 0;
   const water = opts.watering === null || opts.watering === undefined ? null : clamp01(opts.watering);
   const wilt = clamp01(opts.wilt ?? 0);
   const cache = cacheFor();
   cache.beginFrame();
-  const imgs = viewImages(cache, { speciesId: def.id, seed, w: L.w, h: L.h }, clamp01(opts.growth));
+  let imgs = viewImages(cache, { speciesId: def.id, seed, w: L.w, h: L.h }, clamp01(opts.growth));
+  if (opts.framing === 'growth') {
+    // frame what has grown: the content bounds are fractions of the box, the same at any size
+    const z = growthZoom((imgs.a ?? imgs.b)?.bounds, def.anchor.y, L, W, H);
+    if (z > 1.05) {
+      L = plantLayout(def, W, H, Math.round(z * 8) / 8);
+      imgs = viewImages(cache, { speciesId: def.id, seed, w: L.w, h: L.h }, clamp01(opts.growth));
+    }
+  }
   const shown = imgs.a ?? imgs.b;
   const box = { x: L.x, y: L.y, w: L.w, h: L.h };
   const bounds = shown?.bounds;
@@ -171,7 +203,7 @@ export function renderPlantView(canvas: AnyCanvas, opts: PlantViewOptions): bool
     else drawPlant(ctx, image, box, L.baseX, L.baseY, { lean: 0, bend: 1, scaleY: 1 + LIFT_SCALE * lift, alpha: 1 });
   }
 
-  if (rig && water !== null) drawWateringFront(ctx, rig, water, seed);
+  if (rig && water !== null) drawWateringFront(ctx, rig, water, seed, { w: W, h: H });
   ctx.restore();
   return true;
 }

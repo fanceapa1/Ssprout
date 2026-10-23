@@ -150,7 +150,7 @@ export function createSessionList(ctx: UIContext, actions: SessionListActions): 
     const key = `${x.session.speciesId}|${x.session.seed}|${g}|${px}`;
     if (key === r.paintKey) return;
     r.paintKey = key;
-    const ok = renderPlantView(r.canvas, { speciesId: x.session.speciesId, seed: x.session.seed, growth: g, watering: null });
+    const ok = renderPlantView(r.canvas, { speciesId: x.session.speciesId, seed: x.session.seed, growth: g, watering: null, framing: 'growth' });
     if (!ok) {
       const def = getSpecies(x.session.speciesId);
       if (def) renderPlantPreview(r.canvas, def, x.session.seed, g);
