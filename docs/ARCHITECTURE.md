@@ -52,14 +52,17 @@ src/
   ambience/               session weather (sun/rain/mist), motes, wind field, the daylight (sun times,
                           four phases, the shared source, light plates) — docs/systems/daylight.md
   render/                 Renderer, layers, viewport (world↔screen), camera (zoom/pan over it), System interface, frame loop
-  ui/                     the page: garden stage overlay (pill, corner tools, markers, labels), dock of
-                          sections (session controls, your plant, tools), planting sheet, tips, herbarium,
-                          smooth scroll + scrollbar
+  ui/                     the page: garden stage overlay (pill, corner tools, markers, labels, zoom chips,
+                          plant card), the dock of sections (Study, Your plant, Calendar, Garden tools) and
+                          its guiding path, the planting and schedule sheets, tips, herbarium, smooth
+                          scroll + scrollbar — docs/systems/ui.md, docs/systems/calendar.md
   widget/                 Document PiP widget, title/favicon fallback, notifications, timer worker
   audio/                  procedural Web Audio ambience + chime
-  dev/                    ?dev debug API (window.sprout) used by e2e tests; fixture species (fx-*,
-                          placeholder-sprout for unit tests); fill-garden (addPlants)
-  studio/                 studio.html page: discovers every *.studio.ts and shows all sprites/animations
+  dev/                    ?dev debug API (window.sprout) used by e2e tests: debug.ts (base), core-,
+                          camera-, schedule- and ui-debug.ts; fixture species (fx-*, placeholder-sprout
+                          for unit tests); fill-garden (addPlants), fill-history (past sessions),
+                          local-time (advanceTo)
+  studio/                 studio.html page: discovers every *.studio.ts and paints the cards lazily (ADR 0006)
 tests/e2e/                Playwright specs + helpers (fixtures.ts, ui-helpers.ts) — docs/TESTING.md
 scripts/                  shots.ts — capture screenshots to artifacts/ (gitignored) for review
 public/sw.js              notifications-only service worker (ADR 0092)
@@ -85,9 +88,12 @@ docs/                     SPEC, ARCHITECTURE, ART_DIRECTION, ROADMAP, adr/, syst
 The cover viewport is the **overview** (zoom 1). The renderer owns a camera — a pose `{ zoom 1–3,
 x, y }` (the world point at the stage's centre) — and `composeView(base, pose)` is an ordinary
 `Viewport`. **`renderer.viewport` is the camera's view** (DOM overlays and pointer mapping follow
-it); `renderer.baseViewport` the overview; `renderer.camera` the controller (`glideTo`,
-`focusRect`, `overview`, `zoomTo`, `zoomBy`, `panBy`, `settle`, `interrupt`, `setInset`,
-`onChange`, `state()`, plus the `CameraView` below). Views stay inside `reachRect`: the overview's
+it); `renderer.baseViewport` the overview; `renderer.camera` the controller (`pose()`, `state()`,
+`base()`, `setBase`, `update(dt)`, `glideTo`, `focusRect`, `overview`, `zoomTo`, `zoomBy`, `panBy`,
+`settle` (jump to the glide's end), `interrupt`, `setInset`, `onChange`, plus the `CameraView`
+below). The pose maths is pure and exported: `overviewPose`, `reachRect`, `clampPose`,
+`composeView`, `zoomAbout`, `panBy`, `framePose`, `glidePath`, `easeGlide`, `glideSeconds`
+(`MIN_ZOOM` 1, `MAX_ZOOM` 3). Views stay inside `reachRect`: the overview's
 rect at zoom 1, widening to it ∪ the world by 1.25×. Glides follow van Wijk & Nuij's zoom-and-pan
 path with a breathing ease (cuts under reduced motion); gestures follow their target (τ 75 ms).
 ```ts
@@ -526,18 +532,20 @@ Widget (`src/widget/dev.ts`, `installWidgetDebug`): `window.sprout.widget` — `
 `lastNotification()`, `mountHarness()` (the floating card in `iframe#sprout-widget-harness`),
 `closeHarness()`, `harnessMode()`, `harnessWatering()`.
 
-UI (`src/dev/ui-debug.ts`): `window.sprout.ui` — `state()` (mode, panel view, pill view, plantView,
-confirm, resting, dialogs, tips, markers, line, plantLabel, plantCard, draft, …), `refresh()`, `setTimeScale(n)`,
+UI (`src/dev/ui-debug.ts`): `window.sprout.ui` — `state()` (`UIState`: mode, panel, pill, plantView,
+sessions, pillMore, pillAside, confirm, resting, dialogs, tips, markers, line, plantLabel, plantCard,
+draft, calendar, due, scheduleSheet), `refresh()`, `setTimeScale(n)`,
 `placement()`, `showPlantLabel(world)`, `slotScreen(id)` (client pixels: stage offset and scroll
 included), `scroll()`, `scrollTo(y | sectionId, { instant? })`, `dock()`, `dockReady()`,
 `wayfinding({ layout? })` (the guiding path's stops and centre line in client coordinates, the stop
 being read, draw state, layout count), `setSectionHidden(id, hidden)`,
 `waterPlantView()`, `onZoomGesture(fn)`, `widget` (fake only); `window.sprout.advance(ms)`,
-`window.sprout.advanceTo('HH:MM')` (forward to the next local time of day).
+`window.sprout.advanceTo('HH:MM')` (forward to the next local time of day; `E2E_CLOCK=HH:MM` makes
+every e2e page do it on open, docs/TESTING.md).
 Query flags: `?fixtures` (dev `fx-*` species, ADR 0055), `?uitime=0.05` (UI delays),
 `?widget=fake`.
 
-## UI (`src/ui/`, ADRs 0050–0055, 0121, 0124, 0130–0136)
+## UI (`src/ui/`, ADRs 0050–0055, 0121, 0124, 0130–0136, 0156, 0164–0168, 0175–0177, 0180–0181, 0190–0194, 0200–0205)
 `createUI({ root, stage?, controller, store, bus, clock, getSpecies, slots, viewport, audio?, widget?,
 notifications?, isKnownSpecies?, reducedMotion?, timeScale?, schedules?, camera? })` → `{ dock, stage, scroll, plantView, wayfinding,
 calendar, camera, placement: { current(), subscribe(fn) }, state(), refresh(), setTimeScale(), showPlantLabel(),
@@ -557,7 +565,7 @@ Plant labels hit-test with `plantWorldBounds` (`src/plants/bounds.ts`). The DOM 
 garden's light: `main.ts` subscribes `applyUiLight` to `ambience.onLight` once the painting is ready
 (ADR 0121). Details: `docs/systems/ui.md`.
 
-## Page, stage and dock (`src/ui/`, ADRs 0130–0135)
+## Page, stage and dock (`src/ui/`, ADRs 0130–0135, 0200–0203)
 The page scrolls as a document. `index.html`: `#ui` > `section#stage` > `canvas#garden`; `createUI`
 adds the stage overlay and puts the dock after the stage.
 
@@ -578,21 +586,24 @@ interface DockSectionDef { id: string /* kebab-case, unique */; title: string; h
 interface DockSection { id; el /* <section data-section=id> */; body; heading /* h2#dock-<id>, tabindex -1 */;
   helper /* p.dock-helper#dock-<id>-helper, describes the section */; setTitle(t); setHelper(t | null); setHidden(b) }
 interface Dock { el; addSection(def): DockSection /* throws on duplicate/malformed id */; fill(id, mount): DockSection;
-  removeSection(id); get(id): DockSection | null; sections(): { id, title, helper, order, span, filled, visible }[]; onChange(fn): () => void }
+  removeSection(id); get(id): DockSection | null; sections(): DockSectionInfo[]; onChange(fn): () => void; dispose() }
+interface DockSectionInfo { id; title; helper: string | null; order; span; filled: boolean; visible: boolean }
 ```
-Markup: `section > header.dock-head > (h2.dock-title, p.dock-helper)` then `div.dock-body`.
-Order: by `order`, then registration. A section without `mount` is a hidden placeholder until
+`createDock({ label? })` builds it (`createUI` does; `ui.dock` is the instance). Markup:
+`section > header.dock-head > (h2.dock-title, p.dock-helper)` then `div.dock-body`.
+Order: by `order`, then registration (`orderSections(list)`, pure). A section without `mount` is a hidden placeholder until
 `fill`. Registered by the UI: `session` "Study" (10; the waiting cards of due scheduled sessions,
 the controls, then the sessions in progress, ADRs 0156, 0176), `plant` "Your plant" (20), `calendar`
 "Calendar" (30, full; a placeholder filled by the calendar when `createUI` has a scheduler, ADR 0175),
 `tools` "Garden tools" (90, full). One reading spine at every width (ADR 0200): each section
 takes the row, in order, on one left edge; wide screens may set two tracks inside a section
-(`--dock-main` / `--dock-aside`). The UI keeps the helper lines current from `ui/dock-guide.ts`
-(`guideLines`, ADR 0201).
+(`--dock-main` / `--dock-aside`). The UI keeps the helper lines current from `ui/dock-guide.ts`: pure
+`guideLines(input) => { session, plant, calendar, tools }` over a `GuideInput` (panel, confirming, due,
+sessions, watered, plant, calendar view), the copy in `GUIDE` (ADR 0201).
 
 **Guiding path** — `ui/wayfinding.ts` (`createWayfinding({ dock, stage, viewport, reducedMotion })`,
 ADR 0202), with pure geometry in `ui/wayfinding-path.ts` (`layoutPath`, `brushOutline`,
-`stonePath`). It hooks into the dock registry only: an `svg.wayfinding` as the dock's first child,
+`stonePath`, `centrePath`, `pointsInBoxes`, `CLEARANCE`). It hooks into the dock registry only: an `svg.wayfinding` as the dock's first child,
 one stop per **visible** `dock.sections()` entry, measured at its `heading`. It lays out again
 (once per frame) on `dock.onChange`, on ResizeObserver changes of the dock, the stage and every
 section and heading, and on window resize. A section added later gets its stop with no change
@@ -643,8 +654,10 @@ the transform before each call; `pixelRatio = canvas.width / w`). Animated entri
 frame, static ones once per seed/scale. Section ids are unique; entry ids are unique per section
 and addressed as `<section>/<entry>`; sections sort by `order` (default 100), then title. URL:
 `#<section>`, `?entry=<id>` (a bare entry id works when unique), `?seed=n` (default 1), `?t=sec`
-(start paused), `?scale=2`, `?bg=paper|white|dark`. `window.studio` = `{ ready, entries, errors,
-renders(), pause(), setT(t) }` for tests and screenshots. All species automatically get a section
+(start paused), `?scale=2`, `?bg=paper|white|dark`. Cards paint lazily, near the screen and within a
+frame budget (ADR 0006). `window.studio` = `{ ready, entries, errors, renders(), pause(), setT(t),
+settle(), pending() }` for tests and screenshots: `settle()` paints every shown card and keeps it
+painted (await it before reading pixels), `pending()` counts shown cards not yet painted. All species automatically get a section
 (growth stages + grow loop) from `src/plants/species.studio.ts`. See `docs/systems/studio.md`.
 
 ## Conventions
