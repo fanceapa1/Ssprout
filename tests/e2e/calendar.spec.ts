@@ -496,43 +496,47 @@ test.describe('calendar · week start elsewhere', () => {
   });
 });
 
-test.describe('calendar · the day follows now (ADR 0191)', () => {
-  /** Jump the dev clock forward to the next `hour`:00 local time (today or tomorrow, daylight saving included). */
-  const jumpTo = (page: Page, hour: number) => page.evaluate((t) => window.sprout!.advanceTo(t), `${String(hour).padStart(2, '0')}:00`);
-  /** The hours' scroller has stopped moving (no glide in progress) for a few frames. */
-  const hoursAtRest = (page: Page) =>
-    page.evaluate(async () => {
-      const tl = document.querySelector<HTMLElement>('[data-section="calendar"] .cal-timeline');
-      if (!tl) return true;
-      const frame = () => new Promise((r) => requestAnimationFrame(r));
-      const a = tl.scrollTop;
-      for (let i = 0; i < 6; i++) await frame();
-      return a === tl.scrollTop;
-    });
-  /** Where now sits in the hours' window: 0 at its top, 1 at its bottom. */
-  const nowInWindow = (page: Page) =>
-    page.evaluate(() => {
-      const tl = document.querySelector<HTMLElement>('[data-section="calendar"] .cal-timeline')!;
-      const line = tl.querySelector<HTMLElement>('.cal-now');
-      if (!line) return null;
-      const t = tl.getBoundingClientRect();
-      return (line.getBoundingClientRect().top - t.top) / t.height;
-    });
-  const hoursTop = (page: Page) => page.evaluate(() => document.querySelector<HTMLElement>('[data-section="calendar"] .cal-timeline')!.scrollTop);
+/** Jump the dev clock forward to the next `hour`:00 local time (today or tomorrow, daylight saving included). */
+const jumpTo = (page: Page, hour: number) => page.evaluate((t) => window.sprout!.advanceTo(t), `${String(hour).padStart(2, '0')}:00`);
+/** The hours' scroller has stopped moving (no glide in progress) for a few frames. */
+const hoursAtRest = (page: Page) =>
+  page.evaluate(async () => {
+    const tl = document.querySelector<HTMLElement>('[data-section="calendar"] .cal-timeline');
+    if (!tl) return true;
+    const frame = () => new Promise((r) => requestAnimationFrame(r));
+    const a = tl.scrollTop;
+    for (let i = 0; i < 6; i++) await frame();
+    return a === tl.scrollTop;
+  });
+/** Where now sits in the hours' window: 0 at its top, 1 at its bottom. */
+const nowInWindow = (page: Page) =>
+  page.evaluate(() => {
+    const tl = document.querySelector<HTMLElement>('[data-section="calendar"] .cal-timeline')!;
+    const line = tl.querySelector<HTMLElement>('.cal-now');
+    if (!line) return null;
+    const t = tl.getBoundingClientRect();
+    return (line.getBoundingClientRect().top - t.top) / t.height;
+  });
+const hoursTop = (page: Page) => page.evaluate(() => document.querySelector<HTMLElement>('[data-section="calendar"] .cal-timeline')!.scrollTop);
 
+/** Open today's day view on the calendar section, as "Today" would; it follows now. */
+async function showToday(page: Page): Promise<void> {
+  await page.evaluate(async () => {
+    window.sprout!.calendar.setView('day');
+    window.sprout!.calendar.go(window.sprout!.now());
+    await window.sprout!.ui.scrollTo('calendar', { instant: true });
+  });
+  await expect(cal(page)).toBeVisible();
+  expect((await calState(page)).follow).toBe(true);
+}
+
+test.describe('calendar · the day follows now (ADR 0191)', () => {
   async function openAt(page: Page, hour: number): Promise<void> {
     await openUi(page);
+    // the jump starts a glide when the day view was already following; it may still be gliding
+    // when the view is drawn afresh (that no longer stops the following: ADR 0210, devlog 33)
     await jumpTo(page, hour);
-    // a day window that was following now glides after the jump; let it come to rest before the
-    // view is drawn afresh (redrawn mid-glide, it stops following: see devlog 31)
-    await expect.poll(() => hoursAtRest(page)).toBe(true);
-    await page.evaluate(async () => {
-      window.sprout!.calendar.setView('day');
-      window.sprout!.calendar.go(window.sprout!.now());
-      await window.sprout!.ui.scrollTo('calendar', { instant: true });
-    });
-    await expect(cal(page)).toBeVisible();
-    expect((await calState(page)).follow).toBe(true);
+    await showToday(page);
   }
 
   test('while the tab stays open the now line and the window keep up, gliding', async ({ page }) => {
@@ -579,6 +583,144 @@ test.describe('calendar · the day follows now (ADR 0191)', () => {
     const at = (await nowInWindow(page))!;
     expect(at).toBeGreaterThanOrEqual(0);
     expect(at).toBeLessThan(0.5);
+  });
+});
+
+test.describe('calendar · a daylight-saving day (ADR 0210)', () => {
+  // the clocks go back on Sunday 25 Oct 2026 (02:00 BST → 01:00 GMT): a 25-hour day
+  test.use({ timezoneId: 'Europe/London' });
+
+  /**
+   * Jump the dev clock forward to `hhmm` on the next autumn change, the last Sunday of October
+   * (25 Oct 2026; a later run lands on a later year's), built from the date so it is the wall time.
+   * Returns that day's key and its length in hours.
+   */
+  const toAutumnChange = (page: Page, hhmm: string) =>
+    page.evaluate((t) => {
+      const [h, m] = t.split(':').map(Number) as [number, number];
+      const now = window.sprout!.now();
+      for (let y = new Date(now).getFullYear(); ; y++) {
+        const day = 31 - new Date(y, 9, 31, 12).getDay();
+        const at = new Date(y, 9, day, h, m).getTime();
+        if (at < now) continue;
+        window.sprout!.advance(at - now);
+        const hours = (new Date(y, 9, day + 1).getTime() - new Date(y, 9, day).getTime()) / 3_600_000;
+        return { date: `${y}-10-${day}`, hours };
+      }
+    }, hhmm);
+
+  /** The now line, the hour labels and the window, in the page. */
+  const face = (page: Page) =>
+    page.evaluate(() => {
+      const tl = document.querySelector<HTMLElement>('[data-section="calendar"] .cal-timeline')!;
+      const grid = tl.querySelector<HTMLElement>('.cal-grid')!;
+      const line = tl.querySelector<HTMLElement>('.cal-now')!;
+      const at = new Date(window.sprout!.now());
+      // the 9 o'clock label sits at 9/24 of the face, as the now line at 9:00 should
+      const nine = tl.querySelectorAll<HTMLElement>('.cal-hour')[8]!;
+      return {
+        nineAt: (parseFloat(nine.style.top) / 100) * 24,
+        // the hour the now line is drawn at on the face, and the hour the clock reads
+        lineAt: (parseFloat(line.style.top) / 100) * 24,
+        clockAt: at.getHours() + at.getMinutes() / 60 + at.getSeconds() / 3600,
+        clockHour: at.getHours(),
+        // now's distance below the window's top, against the 90-minute lead it opens with (px)
+        below: line.getBoundingClientRect().top - tl.getBoundingClientRect().top,
+        lead: (grid.offsetHeight * 90) / 1440,
+      };
+    });
+
+  async function openOnTheChange(page: Page, hhmm: string): Promise<string> {
+    await openUi(page);
+    const day = await toAutumnChange(page, hhmm);
+    expect(day.hours).toBe(25);
+    await showToday(page);
+    expect((await calState(page)).date).toBe(day.date);
+    return day.date;
+  }
+
+  test('the day opens at the hour the clock reads, with the now line on that hour', async ({ page }) => {
+    await openOnTheChange(page, '09:00');
+    const f = await face(page);
+    expect(f.clockHour).toBe(9);
+    expect(f.nineAt).toBe(9);
+    expect(f.lineAt).toBeCloseTo(f.clockAt, 1); // 9:00, not 9:36 (10 h of a 25 h day)
+    // opened an hour and a half before now, as on any other day (not 8:30 for 10 h after midnight)
+    expect(Math.abs(f.below - f.lead)).toBeLessThan(3);
+  });
+
+  test('later in the day the now line stays on the clock’s hour and the window keeps up', async ({ page }) => {
+    await openOnTheChange(page, '09:00');
+    const top0 = await hoursTop(page);
+    await page.evaluate(() => window.sprout!.advance(5 * 3_600_000));
+    await expect.poll(() => hoursTop(page)).toBeGreaterThan(top0 + 50);
+    await expect.poll(() => hoursAtRest(page)).toBe(true);
+    const f = await face(page);
+    expect(f.clockHour).toBe(14);
+    expect(f.lineAt).toBeCloseTo(f.clockAt, 1);
+    expect(Math.abs(f.below - f.lead)).toBeLessThan(3);
+    expect((await calState(page)).follow).toBe(true);
+  });
+
+  test('following survives the hours being redrawn while they glide', async ({ page }) => {
+    await openOnTheChange(page, '07:00');
+    const top0 = await hoursTop(page);
+    // six hours on, now has left the comfortable band and the window glides; a few frames in, the
+    // view is drawn afresh (as "Today" does)
+    const midGlide = await page.evaluate(async () => {
+      const tl = () => document.querySelector<HTMLElement>('[data-section="calendar"] .cal-timeline')!;
+      const frame = () => new Promise((r) => requestAnimationFrame(r));
+      const task = () => new Promise((r) => setTimeout(r, 0));
+      window.sprout!.advance(6 * 3_600_000);
+      const from = tl().scrollTop;
+      for (let i = 0; i < 60 && tl().scrollTop === from; i++) await frame(); // it eases in
+      await task(); // between frames: the old timeline's last glide step has a scroll event pending
+      const moved = tl().scrollTop !== from;
+      window.sprout!.calendar.go(window.sprout!.now());
+      return moved;
+    });
+    expect(midGlide).toBe(true);
+    await expect.poll(() => hoursAtRest(page)).toBe(true);
+    expect((await calState(page)).follow).toBe(true);
+    const f1 = await face(page);
+    expect(f1.lineAt).toBeCloseTo(f1.clockAt, 1);
+    expect(Math.abs(f1.below - f1.lead)).toBeLessThan(3);
+    // a plain redraw (the minute's, a refresh) mid-glide too
+    const top1 = await hoursTop(page);
+    await page.evaluate(async () => {
+      const tl = () => document.querySelector<HTMLElement>('[data-section="calendar"] .cal-timeline')!;
+      window.sprout!.advance(6 * 3_600_000);
+      const from = tl().scrollTop;
+      for (let i = 0; i < 60 && tl().scrollTop === from; i++) await new Promise((r) => requestAnimationFrame(r));
+      await new Promise((r) => setTimeout(r, 0));
+      window.sprout!.ui.refresh();
+    });
+    await expect.poll(() => hoursAtRest(page)).toBe(true);
+    expect((await calState(page)).follow).toBe(true);
+    // and it kept up: the window moved on (to the end of the day) with now (19:00) in it
+    expect(top1).toBeGreaterThan(top0 + 50);
+    expect(await hoursTop(page)).toBeGreaterThan(top1 + 50);
+    const f2 = await face(page);
+    expect(f2.clockHour).toBe(19);
+    expect(f2.lineAt).toBeCloseTo(f2.clockAt, 1);
+    const at = (await nowInWindow(page))!;
+    expect(at).toBeGreaterThan(0);
+    expect(at).toBeLessThan(1);
+  });
+
+  test('only the gardener’s own scroll stops following: a wheel, or a key on the hours', async ({ page }) => {
+    await openOnTheChange(page, '09:00');
+    const tl = cal(page).locator('.cal-timeline');
+    const box = (await tl.boundingBox())!;
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.wheel(0, 200);
+    await expect.poll(async () => (await calState(page)).follow).toBe(false);
+    await expect.poll(() => hoursAtRest(page)).toBe(true);
+    await cal(page).getByRole('button', { name: 'Today' }).click();
+    await expect.poll(async () => (await calState(page)).follow).toBe(true);
+    await tl.focus();
+    await page.keyboard.press('PageDown');
+    await expect.poll(async () => (await calState(page)).follow).toBe(false);
   });
 });
 
