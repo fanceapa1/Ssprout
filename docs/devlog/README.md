@@ -5,7 +5,8 @@ landed. Entries are a historical record. They describe the code *as it was when 
 so later entries and the system docs (`docs/systems/`) win where they disagree.
 
 **Adding an entry:** `NN-slug.md` with the next number, sections *What*, *Why/decisions* (link the
-ADRs), *Tests*, *Left / for others*; add a row here in the same commit.
+ADRs), *Tests*, *Left / for others*; add a row here in the same commit. Numbers 24 and 32 were
+never used.
 
 | # | Entry | Summary | ADRs |
 |---|---|---|---|
@@ -41,3 +42,4 @@ ADRs), *Tests*, *Left / for others*; add a row here in the same commit.
 | 31 | [Q9a: tests that fail at some hours](31-time-pinned-tests.md) | `schedule.demo()` waited at whatever hour it ran (nothing due after 16:40); now always opens at the next 16:10; `sprout.advanceTo('HH:MM')` and `E2E_CLOCK` pin the time of day; DST-safe day steps in the calendar spec; two calendar UI bugs found (DST day window, follow lost mid-glide) | — |
 | 33 | [Q13: the calendar on a daylight-saving day](33-calendar-dst.md) | The day timeline is a 24-hour wall-clock face (opening window, now line, blocks and following count wall minutes; the repeated autumn hour folds onto one band); following no longer stops when the hours are redrawn mid-glide; unit tests across both 2026 changes, e2e pinned to 25 Oct in Europe/London | 0210 |
 | 34 | [Q14: sheet focus clears the sticky footer](34-sheet-focus-scroll.md) | `scroll-padding` on every sheet's scroller, sized to a measured sticky footer plus the torn edge; an instant reveal; e2e tabs to the last plant card at 1440×900 and 390×844 and through the schedule sheet's pickers | — |
+| 35 | [Q9: docs audit](35-docs-audit.md) | SPEC, ARCHITECTURE, AGENTS, README, ART_DIRECTION and every system doc checked against the code; 33 missing "amended by" back-links and a phantom 0190 row fixed; three code issues recorded (audio weather on switch, favicon dot, a stale comment) | — |
