@@ -274,12 +274,9 @@ clock and refreshes the UI (e.g. into a break or a long pause); `window.sprout.a
 jumps it forward to the next local time of day (pins the hour for tests).
 
 ## Tests
-Unit: `dock-guide.test.ts`, `wayfinding-path.test.ts`, `session-list.test.ts`, `format.test.ts`, `plan-line.test.ts`, `plant-labels.test.ts`, `previews.test.ts`,
+Unit: `backdrop-sheet.test.ts`, `backdrop.test.ts`, `dock-guide.test.ts`, `wayfinding-path.test.ts`, `session-list.test.ts`, `format.test.ts`, `plan-line.test.ts`, `plant-labels.test.ts`, `previews.test.ts`,
 `ambient-light.test.ts`, `scroll-math.test.ts`, `smooth-scroll.test.ts`, `dock.test.ts`, `stage-edge.test.ts`, `ink.test.ts`,
 `tip-place.test.ts`, `plant-card.test.ts`, `pickers.test.ts`, `prefill.test.ts` (calendar: `calendar-model.test.ts`).
-E2E: `tests/e2e/wayfinding.spec.ts` (the spine, the path at desktop and phone, never over text,
-Unit: `backdrop-sheet.test.ts`, `backdrop.test.ts`, `dock-guide.test.ts`, `wayfinding-path.test.ts`, `session-list.test.ts`, `format.test.ts`, `plan-line.test.ts`, `plant-labels.test.ts`, `previews.test.ts`,
-`ambient-light.test.ts`, `scroll-math.test.ts`, `dock.test.ts`, `stage-edge.test.ts`, `ink.test.ts`.
 E2E: `tests/e2e/backdrops.spec.ts` (a sheet per section holding its content, the calendar's the
 strongest, re-layout on growth / resize / view and not on a tick or scroll, the lane outside the
 sheets, text contrast from pixels in four lights at desktop, hd and phone),
