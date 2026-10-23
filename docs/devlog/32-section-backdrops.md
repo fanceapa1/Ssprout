@@ -36,6 +36,11 @@ sheets laid on the page:
 - **The path.** Its lane is measured from the section's box, which is now the sheet's edge. The
   crossing from the garden reaches the lane above the first sheet's top. The tests' stop-to-heading
   gap grew to include the sheet's margin.
+- **A bug the pixel test found.** After rebasing on main, the phone contrast tests failed on the
+  due card's Start and the plant's caption. The wash layer reached 36 px past the sheet's right
+  edge, and that widened a phone's layout viewport to 414 px. Only lines over uneven ground (a seal,
+  the plant) showed the shift in sampling. The wash now reaches less far right, the page clips
+  sideways overflow, and the phone test asserts there is no sideways scroll.
 - Tried and dropped: a warmer "today" column on the calendar's sheet. It read as a stain on the
   light paper.
 

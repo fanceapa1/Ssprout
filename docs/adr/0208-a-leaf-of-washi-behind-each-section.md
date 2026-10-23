@@ -42,7 +42,8 @@ glassmorphism or blur, no gradient cards, no borders everywhere, and no second p
   shadow colour, never a grey drop shadow), each reaching a little less far, so the wash is deepest
   at the edge and soft at its end. It pools unevenly along the edge, ends in a broken rim, and lies
   under the lower and right edges only, never out to the left (the path's lane) or above. A narrow
-  sheet (phones) casts two thirds of the depth.
+  sheet (phones) casts two thirds of the depth. The page clips sideways overflow (`.ui-root { overflow-x: clip }`), so the wash past
+  a phone's right edge never widens the page (it once made a 390 px phone 414 px wide).
 - **When it is drawn.** A ResizeObserver on the section, coalesced into a frame. The images are drawn
   for the section's size in CSS pixels, and drawn again only when that size changes (content growing,
   the waiting card, a resize). Nothing repaints per frame, on scroll or on a tick.
