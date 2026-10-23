@@ -3,16 +3,17 @@ import { expect, openDev, test, waitFrames } from './fixtures';
 
 /**
  * Mean colour, mean saturation (max − min channel) and luminance of a band of the garden canvas,
- * given as fractions of its height (0 = top).
+ * given as fractions of its height (0 = top), leaving out `inset` of its width on each side.
  */
-async function band(page: Page, from = 0, to = 1) {
+async function band(page: Page, from = 0, to = 1, inset = 0) {
   return page.evaluate(
-    ([a, b]) => {
+    ([a, b, i]) => {
       const c = document.querySelector<HTMLCanvasElement>('#garden')!;
       const ctx = c.getContext('2d')!;
       const y0 = Math.floor(c.height * a!);
       const h = Math.max(1, Math.floor(c.height * b!) - y0);
-      const { data } = ctx.getImageData(0, y0, c.width, h);
+      const x0 = Math.floor(c.width * i!);
+      const { data } = ctx.getImageData(x0, y0, Math.max(1, c.width - 2 * x0), h);
       let r = 0;
       let g = 0;
       let bl = 0;
@@ -30,7 +31,7 @@ async function band(page: Page, from = 0, to = 1) {
       }
       return { r: r / n, g: g / n, b: bl / n, sat: sat / n, lum: (0.2126 * r + 0.7152 * g + 0.0722 * bl) / n };
     },
-    [from, to],
+    [from, to, inset],
   );
 }
 
@@ -69,7 +70,8 @@ test.describe('daylight phases', () => {
       await show(page, p);
       const d = await page.evaluate(() => window.sprout!.daylight());
       expect(d.phase).toBe(p);
-      looks[p] = { ...(await band(page)), sky: await band(page, 0, 0.25) };
+      // the painting itself, not the margins the stage's edge dissolves (paper at night, ADR 0182)
+      looks[p] = { ...(await band(page, 0.06, 0.82, 0.05)), sky: await band(page, 0.06, 0.25, 0.05) };
     }
     const { sunrise, midday, sunset, night } = looks;
     // night: clearly darker and blue, but readable (no black veil)
@@ -169,6 +171,43 @@ test.describe('daylight phases', () => {
     expect(amb.ms).toBeLessThan(1.5);
     const plants = await page.evaluate(() => window.sprout!.plants.perf());
     expect(plants.avgMs).toBeLessThan(4);
+  });
+
+  test('at night the wash stops short of the margin and the margin is paper, not a grey haze (ADR 0182)', async ({ page }) => {
+    await openDev(page);
+    /** Mean colour of a vertical strip of the canvas, between two CSS-px distances from its left edge. */
+    const strip = (x0: number, x1: number) =>
+      page.evaluate(
+        ([a, b]) => {
+          const c = document.querySelector<HTMLCanvasElement>('#garden')!;
+          const k = c.width / c.clientWidth;
+          const { data } = c.getContext('2d')!.getImageData(Math.round(a! * k), Math.round(c.height * 0.3), Math.max(1, Math.round((b! - a!) * k)), Math.round(c.height * 0.3));
+          let r = 0;
+          let g = 0;
+          let bl = 0;
+          let n = 0;
+          for (let i = 0; i < data.length; i += 4) {
+            r += data[i]!;
+            g += data[i + 1]!;
+            bl += data[i + 2]!;
+            n++;
+          }
+          return { r: r / n, g: g / n, b: bl / n, lum: (0.2126 * r + 0.7152 * g + 0.0722 * bl) / n };
+        },
+        [x0, x1],
+      );
+    await show(page, 'night');
+    const margin = await strip(1, 6);
+    const inside = await strip(220, 260);
+    // the margin is warm paper again (the paper layer's cream), not the night's grey-blue
+    expect(margin.lum).toBeGreaterThan(205);
+    expect(margin.b).toBeLessThan(margin.r);
+    // while the garden itself stays in the night
+    expect(inside.lum).toBeLessThan(margin.lum - 50);
+    // the same paper as by day (the night's glaze used to grey it into a haze)
+    await show(page, 'midday');
+    const day = await strip(1, 6);
+    expect(Math.abs(day.lum - margin.lum)).toBeLessThan(16);
   });
 });
 
