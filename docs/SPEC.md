@@ -89,6 +89,9 @@ weather, Your plant, the widget, the tab title and notifications follow it.
 | History | Every completed and cancelled session is kept in a session log (times, focused minutes, plan, plant, task) for the calendar (ADR 0151). |
 
 *Status:* done (phase 7). The camera glides to the active plant on start and on switch (§12a).
+Not met for sound (§8): the audio's weather bed does not follow a switch (it keeps the session
+started last), and ending a waiting session clears the active one's weather and activity
+(`src/audio/garden-audio.ts` ignores `session:switch` and which session ended; devlog 35).
 
 ### Active-session ambience (subtle!)
 While a session runs, the garden visibly "works with you":
@@ -403,7 +406,7 @@ plan sessions ahead. A planned session never starts on its own: at its time it w
 | Repeat | Once, every day, weekdays (Mon–Fri) or every week (same weekday). |
 | Not here | The plant and its spot are chosen when the session starts, so no spot is held for days. |
 | Edit, remove | Tap a planned session. For a repeat: **only this one** or **this and the following**. A new repeat applies from that day on. |
-| At the time | A soft notification while the page is in the background (none while the tab is closed). A card waits at the top of the Study section, and a small slip above the timer pill, with **Start** and **Not this time**. |
+| At the time | A soft notification while the page is in the background (none while the tab is closed). A card waits at the top of the Study section, and a small slip by the timer pill (under it on wide screens, above it on phones), with **Start** and **Not this time**. |
 | One-tap Start | Opens the planting sheet prefilled with the name, and the length and plan when given; the gardener chooses the plant and the spot and begins. Never starts on its own. |
 | Limit of three | With three sessions in progress the card says so gently and offers to go to them (switch, or let one bloom first). |
 | Missed | If not started within **its length (30 min when open) plus 30 minutes**, it quietly passes: shown faintly in the calendar as "passed". No guilt copy, no streaks. |

@@ -619,7 +619,7 @@ motion lands at once; native scrolls are adopted. The custom scrollbar is `aria-
 **Calendar** — `ui/calendar.ts` in the `calendar` section (ADR 0175): Daily (default) / Weekly /
 Monthly, remembered per viewer (`localStorage` `studysprout:calendar-view`); the pure range, item,
 overlap-layout and month-mark maths live in `ui/calendar-model.ts`. The schedule editor is the
-`schedule` sheet (`ui/schedule-sheet.ts`, ADR 0177); the waiting card and its slip above the pill are
+`schedule` sheet (`ui/schedule-sheet.ts`, ADR 0177); the waiting card and its slip by the pill (under it on wide screens, ADR 0203) are
 `ui/schedule-card.ts` (ADR 0176). Details: `docs/systems/calendar.md`.
 
 **Plant view** — `ui.plantView = { water(): boolean, state() }` (ADR 0134). It shows the active

@@ -48,7 +48,7 @@ the widget surfaces — the UI then asks in the Begin click itself.
 | `calendar-art.ts` | the calendar's painted shapes (washes, plan outlines, rings, underline), as SVG backgrounds and on canvas |
 | `schedule-sheet.ts` | the schedule editor sheet: name, day and time (painted pickers), open-by-default length and plan, repeat; only this one / this and following (ADR 0177) |
 | `pickers.ts` | painted day and time pickers in the calendar's `Intl` formats (ADR 0192): a field that unfolds a month grid or hour / minute / AM-PM chips inline; pure `pickerFormat`, `uses12h`, `dayLabel`, `timeLabel`, `splitTime`, `joinTime`, `stepDay` |
-| `schedule-card.ts` | the waiting card at the top of the Study section and its slip above the pill (ADR 0176) |
+| `schedule-card.ts` | the waiting card at the top of the Study section and its slip by the pill: under it on wide screens, above it on phones, stepping aside with it (ADRs 0176, 0203) |
 | `calendar.studio.ts` | studio section `calendar`: washes, day / week / month fixtures, the waiting card, the pickers |
 | `tools.ts` | garden tools, one implementation rendered twice: corner chips (`nav.menu`) and the dock list (`ul.tool-list`) (ADR 0135) |
 | `session-view.ts` | the one adapter from `controller.status()` to what the panel shows |
