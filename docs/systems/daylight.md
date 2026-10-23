@@ -69,8 +69,9 @@ pure phases with the blends between them: night until 03:36 · sunrise 04:16–0
   crowns at sunrise/sunset + lamp light in the shoji (sunset, night) + stars. Composite lifts the
   sun's glow, the moon and its halo, the broken light path on the pond and the lantern's pool.
 - **Grades** (`PHASE_GRADES`): midday 0.03 (bare paper); sunrise lavender 0.2 warmed toward the
-  right; sunset amber 0.34 glowing toward the left, lantern 0.45; night indigo 0.5 (+0.26 toward the
-  sky), lantern 1, colour taken out first (`LOOK.nightDesaturate` 0.38; the frame is backed with white first, so the glaze only desaturates and draws no line where the sky plate stops at y 500, ADR 0206).
+  right; sunset amber 0.34 glowing toward the left, lantern 0.45; night indigo 0.54 (+0.22 toward the
+  sky, × 1.2 toward the near ground: the meadow and the path are thin paint and need the weight,
+  devlog 29), lantern 1, colour taken out first (`LOOK.nightDesaturate` 0.38; the frame is backed with white first, so the glaze only desaturates and draws no line where the sky plate stops at y 500, ADR 0206).
 - **Close views** (ADR 0163): when the camera rests zoomed in, the sky composes a detail plate for
   the view (plates upscaled; sun, moon with its phase and stars punched at up to 3 px/unit) and
   the light plate repaints its marks for the view at up to 2 px/unit (`CAST_DETAIL_MAX`) over its

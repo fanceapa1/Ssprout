@@ -45,4 +45,10 @@ crop, so a zoomed view that reaches past that crop is desaturated too.
   about 9 levels lower in the frame, about 5 overall at 1440 × 900. The accidental grey haze is
   gone, which is what ADR 0184 wants from a night wash. If the owner wants the old weight back,
   the right tool is the night grade (`PHASE_GRADES.night`), not grey in the clear pixels.
+  - Done in Q2b (devlog 29): the night grade went from amount 0.5, sky 0.26, ground 1 to 0.54,
+    0.22 and 1.2. The top of the sky keeps its weight. The middle distance is a little deeper,
+    and the near ground is deepest, where the paint is thin. The lower frame is back at the
+    reference weight (0.64 of midday's luminance, against 0.63 before this ADR and 0.69 just
+    after it), glazed indigo rather than grey. `daylight.spec` › "the night keeps its depth…"
+    holds it there.
 - Cost: one extra full-view fill per frame, only at night.

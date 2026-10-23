@@ -102,7 +102,7 @@ the `lighting` layer. Each phase's plate is painted once (on demand; the next ph
 | sunrise | lavender `204,202,234`, peach glow right | 0.20 | long cool shadows to the left, light on the crowns' right sides | 0.08 |
 | midday | near paper `252,248,236` | 0.03 | short pools under boulders, trees, shrubs, the deck | 0 |
 | sunset | amber `242,186,128`, gold glow left | 0.34 | long violet shadows to the right, light on the crowns' left sides, lamp light in the shoji | 0.45 |
-| night | indigo `92,106,184` (+0.26 toward the sky) | 0.50 | lamp light in the shoji and on the deck, stars left as paper | 1 |
+| night | indigo `92,106,184` (+0.22 toward the sky, × 1.2 toward the near ground) | 0.54 | lamp light in the shoji and on the deck, stars left as paper | 1 |
 
 The composite lifts the moving lights (a warm glow round the low sun, the moon and its halo, the
 broken light path on the pond, the lantern's pool) and is rebuilt when the light moved (checked
