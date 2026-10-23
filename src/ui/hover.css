@@ -1,0 +1,267 @@
+/*
+ * One hover language for every control (ADR 0204): calm, painterly, the same everywhere.
+ *
+ *   ink    words that act (quiet buttons, calendar views and steps, picker steps): the ink deepens
+ *          and a short brush stroke draws in under the word.
+ *   chip   anything on a slip of paper (seals, the calm lead, Water, ink slips, corner and zoom
+ *          chips, sheet cards and chips, tools): the slip lifts a hair and a soft wash of shadow
+ *          follows its deckled edge; the seal's vermilion deepens a little.
+ *   sprout a sprout mark in a control (Start studying, Plant another, Schedule a session) opens
+ *          its leaves slightly.
+ *
+ * Pressing sinks the slip back (`:active`); keyboard focus (`:focus-visible`) shows the same state
+ * as hover, with the ink focus ring. Hover only ever decorates: nothing is said only on hover,
+ * and touch screens (no hover) never keep a stuck state. With reduced motion, colour changes
+ * only: no lift, no drawing stroke, no leaves moving.
+ */
+:root {
+  --hover-ms: 360ms;
+  --hover-ease: cubic-bezier(0.33, 0, 0.2, 1);
+  --hover-lift: -1px;
+  --press-sink: 0.5px;
+  --hover-wash: rgba(74, 64, 52, 0.2);
+  --hover-tint: rgba(59, 53, 46, 0.06);
+}
+
+/* ── ink: words that act ─────────────────────────────────────────────────────────────────── */
+.ui-root .quiet:not(.ink),
+dialog .quiet:not(.ink),
+.cal-view,
+.cal-step,
+.pick-step,
+.pill-more {
+  position: relative;
+  text-decoration: none;
+  transition:
+    color var(--hover-ms) var(--hover-ease),
+    opacity var(--hover-ms) var(--hover-ease);
+}
+/* secondary words in the dock recede to the softer ink until pointed at (ADR 0201) */
+.dock .quiet:not(.ink):not([data-primary]) {
+  color: var(--ui-ink-soft);
+}
+.ui-root .quiet:not(.ink)::after,
+dialog .quiet:not(.ink)::after,
+.cal-view::after,
+.pick-step::after {
+  content: '';
+  position: absolute;
+  left: 13px;
+  right: 13px;
+  bottom: 7px;
+  height: 6px;
+  background: var(--brush-rule) left center / 96px 6px no-repeat;
+  opacity: 0.85;
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform var(--hover-ms) var(--hover-ease);
+  pointer-events: none;
+}
+/* a word with a sprout before it: the stroke runs under the word, not the mark */
+.ui-root .quiet:not(.ink):has(> .sprout-mark)::after {
+  left: 43px;
+}
+/* the chosen view keeps its vermilion stroke; the hover stroke stays off it */
+.cal-view[aria-pressed='true']::after {
+  display: none;
+}
+@media (hover: hover) {
+  .ui-root .quiet:not(.ink):hover:not(:disabled),
+  dialog .quiet:not(.ink):hover:not(:disabled),
+  .cal-view:hover,
+  .cal-step:hover,
+  .pick-step:hover,
+  .pill-more:hover {
+    color: var(--ui-ink);
+  }
+  .ui-root .quiet:not(.ink):hover:not(:disabled)::after,
+  dialog .quiet:not(.ink):hover:not(:disabled)::after,
+  .cal-view:hover::after,
+  .pick-step:hover::after {
+    transform: scaleX(1);
+  }
+}
+.ui-root .quiet:not(.ink):focus-visible,
+dialog .quiet:not(.ink):focus-visible,
+.cal-view:focus-visible,
+.cal-step:focus-visible,
+.pick-step:focus-visible,
+.pill-more:focus-visible {
+  color: var(--ui-ink);
+}
+.ui-root .quiet:not(.ink):focus-visible::after,
+dialog .quiet:not(.ink):focus-visible::after,
+.cal-view:focus-visible::after,
+.pick-step:focus-visible::after {
+  transform: scaleX(1);
+}
+.ui-root .quiet:not(.ink):active:not(:disabled),
+dialog .quiet:not(.ink):active:not(:disabled),
+.cal-view:active,
+.cal-step:active,
+.pick-step:active {
+  color: var(--ui-ink);
+  opacity: 0.8;
+}
+
+/* ── chip: things on a slip of paper ─────────────────────────────────────────────────────── */
+.seal,
+.calm,
+.water,
+.ui-root .quiet.ink,
+dialog .quiet.ink,
+.tool,
+.plan-card,
+.plant-card,
+.preset,
+.sched-chip,
+.pick-chip,
+.pick-field {
+  transition:
+    translate var(--hover-ms) var(--hover-ease),
+    filter var(--hover-ms) var(--hover-ease),
+    color var(--hover-ms) var(--hover-ease),
+    opacity var(--hover-ms) var(--hover-ease);
+}
+.icon-btn::before {
+  transition:
+    translate var(--hover-ms) var(--hover-ease),
+    filter var(--hover-ms) var(--hover-ease),
+    opacity var(--hover-ms) var(--hover-ease);
+}
+@media (hover: hover) {
+  .seal:hover:not(:disabled),
+  .calm:hover,
+  .water:hover:not(:disabled),
+  .ui-root .quiet.ink:hover:not(:disabled),
+  dialog .quiet.ink:hover:not(:disabled),
+  .preset:hover,
+  .sched-chip:hover,
+  .pick-chip:hover,
+  .pick-field:hover {
+    translate: 0 var(--hover-lift);
+    filter: drop-shadow(0 1.5px 1.2px var(--hover-wash));
+  }
+  /* the seal's vermilion deepens a touch as it lifts */
+  .seal:hover:not(:disabled) {
+    filter: saturate(1.06) brightness(0.95) drop-shadow(0 1.5px 1.2px var(--hover-wash));
+  }
+  /* cards and tools keep their slip on ::before: it lifts, the words stay put */
+  .tool:hover::before,
+  .plant-card:not([data-locked='true']):hover::before,
+  .plan-card:hover {
+    translate: 0 var(--hover-lift);
+  }
+  /* chips on the painting: the slip lifts with a wash under it, still dimmed with the light */
+  .icon-btn:hover:not(:disabled)::before {
+    transform: none;
+    translate: 0 var(--hover-lift);
+    opacity: 1;
+    filter: brightness(var(--ui-dim, 1)) drop-shadow(0 1.5px 1.2px var(--hover-wash));
+  }
+  .pill-btn:hover,
+  .pill-start:hover {
+    background-color: var(--hover-tint);
+  }
+}
+.seal:focus-visible,
+.calm:focus-visible,
+.water:focus-visible,
+.ui-root .quiet.ink:focus-visible,
+dialog .quiet.ink:focus-visible,
+.preset:focus-visible,
+.sched-chip:focus-visible,
+.pick-chip:focus-visible,
+.pick-field:focus-visible {
+  translate: 0 var(--hover-lift);
+  filter: drop-shadow(0 1.5px 1.2px var(--hover-wash));
+}
+.icon-btn:focus-visible::before {
+  translate: 0 var(--hover-lift);
+  opacity: 1;
+}
+/* pressed: the slip sinks back onto the paper */
+.seal:active:not(:disabled),
+.calm:active,
+.water:active:not(:disabled),
+.ui-root .quiet.ink:active:not(:disabled),
+dialog .quiet.ink:active:not(:disabled),
+.preset:active,
+.sched-chip:active,
+.pick-chip:active,
+.pick-field:active {
+  translate: 0 var(--press-sink);
+  transform: none;
+  filter: brightness(0.97);
+}
+.icon-btn:active:not(:disabled)::before {
+  translate: 0 var(--press-sink);
+  filter: brightness(calc(var(--ui-dim, 1) * 0.96));
+}
+.pill-btn:active,
+.pill-start:active {
+  background-color: rgba(59, 53, 46, 0.1);
+}
+
+/* ── sprout: a control that begins a planting opens its leaves a little ────────────────────── */
+.sprout-mark .leaf {
+  transform-box: fill-box;
+  transition: transform var(--hover-ms) var(--hover-ease);
+}
+.sprout-mark .leaf:first-of-type {
+  transform-origin: 0% 100%;
+}
+.sprout-mark .leaf:nth-of-type(2) {
+  transform-origin: 100% 100%;
+}
+@media (hover: hover) {
+  :is(button, a):hover .sprout-mark .leaf:first-of-type {
+    transform: rotate(-9deg);
+  }
+  :is(button, a):hover .sprout-mark .leaf:nth-of-type(2) {
+    transform: rotate(9deg);
+  }
+}
+:is(button, a):focus-visible .sprout-mark .leaf:first-of-type {
+  transform: rotate(-9deg);
+}
+:is(button, a):focus-visible .sprout-mark .leaf:nth-of-type(2) {
+  transform: rotate(9deg);
+}
+
+/* ── reduced motion: colour only ─────────────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .ui-root *,
+  .ui-root *::before,
+  .ui-root *::after,
+  dialog *,
+  dialog *::before,
+  dialog *::after {
+    translate: none !important;
+  }
+  .sprout-mark .leaf {
+    transform: none !important;
+  }
+  /* the stroke under a word appears in place instead of drawing in */
+  .ui-root .quiet:not(.ink)::after,
+  dialog .quiet:not(.ink)::after,
+  .cal-view::after,
+  .pick-step::after {
+    transform: none;
+    opacity: 0;
+  }
+  @media (hover: hover) {
+    .ui-root .quiet:not(.ink):hover:not(:disabled)::after,
+    dialog .quiet:not(.ink):hover:not(:disabled)::after,
+    .cal-view:hover::after,
+    .pick-step:hover::after {
+      opacity: 0.85;
+    }
+  }
+  .ui-root .quiet:not(.ink):focus-visible::after,
+  dialog .quiet:not(.ink):focus-visible::after,
+  .cal-view:focus-visible::after,
+  .pick-step:focus-visible::after {
+    opacity: 0.85;
+  }
+}

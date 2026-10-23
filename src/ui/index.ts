@@ -43,6 +43,8 @@ import { createTips } from './tips';
 import { createTools } from './tools';
 import { createWayfinding } from './wayfinding';
 import type { PlantingDraft, UI, UIDeps, UIMode, UIState } from './types';
+// last, so the one hover language (ADR 0204) sits over every component's own styles
+import './hover.css';
 
 export type { Dock, DockSection, DockSectionDef, DockSectionInfo, DockSpan } from './dock';
 export type {
