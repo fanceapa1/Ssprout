@@ -131,4 +131,21 @@ test.describe('tips · on a scrolling page', () => {
       expect(check.live).toBeLessThanOrEqual(1);
     }
   });
+
+  test('notes step aside while a plant’s card is being read', async ({ page }) => {
+    await openUi(page);
+    await page.evaluate(async () => {
+      window.sprout!.camera.autoFocus(false);
+      window.sprout!.addPlants(4);
+      await window.sprout!.plantsReady();
+    });
+    await expect.poll(() => page.evaluate(() => window.sprout!.ui.state().tips.length)).toBe(1);
+    const id = await page.evaluate(() => window.sprout!.state().plants[0]!.id);
+    await page.evaluate((p) => window.sprout!.camera.openCard(p), id);
+    await expect(page.locator('[data-ui="plant-card"]')).toBeVisible();
+    await expect.poll(() => page.evaluate(() => window.sprout!.ui.state().tips)).toEqual([]);
+    await expect(page.locator('.tip.is-in')).toHaveCount(0);
+    await page.evaluate(() => window.sprout!.camera.closeCard());
+    await expect.poll(() => page.evaluate(() => window.sprout!.ui.state().tips.length)).toBe(1);
+  });
 });
