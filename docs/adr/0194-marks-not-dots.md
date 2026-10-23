@@ -52,3 +52,11 @@ It does not belong to a watercolour garden.
 - Studio: `ui-shell/marks`, plus `ui-shell/pill`, `ui-shell/session-rows` and the calendar fixtures,
   redrawn with the sprout.
 - ART_DIRECTION lists the round "recording" dot among the anti-tropes.
+- **Amended (Q16): the favicon too.** A session that bloomed while the tab was away used to close
+  the favicon ring with a vermilion dot, and the bloom notification's icon shares that drawing.
+  The full ring now closes around the sprout mark: the same `ICON_STROKES.sprout` glyph, painted
+  with the widget brush in sumi ink with sap-green (`MARK_LEAF`) leaves and heavier strokes so it
+  still reads at 16 px. The tab gets a 64 px PNG (the 32 px grid at 2×). `widget/favicon.test.ts`
+  rasterises it at 16, 32, 64 and 96 px on light and dark tab strips (no red pixel, leaves and ink
+  where the dot was); `marks.spec.ts` decodes the real favicon in the browser and checks the same.
+  Studio: `widget/favicon-sizes`.

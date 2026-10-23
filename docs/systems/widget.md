@@ -12,7 +12,7 @@ plant for the card.
 | `contract.ts` | `WidgetController` / `WidgetStatus` / `WidgetBus`: the slice of core the widget uses (ADR 0003 API) |
 | `ticker.ts` | `createWorkerTicker()`: `Ticker` backed by an inline Blob worker, `setInterval` fallback (ADR 0090) |
 | `title.ts` | `titleFor()`: pure title text |
-| `favicon.ts` | `faviconModel()` / `faviconKey()` / `drawFavicon()` / `faviconDataUrl()`: quantised brush-ring icon |
+| `favicon.ts` | `faviconModel()` / `faviconKey()` / `drawFavicon()` / `faviconDataUrl()`: quantised brush-ring icon; a bloom closes it around the sprout mark (`glyphPath` samples the `ui/icons.ts` sprout glyph) |
 | `tab.ts` | `createTabSurfaces()`: applies title + icon, remembers an unseen bloom, restores on dispose |
 | `notifications.ts` | policy (`decideNotification`, `reconcileSetting`, `shouldAsk`), `createNotifier`, browser env (ADRs 0091, 0092) |
 | `view.ts` | `widgetView(status)`: pure card model (mode, task, times, state line, segments, buttons) |
@@ -78,13 +78,21 @@ any schedule exists, so a background tab notices a scheduled session on time (AD
 | focus | `24:13 · Study Sprout` (time left in the block) | ring = session progress, olive |
 | break | `Break 4:12 · Study Sprout` | ring, pond celadon |
 | paused | `Paused · Study Sprout` | ring, stone grey |
-| completed while away | `Bloomed · Study Sprout` until the tab is visible + focused | full ring + vermilion dot |
+| completed while away | `Bloomed · Study Sprout` until the tab is visible + focused | full ring around the sprout mark (ADR 0194) |
 | idle | original title | original icon |
 
 Updated on each controller tick and store change; written only when the text or the quantised
-icon (48 ring steps × tone) changes, icons cached by key — at most once per tick. The favicon is a
-32×32 canvas → PNG data URL on the existing `<link rel="icon">` (created if missing); dispose
-restores title, href and type.
+icon (48 ring steps × tone) changes, icons cached by key — at most once per tick. The favicon is designed on a 32 px grid and
+rendered to a 64×64 canvas (`FAVICON_RENDER_PX`, the grid at 2×, so a 2× DPR tab stays sharp and the
+browser scales it down for 16 px) → PNG data URL on the existing `<link rel="icon">` (created if
+missing); dispose restores title, href and type.
+
+**No round red dot** (ADR 0194, amended by Q16). The bloom used to close the ring with a vermilion
+dot. It now paints the house sprout mark inside the full olive ring: the `ICON_STROKES.sprout`
+glyph from `ui/icons.ts` (cropped to `MARK_BOX`, 14 px wide on the grid), its leaves washed in
+`MARK_LEAF` sap green with an olive rim and an ink outline, the stem a firm sumi stroke, the ground
+faint. The washi disc behind keeps it legible on light and dark tab strips. The bloom notification's
+icon is the same drawing at 96 px.
 
 ### Floating card (Document Picture-in-Picture)
 `documentPictureInPicture.requestWindow({ width: 260, height: 340 })` — called synchronously in
@@ -164,7 +172,8 @@ Policy (ADR 0091):
 ## Tests
 - Unit (`src/plants/view.test.ts` for the plant view): `ticker.test.ts` (fake worker, fallback,
   errors, the worker script, driving the real controller), `title.test.ts`, `favicon.test.ts`
-  (model + drawing), `tab.test.ts`, `notifications.test.ts` (policy, permission flow, per-moment
+  (model + drawing; pixels through `rasterContext`, a small software rasteriser in `test-helpers.ts`:
+  no red anywhere and the sprout where the dot was, at 16 / 32 / 64 / 96 px on light and dark strips), `tab.test.ts`, `notifications.test.ts` (policy, permission flow, per-moment
   notifications), `view.test.ts` (view model), `card-art.test.ts` (card type sizes, line stacking,
   `fitStateLine`), `pip.test.ts` (card DOM via `mountCard`, PiP
   open/close/reopen/actions/bloom), `index.test.ts` (integration install/dispose).
@@ -172,9 +181,12 @@ Policy (ADR 0091):
   changes, pause, `Bloomed` while away, background notification via the SW (stubbed
   `showNotification`), no notification when attended, denied respected, PiP support detection,
   a faked PiP window (open / pause / resume / close), the iframe harness (plant painted, bloom), in
-  a break the card waters the plant and skips the break. They run against the wired app (`main.ts`
+  a break the card waters the plant and skips the break. `tests/e2e/marks.spec.ts` decodes the
+  bloomed favicon in the page and checks it at 16 / 32 / 64 px on light and dark strips (no red
+  pixel, sap-green leaves, ink contrast). They run against the wired app (`main.ts`
   installs `window.sprout.widget` under `?dev`). Headless Chromium reports `Notification.permission === 'denied'`
   even after `grantPermissions`, so the spec's init script owns the permission value.
 - Studio: section **Widget** (`#widget`): card at focus growth 0 / 0.3 / 0.7, break, watering
   mid-animation, paused, bloom, idle, another session waiting (Switch), two waiting (Resume), unknown-species fallback, favicons (enlarged + tab size on
-  light/dark strips) and a 12 s loop of a whole session.
+  light/dark strips), `favicon-sizes` (the tab's PNG at 16 / 32 / 64 px, 1× and 2× DPR, light and dark
+  strips, bloomed and running) and a 12 s loop of a whole session.
