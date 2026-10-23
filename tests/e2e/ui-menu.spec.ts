@@ -114,8 +114,10 @@ test.describe('ui · menu, tips and data', () => {
     await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
     await page.mouse.move(600, 300);
     await expect.poll(() => page.evaluate(() => window.sprout!.ui.state().resting)).toBe(true);
-    await expect(page.locator('.pill')).toHaveCSS('opacity', '0.42');
-    await expect(page.locator('.menu')).toHaveCSS('opacity', '0.32');
+    // they step back only a little: still clearly visible over the painting (ADR 0180)
+    await expect(page.locator('.pill')).toHaveCSS('opacity', '0.72');
+    await expect(page.locator('.menu')).toHaveCSS('opacity', '0.88');
+    await expect(page.locator('.zoom-controls')).toHaveCSS('opacity', '0.88');
     // the session controls below the garden never fade: they are read on paper, not over the painting
     await expect(page.locator('.panel')).toHaveCSS('opacity', '1');
     await page.evaluate(() => window.sprout!.ui.setTimeScale(100));
