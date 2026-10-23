@@ -362,20 +362,43 @@ export function paintMargins(p: Painter, rng: Rng): void {
   const W = c.canvas.width;
   const H = c.canvas.height;
   const inv = c.getTransform().inverse();
+  // the field is smooth at the scale of a few buffer pixels: sample it every STEP px and
+  // interpolate (a sixteenth of the noise evaluations)
+  const STEP = 4;
+  const gw = Math.ceil(W / STEP) + 1;
+  const gh = Math.ceil(H / STEP) + 1;
+  const grid = new Float32Array(gw * gh);
+  for (let gy = 0; gy < gh; gy++) {
+    for (let gx = 0; gx < gw; gx++) {
+      const px = gx * STEP + 0.5;
+      const py = gy * STEP + 0.5;
+      grid[gy * gw + gx] = field(inv.a * px + inv.c * py + inv.e, inv.b * px + inv.d * py + inv.f);
+    }
+  }
   const img = c.createImageData(W, H);
   const d = img.data;
   const [pr, pg, pb] = [255, 253, 248];
-  for (let py = 0; py < H; py++) {
-    for (let px = 0; px < W; px++) {
-      const x = inv.a * (px + 0.5) + inv.c * (py + 0.5) + inv.e;
-      const y = inv.b * (px + 0.5) + inv.d * (py + 0.5) + inv.f;
-      const a = field(x, y);
-      if (a <= 0.002) continue;
-      const i = (py * W + px) * 4;
-      d[i] = pr;
-      d[i + 1] = pg;
-      d[i + 2] = pb;
-      d[i + 3] = a * 255;
+  for (let gy = 0; gy < gh - 1; gy++) {
+    for (let gx = 0; gx < gw - 1; gx++) {
+      const a00 = grid[gy * gw + gx]!;
+      const a10 = grid[gy * gw + gx + 1]!;
+      const a01 = grid[(gy + 1) * gw + gx]!;
+      const a11 = grid[(gy + 1) * gw + gx + 1]!;
+      if (a00 <= 0.002 && a10 <= 0.002 && a01 <= 0.002 && a11 <= 0.002) continue;
+      for (let y = gy * STEP, ye = Math.min(H, y + STEP); y < ye; y++) {
+        const v = (y - gy * STEP) / STEP;
+        const l = a00 + (a01 - a00) * v;
+        const r = a10 + (a11 - a10) * v;
+        for (let x = gx * STEP, xe = Math.min(W, x + STEP); x < xe; x++) {
+          const a = l + (r - l) * ((x - gx * STEP) / STEP);
+          if (a <= 0.002) continue;
+          const i = (y * W + x) * 4;
+          d[i] = pr;
+          d[i + 1] = pg;
+          d[i + 2] = pb;
+          d[i + 3] = a * 255;
+        }
+      }
     }
   }
   c.putImageData(img, 0, 0);
