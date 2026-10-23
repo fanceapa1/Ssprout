@@ -105,22 +105,53 @@ function streak(p: Painter, rng: Rng, x: number, y: number, len: number, h: numb
 }
 
 /**
- * A fair-weather cloud left as paper: an irregular lifted mass with soft, broken edges (never a
- * row of round puffs), lost toward the sky at one side, and a thin cool glaze along its flat base.
+ * Midday whites lifted out of the wet blue (ADR 0181): not a cloud *shape* but the places where a
+ * damp brush took the pigment back up — several soft, overlapping lifts of uneven strength strung
+ * along a slightly tilted drift, most with lost edges, one or two left to dry with a crisp rim or a
+ * crinkled bloom, and a few torn wisps trailing off. No outline, no flat belly, no glaze under it.
  */
-function cumulus(p: Painter, rng: Rng, x: number, y: number, w: number, belly: Pigment): void {
-  const h = w * 0.32;
-  const top: Pt[] = [];
-  const n = 18;
-  for (let i = 0; i <= n; i++) {
-    const t = i / n;
-    const bump = Math.sin(t * Math.PI) ** 0.8 * (0.6 + 0.4 * Math.abs(Math.sin(t * Math.PI * rng.range(2.2, 3.4) + rng.range(0, 2))));
-    top.push({ x: x - w / 2 + w * t, y: y - h * bump });
+function liftedDrift(p: Painter, rng: Rng, cx: number, cy: number, w: number, h: number): void {
+  const tilt = rng.range(-0.1, 0.06);
+  const n = rng.int(4, 7);
+  for (let i = 0; i < n; i++) {
+    const t = (i + rng.range(-0.3, 0.3)) / Math.max(1, n - 1) - 0.5;
+    const x = cx + t * w;
+    const y = cy + t * w * tilt + rng.range(-0.35, 0.35) * h;
+    // fuller in the middle of the drift, thinning toward its ends
+    const body = 1 - Math.abs(t) * 1.1;
+    // now and then a lift dries with a crisp rim: kept long and thin so it reads as a dried edge,
+    // never as a little puff
+    const crisp = rng.chance(0.15);
+    const rx = w * rng.range(0.1, 0.2) * (0.7 + body * 0.5) * (crisp ? 1.3 : 1);
+    const ry = h * rng.range(0.35, 0.7) * (0.6 + body * 0.5) * (crisp ? 0.45 : 1);
+    p.lift(blob(x, y, rx, ry, rng, { irregularity: 0.45, rotation: rng.range(-0.3, 0.3) }), {
+      rng,
+      amount: rng.range(0.28, 0.55) * (0.6 + body * 0.5),
+      deform: 0.55,
+      spread: 0.6,
+      layers: 9,
+      sharpness: crisp ? 0.55 : 0.04,
+      edge: crisp ? 0.25 : 0,
+      blooms: crisp && rng.chance(0.5) ? 1 : 0,
+      bloomSize: 0.35,
+      fade: { angle: rng.range(0, Math.PI * 2), start: rng.range(0.3, 0.55), amount: 0.8, ragged: 0.8 },
+    });
   }
-  const mass = [...top, { x: x + w * 0.42, y: y + h * 0.12 }, { x: x - w * 0.4, y: y + h * 0.1 }];
-  p.lift(mass, { rng, amount: 0.62, deform: 0.35, spread: 0.4, layers: 10, sharpness: 0.15, fade: { angle: rng.chance(0.5) ? 0 : Math.PI, start: 0.55, amount: 0.7, ragged: 0.7 } });
-  p.lift(blob(x - w * 0.08, y - h * 0.5, w * 0.22, h * 0.4, rng, { irregularity: 0.35 }), { rng, amount: 0.35, deform: 0.4, layers: 6, sharpness: 0.1 });
-  p.glaze({ cx: x, cy: y + h * 0.02, rx: w * 0.42, ry: h * 0.16 }, belly, { rng, opacity: 0.2, deform: 0.4, fade: { angle: -Math.PI / 2, start: 0.2, amount: 1, ragged: 0.6 } });
+  // torn wisps trailing from the drift in the wind's direction
+  for (let i = 0; i < rng.int(1, 3); i++) {
+    const side = rng.chance(0.6) ? 1 : -1;
+    const x = cx + side * w * rng.range(0.45, 0.7);
+    const y = cy + side * w * tilt * 0.6 + rng.range(-0.3, 0.5) * h;
+    p.lift({ cx: x, cy: y, rx: w * rng.range(0.12, 0.22), ry: h * rng.range(0.08, 0.16), rotation: tilt + rng.range(-0.08, 0.08) }, {
+      rng,
+      amount: rng.range(0.22, 0.38),
+      deform: 0.6,
+      spread: 0.6,
+      layers: 6,
+      sharpness: 0.05,
+      fade: { angle: side > 0 ? 0 : Math.PI, start: 0.3, amount: 0.9, ragged: 0.8 },
+    });
+  }
 }
 
 /** Paint one phase's sky into a painter whose transform maps world units onto the plate. */
@@ -128,28 +159,46 @@ export function paintSkyPlate(p: Painter, rng: Rng, phase: DayPhase): void {
   const sky = skyShape(40);
   switch (phase) {
     case 'midday': {
-      // a clear graded cerulean, deepest at the zenith, still blue low over the hills (wide canvases
-      // only show the sky band above them), warming to paper just above the ridge
-      p.wetInWet(sky, mix(PIGMENTS.cerulean, PIGMENTS.bellflower, 0.25), lighten(PIGMENTS.cerulean, 0.32), {
+      // wet-in-wet cerulean, deepest and coolest at the zenith, still blue low over the hills (wide
+      // canvases only show the sky band above them), warming to paper just above the ridge; the
+      // pigment flows unevenly and settles in the grain
+      p.wetInWet(sky, mix(PIGMENTS.cerulean, PIGMENTS.ultramarine, 0.22), lighten(PIGMENTS.cerulean, 0.3), {
         rng,
         angle: Math.PI / 2,
-        split: 0.5,
-        softness: 0.7,
-        opacity: 0.5,
+        split: 0.48,
+        softness: 0.75,
+        fingers: 0.3,
+        opacity: 0.54,
         deform: 0.03,
         edge: 0.06,
-        centreLift: 0.05,
-        granulation: 0.08,
-        flow: 0.35,
-        flowScale: 200,
+        centreLift: 0.04,
+        granulation: 0.2,
+        flow: 0.5,
+        flowScale: 230,
         fade: { angle: Math.PI / 2, start: 0.8, amount: 0.9, ragged: 0.4 },
       });
-      // a little warmth low down, and a few fair-weather clouds left as paper
+      // a second, thinner pass of blue dropped in while wet: darker pools of pigment, no edges
+      for (const [x, y, w] of [
+        [260, -150, 520],
+        [1180, -60, 640],
+        [760, 120, 420],
+      ] as const) {
+        p.glaze(blob(x, y, w / 2, w * 0.16, rng, { irregularity: 0.5 }), mix(PIGMENTS.cerulean, PIGMENTS.ultramarine, 0.4), {
+          rng,
+          opacity: 0.12,
+          deform: 0.5,
+          spread: 0.5,
+          fade: { angle: rng.range(0, Math.PI * 2), start: 0.2, amount: 1, ragged: 0.7 },
+        });
+      }
+      // a little warmth low down
       p.glaze(band(300, 390), lighten(PIGMENTS.gold, 0.4), { rng, opacity: 0.1, fade: { angle: -Math.PI / 2, start: 0.3, amount: 1 } });
-      const belly = mix(PIGMENTS.shadow, PIGMENTS.cerulean, 0.35);
-      cumulus(p, rng, 728, 150, 170, belly);
-      cumulus(p, rng, 1420, 96, 300, belly);
-      cumulus(p, rng, 300, 40, 200, belly);
+      // the whites lifted out of the wet blue: drifts, never cloud shapes (ADR 0181)
+      liftedDrift(p, rng, 330, 40, 520, 70);
+      liftedDrift(p, rng, 1120, 130, 620, 60);
+      liftedDrift(p, rng, 1580, 10, 360, 50);
+      liftedDrift(p, rng, 760, -140, 560, 80);
+      liftedDrift(p, rng, 420, 230, 380, 22);
       break;
     }
     case 'sunrise': {
