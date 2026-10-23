@@ -65,7 +65,8 @@ test.describe('tips · on a scrolling page', () => {
       // one note at a time, every frame (ADR 0124): no ghost of the previous one
       expect(f.painting.length).toBeLessThanOrEqual(1);
       const n = f.painting[0];
-      if (n && n.on === 'stage' && f.anchors.pill !== null) offsets.push(n.top - f.anchors.pill);
+      const pill = f.anchors.pill;
+      if (n && n.on === 'stage' && typeof pill === 'number') offsets.push(n.top - pill);
     }
     // glued: the note's distance to the pill's Start studying never changes while the page glides
     expect(offsets.length).toBeGreaterThan(2);
