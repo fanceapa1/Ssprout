@@ -193,6 +193,7 @@ Legend: unit tests as `folder/file › test`, under `src/` (`.test.ts` omitted).
 | 2.20 | Photosynthesis motes rise from plants; plants sway a touch more | ambience/motes › moteEmitters (all); › motes: few at a time…; › no motes outside focus; ambience/wind › is a touch stronger during a session; › windBoost maps phases | ambience with reduced motion › … no motes (the negative case) | ✔ |
 | 2.21 | Paused: ambience fades to stillness, not off abruptly | ambience/envelope › paused: a faint still trace; › pause: motion eases to stillness…; › session end: fades out over 3–5 s | ambience › pause eases the weather to a still trace; ending the session fades it out | ✔ |
 | 2.22 | Low-contrast and slow; never competes with plants | ambience/envelope › session start: crossfades in over 3–5 s… | ambience › a session brings its weather… ("stays subtle": frame delta < 40) | ◐ by review |
+| 2.22a | Sun weather: a thin warm glaze with soft diagonal light lifted out of it, nothing over the sky; warm glints on the pond and sunlit leaves; fades on pause and at the end (ADR 0194) | ambience/sun (all: sky unglazed, lifted bands, diagonal fall, pooled edge, half lift, leaf glints on the sunlit side only in sun, still while paused) | ambience › the sun weather (ADR 0194) › a warm glaze with light lifted out of it… | ✔ (the look by shots and studio `ambience-weather/sun`) |
 
 ### §3 Rewards and placement
 
@@ -300,6 +301,7 @@ Legend: unit tests as `folder/file › test`, under `src/` (`.test.ts` omitted).
 | 12.13 | Bigger, darker type: base ≥ 20 px, text ink ≥ 4.5:1 | ui/ink (all) | — | ✔ |
 | 12.14 | Tips point at the controls' new homes | ui/format › pickTips (all) | ui-shell › tips point at the controls in their new homes | ✔ |
 | 12.15 | The controls on the painting rest while focusing (a small step back: tools 0.88, pill 0.72, ADR 0180); the dock does not | — | ui-menu › the controls on the painting rest while studying…; tools-visibility › … ≥ 3:1 ink in all four lights | ✔ |
+| 12.16 | Sheets sit on a leaf of the page's washi (no dock text beside or below them); the page is locked under every sheet (wheel, keys, smooth scroll); the torn edge stays whole over a sticky footer (ADR 0190) | ui/smooth-scroll › a focused inner scroller… keeps its keys; › at its end, or on the page itself… | overlays › the planting sheet: paper behind it, the page locked…; › every other sheet locks the page too… | ✔ |
 
 ### §12a Camera & plant cards (ADRs 0160–0168)
 
@@ -325,6 +327,7 @@ Legend: unit tests as `folder/file › test`, under `src/` (`.test.ts` omitted).
 | 12a.18 | Creatures near the focused plant are sharp in a resting close view, painted in idle time, never stalling a frame; memory bounded (ADR 0188) | fauna/art-cache (all) | — | ◐ the look by shots and studio `close-view-fauna/*` |
 | 12a.19 | A phone's first glide toward its cropped sides finds them painted; a strip painting's cut sides fade to paper (ADR 0189) | — | — | ◐ by shots (mid-glide on a 390×844 phone) |
 | 12a.20 | The plant view: the can never shows a sliver at the frame's edge; thumbnails frame what has grown (ADR 0189) | plants/watering › the can in a small frame…; plants/view › growth framing (all) | — | ◐ the look by the plant view sheet in shots |
+| 12a.21 | On phones (390×844, 360×740) the whole card can be read: the longest note and a growing plant fit or scroll inside the card with a mark at the cut; the scrolling part is a keyboard region (ADR 0191) | — | plant-card-phone › the longest note (lotus)…; › a growing spider lily that replaced a plant…; › the mark at the cut reads on | ✔ (studio `ui-camera/plant-card-docked-long`) |
 
 ### §13 Calendar & scheduling (ADRs 0170–0177)
 
@@ -350,6 +353,9 @@ Legend: unit tests as `folder/file › test`, under `src/` (`.test.ts` omitted).
 | 13.18 | Limit of three: the card says so gently and offers the sessions | — | calendar › with three sessions in progress the card says so gently… | ✔ |
 | 13.19 | One quiet scheduling tip | core/tips › planning a session retires schedule | calendar › one quiet tip points at Schedule a session… | ✔ |
 | 13.20 | Phone layout | — | calendar · phone › one column, nothing wider than the screen… | ✔ |
+| 13.21 | Today's day view follows now while the tab stays open, gliding; a scroll by the gardener stops it until Today; it turns to the new day at midnight (ADR 0192) | ui/calendar-model › following now (all) | calendar · the day follows now › while the tab stays open…; › once the gardener scrolls the hours…; › past midnight… | ✔ |
+| 13.22 | The editor's day and time are painted pickers in the calendar's own formats (12 h in en-US, 24 h in en-GB), by keyboard and screen reader (ADR 0193) | ui/pickers (all: formats, time parts, grid keys, the day and time pickers in the page, Esc) | calendar · the editor speaks the calendar's clock › en-US, en-GB…; calendar › schedule a session… (pickDay, pickTime) | ✔ (studio `calendar/pickers`) |
+| 13.23 | A phone's day keeps sessions side by side readable (short time, first letters) and grows a focused one; keyboard focus survives the minute's redraw | — | calendar · a phone's day with sessions side by side…; calendar · keyboard focus survives the minute's redraw… | ✔ |
 
 ### Beyond the SPEC (covered, listed for completeness)
 Rendering contracts (render/renderer), paint engine (paint/*), species growth continuity
