@@ -46,6 +46,9 @@ never on time:
 2. **Keyboard focus without the lift** (ADR 0204). `hover.css` has `:focus-visible` rules for
    seals, calm slips, quick picks, chips and corner chips, but none for `.tool::before`,
    `.plan-card` or `.plant-card::before`. These show only the focus ring.
+   *Fixed in Q8b:* each `:hover` rule in `hover.css` now has a `:focus-visible` twin and an `:active`
+   press (tools, plan and plant cards, the seal's deeper vermilion, the pill's tint and "+N"), and
+   the test no longer carries `test.fail()`.
 
 ## Left for a human
 Real touch (pinch, native scroll momentum, a real double tap), listening to the audio, real
