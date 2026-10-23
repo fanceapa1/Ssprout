@@ -72,6 +72,12 @@ export function paintEmptyBed(canvas: HTMLCanvasElement, seed = 1): void {
 /**
  * The plant's backdrop: a pale round wash like a marumado (a garden's round window), lost at
  * its lower edge where the ground is, so the plant has a place to stand in. Static per size.
+ *
+ * Painted as one round puddle of thin celadon (ADR 0184): many layers that barely wander from the
+ * circle, so the outline stays round while its edge is soft and alive; pigment pooled in a fine
+ * darker rim and lifted from the heart; a whisper of sky-blue let into it wet-in-wet near the top;
+ * the bottom lost into the paper where the ground is. (The first version wandered so much it read
+ * as a lumpy blob, with an off-centre inner wash making a second, lumpier ring.)
  */
 export function paintRoundWindow(canvas: HTMLCanvasElement, seed = 1): void {
   const ctx = canvas.getContext('2d');
@@ -82,16 +88,38 @@ export function paintRoundWindow(canvas: HTMLCanvasElement, seed = 1): void {
   const p = createPainter(canvas, { seed: `window-${seed}` });
   const rng = createRng(`window-${seed}`);
   const r = Math.min(W, H) * 0.41;
-  p.wash({ cx: W / 2, cy: H * 0.5, rx: r, ry: r * 0.98 }, mix(PIGMENTS.celadon, PIGMENTS.sageLight, 0.55), {
-    rng,
-    opacity: 0.2,
-    edge: 0.55,
-    centreLift: 0.45,
-    deform: 0.06,
-    granulation: 0.25,
-    fade: { angle: Math.PI / 2, start: 0.35, amount: 0.85, ragged: 0.7 },
+  const cx = W / 2;
+  const cy = H * 0.5;
+  const rim = Math.max(1.5, r * 0.02);
+  // a hand-made circle: two slow harmonics of under 1.5 % keep it from looking compass-drawn
+  const a1 = rng.range(0, Math.PI * 2);
+  const a2 = rng.range(0, Math.PI * 2);
+  const circle = Array.from({ length: 96 }, (_, i) => {
+    const t = (i / 96) * Math.PI * 2;
+    const k = 1 + 0.009 * Math.sin(2 * t + a1) + 0.006 * Math.sin(3 * t + a2);
+    return { x: cx + Math.cos(t) * r * k, y: cy + Math.sin(t) * r * k * 0.985 };
   });
-  p.wash({ cx: W * 0.52, cy: H * 0.42, rx: r * 0.7, ry: r * 0.5 }, PIGMENTS.washiDeep, { rng, opacity: 0.14, edge: 0.2, deform: 0.3 });
+  // cool sky-blue at the top bleeding into celadon-sage below, in one wet puddle (no inner edge)
+  p.wetInWet(circle, mix(PIGMENTS.cerulean, PIGMENTS.celadon, 0.6), mix(PIGMENTS.celadon, PIGMENTS.sageLight, 0.45), {
+    rng,
+    angle: Math.PI / 2,
+    split: 0.4,
+    softness: 0.6,
+    fingers: 0.35,
+    layers: 22,
+    deform: 0.004,
+    spread: 0.014,
+    coverage: 0.95,
+    opacity: 0.3,
+    edge: 0.6,
+    edgeWidth: rim,
+    sharpness: 0.32,
+    centreLift: 0.42,
+    granulation: 0.3,
+    flow: 0.25,
+    flowScale: r * 0.5,
+    fade: { angle: Math.PI / 2, start: 0.5, amount: 1, ragged: 0.3 },
+  });
 }
 
 export function createPlantSection(ctx: UIContext): PlantSection {

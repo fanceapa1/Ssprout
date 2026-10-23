@@ -287,6 +287,23 @@ const section: StudioSection = {
       },
     },
     {
+      id: 'plant-view-window',
+      label: 'Your plant: the round window wash alone, three seeds at the dock’s size (ADR 0184)',
+      w: 960,
+      h: 330,
+      render(canvas, { seed }) {
+        const ctx = canvas.getContext('2d')!;
+        const cw = Math.floor(canvas.width / 3);
+        for (let i = 0; i < 3; i++) {
+          const c = document.createElement('canvas');
+          c.width = cw;
+          c.height = canvas.height;
+          paintRoundWindow(c, seed + i);
+          ctx.drawImage(c, i * cw, 0);
+        }
+      },
+    },
+    {
       id: 'plant-view-empty',
       label: 'Your plant: an empty bed (idle, no blooms yet)',
       w: 220,
