@@ -102,7 +102,14 @@ the widget surfaces — the UI then asks in the Begin click itself.
   28 px sides under 860 px, 20/20/26 on phones); the heading and helper sit on the sheet, the lane
   and its stones outside its left edge. The sheet is drawn for the section's size by a
   ResizeObserver (one frame later) and again only when the size changes; never per frame. A
-  section opts out with `backdrop: 'none'`. The dock is not dimmed by the garden's light, so the
+  section opts out with `backdrop: 'none'`.
+- A sheet is cheap to draw (ADR 0223). Its noise is pure in the seed and read along a few fixed
+  lattice rows, so the 256-wide lattices are drawn lazily, a row at a time
+  (`createLazyValueNoise2D`), and each seed's tear and shadow noise is built once, in a 32-seed
+  cache shared by the outline, the fibres, the shadow and every later size. The SVG is byte for
+  byte what the full lattices drew (`backdrop-sheet.golden.test.ts`). A new section costs about
+  67 000 random draws (was 3.8 million), a resize about 400. All four sections at load: ~9 ms in
+  Node cold, ~4 ms warm (was ~86 ms). The dock is not dimmed by the garden's light, so the
   sheets read the same in every phase.
 - One rhythm and one heading: `--rhythm-section` between sections, `--rhythm-head` under the heading
   block; `h2.dock-title` 27 px full ink (25 px on phones), `p.dock-helper` 20.5 px italic soft ink.

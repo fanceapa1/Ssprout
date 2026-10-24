@@ -184,7 +184,9 @@ boulders (`k` = paint scale ÷ 1.5).
 - `paperTexture(w, h, seed, { tint, base, grain, mottle, vignette, grainScale })` → canvas.
   `paperGrain(seed)` → the tileable grain field granulation and dry brush sample.
 - `createSimplex2D(rng)`, `createValueNoise2D(rng, period)`, `fbm(noise, x, y, opts)`,
-  `noiseGrid(...)`.
+  `noiseGrid(...)`. `createLazyValueNoise2D(rng, period)` is the same value noise, value for value,
+  but draws its lattice a row at a time when a row is first sampled: for noise read along a few
+  fixed rows, like the dock sheets' torn edges (ADR 0223).
 - Canvases (`canvas.ts`): `makeCanvas(w, h)` (OffscreenCanvas when available), `context2d`, and a
   pool of scratch canvases (`acquireWork` / `releaseWork`).
 - Pure geometry: `deformPolygon`, `organicOutline` / `outlineLayer`, `blob`, `stoneShape`,
