@@ -66,25 +66,27 @@ describe('scene paint slices (ADR 0226)', () => {
   // was a whole step: the meadow's 1.3 M canvas calls (overview), the big tree's 5.1 Mpx of drying
   // passes (trunk view), the boulder's 1.07 Mpx (close view). After it, single painter calls were
   // the longest parts: the pond's water recipe (310 k calls) and a boulder's stone (0.82 Mpx at
-  // 2.8 px per unit). Those now paint in parts too (ADR 0238), and what remains is a row of meadow
-  // cells (123 k calls) and a foliage clump's four drying passes (0.68 Mpx, the big tree up close).
-  // A drying pass reads and writes its layer in separate parts.
+  // 2.8 px per unit). Those now paint in parts too (ADR 0238), as do the trees' foliage clumps
+  // (0.68 Mpx at once on the big tree up close). What remains is a row of meadow cells (123 k
+  // calls) and a foreground tuft sprite, painted in one call (0.35 Mpx). A drying pass reads and
+  // writes its layer in separate parts.
   it.each(['overview', 'detail', 'trunk'])('no part of a step does more than one big mark’s work (%s)', (view) => {
     const { chunks } = runs[view]!;
     const most = (k: 'calls' | 'pixels') => chunks.reduce((a, c) => (c[k] > a[k] ? c : a));
     expect(most('calls').calls, most('calls').name).toBeLessThanOrEqual(130_000);
-    expect(most('pixels').pixels, most('pixels').name).toBeLessThanOrEqual(700_000);
+    expect(most('pixels').pixels, most('pixels').name).toBeLessThanOrEqual(400_000);
   });
 
-  // The engine's long calls pause inside too (ADR 0238): the pond's water, the reserve and every
-  // boulder's stone come in many parts, and in the steps made of washes, stones and big wet layers
-  // no part dries more than one layer.
-  it('pauses inside the engine’s long calls: water, the pond reserve and the boulders’ stones', () => {
+  // The engine's long calls pause inside too (ADR 0238): the pond's water, the reserve, every
+  // boulder's stone and every foliage clump come in many parts, and no part dries more than one
+  // wet layer, except small marks painted in one call: grass tufts (the background's, a boulder's or a
+  // foreground sprite) and the pond's ripple lines.
+  it('pauses inside the engine’s long calls: water, the pond reserve, stones and foliage', () => {
     const parts = (view: string, name: string) => runs[view]!.chunks.filter((c) => c.name === name).length;
     for (const step of ['water', 'pond-reserve', 'rock-left-big']) expect(parts('detail', step), step).toBeGreaterThan(20);
-    const washes = ['sky', 'hills', 'banks', 'meadow', 'grass', 'pond-reserve', 'water', 'reflections', 'path', 'margins', 'stones'];
+    expect(parts('trunk', 'tree-left')).toBeGreaterThan(500);
     for (const [view, r] of Object.entries(runs)) {
-      const heavy = r.chunks.filter((c) => c.reads > 1 && washes.includes(c.name)).map((c) => c.name);
+      const heavy = r.chunks.filter((c) => c.reads > 1 && !/^(tuft|rock-|water-detail)/.test(c.name)).map((c) => c.name);
       expect(heavy, view).toEqual([]);
     }
   });

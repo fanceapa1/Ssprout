@@ -79,7 +79,7 @@ export function* paintTree(p: Painter, rng: Rng, tree: TreeSpec): Strokes {
   const pig = foliageFor(d);
   const pads = [...tree.pads].sort((a, b) => b[2] - a[2]);
   for (const [x, y, r] of pads) {
-    p.foliageClump({ x, y }, r, pig, { rng, flatness: rng.range(0.5, 0.6), shadow: 0.45, opacity: 0.8 - d * 0.2, gaps: 0.25, density: 1 });
+    yield* p.parts.foliageClump({ x, y }, r, pig, { rng, flatness: rng.range(0.5, 0.6), shadow: 0.45, opacity: 0.8 - d * 0.2, gaps: 0.25, density: 1 });
     yield;
   }
   // shadow side of the main trunk: a broken ink accent
@@ -204,7 +204,7 @@ export function* paintShrub(p: Painter, rng: Rng, s: ShrubSpec): Strokes {
     shadow: atmos(PIGMENTS.sage, d),
     dark: atmos(mix(PIGMENTS.olive, PIGMENTS.sage, 0.5), d),
   };
-  p.foliageClump({ x: s.x, y: s.y - s.r * 0.42 }, s.r, pig, { rng, flatness: 0.6, shadow: 0.5, opacity: 0.7, gaps: 0.15, density: 1.1, dabSize: 0.26 });
+  yield* p.parts.foliageClump({ x: s.x, y: s.y - s.r * 0.42 }, s.r, pig, { rng, flatness: 0.6, shadow: 0.5, opacity: 0.7, gaps: 0.15, density: 1.1, dabSize: 0.26 });
   yield;
   // a couple of stems peeking out at the base
   for (let k = 0; k < 2; k++) {
