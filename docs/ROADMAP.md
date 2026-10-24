@@ -91,7 +91,7 @@ Phase 9: performance (owner request 2026-10-24). The page is laggy. Draw only wh
 | P9 | Service worker build manifest (precache list and version written into `dist/sw.js`) | `vite.config.ts` plugin, `scripts/` | in progress (ADR 0229) |
 | P10 | Service worker caching: precache, cache-first hashed assets, network-first HTML, old-version cleanup; notifications untouched | `public/sw.js` | queued (after P9; ADR 0230) |
 | P11 | Service worker registered at boot (idle, after the landscape); e2e blocks service workers by default, `sw.spec.ts` | `src/widget/notifications.ts`, `src/main.ts` (1 line), `playwright.config.ts`, `tests/e2e/sw.spec.ts` | queued (after P10) |
-| P12 | Fonts start loading before boot (preload/`document.fonts.load` of the 5 first-view files), one wave | `index.html` or `vite.config.ts`, `src/ui/index.ts` font imports | queued (ADR 0231) |
+| P12 | Fonts start loading before boot (preload/`document.fonts.load` of the 5 first-view files), one wave | `index.html` or `vite.config.ts`, `src/ui/index.ts` font imports | in progress (ADR 0231) |
 | P13 | Font trim (owner: Latin only): own `@font-face` for Latin + Latin-ext woff2, only the weights used, no woff | `src/ui/fonts.css` (new), `src/widget/index.ts` imports | queued |
 | P14 | Boot in stages, garden first: paper and scene start painting before plants, fauna, ambience and the dock; ambience sprites built per phase on first use | `src/main.ts`, `src/ambience/sprites.ts`, `src/ambience/ambience.ts` | queued (ADR 0232) |
 | P15 | The `?dev` API is loaded only with `?dev` (dynamic import, atomic `window.sprout`) | `src/main.ts`, `src/dev/install.ts` (new) | queued (ADR 0233) |
@@ -102,6 +102,6 @@ Phase 9: performance (owner request 2026-10-24). The page is laggy. Draw only wh
 | P20 | Scroll path: tips, format and wayfinding read layout once per frame | `src/ui/tips.ts`, `src/ui/format.ts`, `src/ui/wayfinding.ts` | queued |
 | P21 | Planting sheet layout off the click: the remaining ~75 ms first-open cost is `showModal` layout (content-visibility for off-screen cards, or lay the sheet out during the idle prewarm) | `src/ui/planting-sheet.ts`, `src/ui/ui.css` | queued |
 | P22 | Herbarium previews through the worker (still painted synchronously on open) | `src/ui/herbarium*` | queued |
-| P23 | Paint engine yields inside its long single calls: `WetLayer.dry` and the water/sky/bank recipes pause between row bands, same pixels (finishes P6) | `src/paint/wet.ts`, `src/paint/recipes*` | in progress (ADR 0238) |
+| P23 | Paint engine yields inside its long single calls: `WetLayer.dry` and the water/sky/bank recipes pause between row bands, same pixels (finishes P6) | `src/paint/wet.ts`, `src/paint/recipes*` | done (longest scene part at load 69–146 → 15–18 ms at 1×, 308 → 65 ms at 4×; pixel-identical; ADR 0238) |
 | P24 | Remaining UI work before the garden's first pixels: page paper, stage edge mask, paper grain, the calendar's first render; "Growing now" thumbnails through the plant-view worker | `src/ui/page*`, `src/ui/stage*`, `src/ui/calendar*`, `src/ui/session-list*` | queued |
 | P25 | Open the paint cache's IndexedDB store at the very start of boot (the lookup takes ~300 ms while boot holds the main thread) | `src/main.ts` (1–2 lines), `src/paint/persist.ts` | queued |
