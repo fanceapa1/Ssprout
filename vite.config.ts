@@ -1,11 +1,18 @@
 import { resolve } from 'node:path';
 import { defineConfig } from 'vitest/config';
+import { computePaintVersion } from './src/paint/paint-version.ts';
 
 const root = import.meta.dirname;
 
 // GitHub Pages serves the site from https://<user>.github.io/Ssprout/
-export default defineConfig({
+export default defineConfig(({ command }) => ({
   base: '/Ssprout/',
+  define: {
+    // A hash of every source that affects painted pixels, keying the persistent paint cache
+    // (src/paint/persist.ts, ADR 0227). The dev server and Vitest get 'dev', which turns the
+    // cache off: their sources change without a rebuild.
+    __PAINT_VERSION__: JSON.stringify(command === 'build' ? computePaintVersion(root) : 'dev'),
+  },
   build: {
     target: 'es2022',
     sourcemap: true,
@@ -39,4 +46,4 @@ export default defineConfig({
     maxWorkers: process.env.CI ? undefined : Number(process.env.VITEST_WORKERS ?? 3),
     // DOM tests opt in per file with: // @vitest-environment jsdom
   },
-});
+}));
