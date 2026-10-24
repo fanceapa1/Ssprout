@@ -89,30 +89,38 @@ test.describe('persistent paint cache', () => {
     await installHelpers(page);
     const stored = await page.evaluate(async () => {
       const cache = window.sprout!.paintCache;
+      // the app stores its own paintings too (the landscape, ADR 0228): count only this test's
       await cache.clear();
+      const before = await cache.stats();
       const t = window.__paintTest;
       const ok = await Promise.all([cache.put('test', 'opaque', t.build('opaque')), cache.put('test', 'alpha', t.build('alpha'))]);
-      return { ok, stats: await cache.stats() };
+      const after = await cache.stats();
+      return { ok, stats: after, puts: after.puts - before.puts };
     });
     expect(stored.ok).toEqual([true, true]);
-    expect(stored.stats).toMatchObject({ enabled: true, off: null, entries: 2, puts: 2, errors: 0 });
+    expect(stored.stats).toMatchObject({ enabled: true, off: null, entries: 2, errors: 0 });
+    expect(stored.puts).toBe(2);
     expect(stored.stats.version).toMatch(/^[0-9a-f]{12}-[0-9a-z]+$/);
 
     await page.reload();
     await page.waitForFunction(() => window.sprout !== undefined);
+    await page.evaluate(() => window.sprout!.ready());
     await installHelpers(page);
     const back = await page.evaluate(async () => {
       const cache = window.sprout!.paintCache;
+      const before = await cache.stats();
       const t = window.__paintTest;
       const opaque = t.compare('opaque', await cache.get('test', 'opaque'));
       const alpha = t.compare('alpha', await cache.get('test', 'alpha'));
       const missing = await cache.get('test', 'never-stored');
-      return { opaque, alpha, missing, stats: await cache.stats() };
+      const after = await cache.stats();
+      return { opaque, alpha, missing, stats: after, hits: after.hits - before.hits, misses: after.misses - before.misses };
     });
     expect(back.opaque).toEqual({ size: [640, 400], differ: 0, maxDelta: 0, pixels: 640 * 400 });
     expect(back.alpha).toEqual({ size: [256, 256], differ: 0, maxDelta: 0, pixels: 256 * 256 });
     expect(back.missing).toBeNull();
-    expect(back.stats).toMatchObject({ entries: 2, hits: 2, misses: 1, errors: 0 });
+    expect({ hits: back.hits, misses: back.misses }).toEqual({ hits: 2, misses: 1 });
+    expect(back.stats).toMatchObject({ errors: 0 });
     expect(back.stats.bytes).toBeGreaterThan(0);
   });
 
