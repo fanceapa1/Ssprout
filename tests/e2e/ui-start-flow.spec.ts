@@ -66,6 +66,9 @@ test.describe('ui · start flow details', () => {
     await expect(iris.locator('.plant-native')).toHaveText('Hanashōbu');
     await expect(iris.locator('.plant-desc')).toHaveText('Violet sails unfurled where the water meets the bank.');
     await expect(iris.locator('.plant-habitat')).not.toBeEmpty();
+    // the sheet opens at once and its previews fill in as they land (ADR 0222)
+    await page.evaluate(() => window.sprout!.ui.previewsReady());
+    await expect(iris.locator('.plant-art')).not.toHaveAttribute('data-preview', 'pending');
     const inked = await iris.locator('canvas.plant-preview').evaluate((c) => {
       const canvas = c as HTMLCanvasElement;
       const { data } = canvas.getContext('2d')!.getImageData(0, 0, canvas.width, canvas.height);
