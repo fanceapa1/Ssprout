@@ -69,8 +69,8 @@ tests/e2e/                Playwright specs + helpers (fixtures.ts, ui-helpers.ts
   build/                  build-time only (Node, imported by vite.config.ts): sw-manifest.ts, the
                           service worker's precache manifest (ADR 0229)
 scripts/                  shots.ts — capture screenshots to artifacts/ (gitignored) for review
-public/sw.js              the service worker: notifications (ADR 0092); the build writes its precache
-                          list and version into two placeholder lines (ADR 0229)
+public/sw.js              the service worker: notifications (ADR 0092) and caching (ADR 0230); the
+                          build writes its precache list and version into two placeholder lines (ADR 0229)
 studio.html               second Vite entry (deployed at /Ssprout/studio.html)
 docs/                     SPEC, ARCHITECTURE, ART_DIRECTION, ROADMAP, adr/, systems/, devlog/
 ```
@@ -723,7 +723,12 @@ Picture-in-Picture card.
 `self.__SW_VERSION__ = 'dev';` and `self.__PRECACHE__ = [];`. The production build
 (`swManifest` in `vite.config.ts`, `src/build/sw-manifest.ts`) replaces them in `dist/sw.js` with
 a 12-hex version and the list of absolute URLs the main entry needs (`/Ssprout/` first). The dev
-server keeps `'dev'` and `[]`. Keep both lines exactly as written: the build fails without them. It reads the controller through the structural `WidgetController`
+server keeps `'dev'` and `[]`. Keep both lines exactly as written: the build fails without them.
+**Caching (ADR 0230):** caches are `sprout-<version>` and `sprout-meta` (the active and previous
+version); activation keeps those two versions and never touches other names. Navigations are
+network-first with the cached `/Ssprout/` as the offline fallback, `/Ssprout/assets/*` is
+cache-first, everything else is not handled; version `'dev'` caches nothing and adds no fetch
+listener. It reads the controller through the structural `WidgetController`
 (`src/widget/contract.ts`), which `SessionController` satisfies (type-checked in a test). Wiring
 and policies: `docs/systems/widget.md`.
 
