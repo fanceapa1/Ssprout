@@ -603,6 +603,17 @@ export class WetLayer {
     this.ctx.clip();
   }
 
+  /**
+   * Rasterise the marks laid so far. The browser records canvas calls and rasterises them at the
+   * next pixel read, so a layer filled over many parts would pay for all of its marks in the
+   * drying pass's read; a caller that pauses between batches of marks flushes before each pause
+   * to pay for each batch in its own part (ADR 0238). A one-pixel read: pixels are unchanged.
+   */
+  flush(): void {
+    if (this.done || this.empty) return;
+    this.ctx.getImageData(0, 0, 1, 1);
+  }
+
   /** Run the drying pass and composite onto the target. Releases the layer. */
   dry(opts: DryOptions = {}, base?: ResolvedDry): void {
     drain(this.dryParts(opts, base));

@@ -135,6 +135,8 @@ function* paintPatches(p: Painter, rng: Rng, art: GroundArt, view: Rect, area: R
         L.lift(shape, r.range(0.3, 0.5));
       }
     }
+    // rasterise the row now, in its own part, not all rows in the drying pass's read (ADR 0238)
+    L.flush();
     // a row of cells at a time: the layer stays open (and wet) between them
     yield;
   }
@@ -179,6 +181,8 @@ function* paintGrass(p: Painter, rng: Rng, art: GroundArt, view: Rect, area: Rec
         c.fill();
       }
     }
+    // rasterise the row now, in its own part, not all rows in the drying pass's read (ADR 0238)
+    L.flush();
     // a row of cells at a time: the layer stays open (and wet) between them
     yield;
   }

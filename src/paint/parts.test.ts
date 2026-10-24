@@ -249,6 +249,28 @@ describe('a wet layer dries in parts (ADR 0238)', () => {
     // the layer is 480×320 work pixels: a few bands per pass, several passes
     expect(parts.parts).toBeGreaterThan(10);
   });
+
+  it('flush is one one-pixel read, and nothing on a dried or empty layer', () => {
+    const rec = new PaintRecorder();
+    const uninstall = rec.install();
+    try {
+      const p = createPainter(makeCanvas(200, 100), { seed: 1 });
+      const L = p.layer({ x: 0, y: 0, w: 100, h: 50 });
+      L.fill(POND, PIGMENTS.sage, 0.5);
+      rec.mark();
+      L.flush();
+      expect(rec.mark()).toEqual({ calls: 1, pixels: 1, reads: 1 });
+      L.dry();
+      const off = p.layer({ x: 5000, y: 5000, w: 10, h: 10 });
+      rec.mark();
+      L.flush();
+      off.flush();
+      expect(rec.mark().calls).toBe(0);
+      off.discard();
+    } finally {
+      uninstall();
+    }
+  });
 });
 
 /** The parts forms of the long recipes (`p.parts`), each a pinned one-call recipe above. */
