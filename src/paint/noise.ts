@@ -89,6 +89,43 @@ export function createValueNoise2D(rng: Rng, period = 256): Noise2D {
   };
 }
 
+/**
+ * The same noise as `createValueNoise2D(rng, period)` for the same `rng`, value for value, but the
+ * lattice is drawn a row at a time, the first time a row is sampled (ADR 0223). The rows come off
+ * the stream in order, so sampling row `r` draws rows `0…r`: noise read along a few fixed rows (a
+ * torn edge's 1-D noise) costs a few rows of draws instead of the whole `period²` lattice.
+ */
+export function createLazyValueNoise2D(rng: Rng, period = 256): Noise2D {
+  const size = Math.max(1, Math.floor(period));
+  const rows: Float32Array[] = [];
+  const fade = (t: number) => t * t * t * (t * (t * 6 - 15) + 10);
+  const row = (y: number): Float32Array => {
+    const r = ((y % size) + size) % size;
+    while (rows.length <= r) {
+      const next = new Float32Array(size);
+      for (let i = 0; i < size; i++) next[i] = rng.next() * 2 - 1;
+      rows.push(next);
+    }
+    return rows[r]!;
+  };
+  const col = (x: number) => ((x % size) + size) % size;
+  return (x, y) => {
+    const xi = Math.floor(x);
+    const yi = Math.floor(y);
+    const u = fade(x - xi);
+    const v = fade(y - yi);
+    const r0 = row(yi);
+    const r1 = row(yi + 1);
+    const x0 = col(xi);
+    const x1 = col(xi + 1);
+    const a = r0[x0]!;
+    const b = r0[x1]!;
+    const c = r1[x0]!;
+    const d = r1[x1]!;
+    return a + (b - a) * u + (c - a) * v + (a - b - c + d) * u * v;
+  };
+}
+
 export interface FbmOptions {
   /** number of octaves (default 4) */
   octaves?: number;

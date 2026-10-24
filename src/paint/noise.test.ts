@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createRng } from '../core/rng';
-import { createSimplex2D, createValueNoise2D, fbm, noiseGrid } from './noise';
+import { createLazyValueNoise2D, createSimplex2D, createValueNoise2D, fbm, noiseGrid } from './noise';
 
 const samples = (n: (x: number, y: number) => number) =>
   Array.from({ length: 200 }, (_, i) => n(i * 0.37 + 0.1, i * 0.19 - 3.3));
@@ -34,6 +34,31 @@ describe('value noise', () => {
       expect(n(x + 16, y)).toBeCloseTo(n(x, y), 6);
       expect(n(x, y - 32)).toBeCloseTo(n(x, y), 6);
     }
+  });
+});
+
+describe('lazy value noise (ADR 0223)', () => {
+  it('is the same noise as createValueNoise2D, value for value, in any sampling order', () => {
+    for (const period of [256, 16]) {
+      const full = createValueNoise2D(createRng(`v${period}`), period);
+      const lazy = createLazyValueNoise2D(createRng(`v${period}`), period);
+      // rows read out of order, negative and past the period on both axes
+      for (const y of [7.5, 0.5, 3.5, -2.25, 24.8, 300.1]) {
+        for (let i = -40; i < 400; i++) expect(lazy(i * 1.37, y)).toBe(full(i * 1.37, y));
+      }
+    }
+  });
+
+  it('draws only the rows up to the deepest one it samples', () => {
+    const rng = createRng('rows');
+    let draws = 0;
+    const counted = { ...rng, next: () => (draws++, rng.next()) };
+    const n = createLazyValueNoise2D(counted, 256);
+    expect(draws).toBe(0);
+    for (let s = 0; s < 2000; s++) n(s / 3, 3.5);
+    expect(draws).toBe(5 * 256); // rows 0…4
+    n(10, 0.5);
+    expect(draws).toBe(5 * 256);
   });
 });
 
