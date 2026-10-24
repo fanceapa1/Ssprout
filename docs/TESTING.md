@@ -61,7 +61,9 @@ tests (`test-results/`).
   - `sprout.plantsReady()`: plant sprites painted, nothing snapped.
   - `sprout.plants.settle()`: growth and fades snapped, sprites painted.
   - `sprout.scenePainted()`: no background repaint pending.
-  - `waitFrames(page, n)`: n renderer frames, via `sprout.frameStats().frames`.
+  - `waitFrames(page, n)`: n renderer frames, via `sprout.frameStats().frames`. With the stage
+    scrolled out of view the garden draws nothing (ADR 0224), so it counts n browser frames then;
+    `waitBrowserFrames(page, n)` always counts browser frames. `sprout.stageVisible()` says which.
   - `window.studio.ready`: the studio is mounted. It paints lazily: `await window.studio.settle()` before reading pixels (ADR 0006).
 
   The one deliberate `setTimeout` is the smoke test that *measures* the speed clock against real
@@ -447,6 +449,7 @@ Legend: unit tests as `folder/file › test`, under `src/` (`.test.ts` omitted).
 | 12.32 | Sheets lay out again when a section grows, the window resizes or the calendar changes view; never on a tick or a scroll; a sheet that grows keeps its top and sides | ui/backdrop › draws once per size…; ui/backdrop-sheet › keeps its edges when the sheet grows taller…; ui/backdrop-sheet.cost › under 70 000 draws for a new section; › a resize redraws only the fibres and the rim (ADR 0223) | backdrops · desktop › sheets lay out again when a section grows or the window resizes, never on a tick or a scroll | ✔ |
 | 12.33 | The path's lane and its stones stay outside the sheets, a stone beside each heading on its sheet | ui/backdrop-sheet › lies under the lower and right edges, never out to the left… | backdrops · desktop › the path’s lane and its stones stay outside the sheets…; backdrops · phone › each view of the calendar… (the lane); wayfinding (all, stops measured outside the sheet's margin) | ✔ |
 | 12.34 | Text on the sheets reads at ≥ 4.5 : 1, measured from the pixels under it, in all four lights (desktop), at hd, and on phones (midday, night); the waiting card in both modes ("See them" with three growing on desktop, the seal "Start" with two on phones) | — | backdrops · desktop › every text on the sheets reads at ≥ 4.5 : 1 from its pixels · sunrise / midday / sunset / night; backdrops · hd › …; backdrops · phone › … midday / night (hour-proof: real, 00:30, 15:45, 17:00, 23:50; devlog 41); v2-acceptance › … every dock text ≥ 4.5:1 on its sheet | ✔ |
+| 12.35 | The garden draws nothing while its stage is scrolled out of view, and draws again as it comes back (from the last frame, `dt` clamped); explicit frames (`freeze`, `renderOnce`, `camera.settle()`) still draw; sessions, the title countdown and the dock keep running (ADR 0224) | render/renderer › off-screen stage (ADR 0224) (all: no frame hidden; resumes with a clamped dt; renderOnce and freeze while hidden; a resize while hidden repaints on the first frame back; pauseWhenOffscreen follows an IntersectionObserver) | offscreen › scrolled to the dock the garden draws no frames…; › explicit frames still draw while off-screen…; › a running session keeps counting while the garden is scrolled away | ✔ |
 
 ### §12a Camera & plant cards (ADRs 0160–0168)
 

@@ -89,10 +89,38 @@ export async function openDev(page: Page, query = ''): Promise<void> {
 /**
  * Wait for `n` rendered garden frames (the renderer's own frame counter, `sprout.frameStats()`),
  * instead of sleeping for a wall-clock time: on a loaded machine frames simply arrive later.
+ * While the stage is scrolled out of view the garden draws nothing (ADR 0224): then `n` browser
+ * frames count instead.
  */
 export async function waitFrames(page: Page, n: number): Promise<void> {
   await page.evaluate(() => window.sprout!.resetFrameStats());
-  await page.waitForFunction((count) => window.sprout!.frameStats().frames >= count, n, { polling: 'raf' });
+  await page.evaluate(
+    (count) =>
+      new Promise<void>((done) => {
+        let browserFrames = 0;
+        const tick = () => {
+          browserFrames++;
+          const s = window.sprout!;
+          if (s.frameStats().frames >= count || (!s.stageVisible() && browserFrames >= count)) done();
+          else requestAnimationFrame(tick);
+        };
+        requestAnimationFrame(tick);
+      }),
+    n,
+  );
+}
+
+/** Wait for `n` browser frames (rAF callbacks), whether or not the garden draws them. */
+export async function waitBrowserFrames(page: Page, n: number): Promise<void> {
+  await page.evaluate(
+    (count) =>
+      new Promise<void>((done) => {
+        let left = count;
+        const tick = () => (--left <= 0 ? done() : requestAnimationFrame(tick));
+        requestAnimationFrame(tick);
+      }),
+    n,
+  );
 }
 
 /** Average RGB + spread of the garden canvas, read back from the page. */
