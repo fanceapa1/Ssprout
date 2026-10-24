@@ -866,6 +866,10 @@ dialog :focus-visible {
 .backdrop:not([data-paints]) {
   visibility: hidden;
 }
+/* drawn when the section nears the window (ADR 0225): a sheet caught in view settles in softly */
+.backdrop[data-paints] {
+  animation: ui-fade-in var(--ui-mid, 420ms) ease-out;
+}
 .backdrop-shadow {
   position: absolute;
   left: 0;
@@ -1224,6 +1228,13 @@ dialog :focus-visible {
   width: 100%;
   max-width: 300px;
   aspect-ratio: 1 / 1;
+}
+/* painted when the section nears the window (ADR 0225): the first painting fades in, never pops */
+.plant-view:not([data-paints]) .plant-frame {
+  opacity: 0;
+}
+.plant-frame {
+  transition: opacity var(--ui-mid, 420ms) ease-out;
 }
 .plant-canvas,
 .plant-backdrop {

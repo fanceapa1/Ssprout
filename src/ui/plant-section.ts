@@ -2,10 +2,11 @@ import { WATERING_SECONDS } from '../plants/watering';
 import type { PlantInstance } from '../core/state';
 import { createRng } from '../core/rng';
 import { createPainter, mix, PIGMENTS } from '../paint';
-import { renderPlantView } from '../plants/view';
+import { drawPlantView, renderPlantView } from '../plants/view';
 import type { UIContext } from './context';
 import { h, setText } from './dom';
 import { formatDay, inSentence } from './format';
+import type { NearView } from './near-view';
 import { renderPlantPreview } from './previews';
 
 /**
@@ -15,6 +16,12 @@ import { renderPlantPreview } from './previews';
  * or `water()` — the hook the automatic focus watering will call), and wilts away if the session
  * is ended. Idle, it quietly shows the most recent bloom with its task, or an empty bed waiting
  * for a first session. No guilt, no counts.
+ *
+ * Painted when it is due (ADR 0225): `render` re-reads the session and only marks the painting to
+ * be redone. With `near`, the painting waits for the garden's first paint and for the section to
+ * near the window (a new plant, mode or size may also paint on an idle moment; growth alone waits
+ * to be seen). Sprites come from the plant view's worker (`drawPlantView`): until they land the
+ * previous painting stays, so nothing is painted on the main thread in a click.
  */
 export type PlantViewMode = 'growing' | 'bloom' | 'empty';
 
@@ -30,8 +37,10 @@ export interface PlantViewState {
 
 export interface PlantSection {
   mount(body: HTMLElement): () => void;
-  /** re-read the session and repaint (the controller ticks once a second) */
+  /** re-read the session and mark the painting to be redone (the controller ticks once a second) */
   render(): void;
+  /** paint now if the painting is out of date, and resolve once its sprites have landed and it is drawn */
+  settle(): Promise<void>;
   /** play the watering animation; false when there is no plant or it is already pouring */
   water(): boolean;
   state(): PlantViewState;
@@ -123,7 +132,13 @@ export function paintRoundWindow(canvas: HTMLCanvasElement, seed = 1): void {
   });
 }
 
-export function createPlantSection(ctx: UIContext): PlantSection {
+export interface PlantSectionOptions {
+  /** paint when the section nears the window, after the garden's first paint (ADR 0225) */
+  near?: NearView | null;
+}
+
+export function createPlantSection(ctx: UIContext, opts: PlantSectionOptions = {}): PlantSection {
+  const near = opts.near ?? null;
   const { controller, store, bus, getSpecies, reducedMotion } = ctx.deps;
   const canvas = h('canvas.plant-canvas', { role: 'img' });
   const backdrop = h('canvas.plant-backdrop', { 'aria-hidden': 'true' });
@@ -146,6 +161,13 @@ export function createPlantSection(ctx: UIContext): PlantSection {
   let raf: number | null = null;
   let lastPaintKey = '';
   let mounted = false;
+  /** what the painting last drawn shows, without the growth (a change may paint on an idle moment) */
+  let paintedLook = '';
+  /** a sprite the painting needs is being painted in the worker */
+  let waiting: Promise<unknown> | null = null;
+  /** the worker could not paint a sprite: paint on this thread from then on, as before ADR 0225 */
+  let inline = false;
+  let paints = 0;
 
   const lastBloom = (): PlantInstance | null => {
     let best: PlantInstance | null = null;
@@ -178,6 +200,16 @@ export function createPlantSection(ctx: UIContext): PlantSection {
     return true;
   }
 
+  const look = () => (wilt ? `wilt|${wilt.speciesId}|${wilt.seed}` : `${mode}|${speciesId}|${seed}`);
+
+  function drawn(): void {
+    paints++;
+    paintedLook = look();
+    root.dataset.paints = String(paints);
+    // what the painting shows (mode, plant, seed): tests check it is current once scrolled to
+    root.dataset.painted = paintedLook;
+  }
+
   function paint(now: number): void {
     if (!mounted || !sizeCanvas()) return;
     const watering = wateringStart === null ? null : Math.min(1, (now - wateringStart) / WATER_MS);
@@ -185,20 +217,45 @@ export function createPlantSection(ctx: UIContext): PlantSection {
     const key = `${mode}|${speciesId}|${seed}|${growth.toFixed(4)}|${watering ?? '-'}|${wilting ?? '-'}|${canvas.width}x${canvas.height}`;
     if (key === lastPaintKey) return;
     lastPaintKey = key;
-    if (wilt && wilting !== null) {
-      renderPlantView(canvas, { speciesId: wilt.speciesId, seed: wilt.seed, growth: wilt.growth, watering: null, wilt: wilting, framing: 'growth' });
-      return;
-    }
-    if (mode === 'empty' || !speciesId) {
+    const view =
+      wilt && wilting !== null
+        ? { speciesId: wilt.speciesId, seed: wilt.seed, growth: wilt.growth, watering: null, wilt: wilting, framing: 'growth' as const }
+        : mode === 'empty' || !speciesId
+          ? null
+          : // framed on what has grown, so a just-planted seed fills the window instead of a speck (devlog 25)
+            { speciesId, seed, growth, watering, framing: 'growth' as const };
+    if (!view) {
       paintEmptyBed(canvas, 1);
+      drawn();
       return;
     }
-    // framed on what has grown, so a just-planted seed fills the window instead of a speck (devlog 25)
-    const ok = renderPlantView(canvas, { speciesId, seed, growth, watering, framing: 'growth' });
-    if (!ok) {
-      const def = getSpecies(speciesId);
+    const r = inline ? { state: renderPlantView(canvas, view) ? ('drawn' as const) : ('unknown' as const) } : drawPlantView(canvas, view);
+    if (r.state === 'pending') {
+      // the worker is painting a sprite: keep the last painting, draw again once it has landed
+      lastPaintKey = '';
+      const w = r.ready.then((ok) => {
+        if (waiting === w) waiting = null;
+        if (!ok) inline = true;
+        requestPaint(true);
+      });
+      waiting = w;
+      return;
+    }
+    if (r.state === 'unknown' && !wilt) {
+      const def = getSpecies(view.speciesId);
       if (def) renderPlantPreview(canvas, def, seed, growth);
     }
+    drawn();
+  }
+
+  /** Paint when due: now-ish if the section is near the window, else when it nears it (or idle). */
+  function requestPaint(idle = look() !== paintedLook || paints === 0): void {
+    if (!mounted) return;
+    if (!near) {
+      paint(performance.now());
+      return;
+    }
+    near.request(root, () => paint(performance.now()), { idle });
   }
 
   function loop(now: number): void {
@@ -214,7 +271,9 @@ export function createPlantSection(ctx: UIContext): PlantSection {
       update();
       ctx.changed();
     }
-    paint(now);
+    // the watering and the wilt play only where they can be seen; off-screen they wait
+    if (!near || near.near(root)) paint(now);
+    else requestPaint();
     if (wateringStart !== null || wilt) raf = requestAnimationFrame(loop);
   }
 
@@ -277,7 +336,15 @@ export function createPlantSection(ctx: UIContext): PlantSection {
 
   function render(): void {
     update();
-    paint(performance.now());
+    requestPaint();
+  }
+
+  async function settle(): Promise<void> {
+    for (let i = 0; i < 6 && mounted; i++) {
+      paint(performance.now());
+      if (!waiting) return;
+      await waiting;
+    }
   }
 
   function water(): boolean {
@@ -309,7 +376,7 @@ export function createPlantSection(ctx: UIContext): PlantSection {
     mount(body) {
       body.append(root);
       mounted = true;
-      const ro = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(() => paint(performance.now()));
+      const ro = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(() => requestPaint());
       ro?.observe(canvas);
       render();
       return () => {
@@ -322,6 +389,7 @@ export function createPlantSection(ctx: UIContext): PlantSection {
       };
     },
     render,
+    settle,
     water,
     state: () => ({ mode, speciesId, growth, watering: wateringStart !== null, wilting: wilt !== null }),
   };
