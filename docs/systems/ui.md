@@ -67,7 +67,7 @@ the widget surfaces — the UI then asks in the Begin click itself.
 | `plant-labels.ts` | hover a finished plant → "task · minutes · date" (the plant system's painted-pixel hit-test with a camera, else `hitPlant` over sprite boxes and taps too); hidden while a plant card is open |
 | `stage-camera.ts` | the camera on the stage (ADRs 0164, 0168): ctrl/⌘ wheel and pinch zoom, double-click/tap, drag only when zoomed, touch-action switch, + / − / Whole garden chips, keys on the focused canvas, cursor hints, clicks → plant card; glides to the seedling on start/switch, to the whole garden on placement |
 | `plant-card.ts` | the plant card (ADR 0167): `plantStory()` / `storyLines()` (pure), a dialog `.plant-story` beside the plant or docked on phones (up to 62 % of the stage); Esc / close / click away; a seedling's card refreshes each tick; a taller card keeps its name and scrolls `.plant-story-body` with `data-more="above below"`, a fade at the cut and an ink mark, the body a focusable region only while it scrolls (ADR 0190) |
-| `previews.ts` | `renderPlantPreview(canvas, species, seed, growth?, createCanvas?)`, `createPreviewCache(getSpecies, createCanvas?)`, pressed-flower pixels |
+| `previews.ts` | `renderPlantPreview(canvas, species, seed, growth?, createCanvas?)`, `createPreviewCache(getSpecies, createCanvas?)`: `get`/`paint` draw now (herbarium); `prewarm`/`paintReady`/`whenReady`/`paintPlot` never paint a sprite on the main thread (planting sheet, ADR 0222); `paintPlot`, `previewPixels`, `previewSeed`, pressed-flower pixels |
 | `paper.ts` | seeded deckled washi slips + grain as CSS custom properties (ADR 0052); `--brush-mark`, the vermilion stroke under a chosen chip, plan, tool or tier (ADR 0194) |
 | `icons.ts` | ink icons as stroke data: inline SVG (`ICONS`) and Path2D (`drawIcon`) (no emoji, no icon fonts); the sprout mark (`sproutMarkSvg`, `drawSproutMark`) that replaces every round red dot (ADR 0194) |
 | `format.ts` | pure copy helpers: tiers, habitats, spoken durations, milestones, tip priorities |
@@ -166,8 +166,23 @@ bloom / End ──▶ nothing active: rows offer Resume (the one left last as a 
 - First Begin asks for notification permission: the widget surfaces do it inside `session:start`
   (or the UI, if given a `NotificationIntegration`); the answer is stored with
   `controller.updateSettings({ notifications })`.
-- Plant previews use the shared `renderPlantView` (src/plants/view.ts, same renderer as the
-  widget); species it doesn't know (the dev fixtures) fall back to `renderPlantPreview`.
+- Plant previews use the shared PlantView (src/plants/view.ts, same renderer as the widget);
+  species it doesn't know fall back to `renderPlantPreview`.
+- **The sheet opens at once (ADR 0222).** Opening it paints no species: each card calls
+  `previews.paintReady`, which draws only a preview that needs no main-thread paint (composed
+  already, or its prewarm has landed). Otherwise the card shows the **waiting plot**, a small pale
+  patch of turned earth where the plant will stand (`data-preview="pending"`). When the worker's
+  sprite lands, the preview fades in over the plot (`landed`, 35 % → 100 % in `--ui-mid`, none
+  under reduced motion). A card drawn at once is `painted`. Cards on screen are hurried first (an
+  `IntersectionObserver` → `previews.whenReady`, the `drawPlantView` pending path), and the rest
+  follow once those have landed.
+- **Prewarm**: `planting.prewarm()` queues every selectable preview at idle priority in card order.
+  `createUI` calls it on the first idle callback after `deps.whenGardenReady()` (main:
+  `renderer.whenReady()`), and on `pointerover`/`focusin` of a Start control
+  (`[data-anchor="start"]`, "Plant another"). A preview is composed as soon as its prewarm lands,
+  so a later open only blits. The prewarm key is the card canvas's pixel size, DPR included
+  (`previewPixels`). `ui.previewsReady()` (dev: `sprout.ui.previewsReady()`) resolves once every
+  card shows its preview. The herbarium keeps the synchronous `paint`.
 - Placement makes the dock, pill and corner tools `inert` (dock faded, pill hidden), glides the page
   to the top so the whole garden is the map; markers follow the renderer's viewport.
 - After Begin, focus lands on the pill's Pause (the page stays on the garden). The pill's
@@ -310,7 +325,7 @@ clock and refreshes the UI (e.g. into a break or a long pause); `window.sprout.a
 jumps it forward to the next local time of day (pins the hour for tests).
 
 ## Tests
-Unit: `backdrop-sheet.test.ts`, `backdrop.test.ts`, `dock-guide.test.ts`, `wayfinding-path.test.ts`, `session-list.test.ts`, `format.test.ts`, `plan-line.test.ts`, `plant-labels.test.ts`, `previews.test.ts`,
+Unit: `backdrop-sheet.test.ts`, `backdrop.test.ts`, `dock-guide.test.ts`, `wayfinding-path.test.ts`, `session-list.test.ts`, `format.test.ts`, `plan-line.test.ts`, `plant-labels.test.ts`, `previews.test.ts`, `planting-sheet.test.ts`,
 `ambient-light.test.ts`, `scroll-math.test.ts`, `smooth-scroll.test.ts`, `dock.test.ts`, `stage-edge.test.ts`, `ink.test.ts`,
 `tip-place.test.ts`, `plant-card.test.ts`, `pickers.test.ts`, `prefill.test.ts` (calendar: `calendar-model.test.ts`).
 E2E: `tests/e2e/backdrops.spec.ts` (a sheet per section holding its content, the calendar's the

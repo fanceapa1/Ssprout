@@ -80,9 +80,11 @@ agent) picks up the work next.
   all touch it. Keep your change to a few lines, rebase before you finish, and mention it in your
   devlog.
 - **`?speed` only works with `?dev`** (`?dev&speed=60`). Without `?dev` there is no `window.sprout`.
-- **The planting sheet paints every species preview synchronously**, so opening it is the slowest
-  UI step, and its 900 ms rise animation makes Playwright wait for cards to settle. UI specs use
-  `openUi`, which applies `calmUiMotion` (docs/TESTING.md).
+- **The planting sheet opens at once and its previews fill in as they land** (ADR 0222): a card
+  shows a pale waiting plot until its sprite comes from the plant view's worker. Await
+  `sprout.ui.previewsReady()` before reading or shooting previews. Its 900 ms rise animation makes
+  Playwright wait for cards to settle, so UI specs use `openUi`, which applies `calmUiMotion`
+  (docs/TESTING.md).
 - **The `placeholder-sprout` is a unit-test fixture** (`src/dev/placeholder-sprout.ts`), not in the
   registry. Use `?fixtures` (`fx-*`) species for UI flows and real species for art.
 - **The studio paints lazily** (ADR 0006): cards paint near the screen within a frame budget.
