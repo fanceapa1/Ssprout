@@ -25,12 +25,16 @@ async function registerAndControl(page: Page): Promise<void> {
   });
 }
 
-/** A font file the CSS references but the precache leaves out (another subset, or a `.woff`). */
-async function uncachedFont(page: Page, urls: string[]): Promise<string> {
-  const sheets = urls.filter((u) => u.endsWith('.css'));
-  const text = await page.evaluate((list) => Promise.all(list.map((u) => fetch(u).then((r) => r.text()))), sheets);
-  const fonts = text.join('\n').match(/\/Ssprout\/assets\/[\w-]+\.woff2?/g) ?? [];
-  return fonts.find((u) => !urls.includes(u))!;
+/**
+ * A build file under `assets/` that the precache leaves out: the studio's own CSS or chunk, named
+ * in the served studio.html (the precache never lists studio files, ADR 0229).
+ */
+async function uncachedAsset(page: Page, urls: string[]): Promise<string> {
+  const html = await page.evaluate(() => fetch('/Ssprout/studio.html').then((r) => r.text()));
+  const assets = html.match(/\/Ssprout\/assets\/[\w-]+\.(?:css|js)/g) ?? [];
+  const left = assets.filter((u) => !urls.includes(u));
+  expect(left, 'a studio file outside the precache').not.toEqual([]);
+  return left.find((u) => u.endsWith('.css')) ?? left[0]!;
 }
 
 const cachedUrls = (page: Page, name: string) =>
@@ -55,17 +59,17 @@ test.describe('caching service worker', () => {
     expect(served.get(entry), 'the entry script comes from the worker').toBe(true);
     expect(served.get('/Ssprout/'), 'the page goes through the worker (network first)').toBe(true);
 
-    // an asset outside the precache is fetched once, then kept in this version's cache
-    const font = await uncachedFont(page, urls);
-    expect(await page.evaluate((u) => fetch(u).then((r) => r.status), font)).toBe(200);
-    await expect.poll(() => cachedUrls(page, `sprout-${version}`)).toContain(font);
+    // an asset outside the precache (a studio file) is fetched once, then kept in this version's cache
+    const miss = await uncachedAsset(page, urls);
+    expect(await page.evaluate((u) => fetch(u).then((r) => r.status), miss)).toBe(200);
+    await expect.poll(() => cachedUrls(page, `sprout-${version}`)).toContain(miss);
   });
 
   test('offline, a reload still renders the garden from the cache', async ({ page, request, context, errors }) => {
     const { urls } = await manifest(request);
     await openDev(page);
     await registerAndControl(page);
-    const font = await uncachedFont(page, urls);
+    const miss = await uncachedAsset(page, urls);
 
     await context.setOffline(true);
     await page.reload();
@@ -78,7 +82,7 @@ test.describe('caching service worker', () => {
     expect(errors, 'nothing failed to load offline').toEqual([]);
     // the network really is gone: an asset the worker never cached does not load (and the
     // browser logs that one expected failure)
-    expect(await page.evaluate((u) => fetch(u).then(() => 'loaded', () => 'failed'), font)).toBe('failed');
+    expect(await page.evaluate((u) => fetch(u).then(() => 'loaded', () => 'failed'), miss)).toBe('failed');
     await expect.poll(() => errors).toEqual(['console: Failed to load resource: net::ERR_FAILED']);
     errors.length = 0;
     await context.setOffline(false);
