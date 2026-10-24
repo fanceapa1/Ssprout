@@ -57,6 +57,9 @@ async function stubPageAndNotifications(page: Page, perm: NotificationPermission
   }, perm);
 }
 
+// notifications go through the app's service worker registration (blocked elsewhere)
+test.use({ serviceWorkers: 'allow' });
+
 /** Open ?dev on a fresh, seeded garden (the widget surfaces are wired in main.ts). */
 async function openWidgetDev(page: Page, query = ''): Promise<void> {
   await openDev(page, query);

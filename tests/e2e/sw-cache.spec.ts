@@ -2,10 +2,14 @@ import type { APIRequestContext, Page } from '@playwright/test';
 import { canvasStats, expect, openDev, test } from './fixtures';
 
 /**
- * The caching service worker (ADR 0230) against the production build. The app does not register
- * the worker at boot yet (P11), so each test registers `/Ssprout/sw.js` from the page and waits
- * until it controls the page. Every test gets a fresh browser context, so nothing carries over.
+ * The caching service worker (ADR 0230) against the production build. The app registers
+ * `/Ssprout/sw.js` by itself once the garden has painted and the page is idle; each test waits for
+ * that (`sprout.sw.ready()`) and for the worker to control the page. Service workers are blocked
+ * in the other specs (playwright.config.ts); this one opts in. Every test gets a fresh browser
+ * context, so nothing carries over.
  */
+
+test.use({ serviceWorkers: 'allow' });
 
 /** The build's version and precache list, read from the served sw.js (ADR 0229). */
 async function manifest(request: APIRequestContext): Promise<{ version: string; urls: string[] }> {
@@ -15,10 +19,10 @@ async function manifest(request: APIRequestContext): Promise<{ version: string; 
   return { version, urls };
 }
 
-/** Register the worker as P11 will, and wait until it has installed, activated and claimed the page. */
-async function registerAndControl(page: Page): Promise<void> {
+/** Wait until the app has registered the worker by itself, and it has installed, activated and claimed the page. */
+async function appControl(page: Page): Promise<void> {
+  expect(await page.evaluate(() => window.sprout!.sw.ready())).toEqual({ scope: expect.stringMatching(/\/Ssprout\/$/) });
   await page.evaluate(async () => {
-    await navigator.serviceWorker.register('/Ssprout/sw.js', { scope: '/Ssprout/' });
     await navigator.serviceWorker.ready;
     if (navigator.serviceWorker.controller) return;
     await new Promise((done) => navigator.serviceWorker.addEventListener('controllerchange', done, { once: true }));
@@ -44,10 +48,12 @@ const cachedUrls = (page: Page, name: string) =>
   }, name);
 
 test.describe('caching service worker', () => {
-  test('precaches the build, serves a reload from the worker and caches an asset miss', async ({ page, request }) => {
+  test('the app registers the worker by itself; it precaches the build, serves a reload and caches an asset miss', async ({ page, request }) => {
     const { version, urls } = await manifest(request);
     await openDev(page);
-    await registerAndControl(page);
+    await appControl(page);
+    // one registration, the app's own (the notifications path shares it)
+    expect(await page.evaluate(async () => (await navigator.serviceWorker.getRegistrations()).map((r) => new URL(r.scope).pathname))).toEqual(['/Ssprout/']);
     expect((await cachedUrls(page, `sprout-${version}`)).sort()).toEqual([...urls].sort());
 
     const served = new Map<string, boolean>();
@@ -55,6 +61,7 @@ test.describe('caching service worker', () => {
     await page.reload();
     await page.waitForFunction(() => window.sprout !== undefined);
     await page.evaluate(() => window.sprout!.ready());
+    expect(await page.evaluate(() => window.sprout!.sw.controlled()), 'the reloaded page is controlled').toBe(true);
     const entry = urls.find((u) => /\/assets\/main-[\w-]+\.js$/.test(u))!;
     expect(served.get(entry), 'the entry script comes from the worker').toBe(true);
     expect(served.get('/Ssprout/'), 'the page goes through the worker (network first)').toBe(true);
@@ -68,7 +75,7 @@ test.describe('caching service worker', () => {
   test('offline, a reload still renders the garden from the cache', async ({ page, request, context, errors }) => {
     const { urls } = await manifest(request);
     await openDev(page);
-    await registerAndControl(page);
+    await appControl(page);
     const miss = await uncachedAsset(page, urls);
 
     await context.setOffline(true);
@@ -90,7 +97,8 @@ test.describe('caching service worker', () => {
 
   test('activation deletes other versions but keeps the previous one', async ({ page, request }) => {
     const { version } = await manifest(request);
-    await openDev(page);
+    // seed the caches from a page in scope that does not register the worker (the app would)
+    await page.goto('sw.js');
     await page.evaluate(async () => {
       for (const name of ['sprout-000000000000', 'sprout-111111111111', 'other-app']) {
         await (await caches.open(name)).put('/Ssprout/assets/x.js', new Response('x'));
@@ -98,15 +106,18 @@ test.describe('caching service worker', () => {
       const meta = await caches.open('sprout-meta');
       await meta.put('/Ssprout/sprout-active-version', new Response(JSON.stringify({ version: '111111111111' })));
     });
-    await registerAndControl(page);
+    await openDev(page);
+    await appControl(page);
     expect((await page.evaluate(() => caches.keys())).sort()).toEqual(
       ['other-app', 'sprout-111111111111', `sprout-${version}`, 'sprout-meta'].sort(),
     );
   });
 
   test('a notification click focuses the garden tab', async ({ page, context }) => {
-    await openDev(page);
-    const [worker] = await Promise.all([context.waitForEvent('serviceworker'), registerAndControl(page)]);
+    const [worker] = await Promise.all([
+      context.waitForEvent('serviceworker'),
+      openDev(page).then(() => appControl(page)),
+    ]);
     // Headless Chromium shows no real notification to click: dispatch the event in the worker,
     // with `focus` recorded instead of performed (it needs a real click's user activation).
     const focused = await worker.evaluate(async () => {

@@ -14,6 +14,10 @@ import { defineConfig, devices } from '@playwright/test';
  * workers and the planting sheet paints every species preview synchronously, which can take
  * seconds under CPU contention. Tests never sleep; they wait for explicit readiness signals
  * (docs/TESTING.md). CI retries once and keeps traces, screenshots and the HTML report.
+ *
+ * Service workers are blocked by default: the app registers its caching worker at boot (ADR 0230),
+ * and a spec must not depend on what an earlier page load cached. The specs about the worker
+ * (sw-*.spec.ts, widget.spec.ts) opt in with `test.use({ serviceWorkers: 'allow' })`.
  */
 const port = Number(process.env.E2E_PORT ?? 4173);
 const ci = !!process.env.CI;
@@ -31,6 +35,7 @@ export default defineConfig({
     baseURL: `http://127.0.0.1:${port}/Ssprout/`,
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
+    serviceWorkers: 'block',
   },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
   webServer: {
