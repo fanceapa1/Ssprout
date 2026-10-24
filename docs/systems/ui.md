@@ -96,9 +96,18 @@ the widget surfaces — the UI then asks in the Begin click itself.
   falls back to the system serif. Each face is a latin-ext rule and a latin rule with fontsource's
   `unicode-range`s, so the latin-ext file loads only when a character needs it. `font-display: swap`.
 - **First view**: 3 files (Shippori 500, Cormorant 500 and 500 italic, latin, about 76 kB).
+- **Preloaded** (ADR 0231): the built `index.html` has `<link rel="preload" as="font"
+  type="font/woff2" crossorigin>` for exactly those 3 files, so they load with the HTML's own
+  requests and the text is in its own fonts at the first paint (no fallback flash, no reflow of tips
+  and the guiding path). A build-only plugin in `vite.config.ts` adds them, finding the hashed files
+  by their fontsource names (`FIRST_VIEW_FONTS` in `src/build/font-preload.ts`). A missing face
+  fails the build. `crossorigin` is required, or the file is fetched twice. The dev server and the
+  studio have no preloads. Cost: on slow 4G the 76 kB share the link with the JS, so the first paint
+  comes about 370 ms later in the lab. Preloading only some files keeps the reflow.
 - **Adding a weight or style**: add its two rules, copying the ranges. A file under 4 kB needs
   `?no-inline`, or Vite inlines it into the render-blocking CSS. Then update the count in
-  `tests/e2e/fonts.spec.ts`. A weight with no rule is matched to the nearest declared face: canvas
+  `tests/e2e/fonts.spec.ts`. If the first view uses it, add it to `FIRST_VIEW_FONTS` and to
+  `tests/e2e/font-preload.spec.ts`. A weight with no rule is matched to the nearest declared face: canvas
   strings without a weight (400) for Shippori draw with the 500 face.
 
 ## Page layout
