@@ -1,8 +1,4 @@
-import '@fontsource/cormorant-garamond/500.css';
-import '@fontsource/cormorant-garamond/600.css';
-import '@fontsource/cormorant-garamond/400-italic.css';
-import '@fontsource/cormorant-garamond/500-italic.css';
-import '@fontsource/shippori-mincho/latin-500.css';
+import '../ui/fonts.css';
 import type { Clock } from '../core/clock';
 import { createIntervalTicker } from '../core/controller';
 import type { Store } from '../core/state';

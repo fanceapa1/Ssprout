@@ -1,5 +1,4 @@
-import '@fontsource/cormorant-garamond/400.css';
-import '@fontsource/cormorant-garamond/600.css';
+import '../ui/fonts.css';
 import './studio.css';
 import { createRng } from '../core/rng';
 import { collectSections, findEntry, fullId } from './registry';

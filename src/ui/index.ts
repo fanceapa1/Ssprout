@@ -1,14 +1,4 @@
-import '@fontsource/shippori-mincho/latin-400.css';
-import '@fontsource/shippori-mincho/latin-500.css';
-import '@fontsource/cormorant-garamond/latin-400.css';
-import '@fontsource/cormorant-garamond/latin-400-italic.css';
-import '@fontsource/cormorant-garamond/latin-500.css';
-import '@fontsource/cormorant-garamond/latin-500-italic.css';
-import '@fontsource/cormorant-garamond/latin-600.css';
-import '@fontsource/cormorant-garamond/latin-ext-400.css';
-import '@fontsource/cormorant-garamond/latin-ext-400-italic.css';
-import '@fontsource/cormorant-garamond/latin-ext-500.css';
-import '@fontsource/cormorant-garamond/latin-ext-500-italic.css';
+import './fonts.css';
 import './ui.css';
 import { startPrefill, type OccurrenceView, type StartPrefill } from '../core/schedule';
 import { clampGoalMinutes } from '../core/session';

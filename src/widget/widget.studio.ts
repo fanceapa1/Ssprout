@@ -1,7 +1,4 @@
-import '@fontsource/cormorant-garamond/500.css';
-import '@fontsource/cormorant-garamond/400-italic.css';
-import '@fontsource/cormorant-garamond/500-italic.css';
-import '@fontsource/shippori-mincho/latin-500.css';
+import '../ui/fonts.css';
 import { allSpecies } from '../plants/registry';
 import { renderPlantView } from '../plants/view';
 import type { StudioEntry, StudioSection } from '../studio/types';
