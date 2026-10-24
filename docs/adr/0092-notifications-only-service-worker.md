@@ -1,6 +1,6 @@
 # ADR 0092 — A notifications-only service worker
 
-- Status: accepted; amended by ADR 0229 (the build writes a precache list and version into it)
+- Status: accepted; amended by ADR 0229 (the build writes a precache list and version into it); amended by ADR 0230 (it now precaches the build and has a fetch handler)
 - Date: 2026-10-22
 
 ## Context
