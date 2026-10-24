@@ -58,7 +58,8 @@ src/
                           plant card), the dock of sections (Study, Your plant, Calendar, Garden tools) and
                           its guiding path, the planting and schedule sheets, tips, herbarium, smooth
                           scroll + scrollbar — docs/systems/ui.md, docs/systems/calendar.md
-  widget/                 Document PiP widget, title/favicon fallback, notifications, timer worker
+  widget/                 Document PiP widget, title/favicon fallback, notifications, timer worker,
+                          the service worker's registration and preload recovery (service-worker.ts)
   audio/                  procedural Web Audio ambience + chime
   dev/                    ?dev debug API (window.sprout) used by e2e tests: debug.ts (base), core-,
                           camera-, schedule- and ui-debug.ts; fixture species (fx-*, placeholder-sprout
@@ -600,7 +601,9 @@ scope?)`, `remove(key, scope?)`, `check()`, `fillHistory(days?, seed?)`, `demo(o
 Widget (`src/widget/dev.ts`, `installWidgetDebug`): `window.sprout.widget` — `supported()`,
 `isOpen()`, `open()`, `close()`, `tickerMode()`, `title()`, `favicon()`, `bloomed()`,
 `lastNotification()`, `mountHarness()` (the floating card in `iframe#sprout-widget-harness`),
-`closeHarness()`, `harnessMode()`, `harnessWatering()`.
+`closeHarness()`, `harnessMode()`, `harnessWatering()`. Service worker (`installServiceWorkerDebug`):
+`window.sprout.sw` — `ready()` (resolves once the app has tried to register: `{ scope }` or null),
+`controlled()`.
 
 UI (`src/dev/ui-debug.ts`): `window.sprout.ui` — `state()` (`UIState`: mode, panel, pill, plantView,
 sessions, pillMore, pillAside, confirm, resting, dialogs, tips, markers, line, plantLabel, plantCard,
@@ -728,7 +731,18 @@ server keeps `'dev'` and `[]`. Keep both lines exactly as written: the build fai
 version); activation keeps those two versions and never touches other names. Navigations are
 network-first with the cached `/Ssprout/` as the offline fallback, `/Ssprout/assets/*` is
 cache-first, everything else is not handled; version `'dev'` caches nothing and adds no fetch
-listener. It reads the controller through the structural `WidgetController`
+listener.
+**Registration (ADR 0230 › Registration).** `src/widget/service-worker.ts` owns the page's one
+registration: `registerServiceWorker(win?)` registers `${BASE_URL}sw.js` with scope `BASE_URL` once
+and returns the same promise to every caller (null when unsupported, blocked or failed); the
+notifications env's `prepare()` calls it. `main.ts` calls
+`installServiceWorker({ afterPaint: renderer.whenReady() })` → `{ ready(), dispose() }`: in
+production builds it registers after the garden's first paint, the `load` event and an idle
+callback (`requestIdleCallback`, timeout 5 s; else 200 ms), never on the dev server. It also
+installs `installPreloadRecovery`: on `vite:preloadError` the page reloads once per build
+(sessionStorage `studysprout:preload-reload` holds the entry chunk's path) and the event is
+`preventDefault`ed; a second failure on the same build surfaces. Anything that adds a lazy chunk
+gets this recovery for free. It reads the controller through the structural `WidgetController`
 (`src/widget/contract.ts`), which `SessionController` satisfies (type-checked in a test). Wiring
 and policies: `docs/systems/widget.md`.
 

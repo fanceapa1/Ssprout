@@ -148,15 +148,38 @@ Policy (ADR 0091):
   visible-and-focused** (otherwise the in-page flow — chime, garden, widget — already shows it),
   and that moment (session × kind × block) was not notified before.
 - **Deliver** via `ServiceWorkerRegistration.showNotification` (SW at `${BASE_URL}sw.js`, scope
-  `BASE_URL`, registered once permission is granted; waits ≤ 4 s for activation), else
+  `BASE_URL`, the app's one registration, made at boot or here once permission is granted,
+  whichever comes first; waits ≤ 4 s for activation), else
   `new Notification`. One tag `study-sprout-session` with `renotify`, so each message replaces
   the previous one. Click → the SW focuses an open app tab (same path preferred) or opens the app.
 - Closed tab → nothing (no server); the garden completes the session on return.
 
 ### The service worker (`public/sw.js`)
-- **What it does:** notification clicks (ADR 0092) and caching (ADR 0230). It is registered lazily
-  by `prepare()` in `notifications.ts`, only once notification permission is granted. Registering
-  it at boot is P11.
+- **What it does:** notification clicks (ADR 0092) and caching (ADR 0230).
+- **Registration (`src/widget/service-worker.ts`, ADR 0230 › Registration):**
+  - **One per page.** `registerServiceWorker(win)` registers `${BASE_URL}sw.js` with scope
+    `BASE_URL` and memoises the promise per window, so the boot path and the notifications env's
+    `prepare()` share it. It resolves null when service workers are missing, the context is not
+    secure, registration fails (a `[sw]` warning) or it is blocked (Playwright's block mode
+    resolves `register()` with nothing).
+  - **At boot, after the garden.** `installServiceWorker({ afterPaint: renderer.whenReady() })` in
+    `main.ts` waits for the first paint, then the `load` event, then an idle callback
+    (`requestIdleCallback` with a 5 s timeout; 200 ms where there is none), and registers. The
+    precache (about 620 kB) then downloads in the background instead of competing with the first
+    load. Production builds only: the dev server never registers (its `'dev'` worker would do
+    nothing anyway). If notification permission was already granted, the notifier's boot sync
+    registers earlier through the same promise.
+  - **Stale chunks after a deploy.** `installPreloadRecovery` (installed by `installServiceWorker`,
+    dev included) listens for `vite:preloadError`. The first failure reloads the page and calls
+    `preventDefault()` so Vite does not throw. sessionStorage `studysprout:preload-reload` records
+    the build that reloaded (the entry chunk's path, from `import.meta.url`). If the same build
+    fails again (a stale edge, offline, a chunk really gone), nothing reloads and the error
+    surfaces: no loop. A later build may reload once after its own deploy. Without sessionStorage
+    nothing reloads. There are no lazy chunks yet; the handler is wired for those to come.
+  - **Dev hook:** `sprout.sw.ready()` resolves once registration was tried (`{ scope }` or null);
+    `sprout.sw.controlled()`.
+  - **e2e:** service workers are blocked by default (`serviceWorkers: 'block'` in
+    `playwright.config.ts`); `sw-*.spec.ts` and `widget.spec.ts` opt in (docs/TESTING.md).
 - **Build manifest (ADR 0229):** the file starts with two placeholder lines,
   `self.__SW_VERSION__ = 'dev';` and `self.__PRECACHE__ = [];`. The production build replaces
   them in `dist/sw.js`. The `swManifest` plugin in `vite.config.ts` runs in `writeBundle`, after
@@ -194,8 +217,8 @@ Policy (ADR 0091):
     reload behave as without a worker.
   - **Updates:** `skipWaiting()` and `clients.claim()` stay. A new deploy's worker installs, takes
     over at once and keeps the previous version's cache, so an open tab still finds its old chunks
-    and fonts until it reloads. A tab open across two deploys can miss a file it never loaded (P11:
-    `vite:preloadError` reload). See ADR 0230, "The update story".
+    and fonts until it reloads. A tab open across two deploys can miss a file it never loaded;
+    the `vite:preloadError` reload covers that. See ADR 0230, "The update story".
 
 ## Browser support
 
@@ -233,8 +256,13 @@ Policy (ADR 0091):
 - Service worker caching: `src/build/sw.test.ts` runs `public/sw.js` in a fake worker scope (dev
   adds no fetch listener and caches nothing; which requests the fetch handler takes; install
   precaches with one retry, fails on a missing file and resumes; activate keeps this and the
-  previous version and foreign caches). `tests/e2e/sw-cache.spec.ts` registers the worker on the
-  production build: the precache holds the list, a reload goes through the worker, a miss under
+  previous version and foreign caches). `src/widget/service-worker.test.ts` covers the registration
+  (once, shared with notifications, null when unsupported or blocked, only after paint + load +
+  idle, off when disabled) and the preload recovery (once per build, none without sessionStorage).
+  `tests/e2e/sw-boot.spec.ts`: blocked by default the app boots without a worker; a dispatched
+  `vite:preloadError` reloads once and a second one does not. `tests/e2e/sw-cache.spec.ts` waits
+  for the app's own registration on the production build: one registration at `/Ssprout/`, the
+  precache holds the list, a reload is controlled and goes through the worker, a miss under
   `assets/` is cached, an offline reload renders the garden, activation deletes a fake older
   version but keeps the previous one, and a notification click focuses the garden tab.
 - Service worker manifest: `src/build/sw-manifest.test.ts` (the builder on a fake bundle: what is
