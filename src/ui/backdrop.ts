@@ -1,4 +1,5 @@
 import { SHEET, grainOffset, sheetMaskSvg, sheetShadowSvg, svgData, type SheetStrength } from './backdrop-sheet';
+import type { NearView } from './near-view';
 
 /**
  * A backdrop behind a dock section (ADR 0208): a leaf of the page's own washi, lifted a little
@@ -6,6 +7,8 @@ import { SHEET, grainOffset, sheetMaskSvg, sheetShadowSvg, svgData, type SheetSt
  * images are drawn for the section's size in CSS pixels, so the tear never stretches. They are drawn
  * again only when the section's size changes (a ResizeObserver, coalesced into one frame): content
  * growing, the waiting card arriving, a resize. Nothing repaints per frame or on scroll.
+ * With `near` (ADR 0225) a drawing waits for the garden's first paint, then for the section to near
+ * the window or an idle moment, whichever comes first.
  *
  * Markup, the section's first child, behind its content:
  *   div.backdrop[data-strength][data-paints] > div.backdrop-shadow + div.backdrop-leaf
@@ -20,7 +23,14 @@ export interface Backdrop {
   dispose(): void;
 }
 
-export function createBackdrop(host: HTMLElement, opts: { seed: string; strength?: SheetStrength }): Backdrop {
+export interface BackdropOptions {
+  seed: string;
+  strength?: SheetStrength;
+  /** defer the drawing until the section nears the window (ADR 0225); without it, the next frame */
+  near?: NearView | null;
+}
+
+export function createBackdrop(host: HTMLElement, opts: BackdropOptions): Backdrop {
   const strength = opts.strength ?? 'leaf';
   const style = SHEET[strength];
   const doc = host.ownerDocument;
@@ -61,7 +71,9 @@ export function createBackdrop(host: HTMLElement, opts: { seed: string; strength
     el.dataset.size = `${w}x${h}`;
   }
   const schedule = () => {
-    if (raf !== null || disposed) return;
+    if (disposed) return;
+    if (opts.near) return opts.near.request(host, layout);
+    if (raf !== null) return;
     raf = typeof requestAnimationFrame === 'function' ? requestAnimationFrame(layout) : (layout(), null);
   };
   const ro = typeof ResizeObserver === 'function' ? new ResizeObserver(schedule) : null;

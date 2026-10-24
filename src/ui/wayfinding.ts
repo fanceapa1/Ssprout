@@ -1,6 +1,7 @@
 import type { Viewport } from '../render/viewport';
 import { PATH } from '../scene/geometry';
 import type { Dock } from './dock';
+import type { NearView } from './near-view';
 import { brushOutline, centrePath, layoutPath, stonePath, type PathLayout } from './wayfinding-path';
 
 /**
@@ -26,6 +27,11 @@ export interface WayfindingDeps {
   /** the renderer's viewport (stage CSS pixels per world unit), to find the stepping stones */
   viewport(): Viewport;
   reducedMotion?: boolean;
+  /**
+   * Lay out only after the garden's first paint, and then as the dock nears the window or on an
+   * idle moment (ADR 0225). Without it, the next frame.
+   */
+  near?: NearView | null;
 }
 
 export interface WayfindingStop {
@@ -107,7 +113,9 @@ export function createWayfinding(deps: WayfindingDeps): Wayfinding {
   let disposed = false;
 
   function schedule(): void {
-    if (raf !== null || disposed) return;
+    if (disposed) return;
+    if (deps.near) return deps.near.request(dock.el, doLayout);
+    if (raf !== null) return;
     raf = requestAnimationFrame(() => {
       raf = null;
       doLayout();
@@ -275,7 +283,10 @@ export function createWayfinding(deps: WayfindingDeps): Wayfinding {
     schedule();
   });
   window.addEventListener('resize', schedule);
-  void document.fonts?.ready.then(() => schedule());
+  // reading `document.fonts.ready` costs a style pass: with `near`, not before the garden is painted
+  const afterFonts = () => void document.fonts?.ready.then(() => schedule());
+  if (deps.near) void deps.near.opened().then(afterFonts);
+  else afterFonts();
   schedule();
 
   return {

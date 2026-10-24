@@ -1,6 +1,7 @@
 import { createBackdrop, type Backdrop } from './backdrop';
 import type { SheetStrength } from './backdrop-sheet';
 import { h, setText } from './dom';
+import type { NearView } from './near-view';
 
 /**
  * The dock (ADR 0130): the part of the page below the garden where features live as sections.
@@ -107,7 +108,13 @@ export function orderSections<T extends { order: number; index: number }>(list: 
   return [...list].sort((a, b) => a.order - b.order || a.index - b.index);
 }
 
-export function createDock(opts: { label?: string } = {}): Dock {
+export interface DockOptions {
+  label?: string;
+  /** the sheets wait for the garden's first paint and draw as their section nears the window (ADR 0225) */
+  near?: NearView | null;
+}
+
+export function createDock(opts: DockOptions = {}): Dock {
   const el = h('div.dock', { role: 'region', 'aria-label': opts.label ?? 'Study tools', 'data-dock': '' });
   const entries = new Map<string, Entry>();
   const listeners = new Set<() => void>();
@@ -148,7 +155,7 @@ export function createDock(opts: { label?: string } = {}): Dock {
       // the heading and its helper line: one block, the same in every section (ADR 0201)
       const head = h('header.dock-head', {}, heading, helper);
       const sectionEl = h('section.dock-section', { 'data-section': def.id, 'data-span': def.span ?? 'half', 'aria-labelledby': headingId }, head, body);
-      const backdrop = def.backdrop === 'none' ? null : createBackdrop(sectionEl, { seed: def.id, strength: def.backdrop ?? 'leaf' });
+      const backdrop = def.backdrop === 'none' ? null : createBackdrop(sectionEl, { seed: def.id, strength: def.backdrop ?? 'leaf', near: opts.near });
       const writeHelper = (text: string | null) => {
         const t = text?.trim() || null;
         entry.def.helper = t;
