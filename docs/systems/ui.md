@@ -35,6 +35,7 @@ the widget surfaces — the UI then asks in the Begin click itself.
 | `dock.ts` | the dock section registry (`createDock`, `orderSections`; contract in ARCHITECTURE › Dock) |
 | `backdrop.ts` · `backdrop-sheet.ts` | the sheet behind each dock section (ADR 0208): `createBackdrop(host, { seed, strength })` lays `div.backdrop` (wash + leaf) and draws its SVG mask and wash for the section's size, again only when it changes; pure geometry `createTear`, `sheetOutline`, `sheetFibres`, `shadowLayers`, `sheetMaskSvg`, `sheetShadowSvg`, `SHEET` (`leaf`, `firm`) |
 | `backdrop.studio.ts` | studio section `ui-backdrop`: a leaf, the calendar's firm sheet, the edge ×4, one seed at two heights |
+| `near-view.ts` | the gate for work below the fold (ADR 0225): `createNearView({ ready })`; `request(el, task, { idle })` runs a task after the garden's first paint, when `el` nears the window (IntersectionObserver, `100% 0px`) or on an idle moment; never inside the request; `flush()`, `opened()`, `near(el)` |
 | `dock-guide.ts` | the helper line under each heading, by state (`guideLines`, `GUIDE`; ADR 0201) |
 | `wayfinding.ts` · `wayfinding-path.ts` | the guiding path from the stepping stones down the dock's lane, a stone beside each visible heading (ADR 0202); pure geometry `layoutPath`, `brushOutline`, `stonePath` |
 | `wayfinding.studio.ts` | studio section `ui-wayfinding`: the wide lane, the phone gutter, the stops, the draw-in |
@@ -44,7 +45,7 @@ the widget surfaces — the UI then asks in the Begin click itself.
 | `timer-panel.ts` | session controls in the dock's "Study" section: idle "Start studying"; studying: task, block label, block + total remaining, plan line with progress, Pause/End, break Water/Skip, cancel confirm, long-pause prompt; `resting` drives the root's `is-resting` |
 | `pill.ts` | the timer pill on the garden: idle "Start studying"; block time, Pause/Resume, "Session controls" (glide down + focus) (ADR 0133); "+N" when other sessions are in progress (ADR 0156) |
 | `session-list.ts` | the sessions in progress under the controls (ADR 0156): rows with a live 64 px plant, task, plan line, time left and Switch / Resume ("growing now" on the active one); "Plant another"; the gentle limit note |
-| `plant-section.ts` | "Your plant": the **active** session's plant, live `renderPlantView`, watering on `session:water` (tap or automatic, ADR 0153) / `water()`, wilt on cancel of that session, latest bloom or an empty bed when nothing is active; `paintRoundWindow`, `paintEmptyBed` (ADR 0134) |
+| `plant-section.ts` | "Your plant": the **active** session's plant, live `drawPlantView` painted when due (ADR 0225; `settle()`, `data-paints`, `data-painted`), watering on `session:water` (tap or automatic, ADR 0153) / `water()`, wilt on cancel of that session, latest bloom or an empty bed when nothing is active; `paintRoundWindow`, `paintEmptyBed` (ADR 0134) |
 | `calendar.ts` · `calendar.css` | the Calendar section: Daily (default) / Weekly / Monthly, remembered per viewer; painted timeline and month (ADR 0175) — docs/systems/calendar.md |
 | `calendar-model.ts` | pure: view ranges, items, overlap layout (`layoutColumns`), month marks, opening window, week start |
 | `calendar-art.ts` | the calendar's painted shapes (washes, plan outlines, rings, underline), as SVG backgrounds and on canvas |
@@ -111,6 +112,14 @@ the widget surfaces — the UI then asks in the Begin click itself.
   67 000 random draws (was 3.8 million), a resize about 400. All four sections at load: ~9 ms in
   Node cold, ~4 ms warm (was ~86 ms). The dock is not dimmed by the garden's light, so the
   sheets read the same in every phase.
+- **The garden first** (ADR 0225): the sheets, the guiding path and "Your plant" draw nothing before
+  the garden's first paint (`whenGardenReady`, plus one frame). Then each draws when it nears the
+  window (one window height of margin) or on an idle moment. A click or a tick that changes them
+  only marks them to be drawn. "Your plant" repaints for growth only once near, paints its sprites
+  in the view's worker (`drawPlantView`; the last painting stays until they land), and plays the
+  watering and the wilt only where it can be seen. Sheets and the plant fade in the first time
+  they are drawn; they are absolute or of fixed size, so nothing moves. Tests read the dock after
+  `sprout.ui.dockReady()`, which draws whatever still waits.
 - One rhythm and one heading: `--rhythm-section` between sections, `--rhythm-head` under the heading
   block; `h2.dock-title` 27 px full ink (25 px on phones), `p.dock-helper` 20.5 px italic soft ink.
 - One primary action in Study (`data-primary`, ADR 0201): Start studying (idle), Pause as the calm
@@ -318,17 +327,20 @@ actual context to `GardenAudio.setScenery`. No coast selector is shown today.
 `?fixtures` adds the `fx-*` species (ADR 0055); `?uitime=0.05` scales UI delays; `?widget=fake`.
 `window.sprout.ui`: `state()`, `refresh()`, `setTimeScale(n)`, `placement()`, `widget`
 (fake only), `showPlantLabel(world)`, `slotScreen(id)` (client pixels), `scroll()`,
-`scrollTo(y | sectionId, { instant? })`, `dock()`, `dockReady()`, `waterPlantView()`,
+`scrollTo(y | sectionId, { instant? })`, `dock()`, `dockReady()` (after the garden's first paint,
+draws the dock's deferred parts now and settles "Your plant"), `waterPlantView()`,
 `onZoomGesture(fn)`, `wayfinding({ layout? })`, `setSectionHidden(id, hidden)`. `ui.state().plantCard` is the open card. The camera's hooks are
 `window.sprout.camera` (docs/systems/camera.md). `window.sprout.advance(ms)` jumps the dev
 clock and refreshes the UI (e.g. into a break or a long pause); `window.sprout.advanceTo('HH:MM')`
 jumps it forward to the next local time of day (pins the hour for tests).
 
 ## Tests
-Unit: `backdrop-sheet.test.ts`, `backdrop.test.ts`, `dock-guide.test.ts`, `wayfinding-path.test.ts`, `session-list.test.ts`, `format.test.ts`, `plan-line.test.ts`, `plant-labels.test.ts`, `previews.test.ts`, `planting-sheet.test.ts`,
+Unit: `near-view.test.ts`, `backdrop-sheet.test.ts`, `backdrop.test.ts`, `dock-guide.test.ts`, `wayfinding-path.test.ts`, `session-list.test.ts`, `format.test.ts`, `plan-line.test.ts`, `plant-labels.test.ts`, `previews.test.ts`, `planting-sheet.test.ts`,
 `ambient-light.test.ts`, `scroll-math.test.ts`, `smooth-scroll.test.ts`, `dock.test.ts`, `stage-edge.test.ts`, `ink.test.ts`,
 `tip-place.test.ts`, `plant-card.test.ts`, `pickers.test.ts`, `prefill.test.ts` (calendar: `calendar-model.test.ts`).
-E2E: `tests/e2e/backdrops.spec.ts` (a sheet per section holding its content, the calendar's the
+E2E: `tests/e2e/deferred-dock.spec.ts` (nothing drawn in the dock before the garden's first paint,
+every section drawn once scrolled to with no section moving, Begin's click under 100 ms with "Your
+plant" current once scrolled to), `tests/e2e/backdrops.spec.ts` (a sheet per section holding its content, the calendar's the
 strongest, re-layout on growth / resize / view and not on a tick or scroll, the lane outside the
 sheets, text contrast from pixels in four lights at desktop, hd and phone),
 `tests/e2e/wayfinding.spec.ts` (the spine, the path at desktop and phone, never over text,
