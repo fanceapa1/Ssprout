@@ -21,6 +21,7 @@ import { h } from './dom';
 import { createGardenData } from './garden-data';
 import { createHerbarium } from './herbarium';
 import { createHints } from './hints';
+import { createNearView } from './near-view';
 import { installPagePaper } from './page-paper';
 import { installPaper } from './paper';
 import { createPill } from './pill';
@@ -89,7 +90,10 @@ export function createUI(deps: UIDeps): UI {
     })();
   const stage = createStage(stageEl, stageEl.querySelector<HTMLCanvasElement>('canvas'));
   const scroller = createSmoothScroll({ reducedMotion: deps.reducedMotion });
-  const dock = createDock({ label: 'Study tools' });
+  // the garden first: the dock's drawing waits for its first paint, then for each part to near the window (ADR 0225)
+  const gardenReady = deps.whenGardenReady?.() ?? null;
+  const near = createNearView({ ready: gardenReady });
+  const dock = createDock({ label: 'Study tools', near });
 
   let timeScale = deps.timeScale ?? 1;
   let mode: UIMode = 'garden';
@@ -199,7 +203,7 @@ export function createUI(deps: UIDeps): UI {
     start: (opener) => openPlanting(opener),
     jump: () => void jumpToControls(),
   });
-  const plantView = createPlantSection(ctx);
+  const plantView = createPlantSection(ctx, { near });
 
   const planting = createPlantingSheet(ctx, draft, {
     chooseSpot: () => {
@@ -217,7 +221,7 @@ export function createUI(deps: UIDeps): UI {
   const warmPreviews = () => {
     if (!disposed) planting.prewarm();
   };
-  void deps.whenGardenReady?.().then(() => whenIdle(warmPreviews));
+  void gardenReady?.then(() => whenIdle(warmPreviews));
   const warmOnIntent = (e: Event) => {
     if (e.target instanceof Element && e.target.closest('[data-anchor="start"], .plant-another')) warmPreviews();
   };
@@ -382,7 +386,7 @@ export function createUI(deps: UIDeps): UI {
   if (stageCamera && plantCard) stage.layer.append(stageCamera.controls, plantCard.el);
   stageEl.after(dock.el);
   // the guiding path from the garden's stepping stones through the sections (ADR 0202)
-  const wayfinding = createWayfinding({ dock, stage: stageEl, viewport: () => deps.viewport(), reducedMotion: deps.reducedMotion });
+  const wayfinding = createWayfinding({ dock, stage: stageEl, viewport: () => deps.viewport(), reducedMotion: deps.reducedMotion, near });
   root.append(tips.el, scrollbar.el, live, planting.el, herbarium.el, data.el, hints.el, soundMixer.el);
   if (scheduleSheet) root.append(scheduleSheet.el);
   root.dataset.mode = mode;
@@ -577,6 +581,15 @@ export function createUI(deps: UIDeps): UI {
     state,
     refresh: () => refresh(),
     previewsReady: () => planting.previewsReady(),
+    async dockReady() {
+      await near.opened();
+      await document.fonts?.ready;
+      near.flush();
+      // what the drawing moved (sizes, observers) reports within a frame: draw that too
+      await new Promise<void>((r) => requestAnimationFrame(() => r()));
+      near.flush();
+      await plantView.settle();
+    },
     setTimeScale(scale) {
       timeScale = Math.max(0, scale);
     },
@@ -606,6 +619,7 @@ export function createUI(deps: UIDeps): UI {
       offDock();
       asideObserver?.disconnect();
       wayfinding.dispose();
+      near.dispose();
       scrollbar.dispose();
       scroller.dispose();
       dock.dispose();

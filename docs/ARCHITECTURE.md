@@ -602,7 +602,7 @@ UI (`src/dev/ui-debug.ts`): `window.sprout.ui` — `state()` (`UIState`: mode, p
 sessions, pillMore, pillAside, confirm, resting, dialogs, tips, markers, line, plantLabel, plantCard,
 draft, calendar, due, scheduleSheet), `refresh()`, `setTimeScale(n)`,
 `placement()`, `showPlantLabel(world)`, `slotScreen(id)` (client pixels: stage offset and scroll
-included), `scroll()`, `scrollTo(y | sectionId, { instant? })`, `dock()`, `dockReady()`, `previewsReady()`,
+included), `scroll()`, `scrollTo(y | sectionId, { instant? })`, `dock()`, `dockReady()` (draws the dock's deferred parts, ADR 0225), `previewsReady()`,
 `wayfinding({ layout? })` (the guiding path's stops and centre line in client coordinates, the stop
 being read, draw state, layout count), `setSectionHidden(id, hidden)`,
 `waterPlantView()`, `onZoomGesture(fn)`, `widget` (fake only); `window.sprout.advance(ms)`,
@@ -614,10 +614,13 @@ Query flags: `?fixtures` (dev `fx-*` species, ADR 0055), `?uitime=0.05` (UI dela
 ## UI (`src/ui/`, ADRs 0050–0055, 0121, 0124, 0130–0136, 0156, 0164–0168, 0175–0177, 0180–0181, 0190–0194, 0200–0205)
 `createUI({ root, stage?, controller, store, bus, clock, getSpecies, slots, viewport, audio?, widget?,
 notifications?, isKnownSpecies?, reducedMotion?, timeScale?, schedules?, camera?, whenGardenReady? })` → `{ dock, stage, scroll, plantView, wayfinding,
-calendar, camera, placement: { current(), subscribe(fn) }, state(), refresh(), previewsReady(), setTimeScale(), showPlantLabel(),
+calendar, camera, placement: { current(), subscribe(fn) }, state(), refresh(), previewsReady(), dockReady(), setTimeScale(), showPlantLabel(),
 dispose() }`. `whenGardenReady` (main: `renderer.whenReady()`) starts the planting sheet's preview
 prewarm on the next idle moment; `previewsReady()` resolves once every card on the sheet shows its
-preview (the sheet opens at once and fills in, ADR 0222). With `camera` (`{ camera: renderer.camera, hitTest: plants.hitTest }`) it adds the zoom
+preview (the sheet opens at once and fills in, ADR 0222). The dock's sheets, its guiding path and
+"Your plant" draw nothing before `whenGardenReady` resolves, then draw as each nears the window, or
+on an idle moment (ADR 0225); `dockReady()` resolves once they are all drawn for the page as it is
+(after the garden's first paint it draws whatever still waits, and waits for the plant's sprites). With `camera` (`{ camera: renderer.camera, hitTest: plants.hitTest }`) it adds the zoom
 gestures and chips, the focus on the growing plant and the plant card (`src/ui/stage-camera.ts`,
 `src/ui/plant-card.ts`; ADRs 0164, 0167, 0168); `ui.camera` is then `{ openCard(id), closeCard(),
 setAutoFocus(on), state() }`, else null. With `schedules` (the scheduler) it fills the Calendar section, mounts the waiting card
@@ -659,11 +662,15 @@ interface Dock { el; addSection(def): DockSection /* throws on duplicate/malform
   removeSection(id); get(id): DockSection | null; sections(): DockSectionInfo[]; onChange(fn): () => void; dispose() }
 interface DockSectionInfo { id; title; helper: string | null; order; span; filled: boolean; visible: boolean }
 ```
-`createDock({ label? })` builds it (`createUI` does; `ui.dock` is the instance).
+`createDock({ label?, near? })` builds it (`createUI` does, with its `NearView` from `src/ui/near-view.ts`:
+the sheets wait for the garden's first paint and draw as their section nears the window, ADR 0225;
+`ui.dock` is the instance).
 Markup: `section > div.backdrop[aria-hidden]` (the sheet, behind), `header.dock-head > (h2.dock-title,
 p.dock-helper)`, then `div.dock-body`. Each section lies on its own sheet of washi (ADR 0208): the
 section's padding is the sheet's margin, the heading sits on the sheet, and the path's lane stays
-outside its left edge. The sheet is drawn for the section's size and again only when that changes.
+outside its left edge. The sheet is drawn for the section's size and again only when that changes,
+never before the garden's first paint, and off-screen only when idle (ADR 0225). It sits behind
+the content (absolute), so drawing it late moves nothing.
 Order: by `order`, then registration (`orderSections(list)`, pure). A section without `mount` is a hidden placeholder until
 `fill`. Registered by the UI: `session` "Study" (10; the waiting cards of due scheduled sessions,
 the controls, then the sessions in progress, ADRs 0156, 0176), `plant` "Your plant" (20), `calendar`

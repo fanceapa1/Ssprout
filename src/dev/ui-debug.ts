@@ -30,7 +30,10 @@ declare module './debug' {
       scrollTo(target: number | string, opts?: { instant?: boolean }): Promise<void>;
       /** the dock's sections in page order */
       dock(): ReturnType<UI['dock']['sections']>;
-      /** resolves once every filled dock section is laid out (fonts loaded, a frame painted) */
+      /**
+       * Resolves once every filled dock section is laid out (fonts loaded, a frame painted): after the
+       * garden's first paint, it draws the dock's deferred parts now (ADR 0225).
+       */
       dockReady(): Promise<void>;
       /**
        * Resolves once every card on the planting sheet shows its species preview (ADR 0222): the
@@ -121,7 +124,8 @@ export function installUiDebug({ ui, clock, widget, viewport, slots }: UiDebugDe
       scrollTo: (target: number | string, opts?: { instant?: boolean }) => ui.scroll.to(target, opts),
       dock: () => ui.dock.sections(),
       async dockReady() {
-        await document.fonts?.ready;
+        // fonts are awaited inside, once the garden is painted (reading them costs a style pass)
+        await ui.dockReady();
         await new Promise<void>((r) => requestAnimationFrame(() => r()));
       },
       previewsReady: () => ui.previewsReady(),

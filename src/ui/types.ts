@@ -119,7 +119,9 @@ export interface UIDeps {
   /**
    * Resolves once the garden's first frame is painted (`renderer.whenReady()`): the planting
    * sheet's previews are painted ahead after it, on an idle moment (ADR 0222). Without it they
-   * are painted ahead only when a Start control is pointed at or focused.
+   * are painted ahead only when a Start control is pointed at or focused. The dock's sheets, its
+   * guiding path and "Your plant" wait for it too, then draw as they near the window (ADR 0225).
+   * Without it they draw at once.
    */
   whenGardenReady?(): Promise<unknown>;
 }
@@ -224,6 +226,12 @@ export interface UI {
   refresh(): void;
   /** Resolves once every card on the planting sheet shows its species preview (ADR 0222). */
   previewsReady(): Promise<void>;
+  /**
+   * Resolves once the dock is drawn for the page as it is (ADR 0225): after the garden's first
+   * paint, it runs the dock's deferred work at once (the sheets, the guiding path, "Your plant",
+   * near the window or not) and waits for the plant's sprites to land.
+   */
+  dockReady(): Promise<void>;
   setTimeScale(scale: number): void;
   /** show the finished-plant label for the plant at a world point (as a hover would); returns its text */
   showPlantLabel(world: { x: number; y: number }): string | null;
