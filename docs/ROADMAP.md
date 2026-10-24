@@ -10,7 +10,7 @@ ADR numbering ranges (to avoid collisions in parallel work):
 0100–0109 audio · 0110–0119 plant view/growth/watering · 0120–0129 integration/polish ·
 0130–0139 app shell & dock · 0140–0149 daylight & colour · 0150–0159 parallel sessions & watering ·
 0160–0169 camera & plant descriptions · 0170–0179 calendar & scheduling · 0180–0189 v2 polish 1 & close views ·
-0190–0194 v2 polish 2 · 0200–0204 dock wayfinding · 0205+ queue tasks (Q1 0205, Q2 0206, Q3 0207, Q11 0208–0209, Q13 0210).
+0190–0194 v2 polish 2 · 0200–0204 dock wayfinding · 0205+ queue tasks (Q1 0205, Q2 0206, Q3 0207, Q11 0208–0209, Q13 0210) · 0220–0239 performance (phase 9, one block of numbers per task).
 
 | Phase | Task | Area (owned paths) | Status |
 |---|---|---|---|
@@ -72,3 +72,10 @@ Task queue (atomic tasks, at most 2 agents at a time; owner feedback 2026-10-23:
 | Q17 | **Owner:** garden stage 7 % taller (≈ 88 → 94 vh), so more sky shows above the hills | `src/ui` stage CSS, viewport tests | done (ADR 0212) |
 | PR1 | Collaborator PR #1 (soniaspn): standard / scenery sound mixes, schema v3; rebased and merged | `src/audio`, `src/core` | done (ADR 0213, devlog 40) |
 | Q10 | Flakiness: three consecutive green e2e runs, root-cause fixes | `tests/**` | done (3 × 230/230, plus 17:00 and 00:30) |
+
+Phase 9: performance (owner request 2026-10-24). The page is laggy. Draw only what is visible, load in smaller async pieces with the garden layout first, use the browser cache and preloading (this should remove the delay on "Start studying"), and add any other optimisation that takes nothing away from the app. Measure first, then split the work into atomic tasks.
+
+| # | Task | Area | Status |
+|---|---|---|---|
+| P0a | Measure: runtime load profile, Start-studying latency, frame cost overview/zoomed/scrolled away | read-only (scratch report) | in progress |
+| P0b | Measure: bundle composition, fonts, request waterfall, cache headers, service-worker and painted-cache options | read-only (scratch report) | in progress |
