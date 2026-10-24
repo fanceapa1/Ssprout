@@ -153,6 +153,28 @@ Policy (ADR 0091):
   the previous one. Click → the SW focuses an open app tab (same path preferred) or opens the app.
 - Closed tab → nothing (no server); the garden completes the session on return.
 
+### The service worker (`public/sw.js`)
+- **Today:** notifications only (ADR 0092). It handles `notificationclick`, has no fetch handler and
+  caches nothing. It is registered lazily by `prepare()` in `notifications.ts`, only once
+  notification permission is granted.
+- **Build manifest (ADR 0229):** the file starts with two placeholder lines,
+  `self.__SW_VERSION__ = 'dev';` and `self.__PRECACHE__ = [];`. The production build replaces
+  them in `dist/sw.js`. The `swManifest` plugin in `vite.config.ts` runs in `writeBundle`, after
+  `public/` is copied, and the pure builder is `src/build/sw-manifest.ts`. The dev server serves
+  the placeholders unchanged.
+  - **The list:** every file `index.html` reaches, as absolute URLs under `/Ssprout/`. The HTML is
+    listed as `/Ssprout/` and comes first, the rest sorted. That is the `main` and shared
+    (`sky-light`) JS and CSS, any lazy chunks, the sprite worker, and the `latin` and `latin-ext`
+    woff2 fonts the CSS references, all weights.
+  - **Left out:** the studio, sourcemaps, `.woff` fallbacks, other font subsets and `sw.js`.
+  - **Today's build:** 18 URLs, about 1.28 MB raw and about 620 kB on the wire.
+  - **The version:** 12 hex digits of SHA-256 over the URL list and the HTML text. It changes when
+    a listed name or the HTML changes, and not otherwise.
+  - **Placeholders:** keep both lines exactly as written. The build fails if one is missing.
+- **Next (P10):** precache on `install`, prune old caches on `activate`, then a `fetch` handler:
+  network-first for navigations, cache-first for `/assets/*`, and nothing while the version is
+  `'dev'`. See the load report's "Service worker options".
+
 ## Browser support
 
 | Browser | Floating card | Title / favicon | Notifications | Worker ticker |
@@ -186,6 +208,11 @@ Policy (ADR 0091):
   pixel, sap-green leaves, ink contrast). They run against the wired app (`main.ts`
   installs `window.sprout.widget` under `?dev`). Headless Chromium reports `Notification.permission === 'denied'`
   even after `grantPermissions`, so the spec's init script owns the permission value.
+- Service worker manifest: `src/build/sw-manifest.test.ts` (the builder on a fake bundle: what is
+  listed and left out, the base, when the version changes and when it does not, placeholder
+  injection) and `tests/e2e/sw-manifest.spec.ts` (the served `sw.js` lists the served `index.html`'s
+  entry script and links, the sprite worker, CSS and a latin woff2, nothing excluded, and every
+  listed URL returns 200).
 - Studio: section **Widget** (`#widget`): card at focus growth 0 / 0.3 / 0.7, break, watering
   mid-animation, paused, bloom, idle, another session waiting (Switch), two waiting (Resume), unknown-species fallback, favicons (enlarged + tab size on
   light/dark strips), `favicon-sizes` (the tab's PNG at 16 / 32 / 64 px, 1× and 2× DPR, light and dark
