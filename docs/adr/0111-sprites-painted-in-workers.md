@@ -1,6 +1,6 @@
 # ADR 0111 — Sprites are painted in module workers
 
-- Status: accepted; amended by ADR 0187
+- Status: accepted; amended by ADR 0187, ADR 0221 (an `idle` priority held while another cache paints)
 - Date: 2026-10-22
 
 ## Context

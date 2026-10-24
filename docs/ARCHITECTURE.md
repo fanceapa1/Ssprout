@@ -185,20 +185,30 @@ continuous (ADRs 0110–0112). `draw` must be deterministic per (seed, growth, w
 and not touch the DOM (it runs in a worker). Runtime sway = horizontal skew (a bend for large plants
 and trees) about the base, driven by the garden wind (ADR 0113). Details: `docs/systems/plants.md`.
 
-### Plant view (`src/plants/view.ts`, ADRs 0003, 0094)
+### Plant view (`src/plants/view.ts`, ADRs 0003, 0094, 0220, 0221)
 One species at an arbitrary growth, optionally mid-watering or wilting — used by the widget card,
 the planting-sheet previews and the studio (the garden draws through the plant system, with the
 same growth steps, watering and wither):
 ```ts
 export interface PlantViewOptions { speciesId: string; seed: number; growth: number; watering: number | null /* 0..1 */; wilt?: number /* 0..1 */; framing?: 'species' | 'growth' }
 export function renderPlantView(canvas: HTMLCanvasElement | OffscreenCanvas, opts: PlantViewOptions): boolean; // false: unknown species
+// opt-in, never paints a sprite on the main thread (ADR 0221):
+export type PlantViewDraw = { state: 'drawn' } | { state: 'pending'; ready: Promise<boolean> } | { state: 'unknown' };
+export function drawPlantView(canvas: HTMLCanvasElement | OffscreenCanvas, opts: PlantViewOptions): PlantViewDraw;
+export function prewarmPlantView(size: { width: number; height: number }, opts: Pick<PlantViewOptions, 'speciesId' | 'seed' | 'growth' | 'framing'>): Promise<boolean>;
+export function plantViewSprites(size: { width: number; height: number }, opts: PlantViewPrewarmOptions): SpriteSpec[]; // what a first frame looks up
+export function whenPlantViewsReady(): Promise<void>; // no view sprite queued or in flight
 ```
 Clears the canvas, contains the species with its base at the bottom centre (`plantLayout`) over a soft
 ground wash (`framing: 'growth'` frames what has grown instead, up to 8× larger (`MAX_GROWTH_ZOOM`, devlog 25): small thumbnails,
 ADR 0189), and draws the same cached growth steps as the garden (`GROWTH_STEPS = 24`, morphing
 cross-fade), the painted watering animation (jōro, droplets, damp soil, leaves lift) and the wither
 (ADR 0118). `setPlantViewSpecies(fn)` adds species the registry lacks (main passes its `getSpecies`, so
-`?fixtures` render). Keep the signature.
+`?fixtures` render). Keep the signature. `renderPlantView` always draws now: a missing lower step is
+painted synchronously. The view's cache paints queued sprites in one lazily spawned worker (ADR 0220).
+`prewarmPlantView` queues exactly the sprites a later draw of that size looks up, at `PRIORITY.idle`, which
+waits while the garden's cache has work. `drawPlantView` draws only from cached sprites and otherwise
+returns `pending` with a `ready` promise, leaving the canvas untouched (ADR 0221).
 
 ### Scene geometry & slots (`src/scene/geometry.ts`, `src/scene/slots.ts`)
 ```ts

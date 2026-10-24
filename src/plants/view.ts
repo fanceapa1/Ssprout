@@ -2,16 +2,18 @@ import { createRng } from '../core/rng';
 import { createPainter, makeCanvas, mix, PIGMENTS } from '../paint';
 import { crossFade, drawPlant, morphBetween, scratch } from './draw';
 import { getSpecies } from './registry';
-import { createSpriteCache, PRIORITY, stagePair, type Sprite, type SpriteCache, type SpriteSpec } from './sprites';
+import { createSpriteCache, PRIORITY, stagePair, type Sprite, type SpriteCache, type SpriteCacheOptions, type SpriteCacheStats, type SpriteSpec } from './sprites';
 import type { SpeciesDef } from './types';
 import { drawWateringFront, drawWetSoil, fitRigToCanvas, LIFT_SCALE, wateringTimeline, type WateringRig } from './watering';
 import { drawWithering } from './wither';
 
 /**
- * PlantView (ADRs 0003, 0094, 0118): one species at an arbitrary growth, optionally mid-watering
- * or wilting — shared by the floating widget, the planting sheet's previews and the studio. It
- * uses the plant system's pieces: the sprite cache (24 growth steps, cross-faded so growth is
- * continuous), the painted watering animation and the wither. The signature is stable.
+ * PlantView (ADRs 0003, 0094, 0118, 0220, 0221): one species at an arbitrary growth, optionally
+ * mid-watering or wilting — shared by the floating widget, the planting sheet's previews and the
+ * studio. It uses the plant system's pieces: the sprite cache (24 growth steps, cross-faded so
+ * growth is continuous; painted in a worker, ADR 0220), the painted watering animation and the
+ * wither. `renderPlantView` always draws now (its signature is stable); `prewarmPlantView` and
+ * `drawPlantView` let a caller paint ahead and never paint on the main thread (ADR 0221).
  */
 
 export interface PlantViewOptions {
@@ -67,10 +69,38 @@ export function setPlantViewSpecies(fn: ((id: string) => SpeciesDef | undefined)
 
 const resolve = (id: string): SpeciesDef | undefined => getSpecies(id) ?? extraSpecies?.(id);
 
-/** Main-thread cache: the view must draw synchronously (a widget frame, a preview card). */
+/**
+ * The view's own sprite cache (ADR 0220): one worker, spawned on the first queued sprite, paints
+ * queued steps and prewarms; `renderPlantView` still paints a missing lower step here, now.
+ */
 const VIEW_BUDGET = 24 * 1024 * 1024;
 let viewCache: SpriteCache | null = null;
-const cacheFor = (): SpriteCache => (viewCache ??= createSpriteCache({ getSpecies: resolve, createWorker: null, budgetBytes: VIEW_BUDGET }));
+let cacheOverrides: Partial<SpriteCacheOptions> | null = null;
+/** sprites `renderPlantView` painted on the main thread (the dev API reads it) */
+let syncPaints = 0;
+const cacheFor = (): SpriteCache =>
+  (viewCache ??= createSpriteCache({ getSpecies: resolve, budgetBytes: VIEW_BUDGET, workers: 1, lazyWorkers: true, ...cacheOverrides }));
+
+/**
+ * Replace the view's sprite cache options (tests inject a fake worker, `createWorker: null`
+ * forces the main thread); null restores the defaults. The current cache is dropped.
+ */
+export function setPlantViewCacheOptions(o: Partial<SpriteCacheOptions> | null): void {
+  viewCache?.dispose();
+  viewCache = null;
+  cacheOverrides = o;
+  syncPaints = 0;
+}
+
+/** The view cache's stats plus how many sprites were painted synchronously (dev API, tests). */
+export function plantViewStats(): SpriteCacheStats & { syncPaints: number } {
+  return { ...cacheFor().stats(), syncPaints };
+}
+
+/** Resolves once no view sprite is queued or being painted (tests, shots). */
+export function whenPlantViewsReady(): Promise<void> {
+  return viewCache ? viewCache.whenIdle() : Promise.resolve();
+}
 
 /**
  * Where the species sits in a W×H target: contained, base (anchor) at the bottom centre; `zoom`
@@ -89,15 +119,20 @@ const clamp01 = (v: number) => (Number.isFinite(v) ? Math.max(0, Math.min(1, v))
 
 /**
  * The sprites for a growth: the lower step is painted now if nothing nearer is cached (first
- * frame); the upper step is queued for idle time and faded in once it exists.
+ * frame) — or, with `defer`, queued and reported `missing` instead; the upper step is queued and
+ * faded in once it exists.
  */
-function viewImages(cache: SpriteCache, base: Omit<SpriteSpec, 'step'>, growth: number): { a?: Sprite; b?: Sprite; weight: number } {
+function viewImages(cache: SpriteCache, base: Omit<SpriteSpec, 'step'>, growth: number, defer = false): { a?: Sprite; b?: Sprite; weight: number; missing?: SpriteSpec } {
   const { lo, hi, weight } = stagePair(growth);
   let a = cache.get({ ...base, step: lo });
   if (!a) {
     for (let s = lo - 1; s >= Math.max(0, lo - 3) && !a; s--) a = cache.get({ ...base, step: s });
-    if (a) cache.request({ ...base, step: lo }, PRIORITY.now);
-    else a = cache.ensureSync({ ...base, step: lo });
+    if (a || defer) cache.request({ ...base, step: lo }, PRIORITY.now);
+    else {
+      syncPaints++;
+      a = cache.ensureSync({ ...base, step: lo });
+    }
+    if (!a && defer) return { weight: 0, missing: { ...base, step: lo } };
   }
   let b: Sprite | undefined;
   if (weight > 0) {
@@ -191,34 +226,124 @@ export function growthZoom(bounds: { left: number; top: number; right: number } 
 
 /**
  * Draw the plant into `canvas` (clears it first). Returns false when the species is unknown or
- * no 2D context is available (callers may draw a fallback).
+ * no 2D context is available (callers may draw a fallback). Always draws now: a sprite it needs
+ * that is not cached is painted on this thread, even one queued by `prewarmPlantView` (use
+ * `drawPlantView` to wait for it instead).
  */
 export function renderPlantView(canvas: AnyCanvas, opts: PlantViewOptions): boolean {
+  return paintView(canvas, opts, false).state === 'drawn';
+}
+
+/** What `drawPlantView` did. */
+export type PlantViewDraw =
+  /** the view is drawn (a nearby growth step may stand in until the exact one lands, as in `renderPlantView`) */
+  | { state: 'drawn' }
+  /**
+   * a sprite it needs is queued or being painted: the canvas is untouched; `ready` resolves true
+   * once a second call will draw (false: it could not be painted)
+   */
+  | { state: 'pending'; ready: Promise<boolean> }
+  /** unknown species or no 2D context, as `renderPlantView`'s false */
+  | { state: 'unknown' };
+
+/**
+ * `renderPlantView` that never paints a sprite on the main thread (ADR 0221): when the sprite
+ * the first frame needs is not cached, it is queued (or a prewarm of it raised to `now`) and the
+ * call returns `pending`; draw again when `ready` resolves.
+ */
+export function drawPlantView(canvas: AnyCanvas, opts: PlantViewOptions): PlantViewDraw {
+  return paintView(canvas, opts, true);
+}
+
+/** A target size: a canvas, or `{ width, height }` in canvas pixels. */
+export interface PlantViewSize {
+  width: number;
+  height: number;
+}
+
+export type PlantViewPrewarmOptions = Pick<PlantViewOptions, 'speciesId' | 'seed' | 'growth' | 'framing'>;
+
+/**
+ * The sprites a view of `size` needs for its first full frame, exactly as `renderPlantView` /
+ * `drawPlantView` will look them up: the lower growth step, and the upper one when the growth
+ * falls between steps. With `framing: 'growth'` these are the unzoomed ones; the zoomed size
+ * depends on the painted lower step's bounds (`prewarmPlantView` follows up once it lands).
+ * Empty for an unknown species. Pure apart from the species lookup.
+ */
+export function plantViewSprites(size: PlantViewSize, opts: PlantViewPrewarmOptions): SpriteSpec[] {
+  const def = resolve(opts.speciesId);
+  if (!def) return [];
+  const L = plantLayout(def, size.width, size.height);
+  return stepSpecs({ speciesId: def.id, seed: opts.seed >>> 0, w: L.w, h: L.h }, clamp01(opts.growth));
+}
+
+function stepSpecs(base: Omit<SpriteSpec, 'step'>, growth: number): SpriteSpec[] {
+  const { lo, hi, weight } = stagePair(growth);
+  return weight > 0 ? [{ ...base, step: lo }, { ...base, step: hi }] : [{ ...base, step: lo }];
+}
+
+/**
+ * Paint a view's sprites ahead, in the view's worker (ADR 0221), at `idle` priority: they wait
+ * while the garden's cache has sprites to paint. Resolves true once `drawPlantView` (or
+ * `renderPlantView`) with the same size and options draws its full first frame without painting;
+ * false for an unknown species or a failed render.
+ */
+export function prewarmPlantView(size: PlantViewSize, opts: PlantViewPrewarmOptions): Promise<boolean> {
+  return warm(size, opts, PRIORITY.idle);
+}
+
+async function warm(size: PlantViewSize, opts: PlantViewPrewarmOptions, priority: number): Promise<boolean> {
+  const def = resolve(opts.speciesId);
+  if (!def) return false;
+  const W = size.width;
+  const H = size.height;
+  const growth = clamp01(opts.growth);
+  const cache = cacheFor();
+  const L = plantLayout(def, W, H);
+  const base = { speciesId: def.id, seed: opts.seed >>> 0, w: L.w, h: L.h };
+  const specs = stepSpecs(base, growth);
+  if (!(await landed(cache, specs, priority))) return false;
+  if (opts.framing !== 'growth') return true;
+  const z = growthZoom(cache.get(specs[0]!)?.bounds, def.anchor.y, L, W, H);
+  if (z <= 1.05) return true;
+  const Z = plantLayout(def, W, H, Math.round(z * 8) / 8);
+  return landed(cache, stepSpecs({ ...base, w: Z.w, h: Z.h }, growth), priority);
+}
+
+/** queue the sprites (a queued one keeps the more urgent priority) and wait for them */
+async function landed(cache: SpriteCache, specs: SpriteSpec[], priority: number): Promise<boolean> {
+  for (const s of specs) cache.request(s, priority);
+  const ok = await Promise.all(specs.map((s) => cache.whenReady(s)));
+  return ok.every(Boolean);
+}
+
+function paintView(canvas: AnyCanvas, opts: PlantViewOptions, defer: boolean): PlantViewDraw {
   const def = resolve(opts.speciesId);
   const ctx = canvas.getContext('2d') as Ctx2D | null;
-  if (!def || !ctx) return false;
+  if (!def || !ctx) return { state: 'unknown' };
   const W = canvas.width;
   const H = canvas.height;
-  ctx.save();
-  ctx.setTransform(1, 0, 0, 1, 0, 0);
-  ctx.globalAlpha = 1;
-  ctx.globalCompositeOperation = 'source-over';
-  ctx.clearRect(0, 0, W, H);
   let L: ReturnType<typeof plantLayout> = plantLayout(def, W, H);
   const seed = opts.seed >>> 0;
   const water = opts.watering === null || opts.watering === undefined ? null : clamp01(opts.watering);
   const wilt = clamp01(opts.wilt ?? 0);
   const cache = cacheFor();
   cache.beginFrame();
-  let imgs = viewImages(cache, { speciesId: def.id, seed, w: L.w, h: L.h }, clamp01(opts.growth));
-  if (opts.framing === 'growth') {
+  let imgs = viewImages(cache, { speciesId: def.id, seed, w: L.w, h: L.h }, clamp01(opts.growth), defer);
+  if (opts.framing === 'growth' && !imgs.missing) {
     // frame what has grown: the content bounds are fractions of the box, the same at any size
     const z = growthZoom((imgs.a ?? imgs.b)?.bounds, def.anchor.y, L, W, H);
     if (z > 1.05) {
       L = plantLayout(def, W, H, Math.round(z * 8) / 8);
-      imgs = viewImages(cache, { speciesId: def.id, seed, w: L.w, h: L.h }, clamp01(opts.growth));
+      imgs = viewImages(cache, { speciesId: def.id, seed, w: L.w, h: L.h }, clamp01(opts.growth), defer);
     }
   }
+  if (imgs.missing) return { state: 'pending', ready: warm({ width: W, height: H }, opts, PRIORITY.now) };
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.globalAlpha = 1;
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.clearRect(0, 0, W, H);
   const shown = imgs.a ?? imgs.b;
   const bounds = shown?.bounds;
   // a seed too flat to read in a growth-framed view (a dark dab) is raised onto a mound of soil
@@ -276,5 +401,5 @@ export function renderPlantView(canvas: AnyCanvas, opts: PlantViewOptions): bool
 
   if (rig && water !== null) drawWateringFront(ctx, rig, water, seed, { w: W, h: H });
   ctx.restore();
-  return true;
+  return { state: 'drawn' };
 }

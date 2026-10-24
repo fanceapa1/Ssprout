@@ -1,6 +1,6 @@
 # ADR 0118 — renderPlantView on the plant system's pieces
 
-- Status: accepted
+- Status: accepted; amended by 0220 (the view cache paints in a worker)
 - Date: 2026-10-22
 
 ## Context

@@ -73,6 +73,8 @@ function instantCache(): SpriteCache & { requested: SpriteSpec[]; images: Set<un
       requested.push(s);
       make(s);
     },
+    pending: () => false,
+    whenReady: (s) => Promise.resolve(store.has(spriteKey(s))),
     ensureSync: (s) => make(s),
     beginFrame() {},
     whenIdle: () => Promise.resolve(),

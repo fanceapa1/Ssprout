@@ -14,7 +14,8 @@ import type { SpeciesDef } from './types';
  * Painting is slow (10–100 ms per sprite), so it never happens inside a frame: requests go into a
  * priority queue that a small pool of module workers (OffscreenCanvas) drains; without workers
  * the queue is drained on the main thread one sprite per idle callback. Results live in a
- * byte-budgeted LRU. `renderPlantView` uses the same cache with synchronous renders.
+ * byte-budgeted LRU. The plant view has its own cache on the same mechanism (one lazily spawned
+ * worker, synchronous renders only where a caller needs pixels now; ADR 0220).
  */
 
 export const GROWTH_STEPS = 24;
@@ -389,6 +390,11 @@ export const PRIORITY = {
   rescale: 3,
   /** pre-render further ahead */
   ahead: 4,
+  /**
+   * prewarm (the planting sheet's previews, ADR 0221): dispatched only while no other sprite
+   * cache has work below this priority, so it never competes with garden sprites on screen
+   */
+  idle: 5,
 } as const;
 
 export interface WorkerLike {
@@ -414,6 +420,8 @@ export interface SpriteCacheOptions {
   scheduleIdle?: (cb: (d: IdleDeadlineLike) => void) => void;
   /** main-thread renderer (default `renderSpriteSync`) */
   renderSync?: (def: SpeciesDef, spec: SpriteSpec) => RenderResult | null;
+  /** spawn the workers on the first `request` instead of at creation (the plant view's cache) */
+  lazyWorkers?: boolean;
 }
 
 export interface SpriteCacheStats {
@@ -436,6 +444,14 @@ export interface SpriteCache {
   has(spec: SpriteSpec): boolean;
   /** queue a render if missing (raises the priority of an already queued one) */
   request(spec: SpriteSpec, priority: number): void;
+  /** true while the sprite is queued or being painted */
+  pending(spec: SpriteSpec): boolean;
+  /**
+   * Resolves true once the sprite is cached (at once when it already is), false when it cannot
+   * be: unknown species, a failed render, or dropped from the queue (`dropQueued`, `clear`,
+   * `dispose`) or never requested.
+   */
+  whenReady(spec: SpriteSpec): Promise<boolean>;
   /** render now on this thread if missing (the plant view's first frame) */
   ensureSync(spec: SpriteSpec): Sprite | undefined;
   /** start a new frame epoch (entries used in it are protected from eviction) */
@@ -491,6 +507,16 @@ function defaultIdle(cb: (d: IdleDeadlineLike) => void): void {
   else setTimeout(() => cb({ timeRemaining: () => 8, didTimeout: true }), 16);
 }
 
+/**
+ * Every live sprite cache (the garden's, the plant view's): a cache holds its `idle`-priority
+ * jobs while another one has more urgent work, and wakes the others when it goes quiet (ADR 0221).
+ */
+interface PeerCache {
+  busy(): boolean;
+  wake(): void;
+}
+const peers = new Set<PeerCache>();
+
 const closeImage = (s: Sprite) => {
   const img = s.image as { close?: () => void };
   if (typeof img.close === 'function' && typeof ImageBitmap !== 'undefined' && s.image instanceof ImageBitmap) img.close();
@@ -514,16 +540,35 @@ export function createSpriteCache(opts: SpriteCacheOptions): SpriteCache {
   const cores = typeof navigator !== 'undefined' && navigator.hardwareConcurrency ? navigator.hardwareConcurrency : 2;
   const wanted = factory ? Math.max(1, opts.workers ?? Math.min(2, cores - 1)) : 0;
   const slots: WorkerSlot[] = [];
-  for (let i = 0; i < wanted; i++) {
-    const worker = factory?.();
-    if (!worker) break;
-    const slot: WorkerSlot = { worker, busy: null, dead: false };
-    worker.addEventListener('message', (e) => onReply(slot, (e as MessageEvent<WorkerReply>).data));
-    worker.addEventListener('error', () => onWorkerDead(slot));
-    slots.push(slot);
+  let spawned = false;
+  function spawnWorkers(): void {
+    if (spawned) return;
+    spawned = true;
+    for (let i = 0; i < wanted; i++) {
+      const worker = factory?.();
+      if (!worker) break;
+      const slot: WorkerSlot = { worker, busy: null, dead: false };
+      worker.addEventListener('message', (e) => onReply(slot, (e as MessageEvent<WorkerReply>).data));
+      worker.addEventListener('error', () => onWorkerDead(slot));
+      slots.push(slot);
+    }
   }
+  if (!opts.lazyWorkers) spawnWorkers();
 
   const liveWorkers = () => slots.filter((s) => !s.dead);
+
+  /** waiters per sprite key (`whenReady`) */
+  const readyWaiters = new Map<string, Array<(ok: boolean) => void>>();
+  function settleReady(key: string, ok: boolean): void {
+    const list = readyWaiters.get(key);
+    if (!list) return;
+    readyWaiters.delete(key);
+    for (const fn of list) fn(ok);
+  }
+  /** fail the waiters whose sprite is neither cached nor pending any more */
+  function settleOrphans(): void {
+    for (const key of [...readyWaiters.keys()]) if (!lru.has(key) && !isPending(key)) settleReady(key, false);
+  }
 
   function settleIdle(): void {
     if (queue.size > 0 || inFlight.size > 0) return;
@@ -533,12 +578,33 @@ export function createSpriteCache(opts: SpriteCacheOptions): SpriteCache {
   function store(job: Job, image: CanvasImageSource, bounds: SpriteBounds | null): void {
     lru.set({ key: job.key, spec: job.spec, image, bytes: job.spec.w * job.spec.h * 4, bounds });
     rendered++;
+    settleReady(job.key, lru.has(job.key));
   }
+
+  function fail(key: string): void {
+    failedKeys.add(key);
+    settleReady(key, false);
+  }
+
+  /** work below `PRIORITY.idle` queued or in flight: other caches hold their prewarms meanwhile */
+  const busy = () => [...queue.values()].some((j) => j.priority < PRIORITY.idle) || [...inFlight.values()].some((e) => e.job.priority < PRIORITY.idle);
+  const peer: PeerCache = { busy, wake: () => pump() };
+  peers.add(peer);
+  let wasBusy = false;
+  /** on going quiet, let the other caches dispatch the prewarms they held */
+  function noteBusy(): void {
+    const b = busy();
+    if (wasBusy && !b) for (const p of [...peers]) if (p !== peer) p.wake();
+    wasBusy = b;
+  }
+  const othersBusy = () => [...peers].some((p) => p !== peer && p.busy());
 
   function takeNext(filter: (j: Job) => boolean): Job | undefined {
     let best: Job | undefined;
+    const hold = othersBusy();
     for (const j of queue.values()) {
       if (!filter(j)) continue;
+      if (hold && j.priority >= PRIORITY.idle) continue;
       if (!best || j.priority < best.priority || (j.priority === best.priority && j.seq < best.seq)) best = j;
     }
     if (best) queue.delete(best.key);
@@ -547,6 +613,7 @@ export function createSpriteCache(opts: SpriteCacheOptions): SpriteCache {
 
   function pump(): void {
     if (disposed) return;
+    if (queue.size > 0) spawnWorkers();
     for (const slot of liveWorkers()) {
       if (slot.busy) continue;
       const job = takeNext((j) => !j.mainOnly);
@@ -557,11 +624,13 @@ export function createSpriteCache(opts: SpriteCacheOptions): SpriteCache {
       const msg: WorkerRequest = { type: 'render', id, ...job.spec };
       slot.worker.postMessage(msg);
     }
-    const needMain = [...queue.values()].some((j) => j.mainOnly || liveWorkers().length === 0);
+    const hold = othersBusy();
+    const needMain = [...queue.values()].some((j) => (j.mainOnly || liveWorkers().length === 0) && !(hold && j.priority >= PRIORITY.idle));
     if (needMain && !idleScheduled) {
       idleScheduled = true;
       scheduleIdle(runIdle);
     }
+    noteBusy();
     settleIdle();
   }
 
@@ -582,7 +651,7 @@ export function createSpriteCache(opts: SpriteCacheOptions): SpriteCache {
         console.warn('[plants] sprite render failed', job.key, err);
       }
       if (r) store(job, r.image, r.bounds);
-      else failedKeys.add(job.key);
+      else fail(job.key);
       if (deadline.timeRemaining() <= 0) break;
     }
     pump();
@@ -620,7 +689,9 @@ export function createSpriteCache(opts: SpriteCacheOptions): SpriteCache {
     pump();
   }
 
-  const isPending = (key: string) => queue.has(key) || [...inFlight.values()].some((e) => e.job.key === key);
+  function isPending(key: string): boolean {
+    return queue.has(key) || [...inFlight.values()].some((e) => e.job.key === key);
+  }
 
   return {
     get: (spec) => lru.get(spriteKey(spec)),
@@ -632,13 +703,32 @@ export function createSpriteCache(opts: SpriteCacheOptions): SpriteCache {
       if (lru.has(key) || failedKeys.has(key)) return;
       const q = queue.get(key);
       if (q) {
-        if (priority < q.priority) q.priority = priority;
+        if (priority < q.priority) {
+          q.priority = priority;
+          pump(); // a held prewarm may run now
+        }
         return;
       }
-      if (isPending(key)) return;
+      if (isPending(key)) {
+        // in flight: a raise only matters to the cross-cache hold
+        for (const e of inFlight.values()) if (e.job.key === key && priority < e.job.priority) e.job.priority = priority;
+        noteBusy();
+        return;
+      }
       if (!opts.getSpecies(spec.speciesId)) return;
       queue.set(key, { spec: { ...spec }, key, priority, seq: seq++ });
       pump();
+    },
+    pending: (spec) => isPending(spriteKey(spec)),
+    whenReady(spec) {
+      const key = spriteKey(spec);
+      if (lru.has(key)) return Promise.resolve(true);
+      if (disposed || failedKeys.has(key) || !isPending(key)) return Promise.resolve(false);
+      return new Promise<boolean>((resolve) => {
+        const list = readyWaiters.get(key);
+        if (list) list.push(resolve);
+        else readyWaiters.set(key, [resolve]);
+      });
     },
     ensureSync(spec) {
       const key = spriteKey(spec);
@@ -650,6 +740,7 @@ export function createSpriteCache(opts: SpriteCacheOptions): SpriteCache {
       if (!r) return undefined;
       queue.delete(key);
       store({ spec: { ...spec }, key, priority: 0, seq: seq++ }, r.image, r.bounds);
+      noteBusy();
       settleIdle();
       return lru.get(key);
     },
@@ -678,15 +769,21 @@ export function createSpriteCache(opts: SpriteCacheOptions): SpriteCache {
     evictWhere: (pick) => lru.evictWhere(pick),
     dropQueued(pick) {
       for (const [k, j] of [...queue]) if (pick(j.spec)) queue.delete(k);
+      settleOrphans();
+      noteBusy();
       settleIdle();
     },
     clear() {
       queue.clear();
       lru.clear();
+      settleOrphans();
+      noteBusy();
       settleIdle();
     },
     dispose() {
       disposed = true;
+      peers.delete(peer);
+      if (wasBusy) for (const p of [...peers]) p.wake();
       queue.clear();
       for (const s of slots) {
         s.dead = true;
@@ -694,6 +791,7 @@ export function createSpriteCache(opts: SpriteCacheOptions): SpriteCache {
       }
       inFlight.clear();
       lru.clear();
+      for (const key of [...readyWaiters.keys()]) settleReady(key, false);
       for (const fn of idleWaiters.splice(0)) fn();
     },
   };
