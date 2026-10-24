@@ -1,6 +1,6 @@
 # ADR 0092 — A notifications-only service worker
 
-- Status: accepted
+- Status: accepted; amended by ADR 0229 (the build writes a precache list and version into it)
 - Date: 2026-10-22
 
 ## Context
