@@ -235,6 +235,51 @@ dabs at nodes alternating ±0.6–1.0 rad, lengths tapering toward the tip; pass
   but don't merge marks that should show overlapping edges (petals).
 - Don't call primitives per frame — they are for cached sprites and backgrounds.
 
+## Persistence: the paint cache (`persist.ts`, ADR 0227)
+Finished paintings that depend only on code, seed, view and scale (the landscape, the sky and
+light plates) can be kept across reloads, so a repeat visit decodes them (~40 ms) instead of
+painting them (~1 s). Nothing uses it yet: P8 wires the scene and P18 the plates.
+
+```ts
+import { paintCache } from '../paint/persist';
+const cache = paintCache();                      // the app's cache (IndexedDB, or the null cache)
+const hit = await cache.get('scene', key);       // ImageBitmap | null
+if (hit) ctx.drawImage(hit, 0, 0);
+else { paint(canvas); void cache.put('scene', key, canvas); } // copied now, encoded when idle
+```
+
+- **API:** `get(kind, key)` → `ImageBitmap | null`. `put(kind, key, canvas, { copy? })` → `Promise<boolean>`
+  (true once written). `clear()` removes every entry of every version. `stats()` →
+  `{ enabled, off, version, entries, bytes, maxBytes, hits, misses, puts, skipped, evictions, dropped, errors, lastError }`.
+  `settle()` waits for queued puts, and `version` is the cache's version. Nothing throws or
+  rejects. `createPaintCache({ adapter, version?, maxBytes?, encode?, decode?, copy?, idle? })`
+  builds another cache, for example with a Map adapter in tests. `createNullPaintCache(off)` builds
+  one that stores nothing.
+- **Keys:** `version:kind:key`. `kind` is the painting (`scene`, `sky`…, with no `:`). `key` holds
+  *everything else* the pixels depend on: seed, view rect, scale or pixel size, quality, the
+  phase… A missing ingredient shows the wrong painting.
+- **Version:** `__PAINT_VERSION__` plus the browser (a short user-agent hash). `__PAINT_VERSION__`
+  is a build-time hash (`paint-version.ts`, `vite.config.ts` `define`). It covers every file in
+  the import closure of `src/paint`, `src/scene`, `src/ambience`, `src/plants`, `src/fauna`,
+  `src/render` and `src/core`, without tests and studio entries. Any change there, or anything
+  those files import from elsewhere, gives a new version, and old entries are dropped when the
+  store opens. The dev server and Vitest get `'dev'`, which turns the cache off.
+- **Off (the null cache):** on the dev server, with `?nopaintcache` (compare against a fresh
+  painting), without IndexedDB, or when it fails to open. `stats().off` says which:
+  `dev | opted-out | unavailable | failed`.
+- **Cost:** `put` copies the canvas synchronously. That is one `drawImage` of the full size: pass
+  `{ copy: false }` for a canvas nothing will draw on again. The PNG encode runs in idle time, one
+  put at a time, and only the latest of queued puts of one entry is encoded. LRU eviction keeps the
+  store under 48 MB of PNG bytes (`maxBytes`). The landscape is about 6 MB at 1440×900 @2.
+- **Exactness:** `get` decodes with `colorSpaceConversion: 'none'` and `premultiplyAlpha: 'none'`.
+  In Chromium the round trip canvas → PNG → bitmap → `drawImage` reads back identical
+  `getImageData`, opaque and with every alpha value (`tests/e2e/paint-cache.spec.ts`). Store the
+  painting before the paper (ADR 0021) and before any time-of-day plate.
+- **Where:** IndexedDB `studysprout-paint` (devtools › Application › IndexedDB) has two object
+  stores: `meta` (`EntryMeta`: `id`, `version`, `kind`, `key`, `bytes`, `used`) and `blobs` (the PNG
+  under the same id). `?dev`: `sprout.paintCache` is the app's cache, plus `open({ version, maxBytes })`
+  for another cache on the same store.
+
 ## Performance
 Measured in headless Chromium (Apple M3) with an ad-hoc benchmark driving the engine through
 the dev server, DPR 2:
@@ -254,4 +299,9 @@ counts and wet-layer resolution (draft: half resolution; normal: 0.8 for layers 
 `noise.test.ts`, `pigments.test.ts`, `geometry.test.ts` (determinism of deformation and
 outlines, brush profiles, paths), `wet.test.ts` (drying pass on synthetic buffers: rim pooling,
 opacity, dry brush, determinism), `primitives.test.ts` (jsdom-safe import, documented
-defaults, quality scaling, pure brush geometry), `rim.test.ts` (rim width, screen draw, faint rims skipped, one mask per image, side and colour). Visuals: the studio sections above.
+defaults, quality scaling, pure brush geometry), `rim.test.ts` (rim width, screen draw, faint rims skipped, one mask per image, side and colour), `persist.test.ts` (keys, versions
+and the drop of other versions, LRU and the byte cap, idle encoding, the null cache, swallowed
+storage, encode and decode failures; Map adapter), `paint-version.test.ts` (the hashed import
+closure, what changes the version). E2E `paint-cache.spec.ts` (a bit-exact round trip across a
+reload, `?nopaintcache`, version drop and eviction in real IndexedDB). Visuals: the studio sections
+above.

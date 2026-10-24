@@ -35,6 +35,8 @@ src/
     controller.ts         session controller: the single API the UI/widget call (no DOM)
     testing.ts            unit-test helpers (fixtures for states and sessions)
   paint/                  watercolour engine (pure canvas drawing utilities) — see docs/systems/paint.md
+    persist.ts            persistent paint cache: finished paintings as PNG in IndexedDB (ADR 0227)
+    paint-version.ts      build-time only (vite.config.ts): the paint version hash
   scene/                  the static painted landscape, scene geometry, slots — docs/systems/scene.md
   plants/
     types.ts              SpeciesDef contract (below)
@@ -503,6 +505,23 @@ the existing master fade; per-layer levels glide without restarting the graph.
 `?dev`: `sprout.audio` exposes the controller plus `measure(levels, eventLevel?)`, an offline
 render of the real graph returning RMS, peak and tail RMS for audio verification.
 
+### Persistent paint cache (`src/paint/persist.ts`, ADR 0227; docs/systems/paint.md › Persistence)
+`paintCache()` returns the app's `PaintCache`, created on first use, with this API:
+`get(kind, key): Promise<ImageBitmap | null>`, `put(kind, key, canvas, { copy? }): Promise<boolean>`,
+`clear()`, `stats()`, `settle()` and `version`. None of them throws or rejects. Entries are lossless PNG
+Blobs in IndexedDB `studysprout-paint`, stored under `version:kind:key`. The version is
+`__PAINT_VERSION__` plus a user-agent hash. `__PAINT_VERSION__` is a build-time `define`
+(`vite.config.ts`): a hash of the import closure of `src/paint`, `scene`, `ambience`, `plants`,
+`fauna`, `render` and `core`, without tests and studio entries (`src/paint/paint-version.ts`). It is
+`'dev'` on the dev server and in Vitest. Opening the store drops entries of other versions.
+`put` copies the canvas synchronously (unless `{ copy: false }`) and encodes it in idle time, one put
+at a time. Least recently used entries are evicted under a 48 MB cap. `get` decodes with no
+colour-space conversion and no premultiplication, and the round trip is bit-exact in Chromium.
+The cache is the null cache (`get` → null, `put` → false, `stats().off` says why) on the dev server,
+with `?nopaintcache`, without IndexedDB or when it fails to open. Keys must hold everything else the
+pixels depend on (seed, view rect, scale, quality…). Store paintings before the paper (ADR 0021).
+`createPaintCache({ adapter: PaintStoreAdapter, … })` takes any store (unit tests use a Map).
+
 ### Shared helpers
 `Pt` lives in `src/render/viewport.ts` (re-exported from `scene/geometry.ts`).
 `src/plants/types.ts` also exports `SpeciesDrawOptions`, `TIERS`, `HABITATS`, `SIZE_CLASSES`, `fitsSize()`, `reflects()`.
@@ -536,6 +555,9 @@ each step's parts and longest part, the paint's `longest` uninterrupted part, AD
 `scenePainted()` (resolves when no background repaint is pending), `skyStats()` (daylight sky plates painted,
 composites, paint ms, the detail composite), `sceneDetail()` (the camera's detail painting: view,
 painting, fade, its `longest` part, extension). `?dev&slots` draws the slot overlay.
+
+Paint cache (`src/paint/debug.ts`): `window.sprout.paintCache` is the app's `PaintCache` (ADR 0227),
+plus `open({ version?, maxBytes? })` for another cache on the same IndexedDB store.
 
 Plants (`src/plants/debug.ts`): `plantsReady()` (resolves once the plant system has picked up the
 latest store change, every sprite the garden needs is
