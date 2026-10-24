@@ -25,6 +25,8 @@ export interface SproutDebug {
   /** Main-thread frame cost (update + composite) and rAF intervals over the last frames, ms. */
   frameStats(): ReturnType<Renderer['frameStats']>;
   resetFrameStats(): void;
+  /** false while the garden stage is scrolled out of view and the renderer draws nothing (ADR 0224) */
+  stageVisible(): boolean;
   /**
    * Leave out what systems draw, for isolating a layer in a screenshot or a pixel probe:
    * `mute({ scene: ['background'], ambience: '*' })` (system id → layers, or '*' for all, including
@@ -63,6 +65,7 @@ export function installDebug({ store, renderer, clock }: DebugDeps): SproutDebug
     now: () => clock.now(),
     frameStats: () => renderer.frameStats(),
     resetFrameStats: () => renderer.resetFrameStats(),
+    stageVisible: () => renderer.visible,
     mute: (spec) => muteSystems(renderer, spec),
   } satisfies Partial<SproutDebug> as SproutDebug;
   window.sprout = api;

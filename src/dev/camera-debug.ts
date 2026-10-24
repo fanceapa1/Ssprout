@@ -75,6 +75,8 @@ export function installCameraDebug(d: CameraDebugDeps): void {
       overview: (opts?: { animate?: boolean }) => cam.overview({ reason: 'dev', ...opts }),
       async settle() {
         cam.settle();
+        // an off-screen stage draws no frames (ADR 0224): one still frame lets the systems see the rest
+        if (!d.renderer.visible) d.renderer.renderOnce();
         await frame();
         await d.whenDetail();
         if (d.renderer.frozen) d.renderer.renderOnce();

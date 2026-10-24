@@ -85,6 +85,8 @@ function boot(): void {
   void renderer.add(plants);
   void renderer.add(createFauna({ species: getSpecies, debug: dev, daylight }));
   renderer.start();
+  // nothing is drawn while the garden stage is scrolled out of view (ADR 0224)
+  renderer.pauseWhenOffscreen(canvas.closest('#stage') ?? canvas);
 
   // Timer surfaces: worker ticker, tab title/favicon, notifications (asked inside session:start),
   // the floating widget (docs/systems/widget.md).
