@@ -531,10 +531,11 @@ totalRemainingMs, growth, pausedAt, focusWaterings), `switchTo(id)`, `log()`, `n
 `placementOptions(speciesId?)`, `addPlants(n, tier?)` (finished plants with task names),
 `setState(partial)` (validated), `status()`, `flush()`, `exportState()`, `importState(json)`.
 
-Scene (`src/scene/debug.ts`): `slots()`, `sceneStats()` (paints, rescales, per-step timings),
+Scene (`src/scene/debug.ts`): `slots()`, `sceneStats()` (paints, rescales, per-step timings with
+each step's parts and longest part, the paint's `longest` uninterrupted part, ADR 0226),
 `scenePainted()` (resolves when no background repaint is pending), `skyStats()` (daylight sky plates painted,
 composites, paint ms, the detail composite), `sceneDetail()` (the camera's detail painting: view,
-painting, fade, extension). `?dev&slots` draws the slot overlay.
+painting, fade, its `longest` part, extension). `?dev&slots` draws the slot overlay.
 
 Plants (`src/plants/debug.ts`): `plantsReady()` (resolves once the plant system has picked up the
 latest store change, every sprite the garden needs is

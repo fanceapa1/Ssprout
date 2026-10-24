@@ -21,7 +21,8 @@ Look at it: studio → **Scene · painted garden** (`npm run shots -- --studio s
 | `paint-trees.ts` | trees (stems, limbs, twigs, cloud pads) and shrubs |
 | `paint-pavilion.ts` | engawa corner: roof, eave, posts, wall, shoji, deck, hanging lantern |
 | `sprites.ts` | foreground sprites: boulders (+ moss, base tufts, contact shadow) and tufts |
-| `background.ts` | `GARDEN_ART`, ordered `backgroundSteps`, `paintJob` generator, `paintSceneSync`, cooperative `paintScene` |
+| `background.ts` | `GARDEN_ART`, ordered `backgroundSteps`, `paintJob` generator (one part of a step per `next()`), `paintSceneSync`, cooperative `paintScene`, `StepTiming` |
+| `paint-record.ts` | test-only recording canvas: hashes every canvas call with its exact arguments and counts the work between pauses (ADR 0226) |
 | `water.ts` | `createWaterSurface`: shimmer bands, ripple rings, glints following the sun (per frame) |
 | `paint-sky.ts` | the four painted daylight skies and their mirrored water plates (ADR 0145) |
 | `sky-light.ts` | `createSkyLight`: phase plates blended, sun and moon punched out; sky + water composites |
@@ -144,6 +145,15 @@ crowded `meadow-8`).
   settles a fade at once, so screenshots are never half-faded.
 - Paint runs as a generator (`paintJob`) driven cooperatively: it yields to the browser every
   ~20 ms, so the frame loop and input stay alive during a paint.
+- **Steps paint in parts** (ADR 0226): the paint functions are generators (`Strokes`) that `yield`
+  after each painter call (a wash, a stroke, a foliage clump, a stone) or batch of marks (a row of
+  meadow cells, a tree's reflections). `paintJob` yields after every part, so a slice ends within
+  one mark of 20 ms, not one step. The calls, their order and the rng draws are the same however
+  often the job pauses (`paint-slices.test.ts` pins their hash). A new step should be a
+  generator that yields between its marks. A step of a single mark (`reservePond`, `paintWater`)
+  stays a plain function. What can't pause is one painter call. The longest are the drying pass of
+  a big wet layer (the meadow, its grass, the margins), the pond's `waterBody` recipe, a
+  `wetInWet` bank or sky, and a boulder's `stone`. They live in the paint engine.
 - `createSceneSystem({ invalidate })` needs `renderer.invalidate` to redraw the cached
   background while fading.
 - **The camera** (ADR 0163): once the camera rests closer than the painting resolves, the view's
@@ -169,12 +179,23 @@ crowded `meadow-8`).
 | 1440×900 @1 | world @0.9 | 1.2–1.3 s | 1.4 s |
 Biggest steps: boulder sprites (~0.35–0.5 s for 11), the big tree (~0.2 s), pavilion, banks.
 Uncapped scale 1.8 cost ~2.3 s for an identical-looking result. Draft-quality boulders were tried
-and rejected (granulation and rims wash out). `sprout.sceneStats()` returns per-step timings.
+and rejected (granulation and rims wash out). `sprout.sceneStats()` returns per-step timings
+(`ms`, `longestMs`, `parts`) and the paint's `longest` uninterrupted part; `sprout.sceneDetail()`
+has the detail paint's `longest`.
 
 Close-view art (ADRs 0185, 0186; desktop 1440×900 @2, 30 plants, three runs, same machine, before →
 after): overview paint CPU 0.81–0.98 s → 0.97–0.98 s (meadow ≈ 60 + 25 ms, margins ≈ 40 ms),
 wall 1.1–1.4 s → 1.3 s; the detail paint of a 2.6× view 2.3–2.7 s → 2.7–3.0 s wall (cooperative); the
 longest step is still the boulder sprites (~170–200 ms).
+
+Steps in parts (ADR 0226; Chromium, 1440×900 @2, the paint job driven part by part, old and new
+interleaved on one machine at load average ~9–10, three runs each; devlog 46). These are the longest
+uninterrupted parts:
+| View | before | after | CPU before → after |
+|---|---|---|---|
+| load: world @1.5 | 190–230 ms (meadow, big tree, banks 135–170) | 100–130 ms (the meadow's drying pass), then water 55–70, grass 40–48 | 1.43–1.85 s → 1.37–1.64 s |
+| close view: near meadow and big boulder @2.8 | 109–121 ms (banks), tree 77–98 | 84–100 ms (`waterBody`), meadow 41–50, a boulder 37–42 | 1.06–1.23 s → 1.06–1.24 s |
+| close view: the big tree @2.8 | 305–346 ms (the big tree) | 34–38 ms (a boulder's stone) | 1.0–1.2 s → 1.03–1.2 s |
 
 ## How to tweak
 - **Move things**: geometry in `geometry.ts` (contract — slots, rocks, pond are read by other
@@ -196,6 +217,11 @@ longest step is still the boulder sprites (~170–200 ms).
   stepping stone, no plant box lies more than a fifth over the engawa or over the lantern,
   neighbours at the same depth overlap by at most half their footprint.
 - `system.test.ts`: paint view (cap, portrait strip) and the 10 % repaint rule.
+- `paint-slices.test.ts` (ADR 0226): on a recording canvas, the overview and two close views
+  issue exactly the canvas calls they did before the steps were split (pinned hashes). No part does
+  more than 320 k canvas calls or 0.9 Mpx of pixel passes. Before the split the meadow was 1.3 M
+  calls in one part and the big tree 5.1 Mpx. The heavy steps come in parts, and `paintScene`
+  yields between the parts of a step.
 - `margins.test.ts`: the paper margins' field — most at the edge, none in the middle, deeper at the
   bottom corners, a continuous ramp (no step between neighbouring units over 0.03), a wandering front.
 - `paint-ground.test.ts`: meadow marks stay off the water, the path, the engawa and the sky.
@@ -204,5 +230,7 @@ longest step is still the boulder sprites (~170–200 ms).
   sunset→night and night→sunrise blends (ADR 0206).
 - `sky-light.test.ts`: blend order (exact convex mix), recompose key, sky band, water opacity.
 - `tests/e2e/scene.spec.ts`: painted (a pale clear midday sky, celadon pond, many colours), 50–60
-  slots across all habitats, `?dev&slots` overlay, rescale vs repaint on resize.
+  slots across all habitats, `?dev&slots` overlay, rescale vs repaint on resize; paints in parts
+  (the big tree, pavilion and stones each longest part under half the step, ADR 0226), at load and in a
+  close view's detail.
 - The daylight (skies, phases): docs/systems/daylight.md › Tests.
