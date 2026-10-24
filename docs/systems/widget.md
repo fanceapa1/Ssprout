@@ -154,9 +154,9 @@ Policy (ADR 0091):
 - Closed tab → nothing (no server); the garden completes the session on return.
 
 ### The service worker (`public/sw.js`)
-- **Today:** notifications only (ADR 0092). It handles `notificationclick`, has no fetch handler and
-  caches nothing. It is registered lazily by `prepare()` in `notifications.ts`, only once
-  notification permission is granted.
+- **What it does:** notification clicks (ADR 0092) and caching (ADR 0230). It is registered lazily
+  by `prepare()` in `notifications.ts`, only once notification permission is granted. Registering
+  it at boot is P11.
 - **Build manifest (ADR 0229):** the file starts with two placeholder lines,
   `self.__SW_VERSION__ = 'dev';` and `self.__PRECACHE__ = [];`. The production build replaces
   them in `dist/sw.js`. The `swManifest` plugin in `vite.config.ts` runs in `writeBundle`, after
@@ -171,9 +171,31 @@ Policy (ADR 0091):
   - **The version:** 12 hex digits of SHA-256 over the URL list and the HTML text. It changes when
     a listed name or the HTML changes, and not otherwise.
   - **Placeholders:** keep both lines exactly as written. The build fails if one is missing.
-- **Next (P10):** precache on `install`, prune old caches on `activate`, then a `fetch` handler:
-  network-first for navigations, cache-first for `/assets/*`, and nothing while the version is
-  `'dev'`. See the load report's "Service worker options".
+- **Caching (ADR 0230):**
+  - **Caches:** one per version, `sprout-<version>`, plus `sprout-meta`, which records
+    `{ version, previous }` under `/Ssprout/sprout-active-version`. Other names are never touched.
+  - **Install:** precache every listed URL. A failed fetch is tried once more, and a file still
+    missing fails the install: the current worker stays and the browser retries later, resuming
+    with what landed. The page is fetched with `cache: 'no-cache'`.
+  - **Activate:** delete the `sprout-*` caches except this version, the previous one and
+    `sprout-meta`; enable navigation preload; `clients.claim()`.
+  - **Fetch:** same-origin GET inside the base path only.
+
+    | Request | Strategy |
+    |---|---|
+    | Navigation to the app (`/Ssprout/`, `/Ssprout/index.html`, any query) | Network first (navigation preload); the cached `/Ssprout/` when the network fails |
+    | Other navigation in scope (`studio.html`) | Network (navigation preload), no fallback |
+    | `/Ssprout/assets/*` | Cache first across our caches; a miss is fetched and a `200` stored in this version's cache |
+    | Anything else (`sw.js`, cross-origin, non-GET) | Not handled: the network as usual |
+
+    Lookups use `ignoreVary` (`Vary: Origin` from vite preview, `Vary: Accept-Encoding` from
+    Pages would otherwise miss every module script).
+  - **Dev (`'dev'`):** nothing is cached and no fetch listener is added, so the dev server and live
+    reload behave as without a worker.
+  - **Updates:** `skipWaiting()` and `clients.claim()` stay. A new deploy's worker installs, takes
+    over at once and keeps the previous version's cache, so an open tab still finds its old chunks
+    and fonts until it reloads. A tab open across two deploys can miss a file it never loaded (P11:
+    `vite:preloadError` reload). See ADR 0230, "The update story".
 
 ## Browser support
 
@@ -208,6 +230,13 @@ Policy (ADR 0091):
   pixel, sap-green leaves, ink contrast). They run against the wired app (`main.ts`
   installs `window.sprout.widget` under `?dev`). Headless Chromium reports `Notification.permission === 'denied'`
   even after `grantPermissions`, so the spec's init script owns the permission value.
+- Service worker caching: `src/build/sw.test.ts` runs `public/sw.js` in a fake worker scope (dev
+  adds no fetch listener and caches nothing; which requests the fetch handler takes; install
+  precaches with one retry, fails on a missing file and resumes; activate keeps this and the
+  previous version and foreign caches). `tests/e2e/sw-cache.spec.ts` registers the worker on the
+  production build: the precache holds the list, a reload goes through the worker, a miss under
+  `assets/` is cached, an offline reload renders the garden, activation deletes a fake older
+  version but keeps the previous one, and a notification click focuses the garden tab.
 - Service worker manifest: `src/build/sw-manifest.test.ts` (the builder on a fake bundle: what is
   listed and left out, the base, when the version changes and when it does not, placeholder
   injection) and `tests/e2e/sw-manifest.spec.ts` (the served `sw.js` lists the served `index.html`'s
