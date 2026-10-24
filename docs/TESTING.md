@@ -505,6 +505,12 @@ Legend: unit tests as `folder/file › test`, under `src/` (`.test.ts` omitted).
 | 13.22 | The editor's day and time are painted pickers in the calendar's own formats (12 h in en-US, 24 h in en-GB), by keyboard and screen reader (ADR 0192) | ui/pickers (all: formats, time parts, grid keys, the day and time pickers in the page, Esc) | calendar · the editor speaks the calendar's clock › en-US, en-GB…; calendar › schedule a session… (pickDay, pickTime) | ✔ (studio `calendar/pickers`) |
 | 13.23 | A phone's day keeps sessions side by side readable (short time, first letters) and grows a focused one; keyboard focus survives the minute's redraw | — | calendar · a phone's day with sessions side by side…; calendar · keyboard focus survives the minute's redraw… | ✔ |
 
+### Performance (phase 9)
+
+| # | Rule | Unit | E2E | Status |
+|---|---|---|---|---|
+| P1.1 | Plant-view previews can be painted ahead in the view's worker and drawn without painting on the main thread: a prewarm queues exactly the sprites a draw looks up, at an idle priority held while the garden paints; a deferred draw waits (`pending` → `ready`); the main thread is the fallback; a worker-painted view matches the main-thread one (ADRs 0220, 0221) | plants/view-prewarm (all) | plants · view previews › a preview painted in the worker matches the main-thread one… (max difference 0) | ◐ the sheet does not use it yet (task P2) |
+
 ### Beyond the SPEC (covered, listed for completeness)
 Rendering contracts (render/renderer), paint engine (paint/*), species growth continuity
 (plants/lib/*), sprite workers and LRU (plants/sprites), reflections (plants/reflection),

@@ -2,7 +2,8 @@
 
 `src/plants/` (non-species files) — how species become living plants in the garden: cached
 sprites, live growth, sway, the bloom, the wither, the watering moment, pond reflections, the
-placement highlight, and the shared `renderPlantView` used by the widget and the planting sheet.
+placement highlight, and the shared `renderPlantView` used by the widget and the planting sheet
+(with `prewarmPlantView`/`drawPlantView` for previews painted ahead in a worker).
 Species themselves (`species/*.ts`, `lib/*`) only paint; see `types.ts` and ARCHITECTURE › Species.
 
 Look at it: studio sections **Plants · watering**, **· wither**, **· growth timelapse**,
@@ -11,7 +12,7 @@ Look at it: studio sections **Plants · watering**, **· wither**, **· growth t
 
 | File | What |
 |---|---|
-| `sprites.ts` | growth quantisation (24 steps), stage pairs, resolution buckets, sprite keys, `SpriteLru` (byte budget), `createSpriteCache` (priority queue → workers / idle callbacks), `paintSprite` |
+| `sprites.ts` | growth quantisation (24 steps), stage pairs, resolution buckets, sprite keys, `SpriteLru` (byte budget), `createSpriteCache` (priority queue → workers / idle callbacks, the idle lane across caches, `whenReady`), `paintSprite` |
 | `sprite-worker.ts` | module worker: paints sprites into `OffscreenCanvas`, transfers `ImageBitmap`s (ADR 0111) |
 | `draw.ts` | posed drawing: sway skew, tree bend (seamless slices), lift/droop scale, scratch buffers, exact cross-fade + morph |
 | `system.ts` | `createPlantSystem` — the renderer `System` |
@@ -23,7 +24,7 @@ Look at it: studio sections **Plants · watering**, **· wither**, **· growth t
 | `bounds.ts` | `plantWorldBounds` / `plantWorldEdges` — world box of a placed plant |
 | `hit-test.ts` | painted-pixel hit-testing: per-bitmap alpha masks (`MASK_CELLS`, `HIT_ALPHA`) (ADR 0166) |
 | `notes.ts` | `SPECIES_NOTES` / `speciesNote` — the plant card's note per species (ADR 0167) |
-| `view.ts` | `renderPlantView` (widget, previews, studio; returns `false` for an unknown species or no 2D context), `plantLayout`, `growthZoom`, `seedBedAlpha`, `setPlantViewSpecies` |
+| `view.ts` | `renderPlantView` (widget, previews, studio; returns `false` for an unknown species or no 2D context), `drawPlantView` / `prewarmPlantView` / `plantViewSprites` / `whenPlantViewsReady` (ADR 0221), `plantLayout`, `growthZoom`, `seedBedAlpha`, `setPlantViewSpecies`, `setPlantViewCacheOptions`, `plantViewStats` |
 | `wind-adapter.ts` | the garden wind for sway: `src/ambience/wind.ts`'s `wind`/`windBoost` (picked up by glob; a local `createFallbackWind` stays as a stand-in if that module is absent) |
 | `debug.ts` | `window.sprout.plants` (?dev) |
 | `plants.studio.ts` | studio sections |
@@ -33,6 +34,7 @@ Look at it: studio sections **Plants · watering**, **· wither**, **· growth t
 | `species.studio.ts` | one studio section per registered species (`GROWTH_STAGES` + grow loop) |
 | `test-canvas.ts` | test-only fake canvases (`FakeCanvas`, `fakeContext`, `installFakeOffscreenCanvas`) |
 | `lib/` | shared species painting: `small-*` (tier 1–2 plants, `small-species-list.ts`), `shrub-*` (tier 3), `tree-*` (tier 4) |
+| `view-prewarm.test.ts` | the view cache's worker, prewarm and deferred draws, the idle lane (ADRs 0220, 0221) |
 | `plantable.test.ts` | every species has a compatible garden slot; the lotus fits exactly `water-1`/`water-3` and has none only when seedlings hold both (Q1, ADR 0205) |
 
 ## Wiring (`src/main.ts`)
@@ -94,8 +96,15 @@ store (plants, session) ──sync──▶ records ──requests──▶ spri
   toward the upper one's painted size (measured content bounds) and vice versa, so tips travel
   instead of dissolving. The next two steps are queued ahead (`next`, `ahead`).
 - Priorities: `now` (growing plant's current steps, bloom) < `next` < `visible` (finished plants,
-  ghost) < `rescale` < `ahead`. Duplicate requests merge (priority raised).
-- **Workers**: `min(2, cores − 1)` module workers paint with the same `paintSprite` and transfer
+  ghost) < `rescale` < `ahead` < `idle` (the plant view's prewarms). Duplicate requests merge
+  (priority raised, and a raised held job is dispatched at once).
+- **The idle lane** (ADR 0221): every live cache is in a module-level set. A cache holds its `idle`
+  jobs while another cache has work below `idle` queued or in flight, and wakes the others when
+  it goes quiet or is disposed. So prewarmed previews wait for the garden's sprites.
+- **Readiness**: `cache.whenReady(spec)` resolves true when the sprite lands, false when it fails,
+  is dropped (`dropQueued`, `clear`, `dispose`) or was never requested; `cache.pending(spec)`.
+- **Workers**: `min(2, cores − 1)` module workers (`lazyWorkers` spawns them on the first queued
+  sprite instead of at creation: the plant view's cache) paint with the same `paintSprite` and transfer
   `ImageBitmap`s. A species a worker doesn't know (runtime-injected) or a failure is retried on
   the main thread; a dead worker's jobs are requeued. Without Worker/OffscreenCanvas the queue is
   drained one sprite per `requestIdleCallback` (≥ 1, more if the idle period allows).
@@ -185,12 +194,32 @@ enlarged about its base up to `MAX_GROWTH_ZOOM` (8×; `growthZoom`; "Your plant"
 now" thumbnails, ADR 0189); below growth 0.2 a seed painted as a flat dab is raised onto a small
 mound of soil that eases away by its first leaves (`seedBedAlpha`, `SEED_BED_START` 0.06 →
 `SEED_BED_END` 0.2; not for water plants) — a soft ground wash, the morphing cross-fade between
-the two nearest of 24 steps (lower step painted synchronously on first use, upper step queued for
-idle time and faded in once ready), damp soil + the can + droplets for `watering` (the rig is
+the two nearest of 24 steps (lower step painted synchronously on first use, upper step queued and
+faded in once ready), damp soil + the can + droplets for `watering` (the rig is
 kept inside the canvas with `fitRigToCanvas`, and the can fades by its share inside the frame,
 `canVisibility`, so no sliver of it shows at the edge while it glides in or out), and the wither
 for `wilt`. Its cache is a separate
-24 MB main-thread `SpriteCache`. `setPlantViewSpecies(fn)` adds species the registry lacks.
+24 MB `SpriteCache` with one worker, spawned on the first queued sprite (ADR 0220): queued steps
+paint off the main thread, and the fallback (no workers, a species the worker does not know) is
+one sprite per idle callback. `setPlantViewSpecies(fn)` adds species the registry lacks.
+
+**Prewarm and deferred draws** (ADR 0221), for callers that must not paint on the main thread
+(the planting sheet, task P2):
+- `plantViewSprites(size, opts)`: the sprites a first full frame of that size looks up (lower step,
+  plus the upper one between steps; for `framing: 'growth'` the unzoomed ones).
+- `prewarmPlantView(size, opts)` queues them at `PRIORITY.idle` (held while the garden paints) and,
+  for growth framing, the zoomed ones once the lower step lands. Resolves true when a draw will not
+  paint; false for an unknown species or a failed render. `size` is a canvas or `{ width, height }`.
+- `drawPlantView(canvas, opts)` draws like `renderPlantView` from cached sprites (a nearby lower
+  step stands in as usual). If the lower step is missing it is queued at `now` (raising a prewarm),
+  the canvas is left untouched, and it returns `{ state: 'pending', ready }`; draw again when `ready`
+  resolves. `{ state: 'unknown' }` is `renderPlantView`'s false.
+- `renderPlantView` is unchanged: it paints a missing lower step now, even one a prewarm queued.
+- `whenPlantViewsReady()`: no view sprite queued or in flight. `plantViewStats()`: cache stats
+  plus `syncPaints` (sprites `renderPlantView` painted on the main thread).
+  `setPlantViewCacheOptions(o | null)` replaces the cache (fake workers in tests, `createWorker: null`).
+- A worker-painted view matches the main-thread one: maximum difference 0 in headless Chromium
+  (`sprout.plants.view.parity`, e2e).
 
 ## Bounds, hit-test & notes
 `plantWorldBounds(def, slot)` — `species.size × plantScale(slot)` (= slot scale × 1.25), anchored on the slot point; the exact
@@ -219,7 +248,9 @@ at growths `k / 24` only. Keep each call under ~100 ms at 600 px.
   the ink crop (devlog 28).
 - Painting: off the main thread with workers; the main-thread fallback paints one sprite per
   idle period (a single sprite can still exceed 8 ms there).
-- Memory: 96 MB garden + 24 MB view LRU; reflections ≤ 48 cached images at half resolution.
+- Memory: 96 MB garden + 24 MB view LRU (prewarmed previews included); reflections ≤ 48 cached
+  images at half resolution.
+- Workers: the garden's `min(2, cores − 1)` plus the view's one, spawned on its first queued sprite.
 
 ## Debug API (`?dev`, `window.sprout.plants`)
 `sprout.plantsReady()` resolves once the system has picked up the latest store change (even one made
@@ -231,7 +262,9 @@ growth or blooms; use it before a screenshot (`sprout.addPlants(25); await sprou
 seedling) [growth, shown, lo, hi, weight, drawn], seedlings (every session in progress: id, slot,
 growth, shown, active, calm, drawn), withering, watering [progress, wet, active, sessionId], displaced, reflections,
 highlight, cache stats), `settle()` (snap growth/fades, paint what is needed, resolve when idle),
-`whenIdle()`, `bounds(id)`, `boundsFor(speciesId, slotId)`, `toDevice(rect)`,
+`whenIdle()`, `view.stats()` / `view.whenReady()` (the plant view's cache, `syncPaints`),
+`view.parity({ speciesId, seed, growth, width, height })` (one view painted on the main thread and
+through the worker, pixels compared; resets the view cache), `bounds(id)`, `boundsFor(speciesId, slotId)`, `toDevice(rect)`,
 `hitTest(world, tolerance?)`, `perf()`,
 `resetPerf()`, `ambienceWind()`.
 
@@ -243,6 +276,8 @@ growth + look-ahead, easing, displacement, wither, watering, bloom, bounds, refl
 highlight, 50-plant budget, plantsReady waits for the store change, sprites and fade-in, "finished plants sway with the wind, and hold still under reduced
 motion"), `shadow.test.ts` (cast shadow length, side, pool), `view.test.ts`, `hit-test.test.ts`,
 `notes.test.ts`, `registry.test.ts` (discovery, well-formed species, tiers, id/file
-match), `plantable.test.ts`. E2E: `tests/e2e/plants.spec.ts` (watering, wither, bloom + reload,
+match), `plantable.test.ts`, `view-prewarm.test.ts` (whenReady, lazy workers, the idle lane, prewarm =
+draw specs, pending → drawn, growth-framing follow-up, main-thread fallback, the real worker module
+painting the same strokes as the main thread). E2E: `tests/e2e/plants.spec.ts` (watering, wither, bloom + reload,
 reflection, placement highlight, bounds + budget; the growth test runs in a reduced-motion block
-with the light pinned to noon).
+with the light pinned to noon; `plants · view previews` compares worker and main-thread pixels).
