@@ -202,6 +202,132 @@ describe('renderer', () => {
     renderer.dispose();
   });
 
+  describe('off-screen stage (ADR 0224)', () => {
+    async function running() {
+      const seen: Array<{ t: number; dt: number }> = [];
+      const out: string[] = [];
+      const env = setup({ maxDt: 0.1 });
+      await env.renderer.add({ id: 'u', update: (f) => void seen.push({ t: f.t, dt: f.dt }), draw: (layer) => void out.push(layer) });
+      env.renderer.start();
+      await env.renderer.whenReady();
+      env.tick(1000);
+      env.tick(1016);
+      seen.length = 0;
+      out.length = 0;
+      return { ...env, seen, out };
+    }
+
+    it('hidden: no frame is requested, updated or drawn', async () => {
+      const { renderer, frames, tick, seen, out } = await running();
+      expect(frames.size).toBe(1);
+      renderer.setVisible(false);
+      expect(renderer.visible).toBe(false);
+      expect(frames.size).toBe(0);
+      tick(1032); // nothing pending: no-op
+      expect(seen).toEqual([]);
+      expect(out).toEqual([]);
+      // unfreezing or starting again while hidden does not restart the loop
+      renderer.freeze();
+      seen.length = 0;
+      renderer.unfreeze();
+      renderer.start();
+      expect(frames.size).toBe(0);
+      expect(renderer.frameStats().frames).toBeGreaterThan(0);
+      renderer.resetFrameStats();
+      expect(renderer.frameStats().frames).toBe(0);
+      renderer.dispose();
+    });
+
+    it('visible again: the loop resumes from the last frame with a clamped dt (no jump)', async () => {
+      const { renderer, frames, tick, seen, clock } = await running();
+      renderer.setVisible(false);
+      clock.advance(60_000);
+      renderer.setVisible(true);
+      expect(frames.size).toBe(1);
+      tick(61_016); // a minute later: clamped to maxDt, not 0 (fades keep easing) and not 60 s
+      tick(61_032);
+      expect(seen.map((f) => f.dt)).toEqual([0.1, 0.016]);
+      expect(seen[0]!.t).toBeCloseTo(0.016 + 0.1);
+      renderer.setVisible(true); // already visible: no second loop
+      expect(frames.size).toBe(1);
+      renderer.dispose();
+    });
+
+    it('explicit frames still draw while hidden: renderOnce and freeze', async () => {
+      const { renderer, frames, seen, out } = await running();
+      renderer.setVisible(false);
+      renderer.renderOnce();
+      expect(seen.map((f) => f.dt)).toEqual([0]);
+      expect(out).toContain('air');
+      renderer.freeze();
+      expect(seen).toHaveLength(2);
+      expect(frames.size).toBe(0);
+      // becoming visible while frozen keeps the still frame
+      renderer.setVisible(true);
+      expect(frames.size).toBe(0);
+      renderer.unfreeze();
+      expect(frames.size).toBe(1);
+      renderer.dispose();
+    });
+
+    it('a resize while hidden draws nothing then; the first frame back repaints the caches', async () => {
+      const { renderer, frames, tick, out, main } = await running();
+      renderer.setVisible(false);
+      await renderer.resize();
+      expect(out).toEqual([]);
+      renderer.setVisible(true);
+      main.log.length = 0;
+      tick(2000);
+      expect(out).toContain('background');
+      expect(out).toContain('paper');
+      expect(main.log[0]).toBe('clear');
+      expect(frames.size).toBe(1);
+      renderer.dispose();
+    });
+
+    it('pauseWhenOffscreen follows an IntersectionObserver on the stage', async () => {
+      const observers: Array<{ cb: IntersectionObserverCallback; target?: Element; margin?: string; off: boolean }> = [];
+      vi.stubGlobal(
+        'IntersectionObserver',
+        class {
+          rec: (typeof observers)[number];
+          constructor(cb: IntersectionObserverCallback, o?: IntersectionObserverInit) {
+            this.rec = { cb, margin: o?.rootMargin, off: false };
+            observers.push(this.rec);
+          }
+          observe(t: Element) {
+            this.rec.target = t;
+          }
+          disconnect() {
+            this.rec.off = true;
+          }
+        },
+      );
+      try {
+        const { renderer, frames } = await running();
+        const stage = {} as Element;
+        const stopWatching = renderer.pauseWhenOffscreen(stage);
+        const io = observers[0]!;
+        expect(io.target).toBe(stage);
+        expect(io.margin).toBe('160px 0px');
+        const fire = (isIntersecting: boolean) => io.cb([{ isIntersecting } as IntersectionObserverEntry], {} as IntersectionObserver);
+        fire(false);
+        expect(renderer.visible).toBe(false);
+        expect(frames.size).toBe(0);
+        fire(true);
+        expect(renderer.visible).toBe(true);
+        expect(frames.size).toBe(1);
+        fire(false);
+        stopWatching(); // no longer watched: drawn again
+        expect(io.off).toBe(true);
+        expect(renderer.visible).toBe(true);
+        renderer.dispose();
+      } finally {
+        vi.unstubAllGlobals();
+      }
+    });
+  });
+
   it('isolates a failing system and reports it', async () => {
     const out: string[] = [];
     const onSystemError = vi.fn();

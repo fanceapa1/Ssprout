@@ -122,6 +122,15 @@ The renderer (`createRenderer` in `src/render/renderer.ts`) owns the frame loop,
 (`add`, `remove`, `start`, `freeze`, `renderOnce`, `invalidate`, `whenReady`, …) is documented
 in `docs/systems/render.md`.
 
+**Off-screen stage** (ADR 0224): `renderer.setVisible(bool)` pauses and resumes the frame loop;
+`renderer.visible` reads it. `main.ts` drives it with `renderer.pauseWhenOffscreen(#stage)`, an
+IntersectionObserver that resumes 160 px before the stage scrolls back into view. Hidden, no system
+is updated or drawn; `renderOnce()`, `freeze()` and resize re-inits still draw. The first frame back
+continues from the last one (`dt` clamped to `maxDt`) and rebuilds whatever cache went stale.
+Nothing outside the canvas may depend on the frame loop: sessions, the title and favicon, the
+widget, notifications and audio run on the clock and the worker ticker, and the dock's sections on
+their own `requestAnimationFrame`. A background tab gets no rAF anyway.
+
 Scene systems (`src/scene/system.ts`, docs/systems/scene.md): `createPaperSystem()` draws the
 `paper` layer (ADR 0040); `createSceneSystem({ invalidate: renderer.invalidate, showSlots?, daylight? })` paints the
 cached `background` (repainted only when the scale changes > 10 %, cross-faded, ADR 0041),
@@ -506,7 +515,8 @@ instead of sleeping (docs/TESTING.md). Modules add methods with `extendDebug({..
 Foundation (`src/dev/debug.ts`): `state()`, `ready()` (resolves when all systems are initialised),
 `freeze()` (async; resolves after a stable frame is drawn), `unfreeze()`, `setSpeed(n)`, `now()`,
 `frameStats()` (`{ frames, workAvg, workP95, workMax, intervalAvg, intervalP95 }`: renderer main-thread
-ms per frame and rAF intervals over the last 600 frames), `resetFrameStats()`, `mute({ systemId: layers[] | '*' })`
+ms per frame and rAF intervals over the last 600 frames), `resetFrameStats()`, `stageVisible()` (false
+while the stage is scrolled out of view and the garden draws nothing, ADR 0224), `mute({ systemId: layers[] | '*' })`
 (leave out what systems draw, to isolate a layer in a probe or a pixel test; `mute({})` restores).
 
 Core logic (`src/dev/core-debug.ts`): `reset()`, `seed(n)`, `start(min?, { taskName?, planId?,

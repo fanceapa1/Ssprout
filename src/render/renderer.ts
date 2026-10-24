@@ -46,6 +46,8 @@ export interface Renderer {
   readonly camera: Camera;
   readonly frozen: boolean;
   readonly running: boolean;
+  /** false while the stage is scrolled out of view: the loop draws nothing (ADR 0224) */
+  readonly visible: boolean;
   /** Resolves once every system has initialised for the current size and caches are built. */
   whenReady(): Promise<void>;
   /** Register a system (initialised immediately if the renderer is already sized). */
@@ -57,8 +59,19 @@ export interface Renderer {
   /** Stop animating (t stops advancing) and draw one stable frame. */
   freeze(): void;
   unfreeze(): void;
-  /** Draw a single frame now with dt = 0 (updates systems with dt = 0 too). */
+  /** Draw a single frame now with dt = 0 (updates systems with dt = 0 too). Works while hidden. */
   renderOnce(): void;
+  /**
+   * Pause (false) or resume (true) the frame loop for an off-screen stage (ADR 0224). Hidden, no
+   * frame is updated or drawn; `renderOnce`, `freeze` and resize re-inits still work. Resuming
+   * keeps the last frame's timestamp, so the first frame back gets the usual clamped `dt`.
+   */
+  setVisible(visible: boolean): void;
+  /**
+   * Drive `setVisible` from an IntersectionObserver on `target` (the garden stage), resuming
+   * `margin` before it scrolls into view. Returns a disconnect; a no-op without IntersectionObserver.
+   */
+  pauseWhenOffscreen(target: Element, margin?: string): () => void;
   /** Re-measure and re-initialise immediately (resize events call this debounced). */
   resize(): Promise<void>;
   /** Rebuild a cached layer before the next frame (e.g. when the scene changes). */
@@ -143,6 +156,8 @@ export function createRenderer(opts: RendererOptions): Renderer {
   let rafId: number | null = null;
   let running = false;
   let frozen = false;
+  let visible = true;
+  let visibilityObserver: IntersectionObserver | null = null;
   let lastTs: number | null = null;
   let t = 0;
   let resizeTimer: ReturnType<typeof setTimeout> | null = null;
@@ -340,7 +355,7 @@ export function createRenderer(opts: RendererOptions): Renderer {
 
   const loop = (ts: number) => {
     rafId = null;
-    if (!running || frozen || disposed) return;
+    if (!running || frozen || disposed || !visible) return;
     rafId = requestFrame(loop);
     const dt = lastTs === null ? 0 : Math.min(maxDt, Math.max(0, (ts - lastTs) / 1000));
     lastTs = ts;
@@ -348,9 +363,10 @@ export function createRenderer(opts: RendererOptions): Renderer {
     frame(dt);
   };
 
-  const schedule = () => {
-    if (running && !frozen && !disposed && rafId === null) {
-      lastTs = null;
+  /** `fresh`: the next frame starts time over (dt 0); otherwise it continues from the last one */
+  const schedule = (fresh = true) => {
+    if (running && !frozen && !disposed && visible && rafId === null) {
+      if (fresh) lastTs = null;
       rafId = requestFrame(loop);
     }
   };
@@ -403,6 +419,9 @@ export function createRenderer(opts: RendererOptions): Renderer {
     },
     get running() {
       return running;
+    },
+    get visible() {
+      return visible;
     },
     whenReady: () => readyPromise,
     add(system) {
@@ -464,6 +483,36 @@ export function createRenderer(opts: RendererOptions): Renderer {
     renderOnce() {
       frame(0);
     },
+    setVisible(next) {
+      if (next === visible) return;
+      visible = next;
+      if (!visible) {
+        if (rafId !== null) cancelFrame(rafId);
+        rafId = null;
+        return;
+      }
+      // the first frame back: dt from the last drawn frame, clamped to maxDt (no jump); caches
+      // invalidated while hidden (a resize, a new painting) are rebuilt by that frame
+      schedule(false);
+    },
+    pauseWhenOffscreen(target, margin = '160px 0px') {
+      visibilityObserver?.disconnect();
+      if (typeof IntersectionObserver === 'undefined') return () => {};
+      const io = new IntersectionObserver(
+        (entries) => {
+          const last = entries[entries.length - 1];
+          if (last) renderer.setVisible(last.isIntersecting);
+        },
+        { rootMargin: margin },
+      );
+      io.observe(target);
+      visibilityObserver = io;
+      return () => {
+        io.disconnect();
+        if (visibilityObserver === io) visibilityObserver = null;
+        renderer.setVisible(true);
+      };
+    },
     resize,
     frameStats: () => ({
       frames: work.length,
@@ -484,6 +533,8 @@ export function createRenderer(opts: RendererOptions): Renderer {
     },
     dispose() {
       renderer.stop();
+      visibilityObserver?.disconnect();
+      visibilityObserver = null;
       disposed = true;
       if (resizeTimer !== null) clearTimeout(resizeTimer);
       for (const e of entries.splice(0)) guard(e.system.id, 'dispose', () => e.system.dispose?.());

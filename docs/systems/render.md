@@ -60,6 +60,18 @@ Back → front: `background`, `underwater`, `waterSurface`, `entities`, `air`, `
   (`onSystemError` to override) and the rest of the frame continues.
 - `freeze()` stops the loop and draws one frame with `dt = 0`; `unfreeze()` resumes;
   `renderOnce()` draws a frame now. `whenReady()` resolves after all inits for the current size.
+- **Off-screen stage** (ADR 0224): `setVisible(false)` cancels the pending frame and the loop stays
+  paused; nothing is updated or drawn. `main.ts` calls `pauseWhenOffscreen(#stage)`, an
+  IntersectionObserver with a `160px 0px` root margin, so the loop resumes just before the stage
+  scrolls back in and the first visible frame is fresh. `setVisible(true)` resumes from the last
+  frame's timestamp: the first frame back gets `dt = maxDt` (not 0, which systems read as a still
+  frame that snaps fades), and rebuilds any cache made dirty while hidden (a resize, a new
+  painting). `renderOnce()`, `freeze()` and resize re-inits work while hidden; `unfreeze()` and
+  `start()` while hidden wait for `setVisible(true)`. Scrolled away, the systems' own clocks stop
+  with the loop (fauna, watering, fades); their state catches up on the first frame back.
+  Nothing outside the canvas may depend on the frame loop (sessions and the timer surfaces run on
+  the clock and the worker ticker). A background tab gets no `requestAnimationFrame` at all, so
+  `document.hidden` needs no gate of its own.
 
 ## Renderer API (`createRenderer({ canvas, store, bus, clock, scene, reducedMotion?, … })`)
 - `viewport` (the camera's view), `baseViewport` (the overview), `camera`, `frozen`, `running` (getters).
@@ -67,6 +79,8 @@ Back → front: `background`, `underwater`, `waterSurface`, `entities`, `air`, `
   `remove(id)` (disposes it); `systems()`.
 - `start()` / `stop()` (rAF loop plus resize listeners), `freeze()` / `unfreeze()`, `renderOnce()`,
   `resize()` (re-measure and re-init now), `invalidate(layer?)`, `whenReady()`, `dispose()`.
+- `visible` (getter), `setVisible(bool)`, `pauseWhenOffscreen(target, margin = '160px 0px')` →
+  disconnect (a no-op without IntersectionObserver; disconnecting makes it visible again).
 - `frameStats()` → `{ frames, workAvg, workP95, workMax, intervalAvg, intervalP95 }` in ms over
   the last 600 frames (main-thread update + composite cost, and frame intervals);
   `resetFrameStats()`. With a CPU rasteriser (headless Chromium) the canvas is rasterised on the
@@ -100,7 +114,8 @@ Rules: never touch the DOM from a system; time via `f.now`/`f.t`; randomness via
 ## Testing
 `renderer.test.ts` drives the renderer with fake canvases and an injected frame scheduler
 (`measure`, `createCanvas`, `requestFrame`, `cancelFrame` options) to cover layer order,
-caching, depth sort, async init, resize re-init, dt clamping, freeze and error isolation.
+caching, depth sort, async init, resize re-init, dt clamping, freeze, error isolation and the
+off-screen pause (`off-screen stage`). `tests/e2e/offscreen.spec.ts` scrolls to the dock and back.
 `viewport.test.ts` covers cover scaling, focus clamping, `MIN_VISIBLE_W`, DPR cap and conversions.
 `camera.test.ts` covers composing, clamping and reach, zoom about a point, pan, framing, the glide
 path, easing and durations, and the controller; `renderer.test.ts` the camera's caches.
