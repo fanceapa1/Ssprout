@@ -77,6 +77,26 @@ Phase 9: performance (owner request 2026-10-24). The page is laggy. Draw only wh
 
 | # | Task | Area | Status |
 |---|---|---|---|
-| P0a | Measure: runtime load profile, Start-studying latency, frame cost overview/zoomed/scrolled away | read-only (scratch report) | in progress |
+| P0a | Measure: runtime load profile, Start-studying latency, frame cost overview/zoomed/scrolled away | read-only (scratch report) | done (garden pixels at 1.8 s, ~630 ms of off-screen work before them; Start studying 648 ms; Begin 216 ms + ~600 ms detail repaint; canvas renders while scrolled away) |
 | P0b | Measure: bundle composition, fonts, request waterfall, cache headers, service-worker and painted-cache options | read-only (scratch report) | done (Start studying: a 640 ms main-thread block painting 25 previews; landscape 1.2 s of main-thread paint on every load; Pages max-age=600 revalidation chain) |
 | P1 | Plant-view preview prewarm: worker-backed view cache, `prewarmPlantView`, never paint a queued preview synchronously | `src/plants/view.ts`, `src/plants/sprites.ts` | in progress (ADRs 0220–0221) |
+| P0c | Perf harness in the repo: port the scratch measurement scripts (load, flow, frames, bundle, Pages-like server) to `scripts/perf/`, record the baseline in `docs/systems/performance.md` | `scripts/perf/`, `docs/systems/performance.md`, `package.json` script | queued |
+| P2 | Planting sheet opens at once; previews fill in as they land (visible first), prewarmed on idle and on hover/focus of Start studying | `src/ui/planting-sheet.ts`, `src/ui/previews.ts` | queued (after P1; ADR 0222) |
+| P3 | Dock backdrop noise: build each tear once per seed, cheap edge noise, identical SVG output | `src/ui/backdrop-sheet.ts` | in progress (ADR 0223) |
+| P4 | Pause the render loop while the garden stage is scrolled out of view | `src/render/renderer.ts`, `src/main.ts` (1–2 lines) | queued (ADR 0224) |
+| P5 | Defer below-the-fold dock painting (plant section, backdrops, wayfinding) until after the garden's first pixels and until near the viewport; no synchronous plant-section paint on Begin | `src/ui/plant-section.ts`, `src/ui/backdrop.ts`, `src/ui/index.ts` | queued (ADR 0225) |
+| P6 | Split long scene paint steps so the cooperative painter yields every ~20 ms (load and close-view detail repaint) | `src/scene/background.ts`, `src/scene/paint-*.ts`, `src/scene/sprites.ts` | queued (ADR 0226) |
+| P7 | Persistent paint cache module: IndexedDB blob store, versioned keys, LRU byte cap, null adapter | `src/paint/persist.ts` (new), `vite.config.ts` define | queued (ADR 0227) |
+| P8 | Garden background from the persistent cache: a repeat visit shows the landscape without repainting it | `src/scene/system.ts`, `src/scene/background.ts` | queued (after P7; ADR 0228) |
+| P9 | Service worker build manifest (precache list and version written into `dist/sw.js`) | `vite.config.ts` plugin, `scripts/` | queued (ADR 0229) |
+| P10 | Service worker caching: precache, cache-first hashed assets, network-first HTML, old-version cleanup; notifications untouched | `public/sw.js` | queued (after P9; ADR 0230) |
+| P11 | Service worker registered at boot (idle, after the landscape); e2e blocks service workers by default, `sw.spec.ts` | `src/widget/notifications.ts`, `src/main.ts` (1 line), `playwright.config.ts`, `tests/e2e/sw.spec.ts` | queued (after P10) |
+| P12 | Fonts start loading before boot (preload/`document.fonts.load` of the 5 first-view files), one wave | `index.html` or `vite.config.ts`, `src/ui/index.ts` font imports | queued (ADR 0231) |
+| P13 | Font trim (owner: Latin only): own `@font-face` for Latin + Latin-ext woff2, only the weights used, no woff | `src/ui/fonts.css` (new), `src/widget/index.ts` imports | queued |
+| P14 | Boot in stages, garden first: paper and scene start painting before plants, fauna, ambience and the dock; ambience sprites built per phase on first use | `src/main.ts`, `src/ambience/sprites.ts`, `src/ambience/ambience.ts` | queued (ADR 0232) |
+| P15 | The `?dev` API is loaded only with `?dev` (dynamic import, atomic `window.sprout`) | `src/main.ts`, `src/dev/install.ts` (new) | queued (ADR 0233) |
+| P16 | Lazy chunks for what is not visible, one task each: a fauna · b audio · c PiP art · d sheets and cards · e calendar; prefetched on idle; reload-once on a stale chunk | per sub-task | queued (ADR 0234) |
+| P17 | Idle callbacks respect their deadline (sky next-phase, cast prepare, sprite `runIdle`) | `src/scene/sky-light.ts`, `src/scene/system.ts`, `src/ambience/cast.ts` | queued (ADR 0235) |
+| P18 | Sky and light plates from the persistent cache | `src/scene/sky-light.ts`, `src/ambience/lighting.ts` | queued (after P7; ADR 0236) |
+| P19 | Spike, then build if it pays: scene painting in a worker (OffscreenCanvas) | `src/scene/*`, worker | queued (ADR 0237) |
+| P20 | Scroll path: tips, format and wayfinding read layout once per frame | `src/ui/tips.ts`, `src/ui/format.ts`, `src/ui/wayfinding.ts` | queued |
