@@ -15,6 +15,8 @@ export interface RecordedCost {
   calls: number;
   /** pixels read or written by pixel passes (getImageData / createImageData / putImageData) */
   pixels: number;
+  /** pixel reads (getImageData): one per wet layer dried, the engine's heaviest single pass */
+  reads: number;
 }
 
 interface Matrix {
@@ -44,7 +46,7 @@ const matrix = (m: Matrix) => ({ ...m, inverse: () => matrix(invert(m)) });
 
 export class PaintRecorder {
   private h = 0x811c9dc5;
-  private cost: RecordedCost = { calls: 0, pixels: 0 };
+  private cost: RecordedCost = { calls: 0, pixels: 0, reads: 0 };
   /** the running hash (hex) */
   get hash(): string {
     return (this.h >>> 0).toString(16).padStart(8, '0');
@@ -53,7 +55,7 @@ export class PaintRecorder {
   /** Work since the last mark, and start counting again. */
   mark(): RecordedCost {
     const c = this.cost;
-    this.cost = { calls: 0, pixels: 0 };
+    this.cost = { calls: 0, pixels: 0, reads: 0 };
     return c;
   }
 
@@ -72,7 +74,8 @@ export class PaintRecorder {
     this.cost.pixels += n;
   }
 
-  pixelsRead(n: number): void {
+  pixelsRead(n: number, read: boolean): void {
+    if (read) this.cost.reads++;
     this.cost.pixels += n;
   }
 
@@ -156,7 +159,7 @@ function recordingContext(canvas: RecordingCanvas, onReset: (r: () => void) => v
   const rec = {
     feed: (s: string) => active.feed(s),
     feedPixels: (d: ArrayLike<number>, n: number) => active.feedPixels(d, n),
-    pixelsRead: (n: number) => active.pixelsRead(n),
+    pixelsRead: (n: number, read: boolean) => active.pixelsRead(n, read),
     seed: () => active.seed(),
   };
   let m: Matrix = { ...IDENTITY };
@@ -204,7 +207,7 @@ function recordingContext(canvas: RecordingCanvas, onReset: (r: () => void) => v
         data[i + 3] = (v >>> 24) % 3 === 0 ? 0 : (v >>> 24) & 255;
       }
     }
-    rec.pixelsRead(n);
+    rec.pixelsRead(n, fill);
     return { data, width: Math.round(w), height: Math.round(h) };
   };
   const methods: Record<string, (...a: never[]) => unknown> = {

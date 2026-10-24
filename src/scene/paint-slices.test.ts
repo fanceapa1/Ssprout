@@ -4,7 +4,7 @@
  * ~20 ms slice the painter yields after.
  */
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { GARDEN_ART, paintJob, type PaintView } from './background';
+import { GARDEN_ART, paintJob, paintScene, type PaintView } from './background';
 import { PaintRecorder, type RecordedCost } from './paint-record';
 
 const OVERVIEW: PaintView = { rect: { x: 0, y: 0, w: 1600, h: 1000 }, scale: 0.6 };
@@ -42,18 +42,63 @@ describe('scene paint slices (ADR 0226)', () => {
     runs.overview = record(OVERVIEW);
     runs.detail = record(DETAIL);
     runs.trunk = record(TRUNK);
-  });
+  }, 120_000);
   afterAll(() => {
     if (!process.env.SCENE_SLICES_REPORT) return;
     for (const [k, r] of Object.entries(runs)) {
-      const top = [...r.chunks].sort((a, b) => b.calls + b.pixels / 1000 - (a.calls + a.pixels / 1000)).slice(0, 10);
-      console.log(k, r.hash, r.chunks.length, top.map((c) => `${c.name} ${c.calls}c ${Math.round(c.pixels / 1000)}kpx`).join(' · '));
+      const top = [...[...r.chunks].sort((a, b) => b.pixels - a.pixels).slice(0, 4), ...[...r.chunks].sort((a, b) => b.calls - a.calls).slice(0, 4)];
+      console.log(k, r.hash, r.chunks.length, top.map((c) => `${c.name} ${c.reads}r ${c.calls}c ${Math.round(c.pixels / 1000)}kpx`).join(' · '));
     }
   });
 
+  // The hashes were taken from the painter before its steps were split (one uninterrupted call per
+  // step). The same paintings also hash alike in Chromium, pixel for pixel (devlog 46).
   it('paints exactly the marks it painted before the steps were split (overview and close views)', () => {
     expect(runs.overview!.hash).toBe('4df9684b');
     expect(runs.detail!.hash).toBe('09d5c8b9');
     expect(runs.trunk!.hash).toBe('937c55ba');
+  });
+
+  // Work is counted, not timed, so a loaded machine cannot fail this. Before the split one part
+  // was a whole step: the meadow's 1.3 M canvas calls (overview), the big tree's 5.1 Mpx of drying
+  // passes (trunk view), the boulder's 1.07 Mpx (close view). What remains are single painter
+  // calls the scene cannot split: the pond's water recipe (310 k calls) and a boulder's stone
+  // recipe (0.82 Mpx at 2.8 px per unit) — the paint engine's to slice (ADR 0226).
+  it.each(['overview', 'detail', 'trunk'])('no part of a step does more than one big mark’s work (%s)', (view) => {
+    const { chunks } = runs[view]!;
+    const most = (k: 'calls' | 'pixels') => chunks.reduce((a, c) => (c[k] > a[k] ? c : a));
+    expect(most('calls').calls, most('calls').name).toBeLessThanOrEqual(320_000);
+    expect(most('pixels').pixels, most('pixels').name).toBeLessThanOrEqual(900_000);
+  });
+
+  it('pauses inside the heavy steps: trees, meadow, banks, pavilion, stones and boulders come in parts', () => {
+    const parts = (name: string) => runs.overview!.chunks.filter((c) => c.name === name).length;
+    for (const step of ['tree-left', 'meadow', 'grass', 'banks', 'pavilion', 'stones', 'reflections', 'rock-left-big']) {
+      expect(parts(step), step).toBeGreaterThan(2);
+    }
+  });
+
+  it('the cooperative painter hands the main thread back between the parts of a step', async () => {
+    const uninstall = new PaintRecorder().install();
+    try {
+      // every part "takes" 25 ms, more than a 20 ms slice: the painter must yield after each one
+      let t = 0;
+      let yields = 0;
+      const res = await paintScene(GARDEN_ART, TRUNK, {
+        only: ['trees'],
+        sprites: false,
+        sliceMs: 20,
+        now: () => (t += 25),
+        yieldTo: async () => {
+          yields++;
+        },
+      });
+      const tree = res.timings.find((s) => s.name === 'tree-left')!;
+      expect(tree.parts).toBeGreaterThan(10);
+      expect(yields).toBe(res.timings.reduce((a, s) => a + s.parts, 0));
+      expect(res.longest.ms).toBeLessThan(tree.ms);
+    } finally {
+      uninstall();
+    }
   });
 });

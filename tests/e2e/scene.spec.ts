@@ -59,6 +59,22 @@ test.describe('scene', () => {
     expect(scene.painting).toBe(false);
   });
 
+  test('paints in short parts: the heavy steps pause inside, at load and in a close view (ADR 0226)', async ({ page }) => {
+    await openDev(page);
+    const load = await page.evaluate(() => window.sprout!.sceneStats());
+    const step = (name: string) => load.timings.find((t) => t.name === name)!;
+    // a whole tree, the pavilion or the stepping stones used to be one uninterrupted task
+    for (const name of ['tree-left', 'pavilion', 'stones', 'banks', 'meadow']) expect(step(name).parts, name).toBeGreaterThan(2);
+    for (const name of ['tree-left', 'pavilion', 'stones']) expect(step(name).longestMs, name).toBeLessThan(step(name).ms * 0.5);
+    expect(load.longest.ms).toBeGreaterThan(0);
+    // the detail painted once the camera rests close (ADR 0163) is sliced the same way
+    await page.evaluate(() => window.sprout!.camera.glideTo({ zoom: 3, x: 300, y: 300 }, { animate: false }));
+    await page.evaluate(() => window.sprout!.camera.settle());
+    const detail = await page.evaluate(() => window.sprout!.sceneDetail());
+    expect(detail.paints).toBe(1);
+    expect(detail.longest.name).not.toBe('');
+  });
+
   test('exposes 50–60 slots across all habitats', async ({ page }) => {
     await openDev(page);
     const slots = await page.evaluate(() => window.sprout!.slots());
