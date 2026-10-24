@@ -84,7 +84,7 @@ loaded machine. The interleaved in-page comparison above shows no difference.
   - water, pond reserve, boulders and the big tree come in many parts;
   - no part dries more than one wet layer, except grass tufts and ripple lines.
 - TESTING row P23.1.
-- The full run (typecheck, unit, e2e) is in the report below.
+- The full run passed after rebasing on main (P8): typecheck, 1505 unit tests, 247 e2e tests.
 
 **Left open**
 - **Still one part each** (≤ ~18 ms at 1× on a busy laptop, 50–65 ms at 4×):
