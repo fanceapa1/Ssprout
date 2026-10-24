@@ -205,3 +205,18 @@ test.describe('plants · growth in a still garden', () => {
     expect(late).toBeGreaterThan(mid);
   });
 });
+
+test.describe('plants · view previews', () => {
+  test('a preview painted in the worker matches the main-thread one, without painting on the main thread', async ({ page }) => {
+    await openUi(page);
+    // the prewarm waits for the garden's sprites (idle lane, ADR 0221)
+    await page.evaluate(() => window.sprout!.plantsReady());
+    for (const [speciesId, growth] of [['camellia', 1], ['violet', 0.5]] as const) {
+      const r = await page.evaluate((o) => window.sprout!.plants.view.parity(o), { speciesId, seed: 7, growth, width: 240, height: 240 });
+      expect(r).toMatchObject({ prewarmed: true, drawn: 'drawn', workers: 1, syncPaints: 0 });
+      expect(r.ink).toBeGreaterThan(2000);
+      console.log(`view parity ${speciesId}@${growth}: max ${r.maxDiff}, mean ${r.meanDiff.toFixed(4)}`);
+      expect(r.maxDiff).toBeLessThanOrEqual(2);
+    }
+  });
+});

@@ -1,7 +1,9 @@
 import { extendDebug } from '../dev/debug';
 import type { Rect } from '../render/viewport';
 import type { Pt } from '../render/viewport';
+import type { SpriteCacheStats } from './sprites';
 import type { PlantDebugState, PlantHit, PlantPerf, PlantSystem } from './system';
+import { drawPlantView, plantViewStats, prewarmPlantView, renderPlantView, setPlantViewCacheOptions, whenPlantViewsReady } from './view';
 import { usingAmbienceWind } from './wind-adapter';
 
 /** `window.sprout.plants` (?dev): plant system state for e2e tests and screenshots. */
@@ -32,8 +34,70 @@ declare module '../dev/debug' {
       resetPerf(): void;
       /** true when the ambience wind field is in use (else the local fallback) */
       ambienceWind(): boolean;
+      /** the plant view's sprite cache (previews, widget, "Your plant"; ADRs 0220, 0221) */
+      view: {
+        /** cache stats plus `syncPaints`: sprites `renderPlantView` painted on the main thread */
+        stats(): SpriteCacheStats & { syncPaints: number };
+        /** resolves once no view sprite is queued or being painted */
+        whenReady(): Promise<void>;
+        /**
+         * Paint one view twice, synchronously on a main-thread-only cache and prewarmed through
+         * the worker, and compare the pixels. Resets the view cache (dev only).
+         */
+        parity(o: ViewParityOptions): Promise<ViewParity>;
+      };
     };
   }
+}
+
+export interface ViewParityOptions {
+  speciesId: string;
+  seed: number;
+  /** a whole growth step (e.g. 1 or 0.5): the first frame is then complete on both paths */
+  growth: number;
+  width: number;
+  height: number;
+}
+
+export interface ViewParity {
+  /** the prewarm resolved true */
+  prewarmed: boolean;
+  /** what `drawPlantView` did after the prewarm */
+  drawn: string;
+  /** workers of the view cache, and its main-thread paints, after the worker path */
+  workers: number;
+  syncPaints: number;
+  /** pixels with any paint in the main-thread view */
+  ink: number;
+  /** largest and mean per-channel difference (RGBA, 0–255) */
+  maxDiff: number;
+  meanDiff: number;
+}
+
+async function viewParity(o: ViewParityOptions): Promise<ViewParity> {
+  const opts = { speciesId: o.speciesId, seed: o.seed, growth: o.growth, watering: null };
+  const canvas = () => Object.assign(document.createElement('canvas'), { width: o.width, height: o.height });
+  const pixels = (c: HTMLCanvasElement) => c.getContext('2d')!.getImageData(0, 0, c.width, c.height).data;
+  const main = canvas();
+  setPlantViewCacheOptions({ createWorker: null, scheduleIdle: () => {} });
+  renderPlantView(main, opts);
+  setPlantViewCacheOptions(null);
+  const viaWorker = canvas();
+  const prewarmed = await prewarmPlantView(viaWorker, opts);
+  const drawn = drawPlantView(viaWorker, opts).state;
+  const { workers, syncPaints } = plantViewStats();
+  const a = pixels(main);
+  const b = pixels(viaWorker);
+  let maxDiff = 0;
+  let sum = 0;
+  let ink = 0;
+  for (let i = 0; i < a.length; i++) {
+    const d = Math.abs(a[i]! - b[i]!);
+    if (d > maxDiff) maxDiff = d;
+    sum += d;
+    if (i % 4 === 3 && a[i]! > 0) ink++;
+  }
+  return { prewarmed, drawn, workers, syncPaints, ink, maxDiff, meanDiff: sum / a.length };
 }
 
 export function installPlantsDebug(system: PlantSystem): void {
@@ -54,6 +118,11 @@ export function installPlantsDebug(system: PlantSystem): void {
       perf: () => system.perf(),
       resetPerf: () => system.resetPerf(),
       ambienceWind: () => usingAmbienceWind,
+      view: {
+        stats: () => plantViewStats(),
+        whenReady: () => whenPlantViewsReady(),
+        parity: (o: ViewParityOptions) => viewParity(o),
+      },
     },
   });
 }
