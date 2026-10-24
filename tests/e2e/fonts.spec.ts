@@ -28,7 +28,7 @@ test.describe('fonts', () => {
         const hasText = [...el.childNodes].some((n) => n.nodeType === Node.TEXT_NODE && n.textContent!.trim());
         if (!hasText && !el.matches('button, input, textarea, select')) continue;
         const cs = getComputedStyle(el);
-        const family = cs.fontFamily.split(',')[0].replace(/['"]/g, '').trim();
+        const family = (cs.fontFamily.split(',')[0] ?? '').replace(/['"]/g, '').trim();
         if (families.includes(family)) combos.add(`${cs.fontStyle} ${cs.fontWeight} 16px "${family}"`);
       }
       await Promise.all([...combos].map((c) => document.fonts.load(c, 'Study')));
