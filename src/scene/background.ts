@@ -13,7 +13,7 @@ import { paintMeadow, paintMeadowGrass } from './paint-ground';
 import { paintPavilion } from './paint-pavilion';
 import { paintReflections, paintWater, paintWaterDetail } from './paint-pond';
 import { paintShrub, paintTree } from './paint-trees';
-import { paintRockSprite, paintTuftSprite, type Sprite } from './sprites';
+import { paintRockSprite, paintTuftSprite, rockBox, tuftBox, type Sprite } from './sprites';
 
 /** Everything the scene paints: the shared geometry plus painting-only layout. */
 export interface SceneArt {
@@ -239,4 +239,122 @@ export async function paintScene(art: SceneArt, view: PaintView, opts: Cooperati
       sliceStart = now();
     }
   }
+}
+
+// ---------------------------------------------------------------------------------------------
+// The persistent paint cache (ADR 0228): keys and the sprite atlas
+
+/** Kinds the scene stores in the paint cache (`paintCache()`, ADR 0227). */
+export const SCENE_CACHE = {
+  /** the overview painting (the cut sides of a strip already faded to paper) */
+  overview: 'scene',
+  /** the camera's detail painting of its resting view (ADR 0163), never faded */
+  detail: 'scene-detail',
+  /** the foreground boulders and tufts of one paint scale, packed into one atlas */
+  sprites: 'scene-sprites',
+} as const;
+
+/** A number exactly as JavaScript prints it: `String` round-trips every double. */
+const exact = (n: number): string => String(n);
+
+/**
+ * The cache key of a painting: everything its pixels depend on besides the code and the browser
+ * (both are in the cache's version, ADR 0227): the seed, the quality, the world rect, the scale
+ * (which already holds the device pixel ratio and the zoom) and the bitmap's size. The art's
+ * layout (trees, shrubs, tufts) is code, so only its seed is in the key. The daylight is not: the
+ * sky plate, the light plate and the paper are laid over the painting each time it is drawn.
+ */
+export function paintingKey(art: SceneArt, view: PaintView, quality: Quality): string {
+  const { rect, scale } = view;
+  const w = Math.max(1, Math.ceil(rect.w * scale));
+  const h = Math.max(1, Math.ceil(rect.h * scale));
+  return `s${art.seed}|${quality}|${exact(rect.x)},${exact(rect.y)},${exact(rect.w)},${exact(rect.h)}@${exact(scale)}|${w}x${h}`;
+}
+
+/** The cache key of the sprites of one paint scale: they do not depend on the painted rect. */
+export function spritesKey(art: SceneArt, scale: number, quality: Quality): string {
+  return `s${art.seed}|${quality}@${exact(scale)}`;
+}
+
+/** Where a sprite sits in the atlas: stacked top to bottom in paint order, left-aligned. */
+export interface AtlasSlot {
+  id: string;
+  box: Rect;
+  depth: number;
+  /** the sprite's pixel rect in the atlas: (0, y, w, h) */
+  y: number;
+  w: number;
+  h: number;
+}
+
+export interface AtlasLayout {
+  width: number;
+  height: number;
+  slots: AtlasSlot[];
+}
+
+/**
+ * The atlas the sprites of one paint scale are stored in. It follows from the geometry alone
+ * (`rockBox`, `tuftBox` and the canvas size `makeCanvas` gives), so a stored atlas is cut up
+ * again without painting anything.
+ */
+export function spriteAtlasLayout(art: SceneArt, scale: number): AtlasLayout {
+  const specs = [
+    ...art.scene.rocks.map((r) => ({ id: r.id, box: rockBox(r), depth: r.y })),
+    ...art.foregroundTufts.map((t, i) => ({ id: `tuft-${i}`, box: tuftBox(t), depth: t.y })),
+  ];
+  let y = 0;
+  let width = 1;
+  const slots = specs.map((s) => {
+    const w = Math.max(1, Math.ceil(s.box.w * scale));
+    const h = Math.max(1, Math.ceil(s.box.h * scale));
+    const slot: AtlasSlot = { ...s, y, w, h };
+    y += h;
+    width = Math.max(width, w);
+    return slot;
+  });
+  return { width, height: Math.max(1, y), slots };
+}
+
+type Ctx = CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
+
+/** The sprites packed into one canvas, or null when they do not match the layout. */
+export function packSprites(sprites: readonly Sprite[], layout: AtlasLayout): AnyCanvas | null {
+  const { slots } = layout;
+  if (sprites.length !== slots.length) return null;
+  if (sprites.some((s, i) => s.id !== slots[i]!.id || s.canvas.width !== slots[i]!.w || s.canvas.height !== slots[i]!.h)) return null;
+  const atlas = makeCanvas(layout.width, layout.height);
+  const ctx = atlas.getContext('2d') as Ctx | null;
+  if (!ctx) return null;
+  // source-over onto transparent pixels copies them exactly (`copy` would clear the others)
+  for (const [i, s] of sprites.entries()) ctx.drawImage(s.canvas as CanvasImageSource, 0, slots[i]!.y);
+  return atlas;
+}
+
+type Image = CanvasImageSource & { width: number; height: number };
+
+/** A pixel-for-pixel canvas copy of part of an image (`copy`, no smoothing). Throws without a 2D context. */
+function cut(image: Image, y: number, w: number, h: number): AnyCanvas {
+  const canvas = makeCanvas(w, h);
+  const ctx = canvas.getContext('2d') as Ctx | null;
+  if (!ctx) throw new Error('2D canvas context unavailable');
+  ctx.globalCompositeOperation = 'copy';
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(image, 0, y, w, h, 0, 0, w, h);
+  return canvas;
+}
+
+/**
+ * A stored painting as a canvas, pixel for pixel. Drawn scaled, the decoded bitmap itself
+ * (not premultiplied, ADR 0227) filters differently from the canvas it was painted on; its canvas
+ * copy draws exactly like the fresh painting (ADR 0228).
+ */
+export function canvasOf(image: Image): AnyCanvas {
+  return cut(image, 0, image.width, image.height);
+}
+
+/** The sprites cut out of a stored atlas, pixel for pixel, or null when its size is not the layout's. */
+export function unpackSprites(atlas: Image, layout: AtlasLayout): Sprite[] | null {
+  if (atlas.width !== layout.width || atlas.height !== layout.height) return null;
+  return layout.slots.map((s) => ({ id: s.id, box: s.box, depth: s.depth, canvas: cut(atlas, s.y, s.w, s.h) }));
 }

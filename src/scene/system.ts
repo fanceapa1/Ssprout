@@ -8,12 +8,33 @@
  * cached bitmap is simply rescaled. The first paint blocks `init` (so `ready()` means
  * "painted"); later repaints run in the background while the old painting stays on screen,
  * then cross-fade in. Paint runs cooperatively, yielding to the browser between steps.
+ *
+ * Every painting is looked up in the persistent paint cache first (ADR 0228): a repeat visit
+ * decodes the landscape and its sprites instead of painting them. A miss paints as before and
+ * stores the result in idle time.
  */
 import { paperTexture, type AnyCanvas, type Quality } from '../paint';
+import { paintCache, type PaintCache } from '../paint/persist';
 import type { Drawable, LayerId, System, SystemContext } from '../render/types';
 import { WORLD_H, WORLD_W, type Rect, type Viewport } from '../render/viewport';
-import { GARDEN_ART, PaintCancelled, paintScene, type PaintResult, type PaintView, type SceneArt, type StepTiming } from './background';
+import {
+  GARDEN_ART,
+  PaintCancelled,
+  SCENE_CACHE,
+  canvasOf,
+  packSprites,
+  paintScene,
+  paintingKey,
+  spriteAtlasLayout,
+  spritesKey,
+  unpackSprites,
+  type PaintResult,
+  type PaintView,
+  type SceneArt,
+  type StepTiming,
+} from './background';
 import { drawSlotOverlay } from './overlay';
+import type { Sprite } from './sprites';
 import { createWaterSurface, type WaterSurface } from './water';
 import { pinnedSource, type DaylightSource } from '../ambience/daylight-source';
 import { nextPhase, whenIdle, type DaylightState } from '../ambience/daylight';
@@ -54,6 +75,15 @@ export interface SceneSystemOptions {
    * strip) is extended to the whole world in idle time (default 1500; negative: only on demand)
    */
   extendDelayMs?: number;
+  /** the persistent paint cache paintings are looked up in and stored to (default `paintCache()`, ADR 0228) */
+  cache?: PaintCache;
+  /**
+   * longest wait for the cache lookup before painting anyway (default 300 ms); a hit that
+   * arrives later still replaces the paint job
+   */
+  cacheWaitMs?: number;
+  /** also cache the camera's detail paintings (default true, ADR 0228) */
+  cacheDetail?: boolean;
 }
 
 /** Seconds between checks whether the sky composite needs rebuilding (it changes over minutes). */
@@ -71,6 +101,12 @@ export interface SceneStats {
   /** the longest part of the last paint painted without a pause (ADR 0226) */
   longest: { name: string; ms: number };
   painting: boolean;
+  /** overview paintings (first, repaint or extension) taken from the persistent paint cache (ADR 0228) */
+  cacheHits: number;
+  /** overview lookups that found nothing (or ran with the cache off) and painted */
+  cacheMisses: number;
+  /** ms from the start of the last overview job until its lookup answered (or gave up waiting) */
+  lastLookupMs: number;
 }
 
 export interface SceneSystem extends System {
@@ -90,8 +126,23 @@ export interface SceneSystem extends System {
     longest: { name: string; ms: number };
     extending: boolean;
     world: boolean;
+    /** detail paintings taken from the persistent paint cache, and lookups that missed (ADR 0228) */
+    cacheHits: number;
+    cacheMisses: number;
   };
 }
+
+/** A painting on screen: painted now, or copied out of the paint cache (`cached`). */
+type Painting = PaintResult & { cached?: boolean };
+
+/** The answer of a cache lookup: the painting when both parts were found, and which were. */
+interface Lookup {
+  painting: Painting | null;
+  background: boolean;
+  sprites: boolean;
+}
+
+const LATE = Symbol('late');
 
 const WORLD: Rect = { x: 0, y: 0, w: WORLD_W, h: WORLD_H };
 
@@ -130,9 +181,13 @@ export function createSceneSystem(opts: SceneSystemOptions = {}): SceneSystem {
   const now = opts.now ?? (() => performance.now());
   const invalidate = opts.invalidate ?? (() => {});
   const extendDelayMs = opts.extendDelayMs ?? 1500;
+  // opened now, so the store is ready by the time init looks the first painting up
+  const cache = opts.cache ?? paintCache();
+  const cacheWaitMs = opts.cacheWaitMs ?? 300;
+  const cacheDetail = opts.cacheDetail ?? true;
 
-  let current: PaintResult | null = null;
-  let previous: PaintResult | null = null;
+  let current: Painting | null = null;
+  let previous: Painting | null = null;
   let fade = 1; // 0..1 progress of `current` fading in over `previous` (or paper)
   let job: Promise<void> | null = null;
   let jobId = 0;
@@ -150,12 +205,96 @@ export function createSceneSystem(opts: SceneSystemOptions = {}): SceneSystem {
   let camera: CameraView | null = null;
   let seenDetail = -1;
   let detailWanted: PaintView | null = null;
-  let detail: PaintResult | null = null;
+  let detail: Painting | null = null;
   let detailFade = 1;
   let detailJobId = 0;
   let detailJob: Promise<void> | null = null;
-  const detailCounts = { paints: 0, lastPaintMs: 0, longest: { name: '', ms: 0 } };
-  const stats: SceneStats = { paints: 0, rescales: 0, lastPaintMs: 0, lastCpuMs: 0, lastView: null, timings: [], longest: { name: '', ms: 0 }, painting: false };
+  const detailCounts = { paints: 0, lastPaintMs: 0, longest: { name: '', ms: 0 }, cacheHits: 0, cacheMisses: 0 };
+  const stats: SceneStats = {
+    paints: 0,
+    rescales: 0,
+    lastPaintMs: 0,
+    lastCpuMs: 0,
+    lastView: null,
+    timings: [],
+    longest: { name: '', ms: 0 },
+    painting: false,
+    cacheHits: 0,
+    cacheMisses: 0,
+    lastLookupMs: 0,
+  };
+
+  /** Look a painting and the sprites of its scale up in the paint cache. Never rejects. */
+  const lookup = async (kind: string, view: PaintView): Promise<Lookup> => {
+    const t0 = now();
+    const layout = spriteAtlasLayout(art, view.scale);
+    const [bitmap, atlas] = await Promise.all([cache.get(kind, paintingKey(art, view, quality)), cache.get(SCENE_CACHE.sprites, spritesKey(art, view.scale, quality))]);
+    const w = Math.max(1, Math.ceil(view.rect.w * view.scale));
+    const h = Math.max(1, Math.ceil(view.rect.h * view.scale));
+    const background = !!bitmap && bitmap.width === w && bitmap.height === h;
+    let sprites: Sprite[] | null = null;
+    let canvas: AnyCanvas | null = null;
+    try {
+      sprites = atlas ? unpackSprites(atlas, layout) : null;
+      // a canvas copy, not the bitmap: only the copy draws scaled exactly like the fresh painting
+      if (background && sprites) canvas = canvasOf(bitmap!);
+    } catch {
+      canvas = null;
+    }
+    bitmap?.close();
+    atlas?.close();
+    if (!canvas || !sprites) return { painting: null, background, sprites: !!sprites };
+    const painting: Painting = { view, canvas, sprites, timings: [], longest: { name: '', ms: 0 }, totalMs: now() - t0, cpuMs: 0, cached: true };
+    return { painting, background, sprites: true };
+  };
+
+  /** Store a fresh painting (and its sprites) in idle time: the parts the lookup did not find. */
+  const store = (kind: string, res: PaintResult, found: Lookup | null): void => {
+    // nothing draws on the painting again once it is finished (and faded), so the cache need not copy it
+    if (!found?.background) void cache.put(kind, paintingKey(art, res.view, quality), res.canvas, { copy: false });
+    if (!found?.sprites) {
+      const atlas = packSprites(res.sprites, spriteAtlasLayout(art, res.view.scale));
+      if (atlas) void cache.put(SCENE_CACHE.sprites, spritesKey(art, res.view.scale, quality), atlas, { copy: false });
+    }
+  };
+
+  /**
+   * The painting of `view`: from the paint cache, or painted cooperatively and then stored. The
+   * paint job starts once the lookup answers, or after `cacheWaitMs` at most; a hit that arrives
+   * later cancels the paint job and is used instead.
+   */
+  const produce = async (kind: string, view: PaintView, cancelled: () => boolean, soften: boolean, counts: { cacheHits: number; cacheMisses: number }, onLookup?: (ms: number) => void): Promise<Painting> => {
+    const t0 = now();
+    const pending = lookup(kind, view);
+    let answer: Lookup | null = null;
+    let lateHit: Painting | null = null;
+    void pending.then((l) => {
+      answer = l;
+      if (l.painting) lateHit = l.painting;
+    });
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const first = await Promise.race([pending, new Promise<typeof LATE>((done) => (timer = setTimeout(() => done(LATE), cacheWaitMs)))]);
+    clearTimeout(timer);
+    onLookup?.(now() - t0);
+    if (cancelled()) throw new PaintCancelled();
+    if (first !== LATE && first.painting) {
+      counts.cacheHits++;
+      return first.painting;
+    }
+    try {
+      const res = await paintScene(art, view, { quality, yieldTo, now, cancelled: () => cancelled() || lateHit !== null });
+      counts.cacheMisses++;
+      if (soften) softenCutEdges(res);
+      store(kind, res, answer);
+      return res;
+    } catch (err) {
+      if (err instanceof PaintCancelled && lateHit && !cancelled()) {
+        counts.cacheHits++;
+        return lateHit;
+      }
+      throw err;
+    }
+  };
 
   /**
    * `extend`: the same painting over the whole world, behind the scenes — swapped in at once (a
@@ -166,14 +305,14 @@ export function createSceneSystem(opts: SceneSystemOptions = {}): SceneSystem {
     if (!extend) stats.painting = true;
     extending = extend;
     const swap = extend;
-    const run = paintScene(art, view, { quality, yieldTo, now, cancelled: () => id !== jobId })
+    const cancelled = () => id !== jobId;
+    const run = produce(SCENE_CACHE.overview, view, cancelled, true, stats, (ms) => (stats.lastLookupMs = ms))
       .then((res) => {
-        if (id !== jobId) return;
-        softenCutEdges(res);
+        if (cancelled()) return;
         previous = swap ? null : current;
         current = res;
         fade = swap ? 1 : 0;
-        if (!extend) stats.paints++;
+        if (!extend && !res.cached) stats.paints++;
         stats.lastPaintMs = res.totalMs;
         stats.lastCpuMs = res.cpuMs;
         stats.lastView = res.view;
@@ -223,12 +362,16 @@ export function createSceneSystem(opts: SceneSystemOptions = {}): SceneSystem {
   const startDetail = (view: PaintView): void => {
     const id = ++detailJobId;
     const t0 = now();
-    detailJob = paintScene(art, view, { quality, yieldTo, now, cancelled: () => id !== detailJobId })
+    const cancelled = () => id !== detailJobId;
+    const made: Promise<Painting> = cacheDetail
+      ? produce(SCENE_CACHE.detail, view, cancelled, false, detailCounts)
+      : paintScene(art, view, { quality, yieldTo, now, cancelled });
+    detailJob = made
       .then((res) => {
-        if (id !== detailJobId) return;
+        if (cancelled()) return;
         detail = res;
         detailFade = 0;
-        detailCounts.paints++;
+        if (!res.cached) detailCounts.paints++;
         detailCounts.lastPaintMs = now() - t0;
         detailCounts.longest = res.longest;
         invalidate('background');
@@ -271,7 +414,7 @@ export function createSceneSystem(opts: SceneSystemOptions = {}): SceneSystem {
     return !!inWorld && covers(detail.view.rect, inWorld);
   };
 
-  const drawPainting = (ctx: CanvasRenderingContext2D, res: PaintResult, alpha: number, op: GlobalCompositeOperation = 'source-over') => {
+  const drawPainting = (ctx: CanvasRenderingContext2D, res: Painting, alpha: number, op: GlobalCompositeOperation = 'source-over') => {
     if (alpha <= 0) return;
     const { rect } = res.view;
     ctx.globalAlpha = alpha;
@@ -287,7 +430,7 @@ export function createSceneSystem(opts: SceneSystemOptions = {}): SceneSystem {
    * plain fade of one over the other would let the paper through mid-way (a pale pulse). The
    * background layer starts empty, so the second image is added with `lighter` (ADR 0185).
    */
-  const crossFade = (ctx: CanvasRenderingContext2D, a: PaintResult | null, b: PaintResult, e: number) => {
+  const crossFade = (ctx: CanvasRenderingContext2D, a: Painting | null, b: Painting, e: number) => {
     if (e >= 1 || !a) return drawPainting(ctx, b, a ? 1 : e);
     drawPainting(ctx, a, 1 - e);
     drawPainting(ctx, b, e, 'lighter');
@@ -433,6 +576,8 @@ export function createSceneSystem(opts: SceneSystemOptions = {}): SceneSystem {
       longest: { ...detailCounts.longest },
       extending,
       world: !!current && contains(current.view.rect, WORLD),
+      cacheHits: detailCounts.cacheHits,
+      cacheMisses: detailCounts.cacheMisses,
     }),
     stats: () => ({ ...stats, timings: stats.timings.map((t) => ({ ...t })), longest: { ...stats.longest } }),
     skyStats: () => sky?.stats() ?? null,
