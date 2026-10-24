@@ -78,4 +78,5 @@ Phase 9: performance (owner request 2026-10-24). The page is laggy. Draw only wh
 | # | Task | Area | Status |
 |---|---|---|---|
 | P0a | Measure: runtime load profile, Start-studying latency, frame cost overview/zoomed/scrolled away | read-only (scratch report) | in progress |
-| P0b | Measure: bundle composition, fonts, request waterfall, cache headers, service-worker and painted-cache options | read-only (scratch report) | in progress |
+| P0b | Measure: bundle composition, fonts, request waterfall, cache headers, service-worker and painted-cache options | read-only (scratch report) | done (Start studying: a 640 ms main-thread block painting 25 previews; landscape 1.2 s of main-thread paint on every load; Pages max-age=600 revalidation chain) |
+| P1 | Plant-view preview prewarm: worker-backed view cache, `prewarmPlantView`, never paint a queued preview synchronously | `src/plants/view.ts`, `src/plants/sprites.ts` | in progress (ADRs 0220–0221) |
