@@ -4,6 +4,7 @@ import { looseBus, type WidgetController } from './contract';
 import type { createTimerSurfaces } from './index';
 import { speciesName } from './index';
 import { createFloatingWidget, iframeHostOpener } from './pip';
+import type { ServiceWorkerBoot } from './service-worker';
 import type { WidgetMode } from './view';
 
 /**
@@ -29,10 +30,35 @@ export interface WidgetDebug {
   harnessWatering(): number | null;
 }
 
+/** `window.sprout.sw` (?dev only): the boot registration of the service worker (ADR 0230). */
+export interface ServiceWorkerDebug {
+  /**
+   * Resolves once the app has tried to register the worker (after the garden's first paint, the
+   * load event and an idle callback): its scope, or null (blocked, unsupported or failed).
+   */
+  ready(): Promise<{ scope: string } | null>;
+  /** a worker controls this page */
+  controlled(): boolean;
+}
+
 declare module '../dev/debug' {
   interface SproutDebug {
     widget: WidgetDebug;
+    sw: ServiceWorkerDebug;
   }
+}
+
+/** Install `window.sprout.sw`. Call after `installServiceWorker` in main.ts. */
+export function installServiceWorkerDebug(boot: ServiceWorkerBoot): ServiceWorkerDebug {
+  const api: ServiceWorkerDebug = {
+    ready: async () => {
+      const reg = await boot.ready();
+      return reg ? { scope: reg.scope } : null;
+    },
+    controlled: () => !!navigator.serviceWorker?.controller,
+  };
+  extendDebug({ sw: api });
+  return api;
 }
 
 type Surfaces = ReturnType<typeof createTimerSurfaces>;

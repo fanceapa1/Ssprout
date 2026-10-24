@@ -1,6 +1,7 @@
 import type { Clock } from '../core/clock';
 import type { Settings, Store } from '../core/state';
 import { payloadSessionId, type WidgetBus, type WidgetController, type WidgetSession } from './contract';
+import { registerServiceWorker } from './service-worker';
 
 /**
  * Session notifications (SPEC §2, §6): a break starts, the next focus block starts, the plant has
@@ -15,7 +16,8 @@ import { payloadSessionId, type WidgetBus, type WidgetController, type WidgetSes
  *   visible-and-focused (the in-page flow shows it) and this moment (session × block × kind)
  *   has not been notified yet. One tag with `renotify`, so each new message replaces the last.
  * - Delivered through the service worker registration when available (works in more places,
- *   e.g. Android Chrome, and the SW focuses the app on click), else `new Notification`.
+ *   e.g. Android Chrome, and the SW focuses the app on click), else `new Notification`. The
+ *   registration is the app's one, shared with the boot path (`service-worker.ts`).
  */
 
 export type PermissionState = 'default' | 'granted' | 'denied';
@@ -274,27 +276,15 @@ export interface BrowserEnvOptions {
   icon?: (kind: NotifyKind) => string | undefined;
 }
 
-const baseUrl = (): string => (typeof import.meta.env?.BASE_URL === 'string' ? import.meta.env.BASE_URL : '/');
-
 /** The real Notification / ServiceWorker environment of `win`. */
 export function createBrowserNotificationEnv(win: Window = window, opts: BrowserEnvOptions = {}): NotificationEnv {
   const N = (win as Window & { Notification?: typeof Notification }).Notification;
   const supported = typeof N === 'function';
-  const swUrl = opts.swUrl ?? `${baseUrl()}sw.js`;
-  const scope = opts.scope ?? baseUrl();
   const readyTimeoutMs = opts.readyTimeoutMs ?? 4000;
   const nav = win.navigator;
-  const canUseSw = 'serviceWorker' in nav && win.isSecureContext;
-  let registration: Promise<ServiceWorkerRegistration | null> | null = null;
 
-  const prepare = (): Promise<ServiceWorkerRegistration | null> => {
-    if (!canUseSw) return Promise.resolve(null);
-    registration ??= nav.serviceWorker.register(swUrl, { scope }).catch((err: unknown) => {
-      console.warn('[notifications] service worker registration failed; using page notifications', err);
-      return null;
-    });
-    return registration;
-  };
+  /** the app's one registration, shared with the boot path (src/widget/service-worker.ts) */
+  const prepare = (): Promise<ServiceWorkerRegistration | null> => registerServiceWorker(win, { swUrl: opts.swUrl, scope: opts.scope });
 
   /** An active registration, or null if none becomes ready in time. */
   const activeRegistration = async (): Promise<ServiceWorkerRegistration | null> => {

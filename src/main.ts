@@ -25,7 +25,8 @@ import { gardenScene } from './scene/geometry';
 import { createUI } from './ui';
 import { applyUiLight } from './ui/ambient-light';
 import { createTimerSurfaces } from './widget';
-import { installWidgetDebug } from './widget/dev';
+import { installServiceWorkerDebug, installWidgetDebug } from './widget/dev';
+import { installServiceWorker } from './widget/service-worker';
 import { installSceneDebug } from './scene/debug';
 import { installPaintCacheDebug } from './paint/debug';
 import { createPaperSystem, createSceneSystem } from './scene/system';
@@ -92,6 +93,9 @@ function boot(): void {
   // Timer surfaces: worker ticker, tab title/favicon, notifications (asked inside session:start),
   // the floating widget (docs/systems/widget.md).
   const surfaces = createTimerSurfaces({ controller, store, bus, clock });
+  // the caching worker registers after the first paint, on idle; a lazy chunk that a deploy
+  // removed reloads the page once (ADR 0230, docs/systems/widget.md)
+  const sw = installServiceWorker({ afterPaint: renderer.whenReady() });
   // scheduled sessions tick on the same worker, so a background tab notices them (ADR 0174)
   const scheduler = createScheduler({ store, clock, bus, ticker: surfaces.internals.ticker });
 
@@ -127,6 +131,7 @@ function boot(): void {
     installCoreDebug({ store, controller, clock: speedClock, species, slots: scene.slots, saver: saver ?? undefined, isKnownSpecies });
     installUiDebug({ ui, clock: speedClock, widget: fakeWidget, viewport: () => renderer.viewport, slots: scene.slots });
     installWidgetDebug({ surfaces, controller, store, bus });
+    installServiceWorkerDebug(sw);
     installSceneDebug(sceneSystem, scene);
     installPlantsDebug(plants);
     installPaintCacheDebug();
