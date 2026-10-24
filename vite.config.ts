@@ -2,6 +2,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import type { Plugin } from 'vite';
 import { defineConfig } from 'vitest/config';
+import { fontPreloadHrefs } from './src/build/font-preload.ts';
 import { buildPrecacheManifest, describeBundle, injectPrecache, type OutputFileLike } from './src/build/sw-manifest.ts';
 import { computePaintVersion } from './src/paint/paint-version.ts';
 
@@ -28,10 +29,38 @@ function swManifest(): Plugin {
   };
 }
 
+/**
+ * Preloads the first view's three fonts from the built `index.html` (ADR 0231,
+ * src/build/font-preload.ts), so they load with the HTML's own requests instead of after the JS has
+ * built the dock. The hashed names come from the bundle. Production builds only, and not the studio.
+ */
+function fontPreload(): Plugin {
+  let base = '/';
+  return {
+    name: 'sprout:font-preload',
+    apply: 'build',
+    configResolved(config) {
+      base = config.base;
+    },
+    transformIndexHtml: {
+      order: 'post',
+      handler(_html, ctx) {
+        if (!ctx.bundle || !ctx.filename.endsWith('/index.html')) return;
+        const assets = Object.values(ctx.bundle).filter((f) => f.type === 'asset');
+        return fontPreloadHrefs(assets, base).map((href) => ({
+          tag: 'link',
+          attrs: { rel: 'preload', as: 'font', type: 'font/woff2', crossorigin: true, href },
+          injectTo: 'head',
+        }));
+      },
+    },
+  };
+}
+
 // GitHub Pages serves the site from https://<user>.github.io/Ssprout/
 export default defineConfig(({ command }) => ({
   base: '/Ssprout/',
-  plugins: [swManifest()],
+  plugins: [swManifest(), fontPreload()],
   define: {
     // A hash of every source that affects painted pixels, keying the persistent paint cache
     // (src/paint/persist.ts, ADR 0227). The dev server and Vitest get 'dev', which turns the
