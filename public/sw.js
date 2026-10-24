@@ -3,7 +3,14 @@
  * It has no fetch handler and caches nothing: it exists so completion notifications can be
  * shown via ServiceWorkerRegistration.showNotification and so a click on one brings the
  * garden back (focus an open tab, or open the app URL).
+ *
+ * The production build writes a precache manifest into the two lines below (ADR 0229,
+ * src/build/sw-manifest.ts): the URLs the garden needs and a version that changes with them.
+ * Nothing reads them yet. The dev server keeps the empty list and version 'dev'.
  */
+self.__SW_VERSION__ = 'dev';
+self.__PRECACHE__ = [];
+
 self.addEventListener('install', () => {
   self.skipWaiting();
 });

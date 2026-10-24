@@ -66,8 +66,11 @@ src/
                           local-time (advanceTo)
   studio/                 studio.html page: discovers every *.studio.ts and paints the cards lazily (ADR 0006)
 tests/e2e/                Playwright specs + helpers (fixtures.ts, ui-helpers.ts) — docs/TESTING.md
+  build/                  build-time only (Node, imported by vite.config.ts): sw-manifest.ts, the
+                          service worker's precache manifest (ADR 0229)
 scripts/                  shots.ts — capture screenshots to artifacts/ (gitignored) for review
-public/sw.js              notifications-only service worker (ADR 0092)
+public/sw.js              the service worker: notifications (ADR 0092); the build writes its precache
+                          list and version into two placeholder lines (ADR 0229)
 studio.html               second Vite entry (deployed at /Ssprout/studio.html)
 docs/                     SPEC, ARCHITECTURE, ART_DIRECTION, ROADMAP, adr/, systems/, devlog/
 ```
@@ -714,7 +717,13 @@ requestPermissionFromGesture(), dispose(), internals }` (`internals` = ticker, t
 for the dev hooks; `main.ts` also gives `internals.ticker` to the scheduler, ADR 0174). It installs a Web Worker
 `Ticker` on the controller (`setTicker`), keeps the tab title/favicon in sync, sends break / focus /
 bloom notifications (service worker `public/sw.js` → `${BASE_URL}sw.js`) and opens the Document
-Picture-in-Picture card. It reads the controller through the structural `WidgetController`
+Picture-in-Picture card.
+
+**Service worker build contract (ADR 0229).** `public/sw.js` starts with
+`self.__SW_VERSION__ = 'dev';` and `self.__PRECACHE__ = [];`. The production build
+(`swManifest` in `vite.config.ts`, `src/build/sw-manifest.ts`) replaces them in `dist/sw.js` with
+a 12-hex version and the list of absolute URLs the main entry needs (`/Ssprout/` first). The dev
+server keeps `'dev'` and `[]`. Keep both lines exactly as written: the build fails without them. It reads the controller through the structural `WidgetController`
 (`src/widget/contract.ts`), which `SessionController` satisfies (type-checked in a test). Wiring
 and policies: `docs/systems/widget.md`.
 

@@ -1,12 +1,37 @@
-import { resolve } from 'node:path';
+import { readFileSync, writeFileSync } from 'node:fs';
+import { join, resolve } from 'node:path';
+import type { Plugin } from 'vite';
 import { defineConfig } from 'vitest/config';
+import { buildPrecacheManifest, describeBundle, injectPrecache, type OutputFileLike } from './src/build/sw-manifest.ts';
 import { computePaintVersion } from './src/paint/paint-version.ts';
 
 const root = import.meta.dirname;
 
+/**
+ * Writes the precache manifest and its version into the built `sw.js` (ADR 0229,
+ * src/build/sw-manifest.ts). Production builds only: the dev server serves `public/sw.js` as it
+ * is, with an empty list and version 'dev'.
+ */
+function swManifest(): Plugin {
+  let base = '/';
+  return {
+    name: 'sprout:sw-manifest',
+    apply: 'build',
+    configResolved(config) {
+      base = config.base;
+    },
+    writeBundle(options, bundle) {
+      const sw = join(options.dir ?? resolve(root, 'dist'), 'sw.js');
+      const files = describeBundle(bundle as unknown as Record<string, OutputFileLike>);
+      writeFileSync(sw, injectPrecache(readFileSync(sw, 'utf8'), buildPrecacheManifest(files, { base })));
+    },
+  };
+}
+
 // GitHub Pages serves the site from https://<user>.github.io/Ssprout/
 export default defineConfig(({ command }) => ({
   base: '/Ssprout/',
+  plugins: [swManifest()],
   define: {
     // A hash of every source that affects painted pixels, keying the persistent paint cache
     // (src/paint/persist.ts, ADR 0227). The dev server and Vitest get 'dev', which turns the
