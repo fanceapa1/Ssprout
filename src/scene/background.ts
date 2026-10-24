@@ -8,7 +8,7 @@ import { createPainter, makeCanvas, type AnyCanvas, type Painter, type Quality }
 import type { Rect } from '../render/viewport';
 import { gardenScene, type SceneGeometry } from './geometry';
 import { FOREGROUND_TUFTS, SHRUBS, TREES, TUFTS, type ShrubSpec, type TreeSpec, type TuftSpec } from './layout';
-import { PATH_GROUND, paintBanks, paintHills, paintMargins, paintPath, paintSky, paintStones, paintTufts, reservePond } from './paint-land';
+import { PATH_GROUND, paintBanks, paintHills, paintMargins, paintPath, paintSky, paintStones, paintTufts, reservePond, type Strokes } from './paint-land';
 import { paintMeadow, paintMeadowGrass } from './paint-ground';
 import { paintPavilion } from './paint-pavilion';
 import { paintReflections, paintWater, paintWaterDetail } from './paint-pond';
@@ -39,7 +39,11 @@ export interface PaintStep {
   name: string;
   /** big, soft washes are painted at draft resolution: invisible difference, half the cost */
   soft?: boolean;
-  run(p: Painter): void;
+  /**
+   * Paint the step: at once (void), or as marks the job paints one after another, pausing between
+   * them (ADR 0226), so no step holds the main thread for much longer than its biggest mark.
+   */
+  run(p: Painter): Strokes | void;
 }
 
 /** Element filter for studio views (paint only some parts). */
@@ -88,12 +92,25 @@ export interface PaintView {
   scale: number;
 }
 
+/** Time one step took: all its parts together, and its longest uninterrupted part. */
+export interface StepTiming {
+  name: string;
+  /** milliseconds of painting, all parts */
+  ms: number;
+  /** the longest part painted without a pause (ADR 0226) */
+  longestMs: number;
+  /** how many parts the step was painted in (pauses + 1) */
+  parts: number;
+}
+
 export interface PaintResult {
   view: PaintView;
   canvas: AnyCanvas;
   sprites: Sprite[];
   /** milliseconds per step, for perf review */
-  timings: { name: string; ms: number }[];
+  timings: StepTiming[];
+  /** the longest uninterrupted part of any step: what one slice of the cooperative painter can't split */
+  longest: { name: string; ms: number };
   /** wall time from start to finish (includes time yielded to the browser) */
   totalMs: number;
   /** time spent painting (sum of the steps) */
@@ -117,40 +134,71 @@ export function applyView(p: Painter, view: PaintView): void {
 }
 
 /**
- * The paint job as a generator: it paints one step per `next()` and finally returns the
- * result. Drive it synchronously (`paintSceneSync`) or cooperatively (`paintScene`).
+ * The paint job as a generator: it paints one part of a step per `next()` (a whole step, or one
+ * mark or batch of marks of a step that pauses, ADR 0226) and yields the step's name; finally it
+ * returns the result. Drive it synchronously (`paintSceneSync`) or cooperatively (`paintScene`).
  * Deterministic for a given art + view + quality, however it is driven.
  */
 export function* paintJob(art: SceneArt, view: PaintView, opts: PaintRunOptions = {}): Generator<string, PaintResult, void> {
   const now = opts.now ?? (() => performance.now());
   const quality = opts.quality ?? 'normal';
   const t0 = now();
-  const timings: { name: string; ms: number }[] = [];
+  const timings: StepTiming[] = [];
+  const longest = { name: '', ms: 0 };
+  const part = (t: StepTiming, ms: number) => {
+    t.ms += ms;
+    t.parts++;
+    if (ms > t.longestMs) t.longestMs = ms;
+    if (ms > longest.ms) {
+      longest.name = t.name;
+      longest.ms = ms;
+    }
+  };
   const canvas = makeCanvas(view.rect.w * view.scale, view.rect.h * view.scale);
   const p = createPainter(canvas, { seed: art.seed, quality });
   const soft = quality === 'high' ? p : createPainter(canvas, { seed: art.seed, quality: 'draft' });
   for (const step of backgroundSteps(art, opts.only)) {
-    const s = now();
+    const t: StepTiming = { name: step.name, ms: 0, longestMs: 0, parts: 0 };
+    let s = now();
     const painter = step.soft ? soft : p;
     applyView(painter, view);
-    step.run(painter);
-    timings.push({ name: step.name, ms: now() - s });
+    const marks = step.run(painter);
+    // nothing else paints on this canvas between the parts, so its transform stays put
+    while (marks && !marks.next().done) {
+      part(t, now() - s);
+      yield step.name;
+      s = now();
+    }
+    part(t, now() - s);
+    timings.push(t);
     yield step.name;
   }
   const sprites: Sprite[] = [];
   if (opts.sprites ?? true) {
-    const s = now();
+    const t: StepTiming = { name: 'sprites', ms: 0, longestMs: 0, parts: 0 };
     for (const rock of art.scene.rocks) {
-      sprites.push(paintRockSprite(rock, art.seed, view.scale, quality));
+      let s = now();
+      const marks = paintRockSprite(rock, art.seed, view.scale, quality);
+      for (let r = marks.next(); ; r = marks.next()) {
+        part(t, now() - s);
+        if (r.done) {
+          sprites.push(r.value);
+          break;
+        }
+        yield rock.id;
+        s = now();
+      }
       yield rock.id;
     }
-    for (const [i, t] of art.foregroundTufts.entries()) {
-      sprites.push(paintTuftSprite(t, i, art.seed, view.scale, quality));
+    for (const [i, tuft] of art.foregroundTufts.entries()) {
+      const s = now();
+      sprites.push(paintTuftSprite(tuft, i, art.seed, view.scale, quality));
+      part(t, now() - s);
       yield `tuft-${i}`;
     }
-    timings.push({ name: 'sprites', ms: now() - s });
+    timings.push(t);
   }
-  return { view, canvas, sprites, timings, totalMs: now() - t0, cpuMs: timings.reduce((a, t) => a + t.ms, 0) };
+  return { view, canvas, sprites, timings, longest, totalMs: now() - t0, cpuMs: timings.reduce((a, t) => a + t.ms, 0) };
 }
 
 export function paintSceneSync(art: SceneArt, view: PaintView, opts: PaintRunOptions = {}): PaintResult {

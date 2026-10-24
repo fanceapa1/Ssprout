@@ -36,14 +36,18 @@ function spriteCanvas(box: Rect, scale: number, seed: number | string, quality: 
   return { canvas, p };
 }
 
-/** A boulder (shape shared with its reflection), with moss and sometimes grass at its foot. */
-export function paintRockSprite(r: Rock, seed: number, scale: number, quality: Quality = 'normal'): Sprite {
+/**
+ * A boulder (shape shared with its reflection), with moss and sometimes grass at its foot. A
+ * generator that pauses after each mark (ADR 0226); it returns the finished sprite.
+ */
+export function* paintRockSprite(r: Rock, seed: number, scale: number, quality: Quality = 'normal'): Generator<void, Sprite, undefined> {
   const box = rockBox(r);
   const { canvas, p } = spriteCanvas(box, scale, `${seed}:${r.id}:paint`, quality);
   const rng = createRng(`${seed}:${r.id}:paint`);
   const far = Math.max(0, Math.min(1, (620 - r.y) / 200));
   // the darkest small accent of the scene: the cool contact shadow where the boulder sits
   p.glaze({ cx: r.x + r.w * 0.04, cy: r.y - r.h * 0.02, rx: r.w * 0.5, ry: r.h * 0.09 }, shade(PIGMENTS.stoneDark, 0.35), { rng, opacity: 0.5, deform: 0.15 });
+  yield;
   p.stone(rockOutline(r, seed), {
     rng,
     pigment: atmos(mix(PIGMENTS.stone, PIGMENTS.stoneDark, rng.range(0, 0.4)), far * 0.25),
@@ -53,6 +57,7 @@ export function paintRockSprite(r: Rock, seed: number, scale: number, quality: Q
     ink: 0.22 + (1 - far) * 0.15,
     patches: rng.int(2, 3),
   });
+  yield;
   // grass tucked against the foot of most boulders
   const tufts = rng.int(0, 2);
   for (let i = 0; i < tufts; i++) {
@@ -62,6 +67,7 @@ export function paintRockSprite(r: Rock, seed: number, scale: number, quality: Q
       { x: r.x + side * r.w * rng.range(0.3, 0.48), y: r.y + rng.range(1, 4) },
       { rng, height: h, blades: rng.int(5, 8), opacity: 0.6, pigments: [PIGMENTS.sageLight, PIGMENTS.sap, mix(PIGMENTS.sage, PIGMENTS.sap, 0.4)] },
     );
+    if (i < tufts - 1) yield;
   }
   return { id: r.id, box, depth: r.y, canvas };
 }

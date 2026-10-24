@@ -12,7 +12,7 @@
 import { paperTexture, type AnyCanvas, type Quality } from '../paint';
 import type { Drawable, LayerId, System, SystemContext } from '../render/types';
 import { WORLD_H, WORLD_W, type Rect, type Viewport } from '../render/viewport';
-import { GARDEN_ART, PaintCancelled, paintScene, type PaintResult, type PaintView, type SceneArt } from './background';
+import { GARDEN_ART, PaintCancelled, paintScene, type PaintResult, type PaintView, type SceneArt, type StepTiming } from './background';
 import { drawSlotOverlay } from './overlay';
 import { createWaterSurface, type WaterSurface } from './water';
 import { pinnedSource, type DaylightSource } from '../ambience/daylight-source';
@@ -67,7 +67,9 @@ export interface SceneStats {
   /** painting time of the last paint (sum of steps) */
   lastCpuMs: number;
   lastView: PaintView | null;
-  timings: { name: string; ms: number }[];
+  timings: StepTiming[];
+  /** the longest part of the last paint painted without a pause (ADR 0226) */
+  longest: { name: string; ms: number };
   painting: boolean;
 }
 
@@ -78,7 +80,17 @@ export interface SceneSystem extends System {
   /** sky plates painted, composites built, ms spent painting skies */
   skyStats(): ReturnType<SkyLight['stats']> | null;
   /** the detail painting for the camera's resting view: its view, whether it is painting, how far it has faded in */
-  detailStats(): { view: PaintView | null; painting: boolean; fade: number; paints: number; lastPaintMs: number; extending: boolean; world: boolean };
+  detailStats(): {
+    view: PaintView | null;
+    painting: boolean;
+    fade: number;
+    paints: number;
+    lastPaintMs: number;
+    /** the longest part of the last detail paint painted without a pause (ADR 0226) */
+    longest: { name: string; ms: number };
+    extending: boolean;
+    world: boolean;
+  };
 }
 
 const WORLD: Rect = { x: 0, y: 0, w: WORLD_W, h: WORLD_H };
@@ -142,8 +154,8 @@ export function createSceneSystem(opts: SceneSystemOptions = {}): SceneSystem {
   let detailFade = 1;
   let detailJobId = 0;
   let detailJob: Promise<void> | null = null;
-  const detailCounts = { paints: 0, lastPaintMs: 0 };
-  const stats: SceneStats = { paints: 0, rescales: 0, lastPaintMs: 0, lastCpuMs: 0, lastView: null, timings: [], painting: false };
+  const detailCounts = { paints: 0, lastPaintMs: 0, longest: { name: '', ms: 0 } };
+  const stats: SceneStats = { paints: 0, rescales: 0, lastPaintMs: 0, lastCpuMs: 0, lastView: null, timings: [], longest: { name: '', ms: 0 }, painting: false };
 
   /**
    * `extend`: the same painting over the whole world, behind the scenes — swapped in at once (a
@@ -166,6 +178,7 @@ export function createSceneSystem(opts: SceneSystemOptions = {}): SceneSystem {
         stats.lastCpuMs = res.cpuMs;
         stats.lastView = res.view;
         stats.timings = res.timings;
+        stats.longest = res.longest;
         invalidate('background');
       })
       .catch((err: unknown) => {
@@ -217,6 +230,7 @@ export function createSceneSystem(opts: SceneSystemOptions = {}): SceneSystem {
         detailFade = 0;
         detailCounts.paints++;
         detailCounts.lastPaintMs = now() - t0;
+        detailCounts.longest = res.longest;
         invalidate('background');
       })
       .catch((err: unknown) => {
@@ -416,10 +430,11 @@ export function createSceneSystem(opts: SceneSystemOptions = {}): SceneSystem {
       fade: detailFade,
       paints: detailCounts.paints,
       lastPaintMs: detailCounts.lastPaintMs,
+      longest: { ...detailCounts.longest },
       extending,
       world: !!current && contains(current.view.rect, WORLD),
     }),
-    stats: () => ({ ...stats, timings: [...stats.timings] }),
+    stats: () => ({ ...stats, timings: stats.timings.map((t) => ({ ...t })), longest: { ...stats.longest } }),
     skyStats: () => sky?.stats() ?? null,
   };
 }

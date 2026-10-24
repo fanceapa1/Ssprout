@@ -23,7 +23,7 @@ import type { Pt } from '../render/viewport';
 import type { Rock, SceneGeometry } from './geometry';
 import type { ShrubSpec, TreeSpec } from './layout';
 import { foliageFor } from './paint-trees';
-import { atmos } from './paint-land';
+import { atmos, type Strokes } from './paint-land';
 
 const mirror = (pts: readonly Pt[], about: number): Pt[] => pts.map((q) => ({ x: q.x, y: 2 * about - q.y }));
 
@@ -88,7 +88,7 @@ export interface ReflectionInput {
 }
 
 /** All static reflections, painted into one soft, clipped wet layer. */
-export function paintReflections(p: Painter, rng: Rng, input: ReflectionInput): void {
+export function* paintReflections(p: Painter, rng: Rng, input: ReflectionInput): Strokes {
   const { scene } = input;
   const pond = scene.pond;
   const b = bounds(pond);
@@ -123,6 +123,7 @@ export function paintReflections(p: Painter, rng: Rng, input: ReflectionInput): 
     for (const stem of t.stems) {
       for (const ribbon of brokenReflection(mirror(stem, t.reflectAbout), t.reflectAbout, t.width * 0.9, rng)) L.fill(ribbon, bark, 0.16);
     }
+    yield;
   }
 
   // shrubs near the water
@@ -142,6 +143,7 @@ export function paintReflections(p: Painter, rng: Rng, input: ReflectionInput): 
   // (the pavilion stands on the bank, clear of the water: nothing of it reflects)
   L.ctx.restore();
   L.dry({ opacity: 0.6, edge: 0.18, edgeWidth: 2.5, sharpness: 0.25, centreLift: 0.05, granulation: 0.15, flow: 0.5, flowScale: 30 });
+  yield;
 
   // break the reflections with horizontal lifted strokes, denser toward the near water
   const lifts = rng.fork('lifts');
@@ -151,6 +153,7 @@ export function paintReflections(p: Painter, rng: Rng, input: ReflectionInput): 
     const x = lifts.range(b.x + w * 0.4, b.x + b.w - w * 0.4);
     if (!pointInPolygon({ x: x - w * 0.45, y }, clip) || !pointInPolygon({ x: x + w * 0.45, y }, clip)) continue;
     p.lift({ cx: x, cy: y, rx: w / 2, ry: lifts.range(0.8, 2) }, { rng: lifts, amount: lifts.range(0.25, 0.5), deform: 0.2, spread: 0.3, layers: 4 });
+    yield;
   }
 }
 
@@ -158,7 +161,7 @@ export function paintReflections(p: Painter, rng: Rng, input: ReflectionInput): 
  * The pale reflection band of the sky across the middle of the pond, a few quick ripple lines
  * and a broken ink accent under the far shore.
  */
-export function paintWaterDetail(p: Painter, rng: Rng, pond: readonly Pt[]): void {
+export function* paintWaterDetail(p: Painter, rng: Rng, pond: readonly Pt[]): Strokes {
   const b = bounds(pond);
   const inside = (x: number, y: number) => pointInPolygon({ x, y }, pond);
   // sky reflection band: one long soft lift, broken into two pieces
@@ -169,6 +172,7 @@ export function paintWaterDetail(p: Painter, rng: Rng, pond: readonly Pt[]): voi
     const cy = b.y + b.h * 0.47 + rng.range(-6, 6);
     if (!inside(cx - w / 2, cy) || !inside(cx + w / 2, cy)) continue;
     p.lift({ cx, cy, rx: w / 2, ry: 5 }, { rng, amount: 0.42, deform: 0.15, spread: 0.4, sharpness: 0.2, layers: 6 });
+    yield;
   }
   // ripple lines (a quick hand, in two places)
   for (const [x, y, w] of [
@@ -178,6 +182,7 @@ export function paintWaterDetail(p: Painter, rng: Rng, pond: readonly Pt[]): voi
   ] as const) {
     if (!inside(x - w / 2, y) || !inside(x + w / 2, y)) continue;
     p.ripple({ x, y }, { rng, width: w, count: rng.int(2, 3), opacity: 0.38, light: 0.7, lineWidth: 1.1 });
+    yield;
   }
   // the far shore's cut: a broken, faint ink line just under the back edge
   const back = pond.filter((q) => q.y < b.y + 24 && q.x > b.x + 40 && q.x < b.x + b.w * 0.85);
@@ -186,5 +191,6 @@ export function paintWaterDetail(p: Painter, rng: Rng, pond: readonly Pt[]): voi
       back.map((q) => ({ x: q.x, y: q.y + 4 })),
       { rng, width: 1.2, pigment: mix(PIGMENTS.celadonDeep, PIGMENTS.sumi, 0.35), opacity: 0.3, breaks: 0.5, wobble: 0.2 },
     );
+    yield;
   }
 }

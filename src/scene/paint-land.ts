@@ -9,6 +9,14 @@ import { WORLD_H, WORLD_W, type Pt } from '../render/viewport';
 import type { Stone } from './geometry';
 import { HILLS, type TuftSpec } from './layout';
 
+/**
+ * A paint step's marks, painted lazily: the generator yields after each mark (or batch of marks)
+ * so the cooperative painter can hand the main thread back between them (ADR 0226). Draining it
+ * paints exactly what one uninterrupted call would: the marks, their order and the rng draws
+ * behind them are the same however often it pauses.
+ */
+export type Strokes = Generator<void, void, undefined>;
+
 /** Aerial perspective: far things are paler and cooler (toward a blue-grey haze). */
 export function atmos(p: Pigment, distance: number): Pigment {
   if (distance <= 0) return p;
@@ -16,7 +24,7 @@ export function atmos(p: Pigment, distance: number): Pigment {
 }
 
 /** A barely-there sky: a cool wash high up dying into paper, a warm haze at the horizon. */
-export function paintSky(p: Painter, rng: Rng): void {
+export function* paintSky(p: Painter, rng: Rng): Strokes {
   const top: Pt[] = [
     { x: -60, y: -60 },
     { x: WORLD_W + 60, y: -60 },
@@ -39,6 +47,7 @@ export function paintSky(p: Painter, rng: Rng): void {
     flowScale: 260,
     fade: { angle: Math.PI / 2, start: 0.35, amount: 1, ragged: 0.5 },
   });
+  yield;
   // a warm haze low in the sky
   p.glaze({ cx: 860, cy: 300, rx: 760, ry: 70 }, lighten(PIGMENTS.gold, 0.25), {
     rng,
@@ -54,7 +63,7 @@ function ridgePolygon(ridge: Pt[], baseY: number): Pt[] {
 }
 
 /** Two pale ridges of distant hills, cool and soft, dissolving downward into the far bank. */
-export function paintHills(p: Painter, rng: Rng): void {
+export function* paintHills(p: Painter, rng: Rng): Strokes {
   for (const h of HILLS) {
     const pig = h.distance >= 1 ? mix(PIGMENTS.bellflower, PIGMENTS.sageLight, 0.55) : mix(PIGMENTS.sage, PIGMENTS.celadon, 0.5);
     p.wash(ridgePolygon(h.ridge, 470), atmos(pig, h.distance * 0.9), {
@@ -71,6 +80,7 @@ export function paintHills(p: Painter, rng: Rng): void {
       flowScale: 160,
       fade: { angle: Math.PI / 2, start: 0.25, amount: 1, ragged: 0.5 },
     });
+    yield;
   }
   // a far tree line on the second ridge: one soft wash with a scalloped (canopy) top
   const noise = createSimplex2D(rng.fork('treeline'));
@@ -97,7 +107,7 @@ export function paintHills(p: Painter, rng: Rng): void {
 }
 
 /** The banks, as overlapping washes from far to near. Paint before the pond (it reserves). */
-export function paintBanks(p: Painter, rng: Rng): void {
+export function* paintBanks(p: Painter, rng: Rng): Strokes {
   const far = atmos(PIGMENTS.sageLight, 0.35);
   // far bank: a cool pale band behind the pond
   const farBank: Pt[] = [
@@ -128,6 +138,7 @@ export function paintBanks(p: Painter, rng: Rng): void {
     flowScale: 120,
     fade: { angle: Math.PI / 2, start: 0.5, amount: 0.95 },
   });
+  yield;
 
   // the left and right banks that hold the pond: a lit lip along the top, dissolving below
   const leftBank: Pt[] = [
@@ -160,6 +171,7 @@ export function paintBanks(p: Painter, rng: Rng): void {
     flowScale: 110,
     fade: { angle: Math.PI / 2, start: 0.42, amount: 1, ragged: 0.45 },
   });
+  yield;
 
   const rightBank: Pt[] = [
     { x: 1150, y: 482 },
@@ -187,6 +199,7 @@ export function paintBanks(p: Painter, rng: Rng): void {
     flowScale: 110,
     fade: { angle: Math.PI / 2, start: 0.45, amount: 1, ragged: 0.45 },
   });
+  yield;
 
   // near mounds either side of the path: warmer, a defined lip on top, lost toward the corners
   const warm = mix(PIGMENTS.sap, PIGMENTS.gold, 0.1);
@@ -221,6 +234,7 @@ export function paintBanks(p: Painter, rng: Rng): void {
     bloomSize: 0.08,
     fade: { angle: Math.PI / 2 + 0.6, start: 0.35, amount: 1, ragged: 0.6 },
   });
+  yield;
   const nearRight: Pt[] = [
     { x: 912, y: 840 },
     { x: 924, y: 796 },
@@ -249,22 +263,33 @@ export function paintBanks(p: Painter, rng: Rng): void {
     flowScale: 130,
     fade: { angle: Math.PI / 2 - 0.6, start: 0.35, amount: 1, ragged: 0.6 },
   });
+  yield;
 
   // mid-tone glazes that model the ground: shade where the banks turn down toward the water
   const sage = mix(PIGMENTS.sage, PIGMENTS.sap, 0.4);
   p.glaze({ cx: 230, cy: 600, rx: 220, ry: 54, rotation: 0.08 }, sage, { rng, opacity: 0.16, fade: { angle: -Math.PI / 2, start: 0.3 } });
+  yield;
   p.glaze({ cx: 1400, cy: 690, rx: 200, ry: 50, rotation: -0.06 }, sage, { rng, opacity: 0.15, fade: { angle: -Math.PI / 2, start: 0.3 } });
+  yield;
   p.glaze({ cx: 520, cy: 640, rx: 110, ry: 30, rotation: 0.75 }, PIGMENTS.sage, { rng, opacity: 0.2, fade: { angle: Math.PI, start: 0.4 } });
+  yield;
   p.glaze({ cx: 640, cy: 730, rx: 120, ry: 22, rotation: 0.3 }, PIGMENTS.sage, { rng, opacity: 0.2, fade: { angle: Math.PI / 2, start: 0.35 } });
+  yield;
   p.glaze({ cx: 1010, cy: 750, rx: 140, ry: 22, rotation: -0.1 }, PIGMENTS.sage, { rng, opacity: 0.18, fade: { angle: Math.PI / 2, start: 0.35 } });
+  yield;
   p.glaze({ cx: 470, cy: 790, rx: 210, ry: 28 }, sage, { rng, opacity: 0.16, fade: { angle: Math.PI / 2, start: 0.3 } });
+  yield;
   p.glaze({ cx: 1150, cy: 800, rx: 220, ry: 28 }, sage, { rng, opacity: 0.15, fade: { angle: Math.PI / 2, start: 0.3 } });
+  yield;
 
   // dry-brush texture along the bank lips, broken and pale
   const lip = mix(PIGMENTS.sage, PIGMENTS.sap, 0.4);
   p.dryBrush([{ x: 30, y: 458 }, { x: 200, y: 455 }, { x: 380, y: 471 }, { x: 466, y: 494 }], { rng, pigment: atmos(lip, 0.2), width: 8, opacity: 0.4 });
+  yield;
   p.dryBrush([{ x: 1210, y: 481 }, { x: 1380, y: 479 }, { x: 1540, y: 476 }], { rng, pigment: atmos(lip, 0.2), width: 7, opacity: 0.35 });
+  yield;
   p.dryBrush([{ x: 120, y: 770 }, { x: 330, y: 760 }, { x: 520, y: 770 }], { rng, pigment: lip, width: 12, opacity: 0.25 });
+  yield;
   p.dryBrush([{ x: 1060, y: 780 }, { x: 1260, y: 772 }, { x: 1460, y: 786 }], { rng, pigment: lip, width: 12, opacity: 0.25 });
 }
 
@@ -286,18 +311,22 @@ export const PATH_GROUND: readonly Pt[] = [
   { x: 712, y: 776 },
 ];
 
-export function paintPath(p: Painter, rng: Rng, stones: readonly Stone[]): void {
+export function* paintPath(p: Painter, rng: Rng, stones: readonly Stone[]): Strokes {
   const ground = PATH_GROUND as Pt[];
   p.lift(ground, { rng, amount: 0.42, deform: 0.1, spread: 0.45, sharpness: 0.15, edge: 0, layers: 12 });
+  yield;
   // bare earth: warm and very pale, a touch deeper where feet have worn it between the stones
   const earth = mix(PIGMENTS.stoneWarm, PIGMENTS.washiDeep, 0.5);
   p.glaze(ground, earth, { rng, opacity: 0.13, edge: 0, sharpness: 0.2, fade: { angle: Math.PI / 2, start: 0.6, amount: 0.8 } });
+  yield;
   p.glaze(insetPolygon(ground, 26), mix(earth, PIGMENTS.stone, 0.3), { rng, opacity: 0.08, edge: 0, sharpness: 0.1 });
+  yield;
   // grit along the worn line, and grass creeping in at both edges
   for (let i = 0; i < 2; i++) {
     const side = i === 0 ? -1 : 1;
     const edgeLine = stones.map((s) => ({ x: s.x + side * (s.rx * 1.25 + 10), y: s.y + rng.range(-6, 6) }));
     p.dryBrush(edgeLine, { rng, pigment: mix(PIGMENTS.sage, PIGMENTS.stoneWarm, 0.45), width: 9, opacity: 0.22 });
+    yield;
   }
 }
 
@@ -305,7 +334,7 @@ export function paintPath(p: Painter, rng: Rng, stones: readonly Stone[]): void 
  * The stepping stones themselves — painted after the paper margins so the near stones stay
  * crisp where the grass around them dissolves (the eye follows them in from the bottom edge).
  */
-export function paintStones(p: Painter, rng: Rng, stones: readonly Stone[]): void {
+export function* paintStones(p: Painter, rng: Rng, stones: readonly Stone[]): Strokes {
   for (const s of stones) {
     const k = Math.max(0, Math.min(1, (s.y - 700) / 300)); // 0 far .. 1 near
     // the shallow hollow the stone is bedded in: cool, offset down-right (light from upper left)
@@ -313,6 +342,7 @@ export function paintStones(p: Painter, rng: Rng, stones: readonly Stone[]): voi
       rng,
       opacity: 0.2 + 0.05 * k,
     });
+    yield;
     p.stone(
       { cx: s.x, cy: s.y, rx: s.rx, ry: s.ry, rotation: rng.range(-0.06, 0.06) },
       {
@@ -326,11 +356,12 @@ export function paintStones(p: Painter, rng: Rng, stones: readonly Stone[]): voi
         patches: rng.int(1, 3),
       },
     );
+    yield;
   }
 }
 
 /** Background grass tufts: soft, pale, never spiky. */
-export function paintTufts(p: Painter, rng: Rng, tufts: readonly TuftSpec[]): void {
+export function* paintTufts(p: Painter, rng: Rng, tufts: readonly TuftSpec[]): Strokes {
   for (const t of tufts) {
     const d = Math.max(0, Math.min(1, (760 - t.y) / 360)); // far tufts paler
     p.grassTuft(t, {
@@ -341,6 +372,7 @@ export function paintTufts(p: Painter, rng: Rng, tufts: readonly TuftSpec[]): vo
       opacity: 0.38 - d * 0.1,
       pigments: [atmos(PIGMENTS.sageLight, d), atmos(PIGMENTS.sap, d), atmos(mix(PIGMENTS.sap, PIGMENTS.sage, 0.4), d)],
     });
+    yield;
   }
 }
 
@@ -351,7 +383,7 @@ export function paintTufts(p: Painter, rng: Rng, tufts: readonly TuftSpec[]): vo
  * sky), and its front wanders with world-anchored noise, so it reads as a soft ragged dissolve at
  * any zoom and the overview and a detail painting compute the same value for the same place.
  */
-export function paintMargins(p: Painter, rng: Rng): void {
+export function* paintMargins(p: Painter, rng: Rng): Strokes {
   const L = p.layer({ x: -10, y: -10, w: WORLD_W + 20, h: WORLD_H + 20 });
   if (L.empty) {
     L.dry(MARGIN_DRY);
@@ -375,6 +407,7 @@ export function paintMargins(p: Painter, rng: Rng): void {
       grid[gy * gw + gx] = field(inv.a * px + inv.c * py + inv.e, inv.b * px + inv.d * py + inv.f);
     }
   }
+  yield;
   const img = c.createImageData(W, H);
   const d = img.data;
   const [pr, pg, pb] = [255, 253, 248];
@@ -402,6 +435,7 @@ export function paintMargins(p: Painter, rng: Rng): void {
     }
   }
   c.putImageData(img, 0, 0);
+  yield;
   L.dry(MARGIN_DRY);
 }
 

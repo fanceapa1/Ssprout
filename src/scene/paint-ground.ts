@@ -8,7 +8,7 @@
  */
 import type { Rng } from '../core/rng';
 import { PIGMENTS, blob, createSimplex2D, deformPolygon, lighten, mix, organicOutline, outlineLayer, pointInPolygon, rgba, type Ctx2D, type Painter, type Pigment, type Pt, type Rect } from '../paint';
-import { atmos } from './paint-land';
+import { atmos, type Strokes } from './paint-land';
 import { perspectiveScale } from './slots';
 
 /** Where the meadow marks may go, and where they must not. */
@@ -68,17 +68,17 @@ const GRASS_CELL = { w: 34, h: 22 };
  * Paint the meadow texture. Call after the banks (and before the pond reserve and the path, whose
  * lifts then clean the rim and the earth).
  */
-export function paintMeadow(p: Painter, rng: Rng, art: GroundArt): void {
+export function* paintMeadow(p: Painter, rng: Rng, art: GroundArt): Strokes {
   const view = paintedRect(p);
   const area = meadowArea(view);
-  if (area) paintPatches(p, rng.fork('patches'), art, view, area);
+  if (area) yield* paintPatches(p, rng.fork('patches'), art, view, area);
 }
 
 /** Sparse grass strokes over the meadow (a step of its own: the background yields between steps). */
-export function paintMeadowGrass(p: Painter, rng: Rng, art: GroundArt): void {
+export function* paintMeadowGrass(p: Painter, rng: Rng, art: GroundArt): Strokes {
   const view = paintedRect(p);
   const area = meadowArea(view);
-  if (area) paintGrass(p, rng.fork('grass'), art, view, area);
+  if (area) yield* paintGrass(p, rng.fork('grass'), art, view, area);
 }
 
 /** The part of the ground a painter's canvas shows (null: none of it). */
@@ -92,7 +92,7 @@ function meadowArea(view: Rect): Rect | null {
 }
 
 /** Wet-in-wet green patches in one layer: they bleed where they touch, pool where they stop, and a few have back-runs. */
-function paintPatches(p: Painter, rng: Rng, art: GroundArt, view: Rect, area: Rect): void {
+function* paintPatches(p: Painter, rng: Rng, art: GroundArt, view: Rect, area: Rect): Strokes {
   const L = p.layer(area);
   if (L.empty) {
     L.discard();
@@ -135,12 +135,14 @@ function paintPatches(p: Painter, rng: Rng, art: GroundArt, view: Rect, area: Re
         L.lift(shape, r.range(0.3, 0.5));
       }
     }
+    // a row of cells at a time: the layer stays open (and wet) between them
+    yield;
   }
   L.dry({ opacity: 0.55, edge: 0.22, edgeWidth: 2.2, sharpness: 0.3, centreLift: 0.12, granulation: 0.45, granules: 0.22, flow: 0.65, flowScale: 60, darken: 0.2 });
 }
 
 /** Sparse grass strokes in small clusters, finer and paler toward the far bank. */
-function paintGrass(p: Painter, rng: Rng, art: GroundArt, view: Rect, area: Rect): void {
+function* paintGrass(p: Painter, rng: Rng, art: GroundArt, view: Rect, area: Rect): Strokes {
   const L = p.layer(area);
   if (L.empty) {
     L.discard();
@@ -177,6 +179,8 @@ function paintGrass(p: Painter, rng: Rng, art: GroundArt, view: Rect, area: Rect
         c.fill();
       }
     }
+    // a row of cells at a time: the layer stays open (and wet) between them
+    yield;
   }
   L.dry({ opacity: 0.55, edge: 0.3, edgeWidth: 0.5, sharpness: 0.78, centreLift: 0.05, granulation: 0.12, flow: 0.3, flowScale: 10, darken: 0.22 });
 }
