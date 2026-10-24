@@ -180,10 +180,17 @@ ADR 0227; docs/systems/paint.md › Persistence):
   meadow cells, a tree's reflections). `paintJob` yields after every part, so a slice ends within
   one mark of 20 ms, not one step. The calls, their order and the rng draws are the same however
   often the job pauses (`paint-slices.test.ts` pins their hash). A new step should be a
-  generator that yields between its marks. A step of a single mark (`reservePond`, `paintWater`)
-  stays a plain function. What can't pause is one painter call. The longest are the drying pass of
-  a big wet layer (the meadow, its grass, the margins), the pond's `waterBody` recipe, a
-  `wetInWet` bank or sky, and a boulder's `stone`. They live in the paint engine.
+  generator that yields between its marks.
+- **The engine's long calls paint in parts too** (ADR 0238): a step `yield*`s the parts form of a
+  long painter call (`p.parts.wash / glaze / wetInWet / lift / stone / waterBody / foliageClump`,
+  `layer.dryParts(…)`) instead of calling it, so the job also pauses between a wash's fills and
+  inside a drying pass (a band of rows at a time). The sky, hills, banks, path, pond reserve,
+  water, reflections, stones, trees, shrubs, pavilion, meadow, grass, margins and the boulder
+  sprites do. The meadow and its grass `flush()` their open wet layer after each row of cells, so
+  the browser rasterises each row in its own part, not all of them in the drying pass's read.
+  What still paints in one part: a row of meadow cells (~10–18 ms at load on a busy laptop), the
+  margins' field grid and fill (~15 ms), a grass tuft, a ripple line and a foreground tuft sprite
+  (`paintTuftSprite`, one call from `background.ts`).
 - `createSceneSystem({ invalidate })` needs `renderer.invalidate` to redraw the cached
   background while fading.
 - **The camera** (ADR 0163): once the camera rests closer than the painting resolves, the view's
@@ -227,6 +234,19 @@ uninterrupted parts:
 | close view: near meadow and big boulder @2.8 | 109–121 ms (banks), tree 77–98 | 84–100 ms (`waterBody`), meadow 41–50, a boulder 37–42 | 1.06–1.23 s → 1.06–1.24 s |
 | close view: the big tree @2.8 | 305–346 ms (the big tree) | 34–38 ms (a boulder's stone) | 1.0–1.2 s → 1.03–1.2 s |
 
+The engine's calls in parts (ADR 0238; the same probe, three runs each, load average ~6; devlog
+50). The painted canvas and all 17 sprites hash the same, pixel for pixel:
+| View | before (ADR 0226) | after | CPU before → after |
+|---|---|---|---|
+| load: world @1.5 | 76–87 ms (the meadow's drying pass), water 40–42 | 11–12 ms (a row of meadow cells, the margins) | 0.98–1.17 s → 0.99–1.09 s |
+| close view: near meadow and big boulder @2.8 | 53–55 ms (`waterBody`) | 9–10 ms (the water) | 0.69–0.71 s → 0.69–0.72 s |
+| close view: the big tree @2.8 | 23–24 ms (a boulder's stone) | 6–7 ms (the margins) | 0.71–0.75 s → 0.70–0.75 s |
+
+In the app (production build, `sceneStats().longest` and `sceneDetail().longest` after a zoom-3
+rest, 1440×900 @2): at 1× the longest part at load went from 69–146 ms (meadow) to 15–18 ms, and in
+the detail repaint from 49–52 ms (water) to 11–14 ms. At 4× CPU throttle: 308 → 65 ms and 197 →
+49 ms.
+
 ## How to tweak
 - **Move things**: geometry in `geometry.ts` (contract — slots, rocks, pond are read by other
   systems), painting-only things in `layout.ts`. Run `npx vitest run src/scene` — the invariants
@@ -256,11 +276,14 @@ uninterrupted parts:
   has one hit and draws a frame with 0 differing pixels from a `?nopaintcache` load (1440×900 @1).
   At @2 (upscaled) the frame hash is identical. A size not in the cache paints and is stored in
   turn. A detail painting comes from the cache on a repeat rest.
-- `paint-slices.test.ts` (ADR 0226): on a recording canvas, the overview and two close views
-  issue exactly the canvas calls they did before the steps were split (pinned hashes). No part does
-  more than 320 k canvas calls or 0.9 Mpx of pixel passes. Before the split the meadow was 1.3 M
-  calls in one part and the big tree 5.1 Mpx. The heavy steps come in parts, and `paintScene`
-  yields between the parts of a step.
+- `paint-slices.test.ts` (ADR 0226, 0238): on a recording canvas, the overview and two close views
+  issue exactly the canvas calls they did before the steps were split (pinned hashes; since ADR
+  0238 plus the meadow's one-pixel flush reads, without which the old hashes still match). No part
+  does more than 130 k canvas calls or 0.4 Mpx of pixel passes. Before the split the meadow was
+  1.3 M calls in one part and the big tree 5.1 Mpx; before ADR 0238 the water was 310 k calls and a
+  boulder 0.82 Mpx. The heavy steps, the water, the pond reserve, the boulders and the trees come
+  in parts, no part dries more than one wet layer (bar grass tufts and ripple lines), and
+  `paintScene` yields between the parts of a step.
 - `margins.test.ts`: the paper margins' field — most at the edge, none in the middle, deeper at the
   bottom corners, a continuous ramp (no step between neighbouring units over 0.03), a wandering front.
 - `paint-ground.test.ts`: meadow marks stay off the water, the path, the engawa and the sky.

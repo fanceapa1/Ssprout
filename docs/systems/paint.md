@@ -148,6 +148,51 @@ Marks in one layer merge like wet paint (no edges where they overlap); separate 
 separately and glaze over each other (edges show where they overlap). Call `dry()` exactly
 once (or `discard()`).
 
+### Painting in parts (ADR 0238)
+A cooperative caller (the scene painter, ADR 0226) can paint the long calls a part at a time and
+pause between the parts. A parts form is a generator, `PaintParts` (`Generator<void, T>`): each
+`next()` paints one part. Drained, it paints exactly what the one-call form paints, with the same
+canvas calls, the same rng draws and the same pixels, however often it pauses. Each one-call form
+*is* `drain(xParts(…))`, so plant sprites, the studio and everything else are unchanged.
+```ts
+function* paintBank(p: Painter, rng: Rng): Generator<void, void, undefined> {
+  yield* p.parts.wetInWet(bank, PIGMENTS.sageLight, PIGMENTS.sap, { rng });   // pauses inside
+  const L = p.layer(area);
+  for (const row of rows) {
+    for (const cell of row) L.fill(cell, PIGMENTS.sap, 0.1);
+    L.flush();                    // rasterise this row now, not in the drying pass's read
+    yield;
+  }
+  yield* L.dryParts({ granules: 0.2 });
+}
+```
+- `p.parts.wash / glaze / wetInWet / lift / stone / waterBody / foliageClump` take the same
+  arguments as the methods. They pause after each layered fill, bloom and fade front, each
+  stone blotch and underside layer, each band, streak and ripple line, each foliage dab, and
+  inside every drying pass. The free functions are `washParts`, `glazeParts`, `wetInWetParts`,
+  `liftParts` and `rippleParts` (`primitives.ts`), and `stoneParts`, `waterBodyParts` and
+  `foliageClumpParts` (`recipes.ts`).
+- `layer.dryParts(opts?, base?)`: the drying pass in parts. It pauses after the read
+  (`getImageData`), after every band of rows of each pass over the buffer, and after the
+  write-back, before the composite. A band is `DRY_BAND` pixels (64 k, about 1 ms) of whole rows.
+  The passes are the wet edge, the edge blur's halving, box-blur and upsampling passes, and the
+  pigment. They are the same row loops, only paused: the box blur's running column sums carry over
+  from band to band, and no pass starts before the pass it reads has finished, so the result is
+  byte for byte the whole buffer's. The read, the write-back and the composite each stay one canvas
+  call. A composite in bands would resample differently at the seams, and splitting the reads would
+  change the recorded calls for nothing.
+- Pure forms for tests and other buffers: `dryPixelsParts(…, band?)`, `edgeBlurParts`,
+  `boxBlurParts`.
+- `layer.flush()`: the browser records canvas calls and rasterises them only at the next pixel
+  read. A layer filled over many parts (the meadow's rows) would pay for all of its marks in the
+  drying pass's read (~50 ms at load). `flush()` reads one pixel, so the marks laid so far are
+  rasterised now, in the part that laid them. Pixels are unchanged. It does nothing on a dried,
+  discarded or empty layer.
+- **Between parts nothing else may draw on the target or on the open layer.** The scene painter
+  owns its canvas. An open layer's work canvas is out of the pool, so another painter cannot get
+  it. A caller that abandons a generator leaves its work canvas to the garbage collector (the
+  pool makes a new one).
+
 ### Recipes
 - `foliageClump(center, radius, pigments = FOLIAGE_GREEN, opts)` — cloud-pad of round dabs
   merged into a scalloped mass + mid-tone + cool shadow + a few darks. `light` (angle light
@@ -302,7 +347,12 @@ counts and wet-layer resolution (draft: half resolution; normal: 0.8 for layers 
 ## Tests
 `noise.test.ts`, `pigments.test.ts`, `geometry.test.ts` (determinism of deformation and
 outlines, brush profiles, paths), `wet.test.ts` (drying pass on synthetic buffers: rim pooling,
-opacity, dry brush, determinism), `primitives.test.ts` (jsdom-safe import, documented
+opacity, dry brush, determinism), `parts.test.ts` (ADR 0238: the drying pass's output pinned
+against the engine before it could pause, for every option branch; every band size, down to a
+row, dries byte for byte like the whole buffer; the blurs in bands equal the whole; `dryParts`
+paints what `dry` paints, in many parts; `flush` is one one-pixel read; the long recipes' canvas
+calls pinned on a recording canvas, one call and in parts alike, in more than 8 parts with no part
+over a quarter of the calls or reading more than one wet layer), `primitives.test.ts` (jsdom-safe import, documented
 defaults, quality scaling, pure brush geometry), `rim.test.ts` (rim width, screen draw, faint rims skipped, one mask per image, side and colour), `persist.test.ts` (keys, versions
 and the drop of other versions, LRU and the byte cap, idle encoding, the null cache, swallowed
 storage, encode and decode failures; Map adapter), `paint-version.test.ts` (the hashed import
