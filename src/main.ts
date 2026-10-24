@@ -27,6 +27,7 @@ import { applyUiLight } from './ui/ambient-light';
 import { createTimerSurfaces } from './widget';
 import { installWidgetDebug } from './widget/dev';
 import { installSceneDebug } from './scene/debug';
+import { installPaintCacheDebug } from './paint/debug';
 import { createPaperSystem, createSceneSystem } from './scene/system';
 
 /** localStorage, or null when the browser blocks it (private mode, disabled storage). */
@@ -128,6 +129,7 @@ function boot(): void {
     installWidgetDebug({ surfaces, controller, store, bus });
     installSceneDebug(sceneSystem, scene);
     installPlantsDebug(plants);
+    installPaintCacheDebug();
     installScheduleDebug({ store, scheduler, clock: speedClock, ui, species });
     installCameraDebug({
       renderer,
