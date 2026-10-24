@@ -54,3 +54,6 @@ old build: 6 files fetched and 31 rules.
   string), which resolves to 500. Writing `500` there would state what they draw.
 - A Cyrillic or Vietnamese task name renders in the system serif (owner decision). This holds in
   the PiP card too.
+- The full gate passed except one e2e test, 248 of 249: `ui-shell › the custom scrollbar shows the
+  position and drags…` failed once, while another agent was running its suite. Run alone it passed
+  3 of 3. The test waits on a real idle delay, so it is sensitive to load. It does not involve fonts.
