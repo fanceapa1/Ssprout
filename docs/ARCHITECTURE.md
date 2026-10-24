@@ -521,6 +521,7 @@ The cache is the null cache (`get` → null, `put` → false, `stats().off` says
 with `?nopaintcache`, without IndexedDB or when it fails to open. Keys must hold everything else the
 pixels depend on (seed, view rect, scale, quality…). Store paintings before the paper (ADR 0021).
 `createPaintCache({ adapter: PaintStoreAdapter, … })` takes any store (unit tests use a Map).
+The scene looks every painting up here before painting it (`scene`, `scene-detail`, `scene-sprites`; ADR 0228, docs/systems/scene.md).
 
 ### Shared helpers
 `Pt` lives in `src/render/viewport.ts` (re-exported from `scene/geometry.ts`).
@@ -551,10 +552,10 @@ totalRemainingMs, growth, pausedAt, focusWaterings), `switchTo(id)`, `log()`, `n
 `setState(partial)` (validated), `status()`, `flush()`, `exportState()`, `importState(json)`.
 
 Scene (`src/scene/debug.ts`): `slots()`, `sceneStats()` (paints, rescales, per-step timings with
-each step's parts and longest part, the paint's `longest` uninterrupted part, ADR 0226),
+each step's parts and longest part, the paint's `longest` uninterrupted part, ADR 0226; `cacheHits`, `cacheMisses`, `lastLookupMs`: overview paintings taken from the paint cache, ADR 0228),
 `scenePainted()` (resolves when no background repaint is pending), `skyStats()` (daylight sky plates painted,
 composites, paint ms, the detail composite), `sceneDetail()` (the camera's detail painting: view,
-painting, fade, its `longest` part, extension). `?dev&slots` draws the slot overlay.
+painting, fade, its `longest` part, extension, `cacheHits`, `cacheMisses`). `?dev&slots` draws the slot overlay.
 
 Paint cache (`src/paint/debug.ts`): `window.sprout.paintCache` is the app's `PaintCache` (ADR 0227),
 plus `open({ version?, maxBytes? })` for another cache on the same IndexedDB store.

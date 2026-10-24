@@ -238,7 +238,7 @@ dabs at nodes alternating ±0.6–1.0 rad, lengths tapering toward the tip; pass
 ## Persistence: the paint cache (`persist.ts`, ADR 0227)
 Finished paintings that depend only on code, seed, view and scale (the landscape, the sky and
 light plates) can be kept across reloads, so a repeat visit decodes them (~40 ms) instead of
-painting them (~1 s). Nothing uses it yet: P8 wires the scene and P18 the plates.
+painting them (~1 s). The scene uses it for the landscape, its sprites and its detail paintings (ADR 0228); P18 wires the plates.
 
 ```ts
 import { paintCache } from '../paint/persist';
@@ -275,6 +275,10 @@ else { paint(canvas); void cache.put('scene', key, canvas); } // copied now, enc
   In Chromium the round trip canvas → PNG → bitmap → `drawImage` reads back identical
   `getImageData`, opaque and with every alpha value (`tests/e2e/paint-cache.spec.ts`). Store the
   painting before the paper (ADR 0021) and before any time-of-day plate.
+  **Draw it scaled only from a canvas copy.** Drawn scaled with smoothing, the decoded
+  (unpremultiplied) bitmap filters translucent pixels differently from the canvas it was painted
+  on: up to 35 levels on a third of the landscape. A 1:1 `copy` into a canvas first is exact
+  (the scene's `canvasOf`, ADR 0228).
 - **Where:** IndexedDB `studysprout-paint` (devtools › Application › IndexedDB) has two object
   stores: `meta` (`EntryMeta`: `id`, `version`, `kind`, `key`, `bytes`, `used`) and `blobs` (the PNG
   under the same id). `?dev`: `sprout.paintCache` is the app's cache, plus `open({ version, maxBytes })`

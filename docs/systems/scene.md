@@ -21,14 +21,14 @@ Look at it: studio → **Scene · painted garden** (`npm run shots -- --studio s
 | `paint-trees.ts` | trees (stems, limbs, twigs, cloud pads) and shrubs |
 | `paint-pavilion.ts` | engawa corner: roof, eave, posts, wall, shoji, deck, hanging lantern |
 | `sprites.ts` | foreground sprites: boulders (+ moss, base tufts, contact shadow) and tufts |
-| `background.ts` | `GARDEN_ART`, ordered `backgroundSteps`, `paintJob` generator (one part of a step per `next()`), `paintSceneSync`, cooperative `paintScene`, `StepTiming` |
+| `background.ts` | `GARDEN_ART`, ordered `backgroundSteps`, `paintJob` generator (one part of a step per `next()`), `paintSceneSync`, cooperative `paintScene`, `StepTiming`; the paint cache's `SCENE_CACHE` kinds, `paintingKey`, `spritesKey`, the sprite atlas (`spriteAtlasLayout`, `packSprites`, `unpackSprites`) and `canvasOf` (ADR 0228) |
 | `paint-record.ts` | test-only recording canvas: hashes every canvas call with its exact arguments and counts the work between pauses (ADR 0226) |
 | `water.ts` | `createWaterSurface`: shimmer bands, ripple rings, glints following the sun (per frame) |
 | `paint-sky.ts` | the four painted daylight skies and their mirrored water plates (ADR 0145) |
 | `sky-light.ts` | `createSkyLight`: phase plates blended, sun and moon punched out; sky + water composites |
 | `daylight.studio.ts` | studio section `daylight`: each phase and blend over the garden, each plate, the moon |
 | `overlay.ts` | `drawSlotOverlay` (dev) |
-| `system.ts` | `createSceneSystem` (background + entities + water + overlay), `createPaperSystem`, `paintViewFor`, `canReuse`, `CUT_FADE` |
+| `system.ts` | `createSceneSystem` (background + entities + water + overlay; paintings looked up in the paint cache first, ADR 0228), `createPaperSystem`, `paintViewFor`, `canReuse`, `CUT_FADE` |
 | `debug.ts` | `?dev` hooks: `sprout.slots()`, `sprout.sceneStats()`, `sprout.scenePainted()`, `sprout.skyStats()`, `sprout.sceneDetail()` |
 | `scene.studio.ts` | studio section `scene` |
 | `close-view.studio.ts` | studio section `close-view`: overview vs detail for the meadow, the margin and a trunk |
@@ -133,6 +133,36 @@ max-size box at that scale so you can check fit. At 1.25× two slots moved: `mea
 (1490, 772, now **medium**: a large plant hid the engawa's deck) and `meadow-7` (528, 796: it
 crowded `meadow-8`).
 
+## From the paint cache on a repeat visit (ADR 0228)
+Before any paint job (the first paint, a repaint after a resize, the whole-world extension, a
+detail painting) the scene looks its painting up in the persistent paint cache (`paintCache()`,
+ADR 0227; docs/systems/paint.md › Persistence):
+- **Kinds:** `scene` (the overview, its strip's cut sides already faded), `scene-detail` (the
+  camera's resting view, never faded) and `scene-sprites` (the boulders and foreground tufts of
+  one scale, packed into one atlas: `spriteAtlasLayout`, `packSprites`, `unpackSprites`).
+- **Keys** (`paintingKey`, `spritesKey`): `s7|normal|0,0,1600,1000@1.5|2400x1500` and
+  `s7|normal@1.5`. These are the seed, quality, world rect, exact scale (the device pixel ratio
+  and the zoom are in it) and pixel size. The art's layout is code, so it is in the cache's
+  version. The daylight is not in the key: the sky plate, the light plate and the paper are laid
+  over the painting each time it is drawn.
+- **A hit** (painting and sprites both found) runs no paint step at all: `sceneStats()` shows
+  `paints: 0`, `cacheHits: 1`, `timings: []`. The decoded bitmap is copied 1:1 into a canvas
+  (`canvasOf`) before it is drawn. Drawn scaled, the unpremultiplied bitmap itself would filter
+  translucent pixels differently. With the copy, the frame is identical to a fresh paint (e2e).
+  The fade, `whenPainted`/`scenePainted()` and `ready()` work as before.
+- **A miss** paints as before, then stores the painting (`{ copy: false }`) and the atlas in idle time.
+- **Bounded wait:** the paint job waits for the lookup for at most `cacheWaitMs` (300 ms). A hit
+  that arrives later stops the paint job and replaces it. With the cache off (dev server,
+  `?nopaintcache`) the lookup answers at once with nothing.
+- **Sizes** (1440×900 @2): the overview plus its sprites is 6.8 MB of PNG, and a detail view is
+  3–6.6 MB, out of the cache's 48 MB.
+- **Measured** (production build, repeat visit, 1440×900 @2): the landscape shows at about
+  494 ms instead of 1603 ms. Main-thread busy time before it is 518 ms instead of 1522 ms. The
+  lookup (open, read, decode, copy) takes about 285 ms. On a first visit the miss costs about
+  20 ms. A repeat rest on the same close view takes 115 ms instead of 740 ms.
+- `createSceneSystem({ cache?, cacheWaitMs?, cacheDetail? })`. `sceneStats()` has `cacheHits`,
+  `cacheMisses` and `lastLookupMs`, and `sceneDetail()` has `cacheHits` and `cacheMisses`.
+
 ## Caching, repaint and fade (ADR 0041)
 - The painting covers `paintViewFor(viewport)`: the visible world rect + 60 units margin, at
   `min(viewport.pixelScale, 1.5)` bitmap px per world unit (above that the bitmap is upscaled;
@@ -217,6 +247,15 @@ uninterrupted parts:
   stepping stone, no plant box lies more than a fifth over the engawa or over the lantern,
   neighbours at the same depth overlap by at most half their footprint.
 - `system.test.ts`: paint view (cap, portrait strip) and the 10 % repaint rule.
+- `scene-cache.test.ts` (ADR 0228): the keys (exact, changed by every ingredient, equal for a
+  repeat visit, the sprites independent of the rect) and the atlas layout. It also runs the system
+  on recording canvases with an in-memory cache: a miss paints and stores both parts, a hit
+  paints nothing, a store that never answers is waited for at most `cacheWaitMs`, and a hit that
+  arrives mid-paint stops the paint job.
+- `tests/e2e/scene-cache.spec.ts` (ADR 0228, production build): a repeat visit paints no step,
+  has one hit and draws a frame with 0 differing pixels from a `?nopaintcache` load (1440×900 @1).
+  At @2 (upscaled) the frame hash is identical. A size not in the cache paints and is stored in
+  turn. A detail painting comes from the cache on a repeat rest.
 - `paint-slices.test.ts` (ADR 0226): on a recording canvas, the overview and two close views
   issue exactly the canvas calls they did before the steps were split (pinned hashes). No part does
   more than 320 k canvas calls or 0.9 Mpx of pixel passes. Before the split the meadow was 1.3 M
