@@ -1,5 +1,5 @@
 import { createRng } from '../core/rng';
-import { createValueNoise2D, type Noise2D } from '../paint/noise';
+import { createLazyValueNoise2D, type Noise2D } from '../paint/noise';
 
 /**
  * A dock section's backdrop (ADR 0208): a leaf of washi laid on the page, a little lighter than the
@@ -16,6 +16,10 @@ import { createValueNoise2D, type Noise2D } from '../paint/noise';
  *
  * The tear always stays inside the box (`0 < inset ≤ MAX_TEAR`), so the box can be measured and
  * tested as the sheet's bounds.
+ *
+ * Cost (ADR 0223): the edges read their noise along a few fixed lattice rows, so the lattices are
+ * drawn lazily, a row at a time (`createLazyValueNoise2D`), and each seed's noise is built once and
+ * kept in a small cache, shared by the outline, the fibres and the shadow and across resizes.
  */
 export type SheetStrength = 'leaf' | 'firm';
 
@@ -70,20 +74,53 @@ export interface Tear {
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 
 /**
- * The torn edge for `seed`: three octaves of value noise per side (a slow wave, the tear, the
- * fibres) and a chipped corner at each of the four corners. Pure and deterministic.
+ * A small least-recently-used cache of per-seed noise (ADR 0223). The noise is pure in its seed,
+ * so caching it changes no output; the bound keeps the studio's many seeds from piling up.
  */
-export function createTear(seed: string, amount = 1): Tear {
+const NOISE_CACHE = 32;
+function memo<T>(make: (seed: string) => T): (seed: string) => T {
+  const cache = new Map<string, T>();
+  return (seed) => {
+    let v = cache.get(seed);
+    if (v === undefined) {
+      v = make(seed);
+      if (cache.size >= NOISE_CACHE) cache.delete(cache.keys().next().value!);
+    } else cache.delete(seed);
+    cache.set(seed, v);
+    return v;
+  };
+}
+
+interface TearNoise {
+  octaves: Record<Side, [Noise2D, Noise2D, Noise2D]>;
+  corners: Corner[];
+  skew: number[];
+}
+
+const tearNoise = memo((seed): TearNoise => {
   const rng = createRng(`sheet:${seed}`);
   const octaves: Record<Side, [Noise2D, Noise2D, Noise2D]> = {} as never;
   for (const side of SIDES) {
     const r = rng.fork(side);
-    octaves[side] = [createValueNoise2D(r.fork('wave'), 256), createValueNoise2D(r.fork('tear'), 256), createValueNoise2D(r.fork('fibre'), 256)];
+    octaves[side] = [
+      createLazyValueNoise2D(r.fork('wave'), 256),
+      createLazyValueNoise2D(r.fork('tear'), 256),
+      createLazyValueNoise2D(r.fork('fibre'), 256),
+    ];
   }
   const corners: Corner[] = [0, 1, 2, 3].map(() => ({ depth: rng.range(1.5, 4.5), reach: rng.range(16, 44) }));
   // the sheet lies a hair askew: its top and lower edges lean by up to 3 px from end to end (the
   // sides do not lean, so a sheet that grows taller keeps its sides exactly)
   const skew = [0, 1, 2, 3].map(() => rng.range(0, 3));
+  return { octaves, corners, skew };
+});
+
+/**
+ * The torn edge for `seed`: three octaves of value noise per side (a slow wave, the tear, the
+ * fibres) and a chipped corner at each of the four corners. Pure and deterministic.
+ */
+export function createTear(seed: string, amount = 1): Tear {
+  const { octaves, corners, skew } = tearNoise(seed);
   // corners in order: top-left, top-right, bottom-right, bottom-left
   const chip = (c: Corner, d: number) => (d < c.reach ? c.depth * (1 - d / c.reach) ** 2 : 0);
   return {
@@ -174,6 +211,15 @@ export function sheetFibres(seed: string, w: number, h: number, style: SheetStyl
 /** How far the shadow's wash reaches out past each side (negative: it stays under the sheet). */
 const SHADOW_SIDE: Record<Side, number> = { top: -0.7, right: 0.45, bottom: 1, left: -0.7 };
 
+/** The shadow's noise for `seed`: where the wash pools along the edge, and each glaze's jitter. */
+const shadowNoise = memo((seed) => {
+  const rng = createRng(`shadow:${seed}`);
+  return {
+    pool: createLazyValueNoise2D(rng.fork('pool'), 256),
+    jitters: Array.from({ length: GLAZES }, (_, i) => createLazyValueNoise2D(rng.fork(`glaze-${i}`), 256)),
+  };
+});
+
 /**
  * The pooled wash under the sheet: `GLAZES` jittered outlines, each reaching a little less far
  * (so the wash is deepest along the edge and soft at its end), in the sheet's own box. Points may
@@ -181,14 +227,13 @@ const SHADOW_SIDE: Record<Side, number> = { top: -0.7, right: 0.45, bottom: 1, l
  */
 export function shadowLayers(seed: string, w: number, h: number, style: SheetStyle = SHEET.leaf): Pt[][] {
   const tear = createTear(seed, style.tear);
-  const rng = createRng(`shadow:${seed}`);
   const dx = style.depth * 0.14;
   const dy = style.depth * 0.22;
   // the wash pools unevenly: deeper in places along the edge, nearly gone in others
-  const pool = createValueNoise2D(rng.fork('pool'), 256);
+  const { pool, jitters } = shadowNoise(seed);
   const layers: Pt[][] = [];
   for (let i = 0; i < GLAZES; i++) {
-    const jitter = createValueNoise2D(rng.fork(`glaze-${i}`), 256);
+    const jitter = jitters[i]!;
     const reach = style.depth * (1 - (i / GLAZES) * 0.9);
     const pts = walkBox(w, h, 12, (side, s) => {
       const p = 0.6 + 0.45 * pool(s / 170, side === 'bottom' ? 1.5 : 6.5);
