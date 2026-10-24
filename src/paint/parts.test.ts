@@ -152,6 +152,7 @@ const RECIPES: Record<string, (p: Painter) => void> = {
   'stone (ellipse, no shadow or reserve)': (p) =>
     p.stone({ cx: 120, cy: 120, rx: 40, ry: 20 }, { rng: createRng('stone2'), groundShadow: false, reserve: false, moss: 0, ink: 0.3, patches: 0 }),
   waterBody: (p) => p.waterBody(POND, { rng: createRng('water'), ripples: 3, reflection: 0.6 }),
+  foliageClump: (p) => p.foliageClump({ x: 160, y: 110 }, 70, undefined, { rng: createRng('clump'), shadow: 0.9 }),
   'a whole sequence on the painter’s own rng': (p) => {
     p.wetInWet(POND, PIGMENTS.celadon, PIGMENTS.celadonMid);
     p.wash({ cx: 100, cy: 100, rx: 40, ry: 30 }, PIGMENTS.sage);
@@ -168,6 +169,7 @@ const RECIPE_PINS: Record<string, string> = {
   stone: '018304b9',
   'stone (ellipse, no shadow or reserve)': '5edef03c',
   waterBody: '65a9b619',
+  foliageClump: '3ac2f8f9',
   'a whole sequence on the painter’s own rng': '49c45bf3',
 };
 
@@ -289,6 +291,7 @@ const RECIPE_PARTS: Record<string, (p: Painter) => PaintParts> = {
   'stone (ellipse, no shadow or reserve)': (p) =>
     p.parts.stone({ cx: 120, cy: 120, rx: 40, ry: 20 }, { rng: createRng('stone2'), groundShadow: false, reserve: false, moss: 0, ink: 0.3, patches: 0 }),
   waterBody: (p) => p.parts.waterBody(POND, { rng: createRng('water'), ripples: 3, reflection: 0.6 }),
+  foliageClump: (p) => p.parts.foliageClump({ x: 160, y: 110 }, 70, undefined, { rng: createRng('clump'), shadow: 0.9 }),
 };
 
 describe('the long recipes in parts (ADR 0238)', () => {

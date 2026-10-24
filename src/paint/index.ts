@@ -70,6 +70,7 @@ export interface PainterParts {
   lift(shape: Shape, opts?: prim.LiftOptions): PaintParts;
   stone(shape: Shape | rec.StoneBox, opts?: rec.StoneOptions): PaintParts;
   waterBody(shape: Shape, opts?: rec.WaterOptions): PaintParts;
+  foliageClump(center: Pt, radius: number, pigments?: rec.FoliagePigments, opts?: rec.FoliageOptions): PaintParts;
 }
 
 export interface PainterOptions {
@@ -144,6 +145,7 @@ export function painterFor(ctx: Ctx2D, opts: PainterOptions = {}): Painter {
       lift: (s, o) => prim.liftParts(t, s, o),
       stone: (s, o) => rec.stoneParts(t, s, o),
       waterBody: (s, o) => rec.waterBodyParts(t, s, o),
+      foliageClump: (c, r, p, o) => rec.foliageClumpParts(t, c, r, p, o),
     },
   };
 }

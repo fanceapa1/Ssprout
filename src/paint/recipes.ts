@@ -108,6 +108,11 @@ export function foliageLayout(center: Pt, radius: number, rng: Rng, o: FoliageOp
  * @example p.foliageClump({ x: 200, y: 140 }, 70, FOLIAGE_GREEN, { light: -2.4 })
  */
 export function foliageClump(t: PaintTarget, center: Pt, radius: number, pigments: FoliagePigments = FOLIAGE_GREEN, opts: FoliageOptions = {}): void {
+  drain(foliageClumpParts(t, center, radius, pigments, opts));
+}
+
+/** `foliageClump` in parts: it pauses after each layer's dabs and inside each of its four drying passes (ADR 0238). */
+export function* foliageClumpParts(t: PaintTarget, center: Pt, radius: number, pigments: FoliagePigments = FOLIAGE_GREEN, opts: FoliageOptions = {}): PaintParts {
   const rng = opts.rng ?? t.env.rng;
   const dabs = foliageLayout(center, radius, rng, opts);
   const opacity = opts.opacity ?? 0.85;
@@ -142,7 +147,10 @@ export function foliageClump(t: PaintTarget, center: Pt, radius: number, pigment
 
   // 1. light body: every dab, merged wet-in-wet into one scalloped mass
   const L1 = new WetLayer(t.ctx, area, t.env);
-  for (const d of dabs) blot(L1, d, d.lit > 0.2 ? pigments.light : mix(pigments.light, pigments.mid, 0.5), 1, 0.8);
+  for (const d of dabs) {
+    blot(L1, d, d.lit > 0.2 ? pigments.light : mix(pigments.light, pigments.mid, 0.5), 1, 0.8);
+    yield;
+  }
   // paper gaps: lift a few small holes, more on the lit side
   const holes = Math.round(gaps * dabs.length * 0.12);
   for (let i = 0; i < holes; i++) {
@@ -151,15 +159,17 @@ export function foliageClump(t: PaintTarget, center: Pt, radius: number, pigment
     const r = d.r * rng.range(0.25, 0.5);
     L1.lift(deformPolygon(blob(d.x + rng.gaussian(0, d.r * 0.5), d.y + rng.gaussian(0, d.r * 0.4), r, r * 0.7, rng, { points: 9, irregularity: 0.3 }), rng, { depth: 1, variance: 0.2 }), rng.range(0.6, 0.95));
   }
-  L1.dry({}, dry({ opacity: opacity * 0.85 }));
+  yield;
+  yield* L1.dryParts({}, dry({ opacity: opacity * 0.85 }));
 
   // 2. mid-tone: dabs on the side away from the light, smaller, separate wet edges
   const L2 = new WetLayer(t.ctx, area, t.env);
   for (const d of dabs) {
     if (d.lit > 0.15 || !rng.chance(0.65)) continue;
     blot(L2, { x: d.x + rng.gaussian(0, d.r * 0.2), y: d.y + d.r * 0.2, r: d.r }, pigments.mid, rng.range(0.75, 1.05), 0.7);
+    yield;
   }
-  L2.dry({}, dry({ opacity: opacity * 0.42, edge: 0.32, sharpness: 0.55 }));
+  yield* L2.dryParts({}, dry({ opacity: opacity * 0.42, edge: 0.32, sharpness: 0.55 }));
 
   // 3. shadow: underside dabs, cooler
   const L3 = new WetLayer(t.ctx, area, t.env);
@@ -167,8 +177,9 @@ export function foliageClump(t: PaintTarget, center: Pt, radius: number, pigment
   for (const d of dabs) {
     if (d.lit > -0.3 || !rng.chance(0.7 * shadowK + 0.2)) continue;
     blot(L3, { x: d.x, y: d.y + d.r * 0.3, r: d.r }, sh, rng.range(0.6, 0.9), 0.7);
+    yield;
   }
-  L3.dry({}, dry({ opacity: opacity * 0.3 * (0.5 + shadowK), edge: 0.3, sharpness: 0.5, centreLift: 0.2 }));
+  yield* L3.dryParts({}, dry({ opacity: opacity * 0.3 * (0.5 + shadowK), edge: 0.3, sharpness: 0.5, centreLift: 0.2 }));
 
   // 4. a few dark accents tucked under the mass
   const dark = pigments.dark ?? darken(pigments.shadow, 0.25);
@@ -178,9 +189,11 @@ export function foliageClump(t: PaintTarget, center: Pt, radius: number, pigment
     if (d.lit > -0.6 || !rng.chance(0.14)) continue;
     blot(L4, { x: d.x + rng.gaussian(0, d.r * 0.3), y: d.y + d.r * 0.45, r: d.r }, dark, rng.range(0.3, 0.5), 0.75);
     accents++;
+    yield;
   }
-  if (accents) L4.dry({}, dry({ opacity: opacity * 0.3, edge: 0.35 }));
-  else L4.discard();
+  if (accents) {
+    yield* L4.dryParts({}, dry({ opacity: opacity * 0.3, edge: 0.35 }));
+  } else L4.discard();
 }
 
 // ---------------------------------------------------------------------------------------------
