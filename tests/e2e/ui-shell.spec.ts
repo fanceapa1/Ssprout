@@ -304,6 +304,9 @@ test.describe('app shell · dock', () => {
     await page.evaluate((ms) => window.sprout!.advance(ms), 20 * MIN);
     const grown = await page.evaluate(() => window.sprout!.ui.state().plantView.growth);
     expect(grown).toBeGreaterThan(0.3);
+    // the painting is drawn when the section nears the window (ADR 0225): draw it now
+    await page.evaluate(() => window.sprout!.ui.dockReady());
+    await expect(view).toHaveAttribute('data-painted', /^growing\|fx-iris\|/);
     const inked = await view.locator('canvas.plant-canvas').evaluate((c) => {
       const canvas = c as HTMLCanvasElement;
       const { data } = canvas.getContext('2d')!.getImageData(0, 0, canvas.width, canvas.height);
