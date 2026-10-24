@@ -85,8 +85,8 @@ Phase 9: performance (owner request 2026-10-24). The page is laggy. Draw only wh
 | P3 | Dock backdrop noise: build each tear once per seed, cheap edge noise, identical SVG output | `src/ui/backdrop-sheet.ts` | done (86 → 9 ms first layout, 78 → 4 ms per resize, SVG byte-identical; ADR 0223) |
 | P4 | Pause the render loop while the garden stage is scrolled out of view | `src/render/renderer.ts`, `src/main.ts` (1–2 lines) | done (0 garden frames while scrolled away; sessions, widget and audio unaffected; ADR 0224) |
 | P5 | Defer below-the-fold dock painting (plant section, backdrops, wayfinding) until after the garden's first pixels and until near the viewport; no synchronous plant-section paint on Begin | `src/ui/plant-section.ts`, `src/ui/backdrop.ts`, `src/ui/index.ts` | in progress (ADR 0225) |
-| P6 | Split long scene paint steps so the cooperative painter yields every ~20 ms (load and close-view detail repaint) | `src/scene/background.ts`, `src/scene/paint-*.ts`, `src/scene/sprites.ts` | in progress (ADR 0226) |
-| P7 | Persistent paint cache module: IndexedDB blob store, versioned keys, LRU byte cap, null adapter | `src/paint/persist.ts` (new), `vite.config.ts` define | queued (ADR 0227) |
+| P6 | Split long scene paint steps so the cooperative painter yields every ~20 ms (load and close-view detail repaint) | `src/scene/background.ts`, `src/scene/paint-*.ts`, `src/scene/sprites.ts` | done, partly (longest part at load 192–233 → 103–128 ms, big-tree detail 305–346 → 34–38 ms, pixel-identical; the rest are single paint-engine calls, see P23; ADR 0226) |
+| P7 | Persistent paint cache module: IndexedDB blob store, versioned keys, LRU byte cap, null adapter | `src/paint/persist.ts` (new), `vite.config.ts` define | in progress (ADR 0227) |
 | P8 | Garden background from the persistent cache: a repeat visit shows the landscape without repainting it | `src/scene/system.ts`, `src/scene/background.ts` | queued (after P7; ADR 0228) |
 | P9 | Service worker build manifest (precache list and version written into `dist/sw.js`) | `vite.config.ts` plugin, `scripts/` | queued (ADR 0229) |
 | P10 | Service worker caching: precache, cache-first hashed assets, network-first HTML, old-version cleanup; notifications untouched | `public/sw.js` | queued (after P9; ADR 0230) |
@@ -102,3 +102,4 @@ Phase 9: performance (owner request 2026-10-24). The page is laggy. Draw only wh
 | P20 | Scroll path: tips, format and wayfinding read layout once per frame | `src/ui/tips.ts`, `src/ui/format.ts`, `src/ui/wayfinding.ts` | queued |
 | P21 | Planting sheet layout off the click: the remaining ~75 ms first-open cost is `showModal` layout (content-visibility for off-screen cards, or lay the sheet out during the idle prewarm) | `src/ui/planting-sheet.ts`, `src/ui/ui.css` | queued |
 | P22 | Herbarium previews through the worker (still painted synchronously on open) | `src/ui/herbarium*` | queued |
+| P23 | Paint engine yields inside its long single calls: `WetLayer.dry` and the water/sky/bank recipes pause between row bands, same pixels (finishes P6) | `src/paint/wet.ts`, `src/paint/recipes*` | queued (ADR 0238) |
