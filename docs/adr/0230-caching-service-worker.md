@@ -38,7 +38,7 @@ them (`self.__SW_VERSION__`) into `dist/sw.js`. Nothing in the app is private.
     scope (`studio.html`) go to the network through the preload and get no fallback.
   - **`/Ssprout/assets/*`** is cache-first across our caches: an older tab's chunk is found in the
     previous version's cache. A miss is fetched, and a `200` same-origin response is stored in
-    this version's cache. That covers lazy chunks, the fonts left out of the precache and any file
+    this version's cache. That covers lazy chunks, any file left out of the precache and any file
     loaded through a URL built at runtime.
   - Lookups ignore `Vary`. Pages sends `Vary: Accept-Encoding` and vite preview `Vary: Origin`,
     and a module script request carries an `Origin` the precache request lacked, so a strict

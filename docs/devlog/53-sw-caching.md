@@ -34,8 +34,8 @@ did not, so a strict `caches.match` missed every script, and the offline reload 
   - activate's cleanup, including foreign caches and a repeated activation.
 - `tests/e2e/sw-cache.spec.ts` (4 tests) registers `/Ssprout/sw.js` from the page on the
   production build and waits for control:
-  - the precache equals the list, a reload goes through the worker, and an uncached font lands in
-    the version cache;
+  - the precache equals the list, a reload goes through the worker, and a file outside the
+    precache (the studio's CSS, named in the served `studio.html`) lands in the version cache;
   - offline, a reload renders the garden, and an uncached asset really fails;
   - fake `sprout-000…` and `sprout-111…` caches with a meta record: only the older one is deleted;
   - a `notificationclick` dispatched in the worker focuses the garden tab (`focus` is recorded,
