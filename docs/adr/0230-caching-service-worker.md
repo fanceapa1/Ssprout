@@ -62,15 +62,15 @@ them (`self.__SW_VERSION__`) into `dist/sw.js`. Nothing in the app is private.
    serves the old names. A reload gets the new page from the network and new assets from the new
    cache.
 4. **A tab left open across two deploys** loses the oldest cache. A file it had not loaded yet
-   then misses the cache and gets a 404 from Pages. A `vite:preloadError` reload (P11) covers that.
+   then misses the cache and gets a 404 from Pages. A `vite:preloadError` reload covers that (see Registration).
 5. **Offline**, the app page comes from the cache of the active version, and its assets from the
    same cache.
 
 ## Consequences
 - A return visit costs one network round trip, for the page (navigation preload starts it while
   the worker boots). The scripts, CSS and fonts come from the cache.
-- The garden works offline once the worker has installed. The worker is still registered only
-  when notifications are granted. Registering it at boot is P11.
+- The garden works offline once the worker has installed. Since the amendment below, every
+  visitor of a production build gets the worker, after the garden's first paint.
 - Each deploy downloads the whole precache once (about 620 kB on the wire today), in the
   background after the worker installs.
 - The page's HTML could come from a CDN edge that is a few minutes older than `sw.js`. The
@@ -82,3 +82,36 @@ them (`self.__SW_VERSION__`) into `dist/sw.js`. Nothing in the app is private.
   `tests/e2e/sw-cache.spec.ts` registers the worker on the production build: precache contents,
   a reload through the worker, a runtime-cached miss, an offline reload that renders the garden,
   the cleanup with fake old caches, and a notification click that focuses the garden tab.
+
+## Amendment (2026-10-25, P11): registration at boot, e2e policy, stale chunks
+
+### Context
+Until P11 the app registered `sw.js` only from the notifications path, once permission was
+granted, so most visitors never got the caching worker.
+
+### Decision
+- **One registration per page.** `registerServiceWorker` (`src/widget/service-worker.ts`)
+  registers `${BASE_URL}sw.js` with scope `BASE_URL` once and hands the same promise to every
+  caller. The notifications env's `prepare()` uses it. A failed or blocked registration resolves
+  null.
+- **When:** in production builds, after the garden's first paint (`renderer.whenReady()`), the
+  `load` event and an idle callback (`requestIdleCallback`, timeout 5 s; 200 ms without it). The
+  precache then downloads in the background instead of competing with the first load. The dev
+  server never registers. A visitor who granted notifications earlier still registers at boot
+  through the notifier, as before.
+- **A stale lazy chunk reloads once.** A `vite:preloadError` listener reloads the page and
+  `preventDefault()`s the event, so a tab open across deploys (whose chunk Pages no longer serves
+  and no cache holds) gets the new build. sessionStorage remembers which build reloaded (the entry
+  chunk's path). The same build failing again is left to surface, so an offline tab or a stale
+  CDN edge cannot loop. Without sessionStorage there is no guard, so nothing reloads.
+- **e2e:** Playwright blocks service workers by default (`serviceWorkers: 'block'`), so a spec
+  never depends on what an earlier load cached. The worker specs (`sw-*.spec.ts`) and
+  `widget.spec.ts` opt in with `test.use({ serviceWorkers: 'allow' })` and wait for
+  `sprout.sw.ready()`.
+
+### Consequences
+- A first visit downloads the precache (about 620 kB on the wire) once the garden is up; a return
+  visit is served from it.
+- Lazy chunks added later need no extra wiring for deploy recovery.
+- Tests: `src/widget/service-worker.test.ts`; `tests/e2e/sw-boot.spec.ts` (blocked default, the
+  reload once); `tests/e2e/sw-cache.spec.ts` now relies on the app's own registration.
