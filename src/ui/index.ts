@@ -212,6 +212,18 @@ export function createUI(deps: UIDeps): UI {
     },
   });
 
+  // the sheet's previews are painted ahead in a worker (ADR 0222): after the garden's first
+  // paint, on an idle moment, and again when a Start control is pointed at or focused
+  const warmPreviews = () => {
+    if (!disposed) planting.prewarm();
+  };
+  void deps.whenGardenReady?.().then(() => whenIdle(warmPreviews));
+  const warmOnIntent = (e: Event) => {
+    if (e.target instanceof Element && e.target.closest('[data-anchor="start"], .plant-another')) warmPreviews();
+  };
+  root.addEventListener('pointerover', warmOnIntent);
+  root.addEventListener('focusin', warmOnIntent);
+
   const placement = createPlacement(ctx, draft, {
     begin: () => begin(),
     back: () => {
@@ -564,6 +576,7 @@ export function createUI(deps: UIDeps): UI {
     placement: placement.highlight,
     state,
     refresh: () => refresh(),
+    previewsReady: () => planting.previewsReady(),
     setTimeScale(scale) {
       timeScale = Math.max(0, scale);
     },
@@ -584,6 +597,8 @@ export function createUI(deps: UIDeps): UI {
       offComplete();
       window.removeEventListener('pointerdown', unlockOnGesture, true);
       window.removeEventListener('keydown', unlockOnGesture, true);
+      root.removeEventListener('pointerover', warmOnIntent);
+      root.removeEventListener('focusin', warmOnIntent);
       panel.dispose();
       placement.dispose();
       tools.dispose();

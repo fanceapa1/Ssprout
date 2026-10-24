@@ -116,6 +116,12 @@ export interface UIDeps {
   schedules?: Scheduler;
   /** zoom controls, gestures, focus on the growing plant and plant cards (without: none) */
   camera?: CameraIntegration;
+  /**
+   * Resolves once the garden's first frame is painted (`renderer.whenReady()`): the planting
+   * sheet's previews are painted ahead after it, on an idle moment (ADR 0222). Without it they
+   * are painted ahead only when a Start control is pointed at or focused.
+   */
+  whenGardenReady?(): Promise<unknown>;
 }
 
 /** What the renderer may draw in-canvas while the gardener is choosing a spot. */
@@ -216,6 +222,8 @@ export interface UI {
   state(): UIState;
   /** Re-read status/state and re-render (the controller ticks once a second anyway). */
   refresh(): void;
+  /** Resolves once every card on the planting sheet shows its species preview (ADR 0222). */
+  previewsReady(): Promise<void>;
   setTimeScale(scale: number): void;
   /** show the finished-plant label for the plant at a world point (as a hover would); returns its text */
   showPlantLabel(world: { x: number; y: number }): string | null;

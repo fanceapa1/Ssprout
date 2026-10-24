@@ -1924,6 +1924,15 @@ input.duration:focus-visible {
   height: 92px;
   border-radius: 50%;
 }
+/* a preview that landed after the sheet opened settles in over its waiting plot (ADR 0222) */
+.plant-art[data-preview='landed'] .plant-preview {
+  animation: preview-settle var(--ui-mid) var(--ui-breath) both;
+}
+@keyframes preview-settle {
+  from {
+    opacity: 0.35;
+  }
+}
 .plant-name {
   margin-top: 4px;
   font-family: var(--ui-display);

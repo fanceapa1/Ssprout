@@ -116,6 +116,7 @@ function boot(): void {
     schedules: scheduler,
     // the camera over the garden: gestures, focus on the growing plant, plant cards (docs/systems/camera.md)
     camera: { camera: renderer.camera, hitTest: (p, tolerance) => plants.hitTest(p, tolerance) },
+    whenGardenReady: () => renderer.whenReady(),
   });
   plants.connectPlacement(ui.placement);
 

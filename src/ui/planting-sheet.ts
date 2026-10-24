@@ -15,6 +15,13 @@ import type { PlantingDraft } from './types';
 export interface PlantingSheet extends Sheet {
   /** re-read plans/species (e.g. after the garden changed) */
   refill(): void;
+  /**
+   * Paint every species preview ahead in the plant view's worker, at idle priority (ADR 0222):
+   * after the garden's first paint and when a Start control is pointed at or focused.
+   */
+  prewarm(): void;
+  /** Resolves once every card on the sheet shows its preview (tests, shots). */
+  previewsReady(): Promise<void>;
 }
 
 export interface PlantingActions {
@@ -47,6 +54,16 @@ export function clearPrefill(draft: PlantingDraft): void {
   draft.taskName = '';
 }
 const PREVIEW = { w: 96, h: 92 };
+/** the preview options of a species card: its pixel size (DPR included) keys the prewarm */
+const previewOptions = (id: string) => ({ ...PREVIEW, dpr: Math.min(2, window.devicePixelRatio || 1), seed: `preview:${id}` });
+
+/** A card whose preview is on its way: the paper-toned plot shows until it lands. */
+interface WaitingPreview {
+  art: HTMLElement;
+  canvas: HTMLCanvasElement;
+  speciesId: string;
+  hurried?: Promise<void>;
+}
 const TASK_SUGGESTIONS = ['Biology, chapter 4', 'Essay draft', 'Japanese vocabulary', 'Problem set 3', 'Reading for seminar'];
 
 export function createPlantingSheet(ctx: UIContext, draft: PlantingDraft, actions: PlantingActions): PlantingSheet {
@@ -170,6 +187,70 @@ export function createPlantingSheet(ctx: UIContext, draft: PlantingDraft, action
     renderSummary();
   }
 
+  // ── previews (ADR 0222): never painted in the click; each card fills in as its sprite lands ──
+  const waiting = new Map<HTMLElement, WaitingPreview>();
+  let watcher: IntersectionObserver | null = null;
+  let generation = 0;
+
+  /** the selectable species in card order: earned tier first, then lower tiers, then locked */
+  function orderedSpecies(list = controller.selectableSpecies(draft.goalMinutes)) {
+    return [...list].sort((a, b) => Number(a.locked) - Number(b.locked) || Number(b.earned) - Number(a.earned) || b.species.tier - a.species.tier);
+  }
+
+  function land(w: WaitingPreview): void {
+    if (waiting.get(w.art) !== w) return;
+    waiting.delete(w.art);
+    const drawn = ctx.previews.paintReady(w.canvas, w.speciesId, previewOptions(w.speciesId));
+    // `landed` fades the plant in over its plot (ui.css); a card with nothing to draw keeps the plot
+    w.art.dataset.preview = drawn ? 'landed' : 'none';
+  }
+
+  /** bring a card's preview to the front of the worker's queue and fill the card when it lands */
+  function hurry(w: WaitingPreview): Promise<void> {
+    w.hurried ??= ctx.previews
+      .whenReady(w.speciesId, previewOptions(w.speciesId))
+      .catch(() => false)
+      .then(() => land(w));
+    return w.hurried;
+  }
+
+  /** the cards on screen first; once those have landed, the rest */
+  function watchPreviews(): void {
+    const gen = ++generation;
+    watcher?.disconnect();
+    watcher = null;
+    if (waiting.size === 0) return;
+    if (typeof IntersectionObserver !== 'function') {
+      for (const w of waiting.values()) void hurry(w);
+      return;
+    }
+    let first = true;
+    const observer = new IntersectionObserver((entries) => {
+      const shown: Promise<void>[] = [];
+      for (const e of entries) {
+        const w = waiting.get(e.target as HTMLElement);
+        if (w && e.isIntersecting) shown.push(hurry(w));
+        if (!w) observer.unobserve(e.target);
+      }
+      if (!first) return;
+      first = false;
+      void Promise.all(shown).then(() => {
+        if (gen !== generation || !sheet.isOpen()) return;
+        for (const w of waiting.values()) void hurry(w);
+      });
+    });
+    for (const art of waiting.keys()) observer.observe(art);
+    watcher = observer;
+  }
+
+  function prewarm(): void {
+    for (const s of orderedSpecies()) void ctx.previews.prewarm(s.species.id, previewOptions(s.species.id));
+  }
+
+  async function previewsReady(): Promise<void> {
+    while (waiting.size > 0) await Promise.all([...waiting.values()].map(hurry));
+  }
+
   function renderPlants(): void {
     const list = controller.selectableSpecies(draft.goalMinutes);
     // a species whose every spot holds another session's seedling would lead to a placement
@@ -181,15 +262,20 @@ export function createPlantingSheet(ctx: UIContext, draft: PlantingDraft, action
       draft.speciesId = null;
     }
     clear(plants);
-    const dpr = Math.min(2, window.devicePixelRatio || 1);
-    // earned tier first, then lower tiers, then locked
-    const ordered = [...list].sort((a, b) => Number(a.locked) - Number(b.locked) || Number(b.earned) - Number(a.earned) || b.species.tier - a.species.tier);
+    waiting.clear();
+    const ordered = orderedSpecies(list);
     for (const s of ordered) {
       const def = s.species;
       const canvas = h('canvas.plant-preview', { 'aria-hidden': 'true' });
       canvas.style.width = `${PREVIEW.w}px`;
       canvas.style.height = `${PREVIEW.h}px`;
-      ctx.previews.paint(canvas, def.id, { ...PREVIEW, dpr, seed: `preview:${def.id}` });
+      // drawn now only if no sprite needs painting; else a quiet plot until it lands
+      const drawn = ctx.previews.paintReady(canvas, def.id, previewOptions(def.id));
+      const art = h('span.plant-art', { 'data-preview': drawn ? 'painted' : 'pending' }, canvas);
+      if (!drawn) {
+        ctx.previews.paintPlot(canvas, previewOptions(def.id));
+        waiting.set(art, { art, canvas, speciesId: def.id });
+      }
       const selected = draft.speciesId === def.id;
       const noSpot = full.has(def.id);
       const card = h(
@@ -212,7 +298,7 @@ export function createPlantingSheet(ctx: UIContext, draft: PlantingDraft, action
             renderSummary();
           },
         },
-        h('span.plant-art', {}, canvas),
+        art,
         h('span.plant-name', {}, def.name),
         def.nativeName ? h('span.plant-native', { lang: 'ja-Latn' }, def.nativeName) : null,
         h(
@@ -226,6 +312,7 @@ export function createPlantingSheet(ctx: UIContext, draft: PlantingDraft, action
     }
     const tierWord = TIER_WORDS[ordered.find((s) => s.earned)?.species.tier ?? 1];
     setText(plantNote, `${draft.goalMinutes} minutes can grow up to a ${tierWord}.`);
+    watchPreviews();
   }
 
   function renderSummary(): void {
@@ -243,5 +330,5 @@ export function createPlantingSheet(ctx: UIContext, draft: PlantingDraft, action
     ctx.changed();
   }
 
-  return { ...sheet, refill };
+  return { ...sheet, refill, prewarm, previewsReady };
 }

@@ -33,6 +33,11 @@ declare module './debug' {
       /** resolves once every filled dock section is laid out (fonts loaded, a frame painted) */
       dockReady(): Promise<void>;
       /**
+       * Resolves once every card on the planting sheet shows its species preview (ADR 0222): the
+       * sheet opens at once and its previews fill in as they land. Await it before reading them.
+       */
+      previewsReady(): Promise<void>;
+      /**
        * The guiding path (ADR 0202), laid out now against the page as it is (unless `layout: false`):
        * its stops in page order and its centre line, in client coordinates, which stop is being read,
        * the draw-in state and how many layouts it has done.
@@ -119,6 +124,7 @@ export function installUiDebug({ ui, clock, widget, viewport, slots }: UiDebugDe
         await document.fonts?.ready;
         await new Promise<void>((r) => requestAnimationFrame(() => r()));
       },
+      previewsReady: () => ui.previewsReady(),
       wayfinding(opts?: { layout?: boolean }) {
         // `{ layout: false }` reads what the path last laid out on its own (tests of its triggers)
         if (opts?.layout !== false) ui.wayfinding.layout();

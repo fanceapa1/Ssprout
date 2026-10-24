@@ -194,7 +194,7 @@ continuous (ADRs 0110–0112). `draw` must be deterministic per (seed, growth, w
 and not touch the DOM (it runs in a worker). Runtime sway = horizontal skew (a bend for large plants
 and trees) about the base, driven by the garden wind (ADR 0113). Details: `docs/systems/plants.md`.
 
-### Plant view (`src/plants/view.ts`, ADRs 0003, 0094, 0220, 0221)
+### Plant view (`src/plants/view.ts`, ADRs 0003, 0094, 0220, 0221, 0222)
 One species at an arbitrary growth, optionally mid-watering or wilting — used by the widget card,
 the planting-sheet previews and the studio (the garden draws through the plant system, with the
 same growth steps, watering and wither):
@@ -217,7 +217,8 @@ cross-fade), the painted watering animation (jōro, droplets, damp soil, leaves 
 painted synchronously. The view's cache paints queued sprites in one lazily spawned worker (ADR 0220).
 `prewarmPlantView` queues exactly the sprites a later draw of that size looks up, at `PRIORITY.idle`, which
 waits while the garden's cache has work. `drawPlantView` draws only from cached sprites and otherwise
-returns `pending` with a `ready` promise, leaving the canvas untouched (ADR 0221).
+returns `pending` with a `ready` promise, leaving the canvas untouched (ADR 0221). The planting sheet
+uses only these two (through `src/ui/previews.ts`, ADR 0222).
 
 ### Scene geometry & slots (`src/scene/geometry.ts`, `src/scene/slots.ts`)
 ```ts
@@ -578,7 +579,7 @@ UI (`src/dev/ui-debug.ts`): `window.sprout.ui` — `state()` (`UIState`: mode, p
 sessions, pillMore, pillAside, confirm, resting, dialogs, tips, markers, line, plantLabel, plantCard,
 draft, calendar, due, scheduleSheet), `refresh()`, `setTimeScale(n)`,
 `placement()`, `showPlantLabel(world)`, `slotScreen(id)` (client pixels: stage offset and scroll
-included), `scroll()`, `scrollTo(y | sectionId, { instant? })`, `dock()`, `dockReady()`,
+included), `scroll()`, `scrollTo(y | sectionId, { instant? })`, `dock()`, `dockReady()`, `previewsReady()`,
 `wayfinding({ layout? })` (the guiding path's stops and centre line in client coordinates, the stop
 being read, draw state, layout count), `setSectionHidden(id, hidden)`,
 `waterPlantView()`, `onZoomGesture(fn)`, `widget` (fake only); `window.sprout.advance(ms)`,
@@ -589,9 +590,11 @@ Query flags: `?fixtures` (dev `fx-*` species, ADR 0055), `?uitime=0.05` (UI dela
 
 ## UI (`src/ui/`, ADRs 0050–0055, 0121, 0124, 0130–0136, 0156, 0164–0168, 0175–0177, 0180–0181, 0190–0194, 0200–0205)
 `createUI({ root, stage?, controller, store, bus, clock, getSpecies, slots, viewport, audio?, widget?,
-notifications?, isKnownSpecies?, reducedMotion?, timeScale?, schedules?, camera? })` → `{ dock, stage, scroll, plantView, wayfinding,
-calendar, camera, placement: { current(), subscribe(fn) }, state(), refresh(), setTimeScale(), showPlantLabel(),
-dispose() }`. With `camera` (`{ camera: renderer.camera, hitTest: plants.hitTest }`) it adds the zoom
+notifications?, isKnownSpecies?, reducedMotion?, timeScale?, schedules?, camera?, whenGardenReady? })` → `{ dock, stage, scroll, plantView, wayfinding,
+calendar, camera, placement: { current(), subscribe(fn) }, state(), refresh(), previewsReady(), setTimeScale(), showPlantLabel(),
+dispose() }`. `whenGardenReady` (main: `renderer.whenReady()`) starts the planting sheet's preview
+prewarm on the next idle moment; `previewsReady()` resolves once every card on the sheet shows its
+preview (the sheet opens at once and fills in, ADR 0222). With `camera` (`{ camera: renderer.camera, hitTest: plants.hitTest }`) it adds the zoom
 gestures and chips, the focus on the growing plant and the plant card (`src/ui/stage-camera.ts`,
 `src/ui/plant-card.ts`; ADRs 0164, 0167, 0168); `ui.camera` is then `{ openCard(id), closeCard(),
 setAutoFocus(on), state() }`, else null. With `schedules` (the scheduler) it fills the Calendar section, mounts the waiting card
