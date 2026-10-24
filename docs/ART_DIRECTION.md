@@ -81,8 +81,8 @@ the tip, never grey drop shadows.
 
 ## UI style
 UI is calm paper and ink: small cards like washi slips with deckled edges, thin ink
-borders, serif typography (bundled via @fontsource — e.g. *Shippori Mincho* / *Cormorant
-Garamond*), muted ink text, a vermilion seal-like accent for the one primary action of the moment
+borders, serif typography (*Shippori Mincho* for display, *Cormorant Garamond* for body; the
+@fontsource files, Latin and Latin-ext only, declared in `src/ui/fonts.css`, ADR 0239), muted ink text, a vermilion seal-like accent for the one primary action of the moment
 (ADR 0201). Small signs are drawn, not dotted: the inked sprout beside what begins a planting, a
 brush stroke under a choice. Hover and focus speak one language: ink deepens with a brush stroke
 drawn in under words, slips lift a hair (ADR 0204). The controls live in the dock below the garden;

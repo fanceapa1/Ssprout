@@ -82,6 +82,24 @@ the widget surfaces — the UI then asks in the Begin click itself.
 | `shell.studio.ts` | studio section `ui-shell`: icons, the sprout and brush marks, corner chips, scrollbar, pill states and "+N", session thumbnails and rows, plant-view states, the seed bed, the garden's edge, a tip note with its × (`tip-note`) |
 | `stage-camera.studio.ts` | studio section `ui-camera`: the zoom chips with "Whole garden", the plant card beside a plant, growing, docked on a phone, and a long docked card cut with its mark |
 | `ui.css` | all UI styles; tokens on `:root` (`--ui-ink`, `--ui-ink-soft`, `--ui-ink-mute`, `--ui-paper`, `--ui-vermilion`, fonts); base 21 px (ADR 0136, checked by `ink.test.ts`) |
+| `fonts.css` | the app's web fonts, the one place they are declared (ADR 0239; see Fonts below) |
+
+## Fonts
+`src/ui/fonts.css` declares every web font. The app (`index.ts`), the timer surfaces
+(`src/widget/index.ts`, which copies the rules into the PiP window) and the studio
+(`src/studio/main.ts`, `src/widget/widget.studio.ts`) import it. Nothing imports fontsource CSS.
+
+- **Faces**: Shippori Mincho 500 (`--ui-display`). Cormorant Garamond 500 and 500 italic
+  (`--ui-body`) and 600 (the calendar's chosen day and chip, the PiP card's buttons). Cormorant
+  Garamond 400 and 400 italic are for the studio only.
+- **Latin and Latin-ext only, woff2 only** (owner decision, ADR 0239). Cyrillic and Vietnamese text
+  falls back to the system serif. Each face is a latin-ext rule and a latin rule with fontsource's
+  `unicode-range`s, so the latin-ext file loads only when a character needs it. `font-display: swap`.
+- **First view**: 3 files (Shippori 500, Cormorant 500 and 500 italic, latin, about 76 kB).
+- **Adding a weight or style**: add its two rules, copying the ranges. A file under 4 kB needs
+  `?no-inline`, or Vite inlines it into the render-blocking CSS. Then update the count in
+  `tests/e2e/fonts.spec.ts`. A weight with no rule is matched to the nearest declared face: canvas
+  strings without a weight (400) for Shippori draw with the 500 face.
 
 ## Page layout
 ```

@@ -42,8 +42,8 @@ const surfaces = createTimerSurfaces({ controller, store, bus, clock });
 
 if (speedClock) installWidgetDebug({ surfaces, controller, store, bus }); // window.sprout.widget
 ```
-`createTimerSurfaces` also imports the card's web fonts (Cormorant Garamond 500/600/italics,
-Shippori Mincho 500 latin). `surfaces.dispose()` restores the interval ticker, title and icon.
+`createTimerSurfaces` also imports the app's web fonts (`src/ui/fonts.css`, ADR 0239: the card uses
+Cormorant Garamond 500, 500 italic and 600 and Shippori Mincho 500, Latin and Latin-ext only). `surfaces.dispose()` restores the interval ticker, title and icon.
 
 **Controller requirements** (`contract.ts`, from ADR 0003): `status()` returning
 `{ phase: 'idle'|'focus'|'break'|'paused', timeline, session, sessions? }` (`session`/`phase`/`timeline`
