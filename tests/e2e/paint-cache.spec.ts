@@ -85,6 +85,9 @@ declare global {
 
 test.describe('persistent paint cache', () => {
   test('a painting stored before a reload comes back pixel for pixel', async ({ page }) => {
+    // the overview is the whole world here: the app's only paint cache traffic (ADR 0228) is
+    // its landscape's lookup and puts during load, never a later whole-world extension
+    await page.setViewportSize({ width: 1440, height: 900 });
     await openDev(page);
     await installHelpers(page);
     const stored = await page.evaluate(async () => {
@@ -135,6 +138,8 @@ test.describe('persistent paint cache', () => {
   });
 
   test('IndexedDB drops other versions on open and evicts the least recently used over the cap', async ({ page }) => {
+    // no whole-world extension may store the landscape mid-test (see above)
+    await page.setViewportSize({ width: 1440, height: 900 });
     await openDev(page);
     const r = await page.evaluate(async () => {
       const s = window.sprout!.paintCache;
