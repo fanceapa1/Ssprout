@@ -1,6 +1,6 @@
 # ADR 0163 — Detail painted for the camera's resting view
 
-- Status: accepted (amends ADRs 0041, 0145, 0147); amended by ADRs 0185, 0186, 0189
+- Status: accepted (amends ADRs 0041, 0145, 0147); amended by ADRs 0185, 0186, 0189, 0228
 - Date: 2026-10-23
 
 ## Context
