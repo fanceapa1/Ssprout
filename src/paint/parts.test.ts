@@ -5,13 +5,27 @@
  */
 import { describe, expect, it } from 'vitest';
 import { createRng } from '../core/rng';
-import { PaintRecorder } from '../scene/paint-record';
+import { PaintRecorder, type RecordedCost } from '../scene/paint-record';
 import { acquireWork } from './canvas';
 import { createPainter, makeCanvas, type Painter } from './index';
 import { createSimplex2D, noiseGrid } from './noise';
 import { paperGrain, GRAIN_SIZE } from './paper';
 import { PIGMENTS } from './pigments';
-import { DRY_DEFAULTS, dryPixels, resolveDry, type GrainLookup, type OpenSides } from './wet';
+import {
+  DRY_DEFAULTS,
+  boxBlur,
+  boxBlurParts,
+  drain,
+  dryPixels,
+  dryPixelsParts,
+  edgeBlur,
+  edgeBlurParts,
+  resolveDry,
+  type GrainLookup,
+  type OpenSides,
+  type PaintParts,
+  type WetLayer,
+} from './wet';
 
 /** FNV-1a over every byte. */
 function fnv(data: ArrayLike<number>): string {
@@ -89,14 +103,14 @@ describe('the drying pass, pinned (ADR 0238)', () => {
 });
 
 /** Paint with `fn` on a recording canvas: the hash of every canvas call (and of every dried pixel). */
-function recorded(fn: (p: Painter) => void): string {
+function recorded(fn: (p: Painter, rec: PaintRecorder) => void): string {
   emptyPool();
   const rec = new PaintRecorder();
   const uninstall = rec.install();
   try {
     const p = createPainter(makeCanvas(480, 320), { seed: 7 });
     p.ctx.setTransform(1.6, 0, 0, 1.6, -40, -30);
-    fn(p);
+    fn(p, rec);
     return rec.hash;
   } finally {
     uninstall();
@@ -146,18 +160,130 @@ const RECIPES: Record<string, (p: Painter) => void> = {
   },
 };
 
+const RECIPE_PINS: Record<string, string> = {
+  wash: '8effcbc3',
+  glaze: '34d30ca9',
+  wetInWet: '6cd10eb4',
+  lift: '27b09666',
+  stone: '018304b9',
+  'stone (ellipse, no shadow or reserve)': '5edef03c',
+  waterBody: '65a9b619',
+  'a whole sequence on the painter’s own rng': '49c45bf3',
+};
+
 describe('the long recipes, pinned (ADR 0238)', () => {
-  const PINNED: Record<string, string> = {
-    wash: '8effcbc3',
-    glaze: '34d30ca9',
-    wetInWet: '6cd10eb4',
-    lift: '27b09666',
-    stone: '018304b9',
-    'stone (ellipse, no shadow or reserve)': '5edef03c',
-    waterBody: '65a9b619',
-    'a whole sequence on the painter’s own rng': '49c45bf3',
-  };
   it.each(Object.keys(RECIPES))('paints %s exactly as before', (name) => {
-    expect(recorded(RECIPES[name]!)).toBe(PINNED[name]);
+    expect(recorded(RECIPES[name]!)).toBe(RECIPE_PINS[name]);
+  });
+});
+
+/** Equal typed arrays, element for element (a short message instead of a 100k-line diff). */
+function sameArray(a: ArrayLike<number>, b: ArrayLike<number>): string {
+  if (a.length !== b.length) return `length ${a.length} ≠ ${b.length}`;
+  for (let i = 0; i < a.length; i++) if (!Object.is(a[i], b[i])) return `index ${i}: ${a[i]} ≠ ${b[i]}`;
+  return 'same';
+}
+
+/** Drain parts, counting them. */
+function countParts<T>(parts: PaintParts<T>): { value: T; parts: number } {
+  let n = 0;
+  for (;;) {
+    const r = parts.next();
+    n++;
+    if (r.done) return { value: r.value, parts: n };
+  }
+}
+
+describe('the drying pass in bands (ADR 0238)', () => {
+  // band sizes in pixels: a row or less, a few rows, more than the buffer
+  it.each(DRY_CASES.map((c) => [c.name, c] as const))('%s: every band size dries byte for byte like the whole buffer', (_name, c) => {
+    const whole = dryCase(c);
+    dryPixels(whole.data, c.w, c.h, whole.o, c.edgePx, whole.grain, whole.flow, c.open);
+    for (const band of [1, c.w - 1, c.w * 3 + 7, 1000, c.w * c.h * 2]) {
+      const k = dryCase(c);
+      const { parts } = countParts(dryPixelsParts(k.data, c.w, c.h, k.o, c.edgePx, k.grain, k.flow, c.open, band));
+      expect(sameArray(k.data, whole.data), `band ${band}`).toBe('same');
+      // a band of at most one row: the wet edge and the pigment pass alone pause after every row
+      if (band <= c.w) expect(parts).toBeGreaterThan(2 * c.h);
+    }
+  });
+
+  it('the blurs in bands equal the whole-buffer blurs, open and closed sides, odd sizes', () => {
+    const rng = createRng('blur');
+    for (const [w, h, radius, open] of [
+      [37, 23, 3, CLOSED],
+      [41, 29, 5.4, OPEN],
+      [9, 61, 2.5, OPEN],
+      [64, 7, 1.2, CLOSED],
+    ] as const) {
+      const src = Float32Array.from({ length: w * h }, () => rng.next());
+      const box = boxBlur(src, w, h, radius, 2, open);
+      const edge = edgeBlur(src, w, h, radius, open);
+      for (const band of [1, w + 3, 5 * w]) {
+        expect(sameArray(drain(boxBlurParts(src, w, h, radius, 2, open, band)), box), `box ${w}×${h} band ${band}`).toBe('same');
+        expect(sameArray(drain(edgeBlurParts(src, w, h, radius, open, band)), edge), `edge ${w}×${h} band ${band}`).toBe('same');
+      }
+    }
+  });
+});
+
+describe('a wet layer dries in parts (ADR 0238)', () => {
+  /** A big wet layer over the recording canvas, filled, then dried by `dry`. */
+  function layerRun(dry: (L: WetLayer) => number): { hash: string; parts: number } {
+    let parts = 0;
+    const hash = recorded((p) => {
+      const L = p.layer({ x: 0, y: 0, w: 320, h: 220 });
+      for (let k = 0; k < 6; k++) L.fill(POND.map((q) => ({ x: q.x + k * 3, y: q.y + k * 2 })), PIGMENTS.sap, 0.3);
+      parts = dry(L);
+    });
+    return { hash, parts };
+  }
+
+  it('dryParts paints exactly what dry paints, in many parts', () => {
+    const one = layerRun((L) => {
+      L.dry({ granules: 0.3 });
+      return 1;
+    });
+    const parts = layerRun((L) => countParts(L.dryParts({ granules: 0.3 })).parts);
+    expect(parts.hash).toBe(one.hash);
+    // the layer is 480×320 work pixels: a few bands per pass, several passes
+    expect(parts.parts).toBeGreaterThan(10);
+  });
+});
+
+/** The parts forms of the long recipes (`p.parts`), each a pinned one-call recipe above. */
+const RECIPE_PARTS: Record<string, (p: Painter) => PaintParts> = {
+  wash: (p) =>
+    p.parts.wash({ cx: 150, cy: 110, rx: 110, ry: 60 }, PIGMENTS.sap, {
+      rng: createRng('wash'),
+      blooms: 2,
+      fade: { angle: 1.2, ragged: 0.6 },
+      drops: [{ pigment: PIGMENTS.sage, size: 0.35 }, { pigment: PIGMENTS.gold }],
+    }),
+  glaze: (p) => p.parts.glaze(POND, PIGMENTS.stoneDark, { rng: createRng('glaze'), fade: -Math.PI / 2 }),
+  wetInWet: (p) => p.parts.wetInWet(POND, PIGMENTS.bellflower, PIGMENTS.sap, { rng: createRng('wiw'), blooms: 1, fade: { angle: Math.PI / 2, start: 0.4 } }),
+  lift: (p) => p.parts.lift({ cx: 160, cy: 120, rx: 90, ry: 8 }, { rng: createRng('lift'), amount: 0.4 }),
+  stone: (p) => p.parts.stone({ x: 170, y: 190, w: 140, h: 80 }, { rng: createRng('stone'), moss: 0.5 }),
+  'stone (ellipse, no shadow or reserve)': (p) =>
+    p.parts.stone({ cx: 120, cy: 120, rx: 40, ry: 20 }, { rng: createRng('stone2'), groundShadow: false, reserve: false, moss: 0, ink: 0.3, patches: 0 }),
+  waterBody: (p) => p.parts.waterBody(POND, { rng: createRng('water'), ripples: 3, reflection: 0.6 }),
+};
+
+describe('the long recipes in parts (ADR 0238)', () => {
+  it.each(Object.keys(RECIPE_PARTS))('%s in parts paints exactly the one call, and no part is a big share of it', (name) => {
+    const costs: RecordedCost[] = [];
+    const hash = recorded((p, rec) => {
+      const parts = RECIPE_PARTS[name]!(p);
+      rec.mark();
+      while (!parts.next().done) costs.push(rec.mark());
+      costs.push(rec.mark());
+    });
+    expect(hash).toBe(RECIPE_PINS[name]);
+    expect(costs.length).toBeGreaterThan(8);
+    const total = costs.reduce((a, c) => a + c.calls, 0);
+    const most = costs.reduce((a, c) => Math.max(a, c.calls), 0);
+    expect(most / total).toBeLessThan(0.25);
+    // a part reads a wet layer's pixels at most once (one drying pass at a time)
+    expect(Math.max(...costs.map((c) => c.reads))).toBeLessThanOrEqual(1);
   });
 });

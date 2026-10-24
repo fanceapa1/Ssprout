@@ -24,18 +24,19 @@ import {
 import { PIGMENTS, darken, jitter, lighten, mix, rgba, shade, type Pigment } from './pigments';
 import {
   glaze,
+  glazeParts,
   inkLine,
   layerAlpha,
   layersFor,
-  lift,
+  liftParts,
   paintDab,
   PAPER_WHITE,
-  ripple,
-  wash,
-  wetInWet,
+  rippleParts,
+  washParts,
+  wetInWetParts,
   type PaintTarget,
 } from './primitives';
-import { DRY_DEFAULTS, WetLayer, tracePath, type ResolvedDry } from './wet';
+import { DRY_DEFAULTS, WetLayer, drain, tracePath, type PaintParts, type ResolvedDry } from './wet';
 
 // ---------------------------------------------------------------------------------------------
 // foliage
@@ -302,6 +303,14 @@ const isBox = (s: Shape | StoneBox): s is StoneBox => !Array.isArray(s) && 'w' i
  * @example p.stone({ x: 300, y: 220, w: 140, h: 80 }, { moss: 0.4 })
  */
 export function stone(t: PaintTarget, shape: Shape | StoneBox, opts: StoneOptions = {}): void {
+  drain(stoneParts(t, shape, opts));
+}
+
+/**
+ * `stone` in parts (ADR 0238): it pauses after the cast shadow, the reserve, each body-wash fill,
+ * each blotch and underside layer, and inside every drying pass.
+ */
+export function* stoneParts(t: PaintTarget, shape: Shape | StoneBox, opts: StoneOptions = {}): PaintParts {
   const rng = opts.rng ?? t.env.rng;
   const poly: Polygon = isBox(shape) ? stoneShape(shape.x, shape.y, shape.w, shape.h, rng) : isEllipse(shape) ? toPolygon(shape, rng) : shape.slice();
   const b = bounds(poly);
@@ -314,7 +323,7 @@ export function stone(t: PaintTarget, shape: Shape | StoneBox, opts: StoneOption
   const gran = opts.granulation ?? 0.35;
 
   if (opts.groundShadow ?? true) {
-    glaze(t, { cx: c.x + b.w * 0.08, cy: b.y + b.h * 0.97, rx: b.w * 0.62, ry: b.h * 0.12 }, mix(PIGMENTS.olive, PIGMENTS.stoneDark, 0.5), {
+    yield* glazeParts(t, { cx: c.x + b.w * 0.08, cy: b.y + b.h * 0.97, rx: b.w * 0.62, ry: b.h * 0.12 }, mix(PIGMENTS.olive, PIGMENTS.stoneDark, 0.5), {
       rng,
       opacity: 0.3,
       fade: { angle: -Math.PI / 2, start: 0.55, amount: 0.7 },
@@ -348,8 +357,9 @@ export function stone(t: PaintTarget, shape: Shape | StoneBox, opts: StoneOption
     t.ctx.fillStyle = PAPER_WHITE;
     t.ctx.fill();
     t.ctx.restore();
+    yield;
   }
-  wash(t, o.base, lighten(body, 0.1), {
+  yield* washParts(t, o.base, lighten(body, 0.1), {
     rng,
     deform: 0.08,
     spread: 0.3,
@@ -378,6 +388,7 @@ export function stone(t: PaintTarget, shape: Shape | StoneBox, opts: StoneOption
     const patch = organicOutline(blob(ax, ay, r * rng.range(1, 1.6), r * rng.range(0.55, 0.85), rng, { irregularity: 0.3, rotation: rng.range(-0.4, 0.4) }), rng, { deform: 0.35 });
     const n = layersFor(t.env, 4);
     for (let k = 0; k < n; k++) L.fill(outlineLayer(patch, rng, 0.5), jitter(PIGMENTS.stoneDark, rng, 0.03), layerAlpha(n, 0.65));
+    yield;
   }
   // 3. cool underside glaze in the same wet layer (it merges softly with the blotches)
   const S = L;
@@ -398,9 +409,10 @@ export function stone(t: PaintTarget, shape: Shape | StoneBox, opts: StoneOption
     tracePath(S.ctx, outlineLayer(shadow, rng, 0.5));
     S.ctx.fillStyle = g;
     S.ctx.fill();
+    yield;
   }
   S.ctx.restore();
-  S.dry({}, { ...DRY_DEFAULTS, opacity: 0.36, edge: 0.32, edgeWidth: Math.max(1, size * 0.015), sharpness: 0.32, centreLift: 0.1, granulation: 0.3 * gran, flow: 0.45, flowScale: size * 0.28 });
+  yield* S.dryParts({}, { ...DRY_DEFAULTS, opacity: 0.36, edge: 0.32, edgeWidth: Math.max(1, size * 0.015), sharpness: 0.32, centreLift: 0.1, granulation: 0.3 * gran, flow: 0.45, flowScale: size * 0.28 });
 
   // 4. granulation: settled granules are part of the body wash's drying pass (`granules`)
 
@@ -453,6 +465,14 @@ export interface WaterOptions {
  * @example p.waterBody(scene.pond, { ripples: 4 })
  */
 export function waterBody(t: PaintTarget, shape: Shape, opts: WaterOptions = {}): void {
+  drain(waterBodyParts(t, shape, opts));
+}
+
+/**
+ * `waterBody` in parts (ADR 0238): it pauses inside the body's wet-in-wet, after each fill of the
+ * far shadow and each band, inside every drying pass, and after each streak and ripple.
+ */
+export function* waterBodyParts(t: PaintTarget, shape: Shape, opts: WaterOptions = {}): PaintParts {
   const rng = opts.rng ?? t.env.rng;
   const [pl, pm, pd] = opts.pigments ?? [PIGMENTS.celadon, PIGMENTS.celadonMid, PIGMENTS.celadonDeep];
   const poly = toPolygon(shape, rng);
@@ -462,7 +482,7 @@ export function waterBody(t: PaintTarget, shape: Shape, opts: WaterOptions = {})
   const far = opts.farShadow ?? 0.55;
 
   // 1. body: pale celadon bleeding into a deeper tone toward the far bank
-  wetInWet(t, o.base, lighten(pl, 0.1), mix(pl, pm, 0.6), {
+  yield* wetInWetParts(t, o.base, lighten(pl, 0.1), mix(pl, pm, 0.6), {
     rng,
     angle: -Math.PI / 2,
     split: 0.62,
@@ -486,7 +506,10 @@ export function waterBody(t: PaintTarget, shape: Shape, opts: WaterOptions = {})
   if (far > 0) {
     const fb = organicOutline(blob(b.x + b.w * 0.5, b.y + b.h * 0.02, b.w * 0.62, b.h * 0.16, rng, { irregularity: 0.1, points: 32 }), rng, { deform: 0.2 });
     const n = layersFor(t.env, 8);
-    for (let k = 0; k < n; k++) L.fill(outlineLayer(fb, rng, 0.5), jitter(pd, rng, 0.02), layerAlpha(n, 0.45 * far + 0.1));
+    for (let k = 0; k < n; k++) {
+      L.fill(outlineLayer(fb, rng, 0.5), jitter(pd, rng, 0.02), layerAlpha(n, 0.45 * far + 0.1));
+      yield;
+    }
   }
   const bands = opts.bands ?? 5;
   for (let i = 0; i < bands; i++) {
@@ -496,9 +519,10 @@ export function waterBody(t: PaintTarget, shape: Shape, opts: WaterOptions = {})
     const band = organicOutline(blob(x, y, w / 2, b.h * rng.range(0.012, 0.035), rng, { irregularity: 0.1, points: 24 }), rng, { deform: 0.2 });
     const n = layersFor(t.env, 5);
     for (let k = 0; k < n; k++) L.fill(outlineLayer(band, rng, 0.5), jitter(rng.chance(0.6) ? pm : pd, rng, 0.02), layerAlpha(n, rng.range(0.15, 0.32)));
+    yield;
   }
   L.ctx.restore();
-  L.dry({}, { ...DRY_DEFAULTS, opacity: 0.6, edge: 0.15, edgeWidth: Math.max(2, b.h * 0.02), sharpness: 0.2, centreLift: 0, granulation: 0.35 * gran, flow: 0.4, flowScale: b.w * 0.12 });
+  yield* L.dryParts({}, { ...DRY_DEFAULTS, opacity: 0.6, edge: 0.15, edgeWidth: Math.max(2, b.h * 0.02), sharpness: 0.2, centreLift: 0, granulation: 0.35 * gran, flow: 0.4, flowScale: b.w * 0.12 });
 
   // 3. pale reflection streaks lifted out
   const refl = opts.reflection ?? 0.5;
@@ -510,7 +534,7 @@ export function waterBody(t: PaintTarget, shape: Shape, opts: WaterOptions = {})
       const x = b.x + b.w * rng.range(0.25, 0.75);
       const streak = blob(x, y, w / 2, b.h * rng.range(0.006, 0.016), rng, { irregularity: 0.1, points: 20 });
       const clipped = streak.map((p) => (pointInPolygon(p, o.base) ? p : nearestInside(p, o.base, b)));
-      lift(t, clipped, { rng, amount: refl * rng.range(0.35, 0.6), deform: 0.15, spread: 0.4, sharpness: 0.25 });
+      yield* liftParts(t, clipped, { rng, amount: refl * rng.range(0.35, 0.6), deform: 0.15, spread: 0.4, sharpness: 0.25 });
     }
   }
 
@@ -521,7 +545,7 @@ export function waterBody(t: PaintTarget, shape: Shape, opts: WaterOptions = {})
       const p = { x: b.x + b.w * rng.range(0.15, 0.85), y: b.y + b.h * rng.range(0.35, 0.85) };
       const w = b.w * rng.range(0.08, 0.15);
       if (!pointInPolygon(p, o.base) || !pointInPolygon({ x: p.x - w / 2, y: p.y }, o.base) || !pointInPolygon({ x: p.x + w / 2, y: p.y }, o.base)) continue;
-      ripple(t, p, { rng, width: w, count: rng.int(2, 3), lineWidth: Math.max(0.8, b.h * 0.005) });
+      yield* rippleParts(t, p, { rng, width: w, count: rng.int(2, 3), lineWidth: Math.max(0.8, b.h * 0.005) });
       break;
     }
   }

@@ -36,7 +36,7 @@ import {
   type Shape,
 } from './geometry';
 import { PIGMENTS, darken, jitter, rgba, type Pigment } from './pigments';
-import { DRY_DEFAULTS, WetLayer, resolveDry, tracePath, type DryOptions, type PaintEnv, type ResolvedDry } from './wet';
+import { DRY_DEFAULTS, WetLayer, drain, resolveDry, tracePath, type DryOptions, type PaintEnv, type PaintParts, type ResolvedDry } from './wet';
 
 /** What every primitive paints into. */
 export interface PaintTarget {
@@ -129,16 +129,17 @@ export const WASH_DEFAULTS = {
   dry: { ...DRY_DEFAULTS, edge: 0.5, sharpness: 0.6, centreLift: 0.25, granulation: 0.2, flow: 0.35 } as ResolvedDry,
 };
 
-/** Lay `n` fresh deformations of an outline into a wet layer. */
-function layered(L: WetLayer, o: Outline, pigment: Pigment, rng: Rng, n: number, spread: number, coverage: number, jit: number): void {
+/** Lay `n` fresh deformations of an outline into a wet layer, pausing after each (ADR 0238). */
+function* layered(L: WetLayer, o: Outline, pigment: Pigment, rng: Rng, n: number, spread: number, coverage: number, jit: number): PaintParts {
   const a = layerAlpha(n, coverage);
   for (let k = 0; k < n; k++) {
     L.fill(outlineLayer(o, rng, spread), jit > 0 ? jitter(pigment, rng, jit) : pigment, a);
+    yield;
   }
 }
 
 /** Fade the layer toward a direction (lost edge): a gradient lift plus a few soft ragged fronts. */
-function applyFade(L: WetLayer, base: Polygon, fade: number | FadeOptions, rng: Rng): void {
+function* applyFade(L: WetLayer, base: Polygon, fade: number | FadeOptions, rng: Rng): PaintParts {
   const f: FadeOptions = typeof fade === 'number' ? { angle: fade } : fade;
   const start = f.start ?? 0.45;
   const amount = f.amount ?? 1;
@@ -159,12 +160,14 @@ function applyFade(L: WetLayer, base: Polygon, fade: number | FadeOptions, rng: 
   c.fillStyle = g;
   c.fillRect(b.x, b.y, b.w, b.h);
   c.restore();
+  yield;
   if (ragged > 0) {
     const steps = 4;
     const size = ext * 2 + sizeOf(b);
     for (let s = 0; s < steps; s++) {
       const d = d0 + ((hi - d0) * (s + 0.3 + rng.next() * 0.7)) / steps;
       L.lift(organicHalfPlane(d, f.angle, f.angle, centroid(base), size, ext, rng, 0.45), ((amount * ragged * 0.5) / steps) * 1.7);
+      yield;
     }
   }
 }
@@ -173,7 +176,7 @@ function applyFade(L: WetLayer, base: Polygon, fade: number | FadeOptions, rng: 
  * Backrun blooms: water pushed back into a drying wash leaves a pale patch with a crinkled,
  * darker fringe. Lifted here; the drying pass turns the lift boundary into the fringe.
  */
-function applyBlooms(L: WetLayer, base: Polygon, count: number, sizeFrac: number, rng: Rng): void {
+function* applyBlooms(L: WetLayer, base: Polygon, count: number, sizeFrac: number, rng: Rng): PaintParts {
   const s = sizeOf(bounds(base));
   for (let i = 0; i < count; i++) {
     const c = randomPointIn(base, rng);
@@ -183,6 +186,7 @@ function applyBlooms(L: WetLayer, base: Polygon, count: number, sizeFrac: number
     L.lift(outline, rng.range(0.45, 0.6));
     const inner = deformPolygon(blob(c.x, c.y, r * 0.6, r * 0.55, rng, { points: 20, irregularity: 0.25 }), rng, { depth: 2, variance: 0.2, cap: r * 0.08 });
     L.lift(inner, rng.range(0.12, 0.25));
+    yield;
   }
 }
 
@@ -194,12 +198,17 @@ function applyBlooms(L: WetLayer, base: Polygon, count: number, sizeFrac: number
  * @example p.wash({ cx: 200, cy: 120, rx: 90, ry: 40 }, PIGMENTS.sap, { blooms: 1, fade: -Math.PI / 2 })
  */
 export function wash(t: PaintTarget, shape: Shape, pigment: Pigment, opts: WashOptions = {}): void {
+  drain(washParts(t, shape, pigment, opts));
+}
+
+/** `wash` in parts: it pauses after each layered fill, drop, bloom and fade front, and inside the drying pass (ADR 0238). */
+export function* washParts(t: PaintTarget, shape: Shape, pigment: Pigment, opts: WashOptions = {}): PaintParts {
   const rng = opts.rng ?? t.env.rng;
   const o = prepareOutline(shape, rng, opts.deform ?? WASH_DEFAULTS.deform);
   const b = o.bounds;
   const L = new WetLayer(t.ctx, padRect(b, sizeOf(b) * 0.035 + (opts.edgeWidth ?? 2.5) * 2), t.env);
   try {
-    layered(
+    yield* layered(
       L,
       o,
       pigment,
@@ -217,17 +226,17 @@ export function wash(t: PaintTarget, shape: Shape, pigment: Pigment, opts: WashO
         L.ctx.save();
         L.clip(innerClip(o));
         const drop = organicOutline(blob(at.x, at.y, r, r * rng.range(0.6, 1), rng, { irregularity: 0.3, rotation: rng.range(0, 6.3) }), rng, { deform: 0.4 });
-        layered(L, drop, d.pigment, rng, 5, 0.9, d.alpha ?? 0.6, 0.02);
+        yield* layered(L, drop, d.pigment, rng, 5, 0.9, d.alpha ?? 0.6, 0.02);
         L.ctx.restore();
       }
     }
-    if (opts.blooms) applyBlooms(L, o.base, opts.blooms, opts.bloomSize ?? WASH_DEFAULTS.bloomSize, rng);
-    if (opts.fade !== undefined) applyFade(L, o.base, opts.fade, rng);
+    if (opts.blooms) yield* applyBlooms(L, o.base, opts.blooms, opts.bloomSize ?? WASH_DEFAULTS.bloomSize, rng);
+    if (opts.fade !== undefined) yield* applyFade(L, o.base, opts.fade, rng);
   } catch (e) {
     L.discard();
     throw e;
   }
-  L.dry(opts, WASH_DEFAULTS.dry);
+  yield* L.dryParts(opts, WASH_DEFAULTS.dry);
 }
 
 export const GLAZE_DEFAULTS: ResolvedDry = {
@@ -249,12 +258,17 @@ export const GLAZE_DEFAULTS: ResolvedDry = {
  * @example p.glaze(stoneOutline, shade(PIGMENTS.stone), { fade: -Math.PI / 2, opacity: 0.4 })
  */
 export function glaze(t: PaintTarget, shape: Shape, pigment: Pigment, opts: WashOptions = {}): void {
+  drain(glazeParts(t, shape, pigment, opts));
+}
+
+/** `glaze` in parts (ADR 0238). */
+export function* glazeParts(t: PaintTarget, shape: Shape, pigment: Pigment, opts: WashOptions = {}): PaintParts {
   const rng = opts.rng ?? t.env.rng;
   const o = prepareOutline(shape, rng, opts.deform ?? 0.22);
   const L = new WetLayer(t.ctx, padRect(o.bounds, sizeOf(o.bounds) * 0.035 + 4), t.env);
-  layered(L, o, pigment, rng, layersFor(t.env, opts.layers ?? 7), opts.spread ?? 0.3, opts.coverage ?? 0.85, opts.jitter ?? 0.015);
-  if (opts.fade !== undefined) applyFade(L, o.base, opts.fade, rng);
-  L.dry(opts, GLAZE_DEFAULTS);
+  yield* layered(L, o, pigment, rng, layersFor(t.env, opts.layers ?? 7), opts.spread ?? 0.3, opts.coverage ?? 0.85, opts.jitter ?? 0.015);
+  if (opts.fade !== undefined) yield* applyFade(L, o.base, opts.fade, rng);
+  yield* L.dryParts(opts, GLAZE_DEFAULTS);
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -279,6 +293,11 @@ export interface WetInWetOptions extends WashOptions {
  * @example p.wetInWet(stone, PIGMENTS.stone, PIGMENTS.sage, { angle: -Math.PI / 2, split: 0.7 })
  */
 export function wetInWet(t: PaintTarget, shape: Shape, a: Pigment, b: Pigment, opts: WetInWetOptions = {}): void {
+  drain(wetInWetParts(t, shape, a, b, opts));
+}
+
+/** `wetInWet` in parts: it pauses after each pair of clipped fills, bloom and fade front, and inside the drying pass (ADR 0238). */
+export function* wetInWetParts(t: PaintTarget, shape: Shape, a: Pigment, b: Pigment, opts: WetInWetOptions = {}): PaintParts {
   const rng = opts.rng ?? t.env.rng;
   const angle = opts.angle ?? Math.PI / 2;
   const split = opts.split ?? 0.5;
@@ -308,10 +327,11 @@ export function wetInWet(t: PaintTarget, shape: Shape, a: Pigment, b: Pigment, o
     L.clip(organicHalfPlane(d - ext * soft * 0.25, angle, angle, mid, big, ext, rng, v));
     L.fill(lp, jitter(b, rng, jit), alpha);
     c.restore();
+    yield;
   }
-  if (opts.blooms) applyBlooms(L, o.base, opts.blooms, opts.bloomSize ?? WASH_DEFAULTS.bloomSize, rng);
-  if (opts.fade !== undefined) applyFade(L, o.base, opts.fade, rng);
-  L.dry(opts, WASH_DEFAULTS.dry);
+  if (opts.blooms) yield* applyBlooms(L, o.base, opts.blooms, opts.bloomSize ?? WASH_DEFAULTS.bloomSize, rng);
+  if (opts.fade !== undefined) yield* applyFade(L, o.base, opts.fade, rng);
+  yield* L.dryParts(opts, WASH_DEFAULTS.dry);
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -334,8 +354,8 @@ export function granulate(t: PaintTarget, shape: Shape, pigment: Pigment, opts: 
   const s = opts.strength ?? 0.6;
   const o = prepareOutline(shape, rng, opts.deform ?? 0.25);
   const L = new WetLayer(t.ctx, padRect(o.bounds, sizeOf(o.bounds) * 0.035 + 4), t.env);
-  layered(L, o, pigment, rng, layersFor(t.env, opts.layers ?? 3), opts.spread ?? 0.35, 0.85, 0.02);
-  if (opts.fade !== undefined) applyFade(L, o.base, opts.fade, rng);
+  drain(layered(L, o, pigment, rng, layersFor(t.env, opts.layers ?? 3), opts.spread ?? 0.35, 0.85, 0.02));
+  if (opts.fade !== undefined) drain(applyFade(L, o.base, opts.fade, rng));
   L.dry(opts, {
     ...DRY_DEFAULTS,
     opacity: 0.2 + 0.4 * s,
@@ -806,6 +826,11 @@ export interface RippleOptions {
  * @example p.ripple({ x: 400, y: 260 }, { width: 90, count: 3 })
  */
 export function ripple(t: PaintTarget, center: Pt, opts: RippleOptions = {}): void {
+  drain(rippleParts(t, center, opts));
+}
+
+/** `ripple` in parts: it pauses after each line (ADR 0238). */
+export function* rippleParts(t: PaintTarget, center: Pt, opts: RippleOptions = {}): PaintParts {
   const rng = opts.rng ?? t.env.rng;
   const width = opts.width ?? 70;
   const count = Math.max(1, opts.count ?? 3);
@@ -846,6 +871,7 @@ export function ripple(t: PaintTarget, center: Pt, opts: RippleOptions = {}): vo
   }
   for (const a of arcs) {
     inkLine(t, a, { rng, width: lw * rng.range(0.8, 1.2), pigment, opacity: (opts.opacity ?? 0.5) * rng.range(0.7, 1), breaks: 0.25, wobble: 0.15, taper: [0.3, 0.35] });
+    yield;
   }
   if (light > 0) {
     for (const a of arcs) {
@@ -863,6 +889,7 @@ export function ripple(t: PaintTarget, center: Pt, opts: RippleOptions = {}): vo
         edge: 0.05,
         granulation: 0,
       });
+      yield;
     }
   }
 }
@@ -889,7 +916,12 @@ export interface LiftOptions extends WashOptions {
  * @example p.lift({ cx: 300, cy: 200, rx: 120, ry: 6 }, { amount: 0.4 })
  */
 export function lift(t: PaintTarget, shape: Shape, opts: LiftOptions = {}): void {
-  wash(t, shape, opts.paper ?? PAPER_WHITE, {
+  drain(liftParts(t, shape, opts));
+}
+
+/** `lift` in parts (a `washParts` of paper, ADR 0238). */
+export function liftParts(t: PaintTarget, shape: Shape, opts: LiftOptions = {}): PaintParts {
+  return washParts(t, shape, opts.paper ?? PAPER_WHITE, {
     edge: 0.05,
     sharpness: 0.35,
     centreLift: 0,

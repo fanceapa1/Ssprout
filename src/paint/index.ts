@@ -13,7 +13,7 @@ import { paperGrain, type PaperGrain } from './paper';
 import type { Pigment } from './pigments';
 import * as prim from './primitives';
 import * as rec from './recipes';
-import { WetLayer, type PaintEnv, type Quality } from './wet';
+import { WetLayer, type PaintEnv, type PaintParts, type Quality } from './wet';
 
 export interface Painter {
   /** 2D context of the target canvas, in pixels (origin top-left). */
@@ -54,6 +54,22 @@ export interface Painter {
   layer(area?: Rect | null): WetLayer;
   /** Dab marks into an open layer (no drying) — for petals/leaves that should merge wet-in-wet. */
   dabInto(layer: WetLayer, at: Pt, pigment: Pigment, opts?: prim.DabOptions): void;
+  /**
+   * The long calls in parts (ADR 0238): generators that paint one part per `next()` (a few
+   * fills, a band of a drying pass) so a cooperative caller can pause between them
+   * (`yield* p.parts.wash(…)`). Drained, each paints exactly what the one-call method paints.
+   */
+  readonly parts: PainterParts;
+}
+
+/** `Painter`'s long calls as `PaintParts` (ADR 0238); a wet layer's is `layer.dryParts(…)`. */
+export interface PainterParts {
+  wash(shape: Shape, pigment: Pigment, opts?: prim.WashOptions): PaintParts;
+  glaze(shape: Shape, pigment: Pigment, opts?: prim.WashOptions): PaintParts;
+  wetInWet(shape: Shape, a: Pigment, b: Pigment, opts?: prim.WetInWetOptions): PaintParts;
+  lift(shape: Shape, opts?: prim.LiftOptions): PaintParts;
+  stone(shape: Shape | rec.StoneBox, opts?: rec.StoneOptions): PaintParts;
+  waterBody(shape: Shape, opts?: rec.WaterOptions): PaintParts;
 }
 
 export interface PainterOptions {
@@ -121,6 +137,14 @@ export function painterFor(ctx: Ctx2D, opts: PainterOptions = {}): Painter {
     dabInto: (layer, at, p, o = {}) => {
       prim.paintDab(layer, at, p, o, o.rng ?? env.rng, env);
     },
+    parts: {
+      wash: (s, p, o) => prim.washParts(t, s, p, o),
+      glaze: (s, p, o) => prim.glazeParts(t, s, p, o),
+      wetInWet: (s, a, b, o) => prim.wetInWetParts(t, s, a, b, o),
+      lift: (s, o) => prim.liftParts(t, s, o),
+      stone: (s, o) => rec.stoneParts(t, s, o),
+      waterBody: (s, o) => rec.waterBodyParts(t, s, o),
+    },
   };
 }
 
@@ -130,7 +154,7 @@ export * from './geometry';
 export * from './noise';
 export * from './pigments';
 export { paperGrain, paperTexture, GRAIN_SIZE, type PaperGrain, type PaperOptions } from './paper';
-export { WetLayer, DRY_DEFAULTS, type DryOptions, type PaintEnv, type Quality } from './wet';
+export { WetLayer, DRY_DEFAULTS, DRY_BAND, drain, type DryOptions, type PaintEnv, type PaintParts, type Quality } from './wet';
 export {
   WASH_DEFAULTS,
   GLAZE_DEFAULTS,

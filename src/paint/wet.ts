@@ -121,60 +121,116 @@ export interface OpenSides {
 const CLOSED: OpenSides = { l: false, t: false, r: false, b: false };
 
 /**
+ * A paint call in parts (ADR 0238): a generator that paints one part per `next()` (a few fills,
+ * a band of rows of a drying pass), so a cooperative caller can pause between parts. Draining it
+ * paints exactly what the one-call form paints: the same canvas calls, rng draws and pixels,
+ * however often it pauses. `T` is what the call returns at the end.
+ */
+export type PaintParts<T = void> = Generator<void, T, undefined>;
+
+/** Run a call's parts to the end without pausing: the one-call form. */
+export function drain<T>(parts: PaintParts<T>): T {
+  for (;;) {
+    const r = parts.next();
+    if (r.done) return r.value;
+  }
+}
+
+/**
+ * Pixels one part of a drying pass handles, per pass over the buffer (a band of whole rows):
+ * about 1 ms of work on a laptop, a few ms on a busy one. The passes are row loops over one
+ * buffer, so a band is the same arithmetic in the same order, only paused (ADR 0238).
+ */
+export const DRY_BAND = 1 << 16;
+
+/** Rows of a `w`-wide buffer in a band of `band` pixels (at least one). */
+const bandRows = (w: number, band: number) => Math.max(1, Math.floor(band / Math.max(1, w)));
+
+/**
  * Separable box blur of a scalar field, run `passes` times (≈ Gaussian). Outside = 0, except on
  * `open` sides, where the border value continues.
  */
 export function boxBlur(src: Float32Array, w: number, h: number, radius: number, passes = 2, open: OpenSides = CLOSED): Float32Array {
+  return drain(boxBlurParts(src, w, h, radius, passes, open));
+}
+
+/** `boxBlur` in parts: each pass pauses after every band of rows (ADR 0238). */
+export function* boxBlurParts(src: Float32Array, w: number, h: number, radius: number, passes = 2, open: OpenSides = CLOSED, band = DRY_BAND): PaintParts<Float32Array> {
   const r = Math.max(0, Math.round(radius));
   if (r === 0) return src.slice();
   const a = src.slice();
   const b = new Float32Array(src.length);
   const col = new Float64Array(w);
-  const inv = 1 / (2 * r + 1);
-  // index along a line, or -1 for "outside, empty"
-  const hx = (k: number) => (k < 0 ? (open.l ? 0 : -1) : k >= w ? (open.r ? w - 1 : -1) : k);
-  const vy = (k: number) => (k < 0 ? (open.t ? 0 : -1) : k >= h ? (open.b ? h - 1 : -1) : k);
+  const rows = bandRows(w, band);
   for (let p = 0; p < passes; p++) {
     // horizontal a → b
-    for (let y = 0; y < h; y++) {
-      const row = y * w;
-      let acc = 0;
-      for (let k = -r; k < r; k++) {
-        const i = hx(k);
-        if (i >= 0) acc += a[row + i]!;
-      }
-      for (let x = 0; x < w; x++) {
-        const add = hx(x + r);
-        if (add >= 0) acc += a[row + add]!;
-        const sub = x > 0 ? hx(x - r - 1) : -1;
-        if (sub >= 0) acc -= a[row + sub]!;
-        b[row + x] = acc * inv;
-      }
+    for (let y = 0; y < h; y += rows) {
+      blurRows(a, b, w, r, open, y, Math.min(h, y + rows));
+      yield;
     }
-    // vertical b → a, row by row with a running column sum (cache friendly)
-    col.fill(0);
-    for (let k = -r; k < r; k++) {
-      const yy = vy(k);
-      if (yy < 0) continue;
-      const row = yy * w;
-      for (let x = 0; x < w; x++) col[x] = col[x]! + b[row + x]!;
-    }
-    for (let y = 0; y < h; y++) {
-      const add = vy(y + r);
-      const sub = y > 0 ? vy(y - r - 1) : -1;
-      const row = y * w;
-      if (add >= 0) {
-        const ra = add * w;
-        for (let x = 0; x < w; x++) col[x] = col[x]! + b[ra + x]!;
-      }
-      if (sub >= 0) {
-        const rs = sub * w;
-        for (let x = 0; x < w; x++) col[x] = col[x]! - b[rs + x]!;
-      }
-      for (let x = 0; x < w; x++) a[row + x] = col[x]! * inv;
+    // vertical b → a, row by row with a running column sum (cache friendly); the sum carries
+    // over from one band to the next
+    startColumns(b, col, w, h, r, open);
+    for (let y = 0; y < h; y += rows) {
+      blurColumns(b, a, col, w, h, r, open, y, Math.min(h, y + rows));
+      yield;
     }
   }
   return a;
+}
+
+/** Horizontal box blur of rows `y0`…`y1 − 1`, `a` → `b`. */
+function blurRows(a: Float32Array, b: Float32Array, w: number, r: number, open: OpenSides, y0: number, y1: number): void {
+  const inv = 1 / (2 * r + 1);
+  // index along a line, or -1 for "outside, empty"
+  const hx = (k: number) => (k < 0 ? (open.l ? 0 : -1) : k >= w ? (open.r ? w - 1 : -1) : k);
+  for (let y = y0; y < y1; y++) {
+    const row = y * w;
+    let acc = 0;
+    for (let k = -r; k < r; k++) {
+      const i = hx(k);
+      if (i >= 0) acc += a[row + i]!;
+    }
+    for (let x = 0; x < w; x++) {
+      const add = hx(x + r);
+      if (add >= 0) acc += a[row + add]!;
+      const sub = x > 0 ? hx(x - r - 1) : -1;
+      if (sub >= 0) acc -= a[row + sub]!;
+      b[row + x] = acc * inv;
+    }
+  }
+}
+
+const vIndex = (k: number, h: number, open: OpenSides) => (k < 0 ? (open.t ? 0 : -1) : k >= h ? (open.b ? h - 1 : -1) : k);
+
+/** The vertical pass's running column sum before row 0. */
+function startColumns(b: Float32Array, col: Float64Array, w: number, h: number, r: number, open: OpenSides): void {
+  col.fill(0);
+  for (let k = -r; k < r; k++) {
+    const yy = vIndex(k, h, open);
+    if (yy < 0) continue;
+    const row = yy * w;
+    for (let x = 0; x < w; x++) col[x] = col[x]! + b[row + x]!;
+  }
+}
+
+/** Vertical box blur of rows `y0`…`y1 − 1`, `b` → `a`, continuing the running column sum `col`. */
+function blurColumns(b: Float32Array, a: Float32Array, col: Float64Array, w: number, h: number, r: number, open: OpenSides, y0: number, y1: number): void {
+  const inv = 1 / (2 * r + 1);
+  for (let y = y0; y < y1; y++) {
+    const add = vIndex(y + r, h, open);
+    const sub = y > 0 ? vIndex(y - r - 1, h, open) : -1;
+    const row = y * w;
+    if (add >= 0) {
+      const ra = add * w;
+      for (let x = 0; x < w; x++) col[x] = col[x]! + b[ra + x]!;
+    }
+    if (sub >= 0) {
+      const rs = sub * w;
+      for (let x = 0; x < w; x++) col[x] = col[x]! - b[rs + x]!;
+    }
+    for (let x = 0; x < w; x++) a[row + x] = col[x]! * inv;
+  }
 }
 
 /**
@@ -182,22 +238,47 @@ export function boxBlur(src: Float32Array, w: number, h: number, radius: number,
  * upsampled bilinearly — 4× less work, visually identical for a soft rim profile.
  */
 export function edgeBlur(src: Float32Array, w: number, h: number, radius: number, open: OpenSides = CLOSED): Float32Array {
-  if (radius < 2 || w < 8 || h < 8) return boxBlur(src, w, h, radius, 2, open);
+  return drain(edgeBlurParts(src, w, h, radius, open));
+}
+
+/** `edgeBlur` in parts: the halving, each blur pass and the upsampling pause after every band of rows (ADR 0238). */
+export function* edgeBlurParts(src: Float32Array, w: number, h: number, radius: number, open: OpenSides = CLOSED, band = DRY_BAND): PaintParts<Float32Array> {
+  if (radius < 2 || w < 8 || h < 8) return yield* boxBlurParts(src, w, h, radius, 2, open, band);
   const bw = Math.ceil(w / 2);
   const bh = Math.ceil(h / 2);
   const half = new Float32Array(bw * bh);
-  for (let y = 0; y < bh; y++) {
-    const y0 = y * 2;
-    const y1 = Math.min(h - 1, y0 + 1);
+  // a half row reads two full rows
+  const halfRows = bandRows(w * 2, band);
+  for (let y = 0; y < bh; y += halfRows) {
+    halveRows(src, half, w, h, bw, y, Math.min(bh, y + halfRows));
+    yield;
+  }
+  const hb = yield* boxBlurParts(half, bw, bh, radius / 2, 2, open, band);
+  const out = new Float32Array(w * h);
+  const rows = bandRows(w, band);
+  for (let y = 0; y < h; y += rows) {
+    upsampleRows(hb, out, w, bw, bh, y, Math.min(h, y + rows));
+    yield;
+  }
+  return out;
+}
+
+/** Half-resolution rows `y0`…`y1 − 1` of `src` (2×2 means). */
+function halveRows(src: Float32Array, half: Float32Array, w: number, h: number, bw: number, y0: number, y1: number): void {
+  for (let y = y0; y < y1; y++) {
+    const yA = y * 2;
+    const yB = Math.min(h - 1, yA + 1);
     for (let x = 0; x < bw; x++) {
       const x0 = x * 2;
       const x1 = Math.min(w - 1, x0 + 1);
-      half[y * bw + x] = (src[y0 * w + x0]! + src[y0 * w + x1]! + src[y1 * w + x0]! + src[y1 * w + x1]!) * 0.25;
+      half[y * bw + x] = (src[yA * w + x0]! + src[yA * w + x1]! + src[yB * w + x0]! + src[yB * w + x1]!) * 0.25;
     }
   }
-  const hb = boxBlur(half, bw, bh, radius / 2, 2, open);
-  const out = new Float32Array(w * h);
-  for (let y = 0; y < h; y++) {
+}
+
+/** Full-resolution rows `y0`…`y1 − 1` of the half-resolution blur, bilinear. */
+function upsampleRows(hb: Float32Array, out: Float32Array, w: number, bw: number, bh: number, y0: number, y1: number): void {
+  for (let y = y0; y < y1; y++) {
     const fy = Math.max(0, Math.min(bh - 1.001, (y - 0.5) / 2));
     const yi = fy | 0;
     const v = fy - yi;
@@ -214,7 +295,6 @@ export function edgeBlur(src: Float32Array, w: number, h: number, radius: number
       out[y * w + x] = a + (b - a) * u + (c - a) * v + (a - b - c + d) * u * v;
     }
   }
-  return out;
 }
 
 /** Per-pixel lookups into the paper grain for a layer: `grain[rows[y] + cols[x]]`. */
@@ -243,11 +323,47 @@ export function dryPixels(
   flow: NoiseGrid | null,
   open: OpenSides = CLOSED,
 ): void {
-  const n = w * h;
-  const s = new Float32Array(n);
+  drain(dryPixelsParts(data, w, h, o, edgePx, grain, flow, open));
+}
+
+/**
+ * `dryPixels` in parts (ADR 0238): every pass over the buffer (the wet edge, the edge blur's
+ * passes, the pigment) pauses after each band of `band` pixels. The passes are row loops, the
+ * blur's running sums carry over from band to band, and no pass starts before the one it reads
+ * has finished, so the result is the whole-buffer pass's, byte for byte.
+ */
+export function* dryPixelsParts(
+  data: Uint8ClampedArray,
+  w: number,
+  h: number,
+  o: ResolvedDry,
+  edgePx: number,
+  grain: GrainLookup,
+  flow: NoiseGrid | null,
+  open: OpenSides = CLOSED,
+  band = DRY_BAND,
+): PaintParts {
+  const s = new Float32Array(w * h);
+  const rows = bandRows(w, band);
+  let any = false;
+  for (let y = 0; y < h; y += rows) {
+    if (wetEdgeRows(data, s, w, grain, o.sharpness, y, Math.min(h, y + rows))) any = true;
+    yield;
+  }
+  if (!any) return;
+  const blur = yield* edgeBlurParts(s, w, h, edgePx / 1.7, open, band);
+  const k = pigmentKernel(w, o, grain, flow);
+  for (let y = 0; y < h; y += rows) {
+    pigmentRows(data, s, blur, w, k, y, Math.min(h, y + rows));
+    yield;
+  }
+}
+
+/** The wet edge of rows `y0`…`y1 − 1`: shaped coverage into `s`. Whether any pixel is wet. */
+function wetEdgeRows(data: Uint8ClampedArray, s: Float32Array, w: number, grain: GrainLookup, sharpness: number, y0: number, y1: number): boolean {
   let any = false;
   const gd0 = grain.data;
-  for (let y = 0; y < h; y++) {
+  for (let y = y0; y < y1; y++) {
     const gRow = grain.rows[y]!;
     for (let x = 0; x < w; x++) {
       const i = y * w + x;
@@ -256,13 +372,42 @@ export function dryPixels(
         // the wet front creeps along paper fibres: perturb coverage by the grain where it is
         // partial, so dried edges get a fine, paper-driven irregularity
         a += (gd0[gRow + grain.cols[x]!]! - 0.5) * 0.25 * a * (1 - a);
-        s[i] = shapeAlpha(a, o.sharpness);
+        s[i] = shapeAlpha(a, sharpness);
         any = true;
       }
     }
   }
-  if (!any) return;
-  const blur = edgeBlur(s, w, h, edgePx / 1.7, open);
+  return any;
+}
+
+/** What the pigment pass needs for every row: the options' amounts and the flow lookups per column. */
+interface PigmentKernel {
+  o: ResolvedDry;
+  grain: GrainLookup;
+  flow: NoiseGrid | null;
+  fxi: Int32Array;
+  fxu: Float32Array;
+  colVal: Float32Array;
+}
+
+function pigmentKernel(w: number, o: ResolvedDry, grain: GrainLookup, flow: NoiseGrid | null): PigmentKernel {
+  const fCols = flow?.cols ?? 0;
+  const fInv = flow ? 1 / flow.cell : 0;
+  // flow is bilinear in the coarse grid: per row, interpolate the grid columns vertically once,
+  // then each pixel only lerps between two neighbouring column values
+  const fxi = new Int32Array(w);
+  const fxu = new Float32Array(w);
+  for (let x = 0; x < w; x++) {
+    const fx = Math.min(fCols - 1.001, x * fInv);
+    fxi[x] = Math.max(0, fx | 0);
+    fxu[x] = fx - (fx | 0);
+  }
+  return { o, grain, flow, fxi, fxu, colVal: new Float32Array(Math.max(2, fCols)) };
+}
+
+/** Pigment density, rim, flow, granulation and dry brush for rows `y0`…`y1 − 1`, in place. */
+function pigmentRows(data: Uint8ClampedArray, s: Float32Array, blur: Float32Array, w: number, k: PigmentKernel, y0: number, y1: number): void {
+  const { o, grain, flow, fxi, fxu, colVal } = k;
   const edge = o.edge * 0.95;
   const lift = o.centreLift;
   const flowAmt = o.flow * 1.7;
@@ -277,17 +422,7 @@ export function dryPixels(
   const fCols = flow?.cols ?? 0;
   const fData = flow?.data;
   const fInv = flow ? 1 / flow.cell : 0;
-  // flow is bilinear in the coarse grid: per row, interpolate the grid columns vertically once,
-  // then each pixel only lerps between two neighbouring column values
-  const fxi = new Int32Array(w);
-  const fxu = new Float32Array(w);
-  for (let x = 0; x < w; x++) {
-    const fx = Math.min(fCols - 1.001, x * fInv);
-    fxi[x] = Math.max(0, fx | 0);
-    fxu[x] = fx - (fx | 0);
-  }
-  const colVal = new Float32Array(Math.max(2, fCols));
-  for (let y = 0; y < h; y++) {
+  for (let y = y0; y < y1; y++) {
     const gRow = grain.rows[y]!;
     if (fData) {
       const fy = Math.min(flow!.rows - 1.001, y * fInv);
@@ -470,6 +605,16 @@ export class WetLayer {
 
   /** Run the drying pass and composite onto the target. Releases the layer. */
   dry(opts: DryOptions = {}, base?: ResolvedDry): void {
+    drain(this.dryParts(opts, base));
+  }
+
+  /**
+   * `dry` in parts (ADR 0238): it pauses after reading the layer's pixels, after each band of
+   * rows of every pass of the drying (`dryPixelsParts`) and after writing them back, before the
+   * composite. The read, the write-back and the composite stay one canvas call each (a banded
+   * composite would resample differently at the seams), so the canvas calls are `dry`'s.
+   */
+  *dryParts(opts: DryOptions = {}, base?: ResolvedDry): PaintParts {
     if (this.done) return;
     this.done = true;
     try {
@@ -483,6 +628,7 @@ export class WetLayer {
       const ctx = this.ctx;
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       const img = ctx.getImageData(0, 0, W, H);
+      yield;
       const grain = this.grainLookup();
       const flowPx = Math.max(4, o.flowScale * this.scale);
       // flow is a function of the place (anchored at the area's own corner, in flow-scale units),
@@ -497,8 +643,9 @@ export class WetLayer {
             })
           : null;
       const edgePx = Math.max(1, Math.min(48, o.edgeWidth * this.scale));
-      dryPixels(img.data, W, H, o, edgePx, grain, flow, this.open);
+      yield* dryPixelsParts(img.data, W, H, o, edgePx, grain, flow, this.open);
       ctx.putImageData(img, 0, 0);
+      yield;
       const t = this.target;
       t.save();
       t.setTransform(1, 0, 0, 1, 0, 0);
