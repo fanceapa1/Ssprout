@@ -46,9 +46,9 @@ export function* paintRockSprite(r: Rock, seed: number, scale: number, quality: 
   const rng = createRng(`${seed}:${r.id}:paint`);
   const far = Math.max(0, Math.min(1, (620 - r.y) / 200));
   // the darkest small accent of the scene: the cool contact shadow where the boulder sits
-  p.glaze({ cx: r.x + r.w * 0.04, cy: r.y - r.h * 0.02, rx: r.w * 0.5, ry: r.h * 0.09 }, shade(PIGMENTS.stoneDark, 0.35), { rng, opacity: 0.5, deform: 0.15 });
+  yield* p.parts.glaze({ cx: r.x + r.w * 0.04, cy: r.y - r.h * 0.02, rx: r.w * 0.5, ry: r.h * 0.09 }, shade(PIGMENTS.stoneDark, 0.35), { rng, opacity: 0.5, deform: 0.15 });
   yield;
-  p.stone(rockOutline(r, seed), {
+  yield* p.parts.stone(rockOutline(r, seed), {
     rng,
     pigment: atmos(mix(PIGMENTS.stone, PIGMENTS.stoneDark, rng.range(0, 0.4)), far * 0.25),
     warm: rng.range(0.1, 0.35),

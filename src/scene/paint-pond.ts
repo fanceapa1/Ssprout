@@ -63,8 +63,8 @@ export function rockOutline(r: Rock, seed: number): Pt[] {
   return stoneShape(r.x, r.y, r.w, r.h, createRng(`${seed}:${r.id}`));
 }
 
-export function paintWater(p: Painter, rng: Rng, pond: readonly Pt[]): void {
-  p.waterBody(pond, {
+export function* paintWater(p: Painter, rng: Rng, pond: readonly Pt[]): Strokes {
+  yield* p.parts.waterBody(pond, {
     rng,
     pigments: [
       mix(mix(PIGMENTS.celadon, PIGMENTS.washi, 0.2), PIGMENTS.stone, 0.15),
@@ -142,7 +142,7 @@ export function* paintReflections(p: Painter, rng: Rng, input: ReflectionInput):
 
   // (the pavilion stands on the bank, clear of the water: nothing of it reflects)
   L.ctx.restore();
-  L.dry({ opacity: 0.6, edge: 0.18, edgeWidth: 2.5, sharpness: 0.25, centreLift: 0.05, granulation: 0.15, flow: 0.5, flowScale: 30 });
+  yield* L.dryParts({ opacity: 0.6, edge: 0.18, edgeWidth: 2.5, sharpness: 0.25, centreLift: 0.05, granulation: 0.15, flow: 0.5, flowScale: 30 });
   yield;
 
   // break the reflections with horizontal lifted strokes, denser toward the near water
@@ -152,7 +152,7 @@ export function* paintReflections(p: Painter, rng: Rng, input: ReflectionInput):
     const w = lifts.range(40, 180);
     const x = lifts.range(b.x + w * 0.4, b.x + b.w - w * 0.4);
     if (!pointInPolygon({ x: x - w * 0.45, y }, clip) || !pointInPolygon({ x: x + w * 0.45, y }, clip)) continue;
-    p.lift({ cx: x, cy: y, rx: w / 2, ry: lifts.range(0.8, 2) }, { rng: lifts, amount: lifts.range(0.25, 0.5), deform: 0.2, spread: 0.3, layers: 4 });
+    yield* p.parts.lift({ cx: x, cy: y, rx: w / 2, ry: lifts.range(0.8, 2) }, { rng: lifts, amount: lifts.range(0.25, 0.5), deform: 0.2, spread: 0.3, layers: 4 });
     yield;
   }
 }
@@ -171,7 +171,7 @@ export function* paintWaterDetail(p: Painter, rng: Rng, pond: readonly Pt[]): St
   ] as const) {
     const cy = b.y + b.h * 0.47 + rng.range(-6, 6);
     if (!inside(cx - w / 2, cy) || !inside(cx + w / 2, cy)) continue;
-    p.lift({ cx, cy, rx: w / 2, ry: 5 }, { rng, amount: 0.42, deform: 0.15, spread: 0.4, sharpness: 0.2, layers: 6 });
+    yield* p.parts.lift({ cx, cy, rx: w / 2, ry: 5 }, { rng, amount: 0.42, deform: 0.15, spread: 0.4, sharpness: 0.2, layers: 6 });
     yield;
   }
   // ripple lines (a quick hand, in two places)

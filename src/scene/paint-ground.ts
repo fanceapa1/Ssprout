@@ -138,7 +138,7 @@ function* paintPatches(p: Painter, rng: Rng, art: GroundArt, view: Rect, area: R
     // a row of cells at a time: the layer stays open (and wet) between them
     yield;
   }
-  L.dry({ opacity: 0.55, edge: 0.22, edgeWidth: 2.2, sharpness: 0.3, centreLift: 0.12, granulation: 0.45, granules: 0.22, flow: 0.65, flowScale: 60, darken: 0.2 });
+  yield* L.dryParts({ opacity: 0.55, edge: 0.22, edgeWidth: 2.2, sharpness: 0.3, centreLift: 0.12, granulation: 0.45, granules: 0.22, flow: 0.65, flowScale: 60, darken: 0.2 });
 }
 
 /** Sparse grass strokes in small clusters, finer and paler toward the far bank. */
@@ -182,7 +182,7 @@ function* paintGrass(p: Painter, rng: Rng, art: GroundArt, view: Rect, area: Rec
     // a row of cells at a time: the layer stays open (and wet) between them
     yield;
   }
-  L.dry({ opacity: 0.55, edge: 0.3, edgeWidth: 0.5, sharpness: 0.78, centreLift: 0.05, granulation: 0.12, flow: 0.3, flowScale: 10, darken: 0.22 });
+  yield* L.dryParts({ opacity: 0.55, edge: 0.3, edgeWidth: 0.5, sharpness: 0.78, centreLift: 0.05, granulation: 0.12, flow: 0.3, flowScale: 10, darken: 0.22 });
 }
 
 /** A tapered, slightly curved blade from its root at (x, y). */

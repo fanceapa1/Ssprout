@@ -61,14 +61,29 @@ describe('scene paint slices (ADR 0226)', () => {
 
   // Work is counted, not timed, so a loaded machine cannot fail this. Before the split one part
   // was a whole step: the meadow's 1.3 M canvas calls (overview), the big tree's 5.1 Mpx of drying
-  // passes (trunk view), the boulder's 1.07 Mpx (close view). What remains are single painter
-  // calls the scene cannot split: the pond's water recipe (310 k calls) and a boulder's stone
-  // recipe (0.82 Mpx at 2.8 px per unit) — the paint engine's to slice (ADR 0226).
+  // passes (trunk view), the boulder's 1.07 Mpx (close view). After it, single painter calls were
+  // the longest parts: the pond's water recipe (310 k calls) and a boulder's stone (0.82 Mpx at
+  // 2.8 px per unit). Those now paint in parts too (ADR 0238), and what remains is a row of meadow
+  // cells (123 k calls) and a foliage clump's four drying passes (0.68 Mpx, the big tree up close).
+  // A drying pass reads and writes its layer in separate parts.
   it.each(['overview', 'detail', 'trunk'])('no part of a step does more than one big mark’s work (%s)', (view) => {
     const { chunks } = runs[view]!;
     const most = (k: 'calls' | 'pixels') => chunks.reduce((a, c) => (c[k] > a[k] ? c : a));
-    expect(most('calls').calls, most('calls').name).toBeLessThanOrEqual(320_000);
-    expect(most('pixels').pixels, most('pixels').name).toBeLessThanOrEqual(900_000);
+    expect(most('calls').calls, most('calls').name).toBeLessThanOrEqual(130_000);
+    expect(most('pixels').pixels, most('pixels').name).toBeLessThanOrEqual(700_000);
+  });
+
+  // The engine's long calls pause inside too (ADR 0238): the pond's water, the reserve and every
+  // boulder's stone come in many parts, and in the steps made of washes, stones and big wet layers
+  // no part dries more than one layer.
+  it('pauses inside the engine’s long calls: water, the pond reserve and the boulders’ stones', () => {
+    const parts = (view: string, name: string) => runs[view]!.chunks.filter((c) => c.name === name).length;
+    for (const step of ['water', 'pond-reserve', 'rock-left-big']) expect(parts('detail', step), step).toBeGreaterThan(20);
+    const washes = ['sky', 'hills', 'banks', 'meadow', 'grass', 'pond-reserve', 'water', 'reflections', 'path', 'margins', 'stones'];
+    for (const [view, r] of Object.entries(runs)) {
+      const heavy = r.chunks.filter((c) => c.reads > 1 && washes.includes(c.name)).map((c) => c.name);
+      expect(heavy, view).toEqual([]);
+    }
   });
 
   it('pauses inside the heavy steps: trees, meadow, banks, pavilion, stones and boulders come in parts', () => {

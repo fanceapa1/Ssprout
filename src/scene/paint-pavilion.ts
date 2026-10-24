@@ -32,7 +32,7 @@ export function* paintPavilion(p: Painter, rng: Rng, pv: SceneGeometry['pavilion
 
   // reserve the structure so it sits in front of the far tree and bank
   const silhouette: Pt[] = [f.eaveL, f.ridgeL, f.ridgeR, { x: f.right, y: f.deckY + 40 }, { x: f.x0 + 6, y: f.deckY + 42 }];
-  p.lift(silhouette, { rng, amount: 0.5, deform: 0.03, layers: 6 });
+  yield* p.parts.lift(silhouette, { rng, amount: 0.5, deform: 0.03, layers: 6 });
   yield;
 
   // wall behind the veranda: pale boards, darker under the eave
@@ -42,9 +42,9 @@ export function* paintPavilion(p: Painter, rng: Rng, pv: SceneGeometry['pavilion
     { x: f.right, y: f.deckY - 8 },
     { x: f.inner.x, y: f.deckY - 2 },
   ];
-  p.wash(wall, lighten(woodLight, 0.18), { rng, deform: 0.03, spread: 0.06, opacity: 0.42, edge: 0.3, flow: 0.5, flowScale: 50, granulation: 0.3 });
+  yield* p.parts.wash(wall, lighten(woodLight, 0.18), { rng, deform: 0.03, spread: 0.06, opacity: 0.42, edge: 0.3, flow: 0.5, flowScale: 50, granulation: 0.3 });
   yield;
-  p.glaze(
+  yield* p.parts.glaze(
     [wall[0]!, wall[1]!, { x: f.right, y: f.eaveR.y + 90 }, { x: f.inner.x, y: f.eaveAt(f.inner.x) + 96 }],
     shade(woodLight, 0.3),
     { rng, opacity: 0.3, fade: { angle: Math.PI / 2, start: 0.35, amount: 1 } },
@@ -60,7 +60,7 @@ export function* paintPavilion(p: Painter, rng: Rng, pv: SceneGeometry['pavilion
   // an open shoji panel: paper left white, framed by thin lines
   const sx = f.inner.x + 30;
   const sy = f.deckY - 210;
-  p.lift([{ x: sx, y: sy }, { x: sx + 62, y: sy - 4 }, { x: sx + 62, y: sy + 104 }, { x: sx, y: sy + 108 }], { rng, amount: 0.55, deform: 0.02 });
+  yield* p.parts.lift([{ x: sx, y: sy }, { x: sx + 62, y: sy - 4 }, { x: sx + 62, y: sy + 104 }, { x: sx, y: sy + 108 }], { rng, amount: 0.55, deform: 0.02 });
   yield;
   for (let k = 0; k <= 3; k++) {
     const y = sy + k * 36;
@@ -70,7 +70,7 @@ export function* paintPavilion(p: Painter, rng: Rng, pv: SceneGeometry['pavilion
 
   // roof plane with board lines running up the slope
   const roof: Pt[] = [f.eaveL, f.ridgeL, f.ridgeR, f.eaveR];
-  p.wash(roof, mix(PIGMENTS.stoneDark, wood, 0.45), { rng, deform: 0.03, spread: 0.06, opacity: 0.6, edge: 0.45, granulation: 0.4, flow: 0.5, flowScale: 40 });
+  yield* p.parts.wash(roof, mix(PIGMENTS.stoneDark, wood, 0.45), { rng, deform: 0.03, spread: 0.06, opacity: 0.6, edge: 0.45, granulation: 0.4, flow: 0.5, flowScale: 40 });
   yield;
   const n = 15;
   for (let k = 1; k < n; k++) {
@@ -84,7 +84,7 @@ export function* paintPavilion(p: Painter, rng: Rng, pv: SceneGeometry['pavilion
   yield;
   // fascia: a dark band under the eave, then the crisp eave line
   const fascia: Pt[] = [f.eaveL, f.eaveR, { x: f.eaveR.x, y: f.eaveR.y + 9 }, { x: f.eaveL.x + 4, y: f.eaveL.y + 9 }];
-  p.wash(fascia, mix(wood, PIGMENTS.sumi, 0.3), { rng, deform: 0.02, spread: 0.04, opacity: 0.75, edge: 0.35 });
+  yield* p.parts.wash(fascia, mix(wood, PIGMENTS.sumi, 0.3), { rng, deform: 0.02, spread: 0.04, opacity: 0.75, edge: 0.35 });
   yield;
   p.inkLine([{ x: f.eaveL.x - 4, y: f.eaveL.y + 1 }, { x: f.eaveR.x, y: f.eaveR.y }], { rng, width: 2.2, pigment: ink, opacity: 0.85, pressure: [1.3, 1, 0.9] });
   yield;
@@ -113,7 +113,7 @@ export function* paintPavilion(p: Painter, rng: Rng, pv: SceneGeometry['pavilion
     { x: f.right, y: f.deckY + 4 },
     { x: f.x0 + 8, y: f.deckY + 16 },
   ];
-  p.wash(deckTop, lighten(woodLight, 0.08), { rng, deform: 0.02, spread: 0.05, opacity: 0.6, edge: 0.3, granulation: 0.25 });
+  yield* p.parts.wash(deckTop, lighten(woodLight, 0.08), { rng, deform: 0.02, spread: 0.05, opacity: 0.6, edge: 0.3, granulation: 0.25 });
   yield;
   const beam: Pt[] = [
     deckTop[3]!,
@@ -121,7 +121,7 @@ export function* paintPavilion(p: Painter, rng: Rng, pv: SceneGeometry['pavilion
     { x: f.right, y: f.deckY + 20 },
     { x: f.x0 + 12, y: f.deckY + 34 },
   ];
-  p.wash(beam, mix(wood, PIGMENTS.sumi, 0.15), { rng, deform: 0.02, spread: 0.05, opacity: 0.72, edge: 0.4, granulation: 0.3 });
+  yield* p.parts.wash(beam, mix(wood, PIGMENTS.sumi, 0.15), { rng, deform: 0.02, spread: 0.05, opacity: 0.72, edge: 0.4, granulation: 0.3 });
   yield;
   p.inkLine([deckTop[3]!, deckTop[2]!], { rng, width: 1.5, pigment: ink, opacity: 0.75 });
   yield;
@@ -135,17 +135,17 @@ export function* paintPavilion(p: Painter, rng: Rng, pv: SceneGeometry['pavilion
     { x: f.right, y: f.deckY + 40 },
     { x: f.x0 + 14, y: f.deckY + 48 },
   ];
-  p.wash(under, mix(PIGMENTS.shadow, PIGMENTS.sumi, 0.35), { rng, deform: 0.03, spread: 0.06, opacity: 0.5, edge: 0.2, granulation: 0.2, fade: { angle: Math.PI / 2, start: 0.55, amount: 0.7 } });
+  yield* p.parts.wash(under, mix(PIGMENTS.shadow, PIGMENTS.sumi, 0.35), { rng, deform: 0.03, spread: 0.06, opacity: 0.5, edge: 0.2, granulation: 0.2, fade: { angle: Math.PI / 2, start: 0.55, amount: 0.7 } });
   yield;
   for (const x of [f.post.x, f.inner.x]) {
-    p.stone({ cx: x + 1, cy: f.deckY + 47, rx: 9, ry: 4 }, { rng, pigment: PIGMENTS.stone, moss: 0, ink: 0.3, groundShadow: false, patches: 0 });
+    yield* p.parts.stone({ cx: x + 1, cy: f.deckY + 47, rx: 9, ry: 4 }, { rng, pigment: PIGMENTS.stone, moss: 0, ink: 0.3, groundShadow: false, patches: 0 });
     yield;
   }
-  p.glaze({ cx: f.x0 + 170, cy: f.deckY + 54, rx: 190, ry: 14 }, PIGMENTS.shadow, { rng, opacity: 0.28, fade: { angle: Math.PI / 2, start: 0.35 } });
+  yield* p.parts.glaze({ cx: f.x0 + 170, cy: f.deckY + 54, rx: 190, ry: 14 }, PIGMENTS.shadow, { rng, opacity: 0.28, fade: { angle: Math.PI / 2, start: 0.35 } });
   yield;
-  p.glaze({ cx: f.x0 + 100, cy: f.deckY + 68, rx: 40, ry: 7 }, mix(PIGMENTS.stoneDark, PIGMENTS.sage, 0.4), { rng, opacity: 0.25 });
+  yield* p.parts.glaze({ cx: f.x0 + 100, cy: f.deckY + 68, rx: 40, ry: 7 }, mix(PIGMENTS.stoneDark, PIGMENTS.sage, 0.4), { rng, opacity: 0.25 });
   yield;
-  p.stone(
+  yield* p.parts.stone(
     { cx: f.x0 + 96, cy: f.deckY + 62, rx: 36, ry: 10, rotation: -0.04 },
     { rng, pigment: mix(PIGMENTS.stone, PIGMENTS.stoneWarm, 0.35), warm: 0.4, moss: 0.08, granulation: 0.45, ink: 0.28, groundShadow: false, patches: 1 },
   );
@@ -156,9 +156,9 @@ export function* paintPavilion(p: Painter, rng: Rng, pv: SceneGeometry['pavilion
   const top = f.eaveAt(L.x) + 8;
   p.inkLine([{ x: L.x, y: top }, { x: L.x, y: L.y - 14 }], { rng, width: 0.8, pigment: ink, opacity: 0.7, breaks: 0 });
   yield;
-  p.lift({ cx: L.x, cy: L.y, rx: 10, ry: 13.5 }, { rng, amount: 0.9, paper: PAPER_WHITE });
+  yield* p.parts.lift({ cx: L.x, cy: L.y, rx: 10, ry: 13.5 }, { rng, amount: 0.9, paper: PAPER_WHITE });
   yield;
-  p.wash({ cx: L.x, cy: L.y, rx: 10, ry: 13.5 }, mix(PIGMENTS.washi, PIGMENTS.gold, 0.35), { rng, opacity: 0.55, edge: 0.6, centreLift: 0.5, deform: 0.05 });
+  yield* p.parts.wash({ cx: L.x, cy: L.y, rx: 10, ry: 13.5 }, mix(PIGMENTS.washi, PIGMENTS.gold, 0.35), { rng, opacity: 0.55, edge: 0.6, centreLift: 0.5, deform: 0.05 });
   yield;
   for (const dy of [-13, 13]) {
     p.stroke([{ x: L.x - 6, y: L.y + dy }, { x: L.x + 6, y: L.y + dy }], { rng, pigment: mix(PIGMENTS.sumi, wood, 0.3), width: 3, taper: [0, 0], wobble: 0, opacity: 0.8 });
