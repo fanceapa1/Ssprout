@@ -84,7 +84,12 @@ desktop and shares the hit-test; taps open the card.
 touchAction, cursor), `focusSlot(id)`, `focusPlant(id)`, `zoomTo(z, about?)`, `glideTo(pose)`,
 `overview()` (all take `{ animate: false }` to cut), `settle()` (finish, then wait for the scene
 detail, the sprites and the light plate's detail), `autoFocus(on)`, `toClient(world)`,
-`openCard(id)`, `closeCard()`. Also `sceneDetail()`, `lightDetail()`, `skyStats().detail`,
+`openCard(id)`, `closeCard()`, `glides()` and `clearGlides()`. `glides()` is a log of the last 20
+animated glides, kept by `recordGlides` from the camera's `onChange` (no hook in the camera): one
+record `{ reason, from, target, startedAt, endedAt, end }` per glide when it starts, `end` set to
+`arrived` (reached its target, by frames or `settle()`), `interrupted` or `replaced` when it ends.
+Cuts, reduced motion and gestures are not logged. Tests read it in the same task as the action, so
+a glide that a loaded machine finishes before the next round trip is still seen (devlog 58). Also `sceneDetail()`, `lightDetail()`, `skyStats().detail`,
 `plants.hitTest(world, tol)`, `ui.state().plantCard`.
 
 ## Studio
@@ -96,7 +101,7 @@ plant and docked, a seedling's card; the seed picks the species, so every note c
 ## Tests
 `camera.test.ts` (compose, clamp, reach, slack, zoom about a point, pan, framing, path, easing,
 durations, controller), `renderer.test.ts` (camera views, caches), `hit-test.test.ts`,
-`notes.test.ts`, `sprites.test.ts` / `system.test.ts` (resolution, eviction, culling, hit-test),
+`notes.test.ts`, `src/dev/camera-debug.test.ts` (the glide log), `sprites.test.ts` / `system.test.ts` (resolution, eviction, culling, hit-test),
 `tests/e2e/close-view.spec.ts` (no seams at a pinned close view; a plant as solid at 3× as at 1×; no line where the sky plate ends at night),
 `tests/e2e/camera.spec.ts` (focus on start and switch, ctrl+wheel about the pointer, plain wheel,
 drag only zoomed, pinch, double-click, controls, keys, the card, placement while zoomed, detail

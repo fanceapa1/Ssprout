@@ -603,7 +603,9 @@ Camera (`src/dev/camera-debug.ts`): `window.sprout.camera` — `state()`, `focus
 `focusPlant(id)`, `zoomTo(z, about?)`, `glideTo(pose)`, `overview()` (each `{ animate: false }` to
 cut), `settle()` (finish the glide and wait for the resting view's detail), `autoFocus(on)` (follow
 session starts/switches; tests that read the overview pin it), `toClient(world)`, `openCard(id)`,
-`closeCard()`.
+`closeCard()`, `glides()` (the last 20 animated glides: `{ reason, from, target, startedAt,
+endedAt, end }`, logged as they start; tests read it in the same task as the action instead of
+catching `state().gliding`), `clearGlides()`.
 
 Ambience (`src/ambience/dev.ts`): `setTime('sunrise'|'midday'|'sunset'|'night'|{ from, to, t }|hour|null)`
 (v1 names `morning`, `noon`, `evening`, `dusk`, `dawn` kept as aliases), `daylight()` (phase weights, sun,
