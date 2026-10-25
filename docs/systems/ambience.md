@@ -146,7 +146,7 @@ moves the sky, light, shadows, rims and fauna — docs/systems/daylight.md), `sp
 `sprout.settleAmbience()` (skip running transitions — call before `freeze()` for screenshots),
 `sprout.lightDetail()` (the light plate's detail for the resting view: rect, scale, painted yet; null: none),
 `sprout.ambience()` → `{ phase, weather, preview, levels, time (daylight phase), weights, counts (rain, ripples, glints, leafGlints, motes, drips), lightingPaints,
-lightingMs, reducedMotion, ms, timeOverride, location, sunTimes }` (`ms` = moving average of update + draw per frame).
+lightingMs, sprites (groups built so far), reducedMotion, ms, timeOverride, location, sunTimes }` (`ms` = moving average of update + draw per frame).
 ```
 npm run shots -- --name night-rain --eval "sprout.setTime('night'); sprout.start(25); sprout.setWeather('rain')"
 ```
@@ -160,7 +160,18 @@ transform or the canvas size changes): on a CPU rasteriser ~4 ms instead of ~17�
 2824×1584, the same on a GPU, one frame-sized buffer of memory (bilinear — `'high'` made each blit dramatically slower on software
 GPUs and is invisible on a soft wash). Sprites and the lighting noise field are built once per
 scene + seed and shared between engines (the studio runs several). Budget 1.5 ms is
-asserted in `tests/e2e/ambience.spec.ts`. Sprites are painted once per scene (~100 ms total).
+asserted in `tests/e2e/ambience.spec.ts`.
+
+**Built on first use** (ADR 0232). `buildSprites` returns its groups as getters: `sun`, `rain`,
+`ripples`, `glints`, `leafGlints`, `motes`, `mist` and `flame`. Each group is painted the first
+time a frame reads it, from its own fork of the seed, so the pixels do not depend on the order.
+All of them together cost ~90 ms, the sun's two glaze sprites ~50 ms of that. A night without
+sun weather paints only the lantern's flame, and an idle day paints nothing until a session brings
+weather or motes. The dew uses `SPRITE_VARIANTS`, so it reads no sprite. The cast light
+(`createCastLight`: the wash field and the plates) is made on the first frame that lights the
+garden, not when the engine is made. `builtSprites(sprites)` and `sprout.ambience().sprites` list
+the groups built so far. The system itself is registered late in boot, once the landscape is
+painted (docs/ARCHITECTURE.md › Boot order).
 
 ## Tests
 Vitest: `sun.test.ts` (the glaze: sky unglazed, lifted bands, diagonal fall, pooled edge, half lift;
@@ -170,6 +181,10 @@ frame-rate independence), `timeofday.test.ts` (phase grades, blends, readability
 `lighting.test.ts` (wash ordering, lantern reserve and reflection, mottling, glow),
 `device-plate.test.ts` (resample once at rest, same pixels, direct again on change),
 `night-edge.test.ts` (the mask's bands, dark light only, lift and broken rim, determinism).
+`lazy-sprites.test.ts` (no sprite and no light plate when the engine is made; a group is built once
+and only when read; a night without sun weather builds no sun but the lantern's flame; sun weather
+builds the glaze).
 Playwright: `tests/e2e/ambience.spec.ts` (session weather, each preview, night, pause/end fades, the
 sun's glaze warm in the garden but not the sky and a trace on pause,
-setTime phases, blends and aliases, frame budget, reduced-motion emulation); the daylight tests are listed in docs/systems/daylight.md.
+setTime phases, blends and aliases, frame budget, reduced-motion emulation); `tests/e2e/boot-order.spec.ts` (no sun sprites at night until sun weather shows; the
+ambience is registered after the landscape); the daylight tests are listed in docs/systems/daylight.md.

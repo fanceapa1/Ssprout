@@ -11,11 +11,15 @@ behaviour code on a small painted stage; `?t=` presimulates so stills show real 
 
 ## Wiring
 ```ts
-// main.ts (one line)
-void renderer.add(createFauna({ species: getSpecies, debug: dev, daylight }));
+// main.ts: in its own boot task, once the landscape is painted (ADR 0232)
+const fauna = createFauna({ species: getSpecies, daylight });
+void renderer.add(fauna);
+// … and with ?dev, in the last boot task with the rest of window.sprout
+installFaunaDebug(fauna);
 ```
-`createFauna` (`index.ts`) returns the `FaunaSystem` (`system.ts`) and, with `debug`, installs
-`window.sprout.fauna` once `installDebug` has run (a microtask later).
+`createFauna` (`index.ts`) returns the `FaunaSystem` (`system.ts`). With `debug` it installs
+`window.sprout.fauna` a microtask later. That works only when `installDebug` runs in the same task,
+so `main.ts` calls `installFaunaDebug` itself.
 
 | File | What |
 |---|---|
