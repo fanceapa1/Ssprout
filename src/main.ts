@@ -19,7 +19,7 @@ import { plantWorldBounds } from './plants/bounds';
 import { allSpecies } from './plants/registry';
 import { createPlantSystem } from './plants/system';
 import { setPlantViewSpecies } from './plants/view';
-import { createFauna } from './fauna';
+import { createFauna, installFaunaDebug } from './fauna';
 import { createRenderer } from './render/renderer';
 import { gardenScene } from './scene/geometry';
 import { createUI } from './ui';
@@ -29,6 +29,7 @@ import { installServiceWorkerDebug, installWidgetDebug } from './widget/dev';
 import { installServiceWorker } from './widget/service-worker';
 import { installSceneDebug } from './scene/debug';
 import { installPaintCacheDebug } from './paint/debug';
+import { paintCache } from './paint/persist';
 import { createPaperSystem, createSceneSystem } from './scene/system';
 
 /** localStorage, or null when the browser blocks it (private mode, disabled storage). */
@@ -40,7 +41,32 @@ function browserStorage(): StorageLike | null {
   }
 }
 
-function boot(): void {
+/** A boot stage mark (`sprout:boot:<name>`): e2e asserts their order (ADR 0232). */
+const mark = (name: string) => performance.mark(`sprout:boot:${name}`);
+
+/** After the browser has shown a frame: a frame, then a task (a timer when frames stall, e.g. a background tab). */
+function afterPaint(): Promise<void> {
+  return new Promise((done) => {
+    let fired = false;
+    const go = () => {
+      if (fired) return;
+      fired = true;
+      setTimeout(done, 0);
+    };
+    requestAnimationFrame(go);
+    setTimeout(go, 100);
+  });
+}
+
+/**
+ * Boot in stages (ADR 0232, docs/ARCHITECTURE.md › Boot order): the landscape starts painting in
+ * the first task; the UI comes after the first frame; plants, fauna and ambience only once the
+ * landscape is painted, since they stack on top of it; `window.sprout` last.
+ */
+async function boot(): Promise<void> {
+  mark('start');
+  // open the paint cache's store before anything else, so the landscape lookup finds it ready (ADR 0228)
+  paintCache();
   const canvas = document.querySelector<HTMLCanvasElement>('#garden');
   if (!canvas) throw new Error('missing #garden canvas');
 
@@ -81,21 +107,29 @@ function boot(): void {
   const sceneSystem = createSceneSystem({ invalidate: (layer) => renderer.invalidate(layer), showSlots: dev && params.has('slots'), daylight });
   void renderer.add(createPaperSystem());
   void renderer.add(sceneSystem);
-  // plants: finished + growing sprites, wither, watering, reflections (docs/systems/plants.md)
-  setPlantViewSpecies(getSpecies);
-  const plants = createPlantSystem({ getSpecies, daylight });
-  void renderer.add(plants);
-  void renderer.add(createFauna({ species: getSpecies, debug: dev, daylight }));
   renderer.start();
   // nothing is drawn while the garden stage is scrolled out of view (ADR 0224)
   renderer.pauseWhenOffscreen(canvas.closest('#stage') ?? canvas);
+  // resolves once the landscape is painted (or taken from the paint cache)
+  const landscape = renderer.whenReady();
+  mark('scene');
+  await afterPaint();
+
+  // plants: finished + growing sprites, wither, watering, reflections (docs/systems/plants.md);
+  // made now for the UI, drawn from the third stage on
+  setPlantViewSpecies(getSpecies);
+  const plants = createPlantSystem({ getSpecies, daylight });
+  /** every system registered and initialised: what the dock and the service worker wait for */
+  let contents!: () => void;
+  const gardenAdded = new Promise<void>((done) => (contents = done));
+  const gardenReady = () => gardenAdded.then(() => renderer.whenReady());
 
   // Timer surfaces: worker ticker, tab title/favicon, notifications (asked inside session:start),
   // the floating widget (docs/systems/widget.md).
   const surfaces = createTimerSurfaces({ controller, store, bus, clock });
   // the caching worker registers after the first paint, on idle; a lazy chunk that a deploy
   // removed reloads the page once (ADR 0230, docs/systems/widget.md)
-  const sw = installServiceWorker({ afterPaint: renderer.whenReady() });
+  const sw = installServiceWorker({ afterPaint: gardenReady() });
   // scheduled sessions tick on the same worker, so a background tab notices them (ADR 0174)
   const scheduler = createScheduler({ store, clock, bus, ticker: surfaces.internals.ticker });
 
@@ -121,10 +155,25 @@ function boot(): void {
     schedules: scheduler,
     // the camera over the garden: gestures, focus on the growing plant, plant cards (docs/systems/camera.md)
     camera: { camera: renderer.camera, hitTest: (p, tolerance) => plants.hitTest(p, tolerance) },
-    whenGardenReady: () => renderer.whenReady(),
+    whenGardenReady: gardenReady,
   });
   plants.connectPlacement(ui.placement);
+  mark('ui');
 
+  // what stacks on the landscape, a task each, once it is painted
+  await landscape;
+  mark('landscape');
+  await afterPaint();
+  void renderer.add(plants);
+  mark('plants');
+  await afterPaint();
+  const fauna = createFauna({ species: getSpecies, daylight });
+  void renderer.add(fauna);
+  mark('fauna');
+  await afterPaint();
+
+  // the ambience and `window.sprout` share the last task: e2e sees the dev API whole, with every
+  // system registered
   if (speedClock) {
     installDebug({ store, renderer, clock: speedClock });
     installAudioDebug(audio);
@@ -134,6 +183,7 @@ function boot(): void {
     installServiceWorkerDebug(sw);
     installSceneDebug(sceneSystem, scene);
     installPlantsDebug(plants);
+    installFaunaDebug(fauna);
     installPaintCacheDebug();
     installScheduleDebug({ store, scheduler, clock: speedClock, ui, species });
     installCameraDebug({
@@ -155,11 +205,14 @@ function boot(): void {
     });
   }
   const ambience = addAmbience(renderer, { dev: speedClock !== null, daylight });
+  mark('ambience');
+  contents();
   // the time-of-day wash eases in once the landscape is painted (never on bare paper), and the
   // DOM slips and paper dabs follow the garden's light from then on (ADR 0121)
   const painted = renderer.whenReady();
   ambience.revealLightAfter(painted);
   void painted.then(() => ambience.onLight((grade) => applyUiLight(uiRoot, grade)));
+  mark('done');
 }
 
-boot();
+void boot();
