@@ -256,6 +256,17 @@ const key = (w: PhaseWeights, sun: Disc, moon: Disc) => {
 };
 
 const totals = { painted: 0, cacheHits: 0, cacheMisses: 0 };
+/** the lights whose composite waits for a plate's lookup */
+const deferring = new Set<object>();
+
+/**
+ * Whether a light's composite is waiting for a plate's paint-cache lookup (ADR 0236). The
+ * ambience waits for it before revealing the light at boot, so the first lit frame does not paint
+ * a plate the cache is about to give.
+ */
+export function lightPlatesPending(): boolean {
+  return deferring.size > 0;
+}
 
 /**
  * Light plates painted, taken from the paint cache and looked up in vain by every light in this
@@ -289,6 +300,7 @@ export function createCastLight(scene: SceneGeometry, art: LightArt, seed = 'cas
   let pondPath: Path2D | null = null;
   /** the light changed while a needed plate was still being looked up: composed when it answers (or when drawn) */
   let deferred: { state: DaylightState; sun: Disc; moon: Disc } | null = null;
+  const self = {};
   /** phases `prepare` asked for whose lookup has not answered yet */
   const preparing = new Set<DayPhase>();
   const now = () => (typeof performance !== 'undefined' ? performance.now() : 0);
@@ -398,6 +410,7 @@ export function createCastLight(scene: SceneGeometry, art: LightArt, seed = 'cas
 
   const compose = (state: DaylightState, sun: Disc, moon: Disc) => {
     deferred = null;
+    deferring.delete(self);
     composeInto(ctx, w, h, state, sun, moon, plate, [CAST_SCALE, 0, 0]);
     composes++;
     version++;
@@ -467,6 +480,7 @@ export function createCastLight(scene: SceneGeometry, art: LightArt, seed = 'cas
         for (const p of phasesOf(state)) if (!plates.has(p)) store.request(p);
         if (waiting(state)) {
           deferred = { state, sun, moon };
+          deferring.add(self);
           return true;
         }
       }

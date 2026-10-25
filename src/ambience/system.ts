@@ -14,7 +14,7 @@ import { moteEmitters, type Emitter } from './motes';
 import type { Grade } from './timeofday';
 import type { TimeOverride } from './daylight';
 import { createDaylightSource, type DaylightSource } from './daylight-source';
-import type { LightArt } from './cast';
+import { lightPlatesPending, type LightArt } from './cast';
 
 export const WEATHER_PREVIEWS: readonly (Weather | null)[] = ['sun', 'rain', 'mist', null];
 
@@ -43,6 +43,8 @@ export interface AmbienceSystem extends System {
 
 /** Seconds the lighting takes to ease in once revealed. */
 const LIGHT_REVEAL_S = 1.4;
+/** Longest wait (s) for the light plates' paint-cache lookups before revealing anyway (ADR 0236). */
+const LIGHT_LOOKUP_WAIT_S = 0.3;
 
 export interface AmbienceSystemOptions {
   seed?: string;
@@ -70,6 +72,8 @@ export function createAmbienceSystem(opts: AmbienceSystemOptions = {}): Ambience
   /** 0..1 how much of the lighting shows; `revealing` while it eases in */
   let reveal = 1;
   let revealing = false;
+  /** once `ready`: seconds waited for the light plates' lookups before revealing (-1: not waiting) */
+  let lightWait = -1;
   let reducedMotion = false;
   let camera: CameraView | null = null;
   let seenDetail = -1;
@@ -103,6 +107,15 @@ export function createAmbienceSystem(opts: AmbienceSystemOptions = {}): Ambience
       if (!engine || !store) return;
       ms = ms * 0.95 + frameMs * 0.05;
       frameMs = 0;
+      // the light is revealed once its plates' paint-cache lookups have answered (after one
+      // update has asked for them), so the first lit frame does not paint a plate the cache is
+      // about to give (ADR 0236); a still frame or a slow store does not wait
+      if (lightWait >= 0) {
+        if (f.dt === 0 || lightWait >= LIGHT_LOOKUP_WAIT_S || (lightWait > 0 && !lightPlatesPending())) {
+          lightWait = -1;
+          revealing = true;
+        } else lightWait += Math.max(f.dt, 1e-6);
+      }
       if (revealing) {
         reveal = reducedMotion || f.dt === 0 ? 1 : Math.min(1, reveal + f.dt / LIGHT_REVEAL_S);
         if (reveal >= 1) revealing = false;
@@ -157,9 +170,10 @@ export function createAmbienceSystem(opts: AmbienceSystemOptions = {}): Ambience
     },
     settle() {
       engine?.settle();
-      if (revealing) {
+      if (revealing || lightWait >= 0) {
         reveal = 1;
         revealing = false;
+        lightWait = -1;
       }
     },
     debug() {
@@ -178,8 +192,9 @@ export function createAmbienceSystem(opts: AmbienceSystemOptions = {}): Ambience
     revealLightAfter(ready) {
       reveal = 0;
       revealing = false;
+      lightWait = -1;
       void ready.then(() => {
-        revealing = true;
+        lightWait = 0;
       });
     },
     onLight(fn) {
