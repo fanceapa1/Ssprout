@@ -1,5 +1,5 @@
 /**
- * Pre-painted textures for the ambience, built once per scene (never per frame): the sun's
+ * Pre-painted textures for the ambience, built once per scene and each on its first use (never per frame): the sun's
  * glaze with its lifted light, rain strokes, ripple rings, glints, motes, mist bands, the lantern flame. Each is computed per
  * pixel from seeded noise so edges are broken and uneven — washes and strokes, not vector
  * shapes. Browser only (canvas); the maths is in small pure helpers.
@@ -279,24 +279,61 @@ export function mistLayout(m: MistLayout): Array<Omit<MistBand, 'canvas'>> {
   ];
 }
 
+/** The sprite groups `buildSprites` builds, each on its first use. */
+export const SPRITE_GROUPS = ['sun', 'rain', 'ripples', 'glints', 'leafGlints', 'motes', 'mist', 'flame'] as const;
+export type SpriteGroup = (typeof SPRITE_GROUPS)[number];
+
+const built = new WeakMap<Sprites, Set<SpriteGroup>>();
+
+/** Which groups of a `buildSprites` set are painted so far (for tests and `ambienceDebug`). */
+export function builtSprites(sprites: Sprites): SpriteGroup[] {
+  const s = built.get(sprites);
+  return s ? SPRITE_GROUPS.filter((g) => s.has(g)) : [...SPRITE_GROUPS];
+}
+
+/**
+ * The ambience's sprites, each group painted on its first use (ADR 0232): the sun's two glaze
+ * sprites (the largest, ~50 ms) are never painted at night or without sun weather, the rain's
+ * strokes only for rain. Every group draws from its own fork of the seed, so a group comes out the
+ * same whichever is built first.
+ */
 export function buildSprites(seed: number | string, mist: MistLayout): Sprites {
   const rng = createRng(seed);
-  const sunLayout = { pondTop: mist.pondTop };
-  const bands = sunBands(rng.fork('sun'), sunLayout);
-  const n = createSimplex2D(rng.fork('sun-noise'));
   const v = Array.from({ length: SPRITE_VARIANTS }, (_, i) => i);
-  return {
-    // every band is lifted in both; each sprite favours one group, so the light shifts as they take turns
-    sun: [
-      sunCanvas(bands, [[0, 1], [2, 1], [1, 0.5], [3, 0.5]], sunLayout, n),
-      sunCanvas(bands, [[1, 1], [3, 1], [0, 0.5], [2, 0.5]], sunLayout, n),
-    ],
-    rain: RAIN.layers.map((_, li) => v.map((i) => rainSprite(rng.fork(`rain-${li}-${i}`), li))),
-    ripples: v.map((i) => rippleSprite(rng.fork(`ripple-${i}`))),
-    glints: v.map((i) => glintSprite(rng.fork(`glint-${i}`))),
-    leafGlints: v.map((i) => moteSprite(rng.fork(`leaf-glint-${i}`), COLOURS.leafGlint)),
-    motes: [0, 1, 2, 3].map((i) => moteSprite(rng.fork(`mote-${i}`), i < 2 ? COLOURS.moteGold : COLOURS.moteGreen)),
-    mist: mistLayout(mist).map((b, i) => ({ ...b, canvas: mistCanvas(rng.fork(`mist-${i}`), b.h) })),
-    flame: moteSprite(rng.fork('flame'), COLOURS.flame),
+  const make: { [G in SpriteGroup]: () => Sprites[G] } = {
+    sun: () => {
+      const sunLayout = { pondTop: mist.pondTop };
+      const bands = sunBands(rng.fork('sun'), sunLayout);
+      const n = createSimplex2D(rng.fork('sun-noise'));
+      // every band is lifted in both; each sprite favours one group, so the light shifts as they take turns
+      return [
+        sunCanvas(bands, [[0, 1], [2, 1], [1, 0.5], [3, 0.5]], sunLayout, n),
+        sunCanvas(bands, [[1, 1], [3, 1], [0, 0.5], [2, 0.5]], sunLayout, n),
+      ];
+    },
+    rain: () => RAIN.layers.map((_, li) => v.map((i) => rainSprite(rng.fork(`rain-${li}-${i}`), li))),
+    ripples: () => v.map((i) => rippleSprite(rng.fork(`ripple-${i}`))),
+    glints: () => v.map((i) => glintSprite(rng.fork(`glint-${i}`))),
+    leafGlints: () => v.map((i) => moteSprite(rng.fork(`leaf-glint-${i}`), COLOURS.leafGlint)),
+    motes: () => [0, 1, 2, 3].map((i) => moteSprite(rng.fork(`mote-${i}`), i < 2 ? COLOURS.moteGold : COLOURS.moteGreen)),
+    mist: () => mistLayout(mist).map((b, i) => ({ ...b, canvas: mistCanvas(rng.fork(`mist-${i}`), b.h) })),
+    flame: () => moteSprite(rng.fork('flame'), COLOURS.flame),
   };
+  const done = new Set<SpriteGroup>();
+  const cache: Partial<Sprites> = {};
+  const sprites = {} as Sprites;
+  for (const g of SPRITE_GROUPS) {
+    Object.defineProperty(sprites, g, {
+      enumerable: true,
+      get() {
+        if (!done.has(g)) {
+          (cache as Record<SpriteGroup, unknown>)[g] = make[g]();
+          done.add(g);
+        }
+        return cache[g];
+      },
+    });
+  }
+  built.set(sprites, done);
+  return sprites;
 }

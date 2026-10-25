@@ -17,8 +17,8 @@ import { LIGHT } from './lighting';
 import { nextPhase, pinnedState, only, whenIdle, type DayPhase, type DaylightState } from './daylight';
 import { MOTE, type Emitter } from './motes';
 import { pavilionFrame } from '../scene/paint-pavilion';
-import { createSim, lifeAlpha, setSimArea, stepSim, warmSim, type Eave, type Sim } from './sim';
-import { buildSprites, type Sprites } from './sprites';
+import { createSim, lifeAlpha, setSimArea, SPRITE_VARIANTS, stepSim, warmSim, type Eave, type Sim } from './sim';
+import { buildSprites, builtSprites, type SpriteGroup, type Sprites } from './sprites';
 import { gradeFor, type Grade } from './timeofday';
 import { wind as defaultWind, type WindFn } from './wind';
 
@@ -100,6 +100,8 @@ export interface AmbienceDebug {
   lightingPaints: number;
   /** cost of the light plates painted so far (ms; each phase is painted once) */
   lightingMs: number;
+  /** the sprite groups painted so far: each is built on its first use (ADR 0232) */
+  sprites: SpriteGroup[];
   reducedMotion: boolean;
 }
 
@@ -157,7 +159,10 @@ export function createAmbience(opts: AmbienceOptions): Ambience {
   const seed = opts.seed ?? 'ambience';
   const pondBox = bounds(scene.pond);
   const sprites: Sprites = spritesFor(scene, seed, { pondTop: pondBox.y, pondBottom: pondBox.y + pondBox.h });
-  const cast: CastLight = castFor(scene, opts.lightArt ?? NO_ART, `${seed}-cast`);
+  // the light plates' field and canvases are built on the first frame that lights the garden, not
+  // when the engine is made (ADR 0232)
+  let castLight: CastLight | null = null;
+  const cast = (): CastLight => (castLight ??= castFor(scene, opts.lightArt ?? NO_ART, `${seed}-cast`));
   const nightEdge = createNightEdge(`${seed}-edge`);
   const plate = createDevicePlate();
   const area0 = opts.area ?? { x: 0, y: 0, w: WORLD_W, h: WORLD_H };
@@ -189,7 +194,7 @@ export function createAmbience(opts: AmbienceOptions): Ambience {
     detailing = true;
     idleSoon(() => {
       detailing = false;
-      if (cast.paintDetailStep()) scheduleDetail();
+      if (cast().paintDetailStep()) scheduleDetail();
     });
   };
 
@@ -216,7 +221,7 @@ export function createAmbience(opts: AmbienceOptions): Ambience {
       len: dewRng.range(7, 12),
       rate: dewRng.range(0.5, 1.1),
       ph: dewRng.range(0, Math.PI * 2),
-      variant: dewRng.int(0, sprites.glints.length - 1),
+      variant: dewRng.int(0, SPRITE_VARIANTS - 1),
     };
   });
 
@@ -227,11 +232,12 @@ export function createAmbience(opts: AmbienceOptions): Ambience {
       setSimArea(sim, area);
     },
     lightDetail() {
-      const st = cast.stats();
+      if (!castLight) return null;
+      const st = castLight.stats();
       return st.detail ? { ...st.detail, ms: st.detailMs } : null;
     },
     setDetail(visible, pixelScale) {
-      cast.setDetail(visible, pixelScale);
+      cast().setDetail(visible, pixelScale);
       if (visible) scheduleDetail();
     },
     settle() {
@@ -271,19 +277,19 @@ export function createAmbience(opts: AmbienceOptions): Ambience {
       sinceLight += frame.dt;
       if (lightDirty || frame.dt === 0 || sinceLight >= LIGHT.redrawS) {
         sinceLight = 0;
-        if (cast.update(light, lightDirty)) {
+        if (cast().update(light, lightDirty)) {
           grade = gradeFor(light.weights);
           paints++;
           // a new phase in the blend needs its detail plate too
-          if (cast.stats().detail) scheduleDetail();
+          if (cast().stats().detail) scheduleDetail();
         }
         lightDirty = false;
         // paint the coming phase's light plate while the browser is idle
         const next = nextPhase(light.phase);
-        if (!cast.has(next) && !preparing) {
+        if (!cast().has(next) && !preparing) {
           preparing = true;
           whenIdle(() => {
-            cast.prepare([next]);
+            cast().prepare([next]);
             preparing = false;
           });
         }
@@ -481,15 +487,15 @@ export function createAmbience(opts: AmbienceOptions): Ambience {
       ctx.imageSmoothingEnabled = true;
       ctx.imageSmoothingQuality = 'low';
       const inWorld = visible ? clip(visible) : null;
-      const detail = inWorld ? cast.detail() : null;
+      const detail = inWorld ? cast().detail() : null;
       const d = detail && inWorld && contains(detail.rect, inWorld) ? detail : null;
       // at rest the plate is resampled once and laid 1:1 (ADR 0207): same pixels, a third of the fill
-      const key = `${cast.version()}|${d ? `${d.rect.x},${d.rect.y},${d.rect.w},${d.rect.h}` : 'world'}|${view.y},${view.h}`;
+      const key = `${cast().version()}|${d ? `${d.rect.x},${d.rect.y},${d.rect.w},${d.rect.h}` : 'world'}|${view.y},${view.h}`;
       plate.draw(ctx, key, (c) => {
         if (d) c.drawImage(d.canvas as CanvasImageSource, d.rect.x, d.rect.y, d.rect.w, d.rect.h);
-        else c.drawImage(cast.canvas as CanvasImageSource, 0, 0, WORLD_W, WORLD_H);
+        else c.drawImage(cast().canvas as CanvasImageSource, 0, 0, WORLD_W, WORLD_H);
         // paper shown beyond the world's top/bottom (tall phones) takes the light of the nearest edge
-        const lc = cast.canvas as CanvasImageSource & { width: number; height: number };
+        const lc = cast().canvas as CanvasImageSource & { width: number; height: number };
         if (view.y < 0) c.drawImage(lc, 0, 0, lc.width, 1, 0, view.y, WORLD_W, -view.y);
         const below = view.y + view.h - WORLD_H;
         if (below > 0) c.drawImage(lc, 0, lc.height - 1, lc.width, 1, 0, WORLD_H, WORLD_W, below);
@@ -519,7 +525,8 @@ export function createAmbience(opts: AmbienceOptions): Ambience {
         time: light.phase,
         counts: { rain: sim.rain.length, ripples: sim.ripples.length, glints: sim.glints.length, leafGlints: sim.leafGlints.length, motes: sim.motes.length, drips: sim.drips.length },
         lightingPaints: paints,
-        lightingMs: cast.stats().paintMs,
+        lightingMs: castLight?.stats().paintMs ?? 0,
+        sprites: builtSprites(sprites),
         reducedMotion,
       };
     },
