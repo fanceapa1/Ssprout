@@ -39,17 +39,3 @@ export async function storedEntries(page: Page): Promise<StoredEntry[]> {
 export async function storedOf(page: Page, ...kinds: string[]): Promise<StoredEntry[]> {
   return (await storedEntries(page)).filter((e) => kinds.includes(e.kind));
 }
-
-/**
- * Wait until the app's own cache traffic after load is over: the plates of the light in use and
- * of the coming phase (prepared in idle time) are there, and every queued put is written. A
- * test that counts entries or clears the store must not race them.
- */
-export async function appPaintQuiet(page: Page): Promise<void> {
-  await page.waitForFunction(() => {
-    const s = window.sprout!;
-    const light = s.lightPlates();
-    return (s.skyStats()?.plates ?? 0) >= 2 && light.painted + light.cacheHits >= 2;
-  });
-  await page.evaluate(() => window.sprout!.paintCache.settle());
-}

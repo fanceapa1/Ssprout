@@ -1,6 +1,5 @@
 import type { Page } from '@playwright/test';
 import { expect, openDev, test } from './fixtures';
-import { appPaintQuiet } from './paint-store';
 
 /**
  * The persistent paint cache (ADR 0227) against Chromium's real IndexedDB, PNG encoder and
@@ -86,42 +85,35 @@ declare global {
 
 test.describe('persistent paint cache', () => {
   test('a painting stored before a reload comes back pixel for pixel', async ({ page }) => {
-    // the overview is the whole world here: the app's only paint cache traffic (ADR 0228) is
-    // its landscape's lookup and puts during load, never a later whole-world extension
-    await page.setViewportSize({ width: 1440, height: 900 });
-    await openDev(page);
-    // …nor its daylight plates, the coming phase's in idle time (ADR 0236)
-    await appPaintQuiet(page);
+    // The app stores its own paintings in idle time, at any moment after load (the landscape,
+    // ADR 0228; the daylight plates, ADR 0236). With ?nopaintcache it stores nothing, and the
+    // test uses its own cache on the app's IndexedDB store, at the app's version, with its own
+    // counters.
+    await openDev(page, 'nopaintcache');
     await installHelpers(page);
     const stored = await page.evaluate(async () => {
-      const cache = window.sprout!.paintCache;
-      // the app stores its own paintings too (the landscape, ADR 0228): count only this test's
-      await cache.clear();
-      const before = await cache.stats();
+      const cache = window.sprout!.paintCache.open();
       const t = window.__paintTest;
       const ok = await Promise.all([cache.put('test', 'opaque', t.build('opaque')), cache.put('test', 'alpha', t.build('alpha'))]);
-      const after = await cache.stats();
-      return { ok, stats: after, puts: after.puts - before.puts };
+      return { ok, stats: await cache.stats(), app: window.sprout!.paintCache.version };
     });
     expect(stored.ok).toEqual([true, true]);
-    expect(stored.stats).toMatchObject({ enabled: true, off: null, entries: 2, errors: 0 });
-    expect(stored.puts).toBe(2);
+    expect(stored.stats).toMatchObject({ enabled: true, off: null, entries: 2, errors: 0, puts: 2 });
+    expect(stored.stats.version).toBe(stored.app);
     expect(stored.stats.version).toMatch(/^[0-9a-f]{12}-[0-9a-z]+$/);
 
     await page.reload();
     await page.waitForFunction(() => window.sprout !== undefined);
     await page.evaluate(() => window.sprout!.ready());
-    await appPaintQuiet(page);
     await installHelpers(page);
     const back = await page.evaluate(async () => {
-      const cache = window.sprout!.paintCache;
-      const before = await cache.stats();
+      const cache = window.sprout!.paintCache.open();
       const t = window.__paintTest;
       const opaque = t.compare('opaque', await cache.get('test', 'opaque'));
       const alpha = t.compare('alpha', await cache.get('test', 'alpha'));
       const missing = await cache.get('test', 'never-stored');
-      const after = await cache.stats();
-      return { opaque, alpha, missing, stats: after, hits: after.hits - before.hits, misses: after.misses - before.misses };
+      const stats = await cache.stats();
+      return { opaque, alpha, missing, stats, hits: stats.hits, misses: stats.misses };
     });
     expect(back.opaque).toEqual({ size: [640, 400], differ: 0, maxDelta: 0, pixels: 640 * 400 });
     expect(back.alpha).toEqual({ size: [256, 256], differ: 0, maxDelta: 0, pixels: 256 * 256 });
@@ -142,13 +134,10 @@ test.describe('persistent paint cache', () => {
   });
 
   test('IndexedDB drops other versions on open and evicts the least recently used over the cap', async ({ page }) => {
-    // no whole-world extension may store the landscape mid-test (see above)
-    await page.setViewportSize({ width: 1440, height: 900 });
-    await openDev(page);
-    await appPaintQuiet(page);
+    // the app stores nothing mid-test (see above); `open` ignores ?nopaintcache
+    await openDev(page, 'nopaintcache');
     const r = await page.evaluate(async () => {
       const s = window.sprout!.paintCache;
-      await s.clear();
       const canvas = (n: number) => {
         const c = new OffscreenCanvas(64, 64);
         const ctx = c.getContext('2d')!;

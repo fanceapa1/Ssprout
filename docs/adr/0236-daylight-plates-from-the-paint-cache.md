@@ -85,6 +85,8 @@ scripts `perf/p18-repeat.mjs` and `p18/measure.sh`. Results in devlog 57.
 - The sky's plates no longer paint in the first boot task. On a first visit they paint when
   their lookup misses, between the landscape's paint steps, so the first contentful paint comes
   earlier on both paths.
-- Specs that count the cache's entries or clear the store wait for the app's own plate traffic
-  first (`appPaintQuiet`, `storedOf` in `tests/e2e/paint-store.ts`).
+- The app now also stores plates after load, the coming phase's in idle time, at any moment. The
+  specs that count entries count only their own kinds (`storedOf` in `tests/e2e/paint-store.ts`).
+  `paint-cache.spec.ts` runs with `?nopaintcache` and its own cache on the app's store
+  (`sprout.paintCache.open()`), so the app writes nothing in the middle of it.
 - Light detail plates and the plant sprites (T15) remain painted on every visit.
