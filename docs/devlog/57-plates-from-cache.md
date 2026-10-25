@@ -24,8 +24,12 @@ the persistent paint cache (ADR 0236).
   - It defers the same way; `canvas` (now a getter) and `version()` compose first.
   - `washField` is lazy, and a detail plate over a stored plate rebuilds its grade wash.
   - `lightPlateTotals()` is shown as `sprout.lightPlates()` (`src/ambience/dev.ts`).
-- No caller changed: `scene/system.ts`, `ambience/ambience.ts`, `ambience/system.ts` and `main.ts`
-  are untouched.
+- `src/ambience/system.ts`: the light's reveal after the landscape (ADR 0121) also waits, at most
+  0.3 s, until `lightPlatesPending()` is false. That wait was added after rebasing onto the staged
+  boot (P14, ADR 0232): the ambience now starts after the landscape, and the reveal's first lit
+  frame painted the light plate a few ms before the cache answered (`painted: 1`, 43–48 ms).
+  `settleAmbience` and still frames do not wait. `scene/system.ts`, `ambience/ambience.ts` and
+  `main.ts` are untouched.
 
 ## Why / decisions (ADR 0236)
 - **Cache the per-phase plates, never the composites.** The sun, moon, blend weights and the

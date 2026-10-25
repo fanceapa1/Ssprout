@@ -49,8 +49,13 @@ which are cheap and rebuilt as before.
   missing. A frame never shows a stale composite, so readiness (`renderer.whenReady()`,
   `scenePainted`, `lightDetail().ready`, `settleAmbience`, `freeze`) is unchanged, and so is
   every caller. At boot the sky is drawn only once the landscape is there (its lookup takes
-  longer), and the light only once it is revealed (ADR 0121). In practice the answers always
-  come first. A dev `setTime` to an uncached phase paints at once, as before.
+  longer), so its answer always comes first. The light is revealed (ADR 0121) only once its
+  lookups have answered, with at most 0.3 s of waiting (`lightPlatesPending()` in `cast.ts`,
+  read by `ambience/system.ts`). Since the staged boot (ADR 0232) the ambience starts after the
+  landscape, so without that wait the reveal's first lit frame painted the plate a few ms before
+  the cache handed it over. A still frame (`dt` 0) and `settleAmbience` reveal at once, and the
+  draw then paints whatever is missing. A dev `setTime` to an uncached phase paints at once, as
+  before.
 - **Stored only after a miss.** A painted plate is stored when its lookup missed. If the plate
   was painted before its lookup answered, the put waits for the answer. A plate painted without
   a lookup is looked up first, so the cache never encodes what it already holds. Puts pass

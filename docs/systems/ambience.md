@@ -100,7 +100,7 @@ The v1 hour keyframes are gone: the engine gets the shared `DaylightState` every
 `DaylightSource` main creates) and multiplies the **light plate** of the current phase blend in
 the `lighting` layer. Each phase's plate is painted once (on demand; the next phase in idle time),
 or taken from the persistent paint cache on a repeat visit (`light-plate`, ADR 0236; the wash's
-noise fields are then never built):
+noise fields are then never built; the boot reveal waits up to 0.3 s for the lookups):
 
 | Phase | Grade (multiply) | Amount | Painted on top | Lantern |
 |---|---|---|---|---|
