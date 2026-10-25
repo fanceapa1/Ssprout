@@ -97,7 +97,7 @@ Phase 9: performance (owner request 2026-10-24). The page is laggy. Draw only wh
 | P15 | The `?dev` API is loaded only with `?dev` (dynamic import, atomic `window.sprout`) | `src/main.ts`, `src/dev/install.ts` (new) | queued (ADR 0233) |
 | P16 | Lazy chunks for what is not visible, one task each: a fauna · b audio · c PiP art · d sheets and cards · e calendar; prefetched on idle; reload-once on a stale chunk | per sub-task | queued (ADR 0234) |
 | P17 | Idle callbacks respect their deadline (sky next-phase, cast prepare, sprite `runIdle`) | `src/scene/sky-light.ts`, `src/scene/system.ts`, `src/ambience/cast.ts` | queued (ADR 0235) |
-| P18 | Sky and light plates from the persistent cache | `src/scene/sky-light.ts`, `src/ambience/lighting.ts` | in progress (ADR 0236) |
+| P18 | Sky and light plates from the persistent cache | `src/scene/sky-light.ts`, `src/ambience/lighting.ts` | done (repeat visit: no plate painted, FCP 238–256 → 160–163 ms, busy before the landscape 366–381 → 248–265 ms; pixel-identical; +2 MB; ADR 0236) |
 | P19 | Spike, then build if it pays: scene painting in a worker (OffscreenCanvas) | `src/scene/*`, worker | queued (ADR 0237) |
 | P20 | Scroll path: tips, format and wayfinding read layout once per frame | `src/ui/tips.ts`, `src/ui/format.ts`, `src/ui/wayfinding.ts` | queued |
 | P21 | Planting sheet layout off the click: the remaining ~75 ms first-open cost is `showModal` layout (content-visibility for off-screen cards, or lay the sheet out during the idle prewarm) | `src/ui/planting-sheet.ts`, `src/ui/ui.css` | queued |
