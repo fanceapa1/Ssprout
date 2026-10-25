@@ -16,7 +16,8 @@ part belongs with what it paints:
 | `src/ambience/cast.ts` | the light plates: painted per phase, blended, moving lights lifted out (`createCastLight`) |
 | `src/ambience/night-edge.ts` | where a dark light stops at the stage's edge (`createNightEdge`, `edgeStrength`; ADR 0184) |
 | `src/scene/paint-sky.ts` | the four painted skies and their mirrored water plates |
-| `src/scene/sky-light.ts` | `createSkyLight`: sky + water composites, the sun and moon punched out |
+| `src/scene/sky-light.ts` | `createSkyLight`: sky + water composites, the sun and moon punched out; `skyPlateKey` |
+| `src/ambience/plate-cache.ts` | the sky and light plates from the persistent paint cache (`createPlateCache`, `cutImage`, `fingerprint`; ADR 0236) |
 | `src/paint/rim.ts` | rim-light masks for sprites (plants, boulders) |
 | `src/plants/shadow.ts` | the plants' cast-shadow blot |
 | `src/scene/daylight.studio.ts` | studio section **Daylight · four painted phases** |
@@ -90,8 +91,20 @@ pure phases with the blends between them: night until 03:36 · sunrise 04:16–0
   sun climbs (`LOOK.dawnMist*`); 16 dew glints twinkling on the near grass at sunrise.
 
 ## Caching and cost
-- Plates are painted on demand: a sky + water plate ≈ 100 ms, a light plate ≈ 30 ms (M3, Chrome);
-  the **next phase's plates are painted in idle time** (`whenIdle`, `nextPhase`).
+- Plates are painted on demand: a sky + water plate ≈ 80–100 ms, a light plate ≈ 30–60 ms with
+  its wash fields (M3, Chrome); the **next phase's plates are prepared in idle time** (`whenIdle`,
+  `nextPhase`).
+- **The paint cache** (ADR 0236): a phase's plates are looked up in `paintCache()` before they
+  are painted and stored (in idle time) after a miss. The kinds are `sky-plate` (the sky with its
+  water plate packed below, `skyPlateKey`: seed, phase, pixel sizes, water rect) and
+  `light-plate` (`lightPlateKey`: seed, phase, size, a fingerprint of the geometry and art). The
+  composites, with the sun, moon and blend, are always built here. While a needed plate is being
+  looked up the composite is deferred; it is built when the answer comes, or by the first draw
+  (which paints what is still missing), so no frame shows a stale composite and readiness is
+  unchanged. `prepare` looks the coming phase up and paints it in idle time only on a miss. All four
+  phases are 4.0 MB of PNG; a repeat visit paints no plate. The light's close-view detail plates
+  are not cached (idle work keyed per view). With `?nopaintcache` (and on the dev server, in
+  Vitest) the plates paint synchronously as before.
 - Composites are rebuilt only when the weights move by 1/200 or a sun/moon disc by a world unit
   (scene checks every 2 s, ambience every 3 s, both at once after `setTime`). The sky rebuild
   invalidates the background cache (two blits).
@@ -103,7 +116,9 @@ pure phases with the blends between them: night until 03:36 · sunrise 04:16–0
   `sprout.setTime({ from: 'sunset', to: 'night', t: 0.5 })`, a v1 alias (`'morning'`, `'noon'`,
   `'evening'`, `'dusk'`, `'dawn'`), an hour of today (`sprout.setTime(6.5)`) or `null` (the clock).
 - `sprout.daylight()` → phase, weights, blend, sun/moon discs, shadow, rim, location, sun times,
-  override. `sprout.skyStats()` → plates painted, composites, paint ms.
+  override. `sprout.skyStats()` → `plates` (held), `painted`, `composes`, `paintMs`, `cacheHits`,
+  `cacheMisses`, `detail`. `sprout.lightPlates()` → the light plates' `painted`, `cacheHits`,
+  `cacheMisses`.
 - Screenshots: `npm run shots -- --eval "sprout.setTime('sunset'); sprout.addPlants(25); await sprout.plantsReady(); sprout.settleAmbience()"`.
 
 ## Tests
@@ -111,9 +126,11 @@ Unit: `solar.test.ts` (London, New York, Tokyo, Sydney ±3 min; polar day, polar
 night, the exact poles; moon phase), `zones.test.ts`, `daylight.test.ts` (windows, blends, sums,
 continuity minute by minute, short days, white nights, polar cases, setTime parsing),
 `daylight-source.test.ts`, `sky-layout.test.ts`, `timeofday.test.ts`, `scene/sky-light.test.ts`,
-`paint/rim.test.ts`, `plants/shadow.test.ts`. E2E: `tests/e2e/daylight.spec.ts` (each phase's
+`paint/rim.test.ts`, `plants/shadow.test.ts`, `ambience/plate-cache.test.ts` (the plates' lookups,
+stores and keys). E2E: `tests/e2e/daylight.spec.ts` (each phase's
 pixels, the moon and the setting sun as lights, blends, the clock-driven location, fauna's night,
-frame budget, plantsReady).
+frame budget, plantsReady), `tests/e2e/plates-cache.spec.ts` (a repeat visit paints no plate and
+matches `?nopaintcache` pixel for pixel at midday, at night and close up).
 
 ## How to tweak
 Sky colours and the lifted whites: `paint-sky.ts` (studio `daylight/sky-*`). The night edge:

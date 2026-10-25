@@ -14,7 +14,8 @@ weather**, **· photosynthesis motes & wind**, **· time of day**) or with `npm 
 | `motes.ts` | pure: mote emitters from plants + session slot, spawn rate |
 | `sim.ts` | pure: particles (rain ×3 depths, ripples, glints, motes) as Poisson spawns (ADR 0084) |
 | `lighting.ts` | per-pixel grade wash (`paintGradeWash`, pure), `washField`, `gradePlate`; lantern reserve |
-| `cast.ts` | the painted light plate of each daylight phase and their blended composite (ADR 0147); `version()` bumps on every repaint |
+| `cast.ts` | the painted light plate of each daylight phase and their blended composite (ADR 0147); `version()` bumps on every repaint; plates from the paint cache (ADR 0236) |
+| `plate-cache.ts` | the sky and light plates' lookups and stores in the persistent paint cache (ADR 0236; docs/systems/daylight.md › Caching and cost) |
 | `device-plate.ts` | the resting light plate at device resolution (ADR 0207) |
 | `night-edge.ts` | where a dark light stops: the wash lifted back to paper with a ragged, pooled edge just inside the stage's dissolve (ADR 0184) |
 | `solar.ts`, `zones.ts`, `daylight.ts`, `daylight-source.ts`, `sky-layout.ts` | the daylight: sun times, location, phases, the shared source, where the light falls — docs/systems/daylight.md |
@@ -97,7 +98,9 @@ On load and on dev previews the envelope snaps to steady state and particles are
 ## Daylight light (`cast.ts`, `timeofday.ts`; ADRs 0141, 0147)
 The v1 hour keyframes are gone: the engine gets the shared `DaylightState` every frame (from the
 `DaylightSource` main creates) and multiplies the **light plate** of the current phase blend in
-the `lighting` layer. Each phase's plate is painted once (on demand; the next phase in idle time):
+the `lighting` layer. Each phase's plate is painted once (on demand; the next phase in idle time),
+or taken from the persistent paint cache on a repeat visit (`light-plate`, ADR 0236; the wash's
+noise fields are then never built):
 
 | Phase | Grade (multiply) | Amount | Painted on top | Lantern |
 |---|---|---|---|---|
@@ -145,6 +148,7 @@ moves the sky, light, shadows, rims and fauna — docs/systems/daylight.md), `sp
 `sprout.setWeather('sun'|'rain'|'mist'|null)` (preview without a session; snaps to steady state),
 `sprout.settleAmbience()` (skip running transitions — call before `freeze()` for screenshots),
 `sprout.lightDetail()` (the light plate's detail for the resting view: rect, scale, painted yet; null: none),
+`sprout.lightPlates()` (light plates painted, taken from the paint cache, looked up in vain; ADR 0236),
 `sprout.ambience()` → `{ phase, weather, preview, levels, time (daylight phase), weights, counts (rain, ripples, glints, leafGlints, motes, drips), lightingPaints,
 lightingMs, sprites (groups built so far), reducedMotion, ms, timeOverride, location, sunTimes }` (`ms` = moving average of update + draw per frame).
 ```

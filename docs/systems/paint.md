@@ -283,7 +283,8 @@ dabs at nodes alternating ±0.6–1.0 rad, lengths tapering toward the tip; pass
 ## Persistence: the paint cache (`persist.ts`, ADR 0227)
 Finished paintings that depend only on code, seed, view and scale (the landscape, the sky and
 light plates) can be kept across reloads, so a repeat visit decodes them (~40 ms) instead of
-painting them (~1 s). The scene uses it for the landscape, its sprites and its detail paintings (ADR 0228); P18 wires the plates.
+painting them (~1 s). The scene uses it for the landscape, its sprites and its detail paintings (ADR 0228),
+and the daylight for its sky and light plates (`sky-plate`, `light-plate`; ADR 0236).
 
 ```ts
 import { paintCache } from '../paint/persist';
