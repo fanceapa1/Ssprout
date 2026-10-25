@@ -3,6 +3,7 @@ import type { Weather } from '../core/state';
 import { extendDebug } from '../dev/debug';
 import type { DayPhase, TimeOverride } from './daylight';
 import { castShadow, moonDisc, rimLight, sunDisc, type CastShadow, type Disc, type RimLight } from './sky-layout';
+import { lightPlateTotals } from './cast';
 import type { AmbienceSystem } from './system';
 
 export interface DaylightDebug {
@@ -41,6 +42,8 @@ declare module '../dev/debug' {
     lightDetail(): ReturnType<AmbienceSystem['lightDetail']>;
     /** The daylight now: phase weights, sun and moon, shadow and rim, location and sun times. */
     daylight(): DaylightDebug;
+    /** Light plates painted, taken from the paint cache and looked up in vain so far (ADR 0236). */
+    lightPlates(): ReturnType<typeof lightPlateTotals>;
   }
 }
 
@@ -51,6 +54,7 @@ export function installAmbienceDebug(system: AmbienceSystem): void {
     settleAmbience: () => system.settle(),
     ambience: () => system.debug(),
     lightDetail: () => system.lightDetail(),
+    lightPlates: () => lightPlateTotals(),
     daylight: (): DaylightDebug => {
       const t = system.now();
       const s = system.daylight.at(t);

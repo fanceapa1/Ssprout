@@ -7,7 +7,8 @@
  * lantern. Plates are painted once per phase (on demand) and blended by the phase weights into a
  * composite that also lifts the moving lights: the glow round a low sun, the moon's halo and the
  * moon's (or the sun's) broken path on the pond. Rebuilt only when the light moved (a few times
- * a minute at most); every frame is one blit.
+ * a minute at most); every frame is one blit. A phase's plate is looked up in the persistent
+ * paint cache before it is painted, and stored once painted (ADR 0236).
  */
 import { createRng, type Rng } from '../core/rng';
 import { PIGMENTS, createPainter, makeCanvas, mix, type AnyCanvas, type Painter, type Pt } from '../paint';
@@ -16,8 +17,10 @@ import { WORLD_H, WORLD_W } from '../render/viewport';
 import type { SceneGeometry } from '../scene/geometry';
 import type { ShrubSpec, TreeSpec } from '../scene/layout';
 import { pavilionFrame } from '../scene/paint-pavilion';
-import { PHASES, only, pinnedState, type DayPhase, type DaylightState, type PhaseWeights } from './daylight';
-import { gradePlate, washField } from './lighting';
+import type { PaintCache } from '../paint/persist';
+import { PHASES, only, pinnedState, whenIdle, type DayPhase, type DaylightState, type PhaseWeights } from './daylight';
+import { gradePlate, washField, type WashField } from './lighting';
+import { createPlateCache, cutImage, defaultPlateCache, fingerprint } from './plate-cache';
 import { castShadow, moonDisc, reserveStar, stars, sunDisc, type Disc } from './sky-layout';
 import { PHASE_GRADES } from './timeofday';
 
@@ -62,7 +65,38 @@ export interface CastLight {
   detail(): { canvas: AnyCanvas; rect: Rect } | null;
   /** bumps whenever the composite or the detail composite is repainted (caches of them key off it) */
   version(): number;
-  stats(): { plates: number; composes: number; paintMs: number; detail: { rect: Rect; scale: number; ready: boolean } | null; detailMs: number };
+  stats(): CastStats;
+}
+
+export interface CastStats {
+  /** phases whose plate is there, painted or taken from the paint cache */
+  plates: number;
+  /** phase plates painted here */
+  painted: number;
+  composes: number;
+  paintMs: number;
+  /** plates taken from the persistent paint cache, and lookups that found nothing (ADR 0236) */
+  cacheHits: number;
+  cacheMisses: number;
+  detail: { rect: Rect; scale: number; ready: boolean } | null;
+  detailMs: number;
+}
+
+/** The paint-cache kind of a phase's light plate. */
+export const LIGHT_PLATE_KIND = 'light-plate';
+
+/**
+ * The paint-cache key of a phase's light plate: its seed, the phase, its pixel size and a
+ * fingerprint of the geometry and the art it throws shadows from (`castPrint`). Everything else
+ * is code (the cache version).
+ */
+export function lightPlateKey(seed: string, phase: DayPhase, w: number, h: number, print: string): string {
+  return `${seed}|${phase}|${w}x${h}|g${print}`;
+}
+
+/** What the light plates are painted from, as a fingerprint (the studio paints other scenes). */
+export function castPrint(scene: SceneGeometry, art: LightArt): string {
+  return fingerprint({ pond: scene.pond, waterline: scene.waterline, rocks: scene.rocks, pavilion: scene.pavilion, trees: art.trees, shrubs: art.shrubs });
 }
 
 const SHADOW = mix(PIGMENTS.shadow, PIGMENTS.ultramarine, 0.38);
@@ -221,9 +255,22 @@ const key = (w: PhaseWeights, sun: Disc, moon: Disc) => {
   return `${PHASES.map((p) => q(w[p])).join(',')}|${d(sun)}|${d(moon)}`;
 };
 
-export function createCastLight(scene: SceneGeometry, art: LightArt, seed = 'cast'): CastLight {
-  const field = washField(scene, `${seed}-wash`, CAST_SCALE);
-  const { w, h } = field;
+const totals = { painted: 0, cacheHits: 0, cacheMisses: 0 };
+
+/**
+ * Light plates painted, taken from the paint cache and looked up in vain by every light in this
+ * page so far (`sprout.lightPlates()`; the ambience shares one light per scene and seed).
+ */
+export function lightPlateTotals(): { painted: number; cacheHits: number; cacheMisses: number } {
+  return { ...totals };
+}
+
+export function createCastLight(scene: SceneGeometry, art: LightArt, seed = 'cast', opts: { cache?: PaintCache | null } = {}): CastLight {
+  // the wash's noise fields are built only when a plate is painted (not when it comes from the cache)
+  let washed: WashField | null = null;
+  const field = () => (washed ??= washField(scene, `${seed}-wash`, CAST_SCALE));
+  const w = Math.ceil(WORLD_W * CAST_SCALE);
+  const h = Math.ceil(WORLD_H * CAST_SCALE);
   const plates = new Map<DayPhase, AnyCanvas>();
   /** each phase's grade wash before its marks (the detail plates start from it) */
   const grades = new Map<DayPhase, AnyCanvas>();
@@ -238,14 +285,37 @@ export function createCastLight(scene: SceneGeometry, art: LightArt, seed = 'cas
   let composes = 0;
   let version = 0;
   let paintMs = 0;
+  let painted = 0;
   let pondPath: Path2D | null = null;
+  /** the light changed while a needed plate was still being looked up: composed when it answers (or when drawn) */
+  let deferred: { state: DaylightState; sun: Disc; moon: Disc } | null = null;
+  /** phases `prepare` asked for whose lookup has not answered yet */
+  const preparing = new Set<DayPhase>();
   const now = () => (typeof performance !== 'undefined' ? performance.now() : 0);
+
+  let print: string | null = null;
+  const store = createPlateCache<DayPhase>({
+    cache: opts.cache === undefined ? defaultPlateCache() : opts.cache,
+    kind: LIGHT_PLATE_KIND,
+    key: (phase) => lightPlateKey(seed, phase, w, h, (print ??= castPrint(scene, art))),
+    load(phase, image) {
+      if (image.width !== w || image.height !== h) return false;
+      if (!plates.has(phase)) plates.set(phase, cutImage(image, 0, 0, w, h));
+      return true;
+    },
+    answered(phase, hit) {
+      if (hit) totals.cacheHits++;
+      else totals.cacheMisses++;
+      if (preparing.delete(phase) && !plates.has(phase)) whenIdle(() => void plate(phase));
+      if (deferred && !waiting(deferred.state)) flush();
+    },
+  });
 
   const plate = (phase: DayPhase): AnyCanvas => {
     const known = plates.get(phase);
     if (known) return known;
     const t0 = now();
-    const c = gradePlate(PHASE_GRADES[phase], field);
+    const c = gradePlate(PHASE_GRADES[phase], field());
     const g = makeCanvas(w, h);
     (g.getContext('2d') as Ctx).drawImage(c as CanvasImageSource, 0, 0);
     grades.set(phase, g);
@@ -254,7 +324,17 @@ export function createCastLight(scene: SceneGeometry, art: LightArt, seed = 'cas
     paintCastPlate(p, createRng(`${seed}:${phase}`), phase, scene, art);
     plates.set(phase, c);
     paintMs += now() - t0;
+    painted++;
+    totals.painted++;
+    store.painted(phase, () => c);
     return c;
+  };
+
+  /** a phase's grade wash before its marks (kept when its plate was painted here, else made now) */
+  const gradeOf = (phase: DayPhase): AnyCanvas => {
+    let g = grades.get(phase);
+    if (!g) grades.set(phase, (g = gradePlate(PHASE_GRADES[phase], field())));
+    return g;
   };
 
   const pond = () => {
@@ -267,17 +347,19 @@ export function createCastLight(scene: SceneGeometry, art: LightArt, seed = 'cas
   };
 
   const phasesOf = (state: DaylightState) => PHASES.filter((p) => state.weights[p] > 0.002).sort((a, b) => state.weights[b] - state.weights[a]);
+  /** whether a plate the blend needs is still being looked up */
+  const waiting = (state: DaylightState) => phasesOf(state).some((p) => !plates.has(p) && store.pending(p));
 
   /** a phase's plate repainted for the detail rect: the grade wash upscaled, the marks at full resolution */
   const paintDetailPlate = (phase: DayPhase, d: { rect: Rect; scale: number; key: string }): AnyCanvas => {
     const t0 = now();
-    plate(phase);
+    const grade = gradeOf(phase);
     const dw = Math.max(1, Math.ceil(d.rect.w * d.scale));
     const dh = Math.max(1, Math.ceil(d.rect.h * d.scale));
     const c = makeCanvas(dw, dh);
     const cx = c.getContext('2d') as Ctx;
     cx.imageSmoothingEnabled = true;
-    cx.drawImage(grades.get(phase)! as CanvasImageSource, d.rect.x * CAST_SCALE, d.rect.y * CAST_SCALE, d.rect.w * CAST_SCALE, d.rect.h * CAST_SCALE, 0, 0, dw, dh);
+    cx.drawImage(grade as CanvasImageSource, d.rect.x * CAST_SCALE, d.rect.y * CAST_SCALE, d.rect.w * CAST_SCALE, d.rect.h * CAST_SCALE, 0, 0, dw, dh);
     const p = createPainter(c, { seed: `${seed}:${phase}` });
     p.ctx.setTransform(d.scale, 0, 0, d.scale, -d.rect.x * d.scale, -d.rect.y * d.scale);
     paintCastPlate(p, createRng(`${seed}:${phase}`), phase, scene, art);
@@ -315,9 +397,15 @@ export function createCastLight(scene: SceneGeometry, art: LightArt, seed = 'cas
   };
 
   const compose = (state: DaylightState, sun: Disc, moon: Disc) => {
+    deferred = null;
     composeInto(ctx, w, h, state, sun, moon, plate, [CAST_SCALE, 0, 0]);
     composes++;
     version++;
+  };
+
+  /** compose a deferred light change now (its missing plates painted) */
+  const flush = () => {
+    if (deferred) compose(deferred.state, deferred.sun, deferred.moon);
   };
 
   /** the detail composite, if every phase in the blend has its detail plate */
@@ -362,7 +450,10 @@ export function createCastLight(scene: SceneGeometry, art: LightArt, seed = 'cas
   };
 
   return {
-    canvas,
+    get canvas() {
+      flush();
+      return canvas;
+    },
     update(state, force = false) {
       const sun = sunDisc(state);
       const moon = moonDisc(state);
@@ -370,11 +461,32 @@ export function createCastLight(scene: SceneGeometry, art: LightArt, seed = 'cas
       if (!force && k === last) return false;
       last = k;
       lastState = state;
+      if (store.enabled) {
+        // plates the blend lacks are looked up first; the composite follows their answers, or
+        // the first draw, whichever comes first (a draw never shows a stale composite)
+        for (const p of phasesOf(state)) if (!plates.has(p)) store.request(p);
+        if (waiting(state)) {
+          deferred = { state, sun, moon };
+          return true;
+        }
+      }
       compose(state, sun, moon);
       return true;
     },
     prepare(phases) {
-      for (const p of phases) plate(p);
+      for (const p of phases) {
+        if (plates.has(p)) continue;
+        if (!store.enabled) plate(p);
+        else if (!store.pending(p)) {
+          preparing.add(p);
+          store.request(p);
+          // asked before: its answer has come (a miss), so paint it now
+          if (!store.pending(p)) {
+            preparing.delete(p);
+            plate(p);
+          }
+        }
+      }
     },
     has: (p) => plates.has(p),
     setDetail(visible, pixelScale) {
@@ -412,11 +524,17 @@ export function createCastLight(scene: SceneGeometry, art: LightArt, seed = 'cas
       const d = composeDetail();
       return d ? { canvas: d.canvas, rect: d.rect } : null;
     },
-    version: () => version,
+    version: () => {
+      flush();
+      return version;
+    },
     stats: () => ({
       plates: plates.size,
+      painted,
       composes,
       paintMs,
+      cacheHits: store.stats().hits,
+      cacheMisses: store.stats().misses,
       detail: want ? { rect: { ...want.rect }, scale: want.scale, ready: composeDetail() !== null } : null,
       detailMs,
     }),
