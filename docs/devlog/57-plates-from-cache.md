@@ -124,7 +124,8 @@ in all.
   2–3 s.
 - daylight, ambience, camera, scene-cache and paint-cache specs pass (single worker).
 - TESTING row P18.1; P7.1's status updated.
-- Full run: see the end of this entry.
+- Full run (once, `nice -n 15`, rebased on `ed99e90`): typecheck passed, 1556 unit tests passed (130
+  files), 263 e2e passed (2 workers, 14.7 min).
 
 ## Left open
 - **The light's close-view detail plates** (27–126 ms per phase in idle) are still painted on
