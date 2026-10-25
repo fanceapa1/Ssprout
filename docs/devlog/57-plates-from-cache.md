@@ -80,6 +80,25 @@ these runs and are gone as well. The first visit lands within the run-to-run noi
 loaded machine. Its plates still paint there, as their lookups miss, and their PNG encodes run
 in idle time.
 
+**After rebasing onto the staged boot (P14, `ed99e90`)**, the same script ran on builds of
+`main` and of this branch. The P14 boot is faster on its own, so these are the numbers that
+count for the merge:
+
+| | main | this branch |
+|---|---|---|
+| calm (load about 4): repeat landscape on screen (ms) | 347, 353, 345 | 300, 280, 321 |
+| calm: busy before it (ms) | 368, 381, 366 | 248, 259, 265 |
+| calm: long tasks before it | 2 (243, 242, 238 ms) | 1 (86, 88, 89 ms) |
+| calm: first contentful paint (ms) | 238, 256, 251 | 161, 160, 163 |
+| loaded (load 5–8): repeat landscape on screen (ms) | 519, 664, 652; 591, 575, 653 | 434, 434, 484; 484, 378, 389 |
+| loaded: long tasks before it | 2–3 (305–433 ms) | 1–2 (108–169 ms) |
+| repeat: plates painted | sky 1 (82 ms), light 1 (59–62 ms) | 0 and 0, after the reveal wait |
+
+The calm branch runs were taken before the reveal wait was added: the light plate was still
+painted once (43–48 ms, after the landscape showed), so they are slightly pessimistic for after
+the landscape and unaffected before it. With the wait, every run shows `painted: 0` for both
+kinds, but only loaded runs were possible in the CPU budget.
+
 All four phases stored: sky 843–913 KB per phase, light 29 KB (midday) to 210 KB (night), 4.03 MB
 in all.
 
