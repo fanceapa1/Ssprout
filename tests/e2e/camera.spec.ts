@@ -6,7 +6,9 @@ import { openUi, plantSession } from './ui-helpers';
  * The camera over the garden (SPEC §12a, ADRs 0160–0168): focus on the seedling, zoom gestures,
  * drag, the on-canvas controls, the plant card, placement at any zoom, reduced motion, and the
  * detail painted for a close view. Time never matters here: glides are finished with
- * `sprout.camera.settle()`, which also waits for the detail of the resting view.
+ * `sprout.camera.settle()`, which also waits for the detail of the resting view, and a glide that
+ * must be seen to start is read from `sprout.camera.glides()` in the same task as its cause,
+ * never caught mid-flight in a later round trip.
  */
 
 type Pt = { x: number; y: number };
@@ -55,15 +57,27 @@ test.describe('camera', () => {
   test('a session start glides the camera onto its seedling, a little off-centre', async ({ page }) => {
     await openUi(page);
     expect((await camera(page)).overview).toBe(true);
-    await page.evaluate(() => window.sprout!.start(25, { speciesId: 'fx-violet', slotId: 'meadow-6' }));
-    const gliding = await camera(page);
-    expect(gliding.reason).toBe('session');
-    expect(gliding.gliding).toBe(true);
-    expect(gliding.target!.zoom).toBeGreaterThan(1.5);
+    // The glide is read from the camera's log, started in the same task: a loaded machine can
+    // finish it before another round trip could catch `state().gliding` (TESTING.md › Flakiness).
+    const started = await page.evaluate(() => {
+      const s = window.sprout!;
+      s.camera.clearGlides();
+      s.start(25, { speciesId: 'fx-violet', slotId: 'meadow-6' });
+      return s.camera.glides();
+    });
+    expect(started).toHaveLength(1);
+    const glide = started[0]!;
+    expect(glide.reason).toBe('session');
+    expect(glide.from.zoom).toBe(1); // from the overview
+    expect(glide.target.zoom).toBeGreaterThan(1.5);
     await page.evaluate(() => window.sprout!.camera.settle());
     const st = await camera(page);
     expect(st.gliding).toBe(false);
-    expect(st.pose.zoom).toBeCloseTo(gliding.target!.zoom, 3);
+    // one glide, and it came to rest where it was heading
+    expect(await page.evaluate(() => window.sprout!.camera.glides())).toMatchObject([{ reason: 'session', target: glide.target, end: 'arrived' }]);
+    expect(st.pose.zoom).toBeCloseTo(glide.target.zoom, 3);
+    expect(st.pose.x).toBeCloseTo(glide.target.x, 3);
+    expect(st.pose.y).toBeCloseTo(glide.target.y, 3);
     // the seedling is in view, not dead centre
     const box = (await page.evaluate(() => window.sprout!.plants.bounds(window.sprout!.state().session!.id)))!;
     const v = st.view.visible;
@@ -75,8 +89,13 @@ test.describe('camera', () => {
     // the user zooms out: nothing re-zooms until the next start or switch
     await page.locator('[data-zoom="whole"]').click();
     await page.evaluate(() => window.sprout!.camera.settle());
-    await page.evaluate(() => window.sprout!.advance(5 * 60_000));
+    expect((await camera(page)).overview).toBe(true);
+    await page.evaluate(() => {
+      window.sprout!.camera.clearGlides();
+      window.sprout!.advance(5 * 60_000);
+    });
     await page.evaluate(() => window.sprout!.camera.settle());
+    expect(await page.evaluate(() => window.sprout!.camera.glides())).toEqual([]);
     expect((await camera(page)).overview).toBe(true);
   });
 
@@ -86,16 +105,32 @@ test.describe('camera', () => {
     await page.evaluate(() => window.sprout!.start(25, { speciesId: 'fx-violet', slotId: 'meadow-1', taskName: 'Two' }));
     await page.evaluate(() => window.sprout!.camera.settle());
     const onSecond = await camera(page);
-    expect(await page.evaluate((id) => window.sprout!.switchTo(id), first)).toBe(true);
+    // switch and read the log in one task (see the start test above)
+    const switched = await page.evaluate((id) => {
+      const s = window.sprout!;
+      s.camera.clearGlides();
+      return { ok: s.switchTo(id), glides: s.camera.glides() };
+    }, first);
+    expect(switched.ok).toBe(true);
+    expect(switched.glides).toHaveLength(1);
+    const glide = switched.glides[0]!;
+    expect(glide.reason).toBe('switch');
+    // from the second seedling's close view
+    expect(glide.from.zoom).toBeCloseTo(onSecond.pose.zoom, 3);
+    expect(glide.target).not.toEqual(onSecond.pose);
+    await page.evaluate(() => window.sprout!.camera.settle());
     const st = await camera(page);
     expect(st.reason).toBe('switch');
-    expect(st.target).not.toBeNull();
-    await page.evaluate(() => window.sprout!.camera.settle());
+    expect(await page.evaluate(() => window.sprout!.camera.glides())).toMatchObject([{ reason: 'switch', target: glide.target, end: 'arrived' }]);
+    expect(st.pose.zoom).toBeCloseTo(glide.target.zoom, 3);
+    expect(st.pose.x).toBeCloseTo(glide.target.x, 3);
+    expect(st.pose.y).toBeCloseTo(glide.target.y, 3);
+    // the first seedling is in view
     const box = (await page.evaluate((id) => window.sprout!.plants.bounds(id), first))!;
-    const v = (await camera(page)).view.visible;
+    const v = st.view.visible;
     expect(box.x + box.w / 2).toBeGreaterThan(v.x);
     expect(box.x + box.w / 2).toBeLessThan(v.x + v.w);
-    expect((await camera(page)).pose).not.toEqual(onSecond.pose);
+    expect(st.pose).not.toEqual(onSecond.pose);
   });
 
   test('ctrl+wheel zooms about the pointer and never scrolls; a plain wheel still scrolls the page', async ({ page }) => {
