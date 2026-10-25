@@ -4,11 +4,15 @@
  * as paper. The composite is multiplied over the landscape in the cached `background` layer and
  * rebuilt only when the blend or the sun/moon moved perceptibly (every few seconds at most).
  * The same skies, mirrored, lie on the pond (`drawWater`, every frame — a cheap blit).
+ * A phase's plates are looked up in the persistent paint cache before they are painted, and
+ * stored once painted (ADR 0236); the composites are always built here.
  */
 import { createRng } from '../core/rng';
-import { PHASES, type DayPhase, type DaylightState, type PhaseWeights } from '../ambience/daylight';
+import { PHASES, whenIdle, type DayPhase, type DaylightState, type PhaseWeights } from '../ambience/daylight';
 import { moonDisc, reserveStar, stars, sunDisc, type Disc } from '../ambience/sky-layout';
+import { createPlateCache, cutImage, defaultPlateCache } from '../ambience/plate-cache';
 import { bounds, createPainter, createSimplex2D, insetPolygon, makeCanvas, type AnyCanvas } from '../paint';
+import type { PaintCache } from '../paint/persist';
 import type { Pt, Rect } from '../render/viewport';
 import { SKY_RECT, SKY_SCALE, paintSkyPlate, paintWaterSkyPlate, skyShape } from './paint-sky';
 
@@ -37,11 +41,45 @@ export interface SkyLight {
   setDetail(visible: Rect | null, pixelScale: number): void;
   /** lay the mirrored sky on the pond (world-unit context; clips itself) */
   drawWater(ctx: Ctx): void;
-  /** whether a phase's plates are painted */
+  /** whether a phase's plates are there (painted or taken from the paint cache) */
   has(phase: DayPhase): boolean;
-  /** paint the plates for these phases now (otherwise they paint when first needed) */
+  /**
+   * Get the plates for these phases ready ahead of time: looked up in the paint cache, and
+   * painted (in idle time) when it does not hold them; painted now when the cache is off.
+   */
   prepare(phases: readonly DayPhase[]): void;
-  stats(): { plates: number; composes: number; paintMs: number; detail: { rect: Rect; scale: number } | null };
+  stats(): SkyStats;
+}
+
+export interface SkyStats {
+  /** phases whose plates are there, painted or taken from the paint cache */
+  plates: number;
+  /** phases whose plates were painted here */
+  painted: number;
+  composes: number;
+  paintMs: number;
+  /** plates taken from the persistent paint cache, and lookups that found nothing (ADR 0236) */
+  cacheHits: number;
+  cacheMisses: number;
+  detail: { rect: Rect; scale: number } | null;
+}
+
+/** The paint-cache kind of a phase's plates (the sky above, its water plate packed below it). */
+export const SKY_PLATE_KIND = 'sky-plate';
+
+interface Size {
+  w: number;
+  h: number;
+}
+
+/**
+ * The paint-cache key of a phase's sky and water plates: everything their pixels depend on
+ * besides the code (the cache version): the garden seed, the phase, the plates' pixel sizes and
+ * the water plate's world rect (from the pond). Numbers are exact (`String`).
+ */
+export function skyPlateKey(seed: number, phase: DayPhase, sky: Size, waterRect: Rect, water: Size): string {
+  const r = waterRect;
+  return `s${seed}|${phase}|${sky.w}x${sky.h}|${r.x},${r.y},${r.w},${r.h}@${water.w}x${water.h}`;
 }
 
 /** The intersection of two rects, or null when they do not overlap. */
@@ -80,7 +118,14 @@ export function blendOrder(w: PhaseWeights): Array<{ phase: DayPhase; alpha: num
   });
 }
 
-export function createSkyLight(opts: { pond: readonly Pt[]; seed: number }): SkyLight {
+export interface SkyLightOptions {
+  pond: readonly Pt[];
+  seed: number;
+  /** where the plates are looked up and stored (default: the app's paint cache; null: none) */
+  cache?: PaintCache | null;
+}
+
+export function createSkyLight(opts: SkyLightOptions): SkyLight {
   const plates = new Map<DayPhase, Plate>();
   const pondBox = bounds(opts.pond);
   const waterRect: Rect = { x: pondBox.x - 10, y: pondBox.y - 10, w: pondBox.w + 20, h: pondBox.h + 20 };
@@ -100,9 +145,42 @@ export function createSkyLight(opts: { pond: readonly Pt[]; seed: number }): Sky
   let detail: { rect: Rect; scale: number; canvas: AnyCanvas; key: string } | null = null;
   let composes = 0;
   let paintMs = 0;
+  let painted = 0;
   let pondPath: Path2D | null = null;
   let skyPath: Path2D | null = null;
+  /** the light changed while a needed plate was still being looked up: composed when it answers (or when drawn) */
+  let deferred = false;
+  /** phases `prepare` asked for whose lookup has not answered yet */
+  const preparing = new Set<DayPhase>();
   const now = () => (typeof performance !== 'undefined' ? performance.now() : 0);
+
+  // the paint cache's copy: the sky plate on top, the water plate below it, in one image
+  const atlasW = Math.max(sw, ww);
+  const atlasH = sh + wh;
+  const pack = (plate: Plate): AnyCanvas => {
+    const c = makeCanvas(atlasW, atlasH);
+    const x = c.getContext('2d') as Ctx;
+    x.imageSmoothingEnabled = false;
+    x.drawImage(plate.sky as CanvasImageSource, 0, 0);
+    x.drawImage(plate.water as CanvasImageSource, 0, sh);
+    return c;
+  };
+  const store = createPlateCache<DayPhase>({
+    cache: opts.cache === undefined ? defaultPlateCache() : opts.cache,
+    kind: SKY_PLATE_KIND,
+    key: (phase) => skyPlateKey(opts.seed, phase, { w: sw, h: sh }, waterRect, { w: ww, h: wh }),
+    load(phase, image) {
+      if (image.width !== atlasW || image.height !== atlasH) return false;
+      if (!plates.has(phase)) plates.set(phase, { sky: cutImage(image, 0, 0, sw, sh), water: cutImage(image, 0, sh, ww, wh) });
+      return true;
+    },
+    answered(phase) {
+      if (preparing.delete(phase) && !plates.has(phase)) whenIdle(() => void paint(phase));
+      if (deferred && last && !waiting(last.state)) flush();
+    },
+  });
+  /** whether a plate the blend needs is still being looked up */
+  const waiting = (state: DaylightState) => blendOrder(state.weights).some(({ phase }) => !plates.has(phase) && store.pending(phase));
 
   const paint = (phase: DayPhase): Plate => {
     const known = plates.get(phase);
@@ -123,7 +201,16 @@ export function createSkyLight(opts: { pond: readonly Pt[]; seed: number }): Sky
     const plate = { sky, water };
     plates.set(phase, plate);
     paintMs += now() - t0;
+    painted++;
+    store.painted(phase, () => pack(plate));
     return plate;
+  };
+
+  /** compose a deferred light change now (its missing plates painted) */
+  const flush = () => {
+    if (!deferred || !last) return;
+    deferred = false;
+    compose(last.state, last.sun, last.moon);
   };
 
   const skyClip = () => {
@@ -214,6 +301,16 @@ export function createSkyLight(opts: { pond: readonly Pt[]; seed: number }): Sky
       if (!force && k === key) return false;
       key = k;
       last = { state, sun, moon };
+      if (store.enabled) {
+        // plates the blend lacks are looked up first; the composite follows their answers, or
+        // the first draw, whichever comes first (a draw never shows a stale composite)
+        for (const { phase } of blendOrder(state.weights)) if (!plates.has(phase)) store.request(phase);
+        if (waiting(state)) {
+          deferred = true;
+          return true;
+        }
+      }
+      deferred = false;
       compose(state, sun, moon);
       return true;
     },
@@ -233,6 +330,7 @@ export function createSkyLight(opts: { pond: readonly Pt[]; seed: number }): Sky
     },
     drawSky(ctx, visible) {
       if (!key) return;
+      flush();
       ctx.save();
       ctx.globalCompositeOperation = 'multiply';
       ctx.imageSmoothingEnabled = true;
@@ -243,6 +341,7 @@ export function createSkyLight(opts: { pond: readonly Pt[]; seed: number }): Sky
       ctx.restore();
     },
     drawWater(ctx) {
+      flush();
       if (!key || waterAlpha <= 0.005) return;
       if (!pondPath && typeof Path2D !== 'undefined') {
         pondPath = new Path2D();
@@ -257,10 +356,25 @@ export function createSkyLight(opts: { pond: readonly Pt[]; seed: number }): Sky
       ctx.restore();
     },
     prepare(phases) {
-      for (const p of phases) paint(p);
+      for (const p of phases) {
+        if (plates.has(p)) continue;
+        if (!store.enabled) paint(p);
+        else if (!store.pending(p)) {
+          preparing.add(p);
+          store.request(p);
+          // asked before: its answer has come (a miss), so paint it now
+          if (!store.pending(p)) {
+            preparing.delete(p);
+            paint(p);
+          }
+        }
+      }
     },
     has: (p) => plates.has(p),
-    stats: () => ({ plates: plates.size, composes, paintMs, detail: detail ? { rect: { ...detail.rect }, scale: detail.scale } : null }),
+    stats: () => {
+      const c = store.stats();
+      return { plates: plates.size, painted, composes, paintMs, cacheHits: c.hits, cacheMisses: c.misses, detail: detail ? { rect: { ...detail.rect }, scale: detail.scale } : null };
+    },
   };
 }
 
