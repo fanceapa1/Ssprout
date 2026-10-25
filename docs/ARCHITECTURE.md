@@ -148,6 +148,30 @@ Slot markers, the timer pill, the corner tools and all other controls are **DOM*
 e2e-clickable: `[data-slot-id="..."]`): on the painting inside the stage overlay, the rest in the
 dock below the garden (see Page, stage and dock).
 
+### Boot order (`src/main.ts`, ADR 0232)
+The landscape comes first, because everything else is drawn on it. `boot()` is async and runs in
+stages. Each stage sets `performance.mark('sprout:boot:<stage>')`, and `tests/e2e/boot-order.spec.ts`
+checks their order:
+
+| Mark | Task | What |
+|---|---|---|
+| `start` → `scene` | the first | opens the paint cache's store (`paintCache()`, ADR 0228); state, store, controller, renderer; registers `paper` and `scene`; `renderer.start()`, so the scene looks the landscape up or starts painting it |
+| `ui` | after a frame | creates the plant system (not registered yet); timer surfaces, service worker, scheduler, audio, `createUI` |
+| `landscape` | when the landscape is ready | the `renderer.whenReady()` taken after the first stage (paper and scene) has resolved |
+| `plants`, `fauna` | a frame and a task each | `renderer.add(plants)`, then `createFauna` + add |
+| `ambience`, `done` | the last | `window.sprout` with every extension (`?dev`), `addAmbience`, the light reveal |
+
+Rules:
+- The waits are `afterPaint()`: a frame and then a task, or a 100 ms timer when frames stall (in a
+  background tab).
+- `window.sprout` is assigned once, in the last task, after every system is registered. Specs that
+  wait for it see the whole API, and `sprout.ready()` covers every system.
+- What waited for `renderer.whenReady()` before (the dock's `whenGardenReady`, ADR 0225, and the
+  service worker's `afterPaint`, ADR 0230) now waits until the last stage has registered every
+  system, and then for `renderer.whenReady()`.
+- A new system that draws on the garden is registered in the third stage or later, never before
+  the landscape.
+
 ### System contract (`src/render/types.ts`)
 ```ts
 export type LayerId = 'background'|'underwater'|'waterSurface'|'entities'|'air'|'ambience'|'lighting'|'paper';
@@ -457,7 +481,7 @@ for their skew; fauna could use both (not wired). Ambience/lighting dev hooks an
 ### Ambience system (`src/ambience/system.ts`, ADRs 0080–0084, 0121, 0147)
 `addAmbience(renderer, { dev, daylight })` registers the system and returns it. Besides the
 `System` hooks it has `setTime(v)` (sets the shared daylight's override), `setWeather(w)`,
-`settle()`, `debug()`, `daylight` (the source it paints with), `now()` (last frame's clock time),
+`settle()`, `debug()` (with `sprites`, the sprite groups built so far: each is painted on first use, ADR 0232), `daylight` (the source it paints with), `now()` (last frame's clock time),
 `onLight(fn)` (the blended phase grade, each time the light recomposes) and
 `revealLightAfter(promise)` (the lighting is drawn at alpha 0 until the promise resolves, then eases
 in over 1.4 s, at once under reduced motion or on a frozen frame). `main.ts` passes
@@ -536,6 +560,9 @@ Enabled by the `?dev` query param (without it `window.sprout` does not exist). `
 the app clock 60× (also `window.sprout.setSpeed`). E2E tests and screenshots use these hooks
 instead of sleeping (docs/TESTING.md). Modules add methods with `extendDebug({...})` from
 `src/dev/debug.ts` and augment the `SproutDebug` interface via declaration merging.
+
+`window.sprout` appears in the last boot task, whole and with every system registered (Boot order,
+ADR 0232). The boot stages are `performance.mark`s named `sprout:boot:*`.
 
 Foundation (`src/dev/debug.ts`): `state()`, `ready()` (resolves when all systems are initialised),
 `freeze()` (async; resolves after a stable frame is drawn), `unfreeze()`, `setSpeed(n)`, `now()`,
