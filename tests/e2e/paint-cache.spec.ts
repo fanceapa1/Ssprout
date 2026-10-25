@@ -1,5 +1,6 @@
 import type { Page } from '@playwright/test';
 import { expect, openDev, test } from './fixtures';
+import { appPaintQuiet } from './paint-store';
 
 /**
  * The persistent paint cache (ADR 0227) against Chromium's real IndexedDB, PNG encoder and
@@ -89,6 +90,8 @@ test.describe('persistent paint cache', () => {
     // its landscape's lookup and puts during load, never a later whole-world extension
     await page.setViewportSize({ width: 1440, height: 900 });
     await openDev(page);
+    // …nor its daylight plates, the coming phase's in idle time (ADR 0236)
+    await appPaintQuiet(page);
     await installHelpers(page);
     const stored = await page.evaluate(async () => {
       const cache = window.sprout!.paintCache;
@@ -108,6 +111,7 @@ test.describe('persistent paint cache', () => {
     await page.reload();
     await page.waitForFunction(() => window.sprout !== undefined);
     await page.evaluate(() => window.sprout!.ready());
+    await appPaintQuiet(page);
     await installHelpers(page);
     const back = await page.evaluate(async () => {
       const cache = window.sprout!.paintCache;
@@ -141,6 +145,7 @@ test.describe('persistent paint cache', () => {
     // no whole-world extension may store the landscape mid-test (see above)
     await page.setViewportSize({ width: 1440, height: 900 });
     await openDev(page);
+    await appPaintQuiet(page);
     const r = await page.evaluate(async () => {
       const s = window.sprout!.paintCache;
       await s.clear();

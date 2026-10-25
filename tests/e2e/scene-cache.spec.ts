@@ -1,5 +1,6 @@
 import type { Page } from '@playwright/test';
 import { expect, openDev, test } from './fixtures';
+import { storedOf } from './paint-store';
 
 /**
  * The landscape from the persistent paint cache (ADR 0228). The e2e server is the production
@@ -66,8 +67,9 @@ test.describe('scene · landscape from the paint cache (ADR 0228)', () => {
     expect(await sceneStats(page)).toMatchObject({ paints: 1, cacheHits: 0 });
 
     const first = await firstVisit(page);
-    // the painting and the atlas of its sprites
-    expect(await page.evaluate(() => window.sprout!.paintCache.stats())).toMatchObject({ enabled: true, entries: 2, errors: 0 });
+    // the painting and the atlas of its sprites (the daylight plates are stored beside them, ADR 0236)
+    expect(await page.evaluate(() => window.sprout!.paintCache.stats())).toMatchObject({ enabled: true, errors: 0 });
+    expect((await storedOf(page, 'scene', 'scene-sprites')).length).toBe(2);
 
     // repeat visit: no paint step at all, one hit
     await openDev(page);
@@ -92,7 +94,8 @@ test.describe('scene · landscape from the paint cache (ADR 0228)', () => {
     expect(after).toMatchObject({ paints: 1, cacheHits: 1, cacheMisses: 1 });
     expect(after.timings.length).toBeGreaterThan(10);
     await page.evaluate(() => window.sprout!.paintCache.settle());
-    expect(await page.evaluate(() => window.sprout!.paintCache.stats())).toMatchObject({ entries: 4, errors: 0 });
+    expect(await page.evaluate(() => window.sprout!.paintCache.stats())).toMatchObject({ errors: 0 });
+    expect((await storedOf(page, 'scene', 'scene-sprites')).length).toBe(4);
   });
 
   test("the camera's detail painting of a resting view comes from the cache on a repeat visit", async ({ page }) => {
