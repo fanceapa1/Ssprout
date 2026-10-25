@@ -15,7 +15,8 @@ There are no image assets. Nothing shouts: no confetti, no streaks, no badges.
 
 ## How a session works
 
-1. **Task**: name what you're studying ("Biology ch. 4"). The plant keeps that name forever.
+1. **Task**: name what you're studying ("Biology ch. 4"). Rename it later beside the session name
+   in **Study**, or from the plant's card.
 2. **Time**: 10–180 minutes, with quick picks for 25, 50 and 90. Longer sessions unlock bigger
    plants: wildflowers, then perennials, flowering shrubs, and finally centrepiece trees.
 3. **Plan**: Unbroken, or a plan with breaks inside the total (Pomodoro, Long focus, Deep work,

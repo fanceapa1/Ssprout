@@ -74,8 +74,8 @@ export interface ActiveSession {
 }
 
 /**
- * One ended session in the history (ADR 0151): appended on completion and on cancel, never
- * edited. The calendar reads it with the queries in `core/session-log.ts`.
+ * One ended session in the history (ADR 0151): appended on completion and on cancel. Renaming
+ * its garden plant updates only the task name (ADR 0240). The calendar uses `core/session-log.ts`.
  */
 export interface SessionLogEntry {
   /** the session id (for a completed session also the id of the plant it grew) */
@@ -209,6 +209,8 @@ export type Action =
     }
   | { type: 'session/pause'; now: number }
   | { type: 'session/resume'; now: number }
+  /** rename a growing session or a finished garden plant and its history entry */
+  | { type: 'session/rename'; id: string; taskName: string }
   /** make a waiting session the active one (resumed); the active one, if any, waits (paused) */
   | { type: 'session/switch'; id: string; now: number }
   | { type: 'session/water'; blockIndex: number; now: number }
@@ -338,6 +340,21 @@ export function createReducer(world?: ReducerWorld): Reducer {
           // the session that was active waits, paused, while the new one grows (ADR 0150)
           waiting: state.session ? [...state.waiting, pauseAt(state.session, now)] : state.waiting,
           settings: { ...state.settings, lastGoalMinutes: goalMinutes },
+        };
+      }
+
+      case 'session/rename': {
+        if (!nonEmpty(action.id)) return state;
+        const target = findInProgress(state, action.id) ?? state.plants.find((p) => p.id === action.id);
+        if (!target) return state;
+        const taskName = normalizeTaskName(action.taskName);
+        if (target.taskName === taskName) return state;
+        return {
+          ...state,
+          session: state.session?.id === action.id ? { ...state.session, taskName } : state.session,
+          waiting: state.waiting.map((s) => s.id === action.id ? { ...s, taskName } : s),
+          plants: state.plants.map((p) => p.id === action.id ? { ...p, taskName } : p),
+          log: state.log.map((e) => e.id === action.id ? { ...e, taskName } : e),
         };
       }
 

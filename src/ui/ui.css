@@ -2558,6 +2558,63 @@ dialog.book::after {
 }
 .plant-story-taskname {
   font-style: italic;
+  overflow-wrap: anywhere;
+}
+.plant-story-history-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.plant-story-rename.quiet {
+  padding: 6px 10px;
+  min-height: 44px;
+  font-size: 17px;
+}
+.session-name-heading {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+}
+.session-name-heading .task-name {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.session-rename.quiet {
+  min-height: 44px;
+  padding: 6px 10px;
+  font-size: 18px;
+}
+.plant-story-edit,
+.session-name-edit {
+  margin: 8px 0;
+  display: grid;
+  gap: 6px;
+  font-size: 18px;
+}
+.plant-story-edit input,
+.session-name-edit input {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  padding: 8px;
+  font: inherit;
+  font-size: 19px;
+  color: var(--ui-ink);
+  border: 1px solid var(--ui-ink-faint);
+  border-radius: 3px;
+  background: rgba(var(--ui-dab), 0.5);
+}
+.plant-story-name-hint,
+.session-name-hint {
+  font-size: 16px;
+  color: var(--ui-ink-soft);
+}
+.plant-story-edit-actions,
+.session-name-actions {
+  display: flex;
+  gap: 12px;
 }
 .plant-story-facts {
   margin: 2px 0 0;

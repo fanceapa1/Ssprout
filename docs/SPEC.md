@@ -39,7 +39,11 @@ grows live from seed to full bloom while you study. (Revised 2026-10-21, see ADR
 
 ### Planting a session (start flow)
 1. **Name the task** — free text, ≤ 40 chars (e.g. "Biology ch. 4"); placeholder suggestion;
-   empty → "Study session". The name stays attached to the plant forever.
+   empty → "Study session". The name stays attached to the plant and can be renamed later
+   from its card or beside the active session name in **Study**: **Rename**, edit the study
+   session name, then **Save** (or **Cancel**).
+   Growing, waiting and completed garden plants can be renamed; the study history follows
+   the new name. Names keep the same 40-character limit and blank-name default. Changes persist.
 2. **Choose the time** — total session length, slider 10–180 min in 5-min steps, chips 25/50/90,
    remembers last value. The total decides the tier (see §3).
 3. **Choose a study plan** — 2–4 recommended plans for that total, breaks *inside* the total.

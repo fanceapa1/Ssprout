@@ -26,6 +26,15 @@ asks for notification permission inside `session:start` (the Begin click), so th
 the widget surfaces — the UI then asks in the Begin click itself.
 
 ## Components
+
+The Study panel offers **Rename** beside the active task name, so editing does not require
+finding a seedling in the garden. The plant card also offers **Rename** beside “Its story” for
+growing, waiting and completed garden plants (ADR 0240). An inline, labelled text field uses the existing task-name rules (40 characters,
+blank becomes “Study session”). Save or Enter commits through `controller.rename`; Cancel or
+Escape discards the draft and returns focus to Rename. A second Escape closes the card. Ticks
+refresh progress without replacing the draft; closing or selecting another plant discards it.
+In Study, changing or ending the active session discards its draft, so it cannot rename another session.
+
 | File | What |
 |---|---|
 | `index.ts` | `createUI` — composition (stage overlay, dock sections, fixed layers), modes (`garden` / `planting` / `placement`), dialog management, flows, store/tick/bus wiring |

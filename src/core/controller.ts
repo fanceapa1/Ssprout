@@ -122,6 +122,8 @@ export interface SessionController {
   start(opts: StartOptions): boolean;
   pause(): boolean;
   resume(): boolean;
+  /** Rename a growing session or a finished garden plant, using the usual task-name rules. */
+  rename(id: string, taskName: string): boolean;
   /**
    * Make another in-progress session the active one and resume it; the active one (if any)
    * waits, paused. Switching to the active session itself resumes it. False if nothing changed.
@@ -299,6 +301,10 @@ export function createSessionController(deps: SessionControllerDeps): SessionCon
       if (!apply({ type: 'session/resume', now: at }).changed) return false;
       bus.emit('session:resume', { sessionId: s.id, at });
       return true;
+    },
+
+    rename(id, taskName) {
+      return apply({ type: 'session/rename', id, taskName }).changed;
     },
 
     switchTo(id) {

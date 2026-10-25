@@ -1,4 +1,4 @@
-import { sessionTimeline, MINUTE_MS } from '../core/session';
+import { sessionTimeline, MINUTE_MS, MAX_TASK_NAME, normalizeTaskName } from '../core/session';
 import { inProgressSessions, type GardenState } from '../core/state';
 import { speciesNote } from '../plants/notes';
 import type { SpeciesDef } from '../plants/types';
@@ -145,6 +145,28 @@ export function createPlantCard(ctx: UIContext): PlantCard {
   const line = h('p.plant-story-line');
   const note = h('p.plant-story-note');
   const storyTask = h('p.plant-story-task');
+  const renameBtn = h('button.quiet.plant-story-rename', { type: 'button', 'aria-expanded': 'false', 'aria-controls': `${uid}-rename`, onclick: () => beginRename() }, 'Rename');
+  const nameInput = h('input', { id: `${uid}-task`, type: 'text', autocomplete: 'off', maxlength: MAX_TASK_NAME });
+  const renameForm = h(
+    'form.plant-story-edit',
+    { id: `${uid}-rename`, hidden: true, onsubmit: (e: Event) => {
+      e.preventDefault();
+      if (!shown) return;
+      const taskName = normalizeTaskName(nameInput.value);
+      ctx.deps.controller.rename(shown.id, taskName);
+      endRename();
+      render();
+      ctx.announce(`Renamed to ${taskName}.`);
+    } },
+    h('label', { for: nameInput.id }, 'Study session name'),
+    nameInput,
+    h('span.plant-story-name-hint', { id: `${uid}-hint` }, 'Up to 40 characters. Leave blank for “Study session”.'),
+    h('div.plant-story-edit-actions', {},
+      h('button.quiet.ink', { type: 'submit' }, 'Save'),
+      h('button.quiet', { type: 'button', onclick: () => endRename() }, 'Cancel'),
+    ),
+  );
+  nameInput.setAttribute('aria-describedby', `${uid}-hint`);
   const facts = h('ul.plant-story-facts', { role: 'list' });
   const replaced = h('p.plant-story-replaced');
   const closeBtn = h('button.icon-btn.plant-story-close', { type: 'button', 'aria-label': 'Close', onclick: () => api.close({ restoreFocus: true }) }, fragment(ICONS.close));
@@ -153,7 +175,7 @@ export function createPlantCard(ctx: UIContext): PlantCard {
     { 'aria-labelledby': `${uid}-name` },
     line,
     note,
-    h('div.plant-story-history', {}, h('h3.plant-story-history-head', {}, 'Its story'), storyTask, facts, replaced),
+    h('div.plant-story-history', {}, h('div.plant-story-history-heading', {}, h('h3.plant-story-history-head', {}, 'Its story'), renameBtn), storyTask, renameForm, facts, replaced),
   );
   // the mark at the cut: a pointer or a tap reads on (keyboard: the body itself scrolls)
   const more = h(
@@ -202,6 +224,30 @@ export function createPlantCard(ctx: UIContext): PlantCard {
   let returnTo: HTMLElement | null = null;
   const closeListeners = new Set<() => void>();
 
+  function beginRename(): void {
+    if (!shown) return;
+    const story = plantStory(store.get(), shown.id, clock.now(), getSpecies);
+    if (!story) return;
+    nameInput.value = story.task;
+    renameForm.hidden = false;
+    renameBtn.hidden = true;
+    renameBtn.setAttribute('aria-expanded', 'true');
+    fit();
+    nameInput.focus({ preventScroll: true });
+    nameInput.select();
+    nameInput.scrollIntoView({ block: 'nearest' });
+    ctx.changed();
+  }
+
+  function endRename(restoreFocus = true): void {
+    renameForm.hidden = true;
+    renameBtn.hidden = false;
+    renameBtn.setAttribute('aria-expanded', 'false');
+    if (restoreFocus) renameBtn.focus({ preventScroll: true });
+    fit();
+    ctx.changed();
+  }
+
   function render(): boolean {
     if (!shown) return false;
     const story = plantStory(store.get(), shown.id, clock.now(), getSpecies);
@@ -231,6 +277,11 @@ export function createPlantCard(ctx: UIContext): PlantCard {
   const onKey = (e: KeyboardEvent) => {
     if (e.key === 'Escape' && shown) {
       e.preventDefault();
+      if (!renameForm.hidden) {
+        e.stopPropagation();
+        endRename();
+        return;
+      }
       api.close({ restoreFocus: true });
     }
   };
@@ -249,6 +300,7 @@ export function createPlantCard(ctx: UIContext): PlantCard {
     el,
     open(id, where) {
       const fresh = el.hidden || shown?.id !== id;
+      if (fresh) endRename(false);
       shown = { id, kind: 'finished' };
       if (!render()) {
         shown = null;
@@ -270,6 +322,7 @@ export function createPlantCard(ctx: UIContext): PlantCard {
       if (!shown) return;
       const hadFocus = el.contains(document.activeElement);
       shown = null;
+      endRename(false);
       el.hidden = true;
       ctx.deps.root.classList.remove('has-plant-story');
       window.removeEventListener('keydown', onKey);

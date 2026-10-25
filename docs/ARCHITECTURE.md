@@ -312,7 +312,7 @@ The consumers take a scenery's data as an option and default to the Japanese gar
 Each session is one plant, chosen at start, growing live in its slot. Up to three sessions are in
 progress: `session` is the **active** one (the timer, weather, motes, audio and widget follow it),
 `waiting` holds the others, all paused, in the order they were left (ADR 0150). Ended sessions go
-into the append-only `log` (ADR 0151).
+into the `log` (ADR 0151; only task names can later change through ADR 0240).
 ```ts
 export type PlanBlock = { kind: 'focus' | 'break'; minutes: number };
 export interface StudyPlan { id: string; name: string; blocks: PlanBlock[] } // core/plans.ts
@@ -366,6 +366,7 @@ deterministic. `type Action =`
 | `session/switch` | `id, now` | the waiting session `id` becomes active and resumes (its wait goes into `pausedTotalMs`); the active one waits, paused |
 | `session/pause` | `now` | pause the active session (focus or break) |
 | `session/resume` | `now` | resume it; adds the paused span to `pausedTotalMs` |
+| `session/rename` | `id, taskName` | rename an in-progress session or finished garden plant, normalizing the task name and updating the matching log entry; unknown ids and unchanged names are no-ops; time, growth, species and statistics are preserved |
 | `session/water` | `blockIndex, now` | water the active session's current break (once) |
 | `session/focusWater` | `now` | record the automatic focus waterings now due (`focusWaterings = dueFocusWaterings`) |
 | `session/skipBreak` | `now` | skip the rest of the current break (`skippedMs +=` remainder) |
@@ -389,7 +390,7 @@ Types exported alongside: `Settings`, `GardenStats`, `Action`, `ActionType`, `Re
 `lastLeftSession`, `heldSlotIds`.
 
 ### Session log (`src/core/session-log.ts`, ADR 0151)
-`state.log` is the history for the calendar: append-only, oldest first, written by the reducer on
+`state.log` is the history for the calendar: oldest first, appended by the reducer on
 complete and cancel. Pure queries over it: `entriesBetween(log, { from, to }, { outcome? })`
 (half-open ranges; an entry is in a range when its `[startedAt, endedAt)` span overlaps it),
 `dayRange(t)`, `weekRange(t, weekStartsOn = 1)`, `monthRange(t)` (local calendar),
@@ -454,7 +455,7 @@ Also: `sessionPhase(state, now)` (of the active session) → `'idle' | 'focus' |
 ### Session controller (`src/core/controller.ts`, ADRs 0032, 0036, 0150–0153)
 `createSessionController({ store, clock, bus, species, slots?, ticker?, seed? })` is the **single
 API the UI and widget use**: `start({ taskName, goalMinutes, planId?, speciesId, slotId }) => boolean`
-(the new session becomes active; the active one waits), `pause()`, `resume()`, `switchTo(id)`,
+(the new session becomes active; the active one waits), `pause()`, `resume()`, `rename(id, taskName)`, `switchTo(id)`,
 `water()`, `skipBreak()`, `cancel(id?)`, `check()`, `nextFocusWatering()`, `recommendPlans(min)`,
 `selectableSpecies(min) => { species, locked, requiredMinutes, earned }[]`,
 `placementOptions(speciesId) => { slot, occupiedBy? }[]` (held slots left out), `retireTip(id, reason = 'used')`,

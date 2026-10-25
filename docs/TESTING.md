@@ -7,6 +7,11 @@ The owner's rule is "every behaviour is tested". When you add or change a behavi
 
 ## The layers
 
+| SPEC rule | Unit coverage | End-to-end coverage |
+|---|---|---|
+| §2: rename growing, waiting and completed garden plants; normalized names persist and history follows | `core/rename.test.ts`: targeted updates, no-ops, blank/Unicode limits, bloom/press lifecycle, controller and save/load | `rename.spec.ts`: desktop and phone direct editing beside the task in Study, card Save/Enter, Cancel/Escape, blank default, drafts across ticks, completed plant and log after reload |
+
+
 | Layer | Where | Runs with | What it is for |
 |---|---|---|---|
 | Unit | `src/**/*.test.ts`, colocated with the code | Vitest (`npm test`) | Pure logic: core rules, session maths, plans, persistence, schedules, envelopes, geometry, paint maths, widget/notification policy. Node by default. DOM tests opt in with `// @vitest-environment jsdom`. Canvas code is tested through recording fakes (`src/plants/test-canvas.ts`). |

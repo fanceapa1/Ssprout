@@ -1,4 +1,4 @@
-import { MINUTE_MS } from '../core/session';
+import { MAX_TASK_NAME, MINUTE_MS, normalizeTaskName } from '../core/session';
 import type { UIContext } from './context';
 import { fragment, h, setText, show } from './dom';
 import { crossedMilestone, formatTimer, inSentence, spokenMinutes } from './format';
@@ -43,6 +43,7 @@ export interface TimerPanelExtras {
 
 const REST_AFTER_MS = 4000;
 const PLAN_W = 420;
+let panelCount = 0;
 
 export function createTimerPanel(ctx: UIContext, actions: TimerPanelActions): TimerPanel {
   const { controller } = ctx.deps;
@@ -59,6 +60,48 @@ export function createTimerPanel(ctx: UIContext, actions: TimerPanelActions): Ti
 
   // ── studying ────────────────────────────────────────────────────────────────────────────
   const taskName = h('p.task-name');
+  const uid = `session-name-${++panelCount}`;
+  let editingId: string | null = null;
+  const renameBtn = h('button.quiet.session-rename', { type: 'button', onclick: () => {
+    const current = controller.status().session;
+    if (!current) return;
+    editingId = current.id;
+    nameInput.value = current.taskName;
+    show(nameForm, true);
+    show(renameBtn, false);
+    nameInput.focus();
+    nameInput.select();
+    ctx.changed();
+  } }, 'Rename');
+  const nameInput = h('input', { id: uid, type: 'text', maxlength: MAX_TASK_NAME, autocomplete: 'off', 'aria-describedby': `${uid}-hint` });
+  const nameForm = h('form.session-name-edit', { hidden: true, onsubmit: (e: Event) => {
+    e.preventDefault();
+    if (!editingId) return;
+    const name = normalizeTaskName(nameInput.value);
+    controller.rename(editingId, name);
+    closeNameEdit();
+    ctx.announce(`Renamed to ${name}.`);
+  } },
+  h('label', { for: uid }, 'Study session name'), nameInput,
+  h('span.session-name-hint', { id: `${uid}-hint` }, 'Up to 40 characters. Leave blank for “Study session”.'),
+  h('div.session-name-actions', {},
+    h('button.quiet.ink', { type: 'submit' }, 'Save'),
+    h('button.quiet', { type: 'button', onclick: () => closeNameEdit() }, 'Cancel'),
+  ));
+  nameForm.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    e.preventDefault();
+    e.stopPropagation();
+    closeNameEdit();
+  });
+
+  function closeNameEdit(restoreFocus = true): void {
+    editingId = null;
+    show(nameForm, false);
+    show(renameBtn, true);
+    if (restoreFocus) renameBtn.focus();
+    ctx.changed();
+  }
   const blockLabel = h('p.block-label');
   const time = h('p.time', { 'aria-hidden': 'true' });
   const total = h('p.total');
@@ -101,7 +144,7 @@ export function createTimerPanel(ctx: UIContext, actions: TimerPanelActions): Ti
     h('div.actions', {}, longResume, longEnd),
   );
 
-  const session = h('div.view.view-session', {}, taskName, blockLabel, time, total, timeSr, plan, breakActions, sessionActions, cancelConfirm, longPause);
+  const session = h('div.view.view-session', {}, h('div.session-name-heading', {}, taskName, renameBtn), nameForm, blockLabel, time, total, timeSr, plan, breakActions, sessionActions, cancelConfirm, longPause);
   const el = h('div.panel', { 'data-panel': '' }, idle, session);
 
   // ── behaviour ───────────────────────────────────────────────────────────────────────────
@@ -158,6 +201,7 @@ export function createTimerPanel(ctx: UIContext, actions: TimerPanelActions): Ti
 
   function render(): void {
     const v = sessionView(ctx);
+    if (editingId && editingId !== controller.status().session?.id) closeNameEdit(false);
     const view = viewOf(v);
     if (view !== lastView) {
       if (lastView && lastView !== 'idle') {

@@ -1,6 +1,6 @@
 # ADR 0167 — The plant card
 
-- Status: accepted; amended by ADR 0190
+- Status: accepted; amended by ADR 0190 and ADR 0240 (rename the study session)
 - Date: 2026-10-23
 
 ## Context
