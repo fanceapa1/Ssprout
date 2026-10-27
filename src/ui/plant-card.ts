@@ -235,7 +235,7 @@ export function createPlantCard(ctx: UIContext): PlantCard {
     fit();
     nameInput.focus({ preventScroll: true });
     nameInput.select();
-    nameInput.scrollIntoView({ block: 'nearest' });
+    renameForm.scrollIntoView({ block: 'nearest' });
     ctx.changed();
   }
 

@@ -57,6 +57,8 @@ for (const viewport of [{ width: 1440, height: 900 }, { width: 390, height: 844 
       const input = card.getByRole('textbox', { name: 'Study session name' });
       await expect(input).toBeFocused();
       await expect(input).toHaveValue('Biology');
+      // on a phone the card scrolls inside: the whole form, Save included, is brought into view
+      await expect(card.getByRole('button', { name: 'Save', exact: true })).toBeInViewport({ ratio: 1 });
       await input.fill('  Cell biology  ');
       // A progress update must not replace a draft or move focus.
       await page.evaluate(() => window.sprout!.advance(60_000));
