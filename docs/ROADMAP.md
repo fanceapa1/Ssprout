@@ -10,7 +10,7 @@ ADR numbering ranges (to avoid collisions in parallel work):
 0100–0109 audio · 0110–0119 plant view/growth/watering · 0120–0129 integration/polish ·
 0130–0139 app shell & dock · 0140–0149 daylight & colour · 0150–0159 parallel sessions & watering ·
 0160–0169 camera & plant descriptions · 0170–0179 calendar & scheduling · 0180–0189 v2 polish 1 & close views ·
-0190–0194 v2 polish 2 · 0200–0204 dock wayfinding · 0205+ queue tasks (Q1 0205, Q2 0206, Q3 0207, Q11 0208–0209, Q13 0210) · 0220–0239 performance (phase 9, one block of numbers per task).
+0190–0194 v2 polish 2 · 0200–0204 dock wayfinding · 0205+ queue tasks (Q1 0205, Q2 0206, Q3 0207, Q11 0208–0209, Q13 0210) · 0220–0239 performance (phase 9, one block of numbers per task) · 0240–0259 sceneries (phase 10) · 0260–0279 accounts (phase 11, branch `feat/accounts`).
 
 | Phase | Task | Area (owned paths) | Status |
 |---|---|---|---|
@@ -106,3 +106,12 @@ Phase 9: performance (owner request 2026-10-24). The page is laggy. Draw only wh
 | P24 | Remaining UI work before the garden's first pixels: page paper, stage edge mask, paper grain, the calendar's first render; "Growing now" thumbnails through the plant-view worker | `src/ui/page*`, `src/ui/stage*`, `src/ui/calendar*`, `src/ui/session-list*` | queued |
 | P25 | Open the paint cache's IndexedDB store at the very start of boot (the lookup takes ~300 ms while boot holds the main thread) | `src/main.ts` (1–2 lines), `src/paint/persist.ts` | folded into P14 (same file, same boot order) |
 | P26 | Flaky under load: `camera.spec.ts` "a session start glides the camera onto its seedling" reads `gliding` after the glide already ended (seen 3× in full runs at load avg 20–40); make the check race-free | `tests/e2e/camera.spec.ts`, `src/dev/camera-debug.ts` | done (glides read from an in-page log, `sprout.camera.glides()`; 40/40 under ×4 throttling) |
+
+Phase 10 (owner request 2026-10-27): land phase 9, then a second scenery, a rocky waterfall in the same watercolour style, switchable from a "Gardens" dock section. Owner decisions: the timeline is shared (sessions, calendar, history and settings), and only plants and spots belong to a garden; a running session keeps growing in its own garden. The scene is full: animated falls and plunge pool, rock ledges and a stream as spots, its own 4 daylight phases, fauna to suit it and a waterfall sound bed. The plantable flowers stay the same for now; shops and achievements come later.
+
+| # | Task | Area | Status |
+|---|---|---|---|
+| L1 | Land phase 9: CI has failed since P6 because the recorded-canvas hash pins (`src/paint/parts.test.ts`, `src/scene/paint-slices.test.ts`) differ between macOS and CI's Linux. Make the pins platform-independent, then get the whole CI (unit + e2e) green so Pages deploys. | `src/paint/*.test.ts`, `src/scene/*.test.ts`, `tests/**`, CI | in progress |
+| S0 | Scenery audit (read-only): everything hard-wired to the Japanese garden, a proposed scenery contract and schema v4, the task split | read-only report | in progress |
+
+Phase 11 (owner request 2026-10-27, branch `feat/accounts`, not merged to main): simple user/password accounts, with progress stored in a database. Local setup only: a Node (Fastify) server, Postgres in Docker. Owner decision: guest mode stays local, and signing up offers to import the local garden.
