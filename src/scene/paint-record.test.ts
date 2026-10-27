@@ -1,6 +1,6 @@
 /** The recording canvas's quantised numbers (docs/TESTING.md): pins that hold on every platform. */
 import { describe, expect, it } from 'vitest';
-import { PaintRecorder, quantise } from './paint-record';
+import { PaintRecorder, RecordingCanvas, quantise, quantiseNumber } from './paint-record';
 
 describe('quantise', () => {
   it('rounds fractions to 7 significant digits, so last-bit Math differences hash alike', () => {
@@ -11,18 +11,33 @@ describe('quantise', () => {
     expect(quantise('setTransform(1.6,-2.5e-7,3e-12,-0.000123456789,-40,-30)')).toBe('setTransform(1.6,-2.5e-7,0,-0.0001234568,-40,-30)');
   });
 
+  it('quantises numbers passed as numbers the same way', () => {
+    expect(quantiseNumber(119.14054330670139)).toBe('119.1405');
+    expect(quantiseNumber(-2.5e-7)).toBe('-2.5e-7');
+    expect(quantiseNumber(3e-12)).toBe('0');
+    expect(quantiseNumber(-40)).toBe('-40');
+  });
+
   it('keeps integers, sizes and hex colours as they are', () => {
     const line = 'new 396x244 fillStyle=#1e2a3b strokeStyle=#11e2ff drawImage(canvas 12x34,-40,30)';
     expect(quantise(line)).toBe(line);
   });
 
-  it('hashes the quantised line by default and the exact one when asked', () => {
-    const hash = (exact: boolean, n: string) => {
+  it('hashes a call’s numbers quantised by default and exact when asked', () => {
+    const hash = (exact: boolean, y: number) => {
       const r = new PaintRecorder({ exact });
-      r.feed(`lineTo(${n})`);
-      return r.hash;
+      const uninstall = r.install();
+      try {
+        const ctx = new RecordingCanvas(20, 10).getContext() as CanvasRenderingContext2D;
+        ctx.lineTo(199.07858887883023, y);
+        ctx.fillStyle = `rgba(0,0,0,${y / 1000})`;
+        return r.hash;
+      } finally {
+        uninstall();
+      }
     };
-    expect(hash(false, '119.14054330670139')).toBe(hash(false, '119.14054330670137'));
-    expect(hash(true, '119.14054330670139')).not.toBe(hash(true, '119.14054330670137'));
+    expect(hash(false, 119.14054330670139)).toBe(hash(false, 119.14054330670137));
+    expect(hash(true, 119.14054330670139)).not.toBe(hash(true, 119.14054330670137));
+    expect(hash(false, 119.14054330670139)).not.toBe(hash(false, 119.1406));
   });
 });

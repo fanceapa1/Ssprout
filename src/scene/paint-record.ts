@@ -7,7 +7,7 @@
  *
  * By default fractional numbers are hashed to 7 significant digits (`quantise`), so a pinned hash
  * is the same on every platform. `{ exact: true }` hashes them bit for bit, for comparing two
- * paintings recorded in the same run.
+ * paintings recorded in the same run. `{ hash: false }` only counts, for tests that need canvases.
  *
  * It also counts the cost of the work done since `mark()`: canvas calls, path points and pixels
  * read or written, for bounding how much one paint sub-step does without a wall clock.
@@ -38,15 +38,18 @@ const IDENTITY: Matrix = { a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 };
 const FLOAT = /(?<![\w#.])-?\d+(?:\.\d+)?(?:e[-+]?\d+)?(?![\w.])/g;
 
 /**
- * Every fractional number in a recorded line to 7 significant digits (|x| < 1e-9 is 0). Math.sin,
- * exp, pow… differ in the last bits between platforms (docs/TESTING.md), integers stay exact.
+ * A fraction to 7 significant digits (|x| < 1e-9 is 0); integers stay exact. Math.sin, exp,
+ * pow… differ in the last bits between platforms (docs/TESTING.md).
  */
-export function quantise(line: string): string {
-  return line.replace(FLOAT, (t) => {
-    if (!/[.e]/.test(t)) return t;
-    const x = Number(t);
-    return Math.abs(x) < 1e-9 ? '0' : String(Number(x.toPrecision(7)));
-  });
+export function quantiseNumber(x: number): string {
+  if (Number.isInteger(x)) return String(x);
+  return Math.abs(x) < 1e-9 ? '0' : String(Number(x.toPrecision(7)));
+}
+
+/** Every fractional number written in a string (a colour, a font…) quantised. */
+export function quantise(text: string): string {
+  if (!text.includes('.') && !text.includes('e')) return text;
+  return text.replace(FLOAT, (t) => (t.includes('.') || t.includes('e') ? quantiseNumber(Number(t)) : t));
 }
 
 function invert(m: Matrix): Matrix {
@@ -65,9 +68,13 @@ const matrix = (m: Matrix) => ({ ...m, inverse: () => matrix(invert(m)) });
 
 export class PaintRecorder {
   private h = 0x811c9dc5;
-  private readonly exact: boolean;
-  constructor(opts: { exact?: boolean } = {}) {
+  /** numbers hashed bit for bit, not quantised */
+  readonly exact: boolean;
+  /** calls are hashed (false: only counted, for tests that need a canvas but no hash) */
+  readonly hashing: boolean;
+  constructor(opts: { exact?: boolean; hash?: boolean } = {}) {
     this.exact = opts.exact ?? false;
+    this.hashing = opts.hash ?? true;
   }
   private cost: RecordedCost = { calls: 0, pixels: 0, reads: 0 };
   /** the running hash (hex) */
@@ -82,8 +89,12 @@ export class PaintRecorder {
     return c;
   }
 
-  feed(line: string): void {
-    const s = this.exact ? line : quantise(line);
+  /** Count a call without hashing it. */
+  count(): void {
+    this.cost.calls++;
+  }
+
+  feed(s: string): void {
     let h = this.h;
     for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619);
     this.h = h;
@@ -91,6 +102,10 @@ export class PaintRecorder {
   }
 
   feedPixels(data: ArrayLike<number>, n: number): void {
+    if (!this.hashing) {
+      this.cost.pixels += n;
+      return;
+    }
     let h = this.h;
     // a sample: every 61st byte is plenty to catch a change in a drying pass
     for (let i = 0; i < data.length; i += 61) h = Math.imul(h ^ data[i]!, 16777619);
@@ -125,7 +140,7 @@ export class PaintRecorder {
   }
 }
 
-const idle = new PaintRecorder({ exact: true });
+const idle = new PaintRecorder({ hash: false });
 /** The recorder every recording canvas reports to (pooled canvases outlive one recording). */
 let active = idle;
 
@@ -167,14 +182,16 @@ export class RecordingCanvas {
   }
 }
 
-/** A value as it goes into the hash: exact numbers, gradients and canvases by what they are. */
+/** A value as it goes into the hash: numbers quantised (or exact), gradients and canvases by what they are. */
 function show(v: unknown): string {
+  if (typeof v === 'number') return active.exact ? String(v) : quantiseNumber(v);
+  if (typeof v === 'string') return active.exact ? v : quantise(v);
   if (v instanceof RecordingCanvas) return `canvas ${v.tag()}`;
   if (v && typeof v === 'object') {
     if ('__desc' in v) return String((v as { __desc: string }).__desc);
     if ('data' in v && 'width' in v && 'height' in v) return `image ${String(v.width)}x${String(v.height)}`;
     if (Array.isArray(v)) return `[${v.map(show).join(',')}]`;
-    return JSON.stringify(v);
+    return active.exact ? JSON.stringify(v) : quantise(JSON.stringify(v));
   }
   return String(v);
 }
@@ -209,7 +226,7 @@ function recordingContext(canvas: RecordingCanvas, onReset: (r: () => void) => v
     const desc = `${kind}#${gradients++}(${args.map(show).join(',')})`;
     const g = {
       __desc: desc,
-      addColorStop: (o: number, c: string) => rec.feed(`${desc}.stop ${o} ${c}`),
+      addColorStop: (o: number, c: string) => rec.feed(`${desc}.stop ${show(o)} ${show(c)}`),
     };
     return g;
   };
@@ -274,13 +291,15 @@ function recordingContext(canvas: RecordingCanvas, onReset: (r: () => void) => v
         if (key === 'globalCompositeOperation') return 'source-over';
         if (key === 'filter') return 'none';
         return (...args: unknown[]) => {
-          rec.feed(`${canvas.tag()} ${key}(${args.map(show).join(',')})`);
+          if (active.hashing) rec.feed(`${canvas.tag()} ${key}(${args.map(show).join(',')})`);
+          else active.count();
           return methods[key]?.(...(args as never[]));
         };
       },
       set(_t, key, value) {
         props[String(key)] = value;
-        rec.feed(`${canvas.tag()} ${String(key)}=${show(value)}`);
+        if (active.hashing) rec.feed(`${canvas.tag()} ${String(key)}=${show(value)}`);
+        else active.count();
         return true;
       },
     },

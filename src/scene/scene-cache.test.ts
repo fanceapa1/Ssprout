@@ -119,7 +119,7 @@ function context(): SystemContext {
 describe('scene system and the paint cache (ADR 0228)', () => {
   let uninstall: () => void = () => {};
   beforeEach(() => {
-    uninstall = new PaintRecorder().install();
+    uninstall = new PaintRecorder({ hash: false }).install();
   });
   afterEach(() => uninstall());
 
