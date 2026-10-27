@@ -2598,13 +2598,23 @@ dialog.book::after {
   box-sizing: border-box;
   width: 100%;
   min-width: 0;
-  padding: 8px;
+  min-height: 44px;
+  padding: 6px 4px 4px;
   font: inherit;
-  font-size: 19px;
+  font-size: 21px;
+  font-weight: 500;
+  font-style: italic;
   color: var(--ui-ink);
-  border: 1px solid var(--ui-ink-faint);
-  border-radius: 3px;
-  background: rgba(var(--ui-dab), 0.5);
+  border: 0;
+  border-bottom: 1px solid var(--ui-ink-faint);
+  border-radius: 0;
+  background: transparent;
+}
+/* the planting sheet's ink line (.task-input): the line deepens on focus */
+.plant-story-edit input:focus,
+.session-name-edit input:focus {
+  outline: none;
+  border-bottom-color: var(--ui-ink);
 }
 .plant-story-name-hint,
 .session-name-hint {
