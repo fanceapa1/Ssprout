@@ -112,7 +112,22 @@ Phase 10 (owner request 2026-10-27): land phase 9, then a second scenery, a rock
 | # | Task | Area | Status |
 |---|---|---|---|
 | L1 | Land phase 9: CI has failed since P6 because the recorded-canvas hash pins (`src/paint/parts.test.ts`, `src/scene/paint-slices.test.ts`) differ between macOS and CI's Linux. Make the pins platform-independent, then get the whole CI (unit + e2e) green so Pages deploys. | `src/paint/*.test.ts`, `src/scene/*.test.ts`, `tests/**`, CI | in progress |
-| S0 | Scenery audit (read-only): everything hard-wired to the Japanese garden, a proposed scenery contract and schema v4, the task split | read-only report | in progress |
+| S0 | Scenery audit (read-only): everything hard-wired to the Japanese garden, a proposed scenery contract and schema v4, the task split | read-only report | done (contract, schema v4, 17 tasks; owner answers: switching a session follows it to its garden, wildlife unlocks per garden, the waterfall is open to all, weather follows the active session everywhere) |
 | PR2 | **Owner:** finish and merge collaborator PR #2 (soniaspn, rename study sessions and garden plants): rebase onto main keeping authorship, renumber its ADR 0240 → 0219 and devlog 59 → the next free number, make CI green, merge | `src/core/state.ts`, `src/core/controller.ts`, `src/ui/plant-card.ts`, `src/ui/timer-panel.ts` | queued (after L1) |
+| S1 | Schema v4: plants, pressed flowers, sessions and log entries carry `sceneryId`; `state.scenery` is the garden on view; `scenery/view`; slot uniqueness per scenery; migration from v3; sound levels missing a layer read as 0; controller and dev API take a scenery | `src/core/{state,persistence,controller,placement,fauna-unlocks,soundscape}.ts`, `src/dev/{core-debug,fill-garden,fill-history}.ts`, `src/main.ts` (≤3 lines) | queued (after PR2; ADR 0240) |
+| S2 | Scenery contract, with the Japanese garden behind it (pixel-identical): `src/scenery/{types,registry}.ts`, generalised geometry, sky layout, lights, eave, structure, wayfinding origin, viewport focus; paint-cache keys get the scenery id | `src/scenery/**`, `src/scene/{geometry,background,paint-sky,sky-light}.ts`, `src/ambience/{sky-layout,cast,lighting,ambience,index}.ts`, `src/ui/wayfinding.ts`, `src/render/viewport.ts`, `src/paint/paint-version.ts` | in progress (ADRs 0241–0242) |
+| S3 | Runtime switching: `renderer.setScenery` with a snapshot cross-fade, scenery host, per-system swaps, a dev fixture scenery, `sprout.scenery()` | `src/render`, `src/scenery/host.ts`, systems, `src/main.ts` | queued (after S1, S2; ADR 0243) |
+| S4 | Waterfall geometry and slots (pool, stream, falls, ledges, explicit per-depth scale), habitat words, view focus, sky numbers; behind a dev flag | `src/scenery/waterfall/{geometry,slots,layout,index}.ts` | queued (after S2; ADR 0245) |
+| S5 | Gardens dock section with painted thumbnails, stage chip, pill offer "go to its garden", per-garden copy | `src/ui/**`, `src/scenery/thumbnail.ts`, `src/main.ts` | queued (after S3; ADR 0244) |
+| S6 | Waterfall painters: rocks, cliffs, ledges | `src/scenery/waterfall/{paint-rocks,sprites}.ts` | queued (after S4) |
+| S7 | Waterfall painters: falls, plunge pool, stream | `src/scenery/waterfall/paint-water.ts` | queued (after S4) |
+| S8 | Waterfall painters: vegetation and moss | `src/scenery/waterfall/paint-veg.ts` | queued (after S4) |
+| S9 | Animated falls, foam and spray (still under reduced motion, ≤ 1 ms a frame) | `src/scenery/waterfall/falls.ts` | queued (after S7; ADR 0246) |
+| S10 | Waterfall daylight: 4 sky plates, pool plate, light plates, grades | `src/scenery/waterfall/{sky,light}.ts` | queued (after S6–S8; ADR 0247) |
+| S11 | Wildlife per scenery: unlock tables and copy per garden, roster, targets, perspective; shared creatures adapted | `src/core/fauna-unlocks.ts`, `src/fauna/**` | queued (after S3, S4; ADR 0248) |
+| S12 | Trout in the plunge pool | `src/fauna/creatures/trout.ts` | queued (after S11) |
+| S13 | Dipper on the wet rocks | `src/fauna/creatures/dipper.ts` | queued (after S11) |
+| S15 | Waterfall sound bed (`falls` layer, roar, rumble, spray hiss, splash events, dipper song) | `src/audio/**`, `src/core/soundscape.ts`, `src/ui/sound-mixer.ts` | queued (after S1, S3; ADR 0249) |
+| S17 | Acceptance and docs: SPEC, ARCHITECTURE, `docs/systems/scenery.md`, TESTING matrix, a v3 export imports, switch-time numbers, shots of both gardens | `docs/**`, `tests/**` | queued (last) |
 
 Phase 11 (owner request 2026-10-27, branch `feat/accounts`, not merged to main): simple user/password accounts, with progress stored in a database. Local setup only: a Node (Fastify) server, Postgres in Docker. Owner decision: guest mode stays local, and signing up offers to import the local garden.
