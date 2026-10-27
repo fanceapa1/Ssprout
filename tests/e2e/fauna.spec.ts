@@ -167,6 +167,9 @@ test.describe('fauna', () => {
       f.step(0.5);
       for (const k of ['dragonfly', 'butterfly', 'bee', 'bee', 'bird', 'bird', 'swallows', 'heron', 'leaf']) f.spawn(k);
       f.step(8);
+      // the first frames paint every new creature's parts (about 15, most of the first 60 frames'
+      // cost): warm them up, then time the steady frames (devlog 59)
+      f.bench(60);
       return f.bench(60);
     });
     expect(bench.creatures).toBeGreaterThanOrEqual(12);
