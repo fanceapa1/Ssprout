@@ -4,8 +4,6 @@ import { openUi, reloadUi } from './ui-helpers';
 
 for (const viewport of [{ width: 1440, height: 900 }, { width: 390, height: 844 }]) {
   test.describe(`rename a plant at ${viewport.width}px`, () => {
-    // This flow paints a real species and reopens the whole garden after a reload.
-    test.describe.configure({ timeout: 120_000 });
     test.use({ viewport, hasTouch: viewport.width < 600, isMobile: viewport.width < 600 });
 
     test('rename directly from Study without opening a plant card', async ({ page }) => {
