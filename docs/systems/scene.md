@@ -22,7 +22,7 @@ Look at it: studio → **Scene · painted garden** (`npm run shots -- --studio s
 | `paint-pavilion.ts` | engawa corner: roof, eave, posts, wall, shoji, deck, hanging lantern |
 | `sprites.ts` | foreground sprites: boulders (+ moss, base tufts, contact shadow) and tufts |
 | `background.ts` | `GARDEN_ART`, ordered `backgroundSteps`, `paintJob` generator (one part of a step per `next()`), `paintSceneSync`, cooperative `paintScene`, `StepTiming`; the paint cache's `SCENE_CACHE` kinds, `paintingKey`, `spritesKey`, the sprite atlas (`spriteAtlasLayout`, `packSprites`, `unpackSprites`) and `canvasOf` (ADR 0228) |
-| `paint-record.ts` | test-only recording canvas: hashes every canvas call with its exact arguments and counts the work between pauses (ADR 0226) |
+| `paint-record.ts` | test-only recording canvas: hashes every canvas call with its arguments (fractions to 7 significant digits by default, exact on request) and counts the work between pauses (ADR 0226, docs/TESTING.md) |
 | `water.ts` | `createWaterSurface`: shimmer bands, ripple rings, glints following the sun (per frame) |
 | `paint-sky.ts` | the four painted daylight skies and their mirrored water plates (ADR 0145) |
 | `sky-light.ts` | `createSkyLight`: phase plates blended, sun and moon punched out; sky + water composites |
@@ -278,7 +278,8 @@ the detail repaint from 49–52 ms (water) to 11–14 ms. At 4× CPU throttle: 3
   turn. A detail painting comes from the cache on a repeat rest.
 - `paint-slices.test.ts` (ADR 0226, 0238): on a recording canvas, the overview and two close views
   issue exactly the canvas calls they did before the steps were split (pinned hashes; since ADR
-  0238 plus the meadow's one-pixel flush reads, without which the old hashes still match). No part
+  0238 plus the meadow's one-pixel flush reads, without which the old hashes still match; since
+  devlog 59 of quantised numbers, so they hold on arm64 and x64 alike). No part
   does more than 130 k canvas calls or 0.4 Mpx of pixel passes. Before the split the meadow was
   1.3 M calls in one part and the big tree 5.1 Mpx; before ADR 0238 the water was 310 k calls and a
   boulder 0.82 Mpx. The heavy steps, the water, the pond reserve, the boulders and the trees come

@@ -352,8 +352,9 @@ opacity, dry brush, determinism), `parts.test.ts` (ADR 0238: the drying pass's o
 against the engine before it could pause, for every option branch; every band size, down to a
 row, dries byte for byte like the whole buffer; the blurs in bands equal the whole; `dryParts`
 paints what `dry` paints, in many parts; `flush` is one one-pixel read; the long recipes' canvas
-calls pinned on a recording canvas, one call and in parts alike, in more than 8 parts with no part
-over a quarter of the calls or reading more than one wet layer), `primitives.test.ts` (jsdom-safe import, documented
+calls pinned on a recording canvas (numbers quantised, so the pins hold on every platform), and
+each parts form recorded bit for bit equal to its one-call form in the same run, in more than 8
+parts with no part over a quarter of the calls or reading more than one wet layer), `primitives.test.ts` (jsdom-safe import, documented
 defaults, quality scaling, pure brush geometry), `rim.test.ts` (rim width, screen draw, faint rims skipped, one mask per image, side and colour), `persist.test.ts` (keys, versions
 and the drop of other versions, LRU and the byte cap, idle encoding, the null cache, swallowed
 storage, encode and decode failures; Map adapter), `paint-version.test.ts` (the hashed import

@@ -110,6 +110,12 @@ tests (`test-results/`).
   about the worker (`sw-*.spec.ts`, `widget.spec.ts`) opt in with
   `test.use({ serviceWorkers: 'allow' })` and wait for `sprout.sw.ready()` (the app's registration,
   after the first paint and an idle callback), then for the worker to control the page.
+- **Recorded-canvas parity is platform-independent.** `Math.sin`, `cos`, `tan`, `exp`, `log`,
+  `pow`, `atan2`… differ in the last bits between arm64 (the owner's Mac) and x64 (CI), so exact
+  call streams differ too (devlog 59). A test that says two forms paint the same records both in
+  the same run with `new PaintRecorder({ exact: true })` and compares them. A hash pinned across
+  runs uses the default recorder, which hashes fractional numbers to 7 significant digits
+  (`quantise`); re-pin only from the same painting, and say where the pin came from.
 - **Drive simulations in one round trip.** Fauna loops run inside one `page.evaluate`, with the
   renderer frozen, so the frame loop does not compete with `fauna.step()`.
 - **Prefer the dev fixture species** (`?fixtures`, `fx-*`, ADR 0055) for UI flows. Their names,
@@ -129,7 +135,8 @@ tests (`test-results/`).
 - **Heavy pages are scoped.** The studio is checked one section at a time in 4 parallel shards
   (`#<section>`), never all at once. Tests that paint 30+ sprites call `test.slow()`.
 - Budgets (`plants.perf().avgMs < 2`, `ambience().ms < 1.5`, `fauna.bench().total < 8`) are
-  generous ceilings for CI. The real numbers live in the system docs.
+  generous ceilings for CI. The real numbers live in the system docs. A budget times steady
+  frames: warm up anything painted on first use (the fauna bench runs once untimed) before timing.
 
 ## Flakiness: what was fixed and why (2026-10-22)
 
@@ -167,11 +174,23 @@ The `E2E_CLOCK` runs, a loaded run and runs that began after 23:00 found four mo
 |---|---|---|
 | `camera › a session start glides the camera onto its seedling…` failed in 3 full runs at load average 20–50 (`gliding` false right after the start); once `camera › switching sessions glides…` (`target` null right after the switch); both passed alone | Test. The start (or switch) and the read of `camera.state()` were two round trips. The glide is started synchronously and lasts 0.75–1.9 s of frames; a loaded machine spent that between the two, so the glide had already ended. Reproduced every time with a 2.5 s wait between the two round trips. | `sprout.camera.glides()` logs every animated glide when it starts (reason, from, target, start/end time, how it ended). The tests clear the log, act and read it in one task: one glide, its reason, from the overview (or the second seedling), the target's zoom; after `settle()` the same glide `arrived` and the pose is its target; after zooming out and 5 minutes, no glide at all. With the 2.5 s wait the new tests pass. `close-view.spec.ts` only cuts and settles; no other spec reads a glide mid-flight. |
 
+### L1: CI green again (2026-10-28, devlog 59)
+
+| Symptom | Root cause | Fix |
+|---|---|---|
+| Unit, CI only (every run since P6): `paint/parts › the long recipes, pinned` and `… in parts` (wash, stone, foliageClump), `scene/paint-slices › paints exactly the marks it painted before the steps were split`: recorded hash differs, the same wrong hash every run | Test. The pins hashed every canvas call's exact floats; V8's `Math.sin`, `cos`, `exp`, `log`, `pow`, `atan2`… differ in the last bits between arm64 and x64 (Node 24 x64 on the Mac reproduces CI's hashes; 6 of the wash recipe's 75 083 calls differ, in the last digit) | The recorder quantises fractions to 7 significant digits by default and is exact on request; parts and one-call forms are compared exactly within one run; pins re-taken quantised from the same paintings (convention above) |
+| Unit, CI: `scene/scene-cache › …` timed out at 20 s (after the first fix) | Test. Regex quantising of every recorded line; these tests were already at 14 s on CI and need no hash | Numbers quantised as they are shown; a count-only recorder (`{ hash: false }`) for the paint-cache tests (3.3 → 0.7 s a test locally) |
+| E2E, CI, once: `fauna › a busy pond renders cleanly and the fauna stays cheap` (9.7 ms, limit 8) | Test. The timed 60 frames included painting every new creature's parts (6.2 ms a frame locally; 1.6 ms once painted) | One untimed `bench(60)` first, then the timed one |
+| E2E job cancelled at 20 min (test 197 of 263) | CI. The suite outgrew one runner with 2 workers (about 25 min) | Three shards on their own runners (7–8 min each) |
+
 ## CI
 
-`.github/workflows/ci.yml` (push to main, pull requests) runs: typecheck → unit → build →
-install Chromium → e2e (`CI=true`: retries 1, 2 workers). The HTML report is uploaded on every run
-that was not cancelled. `test-results/` (traces, screenshots) is uploaded on failure.
+`.github/workflows/ci.yml` (push to main, pull requests, or by hand on any branch:
+`gh workflow run ci.yml --ref <branch>`) runs two jobs side by side: `check` (typecheck → unit →
+build) and `e2e`, three shards on their own runners (`--shard=i/3`; install Chromium → e2e,
+`CI=true`: retries 1, 2 workers). One runner needed about 25 min for the whole suite, past the
+20 min job timeout (devlog 59). Each shard uploads its HTML report (`playwright-report-<i>`) on
+every run that was not cancelled, and `test-results/` (`playwright-traces-<i>`) on failure.
 `.github/workflows/pages.yml` deploys to GitHub Pages **only after CI succeeded** for a push to
 `main` (`workflow_run`), building exactly that commit. It can also be run by hand
 (`workflow_dispatch`, deploys the current `main`).
