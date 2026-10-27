@@ -21,10 +21,8 @@ Look at it: studio → **Scene · painted garden** (`npm run shots -- --studio s
 | `paint-trees.ts` | trees (stems, limbs, twigs, cloud pads) and shrubs |
 | `paint-pavilion.ts` | engawa corner: roof, eave, posts, wall, shoji, deck, hanging lantern |
 | `sprites.ts` | foreground sprites: boulders (+ moss, base tufts, contact shadow) and tufts |
-| `background.ts` | `GARDEN_ART`, ordered `backgroundSteps`, `paintJob` generator (one part of a step per `next()`), `paintSceneSync`, cooperative `paintScene`, `StepTiming`; the paint cache's `SCENE_CACHE` kinds, `paintingKey`, `spritesKey`, the sprite atlas (`spriteAtlasLayout`, `packSprites`, `unpackSprites`) and `canvasOf` (ADR 0228) |
 | `background.ts` | `SceneArt` (with its `scenery` and `steps`), `GARDEN_ART` and its `gardenSteps`, `backgroundSteps` (= `art.steps`), `paintJob` generator (one part of a step per `next()`), `paintSceneSync`, cooperative `paintScene`, `StepTiming`; the paint cache's `SCENE_CACHE` kinds, `paintingKey`, `spritesKey`, the sprite atlas (`spriteAtlasLayout`, `packSprites`, `unpackSprites`) and `canvasOf` (ADR 0228) |
 | `paint-record.ts` | test-only recording canvas: hashes every canvas call with its arguments (fractions to 7 significant digits by default, exact on request) and counts the work between pauses (ADR 0226, docs/TESTING.md) |
-| `paint-record.ts` | test-only recording canvas: hashes every canvas call with its exact arguments and counts the work between pauses (ADR 0226) |
 | `water.ts` | `createWaterSurface`: shimmer bands, ripple rings, glints following the sun (per frame) |
 | `paint-sky.ts` | the four painted daylight skies and their mirrored water plates (ADR 0145); `GARDEN_SKY`, the Japanese garden's `ScenerySky` |
 | `sky-light.ts` | `createSkyLight`: phase plates blended, sun and moon punched out; sky + water composites |
