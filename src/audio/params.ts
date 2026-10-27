@@ -1,5 +1,5 @@
 import type { Weather } from '../core/state';
-import { SCENERIES, selectedMix, levelsWith, SOUND_LAYERS, STANDARD_LAYERS, type SceneryId, type SoundLayer, type SoundLevels, type SoundscapeSettings } from '../core/soundscape';
+import { SCENERIES, selectedMix, levelsWith, SOUND_LAYERS, STANDARD_LAYERS, type SoundSceneryId, type SoundLayer, type SoundLevels, type SoundscapeSettings } from '../core/soundscape';
 
 /**
  * Pure parameter mapping: garden situation (time of day, weather, session activity, unlocked
@@ -24,7 +24,7 @@ export interface MixInput {
   /** unlocked creature ids, e.g. 'small-birds', 'swallows' */
   fauna: ReadonlySet<string>;
   soundscape?: SoundscapeSettings;
-  scenery?: SceneryId;
+  scenery?: SoundSceneryId;
 }
 
 export interface MixParams {

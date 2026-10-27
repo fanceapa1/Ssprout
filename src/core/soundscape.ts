@@ -12,7 +12,7 @@ export interface SoundscapeSettings {
   collection: 'standard' | 'scenery';
   volume: number;
   standard: SoundLevels;
-  sceneries: Partial<Record<SceneryId, SceneryMix>>;
+  sceneries: Partial<Record<SoundSceneryId, SceneryMix>>;
 }
 export const STANDARD_LAYERS: readonly SoundLayer[] = ['rain', 'waves', 'wind', 'birds', 'fire', 'cafe', 'lofi', 'white', 'brown'];
 /** Coast is a sound profile ready for a future scene, not an unlocked garden. */
@@ -20,14 +20,15 @@ export const SCENERIES = {
   pond: { name: 'The pond garden', layers: ['water', 'wind', 'birds', 'crickets', 'rain'], levels: levelsWith({ water: 70, wind: 45, birds: 40 }) },
   coast: { name: 'The seaside garden', layers: ['waves', 'wind', 'birds', 'rain'], levels: levelsWith({ waves: 75, wind: 45, birds: 25 }) },
 } as const satisfies Record<string, { name: string; layers: readonly SoundLayer[]; levels: SoundLevels }>;
-export type SceneryId = keyof typeof SCENERIES;
+/** An audio scenery (a sound profile); the stored keys of `SoundscapeSettings.sceneries`. Not a `core/sceneries` id. */
+export type SoundSceneryId = keyof typeof SCENERIES;
 export function defaultSoundscape(): SoundscapeSettings {
   return { collection: 'scenery', volume: 100, standard: levelsWith({ rain: 55 }), sceneries: {} };
 }
-export function sceneryMix(s: SoundscapeSettings, id: SceneryId): SceneryMix {
+export function sceneryMix(s: SoundscapeSettings, id: SoundSceneryId): SceneryMix {
   return s.sceneries[id] ?? { mode: 'garden', levels: { ...SCENERIES[id].levels } };
 }
-export function selectedMix(s: SoundscapeSettings, id: SceneryId): SceneryMix {
+export function selectedMix(s: SoundscapeSettings, id: SoundSceneryId): SceneryMix {
   return s.collection === 'standard' ? { mode: 'custom', levels: s.standard } : sceneryMix(s, id);
 }
 const percent = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v) && v >= 0 && v <= 100;
@@ -49,7 +50,7 @@ export function copySoundscape(s: SoundscapeSettings): SoundscapeSettings {
 export function sameSoundscape(a: SoundscapeSettings | undefined, b: SoundscapeSettings): boolean {
   return !!a && a.collection === b.collection && a.volume === b.volume &&
     SOUND_LAYERS.every((id) => a.standard[id] === b.standard[id]) &&
-    (Object.keys(SCENERIES) as SceneryId[]).every((id) => {
+    (Object.keys(SCENERIES) as SoundSceneryId[]).every((id) => {
       const x = a.sceneries[id], y = b.sceneries[id];
       return x === y || (!!x && !!y && x.mode === y.mode && SOUND_LAYERS.every((key) => x.levels[key] === y.levels[key]));
     });

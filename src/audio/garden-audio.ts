@@ -1,7 +1,7 @@
 import type { Clock } from '../core/clock';
 import type { EventBus } from '../core/events';
 import { createRng } from '../core/rng';
-import { copySoundscape, defaultSoundscape, SCENERIES, type SceneryId } from '../core/soundscape';
+import { copySoundscape, defaultSoundscape, SCENERIES, type SoundSceneryId } from '../core/soundscape';
 import type { GardenState, Weather } from '../core/state';
 import { createWebAudioBackend, type AudioBackend, type BackendFactory } from './backend';
 import { gateStep, initialGate, isAudible, type GateCommand, type GateInput } from './gate';
@@ -19,8 +19,8 @@ export interface GardenAudio {
   isMuted(): boolean;
   /** Call from a user gesture (click/keydown/pointerdown): creates/resumes the AudioContext. */
   unlock(): void;
-  getScenery(): SceneryId;
-  setScenery(id: SceneryId): void;
+  getScenery(): SoundSceneryId;
+  setScenery(id: SoundSceneryId): void;
   onSceneryChange(fn: () => void): () => void;
   /** Session weather; `null` = none (clear garden outside sessions). */
   setWeather(weather: Weather | null): void;
@@ -57,7 +57,7 @@ export interface GardenAudioOptions {
   timers?: Timers;
   /** scheduler tick (default 250 ms) */
   tickMs?: number;
-  scenery?: SceneryId;
+  scenery?: SoundSceneryId;
 }
 
 /** Events are scheduled this far ahead of the audio clock so timer jitter never clips them. */
