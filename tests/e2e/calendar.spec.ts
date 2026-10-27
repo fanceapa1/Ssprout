@@ -169,6 +169,11 @@ test.describe('calendar', () => {
 
   test('at the scheduled time a card waits with one-tap Start; the sheet is prefilled; the bloom marks it done', async ({ page }) => {
     await openCalendar(page);
+    // a fixed hour: from about 23:05 the 50 min session blooms on the next day (devlog 61)
+    await page.evaluate(() => {
+      window.sprout!.advanceTo('10:00');
+      window.sprout!.calendar.go(window.sprout!.now());
+    });
     const key = await dueNow(page, { name: 'Essay draft', lengthMinutes: 50, planId: 'pomodoro' });
 
     // the card waits in the Study section and a slip on the garden; nothing starts on its own
