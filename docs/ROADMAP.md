@@ -113,5 +113,6 @@ Phase 10 (owner request 2026-10-27): land phase 9, then a second scenery, a rock
 |---|---|---|---|
 | L1 | Land phase 9: CI has failed since P6 because the recorded-canvas hash pins (`src/paint/parts.test.ts`, `src/scene/paint-slices.test.ts`) differ between macOS and CI's Linux. Make the pins platform-independent, then get the whole CI (unit + e2e) green so Pages deploys. | `src/paint/*.test.ts`, `src/scene/*.test.ts`, `tests/**`, CI | in progress |
 | S0 | Scenery audit (read-only): everything hard-wired to the Japanese garden, a proposed scenery contract and schema v4, the task split | read-only report | in progress |
+| PR2 | **Owner:** finish and merge collaborator PR #2 (soniaspn, rename study sessions and garden plants): rebase onto main keeping authorship, renumber its ADR 0240 → 0219 and devlog 59 → the next free number, make CI green, merge | `src/core/state.ts`, `src/core/controller.ts`, `src/ui/plant-card.ts`, `src/ui/timer-panel.ts` | queued (after L1) |
 
 Phase 11 (owner request 2026-10-27, branch `feat/accounts`, not merged to main): simple user/password accounts, with progress stored in a database. Local setup only: a Node (Fastify) server, Postgres in Docker. Owner decision: guest mode stays local, and signing up offers to import the local garden.
