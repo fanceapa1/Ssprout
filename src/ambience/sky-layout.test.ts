@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { gardenScene } from '../scene/geometry';
 import { blendWeights, only, pinnedState } from './daylight';
-import { castShadow, HORIZON_Y, moonDisc, rimLight, stars, sunDisc } from './sky-layout';
+import { GARDEN_SKY_LAYOUT } from '../scenery/japanese-garden/sky';
+import { castShadow, moonDisc, rimLight, stars, sunDisc } from './sky-layout';
+
+const HORIZON_Y = GARDEN_SKY_LAYOUT.horizonY;
 
 const state = (p: Parameters<typeof only>[0]) => pinnedState(only(p));
 

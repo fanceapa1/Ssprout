@@ -19,6 +19,7 @@ import { dirname, join, relative, resolve, sep } from 'node:path';
 export const PAINT_ROOTS: readonly string[] = [
   'src/paint', // the engine, the paper, this cache's own format
   'src/scene', // the landscape, sky plates, scene sprites
+  'src/scenery', // each scenery's geometry, sky, light and ambience numbers (ADR 0242)
   'src/ambience', // daylight, light plates, weather sprites
   'src/plants', // species painters and their lib, sprite cache, the plant view
   'src/fauna', // creature sprites

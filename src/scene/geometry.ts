@@ -32,18 +32,70 @@ export interface Stone {
   ry: number;
 }
 
+/** A world-unit box. */
+export interface Box {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+/** A light that glows at night: paper reserved round it, a warm pool, a flame (ADR 0241). */
+export interface SceneLight {
+  id: string;
+  at: Pt;
+  /** radius of the paper reserved round it in the grade wash (world units) */
+  r: number;
+}
+
+/** A line rain drips from (`a` → `b`) and the ground the drops fall to. */
+export interface Eave {
+  a: Pt;
+  b: Pt;
+  ground: number;
+}
+
+/** A waterfall: its falling sheet, the lip it pours over and where it lands. */
+export interface Falls {
+  outline: Pt[];
+  lip: Pt[];
+  foot: Pt;
+}
+
+/** The engawa as its painter knows it: the structure's box and its hanging lantern. */
+export interface Pavilion extends Box {
+  lantern: Pt;
+}
+
+/**
+ * The geometry every system shares, per scenery (ADR 0241). The Japanese garden is `gardenScene`.
+ */
 export interface SceneGeometry {
-  /** closed polygon, world units */
+  /** still water (the pond, a plunge pool): closed polygon, world units */
   pond: Pt[];
   /** y used for reflection mirroring (per point: reflect about local shore y) */
   waterline: number;
+  /** moving water: no reflections, no striders */
+  streams: Pt[][];
+  falls: Falls | null;
   rocks: Rock[];
   /** stepping stones */
   path: Stone[];
-  pavilion: { x: number; y: number; w: number; h: number; lantern: Pt };
+  /** a building's bounding box (the engawa), or none */
+  structure: Box | null;
+  /** night lights (the lantern) */
+  lights: SceneLight[];
+  /** where rain drips from (the engawa's eave), or none */
+  eave: Eave | null;
   slots: Slot[];
   /** where flying creatures travel */
   skyBand: { top: number; bottom: number };
+}
+
+/** The engawa of a scene (its structure and its lantern), or null when it has none. */
+export function pavilionOf(scene: Pick<SceneGeometry, 'structure' | 'lights'>): Pavilion | null {
+  const lantern = scene.lights.find((l) => l.id === 'lantern');
+  return scene.structure && lantern ? { ...scene.structure, lantern: lantern.at } : null;
 }
 
 /**
@@ -125,17 +177,28 @@ export const PATH: Stone[] = [
  * The pavilion (engawa corner) at the right edge: bounding box of the painted structure, with
  * the hanging lantern under the eave (its glow is the lighting system's night accent).
  */
-export const PAVILION = { x: 1290, y: 168, w: 310, h: 450, lantern: { x: 1352, y: 300 } };
+export const PAVILION: Pavilion = { x: 1290, y: 168, w: 310, h: 450, lantern: { x: 1352, y: 300 } };
 
 /** The far shore line the far-bank reflections mirror about. */
 export const WATERLINE = 456;
 
+/**
+ * The engawa's eave: the fascia's lower edge (`pavilionFrame`'s eave line + 9), dropping onto the
+ * foot of the deck. geometry.test.ts checks it against the frame.
+ */
+export const EAVE: Eave = { a: { x: 1292, y: 255 }, b: { x: 1620, y: 215 }, ground: 618 };
+
+/** The Japanese garden's geometry (its scenery: `src/scenery/japanese-garden`). */
 export const gardenScene: SceneGeometry = {
   pond: POND,
   waterline: WATERLINE,
+  streams: [],
+  falls: null,
   rocks: ROCKS,
   path: PATH,
-  pavilion: PAVILION,
+  structure: { x: PAVILION.x, y: PAVILION.y, w: PAVILION.w, h: PAVILION.h },
+  lights: [{ id: 'lantern', at: PAVILION.lantern, r: 78 }],
+  eave: EAVE,
   slots: GARDEN_SLOTS,
   skyBand: { top: 40, bottom: 300 },
 };

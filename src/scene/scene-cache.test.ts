@@ -18,16 +18,17 @@ import { createSceneSystem, paintViewFor } from './system';
 const VIEW: PaintView = { rect: { x: 0, y: 0, w: 1600, h: 1000 }, scale: 1.5 };
 
 describe('scene cache keys (ADR 0228)', () => {
-  it('names the seed, quality, world rect, exact scale and bitmap size', () => {
-    expect(paintingKey(GARDEN_ART, VIEW, 'normal')).toBe('s7|normal|0,0,1600,1000@1.5|2400x1500');
+  it('names the scenery, seed, quality, world rect, exact scale and bitmap size (ADR 0242)', () => {
+    expect(paintingKey(GARDEN_ART, VIEW, 'normal')).toBe('japanese-garden|s7|normal|0,0,1600,1000@1.5|2400x1500');
     expect(paintingKey(GARDEN_ART, { rect: { x: 412, y: 0, w: 777, h: 1000 }, scale: 1.4123456789 }, 'draft')).toBe(
-      's7|draft|412,0,777,1000@1.4123456789|1098x1413',
+      'japanese-garden|s7|draft|412,0,777,1000@1.4123456789|1098x1413',
     );
   });
 
   it('changes with everything the pixels depend on', () => {
     const base = paintingKey(GARDEN_ART, VIEW, 'normal');
     const variants = [
+      paintingKey({ ...GARDEN_ART, scenery: 'waterfall' }, VIEW, 'normal'),
       paintingKey({ ...GARDEN_ART, seed: 8 }, VIEW, 'normal'),
       paintingKey(GARDEN_ART, VIEW, 'high'),
       paintingKey(GARDEN_ART, { ...VIEW, rect: { ...VIEW.rect, x: 1 } }, 'normal'),
@@ -49,10 +50,16 @@ describe('scene cache keys (ADR 0228)', () => {
     expect(paintingKey(GARDEN_ART, c, 'normal')).not.toBe(paintingKey(GARDEN_ART, a, 'normal'));
   });
 
-  it('keys the sprites by scale, seed and quality only, not by the painted rect', () => {
-    expect(spritesKey(GARDEN_ART, 1.5, 'normal')).toBe('s7|normal@1.5');
-    const keys = [spritesKey(GARDEN_ART, 1.5, 'normal'), spritesKey(GARDEN_ART, 2.8, 'normal'), spritesKey({ ...GARDEN_ART, seed: 8 }, 1.5, 'normal'), spritesKey(GARDEN_ART, 1.5, 'high')];
-    expect(new Set(keys).size).toBe(4);
+  it('keys the sprites by scenery, scale, seed and quality only, not by the painted rect', () => {
+    expect(spritesKey(GARDEN_ART, 1.5, 'normal')).toBe('japanese-garden|s7|normal@1.5');
+    const keys = [
+      spritesKey(GARDEN_ART, 1.5, 'normal'),
+      spritesKey(GARDEN_ART, 2.8, 'normal'),
+      spritesKey({ ...GARDEN_ART, seed: 8 }, 1.5, 'normal'),
+      spritesKey(GARDEN_ART, 1.5, 'high'),
+      spritesKey({ ...GARDEN_ART, scenery: 'waterfall' }, 1.5, 'normal'),
+    ];
+    expect(new Set(keys).size).toBe(5);
   });
 });
 

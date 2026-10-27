@@ -10,7 +10,8 @@ import { moonDisc } from '../ambience/sky-layout';
 import { WORLD_H, WORLD_W, type Rect } from '../render/viewport';
 import type { StudioSection } from '../studio/types';
 import { GARDEN_ART } from './background';
-import { SHRUBS, TREES } from './layout';
+import { SHRUBS } from './layout';
+import { GARDEN_LIGHT_ART } from '../scenery/japanese-garden/light';
 import { createSkyLight } from './sky-light';
 
 const PANEL = 300;
@@ -35,7 +36,7 @@ let skyLight: ReturnType<typeof createSkyLight> | null = null;
 const skyOf = () => (skyLight ??= createSkyLight({ pond: GARDEN_ART.scene.pond, seed: GARDEN_ART.seed }));
 
 function castFor(phase: DayPhase, rect: Rect) {
-  const cast = createCastLight(GARDEN_ART.scene, { trees: TREES, shrubs: SHRUBS }, `studio-detail-${phase}`);
+  const cast = createCastLight(GARDEN_ART.scene, GARDEN_LIGHT_ART, `studio-detail-${phase}`);
   cast.update(pinnedState(only(phase)), true);
   cast.setDetail(rect, 2);
   while (cast.paintDetailStep()) {

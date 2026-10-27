@@ -1,5 +1,5 @@
-import type { Viewport } from '../render/viewport';
-import { PATH } from '../scene/geometry';
+import type { Pt, Viewport } from '../render/viewport';
+import { GARDEN_VIEW } from '../scenery/japanese-garden/view';
 import type { Dock } from './dock';
 import type { NearView } from './near-view';
 import { brushOutline, centrePath, layoutPath, stonePath, type PathLayout } from './wayfinding-path';
@@ -26,6 +26,8 @@ export interface WayfindingDeps {
   stage: HTMLElement;
   /** the renderer's viewport (stage CSS pixels per world unit), to find the stepping stones */
   viewport(): Viewport;
+  /** where the current scenery's path leaves the painting, nearest first (default: the Japanese garden's stones) */
+  pathOut?(): readonly Pt[];
   reducedMotion?: boolean;
   /**
    * Lay out only after the garden's first paint, and then as the dock nears the window or on an
@@ -73,10 +75,10 @@ const svg = <K extends keyof SVGElementTagNameMap>(tag: K, attrs: Record<string,
   return el;
 };
 
-/** Where the stepping stones end on the stage: the nearest stone still clear of the dissolving edge. */
-function stonesExit(vp: Viewport, stageH: number): { x: number; y: number } | null {
-  for (const s of PATH) {
-    const p = vp.worldToScreen({ x: s.x, y: s.y + s.ry });
+/** Where the scenery's path leaves the stage: its nearest point still clear of the dissolving edge. */
+function stonesExit(vp: Viewport, stageH: number, pathOut: readonly Pt[]): Pt | null {
+  for (const s of pathOut) {
+    const p = vp.worldToScreen(s);
     if (p.y <= stageH - 44) return p;
   }
   return null;
@@ -152,7 +154,7 @@ export function createWayfinding(deps: WayfindingDeps): Wayfinding {
     let sx = W / 2;
     let sy = Math.max(6, rise - 8);
     try {
-      const p = stonesExit(deps.viewport(), stageRect.height);
+      const p = stonesExit(deps.viewport(), stageRect.height, deps.pathOut?.() ?? GARDEN_VIEW.pathOut);
       if (p) {
         sx = stageRect.left + p.x - dockRect.left;
         sy = toLayer(stageRect.top + p.y);

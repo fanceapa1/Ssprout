@@ -2,9 +2,9 @@
  * The light of each daylight phase as a painted plate (ADR 0147), multiplied over the whole
  * garden in the `lighting` layer: the phase's grade wash (lighting.ts), then — with the
  * watercolour engine — long cool shadows thrown away from a low sun by the boulders, the trees,
- * the shrubs and the pavilion (short pools under them at midday), paper reserved on the
- * sun-facing side of the tree crowns, and at night warm light in the shoji and around the
- * lantern. Plates are painted once per phase (on demand) and blended by the phase weights into a
+ * the shrubs and the scenery's own things (the engawa: `LightArt.shadows`; short pools under them
+ * at midday), paper reserved on the sun-facing side of the tree crowns, and at night the
+ * scenery's lit windows (`LightArt.lights`) and warm light around its lanterns. Plates are painted once per phase (on demand) and blended by the phase weights into a
  * composite that also lifts the moving lights: the glow round a low sun, the moon's halo and the
  * moon's (or the sun's) broken path on the pond. Rebuilt only when the light moved (a few times
  * a minute at most); every frame is one blit. A phase's plate is looked up in the persistent
@@ -16,12 +16,13 @@ import { pointInPolygon } from '../paint/geometry';
 import { WORLD_H, WORLD_W } from '../render/viewport';
 import type { SceneGeometry } from '../scene/geometry';
 import type { ShrubSpec, TreeSpec } from '../scene/layout';
-import { pavilionFrame } from '../scene/paint-pavilion';
 import type { PaintCache } from '../paint/persist';
+import { DEFAULT_SCENERY, type SceneryId } from '../scenery/ids';
+import { GARDEN_SKY_LAYOUT } from '../scenery/japanese-garden/sky';
 import { PHASES, only, pinnedState, whenIdle, type DayPhase, type DaylightState, type PhaseWeights } from './daylight';
 import { gradePlate, washField, type WashField } from './lighting';
 import { createPlateCache, cutImage, defaultPlateCache, fingerprint } from './plate-cache';
-import { castShadow, moonDisc, reserveStar, stars, sunDisc, type Disc } from './sky-layout';
+import { castShadow, moonDisc, reserveStar, stars, sunDisc, type CastShadow, type Disc, type SkyLayout } from './sky-layout';
 import { PHASE_GRADES } from './timeofday';
 
 type Ctx = CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
@@ -41,11 +42,20 @@ interface Rect {
   h: number;
 }
 
-/** What the plates need to know about the painting besides the shared geometry. */
+/** What the plates need to know about the painting besides the shared geometry (ADR 0241). */
 export interface LightArt {
   trees: readonly TreeSpec[];
   shrubs: readonly ShrubSpec[];
+  /** where the sun and the moon are (default: the Japanese garden's sky) */
+  sky?: SkyLayout;
+  /** the scenery's own shadows, painted after the others (the engawa's) */
+  shadows?(p: Painter, rng: Rng, scene: SceneGeometry, shadow: CastShadow, pigment: string): void;
+  /** the scenery's own lights on one phase's plate (the shoji's lamp light) */
+  lights?(p: Painter, rng: Rng, scene: SceneGeometry, phase: DayPhase): void;
 }
+
+/** The radius of the warm pool of light lifted round each of the scene's lights. */
+const LIGHT_POOL_R = 70;
 
 export interface CastLight {
   /** recompose for a state if the light moved (or `force`); true when it did */
@@ -86,17 +96,18 @@ export interface CastStats {
 export const LIGHT_PLATE_KIND = 'light-plate';
 
 /**
- * The paint-cache key of a phase's light plate: its seed, the phase, its pixel size and a
- * fingerprint of the geometry and the art it throws shadows from (`castPrint`). Everything else
- * is code (the cache version).
+ * The paint-cache key of a phase's light plate: the scenery (ADR 0242), its seed, the phase, its
+ * pixel size and a fingerprint of the geometry and the art it throws shadows from (`castPrint`).
+ * Everything else is code (the cache version).
  */
-export function lightPlateKey(seed: string, phase: DayPhase, w: number, h: number, print: string): string {
-  return `${seed}|${phase}|${w}x${h}|g${print}`;
+export function lightPlateKey(scenery: SceneryId, seed: string, phase: DayPhase, w: number, h: number, print: string): string {
+  return `${scenery}|${seed}|${phase}|${w}x${h}|g${print}`;
 }
 
 /** What the light plates are painted from, as a fingerprint (the studio paints other scenes). */
 export function castPrint(scene: SceneGeometry, art: LightArt): string {
-  return fingerprint({ pond: scene.pond, waterline: scene.waterline, rocks: scene.rocks, pavilion: scene.pavilion, trees: art.trees, shrubs: art.shrubs });
+  const { pond, waterline, rocks, structure, lights } = scene;
+  return fingerprint({ pond, waterline, rocks, structure, lights, trees: art.trees, shrubs: art.shrubs, sky: art.sky ?? null });
 }
 
 const SHADOW = mix(PIGMENTS.shadow, PIGMENTS.ultramarine, 0.38);
@@ -108,13 +119,13 @@ export function paintCastPlate(p: Painter, rng: Rng, phase: DayPhase, scene: Sce
   const shadowPig = phase === 'sunset' ? mix(SHADOW, PIGMENTS.violet, 0.3) : phase === 'sunrise' ? mix(SHADOW, PIGMENTS.bellflower, 0.25) : SHADOW;
   if (phase !== 'night') paintShadows(p, rng, scene, art, sh, shadowPig);
   if (phase === 'sunrise' || phase === 'sunset') paintCrownLights(p, rng, art, phase === 'sunrise' ? 1 : -1, phase === 'sunset' ? 0.42 : 0.32);
-  if (phase === 'night' || phase === 'sunset') paintWindowLight(p, rng, scene, phase === 'night' ? 1 : 0.45);
+  art.lights?.(p, rng, scene, phase);
   // (never on the plate's top rows: tall phones stretch row 0 over the paper above the world)
-  if (phase === 'night') for (const s of stars()) if (s.y > 14) reserveStar(p.ctx, s, 0.9);
+  if (phase === 'night') for (const s of stars(30, 'stars', art.sky ?? GARDEN_SKY_LAYOUT)) if (s.y > 14) reserveStar(p.ctx, s, 0.9);
 }
 
 /** Cast shadows: a cool glaze from each thing's foot, away from the sun, fading toward its tip. */
-function paintShadows(p: Painter, rng: Rng, scene: SceneGeometry, art: LightArt, sh: { dx: number; dy: number; alpha: number }, pig: string): void {
+function paintShadows(p: Painter, rng: Rng, scene: SceneGeometry, art: LightArt, sh: CastShadow, pig: string): void {
   const angle = Math.atan2(sh.dy, sh.dx);
   const long = Math.abs(sh.dx) > 0.6;
   const onWater = (q: Pt) => pointInPolygon(q, scene.pond);
@@ -189,25 +200,7 @@ function paintShadows(p: Painter, rng: Rng, scene: SceneGeometry, art: LightArt,
       fade: long ? { angle: dir > 0 ? 0 : Math.PI, start: 0.45, amount: 0.8, ragged: 0.7 } : undefined,
     });
   }
-  // the engawa: a long shadow onto the bank toward the pond at sunrise, a pool under the deck at midday
-  const f = pavilionFrame(scene.pavilion);
-  const deckFoot = scene.pavilion.y + scene.pavilion.h;
-  if (sh.dx < -0.4) {
-    const reach = Math.min(300, 160 * Math.abs(sh.dx));
-    p.glaze(
-      [
-        { x: f.x0 + 10, y: deckFoot - 6 },
-        { x: f.x0 - reach, y: deckFoot + 2 },
-        { x: f.x0 - reach * 0.8, y: deckFoot + 34 },
-        { x: f.right, y: deckFoot + 40 },
-        { x: f.right, y: deckFoot + 4 },
-      ],
-      pig,
-      { rng, opacity: sh.alpha * 0.5, deform: 0.2, fade: { angle: Math.PI, start: 0.5, amount: 0.9, ragged: 0.5 } },
-    );
-  } else {
-    p.glaze({ cx: (f.x0 + f.right) / 2 + 20, cy: deckFoot + 12, rx: (f.right - f.x0) / 2 + 10, ry: 18 }, pig, { rng, opacity: sh.alpha * 0.4, deform: 0.2 });
-  }
+  art.shadows?.(p, rng, scene, sh, pig);
 }
 
 /** Paper reserved on the sun side of each crown: light caught by the leaves (`side` +1 = right). */
@@ -234,18 +227,6 @@ function paintCrownLights(p: Painter, rng: Rng, art: LightArt, side: 1 | -1, amo
     }
   }
   for (const s of art.shrubs) dab(s.x + side * s.r * 0.4, s.y - s.r * 0.6, s.r * 0.6, s.r * 0.45, amount * 0.8);
-}
-
-/** Lamp light in the shoji panel and spilling onto the deck (night; begins at sunset). */
-function paintWindowLight(p: Painter, rng: Rng, scene: SceneGeometry, k: number): void {
-  const f = pavilionFrame(scene.pavilion);
-  const sx = f.inner.x + 30;
-  const sy = f.deckY - 210;
-  const glow = '#ffe6b0';
-  p.lift([{ x: sx - 2, y: sy - 2 }, { x: sx + 64, y: sy - 6 }, { x: sx + 64, y: sy + 106 }, { x: sx - 2, y: sy + 110 }], { rng, amount: 0.85 * k, paper: glow, deform: 0.04, layers: 6, sharpness: 0.5 });
-  p.lift({ cx: sx + 30, cy: sy + 54, rx: 70, ry: 90 }, { rng, amount: 0.3 * k, paper: '#ffe2b8', deform: 0.3, layers: 6, sharpness: 0.1 });
-  // a warm patch on the deck boards in front of the panel
-  p.lift({ cx: sx + 24, cy: f.deckY + 12, rx: 60, ry: 10 }, { rng, amount: 0.35 * k, paper: glow, deform: 0.3, layers: 5 });
 }
 
 /** A stable key for the composite: weights to 1/200, light discs to a world unit. */
@@ -276,7 +257,9 @@ export function lightPlateTotals(): { painted: number; cacheHits: number; cacheM
   return { ...totals };
 }
 
-export function createCastLight(scene: SceneGeometry, art: LightArt, seed = 'cast', opts: { cache?: PaintCache | null } = {}): CastLight {
+export function createCastLight(scene: SceneGeometry, art: LightArt, seed = 'cast', opts: { cache?: PaintCache | null; scenery?: SceneryId } = {}): CastLight {
+  const sky = art.sky ?? GARDEN_SKY_LAYOUT;
+  const scenery = opts.scenery ?? DEFAULT_SCENERY;
   // the wash's noise fields are built only when a plate is painted (not when it comes from the cache)
   let washed: WashField | null = null;
   const field = () => (washed ??= washField(scene, `${seed}-wash`, CAST_SCALE));
@@ -309,7 +292,7 @@ export function createCastLight(scene: SceneGeometry, art: LightArt, seed = 'cas
   const store = createPlateCache<DayPhase>({
     cache: opts.cache === undefined ? defaultPlateCache() : opts.cache,
     kind: LIGHT_PLATE_KIND,
-    key: (phase) => lightPlateKey(seed, phase, w, h, (print ??= castPrint(scene, art))),
+    key: (phase) => lightPlateKey(scenery, seed, phase, w, h, (print ??= castPrint(scene, art))),
     load(phase, image) {
       if (image.width !== w || image.height !== h) return false;
       if (!plates.has(phase)) plates.set(phase, cutImage(image, 0, 0, w, h));
@@ -426,8 +409,8 @@ export function createCastLight(scene: SceneGeometry, art: LightArt, seed = 'cas
     if (!want || !lastState) return null;
     const list = phasesOf(lastState);
     if (list.some((p) => detailPlates.get(p)?.key !== want!.key)) return null;
-    const sun = sunDisc(lastState);
-    const moon = moonDisc(lastState);
+    const sun = sunDisc(lastState, sky);
+    const moon = moonDisc(lastState, sky);
     const k = `${want.key}|${key(lastState.weights, sun, moon)}`;
     if (detailComp?.key === k) return detailComp;
     const dw = Math.max(1, Math.ceil(want.rect.w * want.scale));
@@ -447,13 +430,10 @@ export function createCastLight(scene: SceneGeometry, art: LightArt, seed = 'cas
       liftGlow(ctx, moon.x, moon.y, moon.r * 1.3, 0.95 * moon.alpha, [252, 252, 255]);
       liftGlow(ctx, moon.x, moon.y, moon.r * 3.4, 0.55 * moon.alpha, [232, 238, 255]);
     }
-    // the lantern's own warm pool of light (the wash already reserves paper round it)
+    // each lantern's own warm pool of light (the wash already reserves paper round it)
     let lantern = 0;
     for (const p of PHASES) lantern += state.weights[p] * PHASE_GRADES[p].lantern;
-    if (lantern > 0.01) {
-      const L = scene.pavilion.lantern;
-      liftGlow(ctx, L.x, L.y + 6, 70, 0.55 * lantern, [255, 222, 160]);
-    }
+    if (lantern > 0.01) for (const L of scene.lights) liftGlow(ctx, L.at.x, L.at.y + 6, LIGHT_POOL_R, 0.55 * lantern, [255, 222, 160]);
     // the light's broken path on the water, under its reflection
     const path = pond();
     if (path) {
@@ -468,8 +448,8 @@ export function createCastLight(scene: SceneGeometry, art: LightArt, seed = 'cas
       return canvas;
     },
     update(state, force = false) {
-      const sun = sunDisc(state);
-      const moon = moonDisc(state);
+      const sun = sunDisc(state, sky);
+      const moon = moonDisc(state, sky);
       const k = key(state.weights, sun, moon);
       if (!force && k === last) return false;
       last = k;

@@ -11,7 +11,7 @@ import { createRimCache, drawRim } from '../paint/rim';
 import { WORLD_H, WORLD_W, type Rect } from '../render/viewport';
 import type { StudioEntry, StudioSection } from '../studio/types';
 import { GARDEN_ART, paintSceneSync, type PaintResult } from './background';
-import { SHRUBS, TREES } from './layout';
+import { GARDEN_LIGHT_ART } from '../scenery/japanese-garden/light';
 import { SKY_RECT } from './paint-sky';
 import { createSkyLight, type SkyLight } from './sky-light';
 
@@ -38,7 +38,7 @@ function paper(w: number, h: number): AnyCanvas {
 
 const lights = () => {
   sky ??= createSkyLight({ pond: GARDEN_ART.scene.pond, seed: GARDEN_ART.seed });
-  cast ??= createCastLight(GARDEN_ART.scene, { trees: TREES, shrubs: SHRUBS }, 'studio-cast');
+  cast ??= createCastLight(GARDEN_ART.scene, GARDEN_LIGHT_ART, 'studio-cast');
   return { sky, cast };
 };
 

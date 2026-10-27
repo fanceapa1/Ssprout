@@ -28,7 +28,11 @@ const placeholderScene: SceneGeometry = {
   waterline: 560,
   rocks: [],
   path: [],
-  pavilion: { x: 1280, y: 260, w: 320, h: 380, lantern: { x: 1260, y: 610 } },
+  streams: [],
+  falls: null,
+  structure: { x: 1280, y: 260, w: 320, h: 380 },
+  lights: [{ id: 'lantern', at: { x: 1260, y: 610 }, r: 78 }],
+  eave: null,
   slots: [
     { id: 'water-1', x: 740, y: 560, habitat: 'water', maxSize: 'medium', scale: 0.9 },
     { id: 'meadow-1', x: 300, y: 780, habitat: 'meadow', maxSize: 'large', scale: 1.05 },

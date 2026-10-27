@@ -6,11 +6,13 @@
  * them; the painting then sits in the middle of the screen with bare paper above and below
  * (the world's own margins already dissolve into paper). Screen coordinates are CSS pixels.
  */
+import { GARDEN_VIEW } from '../scenery/japanese-garden/view';
+
 export const WORLD_W = 1600;
 export const WORLD_H = 1000;
 export const MAX_DPR = 2;
-/** Pond centre: what stays in view when portrait screens crop the sides. */
-export const DEFAULT_FOCUS: Pt = { x: 800, y: 560 };
+/** What stays in view when portrait screens crop the sides: the default scenery's focus (the pond centre). */
+export const DEFAULT_FOCUS: Pt = GARDEN_VIEW.focus;
 /** Narrowest slice of the world a portrait screen shows (world units). */
 export const MIN_VISIBLE_W = 600;
 

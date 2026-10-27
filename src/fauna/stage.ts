@@ -36,7 +36,11 @@ export function stageScene({ w, h }: StageSpec): SceneGeometry {
       { x: cx + rx * 0.25, y: cy + ry * 1.75, rx: w * 0.035, ry: h * 0.014 },
       { x: cx + rx * 0.05, y: cy + ry * 2.2, rx: w * 0.04, ry: h * 0.016 },
     ],
-    pavilion: { x: w, y: 0, w: 1, h: 1, lantern: { x: w, y: 0 } },
+    streams: [],
+    falls: null,
+    structure: null,
+    lights: [],
+    eave: null,
     slots: [
       slot('stage-meadow-1', w * 0.12, h * 0.93, 'meadow'),
       slot('stage-meadow-2', w * 0.88, h * 0.9, 'meadow'),

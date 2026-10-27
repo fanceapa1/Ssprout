@@ -7,6 +7,7 @@ import { createPlateCache, fingerprint } from './plate-cache';
 import { POND } from '../scene/geometry';
 import { skyPlateKey, SKY_PLATE_KIND } from '../scene/sky-light';
 import { SHRUBS, TREES } from '../scene/layout';
+import { GARDEN_SKY_LAYOUT } from '../scenery/japanese-garden/sky';
 
 /** A paint cache over a Map whose lookups answer only when `answer()` is called (no canvas, no IndexedDB). */
 function fakeCache(stored: Record<string, { width: number; height: number }> = {}) {
@@ -138,27 +139,31 @@ describe('plate keys (ADR 0236)', () => {
   const water = { w: 408, h: 141 };
   const rect = { x: 450, y: 442, w: 816, h: 281 };
 
-  it('a sky plate is keyed on the seed, the phase, its sizes and the water rect', () => {
-    const k = skyPlateKey(7, 'midday', sky, rect, water);
-    expect(k).toBe('s7|midday|1120x518|450,442,816,281@408x141');
-    expect(skyPlateKey(8, 'midday', sky, rect, water)).not.toBe(k);
-    expect(skyPlateKey(7, 'night', sky, rect, water)).not.toBe(k);
-    expect(skyPlateKey(7, 'midday', { w: 1121, h: 518 }, rect, water)).not.toBe(k);
-    expect(skyPlateKey(7, 'midday', sky, { ...rect, x: 450.5 }, water)).not.toBe(k);
+  it('a sky plate is keyed on the scenery, the seed, the phase, its sizes and the water rect', () => {
+    const k = skyPlateKey('japanese-garden', 7, 'midday', sky, rect, water);
+    expect(k).toBe('japanese-garden|s7|midday|1120x518|450,442,816,281@408x141');
+    expect(skyPlateKey('waterfall', 7, 'midday', sky, rect, water)).not.toBe(k);
+    expect(skyPlateKey('japanese-garden', 8, 'midday', sky, rect, water)).not.toBe(k);
+    expect(skyPlateKey('japanese-garden', 7, 'night', sky, rect, water)).not.toBe(k);
+    expect(skyPlateKey('japanese-garden', 7, 'midday', { w: 1121, h: 518 }, rect, water)).not.toBe(k);
+    expect(skyPlateKey('japanese-garden', 7, 'midday', sky, { ...rect, x: 450.5 }, water)).not.toBe(k);
     expect(SKY_PLATE_KIND).not.toContain(':');
   });
 
-  it('a light plate is keyed on its seed, the phase, its size and what it is painted from', () => {
-    const scene = { pond: POND, waterline: 470, rocks: [], pavilion: { x: 1300, y: 300, w: 200, h: 300, lantern: { x: 1290, y: 520 } } } as never;
+  it('a light plate is keyed on the scenery, its seed, the phase, its size and what it is painted from', () => {
+    const scene = { pond: POND, waterline: 470, rocks: [], structure: { x: 1300, y: 300, w: 200, h: 300 }, lights: [{ id: 'lantern', at: { x: 1290, y: 520 }, r: 78 }] } as never;
     const print = castPrint(scene, { trees: TREES, shrubs: SHRUBS });
     expect(print).toMatch(/^[0-9a-z]+$/);
     expect(castPrint(scene, { trees: TREES, shrubs: SHRUBS })).toBe(print);
     expect(castPrint(scene, { trees: TREES, shrubs: [] })).not.toBe(print);
     expect(castPrint({ ...(scene as object), waterline: 471 } as never, { trees: TREES, shrubs: SHRUBS })).not.toBe(print);
-    const k = lightPlateKey('ambience-cast', 'sunset', 640, 400, print);
-    expect(k).toBe(`ambience-cast|sunset|640x400|g${print}`);
-    expect(lightPlateKey('ambience-cast', 'night', 640, 400, print)).not.toBe(k);
-    expect(lightPlateKey('other-cast', 'sunset', 640, 400, print)).not.toBe(k);
+    expect(castPrint({ ...(scene as object), lights: [] } as never, { trees: TREES, shrubs: SHRUBS })).not.toBe(print);
+    expect(castPrint(scene, { trees: TREES, shrubs: SHRUBS, sky: { ...GARDEN_SKY_LAYOUT, horizonY: 300 } })).not.toBe(print);
+    const k = lightPlateKey('japanese-garden', 'ambience-cast', 'sunset', 640, 400, print);
+    expect(k).toBe(`japanese-garden|ambience-cast|sunset|640x400|g${print}`);
+    expect(lightPlateKey('waterfall', 'ambience-cast', 'sunset', 640, 400, print)).not.toBe(k);
+    expect(lightPlateKey('japanese-garden', 'ambience-cast', 'night', 640, 400, print)).not.toBe(k);
+    expect(lightPlateKey('japanese-garden', 'other-cast', 'sunset', 640, 400, print)).not.toBe(k);
     expect(LIGHT_PLATE_KIND).not.toContain(':');
   });
 

@@ -16,7 +16,10 @@ import { createNightEdge, edgeStrength } from './night-edge';
 import { LIGHT } from './lighting';
 import { nextPhase, pinnedState, only, whenIdle, type DayPhase, type DaylightState } from './daylight';
 import { MOTE, type Emitter } from './motes';
-import { pavilionFrame } from '../scene/paint-pavilion';
+import { DEFAULT_SCENERY, type SceneryId } from '../scenery/ids';
+import { GARDEN_AMBIENCE } from '../scenery/japanese-garden/ambience';
+import { ENGAWA_LIGHT } from '../scenery/japanese-garden/light';
+import type { SceneryAmbience } from '../scenery/types';
 import { createSim, lifeAlpha, setSimArea, SPRITE_VARIANTS, stepSim, warmSim, type Eave, type Sim } from './sim';
 import { buildSprites, builtSprites, type SpriteGroup, type Sprites } from './sprites';
 import { gradeFor, type Grade } from './timeofday';
@@ -52,8 +55,7 @@ export const LOOK = {
   flameSize: 5,
   /** how much colour the night takes out before its indigo glaze (saturation blend) */
   nightDesaturate: 0.38,
-  /** sunrise mist: which mist bands lie on the pond and far bank, how dense, how far they rise */
-  dawnMistBands: [1, 2, 3] as readonly number[],
+  /** sunrise mist: how dense, how far it rises (which bands: the scenery's `mistBands`) */
   dawnMist: 1.25,
   dawnMistRise: 26,
   /** dew twinkles on the near grass at sunrise */
@@ -81,12 +83,24 @@ export interface AmbienceOptions {
   seed?: string;
   /** world area to spawn particles in (the visible part of the world); default whole world */
   area?: Rect;
-  /** eave for the rain drip line (default: from the scene's pavilion; null = none) */
+  /** eave for the rain drip line (default: the scene's) */
   eave?: Eave | null;
   wind?: WindFn;
-  /** painting-only layout the light plates throw shadows from (default: none but the geometry's) */
+  /** the scenery: its id (paint-cache keys), light art and ambience numbers (default: the Japanese garden's numbers, no trees) */
+  scenery?: AmbienceScenery;
+  /** painting-only layout the light plates throw shadows from (default: the scenery's) */
   lightArt?: LightArt;
 }
+
+/** What the ambience needs of a scenery (ADR 0241). */
+export interface AmbienceScenery {
+  id: SceneryId;
+  light: LightArt;
+  ambience: SceneryAmbience;
+}
+
+/** Without a scenery: the Japanese garden's numbers and only the geometry's own light marks. */
+const NO_SCENERY: AmbienceScenery = { id: DEFAULT_SCENERY, light: { trees: [], shrubs: [], ...ENGAWA_LIGHT }, ambience: GARDEN_AMBIENCE };
 
 export interface AmbienceDebug {
   phase: SessionPhase;
@@ -132,15 +146,6 @@ export interface Ambience {
   debug(): AmbienceDebug;
 }
 
-/** The eave line of the scene's pavilion (same frame the scene paints it with). */
-export function eaveOf(scene: SceneGeometry): Eave | null {
-  const pv = scene.pavilion;
-  if (!(pv.w > 0 && pv.h > 0)) return null;
-  const f = pavilionFrame(pv);
-  // the fascia's lower edge, where drops gather; they land at the foot of the deck
-  return { a: { x: f.eaveL.x, y: f.eaveL.y + 9 }, b: { x: f.eaveR.x, y: f.eaveR.y + 9 }, ground: pv.y + pv.h };
-}
-
 const spriteCache = new WeakMap<SceneGeometry, Map<string, Sprites>>();
 
 /** Sprites are immutable: build once per scene + seed. */
@@ -157,18 +162,20 @@ export function createAmbience(opts: AmbienceOptions): Ambience {
   const reducedMotion = opts.reducedMotion ?? false;
   const windFn = opts.wind ?? defaultWind;
   const seed = opts.seed ?? 'ambience';
+  const scenery = opts.scenery ?? NO_SCENERY;
+  const look = scenery.ambience;
   const pondBox = bounds(scene.pond);
   const sprites: Sprites = spritesFor(scene, seed, { pondTop: pondBox.y, pondBottom: pondBox.y + pondBox.h });
   // the light plates' field and canvases are built on the first frame that lights the garden, not
   // when the engine is made (ADR 0232)
   let castLight: CastLight | null = null;
-  const cast = (): CastLight => (castLight ??= castFor(scene, opts.lightArt ?? NO_ART, `${seed}-cast`));
+  const cast = (): CastLight => (castLight ??= castFor(scene, opts.lightArt ?? scenery.light, `${seed}-cast`, scenery.id));
   const nightEdge = createNightEdge(`${seed}-edge`);
   const plate = createDevicePlate();
   const area0 = opts.area ?? { x: 0, y: 0, w: WORLD_W, h: WORLD_H };
   /** the visible area: on tall phones it reaches above and below the world (bare paper there) */
   let view: Rect = area0;
-  let sim: Sim = createSim(createRng(seed).fork('sim'), { pond: scene.pond, area: area0, eave: opts.eave ?? eaveOf(scene) });
+  let sim: Sim = createSim(createRng(seed).fork('sim'), { pond: scene.pond, area: area0, eave: opts.eave ?? scene.eave });
   let env: EnvelopeState = createEnvelope({ motion: 1 });
   let pendingSettle = true;
   let lightDirty = true;
@@ -209,15 +216,14 @@ export function createAmbience(opts: AmbienceOptions): Ambience {
 
   /** how much daylight there is for sunny effects (the lifted light, glints): little at night */
   const daylight = () => 1 - 0.85 * Math.min(1, light.weights.night);
-  const pondTop = pondBox.y;
   let mistVeil: { top: number; to: number; fill: CanvasGradient } | null = null;
-  /** dew points on the near banks (seeded): where the sunrise twinkles */
+  /** dew points on the scenery's dew boxes, taken in turn (seeded): where the sunrise twinkles */
   const dewRng = createRng(seed).fork('dew');
-  const dew = Array.from({ length: LOOK.dewCount }, (_, i) => {
-    const left = i % 2 === 0;
+  const dew = Array.from({ length: look.dew.length ? LOOK.dewCount : 0 }, (_, i) => {
+    const box = look.dew[i % look.dew.length]!;
     return {
-      x: left ? dewRng.range(90, 560) : dewRng.range(980, 1500),
-      y: dewRng.range(760, 950),
+      x: dewRng.range(box.x, box.x + box.w),
+      y: dewRng.range(box.y, box.y + box.h),
       len: dewRng.range(7, 12),
       rate: dewRng.range(0.5, 1.1),
       ph: dewRng.range(0, Math.PI * 2),
@@ -358,7 +364,7 @@ export function createAmbience(opts: AmbienceOptions): Ambience {
           ctx.drawImage(b.canvas as CanvasImageSource, off - WORLD_W, y, WORLD_W, b.h);
           ctx.drawImage(b.canvas as CanvasImageSource, off, y, WORLD_W, b.h);
         }
-        const veilTo = pondTop + 140;
+        const veilTo = look.veilTo;
         if (!mistVeil || mistVeil.top !== area.y || mistVeil.to !== veilTo) {
           const gr = ctx.createLinearGradient(0, area.y, 0, veilTo);
           const [r, g, b] = LOOK.mistVeil.rgb;
@@ -377,7 +383,7 @@ export function createAmbience(opts: AmbienceOptions): Ambience {
       if (dawn > 0.01) {
         const lift = Math.max(0, Math.min(1, (light.sunAltitude + 4) / 14));
         ctx.globalCompositeOperation = 'source-over';
-        for (const i of LOOK.dawnMistBands) {
+        for (const i of look.mistBands) {
           const b = sprites.mist[i];
           if (!b) continue;
           ctx.globalAlpha = b.alpha * LOOK.dawnMist * dawn * (1 - 0.65 * lift);
@@ -504,13 +510,12 @@ export function createAmbience(opts: AmbienceOptions): Ambience {
       ctx.globalAlpha = 1;
       ctx.globalCompositeOperation = 'source-over';
       nightEdge.draw(ctx as CanvasRenderingContext2D, edgeStrength(light) * alpha);
-      if (grade.lantern > 0.02) {
-        const L = scene.pavilion.lantern;
+      if (grade.lantern > 0.02 && scene.lights.length) {
         const flicker = 0.88 + 0.12 * (0.5 + 0.5 * Math.sin(flameT * 2.3) * Math.sin(flameT * 3.7 + 1));
         const s = LOOK.flameSize;
         ctx.globalCompositeOperation = 'screen';
         ctx.globalAlpha = LOOK.flameAlpha * grade.lantern * flicker * alpha;
-        ctx.drawImage(sprites.flame as CanvasImageSource, L.x - s, L.y - s * 1.2, s * 2, s * 2.4);
+        for (const { at: L } of scene.lights) ctx.drawImage(sprites.flame as CanvasImageSource, L.x - s, L.y - s * 1.2, s * 2, s * 2.4);
       }
     },
     level: (c) => env.value[c],
@@ -534,8 +539,6 @@ export function createAmbience(opts: AmbienceOptions): Ambience {
   return api;
 }
 
-const NO_ART: LightArt = { trees: [], shrubs: [] };
-
 /** the part of a rect inside the world, or null */
 function clip(r: Rect): Rect | null {
   const x = Math.max(0, r.x);
@@ -549,12 +552,13 @@ const contains = (o: Rect, i: Rect) => i.x >= o.x - 0.5 && i.y >= o.y - 0.5 && i
 
 const castCache = new WeakMap<SceneGeometry, Map<string, CastLight>>();
 
-/** Light plates are painted once per scene + seed and shared by every engine (the studio runs several). */
-function castFor(scene: SceneGeometry, art: LightArt, seed: string): CastLight {
+/** Light plates are painted once per scene + scenery + seed and shared by every engine (the studio runs several). */
+function castFor(scene: SceneGeometry, art: LightArt, seed: string, scenery: SceneryId): CastLight {
   let bySeed = castCache.get(scene);
   if (!bySeed) castCache.set(scene, (bySeed = new Map()));
-  let c = bySeed.get(seed);
-  if (!c) bySeed.set(seed, (c = createCastLight(scene, art, seed)));
+  const key = `${scenery}|${seed}`;
+  let c = bySeed.get(key);
+  if (!c) bySeed.set(key, (c = createCastLight(scene, art, seed, { scenery })));
   return c;
 }
 

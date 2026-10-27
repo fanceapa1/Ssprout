@@ -7,18 +7,29 @@
  */
 import { createRng } from '../core/rng';
 import type { Pt } from '../render/viewport';
+import { GARDEN_SKY_LAYOUT } from '../scenery/japanese-garden/sky';
 import type { DaylightState } from './daylight';
 
-/** World y of the horizon the sun sets into (behind the far ridge, ~y 300–352). */
-export const HORIZON_Y = 368;
+/**
+ * A scenery's sky numbers (ADR 0241): the horizon the sun sets into, the sun's x at that horizon
+ * rising and setting, the moon's arc and where the stars may be. Default: the Japanese garden.
+ */
+export interface SkyLayout {
+  horizonY: number;
+  sunriseX: number;
+  sunsetX: number;
+  /** dusk, the top (the curve passes through it), dawn */
+  moonArc: readonly [Pt, Pt, Pt];
+  /** stars from `top` down `depth` units, none inside `gap` (round the moon's arc) */
+  stars: { top: number; depth: number; gap: { x: number; halfW: number; y0: number; y1: number } | null };
+}
+
 /** World units of rise per degree of sun altitude (the sky band is short: keep it low). */
 export const UNITS_PER_DEGREE = 8.5;
 export const SUN_R = 22;
 export const MOON_R = 17;
 
-/** Sun x at the horizon and its drift per degree of altitude (rising sun moves left, setting right). */
-const SUNRISE_X = 966;
-const SUNSET_X = 556;
+/** The sun's drift per degree of altitude (rising sun moves left, setting right). */
 const DRIFT = 2.2;
 
 export interface Disc extends Pt {
@@ -27,26 +38,20 @@ export interface Disc extends Pt {
   alpha: number;
 }
 
-export function sunDisc(s: DaylightState): Disc {
+export function sunDisc(s: DaylightState, sky: SkyLayout = GARDEN_SKY_LAYOUT): Disc {
   const alt = Math.max(-8, Math.min(16, s.sunAltitude));
-  const x = s.sunRising ? SUNRISE_X - alt * DRIFT : SUNSET_X + alt * DRIFT;
+  const x = s.sunRising ? sky.sunriseX - alt * DRIFT : sky.sunsetX + alt * DRIFT;
   const low = s.weights.sunrise + s.weights.sunset;
   // a low sun only: it rises out of the frame toward midday and is gone at night
   const alpha = low * clamp01((alt + 3) / 4) * clamp01((15 - alt) / 4);
-  return { x, y: HORIZON_Y - alt * UNITS_PER_DEGREE, r: SUN_R, alpha };
+  return { x, y: sky.horizonY - alt * UNITS_PER_DEGREE, r: SUN_R, alpha };
 }
 
-/** The moon's arc (dusk → dawn), east (right) to west (left), through the gap in the trees. */
-const MOON_ARC: readonly Pt[] = [
-  { x: 902, y: 270 },
-  { x: 806, y: 182 },
-  { x: 708, y: 252 },
-];
-
-export function moonDisc(s: DaylightState): Disc {
+/** The moon along the sky's arc, dusk → dawn. */
+export function moonDisc(s: DaylightState, sky: SkyLayout = GARDEN_SKY_LAYOUT): Disc {
   const u = clamp01(s.moonProgress);
   // quadratic Bézier through the three arc points (the middle one is the control point's image)
-  const [a, m, b] = MOON_ARC as [Pt, Pt, Pt];
+  const [a, m, b] = sky.moonArc;
   const c = { x: 2 * m.x - (a.x + b.x) / 2, y: 2 * m.y - (a.y + b.y) / 2 };
   const x = (1 - u) ** 2 * a.x + 2 * (1 - u) * u * c.x + u * u * b.x;
   const y = (1 - u) ** 2 * a.y + 2 * (1 - u) * u * c.y + u * u * b.y;
@@ -63,13 +68,14 @@ export interface Star extends Pt {
  * A few faint stars, mostly high in the sky and clear of the moon's arc; both the night sky and
  * the night light plate leave paper at these points, so the stars survive the indigo glaze.
  */
-export function stars(count = 30, seed = 'stars'): Star[] {
+export function stars(count = 30, seed = 'stars', sky: SkyLayout = GARDEN_SKY_LAYOUT): Star[] {
   const rng = createRng(seed);
   const out: Star[] = [];
+  const { top, depth, gap } = sky.stars;
   for (let i = 0; out.length < count && i < count * 10; i++) {
     const x = rng.range(20, 1580);
-    const y = 30 + rng.next() ** 1.25 * 270;
-    if (Math.abs(x - 806) < 130 && y > 140 && y < 300) continue;
+    const y = top + rng.next() ** 1.25 * depth;
+    if (gap && Math.abs(x - gap.x) < gap.halfW && y > gap.y0 && y < gap.y1) continue;
     out.push({ x, y, r: rng.range(1.2, 2.4) * (rng.chance(0.15) ? 1.5 : 1), a: rng.range(0.5, 1) });
   }
   return out;

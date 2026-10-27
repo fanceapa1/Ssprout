@@ -14,6 +14,8 @@ import type { DayPhase } from '../ambience/daylight';
 import { WORLD_W, type Pt, type Rect } from '../render/viewport';
 import { HILLS } from './layout';
 import { reserveStar, stars } from '../ambience/sky-layout';
+import { GARDEN_SKY_LAYOUT } from '../scenery/japanese-garden/sky';
+import type { ScenerySky } from '../scenery/types';
 
 /** The world band the sky plates cover (above the world's top for tall phones, down past the far bank). */
 export const SKY_RECT: Rect = { x: 0, y: -240, w: WORLD_W, h: 740 };
@@ -290,7 +292,7 @@ export function paintSkyPlate(p: Painter, rng: Rng, phase: DayPhase): void {
       // the hills: darker indigo shapes against the lighter horizon
       p.glaze(hillsShape(), mix(PIGMENTS.indigo, PIGMENTS.violet, 0.2), { rng, opacity: 0.36, fade: { angle: Math.PI / 2, start: 0.4, amount: 1 } });
       // a few faint stars: tiny flecks of paper left in the wash (the light plate leaves them too)
-      for (const s of stars()) reserveStar(p.ctx, s);
+      for (const s of stars(30, 'stars', GARDEN_SKY_LAYOUT)) reserveStar(p.ctx, s);
       break;
     }
   }
@@ -327,3 +329,12 @@ export function paintWaterSkyPlate(p: Painter, rng: Rng, phase: DayPhase, box: R
     p.lift({ cx: x, cy: y, rx: len / 2, ry: rng.range(1.2, 2.6) }, { rng, amount: rng.range(0.25, 0.5), deform: 0.25, spread: 0.3, layers: 5 });
   }
 }
+
+/** The Japanese garden's sky: its layout, plates and open-sky shape (ADR 0241). */
+export const GARDEN_SKY: ScenerySky = {
+  layout: GARDEN_SKY_LAYOUT,
+  rect: SKY_RECT,
+  shape: skyShape,
+  paint: paintSkyPlate,
+  paintWater: paintWaterSkyPlate,
+};

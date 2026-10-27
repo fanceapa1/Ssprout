@@ -9,7 +9,7 @@ import type { Store, Weather } from '../core/state';
 import type { LayerId, System } from '../render/types';
 import type { CameraView } from '../render/camera';
 import type { SceneGeometry } from '../scene/geometry';
-import { createAmbience, type Ambience, type AmbienceDebug } from './ambience';
+import { createAmbience, type Ambience, type AmbienceDebug, type AmbienceScenery } from './ambience';
 import { moteEmitters, type Emitter } from './motes';
 import type { Grade } from './timeofday';
 import type { TimeOverride } from './daylight';
@@ -50,8 +50,10 @@ export interface AmbienceSystemOptions {
   seed?: string;
   /** the garden's daylight (default: its own, following the clock at the zone's location) */
   daylight?: DaylightSource;
-  /** painting-only layout the light plates throw shadows from */
+  /** painting-only layout the light plates throw shadows from (default: the scenery's) */
   lightArt?: LightArt;
+  /** the scenery's id, light art and ambience numbers (ADR 0241) */
+  scenery?: AmbienceScenery;
 }
 
 const NO_EMITTERS: readonly Emitter[] = [];
@@ -96,7 +98,7 @@ export function createAmbienceSystem(opts: AmbienceSystemOptions = {}): Ambience
       camera = ctx.camera ?? null;
       seenDetail = -1;
       if (!engine || engineScene !== ctx.scene) {
-        engine = createAmbience({ scene: ctx.scene, reducedMotion: ctx.reducedMotion, seed: opts.seed, area: ctx.viewport.visible, lightArt: opts.lightArt });
+        engine = createAmbience({ scene: ctx.scene, reducedMotion: ctx.reducedMotion, seed: opts.seed, area: ctx.viewport.visible, lightArt: opts.lightArt, scenery: opts.scenery });
         engine.preview = preview;
         engineScene = ctx.scene;
       } else {

@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { area, pointInPolygon } from '../paint/geometry';
 import { HABITATS, SIZE_CLASSES } from '../plants/types';
 import { WORLD_H, WORLD_W, type Pt } from '../render/viewport';
-import { gardenScene, PATH, PAVILION, POND, ROCKS, type Slot } from './geometry';
+import { gardenScene, pavilionOf, PATH, PAVILION, POND, ROCKS, type Slot } from './geometry';
+import { pavilionFrame } from './paint-pavilion';
 import { FOREGROUND_TUFTS, TREES } from './layout';
 import { FAR_SCALE, GARDEN_PLANT_SCALE, NEAR_SCALE, PLANT_SIZES, perspectiveScale, plantScale } from './slots';
 
@@ -240,7 +241,8 @@ describe('scene geometry', () => {
   });
 
   it('keeps the lantern under the pavilion and the sky band in the sky', () => {
-    const pv = gardenScene.pavilion;
+    const pv = pavilionOf(gardenScene)!;
+    expect(pv).toEqual(PAVILION);
     expect(pv.lantern.x).toBeGreaterThanOrEqual(pv.x);
     expect(pv.lantern.x).toBeLessThanOrEqual(pv.x + pv.w);
     expect(pv.lantern.y).toBeGreaterThanOrEqual(pv.y);
@@ -248,6 +250,18 @@ describe('scene geometry', () => {
     expect(pv.x + pv.w).toBeLessThanOrEqual(WORLD_W);
     expect(gardenScene.skyBand.top).toBeGreaterThanOrEqual(0);
     expect(gardenScene.skyBand.bottom).toBeLessThan(gardenScene.waterline);
+  });
+
+  it('drips rain off the engawa eave: the fascia line the pavilion is painted with, onto the deck foot', () => {
+    const f = pavilionFrame(PAVILION);
+    expect(gardenScene.eave).toEqual({ a: { x: f.eaveL.x, y: f.eaveL.y + 9 }, b: { x: f.eaveR.x, y: f.eaveR.y + 9 }, ground: PAVILION.y + PAVILION.h });
+  });
+
+  it('has still water only: no streams, no falls, one lantern', () => {
+    expect(gardenScene.streams).toEqual([]);
+    expect(gardenScene.falls).toBeNull();
+    expect(gardenScene.lights.map((l) => l.id)).toEqual(['lantern']);
+    expect(pavilionOf({ structure: null, lights: gardenScene.lights })).toBeNull();
   });
 
   it('keeps the painted trees and foreground tufts inside the world', () => {

@@ -558,10 +558,10 @@ export function createPlantSystem(opts: PlantSystemOptions): PlantSystem {
     const visibleH = Math.max(8, slot.y - top);
     const k = plantScale(slot);
     const size = Math.max(30 * k, Math.min(54 * k, visibleH * 0.5));
-    // the can comes from the open side: from the left when its path would cross the pavilion
+    // the can comes from the open side: from the left when its path would cross the structure (the engawa)
     // (or run off the right edge of the world)
     const reach = slot.x + half * 0.6 + size * 3.2;
-    const side: 1 | -1 = reach > Math.min(scene?.pavilion.x ?? 1600, 1600) ? -1 : 1;
+    const side: 1 | -1 = reach > Math.min(scene?.structure?.x ?? 1600, 1600) ? -1 : 1;
     return { baseX: slot.x, baseY: slot.y, top, halfWidth: Math.max(half, 6), size, side };
   }
 

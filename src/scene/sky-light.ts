@@ -14,7 +14,9 @@ import { createPlateCache, cutImage, defaultPlateCache } from '../ambience/plate
 import { bounds, createPainter, createSimplex2D, insetPolygon, makeCanvas, type AnyCanvas } from '../paint';
 import type { PaintCache } from '../paint/persist';
 import type { Pt, Rect } from '../render/viewport';
-import { SKY_RECT, SKY_SCALE, paintSkyPlate, paintWaterSkyPlate, skyShape } from './paint-sky';
+import { DEFAULT_SCENERY, type SceneryId } from '../scenery/ids';
+import type { ScenerySky } from '../scenery/types';
+import { GARDEN_SKY, SKY_SCALE } from './paint-sky';
 
 type Ctx = CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
 
@@ -74,12 +76,12 @@ interface Size {
 
 /**
  * The paint-cache key of a phase's sky and water plates: everything their pixels depend on
- * besides the code (the cache version): the garden seed, the phase, the plates' pixel sizes and
- * the water plate's world rect (from the pond). Numbers are exact (`String`).
+ * besides the code (the cache version): the scenery, the garden seed, the phase, the plates' pixel
+ * sizes and the water plate's world rect (from the pond). Numbers are exact (`String`, ADR 0242).
  */
-export function skyPlateKey(seed: number, phase: DayPhase, sky: Size, waterRect: Rect, water: Size): string {
+export function skyPlateKey(scenery: SceneryId, seed: number, phase: DayPhase, sky: Size, waterRect: Rect, water: Size): string {
   const r = waterRect;
-  return `s${seed}|${phase}|${sky.w}x${sky.h}|${r.x},${r.y},${r.w},${r.h}@${water.w}x${water.h}`;
+  return `${scenery}|s${seed}|${phase}|${sky.w}x${sky.h}|${r.x},${r.y},${r.w},${r.h}@${water.w}x${water.h}`;
 }
 
 /** The intersection of two rects, or null when they do not overlap. */
@@ -121,16 +123,22 @@ export function blendOrder(w: PhaseWeights): Array<{ phase: DayPhase; alpha: num
 export interface SkyLightOptions {
   pond: readonly Pt[];
   seed: number;
+  /** whose sky (default: the Japanese garden's) and the scenery id its plates are stored under */
+  sky?: ScenerySky;
+  scenery?: SceneryId;
   /** where the plates are looked up and stored (default: the app's paint cache; null: none) */
   cache?: PaintCache | null;
 }
 
 export function createSkyLight(opts: SkyLightOptions): SkyLight {
   const plates = new Map<DayPhase, Plate>();
+  const spec = opts.sky ?? GARDEN_SKY;
+  const skyRect = spec.rect;
+  const scenery = opts.scenery ?? DEFAULT_SCENERY;
   const pondBox = bounds(opts.pond);
   const waterRect: Rect = { x: pondBox.x - 10, y: pondBox.y - 10, w: pondBox.w + 20, h: pondBox.h + 20 };
-  const sw = Math.ceil(SKY_RECT.w * SKY_SCALE);
-  const sh = Math.ceil(SKY_RECT.h * SKY_SCALE);
+  const sw = Math.ceil(skyRect.w * SKY_SCALE);
+  const sh = Math.ceil(skyRect.h * SKY_SCALE);
   const composite = makeCanvas(sw, sh);
   const cctx = composite.getContext('2d') as Ctx;
   const ww = Math.ceil(waterRect.w * WATER_SCALE);
@@ -168,7 +176,7 @@ export function createSkyLight(opts: SkyLightOptions): SkyLight {
   const store = createPlateCache<DayPhase>({
     cache: opts.cache === undefined ? defaultPlateCache() : opts.cache,
     kind: SKY_PLATE_KIND,
-    key: (phase) => skyPlateKey(opts.seed, phase, { w: sw, h: sh }, waterRect, { w: ww, h: wh }),
+    key: (phase) => skyPlateKey(scenery, opts.seed, phase, { w: sw, h: sh }, waterRect, { w: ww, h: wh }),
     load(phase, image) {
       if (image.width !== atlasW || image.height !== atlasH) return false;
       if (!plates.has(phase)) plates.set(phase, { sky: cutImage(image, 0, 0, sw, sh), water: cutImage(image, 0, sh, ww, wh) });
@@ -190,14 +198,14 @@ export function createSkyLight(opts: SkyLightOptions): SkyLight {
     const sp = createPainter(sky, { seed: `${opts.seed}:sky:${phase}` });
     sp.ctx.fillStyle = '#ffffff';
     sp.ctx.fillRect(0, 0, sw, sh);
-    sp.ctx.setTransform(SKY_SCALE, 0, 0, SKY_SCALE, -SKY_RECT.x * SKY_SCALE, -SKY_RECT.y * SKY_SCALE);
-    paintSkyPlate(sp, createRng(`${opts.seed}:sky:${phase}`), phase);
+    sp.ctx.setTransform(SKY_SCALE, 0, 0, SKY_SCALE, -skyRect.x * SKY_SCALE, -skyRect.y * SKY_SCALE);
+    spec.paint(sp, createRng(`${opts.seed}:sky:${phase}`), phase);
     const water = makeCanvas(ww, wh);
     const wp = createPainter(water, { seed: `${opts.seed}:water-sky:${phase}` });
     wp.ctx.fillStyle = '#ffffff';
     wp.ctx.fillRect(0, 0, ww, wh);
     wp.ctx.setTransform(WATER_SCALE, 0, 0, WATER_SCALE, -waterRect.x * WATER_SCALE, -waterRect.y * WATER_SCALE);
-    paintWaterSkyPlate(wp, createRng(`${opts.seed}:water-sky:${phase}`), phase, pondBox);
+    spec.paintWater(wp, createRng(`${opts.seed}:water-sky:${phase}`), phase, pondBox);
     const plate = { sky, water };
     plates.set(phase, plate);
     paintMs += now() - t0;
@@ -216,7 +224,7 @@ export function createSkyLight(opts: SkyLightOptions): SkyLight {
   const skyClip = () => {
     if (!skyPath && typeof Path2D !== 'undefined') {
       skyPath = new Path2D();
-      skyShape(0).forEach((q, i) => (i ? skyPath!.lineTo(q.x, q.y) : skyPath!.moveTo(q.x, q.y)));
+      spec.shape(0).forEach((q, i) => (i ? skyPath!.lineTo(q.x, q.y) : skyPath!.moveTo(q.x, q.y)));
       skyPath.closePath();
     }
     return skyPath;
@@ -252,7 +260,7 @@ export function createSkyLight(opts: SkyLightOptions): SkyLight {
       wctx.globalCompositeOperation = 'source-over';
     }
     // world units from here on
-    cctx.setTransform(SKY_SCALE, 0, 0, SKY_SCALE, -SKY_RECT.x * SKY_SCALE, -SKY_RECT.y * SKY_SCALE);
+    cctx.setTransform(SKY_SCALE, 0, 0, SKY_SCALE, -skyRect.x * SKY_SCALE, -skyRect.y * SKY_SCALE);
     if (sun.alpha > 0.01) punchSun(cctx, sun, skyClip());
     if (moon.alpha > 0.01) punchMoon(cctx, moon, state.moonPhase);
     cctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -275,8 +283,8 @@ export function createSkyLight(opts: SkyLightOptions): SkyLight {
     dctx.clearRect(0, 0, w, h);
     dctx.imageSmoothingEnabled = true;
     // the plates' part under the view (soft washes upscale well)
-    const sx = (rect.x - SKY_RECT.x) * SKY_SCALE;
-    const sy = (rect.y - SKY_RECT.y) * SKY_SCALE;
+    const sx = (rect.x - skyRect.x) * SKY_SCALE;
+    const sy = (rect.y - skyRect.y) * SKY_SCALE;
     for (const { phase, alpha } of blendOrder(last.state.weights)) {
       dctx.globalAlpha = alpha;
       dctx.drawImage(paint(phase).sky as CanvasImageSource, sx, sy, rect.w * SKY_SCALE, rect.h * SKY_SCALE, 0, 0, w, h);
@@ -285,7 +293,7 @@ export function createSkyLight(opts: SkyLightOptions): SkyLight {
     dctx.setTransform(scale, 0, 0, scale, -rect.x * scale, -rect.y * scale);
     // the hard edges at full resolution: the stars' paper flecks, the sun and the moon
     const night = last.state.weights.night;
-    if (night > 0.01) for (const st of stars()) if (st.x > rect.x - 6 && st.x < rect.x + rect.w + 6 && st.y > rect.y - 6 && st.y < rect.y + rect.h + 6) reserveStar(dctx, st, night);
+    if (night > 0.01) for (const st of stars(30, 'stars', spec.layout)) if (st.x > rect.x - 6 && st.x < rect.x + rect.w + 6 && st.y > rect.y - 6 && st.y < rect.y + rect.h + 6) reserveStar(dctx, st, night);
     if (last.sun.alpha > 0.01) punchSun(dctx, last.sun, skyClip());
     if (last.moon.alpha > 0.01) punchMoon(dctx, last.moon, last.state.moonPhase);
     dctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -295,8 +303,8 @@ export function createSkyLight(opts: SkyLightOptions): SkyLight {
 
   return {
     update(state, force = false) {
-      const sun = sunDisc(state);
-      const moon = moonDisc(state);
+      const sun = sunDisc(state, spec.layout);
+      const moon = moonDisc(state, spec.layout);
       const k = skyKey(state.weights, sun, moon);
       if (!force && k === key) return false;
       key = k;
@@ -315,7 +323,7 @@ export function createSkyLight(opts: SkyLightOptions): SkyLight {
       return true;
     },
     setDetail(visible, pixelScale) {
-      const rect = visible ? intersect(visible, SKY_RECT) : null;
+      const rect = visible ? intersect(visible, skyRect) : null;
       const scale = Math.min(SKY_DETAIL_MAX, Math.max(SKY_SCALE, pixelScale));
       if (!rect || scale <= SKY_SCALE * 1.3) {
         detailWant = null;
@@ -325,7 +333,7 @@ export function createSkyLight(opts: SkyLightOptions): SkyLight {
       // whole units, a little margin: small pans reuse it
       const m = 24;
       const r = { x: Math.floor(rect.x - m), y: Math.floor(rect.y - m), w: Math.ceil(rect.w + 2 * m), h: Math.ceil(rect.h + 2 * m) };
-      const clipped = intersect(r, SKY_RECT)!;
+      const clipped = intersect(r, skyRect)!;
       detailWant = { rect: clipped, scale: Math.round(scale * 100) / 100 };
     },
     drawSky(ctx, visible) {
@@ -334,10 +342,10 @@ export function createSkyLight(opts: SkyLightOptions): SkyLight {
       ctx.save();
       ctx.globalCompositeOperation = 'multiply';
       ctx.imageSmoothingEnabled = true;
-      const inSky = visible ? intersect(visible, SKY_RECT) : null;
+      const inSky = visible ? intersect(visible, skyRect) : null;
       const d = visible && detailWant && (!inSky || covers(detailWant.rect, inSky)) ? composeDetail() : null;
       if (d && inSky) ctx.drawImage(d.canvas as CanvasImageSource, d.rect.x, d.rect.y, d.rect.w, d.rect.h);
-      else if (!visible || inSky) ctx.drawImage(composite as CanvasImageSource, SKY_RECT.x, SKY_RECT.y, SKY_RECT.w, SKY_RECT.h);
+      else if (!visible || inSky) ctx.drawImage(composite as CanvasImageSource, skyRect.x, skyRect.y, skyRect.w, skyRect.h);
       ctx.restore();
     },
     drawWater(ctx) {

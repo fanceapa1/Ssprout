@@ -6,11 +6,11 @@
 import type { Rng } from '../core/rng';
 import { PIGMENTS, PAPER_WHITE, lighten, mix, shade, type Painter } from '../paint';
 import type { Pt } from '../render/viewport';
-import type { SceneGeometry } from './geometry';
+import type { Pavilion } from './geometry';
 import type { Strokes } from './paint-land';
 
 /** Key points of the structure (world units), derived from the scene's pavilion box. */
-export function pavilionFrame(pv: SceneGeometry['pavilion']) {
+export function pavilionFrame(pv: Pavilion) {
   const x0 = pv.x;
   const right = pv.x + pv.w + 20; // runs off the right edge of the world
   const eaveL: Pt = { x: x0 + 2, y: pv.y + 78 };
@@ -24,7 +24,7 @@ export function pavilionFrame(pv: SceneGeometry['pavilion']) {
   return { x0, right, eaveL, eaveR, ridgeL, ridgeR, deckY, post, inner, eaveAt, lantern: pv.lantern };
 }
 
-export function* paintPavilion(p: Painter, rng: Rng, pv: SceneGeometry['pavilion']): Strokes {
+export function* paintPavilion(p: Painter, rng: Rng, pv: Pavilion): Strokes {
   const f = pavilionFrame(pv);
   const wood = PIGMENTS.wood;
   const woodLight = PIGMENTS.woodLight;

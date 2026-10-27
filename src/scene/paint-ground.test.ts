@@ -4,7 +4,7 @@ import { PATH_GROUND } from './paint-land';
 import { GROUND_TOP, onGrass } from './paint-ground';
 
 describe('meadow marks (ADR 0186)', () => {
-  const art = { pond: gardenScene.pond, path: PATH_GROUND, pavilion: gardenScene.pavilion };
+  const art = { pond: gardenScene.pond, path: PATH_GROUND, pavilion: gardenScene.structure! };
 
   it('stay on the grass: off the water, the path and the engawa', () => {
     expect(onGrass(art, 800, 560, 6)).toBe(false); // the pond

@@ -49,7 +49,7 @@ function paintBackdrop(p: Painter, rng: Rng): void {
   }
   p.waterBody([...scene.pond], { rng: r('pond') });
   // pavilion corner
-  const pv = scene.pavilion;
+  const pv = scene.structure!;
   p.wash([{ x: pv.x, y: pv.y + 90 }, { x: pv.x + pv.w + 20, y: pv.y + 90 }, { x: pv.x + pv.w + 20, y: pv.y + pv.h }, { x: pv.x + 10, y: pv.y + pv.h }], PIGMENTS.woodLight, {
     rng: r('pav'),
     opacity: 0.6,
@@ -59,7 +59,7 @@ function paintBackdrop(p: Painter, rng: Rng): void {
     opacity: 0.8,
   });
   p.inkLine([{ x: pv.x - 70, y: pv.y + 112 }, { x: pv.x + pv.w + 20, y: pv.y + 102 }], { rng: r('eave'), width: 2.4 });
-  const L = pv.lantern;
+  const L = scene.lights[0]!.at;
   p.wash({ cx: L.x, cy: L.y + 14, rx: 12, ry: 22 }, PIGMENTS.stone, { rng: r('lantern'), opacity: 0.8 });
   p.wash({ cx: L.x, cy: L.y - 8, rx: 18, ry: 7 }, PIGMENTS.stoneDark, { rng: r('lantern-cap'), opacity: 0.8 });
   for (const rock of scene.rocks) p.stone({ x: rock.x, y: rock.y, w: rock.w, h: rock.h }, { rng: r(rock.id) });
@@ -323,7 +323,7 @@ const nightEdgeEntry: StudioEntry = {
   },
 };
 
-const lantern = scene.pavilion.lantern;
+const lantern = scene.lights[0]!.at;
 const LANTERN_VIEW: View = { x: lantern.x - 300, y: lantern.y - 160, w: 400, h: 250 };
 
 // Few canvases on purpose: the studio page holds every system's entries, and many large

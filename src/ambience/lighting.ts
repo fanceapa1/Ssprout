@@ -2,7 +2,7 @@
  * The grade wash under each daylight phase's light plate: computed per pixel into a small
  * world-sized plate — noise-mottled, with soft backruns, a sky that deepens first, a lighter
  * foreground so plants stay readable, a warm low-sun glow and, at sunset and night, paper
- * *reserved* around the pavilion lantern and its reflection on the pond (watercolour lights are
+ * *reserved* around the scene's lights (the lantern) and their reflections (watercolour lights are
  * left unpainted, not added). cast.ts paints shadows and rims over it. ADRs 0082, 0147.
  */
 import { createRng } from '../core/rng';
@@ -20,8 +20,7 @@ export const LIGHT = {
   redrawS: 3,
   /** …and only when the grade moved perceptibly (squared grade distance; a repaint costs ~5 ms) */
   redrawEps: 2e-5,
-  /** lantern reserve radius (world units) and how much of the wash it lifts */
-  lanternR: 78,
+  /** how much of the wash a lantern's reserve lifts (its radius is the light's `r`) */
   lanternLift: 0.8,
   /** warm paper colour inside the reserve */
   lanternWarm: [238, 218, 178] as Rgb,
@@ -49,8 +48,13 @@ export interface WashField {
   edge: (x: number, y: number) => number;
   /** 1 where the pixel is pond water (w*h), or null */
   pond: Uint8Array | null;
-  lantern: Pt;
-  /** where the lantern's light lies on the water, or null */
+  /** the scene's lights: where each is, its reserve radius and where it lies on the water (or null) */
+  lights: readonly WashLight[];
+}
+
+export interface WashLight {
+  at: Pt;
+  r: number;
   reflection: Pt | null;
 }
 
@@ -67,8 +71,6 @@ const smoothstep = (a: number, b: number, v: number) => {
 export function paintGradeWash(out: Uint8ClampedArray, g: Grade, f: WashField): void {
   const { w, h, scale } = f;
   const inv = 1 / scale;
-  const [lx, ly] = [f.lantern.x, f.lantern.y];
-  const refl = f.reflection;
   const [wr, wg, wb] = LIGHT.lanternWarm;
   for (let py = 0; py < h; py++) {
     const wy = (py + 0.5) * inv;
@@ -107,32 +109,35 @@ export function paintGradeWash(out: Uint8ClampedArray, g: Grade, f: WashField): 
         gg += (g.warm[1] - gg) * m;
         bb += (g.warm[2] - bb) * m;
       }
-      // the lantern: reserved, warm paper with a ragged edge where pigment pooled
+      // each lantern: reserved, warm paper with a ragged edge where pigment pooled
       if (g.lantern > 0.001) {
-        const dx = wx - lx;
-        const dy = (wy - ly) * 1.15;
-        const d = Math.sqrt(dx * dx + dy * dy) / (LIGHT.lanternR * (0.8 + 0.4 * f.edge(px, py)));
-        if (d < 1.3) {
-          const l = g.lantern * (1 - smoothstep(0, 1, d)) ** 1.4;
-          a = a * (1 - LIGHT.lanternLift * l) + base * 0.05 * g.lantern * Math.max(0, 1 - Math.abs(d - 1) / 0.2);
-          const m = clamp01(l * 1.3);
-          r += (wr - r) * m;
-          gg += (wg - gg) * m;
-          bb += (wb - bb) * m;
-        }
-        if (refl && f.pond && f.pond[py * w + px]) {
-          const rx = (wx - refl.x) / (LIGHT.reflectW * (0.75 + 0.5 * n));
-          const ry = (wy - refl.y) / LIGHT.reflectH;
-          const q = rx * rx + ry * ry;
-          if (q < 4) {
-            // broken horizontally like light on moving water
-            const bands = 0.75 + 0.25 * Math.sin(wy * 0.32 + b * 6);
-            const l = g.lantern * Math.exp(-q) * bands;
-            a *= 1 - LIGHT.reflectLift * l;
-            const m = clamp01(l * 1.2);
+        for (const L of f.lights) {
+          const dx = wx - L.at.x;
+          const dy = (wy - L.at.y) * 1.15;
+          const d = Math.sqrt(dx * dx + dy * dy) / (L.r * (0.8 + 0.4 * f.edge(px, py)));
+          if (d < 1.3) {
+            const l = g.lantern * (1 - smoothstep(0, 1, d)) ** 1.4;
+            a = a * (1 - LIGHT.lanternLift * l) + base * 0.05 * g.lantern * Math.max(0, 1 - Math.abs(d - 1) / 0.2);
+            const m = clamp01(l * 1.3);
             r += (wr - r) * m;
             gg += (wg - gg) * m;
             bb += (wb - bb) * m;
+          }
+          const refl = L.reflection;
+          if (refl && f.pond && f.pond[py * w + px]) {
+            const rx = (wx - refl.x) / (LIGHT.reflectW * (0.75 + 0.5 * n));
+            const ry = (wy - refl.y) / LIGHT.reflectH;
+            const q = rx * rx + ry * ry;
+            if (q < 4) {
+              // broken horizontally like light on moving water
+              const bands = 0.75 + 0.25 * Math.sin(wy * 0.32 + b * 6);
+              const l = g.lantern * Math.exp(-q) * bands;
+              a *= 1 - LIGHT.reflectLift * l;
+              const m = clamp01(l * 1.2);
+              r += (wr - r) * m;
+              gg += (wg - gg) * m;
+              bb += (wb - bb) * m;
+            }
           }
         }
       }
@@ -165,7 +170,7 @@ export function pondMask(pond: readonly Pt[], w: number, h: number, scale: numbe
 }
 
 /**
- * Where the lantern's light falls on the water: mirrored about the waterline when that lands on
+ * Where a lantern's light falls on the water: mirrored about the waterline when that lands on
  * the pond, else the nearest stretch of water to the lantern (a warm spill near the shore) — but
  * only when the water comes within `SPILL_REACH` of where the mirror image would be: a lantern
  * hanging over dry bank has no reflection (the pavilion now stands on the bank, ADR 0122).
@@ -173,12 +178,11 @@ export function pondMask(pond: readonly Pt[], w: number, h: number, scale: numbe
 /** How far (world units) the water may be from the lantern's mirror image and still catch its light. */
 const SPILL_REACH = 70;
 
-export function lanternReflection(scene: Pick<SceneGeometry, 'pond' | 'waterline' | 'pavilion'>): Pt | null {
-  const { pond, pavilion } = scene;
+export function lanternReflection(scene: Pick<SceneGeometry, 'pond' | 'waterline' | 'structure'>, L: Pt): Pt | null {
+  const { pond } = scene;
   if (pond.length < 3) return null;
-  const L = pavilion.lantern;
   const mirrored = { x: L.x, y: 2 * scene.waterline - L.y };
-  if (pointInPolygon(mirrored, pond)) return awayFromShore(mirrored, pond, LIGHT.reflectW * 2.5, pavilion);
+  if (pointInPolygon(mirrored, pond)) return awayFromShore(mirrored, pond, LIGHT.reflectW * 2.5, scene.structure ?? undefined);
   // nearest point on the outline, nudged inward toward the pond centre
   let best: Pt = pond[0]!;
   let bestD = Infinity;
@@ -274,8 +278,7 @@ export function washField(scene: SceneGeometry, seed: string, scale: number = LI
     bloom: (x, y) => bloom.sample(x, y),
     edge: (x, y) => edge.sample(x, y),
     pond: pondMask(scene.pond, w, h, scale),
-    lantern: scene.pavilion.lantern,
-    reflection: lanternReflection(scene),
+    lights: scene.lights.map((l) => ({ at: l.at, r: l.r, reflection: lanternReflection(scene, l.at) })),
   };
   bySeed.set(id, field);
   return field;

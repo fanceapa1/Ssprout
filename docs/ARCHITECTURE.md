@@ -38,6 +38,8 @@ src/
     persist.ts            persistent paint cache: finished paintings as PNG in IndexedDB (ADR 0227)
     paint-version.ts      build-time only (vite.config.ts): the paint version hash
   scene/                  the static painted landscape, scene geometry, slots — docs/systems/scene.md
+  scenery/                the scenery contract, its ids and registry, one folder per scenery
+                          (japanese-garden/) — docs/systems/scenery.md
   plants/
     types.ts              SpeciesDef contract (below)
     registry.ts           auto-discovers species via import.meta.glob('./species/*.ts') (not *.test/*.studio)
@@ -253,19 +255,26 @@ uses only these two (through `src/ui/previews.ts`, ADR 0222).
 ### Scene geometry & slots (`src/scene/geometry.ts`, `src/scene/slots.ts`)
 ```ts
 export interface Slot { id: string; x: number; y: number; habitat: Habitat; maxSize: SizeClass; scale: number; /* perspective, ~0.55 far … 1.15 near */ }
-export interface SceneGeometry {
-  pond: Pt[];                 // closed polygon, world units
+export interface SceneGeometry {           // one per scenery (ADR 0241)
+  pond: Pt[];                 // still water (pond, plunge pool): closed polygon, world units
   waterline: number;          // y used for reflection mirroring (per point: reflect about local shore y)
+  streams: Pt[][];            // moving water: no reflections, no striders
+  falls: { outline: Pt[]; lip: Pt[]; foot: Pt } | null;
   rocks: { id: string; x: number; y: number; w: number; h: number; perch: boolean }[];
   path: { x: number; y: number; rx: number; ry: number }[]; // stepping stones
-  pavilion: { x: number; y: number; w: number; h: number; lantern: Pt };
+  structure: Box | null;      // a building's bounding box (the engawa)
+  lights: { id: string; at: Pt; r: number /* reserve radius */ }[]; // night lights (the lantern)
+  eave: { a: Pt; b: Pt; ground: number } | null; // where rain drips from, onto `ground`
   slots: Slot[];
   skyBand: { top: number; bottom: number }; // where flying creatures travel
 }
+pavilionOf(scene): Pavilion | null           // structure + the 'lantern' light: what the engawa's painters take
 ```
 
-The garden instance is `gardenScene` (`geometry.ts`): 52 slots, 11 rocks, 6 stepping stones
-(the engawa stands on the bank, the path winds up to the water — ADR 0122).
+The Japanese garden's instance is `gardenScene` (`geometry.ts`; its scenery's `geometry`): 52 slots,
+11 rocks, 6 stepping stones, the engawa (`structure`), one lantern, the eave (`EAVE`), no streams
+and no falls (the engawa stands on the bank, the path winds up to the water — ADR 0122).
+`main.ts` still reads `gardenScene` directly until runtime switching (S3).
 Every slot's `scale` is `perspectiveScale(y)` (0.55 at y 400 → 1.15 at y 960) and
 `PLANT_SIZES` gives the canonical plant box per size class at scale 1 — small 86×86 (tier-1
 plants draw in a 70-unit design box scaled up, ADR 0125), medium 120×160, large 200×220,
@@ -273,6 +282,31 @@ tree 380×460 (`slots.ts`, ADR 0043). **Garden plants are drawn `GARDEN_PLANT_SC
 a plant's box is `size × plantScale(slot)` (`plantScale(slot) = slot.scale × 1.25`, ADR 0148) —
 `plantWorldBounds` (`src/plants/bounds.ts`) is the one place that computes it; `slot.scale` itself
 stays the ground's perspective (fauna uses it for creatures).
+
+### Sceneries (`src/scenery/`, ADRs 0241, 0242; docs/systems/scenery.md)
+```ts
+export const SCENERY_IDS = ['japanese-garden', 'waterfall'] as const;  // ids.ts (S1 moves it to core)
+export type SceneryId = (typeof SCENERY_IDS)[number];
+export const DEFAULT_SCENERY: SceneryId = 'japanese-garden';
+export interface Scenery {                    // types.ts
+  id: SceneryId; name: string; blurb: string; order: number;
+  available(flags: URLSearchParams): boolean;
+  geometry: SceneGeometry;
+  art: SceneArt;                              // seed, painting layout, steps(art, only?) (art.scene = geometry)
+  sky: ScenerySky;                            // layout (SkyLayout), rect, shape(below?), paint, paintWater
+  light: LightArt;                            // trees, shrubs, sky, shadows?(…), lights?(…)
+  ambience: SceneryAmbience;                  // dew: Rect[], mistBands, veilTo
+  view: SceneryView;                          // focus (portrait crop), pathOut (guiding path origin)
+}
+getScenery(id): Scenery /* the default when not registered */; hasScenery(id); sceneries(flags?)  // registry.ts
+```
+Only `JAPANESE_GARDEN` (`japanese-garden/index.ts`) is registered. Its painters stay in `src/scene/`;
+the folder holds its numbers (`sky.ts`, `ambience.ts`, `view.ts`) and its light art (`light.ts`).
+The consumers take a scenery's data as an option and default to the Japanese garden's:
+`createSkyLight({ sky, scenery })`, `createCastLight(scene, art, seed, { scenery })`,
+`createAmbience({ scenery })` / `addAmbience(renderer, { scenery })`, `sunDisc(s, sky)`,
+`moonDisc(s, sky)`, `stars(n, seed, sky)`, `createWayfinding({ pathOut })`, `DEFAULT_FOCUS`
+(= the default scenery's `view.focus`). Runtime switching (`SystemContext.scenery`) is S3.
 
 ### State (`src/core/state.ts`, ADR 0003, ADR 0036, ADRs 0150–0154, 0170)
 Each session is one plant, chosen at start, growing live in its slot. Up to three sessions are in
@@ -479,7 +513,8 @@ for their skew; fauna could use both (not wired). Ambience/lighting dev hooks an
 `docs/systems/ambience.md` (`setTime`, `setWeather`, `settleAmbience()`, `ambience()`).
 
 ### Ambience system (`src/ambience/system.ts`, ADRs 0080–0084, 0121, 0147)
-`addAmbience(renderer, { dev, daylight })` registers the system and returns it. Besides the
+`addAmbience(renderer, { dev, daylight, scenery? /* default: the Japanese garden */ })` registers the system and returns it;
+the scenery gives the light art, the dew, mist and veil numbers and the light plates' cache keys. Besides the
 `System` hooks it has `setTime(v)` (sets the shared daylight's override), `setWeather(w)`,
 `settle()`, `debug()` (with `sprites`, the sprite groups built so far: each is painted on first use, ADR 0232), `daylight` (the source it paints with), `now()` (last frame's clock time),
 `onLight(fn)` (the blended phase grade, each time the light recomposes) and
@@ -539,7 +574,7 @@ render of the real graph returning RMS, peak and tail RMS for audio verification
 `clear()`, `stats()`, `settle()` and `version`. None of them throws or rejects. Entries are lossless PNG
 Blobs in IndexedDB `studysprout-paint`, stored under `version:kind:key`. The version is
 `__PAINT_VERSION__` plus a user-agent hash. `__PAINT_VERSION__` is a build-time `define`
-(`vite.config.ts`): a hash of the import closure of `src/paint`, `scene`, `ambience`, `plants`,
+(`vite.config.ts`): a hash of the import closure of `src/paint`, `scene`, `scenery`, `ambience`, `plants`,
 `fauna`, `render` and `core`, without tests and studio entries (`src/paint/paint-version.ts`). It is
 `'dev'` on the dev server and in Vitest. Opening the store drops entries of other versions.
 `put` copies the canvas synchronously (unless `{ copy: false }`) and encodes it in idle time, one put
@@ -547,7 +582,8 @@ at a time. Least recently used entries are evicted under a 48 MB cap. `get` deco
 colour-space conversion and no premultiplication, and the round trip is bit-exact in Chromium.
 The cache is the null cache (`get` → null, `put` → false, `stats().off` says why) on the dev server,
 with `?nopaintcache`, without IndexedDB or when it fails to open. Keys must hold everything else the
-pixels depend on (seed, view rect, scale, quality…). Store paintings before the paper (ADR 0021).
+pixels depend on (seed, view rect, scale, quality…), and **every key starts with the scenery id**
+(`japanese-garden|s7|normal|0,0,1600,1000@1.5|2400x1500`; ADR 0242). Store paintings before the paper (ADR 0021).
 `createPaintCache({ adapter: PaintStoreAdapter, … })` takes any store (unit tests use a Map).
 The scene looks every painting up here before painting it (`scene`, `scene-detail`, `scene-sprites`; ADR 0228, docs/systems/scene.md).
 

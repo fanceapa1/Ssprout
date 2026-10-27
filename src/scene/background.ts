@@ -6,7 +6,8 @@
 import { createRng } from '../core/rng';
 import { createPainter, makeCanvas, type AnyCanvas, type Painter, type Quality } from '../paint';
 import type { Rect } from '../render/viewport';
-import { gardenScene, type SceneGeometry } from './geometry';
+import type { SceneryId } from '../scenery/ids';
+import { gardenScene, pavilionOf, type SceneGeometry } from './geometry';
 import { FOREGROUND_TUFTS, SHRUBS, TREES, TUFTS, type ShrubSpec, type TreeSpec, type TuftSpec } from './layout';
 import { PATH_GROUND, paintBanks, paintHills, paintMargins, paintPath, paintSky, paintStones, paintTufts, reservePond, type Strokes } from './paint-land';
 import { paintMeadow, paintMeadowGrass } from './paint-ground';
@@ -17,6 +18,8 @@ import { paintRockSprite, paintTuftSprite, rockBox, tuftBox, type Sprite } from 
 
 /** Everything the scene paints: the shared geometry plus painting-only layout. */
 export interface SceneArt {
+  /** whose painting it is: the first part of every paint-cache key (ADR 0242) */
+  scenery: SceneryId;
   scene: SceneGeometry;
   trees: readonly TreeSpec[];
   shrubs: readonly ShrubSpec[];
@@ -24,16 +27,9 @@ export interface SceneArt {
   foregroundTufts: readonly TuftSpec[];
   /** seed for every mark (same seed → same painting) */
   seed: number;
+  /** the background's paint steps, back to front (`only`: just these elements, for the studio) */
+  steps(art: SceneArt, only?: readonly string[]): PaintStep[];
 }
-
-export const GARDEN_ART: SceneArt = {
-  scene: gardenScene,
-  trees: TREES,
-  shrubs: SHRUBS,
-  tufts: TUFTS,
-  foregroundTufts: FOREGROUND_TUFTS,
-  seed: 7,
-};
 
 export interface PaintStep {
   name: string;
@@ -46,14 +42,24 @@ export interface PaintStep {
   run(p: Painter): Strokes | void;
 }
 
-/** Element filter for studio views (paint only some parts). */
+/** The Japanese garden's elements, a filter for studio views (paint only some parts). */
 export type ElementId = 'sky' | 'hills' | 'banks' | 'path' | 'pond' | 'reflections' | 'trees' | 'shrubs' | 'pavilion' | 'tufts' | 'margins';
 
-export function backgroundSteps(art: SceneArt, only?: readonly ElementId[]): PaintStep[] {
+/** The painting's steps, back to front: the scenery's own (`art.steps`). */
+export function backgroundSteps(art: SceneArt, only?: readonly string[]): PaintStep[] {
+  return art.steps(art, only);
+}
+
+/** No structure: nothing is kept off its ground. */
+const NO_STRUCTURE = { x: Infinity, y: 0, w: 0, h: 0 };
+
+/** The Japanese garden's paint steps (its painters are in this folder). */
+export function gardenSteps(art: SceneArt, only?: readonly string[]): PaintStep[] {
   const root = createRng(art.seed);
   const r = (label: string) => root.fork(label);
   const { scene } = art;
-  const ground = { pond: scene.pond, path: PATH_GROUND, pavilion: scene.pavilion };
+  const pavilion = pavilionOf(scene);
+  const ground = { pond: scene.pond, path: PATH_GROUND, pavilion: scene.structure ?? NO_STRUCTURE };
   const steps: (PaintStep & { el: ElementId })[] = [
     { el: 'sky', name: 'sky', soft: true, run: (p) => paintSky(p, r('sky')) },
     { el: 'hills', name: 'hills', soft: true, run: (p) => paintHills(p, r('hills')) },
@@ -81,10 +87,22 @@ export function backgroundSteps(art: SceneArt, only?: readonly ElementId[]): Pai
     { el: 'margins', name: 'margins', soft: true, run: (p) => paintMargins(p, r('margins')) },
     { el: 'path', name: 'stones', run: (p) => paintStones(p, r('stones'), scene.path) },
     // after the margins: the engawa runs off the right edge of the sheet, crisp
-    { el: 'pavilion', name: 'pavilion', run: (p) => paintPavilion(p, r('pavilion'), scene.pavilion) },
+    ...(pavilion ? [{ el: 'pavilion' as const, name: 'pavilion', run: (p: Painter) => paintPavilion(p, r('pavilion'), pavilion) }] : []),
   ];
   return only ? steps.filter((s) => only.includes(s.el)) : steps;
 }
+
+/** The Japanese garden's painting. */
+export const GARDEN_ART: SceneArt = {
+  scenery: 'japanese-garden',
+  scene: gardenScene,
+  trees: TREES,
+  shrubs: SHRUBS,
+  tufts: TUFTS,
+  foregroundTufts: FOREGROUND_TUFTS,
+  seed: 7,
+  steps: gardenSteps,
+};
 
 /** What part of the world a bitmap shows, and at how many bitmap pixels per world unit. */
 export interface PaintView {
@@ -121,7 +139,7 @@ export interface PaintResult {
 export interface PaintRunOptions {
   quality?: Quality;
   /** paint only these elements (studio); default all */
-  only?: readonly ElementId[];
+  only?: readonly string[];
   /** also paint foreground sprites (default true) */
   sprites?: boolean;
   /** monotonic ms clock for timings (default performance.now) */
@@ -259,7 +277,7 @@ const exact = (n: number): string => String(n);
 
 /**
  * The cache key of a painting: everything its pixels depend on besides the code and the browser
- * (both are in the cache's version, ADR 0227): the seed, the quality, the world rect, the scale
+ * (both are in the cache's version, ADR 0227): the scenery (ADR 0242), the seed, the quality, the world rect, the scale
  * (which already holds the device pixel ratio and the zoom) and the bitmap's size. The art's
  * layout (trees, shrubs, tufts) is code, so only its seed is in the key. The daylight is not: the
  * sky plate, the light plate and the paper are laid over the painting each time it is drawn.
@@ -268,12 +286,12 @@ export function paintingKey(art: SceneArt, view: PaintView, quality: Quality): s
   const { rect, scale } = view;
   const w = Math.max(1, Math.ceil(rect.w * scale));
   const h = Math.max(1, Math.ceil(rect.h * scale));
-  return `s${art.seed}|${quality}|${exact(rect.x)},${exact(rect.y)},${exact(rect.w)},${exact(rect.h)}@${exact(scale)}|${w}x${h}`;
+  return `${art.scenery}|s${art.seed}|${quality}|${exact(rect.x)},${exact(rect.y)},${exact(rect.w)},${exact(rect.h)}@${exact(scale)}|${w}x${h}`;
 }
 
 /** The cache key of the sprites of one paint scale: they do not depend on the painted rect. */
 export function spritesKey(art: SceneArt, scale: number, quality: Quality): string {
-  return `s${art.seed}|${quality}@${exact(scale)}`;
+  return `${art.scenery}|s${art.seed}|${quality}@${exact(scale)}`;
 }
 
 /** Where a sprite sits in the atlas: stacked top to bottom in paint order, left-aligned. */
