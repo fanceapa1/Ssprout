@@ -34,7 +34,7 @@ const SLOT_LIST = [
   { id: 'meadow-4', habitat: 'meadow' as Habitat, maxSize: 'large' as SizeClass },
   { id: 'shore-1', habitat: 'shore' as Habitat, maxSize: 'medium' as SizeClass },
 ];
-const world: ReducerWorld = { getSpecies: (id) => SPECIES[id], getSlot: (id) => SLOT_LIST.find((s) => s.id === id) };
+const world: ReducerWorld = { getSpecies: (id) => SPECIES[id], getSlot: (sc, id) => (sc === 'japanese-garden' ? SLOT_LIST.find((s) => s.id === id) : undefined) };
 const reducer = createReducer(world);
 const run = (state: GardenState, ...actions: Action[]): GardenState => actions.reduce(reducer, state);
 const at = (min: number) => T0 + min * MIN;
@@ -86,14 +86,14 @@ describe('starting while another session is in progress', () => {
 
   it('treats the spots of sessions in progress as occupied: no second seedling in them, not even as a swap', () => {
     const s = run(createDefaultState(T0), start('a', 'meadow-1', 0), start('b', 'meadow-2', 5));
-    expect(heldSlotIds(s)).toEqual(new Set(['meadow-1', 'meadow-2']));
+    expect(heldSlotIds(s, 'japanese-garden')).toEqual(new Set(['meadow-1', 'meadow-2']));
     expect(reducer(s, start('c', 'meadow-1', 6))).toBe(s); // a waits there
     expect(reducer(s, start('c', 'meadow-2', 6))).toBe(s); // b grows there
     const withPlant = { ...s, plants: [makePlant({ id: 'p', slotId: 'meadow-3' })] };
-    const opts = compatibleSlots(SPECIES.violet!, SLOT_LIST, withPlant.plants, heldSlotIds(withPlant));
+    const opts = compatibleSlots(SPECIES.violet!, SLOT_LIST, withPlant.plants, heldSlotIds(withPlant, 'japanese-garden'));
     expect(opts.map((o) => o.slot.id)).toEqual(['meadow-3', 'meadow-4']);
     expect(opts[0]!.occupiedBy?.id).toBe('p'); // a finished plant is still a swap
-    expect(freeSlotIds(SLOT_LIST, withPlant.plants, heldSlotIds(withPlant))).toEqual(['meadow-4', 'shore-1']);
+    expect(freeSlotIds(SLOT_LIST, withPlant.plants, heldSlotIds(withPlant, 'japanese-garden'))).toEqual(['meadow-4', 'shore-1']);
   });
 
   it('never reuses an id of a session in progress or in the log', () => {

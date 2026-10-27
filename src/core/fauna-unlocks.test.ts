@@ -21,6 +21,7 @@ const plants = (n: number, speciesId = 'grass'): PlantInstance[] =>
   Array.from({ length: n }, (_, i) => ({
     id: `${speciesId}-${i}`,
     speciesId,
+    sceneryId: 'japanese-garden',
     slotId: `slot-${speciesId}-${i}`,
     taskName: 'Task',
     completedAt: 0,

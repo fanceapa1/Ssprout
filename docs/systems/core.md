@@ -8,10 +8,14 @@ action payloads. Everything here is unit-tested (`src/core/*.test.ts`; fixtures 
 slot are chosen at start; the seedling grows live in its slot; breaks are optional watering moments.
 **Up to three sessions are in progress** (ADRs 0150–0154): `state.session` is the active one,
 `state.waiting` the others (paused); ended sessions go into `state.log`.
+**Each scenery has its own garden** (ADR 0240): plants, pressed flowers and the sessions'
+seedlings carry a `sceneryId`, and `state.scenery` is the garden on view. Sessions, history,
+schedules, stats and settings are shared by every garden.
 
 | File | What |
 |---|---|
-| `state.ts` | `GardenState` types, `createDefaultState`, `Action` union, `createReducer(world)`, `createStore`; selectors `inProgressSessions`, `canStartSession`, `lastLeftSession`, `heldSlotIds`; `logEntry` |
+| `state.ts` | `GardenState` types, `createDefaultState`, `Action` union, `createReducer(world)`, `createStore`; selectors `inProgressSessions`, `canStartSession`, `lastLeftSession`, `sessionsIn`, `heldSlotIds`, `plantsIn`; `logEntry` |
+| `sceneries.ts` | `SCENERY_IDS`, `SceneryId`, `DEFAULT_SCENERY`, `isSceneryId`; `slotLookup(of)` (slots by scenery and id), `slotsOfAny` (ADR 0240) |
 | `plans.ts` | `PlanBlock`, `StudyPlan`, `recommendPlans`, `findPlan`, `planProblem`, `focusMinutes`, `hasBreaks` |
 | `session.ts` | `sessionTimeline`, `sessionPhase`, plan position/growth maths, pauses, goal clamping, task names, weather, `formatClock`, the focus-watering schedule (`focusWateringTimes`, `dueFocusWaterings`, `nextFocusWateringIn`) |
 | `schedule.ts` | scheduled sessions: the rule + notes model, DST-safe recurrence (`expandSchedules`), due / missed / done (`occurrenceStatus`, `dueUntil`), `startPrefill`, validation — docs/systems/calendar.md (ADRs 0170–0173) |
@@ -20,7 +24,7 @@ slot are chosen at start; the seedling grows live in its slot; breaks are option
 | `session-log.ts` | history queries over `state.log` (`entriesBetween`, `dayRange`/`weekRange`/`monthRange`, `entriesOnDay`/`InWeek`/`InMonth`, `dayKey`, `groupByDay`, `focusedMinutes`) and `backfillLog` |
 | `rewards.ts` | `tierForMinutes`, `TIER_MIN_MINUTES`, `selectableSpecies` |
 | `placement.ts` | `isCompatible`, `compatibleSlots`, `freeSlotIds` |
-| `fauna-unlocks.ts` | unlock table, `unlockedFauna`, `newlyArrived` |
+| `fauna-unlocks.ts` | unlock table, `gardenCounts`, `unlockedFauna`, `newlyArrived`, `faunaSeenKey`, `faunaSeenIn` (per garden) |
 | `tips.ts` | tip registry, `activeTips`, `allTips`, `tipsRetiredBy` |
 | `persistence.ts` | localStorage load/save, migrations, validation, export/import |
 | `controller.ts` | `createSessionController` — **the API the UI and widget use** |
@@ -28,7 +32,7 @@ slot are chosen at start; the seedling grows live in its slot; breaks are option
 | `rng.ts` | `Rng`, `createRng(seed)`, `hashString`, `toSeed` |
 | `events.ts` | `EventMap`, `EVENT_NAMES`, `createEventBus` |
 | `testing.ts` | test fixtures: `MIN`, `T0`, `plan(shape)`, `makeSession`, `makePlant`, `makePressed` |
-| `fixtures/garden-v1-*.json`, `garden-v2-parallel.json` | real v1 documents (a running session with plants, a paused session) and a v2 one (active and waiting sessions, log, a schedule) for the migration tests |
+| `fixtures/garden-v1-*.json`, `garden-v2-parallel.json`, `garden-v3-sound.json` | real v1 documents (a running session with plants, a paused session), a v2 one (active and waiting sessions, log, a schedule) and a v3 one (the same with sound mixes and announced wildlife) for the migration tests |
 
 ## State machine
 
@@ -60,11 +64,25 @@ slot are chosen at start; the seedling grows live in its slot; breaks are option
 ```
 - At most `MAX_SESSIONS = 3` in progress; a fourth start is a no-op. Selectors: `inProgressSessions`
   (oldest start first), `canStartSession`, `lastLeftSession` (max `pausedAt` among the waiting),
-  `heldSlotIds` (slots of sessions in progress: not plantable, not even as a swap).
+  `heldSlotIds(state, sceneryId)` (that garden's slots of sessions in progress: not plantable, not
+  even as a swap).
 - A waiting session is always paused (checked on load). Only the active one can be paused by the
   gardener, so "Still with us?" never concerns a waiting session.
 - Pause, resume, water, skip break and the automatic watering act on the active session; cancel and
   complete take an optional `id`.
+
+## Gardens (`sceneries.ts`, ADR 0240)
+- `SCENERY_IDS = ['japanese-garden', 'waterfall']`, `DEFAULT_SCENERY = 'japanese-garden'`. The ids
+  live in core; `src/scenery/ids.ts` re-exports them, and core never imports `src/scenery`.
+- A slot is identified by `(sceneryId, slotId)`: the same slot id may hold a plant in each garden.
+  The world's slots are injected: `ReducerWorld.getSlot(sceneryId, slotId)`, and the controller's
+  `slots` is a function `sceneryId => Slot[]` (a plain list means the default scenery's). `main.ts`
+  builds both with `slotLookup` from the scenery registry (a scenery not registered has no slots).
+- `state.scenery` is the garden on view (`scenery/view`, `controller.showScenery`). A session starts
+  in it unless it names another, and keeps growing in its own garden while another is on view;
+  switching sessions does not change the view (S3 will follow the active session's garden).
+- Selectors: `plantsIn(state, sceneryId)`, `sessionsIn(state, sceneryId)` (oldest start first),
+  `heldSlotIds(state, sceneryId)`.
 
 ## Automatic focus watering (ADR 0153)
 `focusWateringTimes(seed, focusTotalMs)`: focused-time offsets, the first 4–10 min in, each next
@@ -143,7 +161,7 @@ notifies nobody and nothing is saved). The reducer never mutates its input.
 
 | Action | Valid when | Effect |
 |---|---|---|
-| `session/start {id, taskName, goalMinutes, plan, speciesId, slotId, seed, now, weather}` | fewer than 3 in progress; non-empty ids; finite now/seed; weather ∈ sun/rain/mist; `goalMinutes` on the grid (10–180, step 5); `planProblem(plan, goalMinutes) === null`; `id` not used by a session in progress, a finished plant or the log; `slotId` not held by a session in progress; with a world: species exists with `tier ≤ tierForMinutes(goalMinutes)`, slot exists and is compatible | new active session `{ taskName: normalized, goalMs, plan (copied), speciesId, slotId, seed, displacedPlantId: occupant of slotId ?? null, startedAt: now, pausedAt: null, pausedTotalMs: 0, skippedMs: 0, weather, waterings: [], focusWaterings: 0 }`; the previous active one → `waiting`, paused at `now` (kept if already paused); `settings.lastGoalMinutes = goalMinutes` |
+| `session/start {id, taskName, goalMinutes, plan, speciesId, sceneryId?, slotId, seed, now, weather}` | fewer than 3 in progress; non-empty ids; `sceneryId` (default `state.scenery`) a known one; finite now/seed; weather ∈ sun/rain/mist; `goalMinutes` on the grid (10–180, step 5); `planProblem(plan, goalMinutes) === null`; `id` not used by a session in progress, a finished plant or the log; `slotId` not held by a session in progress in that scenery; with a world: species exists with `tier ≤ tierForMinutes(goalMinutes)`, `getSlot(sceneryId, slotId)` exists and is compatible | new active session `{ taskName: normalized, goalMs, plan (copied), speciesId, sceneryId, slotId, seed, displacedPlantId: that garden's occupant of slotId ?? null, startedAt: now, pausedAt: null, pausedTotalMs: 0, skippedMs: 0, weather, waterings: [], focusWaterings: 0 }`; the previous active one → `waiting`, paused at `now` (kept if already paused); `settings.lastGoalMinutes = goalMinutes` |
 | `session/switch {id, now}` | `id` is a waiting session; finite now | it becomes active and resumes (`pausedTotalMs += now − pausedAt`); the active one (if any) → `waiting`, paused at `now` |
 | `session/focusWater {now}` | active session, more automatic waterings due than done | `focusWaterings = dueFocusWaterings(session, now)` |
 | `session/pause {now}` | running session | `pausedAt = max(now, startedAt)` (idempotent) |
@@ -151,16 +169,17 @@ notifies nobody and nothing is saved). The reducer never mutates its input.
 | `session/water {blockIndex, now}` | not complete; current block is a break, `blockIndex` is that block, not yet watered (allowed while paused) | `waterings.push(blockIndex)` — no effect on growth or outcome |
 | `session/skipBreak {now}` | not complete; current block is a break with time left | `skippedMs += blockRemainingMs` (ends that much sooner; total and tier unchanged) |
 | `session/cancel {now, id?}` | the session `id` (default: the active one) is in progress | it is removed (no other becomes active), `stats.cancelled++`, a `cancelled` log entry; the displaced plant was never removed, so it stays |
-| `session/complete {now, id?}` | the session `id` (default: the active one) with `isComplete(now)` | finished plant `{ id: session.id, speciesId, slotId, seed, plantedAt: startedAt, sessionMinutes: total, taskName, completedAt: now }`; the displaced plant (and anything else in the slot) → `pressed` (`{ speciesId, seed, plantedAt, removedAt: now, taskName }`); `stats.totalMinutes += focus minutes`; `stats.completed++`; a `completed` log entry; the others stay as they are |
+| `session/complete {now, id?}` | the session `id` (default: the active one) with `isComplete(now)` | finished plant `{ id: session.id, speciesId, sceneryId, slotId, seed, plantedAt: startedAt, sessionMinutes: total, taskName, completedAt: now }`; the displaced plant (and anything else in that garden's slot) → `pressed` (`{ speciesId, sceneryId, seed, plantedAt, removedAt: now, taskName }`); `stats.totalMinutes += focus minutes`; `stats.completed++`; a `completed` log entry; the others stay as they are |
 | `session/rename {id, taskName}` | id belongs to an in-progress session or finished garden plant; normalized name differs | update only its `taskName` and the matching log entry name; no timer, growth, statistics or species changes; unknown ids are no-ops. Exposed as `controller.rename(id, taskName): boolean`. Existing persistence saves the edit without a schema change (ADR 0219). |
+| `scenery/view {id}` | a known scenery id other than `state.scenery` | `scenery = id`; sessions and plants untouched |
 | `tip/retire {id, reason?}` | non-empty id not yet retired | `tips[id] = 'seen'` (`reason` `used`/`dismissed` is not stored, ADR 0211) |
-| `settings/update {patch}` | at least one valid field changes | merges `muted` (boolean), `lastGoalMinutes` (clamped), `notifications` (unasked/granted/denied) |
-| `fauna/seen {id}` | non-empty id not yet seen | appended to `faunaSeen` |
-| `state/replace {state}` | `state.version === 2` and a different object | replaces the whole state (callers validate first) |
+| `settings/update {patch}` | at least one valid field changes | merges `muted` (boolean), `lastGoalMinutes` (clamped), `notifications` (unasked/granted/denied), `soundscape` (read by `readSoundscape`: a missing layer is 0) |
+| `fauna/seen {id}` | non-empty id not yet seen | appended to `faunaSeen` (the controller passes `faunaSeenKey(scenery, id)`) |
+| `state/replace {state}` | `state.version === STATE_VERSION` (4) and a different object | replaces the whole state (callers validate first) |
 | `state/reset {now}` | finite now | `createDefaultState(now)` |
 | `schedule/add` · `update` · `remove` · `note` · `split` | see `reduceSchedules` (`schedule-reducer.ts`) | the `schedules` list — docs/systems/calendar.md (ADR 0171) |
 
-`reducer` (no world) accepts any species/slot ids; the app uses `createReducer({ getSpecies, getSlot })`.
+`reducer` (no world) accepts any species/slot ids; the app uses `createReducer({ getSpecies, getSlot: (sceneryId, slotId) => … })`.
 
 ## Fauna (`fauna-unlocks.ts`)
 `FAUNA_UNLOCKS` (in order, each with an `arrival` line): `striders` always (silent) · `dragonfly` 2
@@ -168,7 +187,12 @@ plants · `koi-1` 3 · `butterflies` 4 pollinator flowers · `bees` 6 pollinator
 `small-birds` 8 · `frog` a water plant + 10 plants · `swallows` 14 · `heron` 20 · `koi-3` 25.
 Counts use finished plants only (the growing seedling does not count). "Pollinator flower" =
 species with `pollinators: true`; "water plant" = species whose habitats include `water`.
-`unlockedFauna(state, lookup)`; `newlyArrived(state, lookup)` = unlocked − `faunaSeen` (kept and
+**Each garden unlocks its own wildlife from its own plants** (ADR 0240): `gardenCounts`,
+`unlockedFauna(state, lookup, sceneryId = state.scenery)` count only that garden's plants.
+`faunaSeen` holds Japanese-garden ids bare (as before v4) and others as `<scenery>:<id>`
+(`faunaSeenKey(sceneryId, id)`, `faunaSeenIn(state, sceneryId, id)`); `controller.announceFauna(id,
+sceneryId?)` stores the key and emits the bare id. One table serves every garden until S11 gives
+each scenery its own. `newlyArrived(state, lookup, sceneryId?)` = unlocked − seen there (kept and
 tested, but the UI no longer uses it: arrivals come from the fauna system on first sight, ADR 0120).
 
 ## Tips (`tips.ts`)
@@ -201,14 +225,14 @@ listed as learned under ⓘ). A dismissal is not a use: `tipsRetiredBy` returns 
 const controller = createSessionController({
   store, clock, bus,
   species: allSpecies(),     // SpeciesDef[]
-  slots: scene.slots,        // for placementOptions()
+  slots: slots.of,           // sceneryId => Slot[], for placementOptions() (a plain list: the default scenery's)
   ticker,                    // optional; default setInterval(1 s); the widget may supply a Worker ticker
   seed,                      // optional; default clock.now()
 });
 ```
 | Method | Returns | Emits |
 |---|---|---|
-| `start({ taskName, goalMinutes, planId?, speciesId, slotId })` (total clamped; plan default `unbroken`, must be one of `recommendPlans(total)`; false at 3 in progress) | `boolean` | `session:pause {…, reason: 'switch'}` for the active one if it was running, then `session:start {session, pausedId}` |
+| `start({ taskName, goalMinutes, planId?, speciesId, sceneryId?, slotId })` (garden default: the one on view; total clamped; plan default `unbroken`, must be one of `recommendPlans(total)`; false at 3 in progress) | `boolean` | `session:pause {…, reason: 'switch'}` for the active one if it was running, then `session:start {session, pausedId}` |
 | `pause()` / `resume()` | `boolean` | `session:pause {sessionId, at, reason: 'user'}` / `session:resume {sessionId, at}` |
 | `switchTo(id)` (the active one's id = `resume()`) | `boolean` | `session:pause {…, reason: 'switch'}` (if one was running), `session:resume {sessionId: id}`, `session:switch {from, to, at}` |
 | `water()` | `boolean` | `session:water {blockIndex, sessionId, auto: false}` |
@@ -217,11 +241,12 @@ const controller = createSessionController({
 | `check()` — announce block changes, water when focus time reaches the next automatic watering, complete when due (every tick; once at creation) | `boolean` (completed) | `session:break` / `session:focus {blockIndex, sessionId}`; `session:water {…, auto: true}`; on completion `plant:swapped {plant, removed}` (per pressed plant) → `plant:placed {plant}` → `session:complete {sessionId, plant}` |
 | `recommendPlans(min)` | `StudyPlan[]` | — |
 | `selectableSpecies(min)` | `{ species, locked, requiredMinutes, earned }[]` | — |
-| `placementOptions(speciesId)` | `{ slot, occupiedBy? }[]` | — |
+| `placementOptions(speciesId, sceneryId?)` (default: the garden on view; its plants and held slots only) | `{ slot, occupiedBy? }[]` | — |
+| `showScenery(id)` (sessions keep growing in their gardens) | `boolean` (false: unknown or already on view) | — |
 | `retireTip(id, reason = 'used')` | `boolean` | `tip:retired {id, reason}` (auto-retirements emit it too, as `used`; the note's × as `dismissed`, ADR 0211) |
 | `updateSettings(patch)` | `boolean` | `settings:changed {settings}` |
-| `announceFauna(id)` | `boolean` (true the first time) | `fauna:arrived {id}` |
-| `status()` | `{ phase: 'idle'\|'focus'\|'break'\|'paused', session, timeline: SessionTimeline \| null, pausedForMs, longPause, sessions: { session, timeline, active, running, pausedForMs, lastLeft }[], canStart, maxSessions }` (phase…longPause: the active session) | — |
+| `announceFauna(id, sceneryId?)` (default: the garden on view) | `boolean` (true the first time in that garden) | `fauna:arrived {id}` |
+| `status()` | `{ phase: 'idle'\|'focus'\|'break'\|'paused', session, timeline: SessionTimeline \| null, pausedForMs, longPause, sessions: { session, sceneryId, timeline, active, running, pausedForMs, lastLeft }[], canStart, maxSessions }` (phase…longPause: the active session) | — |
 | `nextFocusWatering()` | ms of focus until the next automatic watering, or null | — |
 | `onTick(fn)` | unsubscribe | `fn(status)` after every tick |
 | `setTicker(t)`, `setSeed(s)`, `dispose()` | — | — |
@@ -247,17 +272,21 @@ const controller = createSessionController({
 ## Persistence (`persistence.ts`)
 
 - Key **`studysprout:v1`** (stable forever); the document's `version` drives migrations. Schema
-  `version: 3` adds optional sound preferences (ADR 0213); absent preferences retain the original
-  automatic mix. The v2 fields remain: `waiting`, `log`, `focusWaterings` (ADR 0154) and optional
-  `schedules` (absent → `[]`, ADR 0170).
+  `version: 4` gives each scenery its own garden (ADR 0240): `scenery` (the garden on view) and a
+  `sceneryId` on every plant, pressed flower, session in progress and log entry. v3 added optional
+  sound preferences (ADR 0213; absent → the original automatic mix). The v2 fields remain:
+  `waiting`, `log`, `focusWaterings` (ADR 0154) and optional `schedules` (absent → `[]`, ADR 0170).
+  The document stays plain JSON (the accounts branch stores it server-side as is).
 - `loadState(storage, now, { isKnownSpecies })` → `{ state, status, warnings, error?, backupKey? }`,
   status `fresh | loaded | migrated | recovered | unavailable`. Never throws.
   - `migrated`: upgraded via `MIGRATIONS[n]: (vN) => vN+1` and re-saved. `MIGRATIONS = { 1:
-    migrateV1toV2, 2: migrateV2toV3 }`: the v1 session stays the active one exactly as it was (`focusWaterings: 0`),
+    migrateV1toV2, 2: migrateV2toV3, 3: migrateV3toV4 }`: the v1 session stays the active one exactly as it was (`focusWaterings: 0`),
     `waiting: []`, `log` back-filled from the finished plants (`plan: null`, `focusedMinutes` = the
-    total, `backfilled: true`). The v2 → v3 step changes only the version. Both are pure and
-    never mutate input. Tested with v1 fixtures and a v2 garden containing parallel sessions,
-    history and schedules.
+    total, `backfilled: true`). The v2 → v3 step changes only the version. The v3 → v4 step sets
+    `scenery: 'japanese-garden'` and tags every plant, pressed flower, session and log entry with
+    `sceneryId: 'japanese-garden'` (keys a document lacks stay absent; `faunaSeen` is unchanged).
+    All are pure and never mutate input. Tested with v1 fixtures, a v2 garden containing parallel
+    sessions, history and schedules, and a v3 garden with sound mixes.
   - `recovered`: invalid JSON, invalid shape or a newer/unknown version → raw text copied to
     `studysprout:corrupt:<now>`, and only if that backup write succeeded is the main key reset to a
     default garden (and `backupKey` set); otherwise the original stays in place.
@@ -267,10 +296,13 @@ const controller = createSessionController({
 - Validation (`validateState`, ADR 0034): absent keys → defaults (plant `taskName` → "Study session",
   `completedAt` → `plantedAt`; session `skippedMs` 0, `waterings` [], `displacedPlantId` null); present keys
   must have the right type (`invalid-state` with a `path` like `session.plan.blocks[2].kind`); unknown
-  keys (e.g. an old `pendingReward`) dropped. Invariants: unique plant ids, one plant per slot, session
+  keys (e.g. an old `pendingReward`) dropped. A `sceneryId` or `scenery` must be in `SCENERY_IDS`
+  (absent → the Japanese garden); sound levels missing a layer read as 0 (`readSoundscape`), so a
+  new sound layer needs no migration. Invariants: unique plant ids, one plant per garden slot
+  (`sceneryId/slotId`), session
   `goalMs` in whole minutes with a valid plan summing to it, waterings point at break blocks, the
   session id is not already a finished plant's id; waiting sessions are paused; at most three in
-  progress with unique ids (not in the log either) and one per slot; log entries fully typed;
+  progress with unique ids (not in the log either) and one per garden slot; log entries fully typed;
   present schedules must be valid (`scheduleProblem`, `noteProblem`).
   Unknown species ids (plants, pressed, sessions in progress, the log) are **kept** and listed in
   `warnings.unknownSpecies`.
@@ -284,14 +316,15 @@ Example export:
 {
   "format": "study-sprout-garden",
   "formatVersion": 1,
-  "schemaVersion": 2,
+  "schemaVersion": 4,
   "exportedAt": "2026-10-22T09:05:00.000Z",
   "summary": { "plants": 1, "pressed": 0, "totalMinutes": 55, "completed": 1 },
   "state": {
-    "version": 2,
+    "version": 4,
     "createdAt": 1792600000000,
+    "scenery": "japanese-garden",
     "plants": [
-      { "id": "session-mgz1k2-0a1b2", "speciesId": "japanese-iris", "slotId": "shore-1", "seed": 2849120533,
+      { "id": "session-mgz1k2-0a1b2", "speciesId": "japanese-iris", "sceneryId": "japanese-garden", "slotId": "shore-1", "seed": 2849120533,
         "plantedAt": 1792600000000, "sessionMinutes": 60, "taskName": "Biology ch. 4", "completedAt": 1792603300000 }
     ],
     "pressed": [],
@@ -300,14 +333,14 @@ Example export:
       "plan": { "id": "pomodoro", "name": "Pomodoro", "blocks": [
         { "kind": "focus", "minutes": 30 }, { "kind": "break", "minutes": 5 }, { "kind": "focus", "minutes": 25 },
         { "kind": "break", "minutes": 5 }, { "kind": "focus", "minutes": 25 } ] },
-      "speciesId": "anemone", "slotId": "meadow-3", "seed": 99120533, "displacedPlantId": null,
+      "speciesId": "anemone", "sceneryId": "japanese-garden", "slotId": "meadow-3", "seed": 99120533, "displacedPlantId": null,
       "startedAt": 1792610000000, "pausedAt": null, "pausedTotalMs": 0, "skippedMs": 120000,
       "weather": "rain", "waterings": [1], "focusWaterings": 3
     },
     "waiting": [],
     "log": [
       { "id": "session-mgz1k2-0a1b2", "outcome": "completed", "taskName": "Biology ch. 4", "speciesId": "japanese-iris",
-        "slotId": "shore-1", "seed": 2849120533, "plan": { "id": "long-focus", "name": "Long focus", "blocks": [
+        "sceneryId": "japanese-garden", "slotId": "shore-1", "seed": 2849120533, "plan": { "id": "long-focus", "name": "Long focus", "blocks": [
         { "kind": "focus", "minutes": 25 }, { "kind": "break", "minutes": 5 }, { "kind": "focus", "minutes": 30 } ] },
         "goalMinutes": 60, "focusedMinutes": 55, "startedAt": 1792600000000, "endedAt": 1792603300000 }
     ],
@@ -327,18 +360,23 @@ The stored `studysprout:v1` value is the bare `state` object.
 |---|---|
 | `reset()` | fresh default garden (saved immediately) |
 | `seed(n)` | seeds the controller rng (ids, weather, plant seeds) and `addPlants` |
-| `start(min?, { taskName?, planId?, speciesId?, slotId? })` | start with defaults: `min` = `settings.lastGoalMinutes`, task "Test task", plan `unbroken`, the first selectable (unlocked) species that fits a slot, its first free compatible slot (else first compatible); returns the session or null |
+| `start(min?, { taskName?, planId?, speciesId?, sceneryId?, slotId? })` | start with defaults: `min` = `settings.lastGoalMinutes`, task "Test task", plan `unbroken`, the garden on view, the first selectable (unlocked) species that fits one of its slots, its first free compatible slot (else first compatible); returns the session or null |
 | `pause()`, `resume()`, `water()`, `skipBreak()`, `cancel(id?)`, `switchTo(id)` | controller calls |
 | `startSessions(n, min?, gapMs?)` | starts `n` sessions ("Task 1" …), `gapMs` of dev time apart; returns their ids |
-| `sessions()` | every session in progress: `{ id, taskName, speciesId, slotId, active, running, elapsedMs, totalRemainingMs, growth, pausedAt, focusWaterings }` |
+| `sessions()` | every session in progress: `{ id, taskName, speciesId, sceneryId, slotId, active, running, elapsedMs, totalRemainingMs, growth, pausedAt, focusWaterings }` |
 | `log()` | the session log |
 | `nextFocusWatering()` / `focusWater()` | focus ms to the next automatic watering / jump there and play it (false when paused, in a break or none left) |
 | `toBreak()` | jumps the dev clock to the start of the next break; returns its block index or −1 |
 | `skipToBlock(i)` | jumps the dev clock forward to block `i`'s start (resuming if paused) |
 | `completeSession()` | resumes if paused, jumps the dev clock to the end, completes; returns the finished plant |
-| `plans(min)`, `selectableSpecies(min)`, `placementOptions(speciesId?)` | start-sheet data (compact) |
-| `addPlants(n, tier?)` | instantly adds up to `n` finished plants with sample task names in free compatible slots (full-garden screenshots); returns how many |
-| `setState(partial)` | shallow merge, validated (throws on invalid), applied with `state/replace` |
+| `plans(min)`, `selectableSpecies(min)`, `placementOptions(speciesId?, sceneryId?)` | start-sheet data (compact; default: the garden on view) |
+| `addPlants(n, tier?, sceneryId?)` | instantly adds up to `n` finished plants with sample task names in free compatible slots of a garden (default: the one on view; full-garden screenshots); returns how many |
+| `setState(partial)` | shallow merge, validated (throws on invalid), applied with `state/replace`; plants may leave out `sceneryId` (the Japanese garden) |
+
+`sprout.schedule.fillHistory(days?, seed?, sceneryId?)` (`src/dev/schedule-debug.ts`) adds history in a
+garden (default: the one on view), taking that garden's slot ids in turn (`buildHistory` in
+`fill-history.ts` throws for a scenery without slots; with no slots given the Japanese garden's history
+keeps `meadow-1`).
 | `status()`, `flush()`, `exportState()`, `importState(json)` | as named |
 
 The jumps use `SpeedClock.advance` (ADR 0035), so everything that reads the clock stays consistent.
@@ -351,9 +389,10 @@ await page.reload(); // saved on pagehide
 ```
 
 ## Tests
-- Unit: `src/core/*.test.ts` (clock, controller, controller-parallel, events, fauna-unlocks,
-  focus-watering, migration-v2, migration-v3, parallel, persistence, placement, plans, reducer, rewards, rng,
-  schedule, schedule-controller, schedule-reducer, session, session-log, state, tips).
+- Unit: `src/core/*.test.ts` (clock, controller, controller-parallel, controller-sceneries, events,
+  fauna-unlocks, focus-watering, migration-v2, migration-v3, migration-v4, parallel, persistence, placement,
+  plans, reducer, rewards, rng, sceneries, schedule, schedule-controller, schedule-reducer, session,
+  session-log, soundscape, state, tips).
 - E2E: `tests/e2e/core-loop.spec.ts` (plant → break → water → skip → complete across reloads; cancel;
   corrupt save backed up; `addPlants`/`setState`) and `tests/e2e/session-rules.spec.ts` (timer and
   plan line, unwatered breaks, "Still with us?", closed-app completion, phone ink labels),

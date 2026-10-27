@@ -1,6 +1,7 @@
 import type { SpeedClock } from '../core/clock';
 import { validateState } from '../core/persistence';
 import { createRng } from '../core/rng';
+import type { SceneryId, SlotsOf } from '../core/sceneries';
 import { dueUntil, timeOfDay, type Occurrence, type OccurrenceView, type Schedule, type ScheduleInput } from '../core/schedule';
 import type { Scheduler } from '../core/schedule-controller';
 import type { EditScope, ScheduleEdit } from '../core/schedule-reducer';
@@ -37,8 +38,8 @@ declare module './debug' {
       remove(key: string, scope?: EditScope): boolean;
       /** run the scheduler's tick now */
       check(): OccurrenceView[];
-      /** add `days` of realistic history to the session log (screenshots); returns how many sessions */
-      fillHistory(days?: number, seed?: number): number;
+      /** add `days` of realistic history in a garden (default: the one on view) to the session log; returns how many sessions */
+      fillHistory(days?: number, seed?: number, sceneryId?: SceneryId): number;
       /**
        * A realistic month for looking at the calendar: moves the dev clock forward to the next
        * `hour`:10 (default 16; later today, else tomorrow), adds `days` (35) of history and three
@@ -62,6 +63,8 @@ export interface ScheduleDebugDeps {
   clock: SpeedClock;
   ui: UI;
   species: readonly Pick<SpeciesDef, 'id' | 'tier'>[];
+  /** each scenery's slots, for the history's slot ids (without it, only the Japanese garden) */
+  slots?: SlotsOf<{ id: string }>;
 }
 
 const toTime = (v: string | number): number => (typeof v === 'number' ? v : new Date(`${v}T00:00`).getTime());
@@ -70,7 +73,7 @@ const ref = (key: string) => {
   return { scheduleId: key.slice(0, at), date: key.slice(at + 1) };
 };
 
-export function installScheduleDebug({ store, scheduler, clock, ui, species }: ScheduleDebugDeps): void {
+export function installScheduleDebug({ store, scheduler, clock, ui, species, slots }: ScheduleDebugDeps): void {
   const after = <T>(v: T): T => {
     scheduler.check();
     ui.refresh();
@@ -134,8 +137,9 @@ export function installScheduleDebug({ store, scheduler, clock, ui, species }: S
         scheduler.add({ name: 'Reading for seminar', date: day(2), time: '10:00', lengthMinutes: 90, repeat: 'weekly' });
         return after(n);
       },
-      fillHistory(days = 30, seed = 11) {
-        const entries = buildHistory(createRng(seed).fork('history'), species, { now: clock.now(), days, idPrefix: `history-${seed}` });
+      fillHistory(days = 30, seed = 11, sceneryId = store.get().scenery) {
+        const slotIds = slots?.(sceneryId).map((s) => s.id);
+        const entries = buildHistory(createRng(seed).fork('history'), species, { now: clock.now(), days, idPrefix: `history-${seed}`, sceneryId, slotIds });
         const r = validateState(withHistory(store.get(), entries), { now: clock.now() });
         if (!r.ok) throw new Error(`fillHistory: ${r.error.message}`);
         store.dispatch({ type: 'state/replace', state: r.value.state });

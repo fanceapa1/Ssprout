@@ -47,6 +47,7 @@ const entry = (id: string, start: number, minutes: number, over: Partial<Session
   outcome: 'completed',
   taskName: id,
   speciesId: 'violet',
+  sceneryId: 'japanese-garden',
   slotId: 'meadow-1',
   seed: 1,
   plan: null,

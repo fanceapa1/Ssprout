@@ -4,7 +4,8 @@ import { focusMinutes, planProblem, type StudyPlan } from './plans';
 import { tierForMinutes } from './rewards';
 import type { Schedule } from './schedule';
 import { reduceSchedules, type ScheduleAction } from './schedule-reducer';
-import { copySoundscape, isSoundscape, sameSoundscape, type SoundscapeSettings } from './soundscape';
+import { DEFAULT_SCENERY, isSceneryId, type SceneryId } from './sceneries';
+import { readSoundscape, sameSoundscape, type SoundscapeSettings } from './soundscape';
 import {
   clampGoalMinutes,
   dueFocusWaterings,
@@ -17,7 +18,7 @@ import {
 } from './session';
 
 // ---------------------------------------------------------------------------------------------
-// State shape (contract: docs/ARCHITECTURE.md › State; ADR 0003, ADR 0036, ADRs 0150–0153)
+// State shape (contract: docs/ARCHITECTURE.md › State; ADR 0003, ADR 0036, ADRs 0150–0153, 0240)
 // ---------------------------------------------------------------------------------------------
 
 /** A finished plant: one completed study session. */
@@ -25,6 +26,8 @@ export interface PlantInstance {
   /** equals the id of the session that grew it */
   id: string;
   speciesId: string;
+  /** the garden it grows in; `slotId` is one of that scenery's slots (ADR 0240) */
+  sceneryId: SceneryId;
   slotId: string;
   seed: number;
   /** session start */
@@ -38,6 +41,8 @@ export interface PlantInstance {
 /** A plant swapped out of the garden, kept in the herbarium. */
 export interface PressedFlower {
   speciesId: string;
+  /** the garden it was pressed from */
+  sceneryId: SceneryId;
   seed: number;
   plantedAt: number;
   removedAt: number;
@@ -52,8 +57,9 @@ export interface ActiveSession {
   /** total plan length (focus + breaks) */
   goalMs: number;
   plan: StudyPlan;
-  /** the plant growing live at `slotId` */
+  /** the plant growing live at `slotId` of `sceneryId`, even while another garden is on view */
   speciesId: string;
+  sceneryId: SceneryId;
   slotId: string;
   seed: number;
   /** the finished plant in `slotId` when the session started (pressed on completion) */
@@ -83,6 +89,7 @@ export interface SessionLogEntry {
   outcome: 'completed' | 'cancelled';
   taskName: string;
   speciesId: string;
+  sceneryId: SceneryId;
   slotId: string;
   seed: number;
   /** the study plan; null when back-filled from a v1 plant (the plan was not kept then) */
@@ -114,8 +121,10 @@ export interface GardenStats {
 }
 
 export interface GardenState {
-  version: 3;
+  version: 4;
   createdAt: number;
+  /** the garden on view; sessions, history, schedules and settings are shared by every garden (ADR 0240) */
+  scenery: SceneryId;
   plants: PlantInstance[];
   pressed: PressedFlower[];
   /** the active session: the one the timer, the garden's weather and the widget follow */
@@ -130,14 +139,14 @@ export interface GardenState {
   /** scheduled study sessions: rules plus per-occurrence notes (ADRs 0170–0171) */
   schedules: Schedule[];
   stats: GardenStats;
-  /** creature ids already announced */
+  /** creature ids already announced; outside the Japanese garden as `<scenery>:<id>` (`faunaSeenKey`) */
   faunaSeen: string[];
   /** retired tips */
   tips: Record<string, 'seen'>;
   settings: Settings;
 }
 
-export const STATE_VERSION = 3 as const;
+export const STATE_VERSION = 4 as const;
 export const DEFAULT_GOAL_MINUTES = 25;
 /** Sessions that may be in progress at once: one active, the others waiting (ADR 0150). */
 export const MAX_SESSIONS = 3;
@@ -160,15 +169,26 @@ export function lastLeftSession(state: Pick<GardenState, 'waiting'>): ActiveSess
   return best;
 }
 
-/** Slot ids held by sessions in progress (not available to another session). */
-export function heldSlotIds(state: Pick<GardenState, 'session' | 'waiting'>): Set<string> {
-  return new Set(inProgressSessions(state).map((s) => s.slotId));
+/** The sessions in progress growing in `sceneryId`, oldest start first. */
+export function sessionsIn(state: Pick<GardenState, 'session' | 'waiting'>, sceneryId: SceneryId): ActiveSession[] {
+  return inProgressSessions(state).filter((s) => s.sceneryId === sceneryId);
+}
+
+/** Slot ids of `sceneryId` held by sessions in progress (not available to another session). */
+export function heldSlotIds(state: Pick<GardenState, 'session' | 'waiting'>, sceneryId: SceneryId): Set<string> {
+  return new Set(sessionsIn(state, sceneryId).map((s) => s.slotId));
+}
+
+/** The finished plants of `sceneryId`'s garden. */
+export function plantsIn(state: Pick<GardenState, 'plants'>, sceneryId: SceneryId): PlantInstance[] {
+  return state.plants.filter((p) => p.sceneryId === sceneryId);
 }
 
 export function createDefaultState(now: number): GardenState {
   return {
     version: STATE_VERSION,
     createdAt: now,
+    scenery: DEFAULT_SCENERY,
     plants: [],
     pressed: [],
     session: null,
@@ -202,11 +222,15 @@ export type Action =
       goalMinutes: number;
       plan: StudyPlan;
       speciesId: string;
+      /** default: the garden on view (`state.scenery`) */
+      sceneryId?: SceneryId;
       slotId: string;
       seed: number;
       now: number;
       weather: Weather;
     }
+  /** show another garden; sessions keep growing where they are */
+  | { type: 'scenery/view'; id: SceneryId }
   | { type: 'session/pause'; now: number }
   | { type: 'session/resume'; now: number }
   /** rename a growing session or a finished garden plant and its history entry */
@@ -235,12 +259,12 @@ export type Reducer<S = GardenState, A = Action> = (state: S, action: A) => S;
 
 /**
  * What the reducer needs to know about the world to validate a session start: species
- * definitions (habitats, size, tier) and scene slots. Both are static data, so the reducer stays
- * pure.
+ * definitions (habitats, size, tier) and each scenery's slots. Both are static data, so the
+ * reducer stays pure.
  */
 export interface ReducerWorld {
   getSpecies(id: string): (PlacementSpecies & Pick<SpeciesDef, 'tier'>) | undefined;
-  getSlot(id: string): PlacementSlot | undefined;
+  getSlot(sceneryId: SceneryId, slotId: string): PlacementSlot | undefined;
 }
 
 const WEATHER_SET: ReadonlySet<string> = new Set<Weather>(['sun', 'rain', 'mist']);
@@ -285,6 +309,7 @@ export function logEntry(s: ActiveSession, outcome: SessionLogEntry['outcome'], 
     outcome,
     taskName: s.taskName,
     speciesId: s.speciesId,
+    sceneryId: s.sceneryId,
     slotId: s.slotId,
     seed: s.seed,
     plan: clonePlan(s.plan),
@@ -307,17 +332,18 @@ export function createReducer(world?: ReducerWorld): Reducer {
       case 'session/start': {
         if (!canStartSession(state)) return state;
         const { id, goalMinutes, plan, speciesId, slotId, seed, now, weather } = action;
-        if (!nonEmpty(id) || !nonEmpty(speciesId) || !nonEmpty(slotId)) return state;
+        const sceneryId = action.sceneryId ?? state.scenery;
+        if (!nonEmpty(id) || !nonEmpty(speciesId) || !nonEmpty(slotId) || !isSceneryId(sceneryId)) return state;
         if (!finite(now) || !finite(seed) || !WEATHER_SET.has(weather)) return state;
         if (!isValidGoalMinutes(goalMinutes) || planProblem(plan, goalMinutes) !== null) return state;
         if (idTaken(state, id)) return state; // the finished plant and the log entry take this id
-        if (heldSlotIds(state).has(slotId)) return state; // another seedling grows there
+        if (heldSlotIds(state, sceneryId).has(slotId)) return state; // another seedling grows there
         if (world) {
           const def = world.getSpecies(speciesId);
-          const slot = world.getSlot(slotId);
+          const slot = world.getSlot(sceneryId, slotId);
           if (!def || !slot || def.tier > tierForMinutes(goalMinutes) || !isCompatible(def, slot)) return state;
         }
-        const displaced = state.plants.find((p) => p.slotId === slotId);
+        const displaced = state.plants.find((p) => p.sceneryId === sceneryId && p.slotId === slotId);
         return {
           ...state,
           session: {
@@ -326,6 +352,7 @@ export function createReducer(world?: ReducerWorld): Reducer {
             goalMs: goalMinutes * MINUTE_MS,
             plan: clonePlan(plan),
             speciesId,
+            sceneryId,
             slotId,
             seed,
             displacedPlantId: displaced?.id ?? null,
@@ -425,6 +452,7 @@ export function createReducer(world?: ReducerWorld): Reducer {
         const plant: PlantInstance = {
           id: s.id,
           speciesId: s.speciesId,
+          sceneryId: s.sceneryId,
           slotId: s.slotId,
           seed: s.seed,
           plantedAt: s.startedAt,
@@ -432,10 +460,13 @@ export function createReducer(world?: ReducerWorld): Reducer {
           taskName: s.taskName,
           completedAt: action.now,
         };
-        // press the displaced plant (and anything else that ended up in the slot)
-        const leaving = state.plants.filter((p) => p.id === s.displacedPlantId || p.slotId === s.slotId);
+        // press the displaced plant (and anything else that ended up in the slot, in that garden)
+        const leaving = state.plants.filter(
+          (p) => p.id === s.displacedPlantId || (p.sceneryId === s.sceneryId && p.slotId === s.slotId),
+        );
         const pressed = leaving.map<PressedFlower>((p) => ({
           speciesId: p.speciesId,
+          sceneryId: p.sceneryId,
           seed: p.seed,
           plantedAt: p.plantedAt,
           removedAt: action.now,
@@ -454,6 +485,10 @@ export function createReducer(world?: ReducerWorld): Reducer {
           },
         };
       }
+
+      case 'scenery/view':
+        if (!isSceneryId(action.id) || action.id === state.scenery) return state;
+        return { ...state, scenery: action.id };
 
       case 'tip/retire':
         if (!nonEmpty(action.id) || state.tips[action.id] === 'seen') return state;
@@ -496,9 +531,8 @@ export function mergeSettings(current: Settings, patch: Partial<Settings> | null
   if (!patch || typeof patch !== 'object') return current;
   const next: Settings = { ...current };
   if (typeof patch.muted === 'boolean') next.muted = patch.muted;
-  if (isSoundscape(patch.soundscape) && !sameSoundscape(current.soundscape, patch.soundscape)) {
-    next.soundscape = copySoundscape(patch.soundscape);
-  }
+  const soundscape = patch.soundscape === undefined ? null : readSoundscape(patch.soundscape);
+  if (soundscape && !sameSoundscape(current.soundscape, soundscape)) next.soundscape = soundscape;
   if (finite(patch.lastGoalMinutes)) next.lastGoalMinutes = clampGoalMinutes(patch.lastGoalMinutes);
   if (typeof patch.notifications === 'string' && NOTIFICATION_SET.has(patch.notifications)) {
     next.notifications = patch.notifications;

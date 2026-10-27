@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import v1Paused from './fixtures/garden-v1-paused.json';
 import v1Session from './fixtures/garden-v1-session.json';
 import v2Parallel from './fixtures/garden-v2-parallel.json';
-import { EXPORT_FORMAT, importState, loadState, migrate, migrateV1toV2, migrateV2toV3, STORAGE_KEY, validateState, type StorageLike } from './persistence';
+import { EXPORT_FORMAT, importState, loadState, migrate, migrateV1toV2, migrateV2toV3, migrateV3toV4, STORAGE_KEY, validateState, type StorageLike } from './persistence';
 import { makeSchedule } from './schedule';
 import { backfillLog } from './session-log';
 import { defaultSoundscape, levelsWith } from './soundscape';
@@ -31,10 +31,10 @@ describe('v2 → v3 sound preferences migration', () => {
     const upgraded = migrateV2toV3(legacy);
     expect(upgraded).toEqual({ ...legacy, version: 3 });
     expect(JSON.stringify(legacy)).toBe(before);
-    const result = validateState(upgraded);
+    const result = validateState(migrateV3toV4(upgraded));
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.value.state).toEqual({ ...legacy, version: STATE_VERSION });
+      expect(result.value.state).toEqual({ ...legacy, version: STATE_VERSION, scenery: 'japanese-garden' });
       expect(result.value.state.settings.soundscape).toBeUndefined();
       expect(result.value.state.settings.muted).toBe(true);
     }
@@ -45,7 +45,7 @@ describe('v2 → v3 sound preferences migration', () => {
     const storage: StorageLike = { getItem: (key) => values.get(key) ?? null, setItem: (key, value) => { values.set(key, value); } };
     const first = loadState(storage, T0 + MIN);
     expect(first.status).toBe('migrated');
-    expect(JSON.parse(values.get(STORAGE_KEY)!).version).toBe(3);
+    expect(JSON.parse(values.get(STORAGE_KEY)!).version).toBe(STATE_VERSION);
     const second = loadState(storage, T0 + MIN);
     expect(second.status).toBe('loaded');
     expect(second.state).toEqual(first.state);
@@ -57,7 +57,7 @@ describe('v2 → v3 sound preferences migration', () => {
     const imported = importState(JSON.stringify({ format: EXPORT_FORMAT, formatVersion: 1, schemaVersion: 2, state: legacy }));
     expect(imported.ok).toBe(true);
     if (!imported.ok) return;
-    expect(imported.state.version).toBe(3);
+    expect(imported.state.version).toBe(STATE_VERSION);
     const current = createDefaultState(T0);
     current.settings.soundscape = defaultSoundscape();
     current.settings.soundscape.standard = levelsWith({ cafe: 35, lofi: 25 });
@@ -69,50 +69,53 @@ describe('v2 → v3 sound preferences migration', () => {
 
 /** Saved documents as the released app wrote them: v1 (one session) and v2 (parallel sessions, log, schedules). */
 const clone = <T>(x: T): T => JSON.parse(JSON.stringify(x)) as T;
+/** As v4 tags it: grown in the Japanese garden (ADR 0240). */
+const jp = <T extends object>(x: T) => ({ ...x, sceneryId: 'japanese-garden' });
 function storageWith(doc: unknown) {
   const values = new Map([[STORAGE_KEY, JSON.stringify(doc)]]);
   const storage: StorageLike = { getItem: (key) => values.get(key) ?? null, setItem: (key, value) => { values.set(key, value); } };
   return { storage, saved: () => JSON.parse(values.get(STORAGE_KEY)!) as { version: number } };
 }
 
-describe('v1 and v2 fixtures reach v3', () => {
+describe('v1 and v2 fixtures reach v3, then the current schema', () => {
   it('a v2 garden keeps its active and waiting sessions, its log and its schedules, and gains no sound preferences', () => {
+    const v3 = migrate(clone(v2Parallel), { target: 3 });
+    expect(v3.ok && v3.value.doc).toEqual({ ...v2Parallel, version: 3 });
     const r = migrate(clone(v2Parallel));
     expect(r.ok).toBe(true);
     if (!r.ok) return;
     expect(r.value.from).toBe(2);
-    expect(r.value.doc).toEqual({ ...v2Parallel, version: 3 });
     const v = validateState(r.value.doc);
     expect(v.ok).toBe(true);
     if (!v.ok) return;
     const state = v.value.state;
     expect(state.version).toBe(STATE_VERSION);
-    expect(state.session).toEqual(v2Parallel.session);
-    expect(state.waiting).toEqual(v2Parallel.waiting);
-    expect(state.log).toEqual(v2Parallel.log);
+    expect(state.session).toEqual(jp(v2Parallel.session));
+    expect(state.waiting).toEqual(v2Parallel.waiting.map(jp));
+    expect(state.log).toEqual(v2Parallel.log.map(jp));
     expect(state.schedules).toEqual(v2Parallel.schedules);
-    expect(state.plants).toEqual(v2Parallel.plants);
+    expect(state.plants).toEqual(v2Parallel.plants.map(jp));
     expect(state.settings).toEqual(v2Parallel.settings); // unmuted stays unmuted, no soundscape key
     expect('soundscape' in state.settings).toBe(false);
   });
 
-  it('a stored v2 fixture loads as migrated, is saved as v3 and then loads as is', () => {
+  it('a stored v2 fixture loads as migrated, is saved at the current version and then loads as is', () => {
     const { storage, saved } = storageWith(v2Parallel);
     const now = v2Parallel.session.startedAt + 10 * MIN;
     const first = loadState(storage, now);
     expect(first.status).toBe('migrated');
-    expect(saved().version).toBe(3);
+    expect(saved().version).toBe(STATE_VERSION);
     const second = loadState(storage, now);
     expect(second.status).toBe('loaded');
     expect(second.state).toEqual(first.state);
   });
 
-  it('a v2 export file imports as v3', () => {
+  it('a v2 export file imports at the current version', () => {
     const file = JSON.stringify({ format: EXPORT_FORMAT, formatVersion: 1, schemaVersion: 2, state: v2Parallel });
     const r = importState(file);
     expect(r.ok).toBe(true);
     if (!r.ok) return;
-    expect(r.state.version).toBe(3);
+    expect(r.state.version).toBe(STATE_VERSION);
     expect(r.state.waiting).toHaveLength(1);
     expect(r.state.schedules).toEqual(v2Parallel.schedules);
   });
@@ -120,12 +123,12 @@ describe('v1 and v2 fixtures reach v3', () => {
   it.each([
     ['running', v1Session],
     ['paused', v1Paused],
-  ])('a v1 garden with a %s session chains v1 → v2 → v3 to the same garden as the two steps', (_name, v1) => {
+  ])('a v1 garden with a %s session chains v1 → v2 → v3 → v4 to the same garden as the three steps', (_name, v1) => {
     const r = migrate(clone(v1));
     expect(r.ok).toBe(true);
     if (!r.ok) return;
     expect(r.value.from).toBe(1);
-    expect(r.value.doc).toEqual(migrateV2toV3(migrateV1toV2(clone(v1))));
+    expect(r.value.doc).toEqual(migrateV3toV4(migrateV2toV3(migrateV1toV2(clone(v1)))));
     const v = validateState(r.value.doc);
     expect(v.ok).toBe(true);
     if (!v.ok) return;
@@ -134,6 +137,6 @@ describe('v1 and v2 fixtures reach v3', () => {
     expect(v.value.state.settings.muted).toBe(v1.settings.muted);
     const { storage, saved } = storageWith(v1);
     expect(loadState(storage, v1.session.startedAt + 5 * MIN).status).toBe('migrated');
-    expect(saved().version).toBe(3);
+    expect(saved().version).toBe(STATE_VERSION);
   });
 });

@@ -1,6 +1,7 @@
 import { focusMinutes, recommendPlans } from '../core/plans';
 import { tierForMinutes } from '../core/rewards';
 import type { Rng } from '../core/rng';
+import { DEFAULT_SCENERY, type SceneryId } from '../core/sceneries';
 import type { GardenState, SessionLogEntry } from '../core/state';
 import type { SpeciesDef } from '../plants/types';
 import { SAMPLE_TASKS } from './fill-garden';
@@ -9,6 +10,7 @@ import { SAMPLE_TASKS } from './fill-garden';
  * Dev helper behind `window.sprout.schedule.fillHistory(days)`: a realistic stretch of study
  * history in the session log, for looking at the calendar (screenshots, studio-like review). Most
  * days have one to three sessions at plausible hours, a few are empty, a few sessions ended early.
+ * Entries belong to `sceneryId` (default: the Japanese garden) and take its `slotIds` in turn.
  * Pure: time and randomness come in.
  */
 
@@ -20,8 +22,11 @@ const HOURS = [8, 9, 9, 10, 10, 11, 13, 14, 14, 15, 16, 17, 19, 20, 20, 21] as c
 export function buildHistory(
   rng: Rng,
   species: readonly Pick<SpeciesDef, 'id' | 'tier'>[],
-  opts: { now: number; days: number; idPrefix?: string },
+  opts: { now: number; days: number; idPrefix?: string; sceneryId?: SceneryId; slotIds?: readonly string[] },
 ): SessionLogEntry[] {
+  const sceneryId = opts.sceneryId ?? DEFAULT_SCENERY;
+  const slotIds = opts.slotIds ?? (sceneryId === DEFAULT_SCENERY ? ['meadow-1'] : []);
+  if (slotIds.length === 0) throw new Error(`buildHistory: no slots for ${sceneryId}`);
   const out: SessionLogEntry[] = [];
   const today = new Date(opts.now);
   for (let back = opts.days; back >= 0; back--) {
@@ -43,7 +48,8 @@ export function buildHistory(
         outcome: cancelled ? 'cancelled' : 'completed',
         taskName: rng.pick([...SAMPLE_TASKS]),
         speciesId: sp.id,
-        slotId: 'meadow-1',
+        sceneryId,
+        slotId: slotIds[out.length % slotIds.length]!,
         seed: rng.int(0, 0xffffff),
         plan,
         goalMinutes: total,

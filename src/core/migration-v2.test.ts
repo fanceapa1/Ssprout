@@ -4,7 +4,7 @@ import { createSessionController } from './controller';
 import { createEventBus } from './events';
 import v1Paused from './fixtures/garden-v1-paused.json';
 import v1Session from './fixtures/garden-v1-session.json';
-import { EXPORT_FORMAT, importState, loadState, migrate, migrateV1toV2, migrateV2toV3, STORAGE_KEY, validateState, type StorageLike } from './persistence';
+import { EXPORT_FORMAT, importState, loadState, migrate, migrateV1toV2, migrateV2toV3, migrateV3toV4, STORAGE_KEY, validateState, type StorageLike } from './persistence';
 import { sessionPhase, sessionTimeline } from './session';
 import { createReducer, createStore, STATE_VERSION, type ActiveSession, type GardenState } from './state';
 
@@ -15,6 +15,8 @@ import { createReducer, createStore, STATE_VERSION, type ActiveSession, type Gar
 
 const MIN = 60_000;
 const clone = <T>(x: T): T => JSON.parse(JSON.stringify(x)) as T;
+/** As v4 tags it: grown in the Japanese garden (ADR 0240). */
+const jp = <T extends object>(x: T) => ({ ...x, sceneryId: 'japanese-garden' });
 
 function memoryStorage(init: Record<string, string> = {}) {
   const map = new Map(Object.entries(init));
@@ -38,13 +40,13 @@ describe('v1 → v2 migration', () => {
   it('keeps the garden and makes the in-progress v1 session the active one, exactly as it was', () => {
     const state = migrated(v1Session);
     expect(state.version).toBe(STATE_VERSION);
-    expect(state.plants).toEqual(v1Session.plants);
-    expect(state.pressed).toEqual(v1Session.pressed);
+    expect(state.plants).toEqual(v1Session.plants.map(jp));
+    expect(state.pressed).toEqual(v1Session.pressed.map(jp));
     expect(state.stats).toEqual(v1Session.stats);
     expect(state.settings).toEqual(v1Session.settings);
     expect(state.tips).toEqual(v1Session.tips);
     expect(state.faunaSeen).toEqual(v1Session.faunaSeen);
-    expect(state.session).toEqual({ ...v1Session.session, focusWaterings: 0 });
+    expect(state.session).toEqual(jp({ ...v1Session.session, focusWaterings: 0 }));
     expect(state.waiting).toEqual([]);
   });
 
@@ -56,6 +58,7 @@ describe('v1 → v2 migration', () => {
       outcome: 'completed',
       taskName: 'Biology ch. 4',
       speciesId: 'japanese-iris',
+      sceneryId: 'japanese-garden',
       slotId: 'shore-2',
       seed: 991230477,
       plan: null,
@@ -85,7 +88,7 @@ describe('v1 → v2 migration', () => {
 
   it('leaves malformed plants out of the back-fill and lets validation report them', () => {
     const doc = { ...clone(v1Session), plants: [{ id: 3 }, ...clone(v1Session.plants)] };
-    const out = migrateV2toV3(migrateV1toV2(doc));
+    const out = migrateV3toV4(migrateV2toV3(migrateV1toV2(doc)));
     expect((out.log as unknown[]).length).toBe(3);
     expect(validateState(out)).toMatchObject({ ok: false, error: { code: 'invalid-state', path: 'plants[0].plantedAt' } });
   });

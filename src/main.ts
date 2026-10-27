@@ -7,6 +7,7 @@ import { createSessionController } from './core/controller';
 import { createScheduler } from './core/schedule-controller';
 import { createEventBus } from './core/events';
 import { createSaver, loadState, type StorageLike } from './core/persistence';
+import { slotLookup } from './core/sceneries';
 import { createReducer, createStore } from './core/state';
 import { installCoreDebug } from './dev/core-debug';
 import { installDebug, isDev } from './dev/debug';
@@ -21,6 +22,7 @@ import { createPlantSystem } from './plants/system';
 import { setPlantViewSpecies } from './plants/view';
 import { createFauna, installFaunaDebug } from './fauna';
 import { createRenderer } from './render/renderer';
+import { getScenery, hasScenery } from './scenery/registry';
 import { gardenScene } from './scene/geometry';
 import { createUI } from './ui';
 import { applyUiLight } from './ui/ambient-light';
@@ -94,11 +96,11 @@ async function boot(): Promise<void> {
     if (document.visibilityState === 'hidden') saver?.flush();
   });
 
-  const slotById = new Map(scene.slots.map((s) => [s.id, s]));
-  const reducer = createReducer({ getSpecies, getSlot: (id) => slotById.get(id) });
+  const slots = slotLookup((id) => (hasScenery(id) ? getScenery(id).geometry.slots : []));
+  const reducer = createReducer({ getSpecies, getSlot: slots.get });
   const store = createStore(loaded.state, reducer, (next) => saver?.schedule(next));
   const bus = createEventBus();
-  const controller = createSessionController({ store, clock, bus, species, slots: scene.slots });
+  const controller = createSessionController({ store, clock, bus, species, slots: slots.of });
   const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
 
   const renderer = createRenderer({ canvas, store, bus, clock, scene, reducedMotion });
@@ -177,7 +179,7 @@ async function boot(): Promise<void> {
   if (speedClock) {
     installDebug({ store, renderer, clock: speedClock });
     installAudioDebug(audio);
-    installCoreDebug({ store, controller, clock: speedClock, species, slots: scene.slots, saver: saver ?? undefined, isKnownSpecies });
+    installCoreDebug({ store, controller, clock: speedClock, species, slots: slots.of, saver: saver ?? undefined, isKnownSpecies });
     installUiDebug({ ui, clock: speedClock, widget: fakeWidget, viewport: () => renderer.viewport, slots: scene.slots });
     installWidgetDebug({ surfaces, controller, store, bus });
     installServiceWorkerDebug(sw);
@@ -185,7 +187,7 @@ async function boot(): Promise<void> {
     installPlantsDebug(plants);
     installFaunaDebug(fauna);
     installPaintCacheDebug();
-    installScheduleDebug({ store, scheduler, clock: speedClock, ui, species });
+    installScheduleDebug({ store, scheduler, clock: speedClock, ui, species, slots: slots.of });
     installCameraDebug({
       renderer,
       ui,

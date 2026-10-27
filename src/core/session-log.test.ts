@@ -23,6 +23,7 @@ const entry = (id: string, startedAt: number, endedAt: number, over: Partial<Ses
   outcome: 'completed',
   taskName: id,
   speciesId: 'violet',
+  sceneryId: 'japanese-garden',
   slotId: 'meadow-1',
   seed: 1,
   plan: null,

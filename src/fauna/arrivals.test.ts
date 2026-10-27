@@ -26,7 +26,7 @@ describe('sightedFauna', () => {
 describe('fauna arrivals', () => {
   const flower: TargetSpecies = { pollinators: true, habitats: ['meadow'], size: { w: 60, h: 90 }, anchor: { x: 0.5, y: 0.95 }, bloomColor: '#e8a7a9' };
   const plants = (n: number): PlantInstance[] =>
-    gardenScene.slots.slice(0, n).map((s, i) => ({ id: `p${i}`, speciesId: 'flower', slotId: s.id, seed: i + 1, plantedAt: 0, sessionMinutes: 25, taskName: 't', completedAt: 1 }));
+    gardenScene.slots.slice(0, n).map((s, i) => ({ id: `p${i}`, speciesId: 'flower', sceneryId: 'japanese-garden', slotId: s.id, seed: i + 1, plantedAt: 0, sessionMinutes: 25, taskName: 't', completedAt: 1 }));
 
   it('emits fauna:arrived once, when a newly unlocked koi is first in view — not on unlock', () => {
     const store = createStore(createDefaultState(0), reducer);

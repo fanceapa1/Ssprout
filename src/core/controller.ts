@@ -2,10 +2,12 @@ import type { SpeciesDef } from '../plants/types';
 import type { Slot } from '../scene/geometry';
 import type { Clock } from './clock';
 import type { EventBus } from './events';
+import { faunaSeenKey } from './fauna-unlocks';
 import { compatibleSlots, type CompatibleSlot } from './placement';
 import { findPlan, recommendPlans, type StudyPlan } from './plans';
 import { selectableSpecies, type SelectableSpecies } from './rewards';
 import { createRng, type Rng } from './rng';
+import { isSceneryId, slotsOfAny, type SceneryId, type SlotsOf } from './sceneries';
 import {
   clampGoalMinutes,
   completionTime,
@@ -26,6 +28,7 @@ import {
   inProgressSessions,
   lastLeftSession,
   MAX_SESSIONS,
+  plantsIn,
   type Action,
   type ActiveSession,
   type GardenState,
@@ -63,8 +66,8 @@ export interface SessionControllerDeps {
   bus: EventBus;
   /** every species that can be planted (the plant registry) */
   species: readonly SpeciesDef[];
-  /** scene slots, for `placementOptions` (default: none) */
-  slots?: readonly Slot[];
+  /** each scenery's slots, for `placementOptions`; a plain list is the default scenery's (default: none) */
+  slots?: readonly Slot[] | SlotsOf<Slot>;
   ticker?: Ticker;
   /** seed for ids, weather and plant seeds (default: clock time at creation) */
   seed?: number | string;
@@ -78,12 +81,16 @@ export interface StartOptions {
   /** one of `recommendPlans(goalMinutes)` ids; default 'unbroken' */
   planId?: string;
   speciesId: string;
+  /** the garden to plant in (default: the one on view) */
+  sceneryId?: SceneryId;
   slotId: string;
 }
 
 /** One session in progress, as the dock lists it (ADR 0150). */
 export interface SessionSummary {
   session: ActiveSession;
+  /** the garden its seedling grows in (`session.sceneryId`) */
+  sceneryId: SceneryId;
   timeline: SessionTimeline;
   /** the session the timer, the garden and the widget follow */
   active: boolean;
@@ -147,13 +154,15 @@ export interface SessionController {
   nextFocusWatering(): number | null;
   recommendPlans(totalMinutes: number): StudyPlan[];
   selectableSpecies(totalMinutes: number): SelectableSpecies[];
-  /** Slots this species fits, each with its finished occupant (a swap) if any. */
-  placementOptions(speciesId: string): CompatibleSlot[];
+  /** Slots of a garden (default: the one on view) this species fits, each with its finished occupant (a swap) if any. */
+  placementOptions(speciesId: string, sceneryId?: SceneryId): CompatibleSlot[];
+  /** Show another garden; sessions keep growing in theirs. False for an unknown id or the one on view. */
+  showScenery(id: SceneryId): boolean;
   /** Retire a tip: its mechanism was used (default), or the gardener dismissed it (ADR 0211). */
   retireTip(id: string, reason?: TipRetireReason): boolean;
   updateSettings(patch: Partial<Settings>): boolean;
-  /** Record that a creature has been announced; emits `fauna:arrived` the first time. */
-  announceFauna(id: string): boolean;
+  /** Record that a creature has been announced in a garden (default: the one on view); emits `fauna:arrived` the first time. */
+  announceFauna(id: string, sceneryId?: SceneryId): boolean;
   status(): SessionStatus;
   /** Called after every tick (once a second while a session exists) with the fresh status. */
   onTick(fn: (status: SessionStatus) => void): () => void;
@@ -167,7 +176,7 @@ export interface SessionController {
 export function createSessionController(deps: SessionControllerDeps): SessionController {
   const { store, clock, bus } = deps;
   const species = deps.species;
-  const slots = deps.slots ?? [];
+  const slotsOf = slotsOfAny(deps.slots);
   const speciesById = new Map(species.map((s) => [s.id, s]));
 
   let rng: Rng = createRng(deps.seed ?? clock.now());
@@ -202,6 +211,7 @@ export function createSessionController(deps: SessionControllerDeps): SessionCon
       longPause: s ? isLongPause(s, now) : false,
       sessions: inProgressSessions(state).map((x) => ({
         session: x,
+        sceneryId: x.sceneryId,
         timeline: sessionTimeline(x, now),
         active: x === s,
         running: x === s && x.pausedAt === null,
@@ -272,6 +282,7 @@ export function createSessionController(deps: SessionControllerDeps): SessionCon
         goalMinutes,
         plan,
         speciesId: opts.speciesId,
+        sceneryId: opts.sceneryId ?? state.scenery,
         slotId: opts.slotId,
         seed: newSeed(),
         now,
@@ -385,10 +396,16 @@ export function createSessionController(deps: SessionControllerDeps): SessionCon
 
     selectableSpecies: (totalMinutes) => selectableSpecies(species, totalMinutes),
 
-    placementOptions(speciesId) {
+    placementOptions(speciesId, sceneryId) {
       const def = speciesById.get(speciesId);
       const state = store.get();
-      return def ? compatibleSlots(def, slots, state.plants, heldSlotIds(state)) : [];
+      const sc = sceneryId ?? state.scenery;
+      if (!def || !isSceneryId(sc)) return [];
+      return compatibleSlots(def, slotsOf(sc), plantsIn(state, sc), heldSlotIds(state, sc));
+    },
+
+    showScenery(id) {
+      return apply({ type: 'scenery/view', id }).changed;
     },
 
     retireTip(id, reason = 'used') {
@@ -404,8 +421,9 @@ export function createSessionController(deps: SessionControllerDeps): SessionCon
       return true;
     },
 
-    announceFauna(id) {
-      if (!apply({ type: 'fauna/seen', id }).changed) return false;
+    announceFauna(id, sceneryId) {
+      const sc = sceneryId ?? store.get().scenery;
+      if (!id || !isSceneryId(sc) || !apply({ type: 'fauna/seen', id: faunaSeenKey(sc, id) }).changed) return false;
       bus.emit('fauna:arrived', { id });
       return true;
     },

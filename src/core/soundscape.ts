@@ -47,6 +47,30 @@ export function copySoundscape(s: SoundscapeSettings): SoundscapeSettings {
   return { collection: s.collection, volume: s.volume, standard: { ...s.standard }, sceneries:
     Object.fromEntries(Object.entries(s.sceneries).map(([id, mix]) => [id, { mode: mix!.mode, levels: { ...mix!.levels } }])) };
 }
+/** Present levels must be 0–100; a missing layer reads as 0 (a layer added later needs no migration). */
+function readLevels(v: unknown): SoundLevels | null {
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return null;
+  const o = v as Partial<Record<SoundLayer, unknown>>;
+  if (!SOUND_LAYERS.every((id) => o[id] === undefined || percent(o[id]))) return null;
+  return Object.fromEntries(SOUND_LAYERS.map((id) => [id, o[id] ?? 0])) as SoundLevels;
+}
+/** A stored or patched sound mix as a complete, owned copy, or null when it is invalid (ADR 0240). */
+export function readSoundscape(value: unknown): SoundscapeSettings | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const s = value as Record<string, unknown>;
+  const standard = readLevels(s.standard);
+  if ((s.collection !== 'standard' && s.collection !== 'scenery') || !percent(s.volume) || !standard) return null;
+  if (!s.sceneries || typeof s.sceneries !== 'object' || Array.isArray(s.sceneries)) return null;
+  const sceneries: SoundscapeSettings['sceneries'] = {};
+  for (const [id, mix] of Object.entries(s.sceneries)) {
+    if (!Object.hasOwn(SCENERIES, id) || !mix || typeof mix !== 'object') return null;
+    const { mode, levels } = mix as Record<string, unknown>;
+    const read = readLevels(levels);
+    if ((mode !== 'garden' && mode !== 'custom') || !read) return null;
+    sceneries[id as SoundSceneryId] = { mode, levels: read };
+  }
+  return { collection: s.collection, volume: s.volume, standard, sceneries };
+}
 export function sameSoundscape(a: SoundscapeSettings | undefined, b: SoundscapeSettings): boolean {
   return !!a && a.collection === b.collection && a.volume === b.volume &&
     SOUND_LAYERS.every((id) => a.standard[id] === b.standard[id]) &&

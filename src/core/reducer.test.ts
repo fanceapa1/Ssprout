@@ -24,7 +24,7 @@ const SLOTS: Record<string, { id: string; habitat: Habitat; maxSize: SizeClass }
   'back-1': { id: 'back-1', habitat: 'back', maxSize: 'tree' },
   'rock-1': { id: 'rock-1', habitat: 'rock', maxSize: 'small' },
 };
-const world: ReducerWorld = { getSpecies: (id) => SPECIES[id], getSlot: (id) => SLOTS[id] };
+const world: ReducerWorld = { getSpecies: (id) => SPECIES[id], getSlot: (sc, id) => (sc === 'japanese-garden' ? SLOTS[id] : undefined) };
 const reducer = createReducer(world);
 
 const run = (state: GardenState, ...actions: Action[]): GardenState => actions.reduce(reducer, state);
@@ -64,6 +64,7 @@ describe('session/start', () => {
       goalMs: 90 * MIN,
       plan: POMODORO,
       speciesId: 'violet',
+      sceneryId: 'japanese-garden',
       slotId: 'meadow-1',
       seed: 42,
       displacedPlantId: null,
@@ -270,6 +271,7 @@ describe('session/complete', () => {
       {
         id: 'session-1',
         speciesId: 'violet',
+        sceneryId: 'japanese-garden',
         slotId: 'meadow-1',
         seed: 42,
         plantedAt: T0,
@@ -287,7 +289,7 @@ describe('session/complete', () => {
     const s = run(running({}, { ...fresh(), plants: [old, other] }), { type: 'session/complete', now: at(25) });
     expect(s.plants.map((p) => p.id)).toEqual(['other', 'session-1']);
     expect(s.pressed).toEqual([
-      { speciesId: 'cherry', seed: old.seed, plantedAt: old.plantedAt, removedAt: at(25), taskName: 'Old task' },
+      { speciesId: 'cherry', sceneryId: 'japanese-garden', seed: old.seed, plantedAt: old.plantedAt, removedAt: at(25), taskName: 'Old task' },
     ]);
   });
 

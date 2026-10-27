@@ -1,9 +1,11 @@
 import type { SpeciesDef } from '../plants/types';
+import { DEFAULT_SCENERY, type SceneryId } from './sceneries';
 import type { GardenState } from './state';
 
 /**
  * Which creatures have moved in (SPEC §4). Tune the thresholds here; ids are the contract
- * with `src/fauna` (one creature module per id).
+ * with `src/fauna` (one creature module per id). Each garden unlocks its own wildlife from its
+ * own plants (ADR 0240); the scenery defaults to the one on view.
  */
 
 export type FaunaSpecies = Pick<SpeciesDef, 'pollinators' | 'habitats'>;
@@ -111,29 +113,57 @@ export const FAUNA_UNLOCKS: readonly FaunaUnlock[] = [
 
 export const FAUNA_IDS: readonly string[] = FAUNA_UNLOCKS.map((f) => f.id);
 
-/** Plants whose species is unknown (e.g. removed) still count as plants, but not as flowers. */
-export function gardenCounts(state: Pick<GardenState, 'plants'>, lookup: SpeciesLookup): GardenCounts {
+/** A garden's plants; `scenery` (the garden on view) picks the default scenery. */
+type Garden = Pick<GardenState, 'plants'> & Partial<Pick<GardenState, 'scenery'>>;
+
+const viewed = (state: Garden): SceneryId => state.scenery ?? DEFAULT_SCENERY;
+
+/**
+ * Counts for `sceneryId`'s garden. Plants whose species is unknown (e.g. removed) still count as
+ * plants, but not as flowers.
+ */
+export function gardenCounts(state: Garden, lookup: SpeciesLookup, sceneryId: SceneryId = viewed(state)): GardenCounts {
+  let plants = 0;
   let pollinatorFlowers = 0;
   let waterPlants = 0;
   for (const p of state.plants) {
+    if (p.sceneryId !== sceneryId) continue;
+    plants++;
     const def = lookup(p.speciesId);
     if (!def) continue;
     if (def.pollinators) pollinatorFlowers++;
     if (def.habitats.includes('water')) waterPlants++;
   }
-  return { plants: state.plants.length, pollinatorFlowers, waterPlants };
+  return { plants, pollinatorFlowers, waterPlants };
 }
 
-/** Unlocked creature ids, in table order. */
-export function unlockedFauna(state: Pick<GardenState, 'plants'>, lookup: SpeciesLookup): string[] {
-  const counts = gardenCounts(state, lookup);
+/** Creature ids unlocked in `sceneryId`'s garden, in table order. */
+export function unlockedFauna(state: Garden, lookup: SpeciesLookup, sceneryId: SceneryId = viewed(state)): string[] {
+  const counts = gardenCounts(state, lookup, sceneryId);
   return FAUNA_UNLOCKS.filter((f) => f.unlocked(counts)).map((f) => f.id);
 }
 
-/** Unlocked but not yet announced (`state.faunaSeen`), in table order. */
-export function newlyArrived(state: Pick<GardenState, 'plants' | 'faunaSeen'>, lookup: SpeciesLookup): string[] {
+/**
+ * The `state.faunaSeen` entry for a creature announced in a garden: the bare id in the Japanese
+ * garden (as before v4), `<scenery>:<id>` elsewhere (ADR 0240).
+ */
+export function faunaSeenKey(sceneryId: SceneryId, id: string): string {
+  return sceneryId === 'japanese-garden' ? id : `${sceneryId}:${id}`;
+}
+
+/** Whether a creature has been announced in `sceneryId`'s garden. */
+export function faunaSeenIn(state: Pick<GardenState, 'faunaSeen'>, sceneryId: SceneryId, id: string): boolean {
+  return state.faunaSeen.includes(faunaSeenKey(sceneryId, id));
+}
+
+/** Unlocked in `sceneryId`'s garden but not yet announced there, in table order. */
+export function newlyArrived(
+  state: Garden & Pick<GardenState, 'faunaSeen'>,
+  lookup: SpeciesLookup,
+  sceneryId: SceneryId = viewed(state),
+): string[] {
   const seen = new Set(state.faunaSeen);
-  return unlockedFauna(state, lookup).filter((id) => !seen.has(id));
+  return unlockedFauna(state, lookup, sceneryId).filter((id) => !seen.has(faunaSeenKey(sceneryId, id)));
 }
 
 export function faunaUnlock(id: string): FaunaUnlock | undefined {

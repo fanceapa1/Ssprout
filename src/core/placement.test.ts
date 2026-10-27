@@ -15,6 +15,7 @@ const SLOTS = [
 const plant = (id: string, slotId: string): PlantInstance => ({
   id,
   speciesId: 'violet',
+  sceneryId: 'japanese-garden',
   slotId,
   seed: 1,
   plantedAt: 0,

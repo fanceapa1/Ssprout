@@ -59,6 +59,7 @@ function stagePlants(scene: SceneGeometry): PlantInstance[] {
   return scene.slots.map((s, i) => ({
     id: `stage-${i}`,
     speciesId: s.habitat === 'water' ? 'stage-lily' : 'stage-flower',
+    sceneryId: 'japanese-garden',
     slotId: s.id,
     seed: 11 + i,
     plantedAt: 0,

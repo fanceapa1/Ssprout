@@ -1,6 +1,6 @@
 # ADR 0120 — A creature is announced when it is first in view
 
-- Status: accepted
+- Status: accepted; amended by ADR 0240 (`faunaSeen` per garden: `<scenery>:<id>` outside the Japanese garden)
 - Date: 2026-10-22
 
 ## Context

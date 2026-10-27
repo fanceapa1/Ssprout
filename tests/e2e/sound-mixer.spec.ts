@@ -25,12 +25,12 @@ test.describe('sound mixer', () => {
     });
     await page.addInitScript((json) => localStorage.setItem('studysprout:v1', json), JSON.stringify(legacy));
     await reloadUi(page);
-    expect(await page.evaluate(() => window.sprout!.state().version)).toBe(3);
+    expect(await page.evaluate(() => window.sprout!.state().version)).toBe(4);
     expect(await page.evaluate(() => window.sprout!.state().plants)).toEqual(legacy.plants);
     const sheet = await openMixer(page);
     await expect(sheet.getByRole('button', { name: 'Follow the garden', exact: true })).toHaveAttribute('aria-pressed', 'true');
     await expect(sheet.getByRole('button', { name: 'Listen', exact: true })).toBeVisible();
-    expect(await page.evaluate(() => JSON.parse(localStorage.getItem('studysprout:v1')!).version)).toBe(3);
+    expect(await page.evaluate(() => JSON.parse(localStorage.getItem('studysprout:v1')!).version)).toBe(4);
   });
 
   test('two collections retain their mixes; sound stays off until Listen; quick mute stays in sync', async ({ page }) => {

@@ -108,6 +108,7 @@ const PLAN: StudyPlan = {
 const plant = (id: string, slotId: string, speciesId = 'small'): PlantInstance => ({
   id,
   speciesId,
+  sceneryId: 'japanese-garden',
   slotId,
   seed: id.length * 97,
   plantedAt: 0,
@@ -522,7 +523,7 @@ describe('several sessions in progress (ADRs 0150, 0155)', () => {
 
   it('after a reload every seedling shows at its own growth at once', async () => {
     const env = setup();
-    const a = { id: 'a', taskName: 'A', goalMs: 60 * MIN, plan: PLAN, speciesId: 'small', slotId: 'meadow-1', seed: 1, displacedPlantId: null, startedAt: env.clock.now() - 30 * MIN, pausedAt: env.clock.now() - 20 * MIN, pausedTotalMs: 0, skippedMs: 0, weather: 'sun' as const, waterings: [], focusWaterings: 0 };
+    const a = { id: 'a', taskName: 'A', goalMs: 60 * MIN, plan: PLAN, speciesId: 'small', sceneryId: 'japanese-garden' as const, slotId: 'meadow-1', seed: 1, displacedPlantId: null, startedAt: env.clock.now() - 30 * MIN, pausedAt: env.clock.now() - 20 * MIN, pausedTotalMs: 0, skippedMs: 0, weather: 'sun' as const, waterings: [], focusWaterings: 0 };
     const b = { ...a, id: 'b', slotId: 'back-1', startedAt: env.clock.now() - 5 * MIN, pausedAt: null };
     env.store.dispatch({ type: 'state/replace', state: { ...env.store.get(), session: b, waiting: [a] } });
     const sys = await ready(env);

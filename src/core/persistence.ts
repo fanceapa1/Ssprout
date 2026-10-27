@@ -2,7 +2,8 @@ import { planProblem, type StudyPlan } from './plans';
 import { noteProblem, scheduleProblem, type OccurrenceNote, type Schedule } from './schedule';
 import { clampGoalMinutes, DEFAULT_TASK_NAME, MINUTE_MS, normalizeTaskName } from './session';
 import { backfillLog } from './session-log';
-import { copySoundscape, isSoundscape } from './soundscape';
+import { DEFAULT_SCENERY, SCENERY_IDS, type SceneryId } from './sceneries';
+import { readSoundscape } from './soundscape';
 import {
   createDefaultState,
   MAX_SESSIONS,
@@ -17,7 +18,7 @@ import {
 } from './state';
 
 /**
- * Persistence (SPEC §9, ADR 0033/0034): localStorage load/save with schema migrations,
+ * Persistence (SPEC §9, ADRs 0033/0034, 0154, 0213, 0240): localStorage load/save with schema migrations,
  * corrupt-data recovery, and JSON export/import with structural validation.
  *
  * The storage key stays `studysprout:v1` for the life of the app; the `version` field inside
@@ -66,6 +67,9 @@ type Json = Record<string, unknown>;
 export type Migration = (doc: Json) => Json;
 export type Migrations = Readonly<Record<number, Migration>>;
 
+/** Every garden before v4 was the Japanese garden. */
+const V3_SCENERY: SceneryId = 'japanese-garden';
+
 /**
  * v1 → v2 (ADRs 0150, 0151): parallel sessions and the session log. The single session stays
  * the active one (it keeps running or stays paused exactly as it was) with no automatic
@@ -83,6 +87,7 @@ export function migrateV1toV2(doc: Json): Json {
     return [{
       id,
       speciesId,
+      sceneryId: V3_SCENERY,
       slotId,
       seed: seed as number,
       plantedAt: plantedAt as number,
@@ -100,7 +105,22 @@ export function migrateV2toV3(doc: Json): Json {
   return { ...doc, version: 3 };
 }
 
-export const MIGRATIONS: Migrations = { 1: migrateV1toV2, 2: migrateV2toV3 };
+/**
+ * v3 → v4 (ADR 0240): per-scenery gardens. Every plant, pressed flower, session in progress and
+ * log entry grew in the Japanese garden, which is also the one on view. `faunaSeen` keeps its ids
+ * (Japanese ones are not namespaced). Pure; non-object entries are left for validation.
+ */
+export function migrateV3toV4(doc: Json): Json {
+  const tag = (x: unknown): unknown => (isObject(x) ? { ...x, sceneryId: V3_SCENERY } : x);
+  const out: Json = { ...doc, version: 4, scenery: V3_SCENERY };
+  for (const key of ['plants', 'pressed', 'waiting', 'log'] as const) {
+    if (Array.isArray(doc[key])) out[key] = (doc[key] as unknown[]).map(tag);
+  }
+  if (isObject(doc.session)) out.session = tag(doc.session);
+  return out;
+}
+
+export const MIGRATIONS: Migrations = { 1: migrateV1toV2, 2: migrateV2toV3, 3: migrateV3toV4 };
 
 export interface MigrateOptions {
   migrations?: Migrations;
@@ -202,6 +222,14 @@ function opt<T>(o: Json, key: string, fallback: T, read: (v: unknown, path: stri
   return o[key] === undefined ? fallback : read(o[key], path);
 }
 
+/** Absent: the default scenery (documents written by hand or by a dev `setState`). */
+function sceneryId(o: Json, path: string): SceneryId {
+  return opt(o, 'sceneryId', DEFAULT_SCENERY, (v, p) => oneOf(v, SCENERY_IDS, p), path);
+}
+
+/** One key per garden slot: slots are unique within a scenery, not across them. */
+const slotKey = (x: { sceneryId: SceneryId; slotId: string }): string => `${x.sceneryId}/${x.slotId}`;
+
 function taskName(o: Json, path: string): string {
   return normalizeTaskName(opt(o, 'taskName', DEFAULT_TASK_NAME, (v, p) => {
     if (typeof v !== 'string') throw new Invalid(p, 'expected a string');
@@ -215,6 +243,7 @@ function readPlant(v: unknown, path: string): PlantInstance {
   return {
     id: str(o.id, `${path}.id`),
     speciesId: str(o.speciesId, `${path}.speciesId`),
+    sceneryId: sceneryId(o, `${path}.sceneryId`),
     slotId: str(o.slotId, `${path}.slotId`),
     seed: num(o.seed, `${path}.seed`),
     plantedAt,
@@ -228,6 +257,7 @@ function readPressed(v: unknown, path: string): PressedFlower {
   const o = obj(v, path);
   return {
     speciesId: str(o.speciesId, `${path}.speciesId`),
+    sceneryId: sceneryId(o, `${path}.sceneryId`),
     seed: num(o.seed, `${path}.seed`),
     plantedAt: num(o.plantedAt, `${path}.plantedAt`),
     removedAt: num(o.removedAt, `${path}.removedAt`),
@@ -282,6 +312,7 @@ function readInProgress(v: unknown, path: string): ActiveSession {
     goalMs,
     plan,
     speciesId: str(o.speciesId, `${path}.speciesId`),
+    sceneryId: sceneryId(o, `${path}.sceneryId`),
     slotId: str(o.slotId, `${path}.slotId`),
     seed: num(o.seed, `${path}.seed`),
     displacedPlantId: displaced === null ? null : str(displaced, `${path}.displacedPlantId`),
@@ -318,6 +349,7 @@ function readLogEntry(v: unknown, path: string): SessionLogEntry {
     outcome: oneOf(o.outcome, OUTCOMES, `${path}.outcome`),
     taskName: taskName(o, `${path}.taskName`),
     speciesId: str(o.speciesId, `${path}.speciesId`),
+    sceneryId: sceneryId(o, `${path}.sceneryId`),
     slotId: str(o.slotId, `${path}.slotId`),
     seed: num(o.seed, `${path}.seed`),
     plan: o.plan === null || o.plan === undefined ? null : readPlan(o.plan, `${path}.plan`, goalMinutes),
@@ -390,9 +422,9 @@ function readState(raw: unknown, now: number): GardenState {
   const slots = new Set<string>();
   plants.forEach((pl, i) => {
     if (ids.has(pl.id)) throw new Invalid(`plants[${i}].id`, `duplicate plant id "${pl.id}"`);
-    if (slots.has(pl.slotId)) throw new Invalid(`plants[${i}].slotId`, `two plants in slot "${pl.slotId}"`);
+    if (slots.has(slotKey(pl))) throw new Invalid(`plants[${i}].slotId`, `two plants in slot "${slotKey(pl)}"`);
     ids.add(pl.id);
-    slots.add(pl.slotId);
+    slots.add(slotKey(pl));
   });
 
   const statsRaw = opt(o, 'stats', {}, obj, 'stats');
@@ -407,6 +439,7 @@ function readState(raw: unknown, now: number): GardenState {
   const state: GardenState = {
     version: STATE_VERSION,
     createdAt,
+    scenery: opt(o, 'scenery', d.scenery, (v, p) => oneOf(v, SCENERY_IDS, p), 'scenery'),
     plants,
     pressed: opt(o, 'pressed', d.pressed, (v, p) => arr(v, p).map((x, i) => readPressed(x, `${p}[${i}]`)), 'pressed'),
     session: opt(o, 'session', null, readSession, 'session'),
@@ -425,8 +458,9 @@ function readState(raw: unknown, now: number): GardenState {
     settings: {
       ...('soundscape' in settingsRaw ? {
         soundscape: (() => {
-          if (!isSoundscape(settingsRaw.soundscape)) throw new Invalid('settings.soundscape', 'expected a sound mix with levels from 0 to 100');
-          return copySoundscape(settingsRaw.soundscape);
+          const read = readSoundscape(settingsRaw.soundscape);
+          if (!read) throw new Invalid('settings.soundscape', 'expected a sound mix with levels from 0 to 100');
+          return read;
         })(),
       } : {}),
       muted: opt(settingsRaw, 'muted', d.settings.muted, bool, 'settings.muted'),
@@ -442,7 +476,7 @@ function readState(raw: unknown, now: number): GardenState {
       ),
     },
   };
-  // sessions in progress: at most MAX_SESSIONS, unique ids not used by a plant or the log, one per slot
+  // sessions in progress: at most MAX_SESSIONS, unique ids not used by a plant or the log, one per garden slot
   const inProgress: Array<[ActiveSession, string]> = [
     ...(state.session ? [[state.session, 'session'] as [ActiveSession, string]] : []),
     ...state.waiting.map((w, i) => [w, `waiting[${i}]`] as [ActiveSession, string]),
@@ -455,9 +489,9 @@ function readState(raw: unknown, now: number): GardenState {
     if (ids.has(s.id)) throw new Invalid(`${path}.id`, 'the session id is already used by a finished plant');
     if (logged.has(s.id)) throw new Invalid(`${path}.id`, 'the session id is already in the log (it has ended)');
     if (sessionIds.has(s.id)) throw new Invalid(`${path}.id`, `duplicate session id "${s.id}"`);
-    if (heldSlots.has(s.slotId)) throw new Invalid(`${path}.slotId`, `two sessions in slot "${s.slotId}"`);
+    if (heldSlots.has(slotKey(s))) throw new Invalid(`${path}.slotId`, `two sessions in slot "${slotKey(s)}"`);
     sessionIds.add(s.id);
-    heldSlots.add(s.slotId);
+    heldSlots.add(slotKey(s));
   }
   return state;
 }
@@ -476,7 +510,7 @@ export function unknownSpeciesIds(state: GardenState, isKnown: (id: string) => b
 /**
  * Structural validation + normalisation of a current-version document. Absent keys get their
  * defaults, present keys must have the right shape, unknown keys are dropped, invariants
- * (unique plant ids, one plant per slot, a valid plan for the session) are enforced.
+ * (unique plant ids, one plant per garden slot, a valid plan for the session) are enforced.
  */
 export function validateState(raw: unknown, opts: ValidateOptions = {}): Result<Validated> {
   try {

@@ -88,6 +88,7 @@ const session = (patch: Partial<ActiveSession> = {}): ActiveSession => ({
   goalMs: 25 * 60_000,
   plan: { id: 'unbroken', name: 'Unbroken', blocks: [{ kind: 'focus', minutes: 25 }] },
   speciesId: 'x',
+  sceneryId: 'japanese-garden',
   slotId: 'a',
   seed: 1,
   displacedPlantId: null,
@@ -103,6 +104,7 @@ const session = (patch: Partial<ActiveSession> = {}): ActiveSession => ({
 const plant: PlantInstance = {
   id: 'p',
   speciesId: 'x',
+  sceneryId: 'japanese-garden',
   slotId: 'a',
   seed: 1,
   plantedAt: 0,
@@ -410,7 +412,7 @@ function parallel(soundscape?: SoundscapeSettings) {
     draw: () => {},
   };
   const slots: Slot[] = ['meadow-1', 'meadow-2', 'meadow-3'].map((id) => ({ id, x: 0, y: 0, habitat: 'meadow', maxSize: 'large', scale: 1 }));
-  const reducer = createReducer({ getSpecies: (id) => (id === species.id ? species : undefined), getSlot: (id) => slots.find((x) => x.id === id) });
+  const reducer = createReducer({ getSpecies: (id) => (id === species.id ? species : undefined), getSlot: (sc, id) => (sc === 'japanese-garden' ? slots.find((x) => x.id === id) : undefined) });
   const base = createDefaultState(T);
   const store = createStore<GardenState>({ ...base, settings: { ...base.settings, muted: false, ...(soundscape ? { soundscape } : {}) } }, reducer);
   const bus = createEventBus();

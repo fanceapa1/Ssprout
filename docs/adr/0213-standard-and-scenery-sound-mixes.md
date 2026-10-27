@@ -1,6 +1,6 @@
 # ADR 0213 — Standard sounds travel; scenery sounds belong to a place
 
-- Status: accepted
+- Status: accepted; amended by ADR 0240 (the viewed scenery is stored; the audio type is `SoundSceneryId`; a missing layer reads as 0)
 - Date: 2026-10-23
 
 ## Context

@@ -8,7 +8,7 @@ weather and the daylight are shared (owner decisions, phase 10).
 ## Files
 | File | What |
 |---|---|
-| `ids.ts` | `SCENERY_IDS` (`japanese-garden`, `waterfall`), `SceneryId`, `DEFAULT_SCENERY`, `isSceneryId`. Pure. The schema task S1 moves or re-exports them from `src/core/sceneries.ts` |
+| `ids.ts` | re-exports `SCENERY_IDS` (`japanese-garden`, `waterfall`), `SceneryId`, `DEFAULT_SCENERY`, `isSceneryId` from `src/core/sceneries.ts`, where core keys plants, sessions and slots by them (ADR 0240; docs/systems/core.md › Gardens) |
 | `types.ts` | the `Scenery` contract and its parts: `ScenerySky`, `SceneryAmbience`, `SceneryView` |
 | `registry.ts` | `getScenery(id)` (the default for an id not registered yet), `hasScenery(id)`, `sceneries(flags?)` (available ones, in `order`) |
 | `japanese-garden/index.ts` | `JAPANESE_GARDEN`: gathers the garden's geometry, painting, sky, light art, ambience numbers and view |
@@ -48,7 +48,7 @@ A scenery is consistent with itself: `art.scenery === id`, `art.scene === geomet
 `light.sky === sky.layout` (`registry.test.ts` checks every registered one).
 
 **Left out for now**, with the task whose consumer sets its shape: `fauna` (unlocks, roster,
-perspective; S11), `sound` (S15; note `core/soundscape.ts` has its own audio `SceneryId`, `pond`
+perspective; S11), `sound` (S15; `core/soundscape.ts` names its audio sceneries `SoundSceneryId`, `pond`
 and `coast`), `habitatWords` and `thumbnail` (S5), `surface` (the per-frame water animator; S9).
 
 ## Who reads what

@@ -1,6 +1,7 @@
 import { isCompatible, type PlacementSlot, type PlacementSpecies } from '../core/placement';
 import { TIER_MIN_MINUTES } from '../core/rewards';
 import type { Rng } from '../core/rng';
+import type { SceneryId } from '../core/sceneries';
 import type { GardenState, PlantInstance } from '../core/state';
 import type { SpeciesDef, Tier } from '../plants/types';
 
@@ -23,9 +24,9 @@ export const SAMPLE_TASKS: readonly string[] = [
 ];
 
 /**
- * Dev helper behind `window.sprout.addPlants(n, tier?)`: plant up to `n` finished plants of
- * random species (with sample task names) into random free compatible slots (no swaps), e.g. for
- * screenshots of a full garden. Pure.
+ * Dev helper behind `window.sprout.addPlants(n, tier?, sceneryId?)`: plant up to `n` finished
+ * plants of random species (with sample task names) into random free compatible `slots` of one
+ * garden (default: the one on view; no swaps), e.g. for screenshots of a full garden. Pure.
  */
 export function plantRandomly(
   state: GardenState,
@@ -35,9 +36,10 @@ export function plantRandomly(
   n: number,
   now: number,
   tier?: Tier,
+  sceneryId: SceneryId = state.scenery,
 ): { state: GardenState; added: PlantInstance[] } {
   const pool = tier === undefined ? species : species.filter((s) => s.tier === tier);
-  const used = new Set(state.plants.map((p) => p.slotId));
+  const used = new Set(state.plants.filter((p) => p.sceneryId === sceneryId).map((p) => p.slotId));
   const ids = new Set(state.plants.map((p) => p.id));
   const added: PlantInstance[] = [];
 
@@ -56,6 +58,7 @@ export function plantRandomly(
     added.push({
       id,
       speciesId: def.id,
+      sceneryId,
       slotId: slot.id,
       seed: rng.int(0, 0xffffffff) >>> 0,
       plantedAt: now - sessionMinutes * 60_000,

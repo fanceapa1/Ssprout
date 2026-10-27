@@ -58,7 +58,7 @@ function setup(initial: GardenState = createDefaultState(T0), seed: number | str
   const clock = createManualClock(T0);
   const reducer = createReducer({
     getSpecies: (id) => SPECIES.find((s) => s.id === id),
-    getSlot: (id) => SLOTS.find((s) => s.id === id),
+    getSlot: (sc, id) => (sc === 'japanese-garden' ? SLOTS.find((s) => s.id === id) : undefined),
   });
   const store = createStore(initial, reducer);
   const bus = createEventBus();
@@ -299,7 +299,7 @@ describe('completion', () => {
     controller.start(opts());
     to(25);
     const plant = store.get().plants.find((p) => p.slotId === 'meadow-1')!;
-    const removed = { speciesId: old.speciesId, seed: old.seed, plantedAt: old.plantedAt, removedAt: T0 + 25 * MIN, taskName: 'Old task' };
+    const removed = { speciesId: old.speciesId, sceneryId: 'japanese-garden', seed: old.seed, plantedAt: old.plantedAt, removedAt: T0 + 25 * MIN, taskName: 'Old task' };
     expect(store.get().pressed).toEqual([removed]);
     expect(payload('plant:swapped')).toEqual([{ plant, removed }]);
     const n = names();

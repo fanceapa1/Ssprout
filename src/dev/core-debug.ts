@@ -3,6 +3,7 @@ import type { SessionController, SessionStatus } from '../core/controller';
 import { exportState, importState, validateState, type ImportResult, type Saver } from '../core/persistence';
 import type { StudyPlan } from '../core/plans';
 import { createRng, type Rng } from '../core/rng';
+import { slotsOfAny, type SceneryId, type SlotsOf } from '../core/sceneries';
 import { blockStartMs, clampGoalMinutes, planPositionMs, sessionTimeline } from '../core/session';
 import type { ActiveSession, GardenState, PlantInstance, SessionLogEntry, Store } from '../core/state';
 import type { SpeciesDef, Tier } from '../plants/types';
@@ -15,6 +16,7 @@ export interface DebugSessionInfo {
   id: string;
   taskName: string;
   speciesId: string;
+  sceneryId: SceneryId;
   slotId: string;
   active: boolean;
   running: boolean;
@@ -33,9 +35,15 @@ export interface DebugStartOptions {
   planId?: string;
   /** default: the first selectable (unlocked) species that fits some slot */
   speciesId?: string;
+  /** default: the garden on view */
+  sceneryId?: SceneryId;
   /** default: the first free compatible slot, else the first compatible one */
   slotId?: string;
 }
+
+/** A plant for `setState`; `sceneryId` may be left out (validation reads it as the default scenery). */
+export type DebugPlant = Omit<PlantInstance, 'sceneryId'> & { sceneryId?: SceneryId };
+export type DebugStatePatch = Partial<Omit<GardenState, 'plants'>> & { plants?: DebugPlant[] };
 
 /** Core-logic additions to `window.sprout` (docs/systems/core.md › Debug API). */
 declare module './debug' {
@@ -79,12 +87,15 @@ declare module './debug' {
     plans(goalMinutes: number): StudyPlan[];
     /** `{ id, tier, locked, earned }` for a total. */
     selectableSpecies(goalMinutes: number): Array<{ id: string; tier: Tier; locked: boolean; earned: boolean }>;
-    /** Compatible slots for a species (default: the active session's): `{ id, habitat, occupiedBy? }`. */
-    placementOptions(speciesId?: string): Array<{ id: string; habitat: string; occupiedBy?: string }>;
-    /** Instantly add up to `n` finished plants (optionally of one tier) in free slots. Returns how many. */
-    addPlants(n: number, tier?: Tier): number;
+    /**
+     * Compatible slots of a garden (default: the one on view) for a species (default: the active
+     * session's): `{ id, habitat, occupiedBy? }`.
+     */
+    placementOptions(speciesId?: string, sceneryId?: SceneryId): Array<{ id: string; habitat: string; occupiedBy?: string }>;
+    /** Instantly add up to `n` finished plants (optionally of one tier) in free slots of a garden (default: the one on view). Returns how many. */
+    addPlants(n: number, tier?: Tier, sceneryId?: SceneryId): number;
     /** Shallow-merge into the state (validated). Throws on an invalid result. */
-    setState(partial: Partial<GardenState>): GardenState;
+    setState(partial: DebugStatePatch): GardenState;
     status(): SessionStatus;
     /** Write any pending debounced save now. */
     flush(): void;
@@ -98,17 +109,19 @@ export interface CoreDebugDeps {
   controller: SessionController;
   clock: SpeedClock;
   species: readonly SpeciesDef[];
-  slots: readonly Slot[];
+  /** each scenery's slots; a plain list is the default scenery's */
+  slots: readonly Slot[] | SlotsOf<Slot>;
   saver?: Saver;
   isKnownSpecies?: (id: string) => boolean;
 }
 
 export function installCoreDebug(deps: CoreDebugDeps): void {
-  const { store, controller, clock, species, slots, saver } = deps;
+  const { store, controller, clock, species, saver } = deps;
+  const slotsOf = slotsOfAny(deps.slots);
   let fillRng: Rng = createRng(clock.now()).fork('dev-fill');
 
-  const firstSlot = (speciesId: string): string | undefined => {
-    const opts = controller.placementOptions(speciesId);
+  const firstSlot = (speciesId: string, sceneryId: SceneryId): string | undefined => {
+    const opts = controller.placementOptions(speciesId, sceneryId);
     return (opts.find((o) => !o.occupiedBy) ?? opts[0])?.slot.id;
   };
 
@@ -126,19 +139,21 @@ export function installCoreDebug(deps: CoreDebugDeps): void {
 
   const start = (goalMinutes?: number, opts: DebugStartOptions = {}): ActiveSession | null => {
     const total = clampGoalMinutes(goalMinutes ?? store.get().settings.lastGoalMinutes);
+    const sceneryId = opts.sceneryId ?? store.get().scenery;
     const speciesId =
       opts.speciesId ??
       controller
         .selectableSpecies(total)
-        .find((s) => !s.locked && firstSlot(s.species.id) !== undefined)?.species.id;
+        .find((s) => !s.locked && firstSlot(s.species.id, sceneryId) !== undefined)?.species.id;
     if (!speciesId) return null;
-    const slotId = opts.slotId ?? firstSlot(speciesId);
+    const slotId = opts.slotId ?? firstSlot(speciesId, sceneryId);
     if (!slotId) return null;
     const ok = controller.start({
       taskName: opts.taskName ?? 'Test task',
       goalMinutes: total,
       planId: opts.planId ?? 'unbroken',
       speciesId,
+      sceneryId,
       slotId,
     });
     return ok ? store.get().session : null;
@@ -169,6 +184,7 @@ export function installCoreDebug(deps: CoreDebugDeps): void {
         id: x.session.id,
         taskName: x.session.taskName,
         speciesId: x.session.speciesId,
+        sceneryId: x.sceneryId,
         slotId: x.session.slotId,
         active: x.active,
         running: x.running,
@@ -220,17 +236,17 @@ export function installCoreDebug(deps: CoreDebugDeps): void {
       controller
         .selectableSpecies(goalMinutes)
         .map((s) => ({ id: s.species.id, tier: s.species.tier, locked: s.locked, earned: s.earned })),
-    placementOptions(speciesId) {
+    placementOptions(speciesId, sceneryId) {
       const id = speciesId ?? store.get().session?.speciesId;
       if (!id) return [];
-      return controller.placementOptions(id).map((o) => ({
+      return controller.placementOptions(id, sceneryId).map((o) => ({
         id: o.slot.id,
         habitat: o.slot.habitat,
         ...(o.occupiedBy ? { occupiedBy: o.occupiedBy.speciesId } : {}),
       }));
     },
-    addPlants(n, tier) {
-      const { state, added } = plantRandomly(store.get(), fillRng, species, slots, n, clock.now(), tier);
+    addPlants(n, tier, sceneryId = store.get().scenery) {
+      const { state, added } = plantRandomly(store.get(), fillRng, species, slotsOf(sceneryId), n, clock.now(), tier, sceneryId);
       if (added.length > 0) store.dispatch({ type: 'state/replace', state });
       return added.length;
     },

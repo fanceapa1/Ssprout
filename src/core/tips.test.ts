@@ -117,7 +117,7 @@ describe('tipsRetiredBy', () => {
   it('planning a session retires schedule', () => {
     const s: GardenState = {
       ...idle(),
-      log: [{ id: 'a', outcome: 'completed', taskName: 't', speciesId: 'violet', slotId: 'meadow-1', seed: 1, plan: null, goalMinutes: 25, focusedMinutes: 25, startedAt: T0, endedAt: T0 + 25 * MIN }],
+      log: [{ id: 'a', outcome: 'completed', taskName: 't', speciesId: 'violet', sceneryId: 'japanese-garden', slotId: 'meadow-1', seed: 1, plan: null, goalMinutes: 25, focusedMinutes: 25, startedAt: T0, endedAt: T0 + 25 * MIN }],
     };
     expect(ids(idle())).not.toContain('schedule'); // not before a first bloom
     expect(ids(s)).toContain('schedule');

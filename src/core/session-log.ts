@@ -100,6 +100,7 @@ export function backfillLog(plants: readonly PlantInstance[]): SessionLogEntry[]
       outcome: 'completed',
       taskName: p.taskName,
       speciesId: p.speciesId,
+      sceneryId: p.sceneryId,
       slotId: p.slotId,
       seed: p.seed,
       plan: null,

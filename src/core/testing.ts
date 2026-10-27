@@ -23,6 +23,7 @@ export function makeSession(over: Partial<ActiveSession> = {}): ActiveSession {
     goalMs: total * MIN,
     plan: p,
     speciesId: 'violet',
+    sceneryId: 'japanese-garden',
     slotId: 'meadow-1',
     seed: 42,
     displacedPlantId: null,
@@ -41,6 +42,7 @@ export function makePlant(over: Partial<PlantInstance> = {}): PlantInstance {
   return {
     id: 'p1',
     speciesId: 'violet',
+    sceneryId: 'japanese-garden',
     slotId: 'meadow-1',
     seed: 7,
     plantedAt: T0 - 30 * MIN,
@@ -52,5 +54,5 @@ export function makePlant(over: Partial<PlantInstance> = {}): PlantInstance {
 }
 
 export function makePressed(over: Partial<PressedFlower> = {}): PressedFlower {
-  return { speciesId: 'clover', seed: 3, plantedAt: T0, removedAt: T0 + 5, taskName: 'Pressed task', ...over };
+  return { speciesId: 'clover', sceneryId: 'japanese-garden', seed: 3, plantedAt: T0, removedAt: T0 + 5, taskName: 'Pressed task', ...over };
 }

@@ -11,6 +11,7 @@ const slots = gardenScene.slots;
 const plant = (slotId: string, i: number): PlantInstance => ({
   id: `p${i}`,
   speciesId: 'x',
+  sceneryId: 'japanese-garden',
   slotId,
   seed: i,
   plantedAt: 0,
@@ -24,6 +25,7 @@ const session = (slotId: string, startedAt: number): ActiveSession => ({
   goalMs: 25 * 60_000,
   plan: { id: 'unbroken', name: 'Unbroken', blocks: [{ kind: 'focus', minutes: 25 }] },
   speciesId: 'x',
+  sceneryId: 'japanese-garden',
   slotId,
   seed: 1,
   displacedPlantId: null,

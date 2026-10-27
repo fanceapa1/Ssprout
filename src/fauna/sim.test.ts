@@ -14,6 +14,7 @@ const lookup = (id: string) => (id === 'lily' ? lily : flower);
 const plants: PlantInstance[] = gardenScene.slots.map((s, i) => ({
   id: `p${i}`,
   speciesId: s.habitat === 'water' ? 'lily' : 'flower',
+  sceneryId: 'japanese-garden',
   slotId: s.id,
   seed: i + 1,
   plantedAt: 0,

@@ -50,7 +50,7 @@ function manualTicker() {
 
 function setup(initial: GardenState = createDefaultState(T0)) {
   const clock = createManualClock(T0);
-  const reducer = createReducer({ getSpecies: (id) => SPECIES.find((s) => s.id === id), getSlot: (id) => SLOTS.find((s) => s.id === id) });
+  const reducer = createReducer({ getSpecies: (id) => SPECIES.find((s) => s.id === id), getSlot: (sc, id) => (sc === 'japanese-garden' ? SLOTS.find((s) => s.id === id) : undefined) });
   const store = createStore(initial, reducer);
   const bus = createEventBus();
   const events: Array<[EventName, unknown]> = [];

@@ -24,6 +24,7 @@ const lookup = (id: string) => species[id];
 const plant = (id: string, speciesId: string, slotId: string, seed = 7): PlantInstance => ({
   id,
   speciesId,
+  sceneryId: 'japanese-garden',
   slotId,
   seed,
   plantedAt: 0,
