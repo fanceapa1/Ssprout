@@ -57,6 +57,7 @@ Where the sections live today:
 | `src/scene/camera-detail.studio.ts` | `camera-detail` (61) |
 | `src/scene/close-view.studio.ts` | `close-view` (62) |
 | `src/scene/scene.studio.ts` | `scene` (100) |
+| `src/scenery/waterfall/map.studio.ts` | `waterfall-map` (103) |
 | `src/scene/daylight.studio.ts` | `daylight` (105) |
 | `src/plants/species.studio.ts` | `species-<id>` (200 + tier) |
 | `src/plants/lib/small-review.studio.ts`, `tree-review.studio.ts` | `plants-a-review`, `plants-trees` (205) |
