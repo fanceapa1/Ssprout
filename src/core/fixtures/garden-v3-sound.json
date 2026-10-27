@@ -1,0 +1,216 @@
+{
+  "version": 3,
+  "createdAt": 1761200000000,
+  "plants": [
+    {
+      "id": "session-mh2a1b2c-0f3k1",
+      "speciesId": "violet",
+      "slotId": "meadow-3",
+      "seed": 2840116201,
+      "plantedAt": 1761210000000,
+      "sessionMinutes": 25,
+      "taskName": "French verbs",
+      "completedAt": 1761211500000
+    },
+    {
+      "id": "session-mh3c9d0e-1a2b3",
+      "speciesId": "japanese-iris",
+      "slotId": "shore-2",
+      "seed": 991230477,
+      "plantedAt": 1761290000000,
+      "sessionMinutes": 60,
+      "taskName": "Biology ch. 4",
+      "completedAt": 1761293900000
+    }
+  ],
+  "pressed": [
+    {
+      "speciesId": "dandelion",
+      "seed": 5,
+      "plantedAt": 1761100000000,
+      "removedAt": 1761290000000,
+      "taskName": "Old notes"
+    }
+  ],
+  "session": {
+    "id": "session-mh4f00aa-2c3d4",
+    "taskName": "Essay draft",
+    "goalMs": 3600000,
+    "plan": {
+      "id": "pomodoro",
+      "name": "Pomodoro",
+      "blocks": [
+        {
+          "kind": "focus",
+          "minutes": 30
+        },
+        {
+          "kind": "break",
+          "minutes": 5
+        },
+        {
+          "kind": "focus",
+          "minutes": 25
+        }
+      ]
+    },
+    "speciesId": "anemone",
+    "slotId": "meadow-7",
+    "seed": 3141592653,
+    "displacedPlantId": null,
+    "startedAt": 1761300000000,
+    "pausedAt": null,
+    "pausedTotalMs": 120000,
+    "skippedMs": 0,
+    "weather": "rain",
+    "waterings": [],
+    "focusWaterings": 1
+  },
+  "waiting": [
+    {
+      "id": "session-mh4f10bb-5e6f7",
+      "taskName": "Reading",
+      "goalMs": 1500000,
+      "plan": {
+        "id": "custom",
+        "name": "Custom",
+        "blocks": [
+          {
+            "kind": "focus",
+            "minutes": 25
+          }
+        ]
+      },
+      "speciesId": "white-clover",
+      "slotId": "path-1",
+      "seed": 77,
+      "displacedPlantId": null,
+      "startedAt": 1761298800000,
+      "pausedAt": 1761300000000,
+      "pausedTotalMs": 0,
+      "skippedMs": 0,
+      "weather": "mist",
+      "waterings": [],
+      "focusWaterings": 0
+    }
+  ],
+  "log": [
+    {
+      "id": "session-mh2a1b2c-0f3k1",
+      "outcome": "completed",
+      "taskName": "French verbs",
+      "speciesId": "violet",
+      "slotId": "meadow-3",
+      "seed": 2840116201,
+      "plan": null,
+      "goalMinutes": 25,
+      "focusedMinutes": 25,
+      "startedAt": 1761210000000,
+      "endedAt": 1761211500000,
+      "backfilled": true
+    },
+    {
+      "id": "session-mh3c9d0e-1a2b3",
+      "outcome": "completed",
+      "taskName": "Biology ch. 4",
+      "speciesId": "japanese-iris",
+      "slotId": "shore-2",
+      "seed": 991230477,
+      "plan": null,
+      "goalMinutes": 60,
+      "focusedMinutes": 60,
+      "startedAt": 1761290000000,
+      "endedAt": 1761293900000,
+      "backfilled": true
+    },
+    {
+      "id": "session-mh3x0000-99999",
+      "outcome": "cancelled",
+      "taskName": "Maths",
+      "speciesId": "dandelion",
+      "slotId": "meadow-1",
+      "seed": 404,
+      "plan": {
+        "id": "custom",
+        "name": "Custom",
+        "blocks": [
+          {
+            "kind": "focus",
+            "minutes": 25
+          }
+        ]
+      },
+      "goalMinutes": 25,
+      "focusedMinutes": 10,
+      "startedAt": 1761295000000,
+      "endedAt": 1761295600000
+    }
+  ],
+  "schedules": [
+    {
+      "id": "reading",
+      "name": "Reading",
+      "date": "2026-10-23",
+      "time": "16:00",
+      "lengthMinutes": null,
+      "planId": null,
+      "repeat": "daily",
+      "until": null,
+      "notes": {},
+      "createdAt": 1761300000000
+    }
+  ],
+  "stats": {
+    "totalMinutes": 85,
+    "completed": 2,
+    "cancelled": 1
+  },
+  "faunaSeen": [
+    "dragonfly",
+    "koi-1"
+  ],
+  "tips": {
+    "sound": "seen",
+    "task": "seen"
+  },
+  "settings": {
+    "muted": false,
+    "lastGoalMinutes": 60,
+    "notifications": "granted",
+    "soundscape": {
+      "collection": "scenery",
+      "volume": 80,
+      "standard": {
+        "water": 0,
+        "wind": 0,
+        "birds": 0,
+        "crickets": 0,
+        "rain": 55,
+        "waves": 0,
+        "fire": 0,
+        "cafe": 30,
+        "lofi": 0,
+        "white": 0,
+        "brown": 0
+      },
+      "sceneries": {
+        "pond": {
+          "mode": "custom",
+          "levels": {
+            "water": 85,
+            "wind": 35,
+            "birds": 40,
+            "crickets": 0,
+            "rain": 0,
+            "waves": 0,
+            "fire": 0,
+            "cafe": 0,
+            "lofi": 0,
+            "white": 0,
+            "brown": 0
+          }
+        }
+      }
+    }
+  }
+}

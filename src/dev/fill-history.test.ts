@@ -25,5 +25,13 @@ describe('buildHistory (dev)', () => {
     expect(state.stats.completed + state.stats.cancelled).toBe(log.length);
     // merging again adds nothing
     expect(withHistory(state, log).log).toHaveLength(log.length);
+    expect(log.every((e) => e.sceneryId === 'japanese-garden' && e.slotId === 'meadow-1')).toBe(true);
+  });
+
+  it('belongs to the garden it is asked for and takes that garden’s slots, never assuming one', () => {
+    const log = buildHistory(createRng(5), SPECIES, { now, days: 10, sceneryId: 'waterfall', slotIds: ['pool-1', 'ledge-1'] });
+    expect(log.every((e) => e.sceneryId === 'waterfall')).toBe(true);
+    expect(new Set(log.map((e) => e.slotId))).toEqual(new Set(['pool-1', 'ledge-1']));
+    expect(() => buildHistory(createRng(5), SPECIES, { now, days: 10, sceneryId: 'waterfall' })).toThrow(/no slots/);
   });
 });

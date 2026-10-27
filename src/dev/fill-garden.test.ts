@@ -48,6 +48,15 @@ describe('plantRandomly', () => {
     expect(again.state).toBe(full);
   });
 
+  it('plants in one garden (default: the one on view); the other garden’s plants do not take its slots', () => {
+    const base = { ...createDefaultState(0), scenery: 'waterfall' as const };
+    const wf = plantRandomly(base, createRng(1), SPECIES, SLOTS, 10, 0);
+    expect(wf.added.every((p) => p.sceneryId === 'waterfall')).toBe(true);
+    const jp = plantRandomly(wf.state, createRng(1), SPECIES, SLOTS, 10, 0, undefined, 'japanese-garden');
+    expect(jp.added).toHaveLength(4);
+    expect(jp.added.every((p) => p.sceneryId === 'japanese-garden')).toBe(true);
+  });
+
   it('is deterministic per seed', () => {
     const a = plantRandomly(createDefaultState(0), createRng(7), SPECIES, SLOTS, 3, 0);
     const b = plantRandomly(createDefaultState(0), createRng(7), SPECIES, SLOTS, 3, 0);

@@ -497,3 +497,74 @@ describe('scheduled sessions (ADR 0170: an optional key, no schema bump)', () =>
     expect(r).toMatchObject({ ok: false, error: { path: 'schedules[1].id' } });
   });
 });
+
+describe('per-scenery gardens (schema v4, ADR 0240)', () => {
+  const p = { speciesId: 's', seed: 1, plantedAt: 0, sessionMinutes: 1, taskName: 't', completedAt: 0 };
+  const logEntry = {
+    id: 'l1', outcome: 'completed', taskName: 't', speciesId: 's', sceneryId: 'japanese-garden', slotId: 'x', seed: 1,
+    plan: null, goalMinutes: 25, focusedMinutes: 25, startedAt: T0, endedAt: T0 + 25 * MIN,
+  };
+
+  it('a scenery id must be a known one, wherever it is stored', () => {
+    const bad = 'coast' as never;
+    const cases: Array<[Record<string, unknown>, string]> = [
+      [{ scenery: bad }, 'scenery'],
+      [{ plants: [makePlant({ sceneryId: bad })] }, 'plants[0].sceneryId'],
+      [{ pressed: [makePressed({ sceneryId: bad })] }, 'pressed[0].sceneryId'],
+      [{ session: makeSession({ sceneryId: bad }) }, 'session.sceneryId'],
+      [{ waiting: [makeSession({ sceneryId: bad, pausedAt: T0 })] }, 'waiting[0].sceneryId'],
+      [{ log: [{ ...logEntry, sceneryId: bad }] }, 'log[0].sceneryId'],
+    ];
+    for (const [doc, path] of cases) {
+      expect(validateState({ version: STATE_VERSION, ...doc })).toMatchObject({ ok: false, error: { code: 'invalid-state', path } });
+    }
+    expect(validateState({ version: STATE_VERSION, log: [logEntry] }).ok).toBe(true);
+  });
+
+  it('an absent scenery id is the Japanese garden (hand-written and dev documents)', () => {
+    const r = validateState({ version: STATE_VERSION, plants: [{ ...p, id: 'a', slotId: 'x' }], session: { ...makeSession(), sceneryId: undefined } });
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.value.state.scenery).toBe('japanese-garden');
+    expect(r.value.state.plants[0]!.sceneryId).toBe('japanese-garden');
+    expect(r.value.state.session!.sceneryId).toBe('japanese-garden');
+  });
+
+  it('one plant per slot of each garden: the same slot id may hold a plant in each scenery', () => {
+    const two = [{ ...p, id: 'a', slotId: 'x' }, { ...p, id: 'b', slotId: 'x', sceneryId: 'waterfall' }];
+    expect(validateState({ version: STATE_VERSION, plants: two }).ok).toBe(true);
+    const same = [{ ...p, id: 'a', slotId: 'x', sceneryId: 'waterfall' }, { ...p, id: 'b', slotId: 'x', sceneryId: 'waterfall' }];
+    expect(validateState({ version: STATE_VERSION, plants: same })).toMatchObject({
+      ok: false,
+      error: { path: 'plants[1].slotId', message: 'plants[1].slotId: two plants in slot "waterfall/x"' },
+    });
+  });
+
+  it('one seedling per slot of each garden', () => {
+    const active = makeSession({ id: 's1', slotId: 'x' });
+    const elsewhere = makeSession({ id: 's2', slotId: 'x', sceneryId: 'waterfall', pausedAt: T0 });
+    expect(validateState({ version: STATE_VERSION, session: active, waiting: [elsewhere] }).ok).toBe(true);
+    const clash = makeSession({ id: 's2', slotId: 'x', pausedAt: T0 });
+    expect(validateState({ version: STATE_VERSION, session: active, waiting: [clash] })).toMatchObject({
+      ok: false,
+      error: { path: 'waiting[0].slotId' },
+    });
+  });
+
+  it('a sound mix missing a layer reads it as 0; present levels must still be valid', () => {
+    const levels = { water: 70, wind: 45, birds: 40 }; // e.g. written before a layer existed
+    const soundscape = { collection: 'scenery', volume: 90, standard: { rain: 55 }, sceneries: { pond: { mode: 'custom', levels } } };
+    const r = validateState({ version: STATE_VERSION, settings: { soundscape } });
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    const s = r.value.state.settings.soundscape!;
+    expect(s.standard).toMatchObject({ rain: 55, waves: 0, brown: 0 });
+    expect(Object.keys(s.standard)).toHaveLength(11);
+    expect(s.sceneries.pond!.levels).toMatchObject({ water: 70, crickets: 0, rain: 0 });
+    const invalid = { ...soundscape, standard: { rain: 55, brown: 120 } };
+    expect(validateState({ version: STATE_VERSION, settings: { soundscape: invalid } })).toMatchObject({
+      ok: false,
+      error: { path: 'settings.soundscape' },
+    });
+  });
+});

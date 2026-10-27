@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { exportState, importState, validateState } from './persistence';
-import { copySoundscape, defaultSoundscape, isSoundscape, levelsWith, sceneryMix, selectedMix } from './soundscape';
+import { copySoundscape, defaultSoundscape, isSoundscape, levelsWith, readSoundscape, sceneryMix, selectedMix, SOUND_LAYERS } from './soundscape';
 import { createDefaultState, mergeSettings, STATE_VERSION } from './state';
 
 describe('sound collections', () => {
@@ -61,5 +61,21 @@ describe('sound collections', () => {
     expect(result.ok).toBe(true);
     if (result.ok) expect(result.state.settings.soundscape).toEqual(state.settings.soundscape);
     expect(validateState({ ...state, version: STATE_VERSION, settings: { ...state.settings, soundscape: { volume: 500 } } }).ok).toBe(false);
+  });
+
+  it('reads a mix missing a layer with that layer at 0, as an owned copy (ADR 0240)', () => {
+    const s = defaultSoundscape();
+    s.sceneries.pond = { mode: 'custom', levels: levelsWith({ water: 80 }) };
+    const { brown: _b, ...partial } = s.standard;
+    const read = readSoundscape({ ...s, standard: partial })!;
+    expect(read).toEqual(s);
+    expect(read.standard).not.toBe(s.standard);
+    expect(Object.keys(read.sceneries.pond!.levels)).toEqual([...SOUND_LAYERS]);
+    expect(readSoundscape({ ...s, standard: { ...partial, brown: 101 } })).toBeNull();
+    expect(readSoundscape({ ...s, sceneries: { waterfall: s.sceneries.pond } })).toBeNull(); // not an audio scenery yet
+    expect(readSoundscape([])).toBeNull();
+    // a patch missing a layer merges as the complete mix
+    const merged = mergeSettings(createDefaultState(0).settings, { soundscape: { ...s, standard: partial } as never });
+    expect(merged.soundscape).toEqual(s);
   });
 });
