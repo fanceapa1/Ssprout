@@ -31,23 +31,40 @@ jobs:
         run: npm test
       - name: Build
         run: npm run build
+
+  # The suite (263 tests, about 25 min on one runner with 2 workers) runs in three shards in
+  # parallel, each on its own runner, so each stays well inside the job timeout (devlog 59).
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
       - name: Install Playwright Chromium
         run: npx playwright install --with-deps chromium
       - name: E2E tests
         # CI=true (set by Actions): retries 1, 2 workers, traces/screenshots kept for failures
         # (playwright.config.ts); its webServer builds and serves the preview itself.
-        run: npm run e2e
+        run: npm run e2e -- --shard=${{ matrix.shard }}/3
       - name: Upload Playwright report
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v7
         with:
-          name: playwright-report
+          name: playwright-report-${{ matrix.shard }}
           path: playwright-report/
           retention-days: 7
       - name: Upload traces of failed tests
         if: failure()
         uses: actions/upload-artifact@v7
         with:
-          name: playwright-traces
+          name: playwright-traces-${{ matrix.shard }}
           path: test-results/
           retention-days: 7
