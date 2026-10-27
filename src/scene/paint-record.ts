@@ -1,9 +1,13 @@
 /**
  * Test-only recording canvas for the scene painting (node has no canvas). Every context call and
- * property set, with its exact arguments, is folded into one running hash, so two paintings hash
- * alike only if they issue the same canvas calls in the same order with the same numbers (the
- * marks, their order and the rng draws behind them). Pixel reads return a pattern seeded by the
- * hash so far, so the drying passes run on varied data and their output is hashed too.
+ * property set, with its arguments, is folded into one running hash, so two paintings hash alike
+ * only if they issue the same canvas calls in the same order with the same numbers (the marks,
+ * their order and the rng draws behind them). Pixel reads return a pattern seeded by the hash so
+ * far, so the drying passes run on varied data and their output is hashed too.
+ *
+ * By default fractional numbers are hashed to 7 significant digits (`quantise`), so a pinned hash
+ * is the same on every platform. `{ exact: true }` hashes them bit for bit, for comparing two
+ * paintings recorded in the same run.
  *
  * It also counts the cost of the work done since `mark()`: canvas calls, path points and pixels
  * read or written, for bounding how much one paint sub-step does without a wall clock.
@@ -30,6 +34,21 @@ interface Matrix {
 
 const IDENTITY: Matrix = { a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 };
 
+/** A number literal with a fraction or an exponent, not part of a word, a tag or a hex colour. */
+const FLOAT = /(?<![\w#.])-?\d+(?:\.\d+)?(?:e[-+]?\d+)?(?![\w.])/g;
+
+/**
+ * Every fractional number in a recorded line to 7 significant digits (|x| < 1e-9 is 0). Math.sin,
+ * exp, pow… differ in the last bits between platforms (docs/TESTING.md), integers stay exact.
+ */
+export function quantise(line: string): string {
+  return line.replace(FLOAT, (t) => {
+    if (!/[.e]/.test(t)) return t;
+    const x = Number(t);
+    return Math.abs(x) < 1e-9 ? '0' : String(Number(x.toPrecision(7)));
+  });
+}
+
 function invert(m: Matrix): Matrix {
   const det = m.a * m.d - m.b * m.c || 1;
   return {
@@ -46,6 +65,10 @@ const matrix = (m: Matrix) => ({ ...m, inverse: () => matrix(invert(m)) });
 
 export class PaintRecorder {
   private h = 0x811c9dc5;
+  private readonly exact: boolean;
+  constructor(opts: { exact?: boolean } = {}) {
+    this.exact = opts.exact ?? false;
+  }
   private cost: RecordedCost = { calls: 0, pixels: 0, reads: 0 };
   /** the running hash (hex) */
   get hash(): string {
@@ -59,7 +82,8 @@ export class PaintRecorder {
     return c;
   }
 
-  feed(s: string): void {
+  feed(line: string): void {
+    const s = this.exact ? line : quantise(line);
     let h = this.h;
     for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619);
     this.h = h;
@@ -101,7 +125,7 @@ export class PaintRecorder {
   }
 }
 
-const idle = new PaintRecorder();
+const idle = new PaintRecorder({ exact: true });
 /** The recorder every recording canvas reports to (pooled canvases outlive one recording). */
 let active = idle;
 

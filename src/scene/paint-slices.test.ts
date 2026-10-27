@@ -56,10 +56,14 @@ describe('scene paint slices (ADR 0226)', () => {
   // 0238 the meadow and its grass flush their wet layer after each row (a one-pixel read), so the
   // views that show the meadow add those reads: with them left out of the hash, the overview and
   // the close view still hash '4df9684b' and '09d5c8b9', and in Chromium every pixel is the same.
+  // Those were exact hashes on arm64; since devlog 59 the same paintings are pinned quantised, so
+  // the pins hold on every platform (docs/TESTING.md).
   it('paints exactly the marks it painted before the steps were split (overview and close views)', () => {
-    expect(runs.overview!.hash).toBe('d849bcc9');
-    expect(runs.detail!.hash).toBe('b44d232d');
-    expect(runs.trunk!.hash).toBe('937c55ba');
+    expect({ overview: runs.overview!.hash, detail: runs.detail!.hash, trunk: runs.trunk!.hash }).toEqual({
+      overview: 'a6950d3a',
+      detail: '5935f9c0',
+      trunk: '58fc7f20',
+    });
   });
 
   // Work is counted, not timed, so a loaded machine cannot fail this. Before the split one part

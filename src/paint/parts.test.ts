@@ -1,7 +1,9 @@
 /**
  * The engine's long calls in parts (ADR 0238): painting a call a part at a time must give exactly
  * the pixels and canvas calls of the one-call form. The hashes below were pinned against the
- * engine before it could pause (whole-surface drying, recipes in one call).
+ * engine before it could pause (whole-surface drying, recipes in one call). The recipe pins are of
+ * the recorder's quantised numbers, so they hold on every platform (docs/TESTING.md); the parts
+ * forms are compared with the one-call forms bit for bit, in the same run.
  */
 import { describe, expect, it } from 'vitest';
 import { createRng } from '../core/rng';
@@ -102,10 +104,13 @@ describe('the drying pass, pinned (ADR 0238)', () => {
   });
 });
 
-/** Paint with `fn` on a recording canvas: the hash of every canvas call (and of every dried pixel). */
-function recorded(fn: (p: Painter, rec: PaintRecorder) => void): string {
+/**
+ * Paint with `fn` on a recording canvas: the hash of every canvas call (and of every dried pixel),
+ * its numbers quantised for a pin, or `exact` for comparing with a painting from the same run.
+ */
+function recorded(fn: (p: Painter, rec: PaintRecorder) => void, exact = false): string {
   emptyPool();
-  const rec = new PaintRecorder();
+  const rec = new PaintRecorder({ exact });
   const uninstall = rec.install();
   try {
     const p = createPainter(makeCanvas(480, 320), { seed: 7 });
@@ -161,16 +166,17 @@ const RECIPES: Record<string, (p: Painter) => void> = {
   },
 };
 
+// Exact hashes before ADR 0238 on arm64 (devlog 50); the same paintings quantised since devlog 59.
 const RECIPE_PINS: Record<string, string> = {
-  wash: '8effcbc3',
-  glaze: '34d30ca9',
-  wetInWet: '6cd10eb4',
-  lift: '27b09666',
-  stone: '018304b9',
-  'stone (ellipse, no shadow or reserve)': '5edef03c',
-  waterBody: '65a9b619',
-  foliageClump: '3ac2f8f9',
-  'a whole sequence on the painter’s own rng': '49c45bf3',
+  wash: 'f3943350',
+  glaze: 'a927aab9',
+  wetInWet: '6ef09547',
+  lift: 'fa8a0742',
+  stone: '7b170e83',
+  'stone (ellipse, no shadow or reserve)': '2bde3749',
+  waterBody: '350f7d8a',
+  foliageClump: '3c162be4',
+  'a whole sequence on the painter’s own rng': '704c0846',
 };
 
 describe('the long recipes, pinned (ADR 0238)', () => {
@@ -237,7 +243,7 @@ describe('a wet layer dries in parts (ADR 0238)', () => {
       const L = p.layer({ x: 0, y: 0, w: 320, h: 220 });
       for (let k = 0; k < 6; k++) L.fill(POND.map((q) => ({ x: q.x + k * 3, y: q.y + k * 2 })), PIGMENTS.sap, 0.3);
       parts = dry(L);
-    });
+    }, true);
     return { hash, parts };
   }
 
@@ -302,8 +308,8 @@ describe('the long recipes in parts (ADR 0238)', () => {
       rec.mark();
       while (!parts.next().done) costs.push(rec.mark());
       costs.push(rec.mark());
-    });
-    expect(hash).toBe(RECIPE_PINS[name]);
+    }, true);
+    expect(hash).toBe(recorded(RECIPES[name]!, true));
     expect(costs.length).toBeGreaterThan(8);
     const total = costs.reduce((a, c) => a + c.calls, 0);
     const most = costs.reduce((a, c) => Math.max(a, c.calls), 0);
