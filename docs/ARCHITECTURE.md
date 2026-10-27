@@ -275,7 +275,10 @@ The Japanese garden's instance is `gardenScene` (`geometry.ts`; its scenery's `g
 11 rocks, 6 stepping stones, the engawa (`structure`), one lantern, the eave (`EAVE`), no streams
 and no falls (the engawa stands on the bank, the path winds up to the water — ADR 0122).
 `main.ts` still reads `gardenScene` directly until runtime switching (S3).
-Every slot's `scale` is `perspectiveScale(y)` (0.55 at y 400 → 1.15 at y 960) and
+A slot's `scale` is its own, explicit, and every consumer reads it rather than recomputing it
+from y (ADR 0245). In the Japanese garden, and on the waterfall's ground, it is `perspectiveScale(y)`
+(0.55 at y 400 → 1.15 at y 960). The waterfall's ledge and cliff-crown slots take the depth of the
+cliff they stand on (0.72 → 0.6), since a cliff breaks "scale is linear in y". And
 `PLANT_SIZES` gives the canonical plant box per size class at scale 1 — small 86×86 (tier-1
 plants draw in a 70-unit design box scaled up, ADR 0125), medium 120×160, large 200×220,
 tree 380×460 (`slots.ts`, ADR 0043). **Garden plants are drawn `GARDEN_PLANT_SCALE` (1.25) larger**:
