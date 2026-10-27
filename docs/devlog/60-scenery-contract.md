@@ -72,6 +72,10 @@ painters left in `src/scene/`). ADR 0242 (keys).
   baseline was taken twice first to prove the capture deterministic.
 - E2E on the fresh build: `scene-cache`, `plates-cache`, `daylight`, `ambience`, `scene`,
   `camera`, `wayfinding`: 55 passed.
+- Final full run (load < 8 before it): typecheck clean; 132 unit files, 1571 tests passed; e2e
+  262 of 263 passed. The one failure, `ui-session › completion: … its label shows on hover`, timed
+  out tearing down its context with a truncated trace zip. Alone it passed with its whole spec
+  (9 of 9). It touches nothing this task changed.
 
 ## Left open
 - S1: move `ids.ts` into `src/core/sceneries.ts` (or re-export it) and reconcile it with
