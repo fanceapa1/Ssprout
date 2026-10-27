@@ -37,7 +37,7 @@ the widget surfaces — the UI then asks in the Begin click itself.
 | `backdrop.studio.ts` | studio section `ui-backdrop`: a leaf, the calendar's firm sheet, the edge ×4, one seed at two heights |
 | `near-view.ts` | the gate for work below the fold (ADR 0225): `createNearView({ ready })`; `request(el, task, { idle })` runs a task after the garden's first paint, when `el` nears the window (IntersectionObserver, `100% 0px`) or on an idle moment; never inside the request; `flush()`, `opened()`, `near(el)` |
 | `dock-guide.ts` | the helper line under each heading, by state (`guideLines`, `GUIDE`; ADR 0201) |
-| `wayfinding.ts` · `wayfinding-path.ts` | the guiding path from the stepping stones down the dock's lane, a stone beside each visible heading (ADR 0202); pure geometry `layoutPath`, `brushOutline`, `stonePath` |
+| `wayfinding.ts` · `wayfinding-path.ts` | the guiding path from where the scenery's path leaves the painting (`pathOut()`, default the Japanese garden's stepping stones) down the dock's lane, a stone beside each visible heading (ADR 0202); pure geometry `layoutPath`, `brushOutline`, `stonePath` |
 | `wayfinding.studio.ts` | studio section `ui-wayfinding`: the wide lane, the phone gutter, the stops, the draw-in |
 | `hover.css` | the one hover language (ADR 0204): ink words, lifting slips, opening sprouts; focus and press; colour only with reduced motion |
 | `smooth-scroll.ts` · `scroll-math.ts` | custom smooth scrolling (wheel/keys/jumps, native adoption, reduced motion) and its pure maths (ADR 0131); a focused inner scroller keeps its scrolling keys (`keyDirection`, ADR 0190) |

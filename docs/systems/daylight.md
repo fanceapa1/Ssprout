@@ -10,7 +10,7 @@ part belongs with what it paints:
 | `src/ambience/zones.ts` | pure: IANA zone → lat/lon table, `locationForZone(zone, offset)`, `browserLocation()` |
 | `src/ambience/daylight.ts` | pure: phase boundaries, weights, `DaylightState`, `daylightAt`, `pinnedState`, `parseTimeOverride`, `nextPhase`, `whenIdle` |
 | `src/ambience/daylight-source.ts` | `createDaylightSource()` — the one shared daylight (location, override, cache); `pinnedSource(p)` |
-| `src/ambience/sky-layout.ts` | pure: `sunDisc`, `moonDisc`, `stars`, `castShadow`, `rimLight` (world positions) |
+| `src/ambience/sky-layout.ts` | pure: `SkyLayout`; `sunDisc`, `moonDisc`, `stars` (from a scenery's layout, default the Japanese garden's `GARDEN_SKY_LAYOUT`), `castShadow`, `rimLight` (world positions) |
 | `src/ambience/timeofday.ts` | `PHASE_GRADES` (the light grade of each phase), `gradeFor(weights)`, the hour-based `TYPICAL_DAY` |
 | `src/ambience/lighting.ts` | the per-pixel grade wash (`paintGradeWash`, `gradePlate`, lantern reserve) |
 | `src/ambience/cast.ts` | the light plates: painted per phase, blended, moving lights lifted out (`createCastLight`) |
@@ -96,8 +96,8 @@ pure phases with the blends between them: night until 03:36 · sunrise 04:16–0
   `nextPhase`).
 - **The paint cache** (ADR 0236): a phase's plates are looked up in `paintCache()` before they
   are painted and stored (in idle time) after a miss. The kinds are `sky-plate` (the sky with its
-  water plate packed below, `skyPlateKey`: seed, phase, pixel sizes, water rect) and
-  `light-plate` (`lightPlateKey`: seed, phase, size, a fingerprint of the geometry and art). The
+  water plate packed below, `skyPlateKey`: scenery, seed, phase, pixel sizes, water rect) and
+  `light-plate` (`lightPlateKey`: scenery, seed, phase, size, a fingerprint of the geometry, the art and the sky layout; ADR 0242). The
   composites, with the sun, moon and blend, are always built here. While a needed plate is being
   looked up the composite is deferred; it is built when the answer comes, or by the first draw
   (which paints what is still missing), so no frame shows a stale composite and readiness is
@@ -136,4 +136,7 @@ matches `?nopaintcache` pixel for pixel at midday, at night and close up).
 Sky colours and the lifted whites: `paint-sky.ts` (studio `daylight/sky-*`). The night edge:
 `night-edge.ts` (`edgeStrength`, the line and break widths in `nightEdgeFields`). Light, shadows, crown lights:
 `cast.ts` and `PHASE_GRADES` (studio `daylight/cast-*`, `daylight/garden-*`). Where the sun and
-moon are: `sky-layout.ts`. Phase windows: `BLEND_MS`, `GOLDEN_MS` in `daylight.ts`.
+moon are: each scenery's `SkyLayout` (the Japanese garden's: `src/scenery/japanese-garden/sky.ts`;
+horizon y 368, sun x 966 rising / 556 setting, the moon's arc 902,270 → 806,182 → 708,252), read by `sky-layout.ts`.
+The sky plates' rect, open-sky shape and painters are the scenery's `ScenerySky` (`GARDEN_SKY`), the engawa's
+shadow and lamp-lit shoji its `LightArt` hooks (`src/scenery/japanese-garden/light.ts`; docs/systems/scenery.md). Phase windows: `BLEND_MS`, `GOLDEN_MS` in `daylight.ts`.

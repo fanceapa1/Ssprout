@@ -41,8 +41,9 @@ Registered in `main.ts`: `const ambience = addAmbience(renderer, { dev: speedClo
 | `ambience` | the sun's glaze with its lifted light (multiply), the rain grade (multiply), mist bands + veil, dawn mist and dew (sunrise), leaf glints (screen), rain strokes (multiply), motes |
 | `lighting` | night desaturation (the frame backed with white, then a saturation glaze over the drawn view, ADR 0206), the daylight light plate composite (multiply), the night edge (screen space, ADR 0184) + a tiny lantern flame (screen) |
 
-Inputs come only from the `SceneGeometry` contract (`pond`, `waterline`, `pavilion.lantern`, `slots`)
-and the store (`session.weather`, phase via `sessionPhase`, `plants`, session slot + growth).
+Inputs come only from the `SceneGeometry` contract (`pond`, `waterline`, `lights`, `eave`, `slots`),
+the scenery (`AmbienceScenery`: its id, light art and `SceneryAmbience` — the dew boxes, the dawn
+mist bands and the veil's end, ADR 0241; docs/systems/scenery.md) and the store (`session.weather`, phase via `sessionPhase`, `plants`, session slot + growth).
 
 ## Effects
 - **Sun** (ADR 0193): a thin raw-sienna glaze over the garden, mottled, fading out above the hills
@@ -56,10 +57,10 @@ and the store (`session.weather`, phase via `sessionPhase`, `plants`, session sl
   over the sky and are gone.
 - **Rain**: tapered, faintly broken ink-wash strokes in three depths (far: short, slow, many; near:
   long, fast, few), slanted by the wind; broken ripple rings (deep line + pale lifted line, often a
-  second ring) expanding on the pond; a cool grey grade; a **drip line** off the pavilion eave — drops
-  gather at points every ~30 units along the fascia (`eaveOf(scene)`, from the scene's own
-  `pavilionFrame`) and fall straight down under gravity, stretching as they speed up, to the foot of
-  the deck (`pavilion.y + h`).
+  second ring) expanding on the pond; a cool grey grade; a **drip line** off the scene's eave
+  (`scene.eave`; none without one) — drops gather at points every ~30 units along it (in the
+  garden the engawa's fascia, `pavilionFrame`'s eave line) and fall straight down under gravity,
+  stretching as they speed up, to `eave.ground` (the foot of the deck).
 - **Mist**: four horizontally tileable painted bands (dense bottom, wispy top) hugging the far bank
   and far water, drifting at different speeds, plus one faint wisp low on the water; a thin veil over
   the far half only (fades out above the plant zone). At night the mist is thinned (`mistNight`
@@ -68,7 +69,7 @@ and the store (`session.weather`, phase via `sessionPhase`, `plants`, session sl
   wind, fading in and out over 7–11 s. Focus only; at most 7 alive.
 - **Lighting**: a noise-mottled multiply wash with rare soft backruns; the sky deepens first, the
   foreground stays lighter (plants readable); a warm, thinner wash toward a low sun; at dusk and
-  night the paper is **reserved** (left lighter and warm) around `pavilion.lantern` and on the water
+  night the paper is **reserved** (left lighter and warm) around each of `scene.lights` (the lantern; radius `r`) and on the water
   where its light falls (mirrored about `waterline` if that lands on the pond, else the nearest water;
   then stepped toward the pond's middle until it is off the shore and clear of the water hidden under
   the pavilion — in the garden scene it lies just left of the front post, broken into soft bands).
@@ -139,7 +140,8 @@ sway a touch more" during a session. The plant system uses `sway` for its skew (
 `mistNight` 0.45, `rippleAlpha` 0.75, squash 0.3, `glintAlpha` 0.65, `dripAlpha` 0.6, `dripMaxLen` 30, flame 0.22.
 `LEAF_GLINT` (sim.ts): 0.9/s × sun, life 1.6–3.2 s, size 3.5–6.5, ≤ 6. `RAIN` (sim.ts): strokes per depth 84/50/20 per full world, speeds 300/470/720, slant 0.2 rad +
 0.14 × sway. `RIPPLE` 2.4/s, max 16. `GLINT` 1.2/s, max 5. `DRIP` spacing 30, 0.6/s per point,
-v0 30, gravity 1300, max 24. `LIGHT.reflectLift` 0.45, `lanternR` 78, `lanternLift` 0.8. `LOOK.nightDesaturate` 0.38, `dawnMist` 1.25, `dawnMistRise` 26, `dewCount` 16, `dewAlpha` 0.75.
+v0 30, gravity 1300, max 24. `LIGHT.reflectLift` 0.45, `lanternLift` 0.8 (the reserve's radius is the light's `r`, 78 for the lantern). `LOOK.nightDesaturate` 0.38, `dawnMist` 1.25, `dawnMistRise` 26, `dewCount` 16, `dewAlpha` 0.75. Per scenery
+(`src/scenery/japanese-garden/ambience.ts`): dew boxes x 90–560 and 980–1500 × y 760–950, dawn mist bands 1–3, veil to y 592.
 `MOTE` (motes.ts): 0.15/s + 0.06/s per weight, ≤ 0.6/s, ≤ 7 alive. `ENVELOPE`, `LIGHT` as above.
 
 ## Dev (`?dev`)

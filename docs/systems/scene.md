@@ -12,7 +12,7 @@ Look at it: studio → **Scene · painted garden** (`npm run shots -- --studio s
 ## Files
 | File | What |
 |---|---|
-| `geometry.ts` | `SceneGeometry` contract types and `gardenScene`: `POND`, `ROCKS`, `PATH`, `PAVILION`, `WATERLINE`, sky band |
+| `geometry.ts` | `SceneGeometry` contract types (ADR 0241) and `gardenScene`, the Japanese garden's: `POND`, `ROCKS`, `PATH`, `PAVILION` (→ `structure` + the `lantern` light), `EAVE`, `WATERLINE`, sky band; `pavilionOf(scene)` |
 | `slots.ts` | `GARDEN_SLOTS` (52), `perspectiveScale(y)`, `PLANT_SIZES` (canonical plant sizes), `GARDEN_PLANT_SCALE` / `plantScale(slot)` |
 | `layout.ts` | painting-only composition: trees, shrubs, tufts, foreground tufts, hill ridges (not a contract) |
 | `paint-land.ts` | sky, hills, far tree line, banks, path (`PATH_GROUND`), stepping stones, background tufts, pond reserve, paper margins (`marginField`, `MARGIN`) |
@@ -22,9 +22,11 @@ Look at it: studio → **Scene · painted garden** (`npm run shots -- --studio s
 | `paint-pavilion.ts` | engawa corner: roof, eave, posts, wall, shoji, deck, hanging lantern |
 | `sprites.ts` | foreground sprites: boulders (+ moss, base tufts, contact shadow) and tufts |
 | `background.ts` | `GARDEN_ART`, ordered `backgroundSteps`, `paintJob` generator (one part of a step per `next()`), `paintSceneSync`, cooperative `paintScene`, `StepTiming`; the paint cache's `SCENE_CACHE` kinds, `paintingKey`, `spritesKey`, the sprite atlas (`spriteAtlasLayout`, `packSprites`, `unpackSprites`) and `canvasOf` (ADR 0228) |
+| `background.ts` | `SceneArt` (with its `scenery` and `steps`), `GARDEN_ART` and its `gardenSteps`, `backgroundSteps` (= `art.steps`), `paintJob` generator (one part of a step per `next()`), `paintSceneSync`, cooperative `paintScene`, `StepTiming`; the paint cache's `SCENE_CACHE` kinds, `paintingKey`, `spritesKey`, the sprite atlas (`spriteAtlasLayout`, `packSprites`, `unpackSprites`) and `canvasOf` (ADR 0228) |
 | `paint-record.ts` | test-only recording canvas: hashes every canvas call with its arguments (fractions to 7 significant digits by default, exact on request) and counts the work between pauses (ADR 0226, docs/TESTING.md) |
+| `paint-record.ts` | test-only recording canvas: hashes every canvas call with its exact arguments and counts the work between pauses (ADR 0226) |
 | `water.ts` | `createWaterSurface`: shimmer bands, ripple rings, glints following the sun (per frame) |
-| `paint-sky.ts` | the four painted daylight skies and their mirrored water plates (ADR 0145) |
+| `paint-sky.ts` | the four painted daylight skies and their mirrored water plates (ADR 0145); `GARDEN_SKY`, the Japanese garden's `ScenerySky` |
 | `sky-light.ts` | `createSkyLight`: phase plates blended, sun and moon punched out; sky + water composites |
 | `daylight.studio.ts` | studio section `daylight`: each phase and blend over the garden, each plate, the moon |
 | `overlay.ts` | `drawSlotOverlay` (dev) |
@@ -140,8 +142,8 @@ ADR 0227; docs/systems/paint.md › Persistence):
 - **Kinds:** `scene` (the overview, its strip's cut sides already faded), `scene-detail` (the
   camera's resting view, never faded) and `scene-sprites` (the boulders and foreground tufts of
   one scale, packed into one atlas: `spriteAtlasLayout`, `packSprites`, `unpackSprites`).
-- **Keys** (`paintingKey`, `spritesKey`): `s7|normal|0,0,1600,1000@1.5|2400x1500` and
-  `s7|normal@1.5`. These are the seed, quality, world rect, exact scale (the device pixel ratio
+- **Keys** (`paintingKey`, `spritesKey`): `japanese-garden|s7|normal|0,0,1600,1000@1.5|2400x1500` and
+  `japanese-garden|s7|normal@1.5`. These are the scenery (`SceneArt.scenery`, ADR 0242), the seed, quality, world rect, exact scale (the device pixel ratio
   and the zoom are in it) and pixel size. The art's layout is code, so it is in the cache's
   version. The daylight is not in the key: the sky plate, the light plate and the paper are laid
   over the painting each time it is drawn.

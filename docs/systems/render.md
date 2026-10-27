@@ -6,7 +6,7 @@
 - `WORLD_W = 1600`, `WORLD_H = 1000`. All geometry is in world units.
 - `createViewport(cssW, cssH, dpr, focus = DEFAULT_FOCUS)` uses **cover** scaling:
   `scale = max(cssW / 1600, cssH / 1000)` (CSS px per world unit). The overflowing axis is
-  cropped around `focus` (pond centre, `{x: 800, y: 560}`), clamped so nothing outside the world
+  cropped around `focus` (the default scenery's `view.focus`: the pond centre, `{x: 800, y: 560}`), clamped so nothing outside the world
   is ever shown. Portrait phones therefore crop the sides; wide screens crop top/bottom.
 - Exception (ADR 0123): a tall portrait screen always shows at least `MIN_VISIBLE_W = 600` world
   units of width (`scale ≤ cssW / 600`), so phones see the banks; the painting then sits mid-screen
