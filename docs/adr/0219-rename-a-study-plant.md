@@ -11,6 +11,8 @@ Offer Rename in the plant card for both seedlings and finished garden plants, ed
 existing task name rather than the species name. Use an inline labelled field with Save / Cancel,
 Enter to save and Escape to cancel. Progress updates leave drafts alone; closing or switching
 cards discards them. Follow the existing 40-character normalization and blank-name default.
+The field is the planting sheet's italic ink line, not a boxed form field, so it reads as
+writing on the card's paper; in a card that scrolls inside, the whole form is scrolled into view.
 
 Rename is also placed beside the active session name in the Study panel. A control confined to
 the plant card was too difficult to discover, especially for a newly planted seedling. The Study

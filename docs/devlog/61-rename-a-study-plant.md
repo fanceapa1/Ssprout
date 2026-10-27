@@ -11,7 +11,7 @@ session / plant's task name and its matching log entry. Existing subscriptions u
 views and existing persistence saves the edit; no state schema change or migration is needed.
 Later bloom and pressing carry the name forward. `src/main.ts` was not changed.
 
-## Validation and status
+## Validation on the original base
 - Typecheck passed.
 - All 115 unit test files passed (1,384 tests), including rename normalization, targeting active /
   waiting / completed plants, preserving unrelated state, no-ops, history, bloom / press and save / load.
@@ -34,10 +34,29 @@ The published GitHub site has not been deployed from these local changes.
 Renaming is available on garden plant cards. Pressed flowers have no card or stable session id
 and are outside this edit flow (ADR 0219).
 
-## PR preparation on current main
-The feature is isolated on `feat/rename-study-plants`, based on `fdc74b7`. Newer main changes
-are preserved. The decision and devlog are numbered 0219 and 61 to avoid collisions with the
-new main documentation. Typecheck and the production build pass; the browser rerun on this
-base hit timeouts in existing phone-card checks. The PR remains a draft while fresh validation
-is checked. The development results above describe the original local base.
-Current-main rerun: both desktop rename flows passed. Existing phone-card checks timed out, and the unit rerun reported a failure in the susuki-grass growth artwork test; validation is not green.
+## Finished on main (PR2, 2026-10-28)
+Rebased onto `main` (`497e733`, after S2), the feature commit kept as its author's. ADR 0240 became 0219
+(0240–0259 are phase 10's) and this devlog 59 became 61 (59 is L1's, 60 S2's).
+
+- **The timeouts** (three `plant-card-phone` checks, the desktop Cancel/Escape check) did not
+  reproduce: on CI the checks take 8–22 s, locally 4–14 s at a load average of 28–38 with one
+  worker, and a trace of the desktop check shows no unexplained wait. Most likely the machine was
+  overloaded (the same run measured the ambience frame budget at 1.72 ms against 1.5). The
+  spec's doubled 120 s timeout is gone.
+- **The susuki-grass unit failure** is not caused by this branch: it touches no plant code, and
+  `plants/lib/small-species` passes locally and on CI. Its `grows continuously` test draws 400
+  paintings per species with a 60 s budget, which a loaded machine can run out of.
+- **CI's one red check** was on `main` too: `calendar › at the scheduled time…` fails from about
+  23:05 (its 50 min session blooms after midnight). The test now pins the hour (docs/TESTING.md ›
+  PR2).
+- **Review fixes.** The rename field was a boxed form field with a tinted fill; it now takes the
+  planting sheet's italic ink line, deepening on focus (art direction). On a phone the card scrolls
+  inside, and opening the field scrolled only the input into view, leaving Save below the cut; the
+  whole form is now brought into view (checked by `rename.spec.ts`, which fails without it).
+  Hover and focus come from the shared quiet and ink-slip buttons (ADR 0204); Rename recedes in
+  the dock and is never `data-primary` (ADR 0201).
+- **Storage.** No migration: the stored shape is unchanged, and `core/persistence.ts` already
+  validates and normalises every `taskName` (session, waiting, plants, log) on load.
+
+Left open: a schedule keeps its own name when the session it started is renamed; pressed flowers
+keep the name they were pressed with.

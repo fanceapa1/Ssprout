@@ -7,11 +7,6 @@ The owner's rule is "every behaviour is tested". When you add or change a behavi
 
 ## The layers
 
-| SPEC rule | Unit coverage | End-to-end coverage |
-|---|---|---|
-| §2: rename growing, waiting and completed garden plants; normalized names persist and history follows | `core/rename.test.ts`: targeted updates, no-ops, blank/Unicode limits, bloom/press lifecycle, controller and save/load | `rename.spec.ts`: desktop and phone direct editing beside the task in Study, card Save/Enter, Cancel/Escape, blank default, drafts across ticks, completed plant and log after reload |
-
-
 | Layer | Where | Runs with | What it is for |
 |---|---|---|---|
 | Unit | `src/**/*.test.ts`, colocated with the code | Vitest (`npm test`) | Pure logic: core rules, session maths, plans, persistence, schedules, envelopes, geometry, paint maths, widget/notification policy. Node by default. DOM tests opt in with `// @vitest-environment jsdom`. Canvas code is tested through recording fakes (`src/plants/test-canvas.ts`). |
@@ -188,6 +183,13 @@ The `E2E_CLOCK` runs, a loaded run and runs that began after 23:00 found four mo
 | E2E, CI, once: `fauna › a busy pond renders cleanly and the fauna stays cheap` (9.7 ms, limit 8) | Test. The timed 60 frames included painting every new creature's parts (6.2 ms a frame locally; 1.6 ms once painted) | One untimed `bench(60)` first, then the timed one |
 | E2E job cancelled at 20 min (test 197 of 263) | CI. The suite outgrew one runner with 2 workers (about 25 min) | Three shards on their own runners (7–8 min each) |
 
+### PR2: rename a study plant (2026-10-28, devlog 61)
+
+| Symptom | Root cause | Fix |
+|---|---|---|
+| E2E, CI from about 23:05 UTC (both tries): `calendar › at the scheduled time a card waits with one-tap Start…` found no block for the occurrence after the bloom | Test, hour-dependent. The schedule is due a minute after the real time, the test waits 5 minutes, and the 50 min session then blooms just after midnight; the day view no longer has the occurrence's block. Fails with `E2E_CLOCK=23:05`, passes at 23:30 (not traced further) | The test pins the hour first (`advanceTo('10:00')`) |
+| E2E, the author's machine only: three `plant-card-phone` checks and the desktop `rename › Cancel and Escape…` timed out | Not reproduced. On CI they take 8–22 s; locally at a load average of 28–38, 4–14 s with one worker. A trace of the desktop check shows no wait longer than the starts, card and camera settle (6 s) | None needed; the spec's doubled timeout was dropped |
+
 ## CI
 
 `.github/workflows/ci.yml` (push to main, pull requests, or by hand on any branch:
@@ -307,12 +309,13 @@ Legend: unit tests as `folder/file › test`, under `src/` (`.test.ts` omitted).
 
 | # | Rule | Unit | E2E | Status |
 |---|---|---|---|---|
-| 2.1 | Task name ≤ 40, suggestion placeholder, empty → "Study session", kept forever | core/session › normalizeTaskName (both); core/reducer › normalises the task name; › finalises the plant with its task name… | ui-start-flow › an empty task name plants a "Study session"…; ui-session › sheet… (maxlength 40); ui-session › completion… (label shows the task) | ✔ |
+| 2.1 | Task name ≤ 40, suggestion placeholder, empty → "Study session", kept with the plant (renamable, 2.7) | core/session › normalizeTaskName (both); core/reducer › normalises the task name; › finalises the plant with its task name… | ui-start-flow › an empty task name plants a "Study session"…; ui-session › sheet… (maxlength 40); ui-session › completion… (label shows the task) | ✔ |
 | 2.2 | Total time 10–180 in 5-min steps, chips 25/50/90, remembers last value; total decides tier | core/session › clampGoalMinutes (all); core/rewards › tierForMinutes; core/reducer › plants a seedling session… | ui-start-flow › total time: a 10–180 slider…; › the last total is remembered…; ui-session › sheet… (tier words at 25 and 90) | ✔ |
 | 2.3 | 2–4 plans per total, breaks inside, always Unbroken, sums exactly, ends with focus, < 30 min only Unbroken; shown as a segmented brush line | core/plans › %i min: sums exactly…; › offers only Unbroken below 30…; › offers 2–4 plans…; › has the expected shapes…; ui/plan-line (all) | ui-session › sheet…; core-loop › plant at start → … (plans(60)); ui-session › begin → focus panel… (plan line) | ✔ |
 | 2.4 | Plant choice: tier ≤ earned selectable; higher tiers visible but locked ("needs 50 min+"); earned highlighted; card = preview, name, native name, poetic line, habitat | core/rewards › selectableSpecies (all); core/controller › selectableSpecies marks locked and earned species; core/reducer › only allows species whose tier is earned… | ui-session › sheet…; ui-start-flow › plant cards…; polish › the placeholder sprout is not a plant you can pick | ✔ |
 | 2.5 | Choose its spot (placement mode); occupied = swap | core/placement (all); core/controller › placementOptions lists compatible slots with occupants; plants/plantable › has a compatible slot for each species; › lotus (Q1) › fits the two large open-water slots; › has no spot only when seedlings… hold both | ui-session › sheet… (only compatible markers); › swap into an occupied spot…; › keyboard: Tab to a marker…; plants › placement shows an in-canvas highlight…; lotus › choose Lotus, a large open-water spot glows, Begin plants its seedling in the pond; › when seedlings hold both large water spots, the sheet shows the lotus has no spot… | ✔ |
 | 2.6 | Begin; first start asks gently for notification permission | widget/notifications › asks at the first session:start…; › stores a denial…; › a dismissed prompt leaves the setting unasked… | widget › completion notifies… (permission granted at start); widget › denied permission is respected | ✔ |
+| 2.7 | Rename later (ADR 0219): beside the active task in Study and under "Its story" in a growing, waiting or completed plant's card; same name rules; the log entry follows; Save/Enter, Cancel/Escape; drafts survive ticks; persists | core/rename › changes only the name of %s, including its history; › normalizes blank names, caps Unicode names, and ignores missing or unchanged targets; › keeps the renamed task when the session blooms and when that plant is pressed; › the controller saves growing and finished names… | rename (1440 and 390 px) › rename directly from Study without opening a plant card; › rename a growing session and its finished plant, then reload (on a phone the form, Save included, is scrolled into view); › Cancel and Escape discard drafts; blank saves use the default | ✔ |
 
 ### §2 During the session
 
