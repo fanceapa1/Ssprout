@@ -39,7 +39,7 @@ src/
     paint-version.ts      build-time only (vite.config.ts): the paint version hash
   scene/                  the static painted landscape, scene geometry, slots — docs/systems/scene.md
   scenery/                the scenery contract, its ids and registry, one folder per scenery
-                          (japanese-garden/) — docs/systems/scenery.md
+                          (japanese-garden/, waterfall/) — docs/systems/scenery.md
   plants/
     types.ts              SpeciesDef contract (below)
     registry.ts           auto-discovers species via import.meta.glob('./species/*.ts') (not *.test/*.studio)
@@ -303,8 +303,10 @@ export interface Scenery {                    // types.ts
 }
 getScenery(id): Scenery /* the default when not registered */; hasScenery(id); sceneries(flags?)  // registry.ts
 ```
-Only `JAPANESE_GARDEN` (`japanese-garden/index.ts`) is registered. Its painters stay in `src/scene/`;
-the folder holds its numbers (`sky.ts`, `ambience.ts`, `view.ts`) and its light art (`light.ts`).
+`JAPANESE_GARDEN` (`japanese-garden/index.ts`) and `WATERFALL` (`waterfall/index.ts`, ADR 0245)
+are registered. The waterfall is available only under `?dev&scenery=waterfall` and paints flat
+placeholder shapes until its painters land. The garden's painters stay in `src/scene/`;
+its folder holds its numbers (`sky.ts`, `ambience.ts`, `view.ts`) and its light art (`light.ts`).
 The consumers take a scenery's data as an option and default to the Japanese garden's:
 `createSkyLight({ sky, scenery })`, `createCastLight(scene, art, seed, { scenery })`,
 `createAmbience({ scenery })` / `addAmbience(renderer, { scenery })`, `sunDisc(s, sky)`,

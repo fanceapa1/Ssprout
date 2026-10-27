@@ -5,9 +5,10 @@ import { DEFAULT_FOCUS, WORLD_H, WORLD_W } from '../render/viewport';
 import { GARDEN_ART } from '../scene/background';
 import { gardenScene, PATH } from '../scene/geometry';
 import { GARDEN_SKY } from '../scene/paint-sky';
-import { DEFAULT_SCENERY, isSceneryId, SCENERY_IDS } from './ids';
+import { DEFAULT_SCENERY, isSceneryId, SCENERY_IDS, type SceneryId } from './ids';
 import { JAPANESE_GARDEN } from './japanese-garden';
 import { getScenery, hasScenery, sceneries } from './registry';
+import { WATERFALL } from './waterfall';
 
 describe('scenery ids', () => {
   it('lists the Japanese garden (the default) and the waterfall', () => {
@@ -20,23 +21,29 @@ describe('scenery ids', () => {
 });
 
 describe('the registry', () => {
-  it('holds the Japanese garden only, for now', () => {
+  const dev = new URLSearchParams('dev&scenery=waterfall');
+
+  it('holds the Japanese garden, and the waterfall behind a dev flag', () => {
     expect(sceneries().map((s) => s.id)).toEqual(['japanese-garden']);
+    expect(sceneries(dev).map((s) => s.id)).toEqual(['japanese-garden', 'waterfall']);
     expect(getScenery('japanese-garden')).toBe(JAPANESE_GARDEN);
-    expect(hasScenery('waterfall')).toBe(false);
+    expect(getScenery('waterfall')).toBe(WATERFALL);
+    expect(hasScenery('waterfall')).toBe(true);
   });
 
-  it('falls back to the default scenery for one not registered yet', () => {
-    expect(getScenery('waterfall')).toBe(JAPANESE_GARDEN);
+  it('falls back to the default scenery for one not registered', () => {
+    expect(getScenery('coast' as SceneryId)).toBe(JAPANESE_GARDEN);
+    expect(hasScenery('coast' as SceneryId)).toBe(false);
   });
 
   it('keeps each scenery consistent with itself', () => {
-    for (const s of sceneries()) {
+    for (const s of sceneries(dev)) {
       expect(s.art.scenery, s.id).toBe(s.id);
       expect(s.art.scene, s.id).toBe(s.geometry);
       expect(s.light.sky, s.id).toBe(s.sky.layout);
-      expect(s.available(new URLSearchParams()), s.id).toBe(true);
+      expect(s.available(dev), s.id).toBe(true);
     }
+    expect(JAPANESE_GARDEN.available(new URLSearchParams())).toBe(true);
   });
 });
 
