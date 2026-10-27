@@ -1,6 +1,6 @@
 # ADR 0151 — The session log: an append-only history of ended sessions
 
-- Status: accepted; amended by ADR 0240 (a garden plant's edited name updates its log entry)
+- Status: accepted; amended by ADR 0219 (a garden plant's edited name updates its log entry)
 - Date: 2026-10-23
 
 ## Context

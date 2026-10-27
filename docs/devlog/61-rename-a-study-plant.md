@@ -1,4 +1,4 @@
-# 59 — Rename a study plant
+# 61 — Rename a study plant
 
 ## What and why
 Added Rename beside “Its story” in the plant card. Growing, waiting and completed garden plants
@@ -32,11 +32,11 @@ plant-card unit tests passed. Both Study-section screenshots were visually revie
 The published GitHub site has not been deployed from these local changes.
 
 Renaming is available on garden plant cards. Pressed flowers have no card or stable session id
-and are outside this edit flow (ADR 0240).
+and are outside this edit flow (ADR 0219).
 
 ## PR preparation on current main
 The feature is isolated on `feat/rename-study-plants`, based on `fdc74b7`. Newer main changes
-are preserved. The decision and devlog are numbered 0240 and 59 to avoid collisions with the
+are preserved. The decision and devlog are numbered 0219 and 61 to avoid collisions with the
 new main documentation. Typecheck and the production build pass; the browser rerun on this
 base hit timeouts in existing phone-card checks. The PR remains a draft while fresh validation
 is checked. The development results above describe the original local base.

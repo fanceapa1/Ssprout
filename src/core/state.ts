@@ -75,7 +75,7 @@ export interface ActiveSession {
 
 /**
  * One ended session in the history (ADR 0151): appended on completion and on cancel. Renaming
- * its garden plant updates only the task name (ADR 0240). The calendar uses `core/session-log.ts`.
+ * its garden plant updates only the task name (ADR 0219). The calendar uses `core/session-log.ts`.
  */
 export interface SessionLogEntry {
   /** the session id (for a completed session also the id of the plant it grew) */

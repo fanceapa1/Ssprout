@@ -1,4 +1,4 @@
-# ADR 0240 — Rename a study plant
+# ADR 0219 — Rename a study plant
 
 - Status: accepted
 - Date: 2026-10-25

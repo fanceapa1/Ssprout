@@ -312,7 +312,7 @@ The consumers take a scenery's data as an option and default to the Japanese gar
 Each session is one plant, chosen at start, growing live in its slot. Up to three sessions are in
 progress: `session` is the **active** one (the timer, weather, motes, audio and widget follow it),
 `waiting` holds the others, all paused, in the order they were left (ADR 0150). Ended sessions go
-into the `log` (ADR 0151; only task names can later change through ADR 0240).
+into the `log` (ADR 0151; only task names can later change through ADR 0219).
 ```ts
 export type PlanBlock = { kind: 'focus' | 'break'; minutes: number };
 export interface StudyPlan { id: string; name: string; blocks: PlanBlock[] } // core/plans.ts
