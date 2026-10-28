@@ -1,5 +1,6 @@
 import type { Page } from '@playwright/test';
 import { expect, openDev, test } from './fixtures';
+import { storedOf } from './paint-store';
 
 /**
  * Switching the garden on view at runtime (ADR 0243): the waterfall is behind its dev flag, so
@@ -131,5 +132,38 @@ test.describe('sceneries · reduced motion', () => {
     await openDev(page, FLAG);
     await show(page, 'waterfall');
     expect(await page.evaluate(() => window.sprout!.scenery())).toMatchObject({ viewed: 'waterfall', fade: 0 });
+  });
+
+  test('the waterfall has its own daylight: night is darker and bluer than noon, and its plates come from the cache', async ({ page }) => {
+    test.slow();
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await openDev(page, FLAG);
+    await show(page, 'waterfall');
+    /** The frame's mean colour at a pinned time, the ambience settled. */
+    const mean = (time: 'noon' | 'night') =>
+      page.evaluate(async (time) => {
+        const s = window.sprout!;
+        s.setTime(time);
+        await s.camera.settle();
+        s.settleAmbience();
+        await s.freeze();
+        const c = document.querySelector<HTMLCanvasElement>('#garden')!;
+        const { data } = c.getContext('2d')!.getImageData(0, 0, c.width, c.height);
+        const sum = [0, 0, 0];
+        let n = 0;
+        for (let i = 0; i < data.length; i += 4 * 97, n++) for (let k = 0; k < 3; k++) sum[k]! += data[i + k]!;
+        s.unfreeze();
+        return sum.map((v) => v / n) as [number, number, number];
+      }, time);
+    const noon = await mean('noon');
+    const night = await mean('night');
+    expect(night[0] + night[1] + night[2]).toBeLessThan((noon[0] + noon[1] + noon[2]) * 0.85);
+    expect(night[2] / (night[0] + 1)).toBeGreaterThan(noon[2] / (noon[0] + 1));
+    // its plates are stored under its own keys (ADR 0242); a second load takes them from the cache
+    await expect.poll(async () => (await storedOf(page, 'sky-plate')).filter((e) => e.key.startsWith('waterfall|')).length, { timeout: 40_000 }).toBeGreaterThanOrEqual(2);
+    await openDev(page, FLAG);
+    await show(page, 'waterfall');
+    await mean('night');
+    expect((await page.evaluate(() => window.sprout!.skyStats()!)).cacheHits).toBeGreaterThanOrEqual(1);
   });
 });
