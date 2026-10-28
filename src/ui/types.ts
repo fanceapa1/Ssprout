@@ -105,6 +105,8 @@ export interface UIDeps {
   habitatWords?(): Readonly<Record<Habitat, string>>;
   /** the gardens to choose from in the dock's Gardens section (without: no section) */
   sceneries?: readonly GardenChoice[];
+  /** how much of the last garden still covers the stage while switching, 0–1 (stills skip it) */
+  sceneryFade?(): number;
   /** the renderer's current viewport (`() => renderer.viewport`); re-read on every reposition */
   viewport(): Viewport;
   audio?: AudioIntegration;

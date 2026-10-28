@@ -161,6 +161,7 @@ async function boot(): Promise<void> {
     slots: viewedSlots,
     habitatWords: () => (pickScenery(store.get().scenery).id === 'waterfall' ? WATERFALL_HABITAT_WORDS : HABITAT_WORDS),
     sceneries: available.map(({ id, name, blurb }) => ({ id, name, blurb })),
+    sceneryFade: () => renderer.sceneryFade(),
     viewport: () => renderer.viewport,
     audio,
     widget: fakeWidget ?? surfaces.widget,

@@ -58,6 +58,7 @@ export function createGardensSection(ctx: UIContext, choices: readonly GardenCho
     const id = store.get().scenery;
     const card = cards.get(id);
     if (!card || !canvas || canvas.width === 0 || canvas.height === 0) return;
+    if ((ctx.deps.sceneryFade?.() ?? 0) > 0) return;
     const g = card.thumb.getContext('2d');
     if (!g) return;
     // cover-crop the stage into the thumbnail, centred
