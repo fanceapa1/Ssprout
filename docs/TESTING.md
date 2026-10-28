@@ -597,43 +597,14 @@ Legend: unit tests as `folder/file › test`, under `src/` (`.test.ts` omitted).
 | S2.1 | One `Scenery` contract and a registry (the Japanese garden; the waterfall since S4), the default for an id not registered; each scenery is consistent with itself (art, geometry, sky layout) | scenery/registry (all) | — | ✔ |
 | S2.2 | The Japanese garden behind the contract paints exactly as before: its numbers moved, not changed (eave, lantern, structure, focus, path out, dew, mist, veil, sky layout) | scenery/registry › frames the pond…; › veils the mist…; scene/geometry › drips rain off the engawa eave…; › has still water only…; ambience/lighting › a scene without lights reserves nothing; scene/paint-slices and paint/parts (hash pins unchanged) | scene-cache, plates-cache, daylight, ambience, scene, camera, wayfinding (unchanged) | ✔ (full frames at midday, sunset, night, overview and close views diff 0 against the previous build: devlog 60) |
 | S2.3 | Every paint-cache key starts with the scenery id; `src/scenery` is a paint root | scene/scene-cache › names the scenery, seed…; › keys the sprites by scenery…; ambience/plate-cache › a sky plate is keyed on the scenery…; › a light plate is keyed on the scenery…; scenery/registry › versions the sceneries with the painters | scene-cache, plates-cache (repeat visits hit the cache) | ✔ |
-| S4.1 | The waterfall is registered but offered only under `?dev&scenery=waterfall`; it is consistent with itself and has no building, lantern or eave; its placeholder steps paint, and only the asked-for elements | scenery/waterfall › is hidden unless asked for…; › is consistent with itself…; › paints placeholder steps…; scenery/registry › holds the Japanese garden, and the waterfall behind a dev flag | studio (`waterfall-map` renders) | ✔ |
+| S4.1 | The waterfall is registered but offered only under `?dev&scenery=waterfall`; it is consistent with itself and has no building, lantern or eave; its rock and placeholder steps paint back to front, and only the asked-for elements | scenery/waterfall › is hidden unless asked for…; › is consistent with itself…; › paints its rock and placeholder steps…; scenery/registry › holds the Japanese garden, and the waterfall behind a dev flag | studio (`waterfall-map` renders) | ✔ |
 | S4.2 | The composition holds: the falls left of centre under the notch, into the pool; the pool at the cliff foot and the stream out of it to the bottom edge; the trail from the bottom to the pool and `pathOut`; the falls, pool and setting sun in the portrait crop; boulders off the falls | scenery/waterfall › waterfall composition (all) | — | ✔ |
 | S4.3 | Slots: 45–60 with unique place-prefixed ids, every habitat offered; inside the world at 1.25×; out of the sky and off the falls (a fifth of it at most hidden); water slots on the water, land slots off it, shore slots near it; ledge, crown and ground slots with their explicit scales; off stones and boulders | scenery/waterfall › waterfall slots (all) | — | ✔ |
 | S4.4 | Every species has a compatible slot by the waterfall; the lotus has at least 2, all large pool slots | scenery/waterfall › every species has somewhere to grow… (all) | — | ✔ |
 | S4.5 | Neighbours read at 1.25×: slots 28 apart, same-depth footprints overlap at most half, no cliff plant over a higher one's base, tree crowns apart and off the ledges | scenery/waterfall › waterfall spacing… (all) | — | ✔ |
 | S4.6 | The sun (8–16°, rising and setting), the moon's whole arc and the stars sit in the open sky; the low sun is hidden behind the far ridge; the sun clears the tree slots' crowns; the sky plates' band covers the skyline | scenery/waterfall › the waterfall sky (all) | — | ✔ |
-
-### Beyond the SPEC (covered, listed for completeness)
-Rendering contracts (render/renderer), paint engine (paint/*), species growth continuity
-(plants/lib/*), sprite workers and LRU (plants/sprites), reflections (plants/reflection),
-UI light under the garden's lighting (ui/ambient-light), canvas edges (polish › the canvas edges
-dissolve into paper), keyboard flow (polish › keyboard…, ui-session › keyboard…), frame budgets
-(plants, ambience, fauna e2e), richer pigments (paint/pigments › is richer than v1 but stays
-watercolour…; › raised the chroma…), `sprout.plantsReady()` waits for a just-made store change, the
-sprites and the fade-in (plants/system › ready() waits…; › ready() before the first init…;
-daylight › plantsReady waits for plants added just before it…).
-
-### Open gaps (for the orchestrator)
-1. ~~Lotus is offered but cannot be planted~~: plantable since two water slots became large;
-   proven through the real flow (`tests/e2e/lotus.spec.ts`), and a species with every spot held
-   by growing seedlings is marked full in the sheet (ADR 0205).
-2. **Cross-browser**: no Firefox/WebKit e2e run (10.2).
-3. **Audio** has data and offline real-graph checks (8.1, 8.5); **real PiP** is faked (6.1). Both are headless
-   limits.
-4. ~~Automatic focus watering is silent~~: a soft pour plays on every watering since v2 polish (2.34, 8.1).
-5. ~~Two seals during a long pause~~ (12.20, v2 acceptance L6): fixed. A seal-style control is a
-   seal only while it holds `data-primary`, so the long pause's Resume steps back to an ink slip
-   beside a due card's Start; the test passes for real.
-6. ~~Keyboard focus on tools and sheet cards~~ (12.26, v2 acceptance L5): fixed. The dock's tools,
-   plan cards and plant cards lift on `:focus-visible` as on hover (ADR 0204); the test passes for
-   real.
-7. ~~The day window is an hour off on a daylight-saving day~~: fixed (ADR 0210, devlog 33). The
-   timeline is a 24-hour wall-clock face. The opening window, blocks, the now line and following
-   all count local wall minutes. Proven across both 2026 changes (unit) and on 25 Oct 2026 in
-   Europe/London (e2e), 13.24.
-8. ~~Following stops when the hours are redrawn mid-glide~~: fixed (devlog 33). Scroll events
-   from a detached or replaced timeline, or during our own glide, are ignored. Each timeline
-   remembers where we put it. The follow-now specs no longer wait for the hours to rest before
-   redrawing. `calendar · a daylight-saving day › following survives the hours being redrawn
-   while they glide` redraws mid-glide on purpose, 13.24.
+| S6.1 | The waterfall's rock steps (gorge, cliff, buttress, ledges, trail stones) paint back to front between the placeholders; its boulders are its own sprites and the atlas takes their boxes from `art.rockSprites` | scenery/waterfall/rocks › paints the rock steps, back to front, and its own boulders | — | ✔ |
+| S6.2 | Boulders in or by the pool and the stream are wet, the ones on the banks mossy | scenery/waterfall/rocks › wets the boulders in and by the water… | studio `waterfall-rocks/boulders` | ✔ |
+| S6.3 | The rock paints the same marks: quantised recording hash pins of the overview and a close view | scenery/waterfall/rocks › paints the same marks (recording hash pins) | — | ✔ |
+| S6.4 | The rock paints in parts: no part over 130 k canvas calls or 400 k pixels (overview and close view); every rock step and boulder comes in several parts | scenery/waterfall/rocks › no part of a step does more than one big mark’s work (overview, detail); › pauses inside the rock steps… | — | ✔ |
+| S6.5 | The rock looks like watercolour stone (strata, wet streaks, recesses, lit faces, moss cushions, wet and mossy boulders) | — | studio `waterfall-rocks/cliff`, `/ledges`, `/boulders`, `/scene` (render in the studio spec; looked at) | ✔ |

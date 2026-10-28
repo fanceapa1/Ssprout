@@ -19,7 +19,11 @@ weather and the daylight are shared (owner decisions, phase 10).
 | `waterfall/layout.ts` | the waterfall's skyline (`SKYLINE`, `skylineAt`, `openSky`), `CLIFF`, `FAR_RIDGE`, `LEDGES` (with their scale), `CROWN_SCALE`, `WATERFALL_SKY_LAYOUT`, `FOCUS`, `WATERFALL_AMBIENCE`, `WATERFALL_HABITAT_WORDS` |
 | `waterfall/geometry.ts` | `FALLS`, `POOL`, `WATERLINE`, `STREAM_LINE` and `STREAM`, `ROCKS`, `TRAIL`, `waterfallScene` |
 | `waterfall/slots.ts` | `WATERFALL_SLOTS`: 49 slots, explicit scale on the cliff |
-| `waterfall/index.ts` | `WATERFALL` (`available` only with `?dev&scenery=waterfall`), placeholder `waterfallSteps`, `WATERFALL_SKY`, `WATERFALL_LIGHT_ART`, `WATERFALL_VIEW` |
+| `waterfall/index.ts` | `WATERFALL` (`available` only with `?dev&scenery=waterfall`), `waterfallSteps` (the rock and the placeholders), `WATERFALL_SKY`, `WATERFALL_LIGHT_ART`, `WATERFALL_VIEW` |
+| `waterfall/paint-rocks.ts` | the rock's painters (S6): `paintGorge`, `paintCliff`, `paintButtress`, `paintLedges`; `cliffBody`, `buttressShape`, `ROCK_LIGHT` and the rock pigments |
+| `waterfall/sprites.ts` | `WATERFALL_ROCKS` (`art.rockSprites`): `paintWaterfallRock`, `isWetRock` |
+| `waterfall/rocks.studio.ts` | studio `waterfall-rocks` (104): `cliff`, `ledges`, `boulders`, `scene` |
+| `waterfall/rocks.test.ts` | the rock's steps, wet and mossy boulders, hash pins, slice bounds |
 | `waterfall/map.studio.ts` | studio `waterfall-map` (103): the composition map and the placeholder painting |
 | `registry.test.ts` | ids, registry, each scenery consistent with itself, the garden's numbers, `PAINT_ROOTS` |
 | `waterfall/waterfall.test.ts` | the waterfall's composition, slot, species, spacing and sky invariants |
@@ -140,12 +144,50 @@ Every species has a compatible slot. The lotus has 2 (`pool-1`, `pool-2`). The b
 up, and no plant box covers more than a fifth of the falls. Tree crowns keep clear of the ledges
 and the sun's paths. Plants at the same depth overlap by at most half their footprint at 1.25×.
 
-### Placeholder painting
-`waterfallSteps` fills the open sky, the far ridge, the banks, the cliff, the ledges, the pool,
-the stream, the falls (with a white foot) and the trail's stones with flat colours. The boulders
-come out painted, because the background's sprite pass paints every `rock` of any scenery. The
-sky (`WATERFALL_SKY`) is one flat wash per phase over the open sky. The light art has no trees or
-shrubs yet. S6–S8 and S10 replace all of it.
+### Painting
+Steps, back to front (`only` filters by element):
+
+| Step | Element | Who | What |
+|---|---|---|---|
+| `sky` | `sky` | placeholder (S10) | flat wash over the open sky |
+| `far-ridge` | `ridge` | placeholder (S8) | flat far ridge and plain |
+| `banks` | `banks` | placeholder (S8) | flat ground from y 470 |
+| `gorge` | `gorge` | S6 | the upper gorge behind the lip |
+| `cliff` | `cliff` | S6 | the cliff mass and its detail |
+| `buttress` | `cliff` | S6 | the buttress right of the falls |
+| `ledges` | `ledges` | S6 | the six ledges and their moss |
+| *(S8: crown woods, ledge ferns)* | | | |
+| `pool`, `stream` | `water` | placeholder (S7) | flat water |
+| `falls` | `falls` | placeholder (S7) | flat sheet, white foot |
+| *(S8: near banks, the trail's earth, grass)* | | | |
+| `stones` | `path` | S6 | the trail's stepping stones (the garden's `paintStones`) |
+
+**The rock (S6, `paint-rocks.ts`).** Painted on white like the garden (ADR 0021), lit from the
+upper right (`ROCK_LIGHT`, −0.95: the sun sets and rises right of the buttress), in parts.
+- *Gorge*: the notch is cut out of the cliff's body down to the lip (`cliffBody`), so the gorge
+  shows through: a pale cool far end, a lit left wall, a shadowed right wall.
+- *Cliff*: its paper is reserved first (a full lift of the body), so it stands opaque over
+  whatever S8 paints behind it. One wet-in-wet mass, warm grey lit at the top to cool blue-grey
+  at the foot, dissolving toward the right flank. Strata are broken blocks dipping gently left,
+  clipped to the body: a thin lift on top (the lit bed) over a shadow wash with a crisp top that
+  dies downward. Dry-brush scumbles follow the bedding, a few short cracks cross it. A cool
+  glaze darkens the alcove behind the falls and the cliff's foot, warm glazes light the faces
+  turned to the sun. Wet streaks run down from the lip either side of the falls (soft, wet
+  strokes in `WET_ROCK`), and dark-green seeps run under some ledges.
+- *Buttress*: its own wet-in-wet over the cliff, lit warm on the right, cool toward the falls, so
+  the two glazes leave an edge between them. A fissure splits the crest from the flank, columnar
+  joints with a vertical scumble make it stand rather than lie in beds.
+- *Ledges*: a lifted shelf on top, an undercut shadow glaze below the lip, a broken ink line
+  along the lip and moss cushions (small flat `foliageClump`s, scaled by the ledge's depth).
+
+**Boulders (`sprites.ts`).** `SceneArt.rockSprites` replaces the garden's boulder for this
+scenery (same `rockBox`, so the atlas layout is unchanged in shape). A boulder within 24 units of
+the pool or the stream is *wet*: a dark waterline instead of a cast shadow, a dark cool stone with
+little moss, a darker splashed lower half, a lifted sheen on the lit shoulder and green slime at
+the waterline. The others are *mossy*: a cast shadow, a warmer stone with a lot of moss, a moss
+cushion on top and grass at the foot.
+
+Studio: `waterfall-rocks/cliff`, `/ledges`, `/boulders` and `/scene` (the whole painting so far).
 
 ### Left for later tasks
 - S5: `WATERFALL_HABITAT_WORDS` ('in the plunge pool', 'on the mossy ledges'…) once the
