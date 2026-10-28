@@ -1,6 +1,6 @@
 /**
- * The rocky waterfall as a scenery (phase 10). Its rock is painted (S6); the water, the
- * vegetation and the sky are flat placeholder shapes until their painters land (S7, S8, S10).
+ * The rocky waterfall as a scenery (phase 10). Its rock (S6) and water (S7) are painted; the
+ * vegetation and the sky are flat placeholder shapes until their painters land (S8, S10).
  * Hidden behind `?dev&scenery=waterfall`. docs/systems/scenery.md › Waterfall.
  */
 import type { DayPhase } from '../../ambience/daylight';
@@ -15,6 +15,7 @@ import type { Scenery, ScenerySky, SceneryView } from '../types';
 import { TRAIL, waterfallScene } from './geometry';
 import { FAR_RIDGE, FOCUS, openSky, SKY_TOP, WATERFALL_AMBIENCE, WATERFALL_SKY_LAYOUT } from './layout';
 import { paintButtress, paintCliff, paintGorge, paintLedges } from './paint-rocks';
+import { paintFalls, paintPool, paintStream } from './paint-water';
 import { WATERFALL_ROCKS } from './sprites';
 
 /** Is the waterfall offered under these URL flags? Only to developers until it is painted. */
@@ -34,17 +35,6 @@ function fill(p: Painter, shape: readonly Pt[], colour: string, alpha: number): 
   ctx.restore();
 }
 
-function ellipse(p: Painter, cx: number, cy: number, rx: number, ry: number, colour: string, alpha: number): void {
-  const { ctx } = p;
-  ctx.save();
-  ctx.globalAlpha = alpha;
-  ctx.fillStyle = colour;
-  ctx.beginPath();
-  ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.restore();
-}
-
 const GROUND: Pt[] = [
   { x: -80, y: 470 },
   { x: 1680, y: 470 },
@@ -52,10 +42,10 @@ const GROUND: Pt[] = [
   { x: -80, y: 1080 },
 ];
 
-/** The painting's elements, a filter for studio views. `rock` is S6's; the rest are placeholders. */
+/** The painting's elements, a filter for studio views. Sky, ridge and banks are placeholders. */
 type Element = 'sky' | 'ridge' | 'banks' | 'gorge' | 'cliff' | 'ledges' | 'water' | 'falls' | 'path';
 
-/** The paint steps, back to front. Flat placeholders mark where S7 (water) and S8 (vegetation) slot in theirs. */
+/** The paint steps, back to front. Flat placeholders mark where S8 (vegetation) and S10 (sky) slot in theirs. */
 export function waterfallSteps(art: SceneArt, only?: readonly string[]): PaintStep[] {
   const root = createRng(art.seed);
   const r = (label: string) => root.fork(label);
@@ -71,18 +61,10 @@ export function waterfallSteps(art: SceneArt, only?: readonly string[]): PaintSt
     { el: 'cliff', name: 'buttress', run: (p) => paintButtress(p, r('buttress')) },
     { el: 'ledges', name: 'ledges', run: (p) => paintLedges(p, r('ledges')) },
     // S8 slots in here: the crown woods, the ferns on the ledges
-    // placeholders: the water (S7)
-    { el: 'water', name: 'pool', run: (p) => fill(p, scene.pond, lighten(PIGMENTS.celadonMid, 0.3), 1) },
-    { el: 'water', name: 'stream', run: (p) => scene.streams.forEach((s) => fill(p, s, lighten(PIGMENTS.celadon, 0.3), 1)) },
-    {
-      el: 'falls',
-      name: 'falls',
-      run: (p) => {
-        if (!scene.falls) return;
-        fill(p, scene.falls.outline, lighten(PIGMENTS.cerulean, 0.8), 1);
-        ellipse(p, scene.falls.foot.x, scene.falls.foot.y, 90, 18, '#ffffff', 0.8);
-      },
-    },
+    // the water (S7): the pool and the stream, then the falls over the cliff and the pool's back edge
+    { el: 'water', name: 'pool', run: (p) => paintPool(p, r('pool')) },
+    { el: 'water', name: 'stream', run: (p) => paintStream(p, r('stream')) },
+    { el: 'falls', name: 'falls', run: (p) => paintFalls(p, r('falls')) },
     // S8 slots in here: the near banks, the trail's earth and the grass
     // the trail's stepping stones (S6), over the banks
     { el: 'path', name: 'stones', run: (p) => paintStones(p, r('stones'), scene.path) },
