@@ -22,7 +22,9 @@ import { createPlantSystem } from './plants/system';
 import { setPlantViewSpecies } from './plants/view';
 import { createFauna, installFaunaDebug } from './fauna';
 import { createRenderer } from './render/renderer';
-import { getScenery, hasScenery } from './scenery/registry';
+import { getScenery, hasScenery, sceneries } from './scenery/registry';
+import { createSceneryHost } from './scenery/host';
+import { installSceneryDebug } from './dev/scenery-debug';
 import { gardenScene } from './scene/geometry';
 import { createUI } from './ui';
 import { applyUiLight } from './ui/ambient-light';
@@ -103,10 +105,15 @@ async function boot(): Promise<void> {
   const controller = createSessionController({ store, clock, bus, species, slots: slots.of });
   const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
 
-  const renderer = createRenderer({ canvas, store, bus, clock, scene, reducedMotion });
+  // the garden on view follows `state.scenery`, switched at runtime (ADR 0243)
+  const available = sceneries(params);
+  const pickScenery = (id: string) => available.find((s) => s.id === id) ?? available[0]!;
+  const initialScenery = pickScenery(store.get().scenery);
+  const renderer = createRenderer({ canvas, store, bus, clock, scene, scenery: initialScenery, reducedMotion });
+  const sceneryHost = createSceneryHost({ store, renderer, getScenery: pickScenery });
   // one daylight for every system that paints or behaves with it (docs/systems/daylight.md)
   const daylight = createDaylightSource();
-  const sceneSystem = createSceneSystem({ invalidate: (layer) => renderer.invalidate(layer), showSlots: dev && params.has('slots'), daylight });
+  const sceneSystem = createSceneSystem({ art: initialScenery.art, invalidate: (layer) => renderer.invalidate(layer), showSlots: dev && params.has('slots'), daylight });
   void renderer.add(createPaperSystem());
   void renderer.add(sceneSystem);
   renderer.start();
@@ -184,6 +191,7 @@ async function boot(): Promise<void> {
     installWidgetDebug({ surfaces, controller, store, bus });
     installServiceWorkerDebug(sw);
     installSceneDebug(sceneSystem, scene);
+    installSceneryDebug({ store, host: sceneryHost, available, fade: () => renderer.sceneryFade() });
     installPlantsDebug(plants);
     installFaunaDebug(fauna);
     installPaintCacheDebug();
@@ -206,7 +214,7 @@ async function boot(): Promise<void> {
       },
     });
   }
-  const ambience = addAmbience(renderer, { dev: speedClock !== null, daylight });
+  const ambience = addAmbience(renderer, { dev: speedClock !== null, daylight, scenery: initialScenery });
   mark('ambience');
   contents();
   // the time-of-day wash eases in once the landscape is painted (never on bare paper), and the
