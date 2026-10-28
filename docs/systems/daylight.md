@@ -74,6 +74,15 @@ pure phases with the blends between them: night until 03:36 · sunrise 04:16–0
   right; sunset amber 0.34 glowing toward the left, lantern 0.45; night indigo 0.54 (+0.22 toward the
   sky, × 1.2 toward the near ground: the meadow and the path are thin paint and need the weight,
   devlog 29), lantern 1, colour taken out first (`LOOK.nightDesaturate` 0.38; the frame is backed with white first, so the glaze only desaturates and draws no line where the sky plate stops at y 500, ADR 0206).
+- **Waterfall** (S10, ADR 0247, `scenery/waterfall/{sky,light}.ts`): the same four skies with the
+  glows and banks over the far ridge right of the buttress (sun 1270 rising, 1040 setting), clipped
+  to `plateSky()` (14 units under the cliff, 40 over the flank and ridge) so no bleed lands on the
+  pale cliff top; the far ridge glazed per phase after the clip; 30 stars from its own band. The
+  pool plate darkens toward the cliff. Light hooks: shade under the ledges and along the cliff foot,
+  at a low sun the notch under the buttress and the left cliff, always to the left; feathered warm
+  paper on the buttress, the crown's edge, the ledges and the ridge under the sun at sunrise and
+  sunset; at night pale cool paper down the falls and over the spray (no lantern). Global grades.
+  Studio `waterfall-daylight`.
 - **Close views** (ADR 0163): when the camera rests zoomed in, the sky composes a detail plate for
   the view (plates upscaled; sun, moon with its phase and stars punched at up to 3 px/unit) and
   the light plate repaints its marks for the view at up to 2 px/unit (`CAST_DETAIL_MAX`) over its

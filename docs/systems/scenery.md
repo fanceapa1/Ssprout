@@ -19,7 +19,11 @@ weather and the daylight are shared (owner decisions, phase 10).
 | `waterfall/layout.ts` | the waterfall's skyline (`SKYLINE`, `skylineAt`, `openSky`), `CLIFF`, `FAR_RIDGE`, `LEDGES` (with their scale), `CROWN_SCALE`, `WATERFALL_SKY_LAYOUT`, `FOCUS`, `WATERFALL_AMBIENCE`, `WATERFALL_HABITAT_WORDS` |
 | `waterfall/geometry.ts` | `FALLS`, `POOL`, `WATERLINE`, `STREAM_LINE` and `STREAM`, `ROCKS`, `TRAIL`, `waterfallScene` |
 | `waterfall/slots.ts` | `WATERFALL_SLOTS`: 49 slots, explicit scale on the cliff |
-| `waterfall/index.ts` | `WATERFALL` (`available` only with `?dev&scenery=waterfall`), `waterfallSteps` (the land, the rock, the vegetation, the water and the sky placeholder), `WATERFALL_SKY`, `WATERFALL_LIGHT_ART`, `WATERFALL_VIEW` |
+| `waterfall/index.ts` | `WATERFALL` (`available` only with `?dev&scenery=waterfall`), `waterfallSteps` (the land, the rock, the vegetation and the water; the sky is the daylight's plates), re-exports `WATERFALL_SKY` and `WATERFALL_LIGHT_ART`, `WATERFALL_VIEW` |
+| `waterfall/sky.ts` | the daylight's sky (S10, ADR 0247): `WATERFALL_SKY` (`paintWaterfallSky`, `paintWaterfallWaterSky`), `plateSky` (the washes' clip), `WATERFALL_SKY_RECT` |
+| `waterfall/light.ts` | `WATERFALL_LIGHT_ART`: no trees or shrubs; `shadows` (ledges, cliff foot, notch, left cliff) and `lights` (warm rock at sunrise and sunset, moonlit falls at night) hooks |
+| `waterfall/daylight.studio.ts` | studio `waterfall-daylight` (109): the four phases, dusk, and each phase's sky, water and light plates |
+| `waterfall/daylight.test.ts` | the lights in open sky per phase, the plate's lower edge, plate keys carry `waterfall` |
 | `waterfall/paint-rocks.ts` | the rock's painters (S6): `paintGorge`, `paintCliff`, `paintButtress`, `paintLedges`; `cliffBody`, `buttressShape`, `ROCK_LIGHT` and the rock pigments |
 | `waterfall/paint-water.ts` | the water's painters (S7): `paintPool`, `paintStream`, `paintFalls`; `sheetAt` (a point on the falling sheet) and the `WATER` pigments |
 | `waterfall/paint-veg.ts` | the vegetation and ground painters (S8): `paintFarRidge`, `paintBanks`, `paintWaterfallMeadow`, `paintWaterfallGrass`, `paintCrownWoods`, `paintOverhang`, `paintFerns`, `paintForeground`; `WATERFALL_GROUND` (where the meadow's texture may go), `WOODS`, `OVERHANG`, `FERN_SPOTS` |
@@ -182,7 +186,6 @@ Steps, back to front (`only` filters by element):
 
 | Step | Element | Who | What |
 |---|---|---|---|
-| `sky` | `sky` | placeholder (S10) | flat wash over the open sky |
 | `far-ridge` | `ridge` | S8 | the far ridge, a nearer ridge and a far tree line (soft) |
 | `banks` | `banks` | S8 | the plain and the grassy banks, warm and cool passages, shade, lips (soft) |
 | `meadow` | `banks` | S8 | the garden's meadow patches, off the cliff, the pool, the stream and the edges |
@@ -288,10 +291,18 @@ foreground and the margins come after the falls and before the stepping stones, 
 
 Studio: `waterfall-veg/veg-banks`, `/veg-woods`, `/veg-ferns` and `/veg-scene`.
 
+### Daylight (S10, ADR 0247)
+The painting is on white with no sky step; the sky is the daylight's plates (docs/systems/daylight.md
+› Waterfall). `sky.ts` paints the four skies in the garden's language, the glows and cloud banks
+over the far ridge on the right, clipped to `plateSky()` (14 units under the crown, the notch and the
+buttress, 40 over the flank and the ridge), then the far ridge's distance glaze unclipped. The pool
+plate darkens toward the cliff's back edge. `light.ts` adds the rock's shadows (always to the left:
+both low suns are right of the buttress), warm light on the sun-facing rock and moonlight on the falls
+and their spray. Grades stay global. Studio `waterfall-daylight`.
+
 ### Left for later tasks
 - S5: `WATERFALL_HABITAT_WORDS` ('in the plunge pool', 'on the mossy ledges'…) once the
   contract has habitat words.
-- S10: a star field clipped to `openSky` (the band is shallow because of the crown).
 - S11: a fauna perspective per scenery. `perspectiveFit(slots)` fits a line through (y, scale),
   which the ledges bend.
 
@@ -305,6 +316,11 @@ Studio: `waterfall-veg/veg-banks`, `/veg-woods`, `/veg-ferns` and `/veg-scene`.
   stones and boulders; every species placeable, the lotus on 2 large pool slots; spacing at 1.25×
   (distance, footprint overlap, cliff plants, tree crowns); the sun at 8–16°, the moon's arc and
   the stars in open sky; the sun clear of the tree crowns; the sky plates' band.
+- `src/scenery/waterfall/daylight.test.ts`: the sky and light wiring, the sun's centre and the
+  moon's disc in open sky in every phase (and the moon along its arc), the stars in open sky, the
+  washes' outline clear of the plate's lower edge, `waterfall` in both plate keys.
+- `tests/e2e/sceneries.spec.ts` › the waterfall has its own daylight: night darker and bluer than
+  noon, sky plates stored under `waterfall|` and taken from the cache on a second load.
 - `src/scenery/registry.test.ts`: ids, the registry and its fallback, self-consistency, the
   Japanese garden's focus, path and ambience numbers, `PAINT_ROOTS`.
 - `src/scene/geometry.test.ts`: the eave matches the engawa's frame; no streams, no falls, one
