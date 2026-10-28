@@ -10,7 +10,7 @@ import { WATERFALL } from '.';
 
 const ROCK = ['gorge', 'cliff', 'ledges'];
 
-function region(id: string, label: string, rect: Rect, only: readonly string[] | undefined, sprites: boolean, w = 640): StudioEntry {
+export function region(id: string, label: string, rect: Rect, only: readonly string[] | undefined, sprites: boolean, w = 640): StudioEntry {
   return {
     id,
     label,
