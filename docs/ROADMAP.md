@@ -119,8 +119,9 @@ Phase 10 (owner request 2026-10-27): land phase 9, then a second scenery, a rock
 | S3 | Runtime switching: `renderer.setScenery` with a snapshot cross-fade, scenery host, per-system swaps, a dev fixture scenery, `sprout.scenery()` | `src/render`, `src/scenery/host.ts`, systems, `src/main.ts` | queued (after S1, S2; ADR 0243) |
 | S4 | Waterfall geometry and slots (pool, stream, falls, ledges, explicit per-depth scale), habitat words, view focus, sky numbers; behind a dev flag | `src/scenery/waterfall/{geometry,slots,layout,index}.ts` | done (49 slots, every species placeable, lotus 2 pool spots; falls left of centre, open sky to the right; behind `?dev&scenery=waterfall`; ADR 0245) |
 | S5 | Gardens dock section with painted thumbnails, stage chip, pill offer "go to its garden", per-garden copy | `src/ui/**`, `src/scenery/thumbnail.ts`, `src/main.ts` | queued (after S3; ADR 0244) |
-| S6 | Waterfall painters: rocks, cliffs, ledges | `src/scenery/waterfall/{paint-rocks,sprites}.ts` | in progress |
-| S7 | Waterfall painters: falls, plunge pool, stream | `src/scenery/waterfall/paint-water.ts` | queued (after S4) |
+| S6 | Waterfall painters: rocks, cliffs, ledges | `src/scenery/waterfall/{paint-rocks,sprites}.ts` | done (strata, wet streaks, moss ledges, own wet and mossy boulders; `SceneArt.rockSprites` hook; devlog 64) |
+| S6b | Waterfall rock forms (orchestrator review of S6): the buttress reads as a smooth rounded lump, ledges as flat trays stuck on the wall, the cliff top is nearly level; break the outlines (layout `CLIFF`), soften ledge shadows into the face, give the skyline a stepped broken edge and the gorge more presence | `src/scenery/waterfall/{layout,paint-rocks}.ts` | queued |
+| S7 | Waterfall painters: falls, plunge pool, stream | `src/scenery/waterfall/paint-water.ts` | in progress |
 | S8 | Waterfall painters: vegetation and moss | `src/scenery/waterfall/paint-veg.ts` | queued (after S4) |
 | S9 | Animated falls, foam and spray (still under reduced motion, ≤ 1 ms a frame) | `src/scenery/waterfall/falls.ts` | queued (after S7; ADR 0246) |
 | S10 | Waterfall daylight: 4 sky plates, pool plate, light plates, grades | `src/scenery/waterfall/{sky,light}.ts` | queued (after S6–S8; ADR 0247) |
