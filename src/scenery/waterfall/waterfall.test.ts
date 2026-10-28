@@ -70,10 +70,10 @@ describe('the waterfall scenery', () => {
     expect(waterfallScene.streams).toEqual([STREAM]);
   });
 
-  it('paints its land, rock, vegetation, water and placeholder sky steps back to front, and only the asked-for elements', () => {
+  it('paints its land, rock, vegetation and water steps back to front, and only the asked-for elements', () => {
     const steps = WATERFALL.art.steps(WATERFALL.art);
     // the water over the rock (the falls over the cliff and the pool), the stepping stones over the water
-    expect(steps.map((s) => s.name)).toEqual(['sky', 'far-ridge', 'banks', 'meadow', 'grass', 'gorge', 'cliff', 'buttress', 'ledges', 'crown-woods', 'overhang', 'ferns', 'pool', 'stream', 'falls', 'foreground', 'margins', 'stones']);
+    expect(steps.map((s) => s.name)).toEqual(['far-ridge', 'banks', 'meadow', 'grass', 'gorge', 'cliff', 'buttress', 'ledges', 'crown-woods', 'overhang', 'ferns', 'pool', 'stream', 'falls', 'foreground', 'margins', 'stones']);
     expect(WATERFALL.art.steps(WATERFALL.art, ['water']).map((s) => s.name)).toEqual(['pool', 'stream']);
     expect(WATERFALL.art.steps(WATERFALL.art, ['falls']).map((s) => s.name)).toEqual(['falls']);
   });

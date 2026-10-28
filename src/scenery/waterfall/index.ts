@@ -1,52 +1,40 @@
 /**
- * The rocky waterfall as a scenery (phase 10). Its rock (S6), water (S7) and vegetation (S8) are
- * painted; the sky is a flat placeholder until its painter lands (S10).
+ * The rocky waterfall as a scenery (phase 10): its rock (S6), water (S7), vegetation (S8) and
+ * daylight (S10: sky and light plates).
  * Hidden behind `?dev&scenery=waterfall`. docs/systems/scenery.md › Waterfall.
  */
-import type { DayPhase } from '../../ambience/daylight';
-import type { LightArt } from '../../ambience/cast';
 import { createRng } from '../../core/rng';
-import type { Painter } from '../../paint';
-import { lighten, PIGMENTS } from '../../paint';
-import { WORLD_W, type Pt, type Rect } from '../../render/viewport';
 import type { PaintStep, SceneArt } from '../../scene/background';
 import { paintMargins, paintStones } from '../../scene/paint-land';
-import type { Scenery, ScenerySky, SceneryView } from '../types';
+import type { Scenery, SceneryView } from '../types';
 import { TRAIL, waterfallScene } from './geometry';
-import { FOCUS, openSky, SKY_TOP, WATERFALL_AMBIENCE, WATERFALL_SKY_LAYOUT } from './layout';
+import { FOCUS, WATERFALL_AMBIENCE } from './layout';
+import type { LightArt } from '../../ambience/cast';
+import { WATERFALL_SKY_LAYOUT } from './layout';
+
+const WATERFALL_LIGHT_ART: LightArt = { trees: [], shrubs: [], sky: WATERFALL_SKY_LAYOUT };
 import { paintButtress, paintCliff, paintGorge, paintLedges } from './paint-rocks';
 import { paintFalls, paintPool, paintStream } from './paint-water';
 import { paintBanks, paintCrownWoods, paintFarRidge, paintFerns, paintForeground, paintOverhang, paintWaterfallGrass, paintWaterfallMeadow } from './paint-veg';
+import { WATERFALL_SKY } from './sky';
 import { WATERFALL_ROCKS } from './sprites';
+
+export { WATERFALL_LIGHT_ART, WATERFALL_SKY };
 
 /** Is the waterfall offered under these URL flags? Only to developers until it is painted. */
 export function waterfallAvailable(flags: URLSearchParams): boolean {
   return flags.has('dev') && flags.get('scenery') === 'waterfall';
 }
 
-function fill(p: Painter, shape: readonly Pt[], colour: string, alpha: number): void {
-  const { ctx } = p;
-  ctx.save();
-  ctx.globalAlpha = alpha;
-  ctx.fillStyle = colour;
-  ctx.beginPath();
-  shape.forEach((q, i) => (i ? ctx.lineTo(q.x, q.y) : ctx.moveTo(q.x, q.y)));
-  ctx.closePath();
-  ctx.fill();
-  ctx.restore();
-}
+/** The painting's elements, a filter for studio views (the sky is the daylight's plates). */
+type Element = 'ridge' | 'banks' | 'gorge' | 'cliff' | 'ledges' | 'woods' | 'ferns' | 'water' | 'falls' | 'near' | 'path';
 
-/** The painting's elements, a filter for studio views. The sky is a placeholder. */
-type Element = 'sky' | 'ridge' | 'banks' | 'gorge' | 'cliff' | 'ledges' | 'woods' | 'ferns' | 'water' | 'falls' | 'near' | 'path';
-
-/** The paint steps, back to front. A flat placeholder marks where S10 slots in the sky. */
+/** The paint steps, back to front, on white: the sky plates are multiplied over them. */
 export function waterfallSteps(art: SceneArt, only?: readonly string[]): PaintStep[] {
   const root = createRng(art.seed);
   const r = (label: string) => root.fork(label);
   const { scene } = art;
   const steps: (PaintStep & { el: Element })[] = [
-    // placeholder: the sky (S10)
-    { el: 'sky', name: 'sky', run: (p) => fill(p, openSky(), lighten(PIGMENTS.cerulean, 0.7), 1) },
     // the land (S8): the far ridge, the banks and the meadow, under the cliff's reserved paper
     { el: 'ridge', name: 'far-ridge', soft: true, run: (p) => paintFarRidge(p, r('far-ridge')) },
     { el: 'banks', name: 'banks', soft: true, run: (p) => paintBanks(p, r('banks')) },
@@ -85,27 +73,6 @@ export const WATERFALL_ART: SceneArt = {
   steps: waterfallSteps,
   rockSprites: WATERFALL_ROCKS,
 };
-
-const SKY_RECT: Rect = { x: 0, y: SKY_TOP, w: WORLD_W, h: 740 };
-
-const PHASE_SKY: Record<DayPhase, string> = {
-  sunrise: PIGMENTS.apricot,
-  midday: PIGMENTS.cerulean,
-  sunset: PIGMENTS.ochre,
-  night: PIGMENTS.indigo,
-};
-
-/** Placeholder sky: one flat wash per phase over the open sky (S10 paints the real plates). */
-export const WATERFALL_SKY: ScenerySky = {
-  layout: WATERFALL_SKY_LAYOUT,
-  rect: SKY_RECT,
-  shape: openSky,
-  paint: (p, _rng, phase) => fill(p, openSky(40), PHASE_SKY[phase], 0.3),
-  paintWater: (p, _rng, phase, box) =>
-    fill(p, [{ x: box.x, y: box.y }, { x: box.x + box.w, y: box.y }, { x: box.x + box.w, y: box.y + box.h }, { x: box.x, y: box.y + box.h }], PHASE_SKY[phase], 0.5),
-};
-
-export const WATERFALL_LIGHT_ART: LightArt = { trees: [], shrubs: [], sky: WATERFALL_SKY_LAYOUT };
 
 export const WATERFALL_VIEW: SceneryView = {
   focus: FOCUS,
