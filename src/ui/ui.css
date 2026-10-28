@@ -421,6 +421,42 @@ dialog :focus-visible {
 .pill-more:hover {
   color: var(--ui-ink);
 }
+/* "Growing in the rocky waterfall · Go": the active seedling is in another garden (ADR 0244) */
+.pill-away {
+  appearance: none;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  height: 46px;
+  padding: 0 12px 0 10px;
+  margin-left: 2px;
+  border-left: 1px solid var(--ui-ink-ghost);
+  font: inherit;
+  font-style: italic;
+  font-size: 16px;
+  color: var(--ui-ink-soft);
+  white-space: nowrap;
+  transition: color var(--ui-mid);
+}
+.pill-away:hover,
+.pill-away:focus-visible {
+  color: var(--ui-ink);
+}
+.pill-away-go {
+  font-style: normal;
+  color: var(--ui-ink);
+}
+.pill-away-short {
+  display: none;
+}
+@media (max-width: 600px) {
+  .pill-away-where {
+    display: none;
+  }
+  .pill-away-short {
+    display: inline;
+  }
+}
 
 /*
  * Wide screens: the pill lies in the top-left corner, mirroring the garden tools in the top

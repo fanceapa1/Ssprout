@@ -1,6 +1,7 @@
+import type { SceneryId } from '../scenery/ids';
 import type { UIContext } from './context';
 import { fragment, h, setText, show } from './dom';
-import { formatTimer } from './format';
+import { formatTimer, inSentence } from './format';
 import { ICONS, sproutMarkSvg } from './icons';
 import { sessionView } from './session-view';
 import type { UIState } from './types';
@@ -56,7 +57,14 @@ export function createPill(ctx: UIContext, actions: PillActions): Pill {
   // other sessions in progress: a small "+2" that leads down to them (ADR 0156)
   const moreBtn = h('button.pill-more', { type: 'button', onclick: () => actions.jump() });
 
-  const el = h('div.pill.slip', { 'data-ui': 'pill', 'data-view': 'idle', role: 'group', 'aria-label': 'Timer' }, startBtn, session, moreBtn);
+  // the active seedling grows in another garden: a way there (ADR 0244)
+  const awayWhere = h('span.pill-away-where');
+  const awayShort = h('span.pill-away-short');
+  const awayBtn = h('button.pill-away', { type: 'button', onclick: () => goAway() }, awayWhere, awayShort, h('span.pill-away-go', { 'aria-hidden': 'true' }, ' · Go'));
+  let awayId: SceneryId | null = null;
+  const goAway = () => void (awayId && controller.showScenery(awayId));
+
+  const el = h('div.pill.slip', { 'data-ui': 'pill', 'data-view': 'idle', role: 'group', 'aria-label': 'Timer' }, startBtn, session, moreBtn, awayBtn);
   let more = 0;
 
   function render(): void {
@@ -70,6 +78,15 @@ export function createPill(ctx: UIContext, actions: PillActions): Pill {
     more = st.sessions.length - (st.session ? 1 : 0);
     show(moreBtn, more > 0);
     el.dataset.more = String(more);
+    const viewed = ctx.deps.store.get().scenery;
+    const away = st.session && st.session.sceneryId !== viewed ? ctx.deps.sceneries?.find((g) => g.id === st.session!.sceneryId) : undefined;
+    awayId = away?.id ?? null;
+    show(awayBtn, !!away);
+    if (away) {
+      setText(awayWhere, `Growing in the ${inSentence(away.name)}`);
+      setText(awayShort, away.name);
+      awayBtn.setAttribute('aria-label', `Your seedling is growing in the ${inSentence(away.name)}. Go there`);
+    }
     if (more > 0) {
       setText(moreBtn, `+${more}`);
       const label = `${more === 1 ? 'One more session is' : `${more} more sessions are`} waiting — show them`;

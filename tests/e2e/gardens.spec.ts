@@ -72,6 +72,15 @@ test.describe('gardens · choosing the garden on view (ADR 0244)', () => {
     expect(await shownSeedlings(page)).not.toContain(session.id);
     // the session keeps counting in its own garden
     expect(await page.evaluate(() => window.sprout!.state().session?.sceneryId)).toBe('waterfall');
+
+    // the pill offers the way back to the seedling's garden
+    const away = page.locator('[data-ui="pill"] button.pill-away');
+    await expect(away).toBeVisible();
+    await expect(away).toContainText('Growing in the rocky waterfall');
+    await away.click();
+    await ready(page);
+    expect(await viewed(page)).toBe('waterfall');
+    await expect(away).toBeHidden();
   });
 
   test('keyboard operable: Tab to a card, Enter chooses it', async ({ page }) => {
