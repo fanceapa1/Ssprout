@@ -1,4 +1,5 @@
-import { inProgressSessions, type Action, type ActiveSession, type GardenState, type PlantInstance } from '../core/state';
+import type { SceneryId } from '../core/sceneries';
+import { inProgressSessions, plantsIn, type Action, type ActiveSession, type GardenState, type PlantInstance } from '../core/state';
 import { sessionPhase, sessionTimeline } from '../core/session';
 import type { Drawable, FrameInfo, LayerId, System, SystemContext } from '../render/types';
 import type { Pt, Rect, Viewport } from '../render/viewport';
@@ -202,6 +203,11 @@ export interface PlantSystem extends System {
 
 const isWet = (h: string) => h === 'shore' || h === 'water';
 
+/** What the plant system shows of `state`: the sessions in progress and finished plants of one garden. */
+export function gardenOnView(state: GardenState, sceneryId: SceneryId): { sessions: ActiveSession[]; plants: PlantInstance[] } {
+  return { sessions: inProgressSessions(state).filter((x) => x.sceneryId === sceneryId), plants: plantsIn(state, sceneryId) };
+}
+
 export function createPlantSystem(opts: PlantSystemOptions): PlantSystem {
   const getSpecies = opts.getSpecies;
   const cache = opts.cache ?? createSpriteCache({ getSpecies, budgetBytes: opts.budgetBytes });
@@ -225,6 +231,8 @@ export function createPlantSystem(opts: PlantSystemOptions): PlantSystem {
   /** seedlings of the sessions in progress, by session id */
   const growing = new Map<string, GrowRec>();
   let activeId: string | null = null;
+  /** the garden on view (from SystemContext.scenery; the store's `scenery` before the first init) */
+  let viewedId: SceneryId | null = null;
   const withering: WitherRec[] = [];
   let watering: { id: string; start: number | null } | null = null;
   /** session id to water on the next frame */
@@ -414,9 +422,9 @@ export function createPlantSystem(opts: PlantSystemOptions): PlantSystem {
   function sync(state: GardenState, at: number, initial: boolean): void {
     const s = state.session;
     activeId = s?.id ?? null;
-    // the growing plants: one per session in progress; a new one starts from seed, a known one
-    // (after a reload: every one) at its own growth
-    const sessions = inProgressSessions(state);
+    // the growing plants: one per session in progress in the garden on view; a new one starts
+    // from seed, a known one (after a reload: every one) at its own growth
+    const { sessions, plants: shownPlants } = gardenOnView(state, viewedId ?? state.scenery);
     for (const x of sessions) {
       let g = growing.get(x.id);
       if (!g) {
@@ -432,7 +440,7 @@ export function createPlantSystem(opts: PlantSystemOptions): PlantSystem {
     for (const id of [...growing.keys()]) if (!sessions.some((x) => x.id === id)) growing.delete(id);
     // finished plants
     const seen = new Set<string>();
-    for (const plant of state.plants) {
+    for (const plant of shownPlants) {
       seen.add(plant.id);
       const rec = finished.get(plant.id);
       if (rec && rec.plant === plant) continue;
@@ -749,6 +757,16 @@ export function createPlantSystem(opts: PlantSystemOptions): PlantSystem {
       sys = c;
       scene = c.scene;
       slotById = new Map(c.scene.slots.map((s) => [s.id, s]));
+      const switched = !!c.scenery && viewedId !== null && c.scenery.id !== viewedId;
+      if (c.scenery) viewedId = c.scenery.id;
+      if (switched) {
+        // another garden: its plants appear as they are, the other garden's stay in state
+        growing.clear();
+        finished.clear();
+        withering.length = 0;
+        watering = null;
+        sync(c.store.get(), c.clock.now(), true);
+      }
       reduced = c.reducedMotion;
       const nextRes = resolutionBucket(c.viewport.pixelScale);
       const resChanged = nextRes !== res;

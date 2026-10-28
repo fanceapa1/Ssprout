@@ -61,6 +61,8 @@ const NO_EMITTERS: readonly Emitter[] = [];
 export function createAmbienceSystem(opts: AmbienceSystemOptions = {}): AmbienceSystem {
   let engine: Ambience | null = null;
   let engineScene: SceneGeometry | null = null;
+  /** the scenery the engine was built for: another one (ADR 0243) builds it again */
+  let scenery: AmbienceScenery | undefined = opts.scenery;
   let store: Store | null = null;
   const daylight = opts.daylight ?? createDaylightSource();
   let seenVersion = -1;
@@ -97,8 +99,11 @@ export function createAmbienceSystem(opts: AmbienceSystemOptions = {}): Ambience
       reducedMotion = ctx.reducedMotion;
       camera = ctx.camera ?? null;
       seenDetail = -1;
-      if (!engine || engineScene !== ctx.scene) {
-        engine = createAmbience({ scene: ctx.scene, reducedMotion: ctx.reducedMotion, seed: opts.seed, area: ctx.viewport.visible, lightArt: opts.lightArt, scenery: opts.scenery });
+      const switched = !!ctx.scenery && ctx.scenery.id !== scenery?.id;
+      if (ctx.scenery && switched) scenery = ctx.scenery;
+      if (!engine || engineScene !== ctx.scene || switched) {
+        const lightArt = switched ? undefined : opts.lightArt;
+        engine = createAmbience({ scene: ctx.scene, reducedMotion: ctx.reducedMotion, seed: opts.seed, area: ctx.viewport.visible, lightArt, scenery });
         engine.preview = preview;
         engineScene = ctx.scene;
       } else {

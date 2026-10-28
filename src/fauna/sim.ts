@@ -124,6 +124,12 @@ export class FaunaSim {
     this.refreshTargets();
   }
 
+  /** Send every creature away at once (another garden on view, ADR 0243); the roster refills it. */
+  resetResidents(): void {
+    this.creatures = [];
+    this.ripples = [];
+  }
+
   setView(view: Rect): void {
     this.world.view = { ...view };
   }

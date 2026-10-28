@@ -5,7 +5,8 @@
  */
 import type { EventBus } from '../core/events';
 import { faunaUnlock, unlockedFauna } from '../core/fauna-unlocks';
-import type { GardenState, Store } from '../core/state';
+import { DEFAULT_SCENERY, type SceneryId } from '../core/sceneries';
+import { plantsIn, type GardenState, type Store } from '../core/state';
 import type { Drawable, LayerId, System, SystemContext } from '../render/types';
 import type { Rect, Viewport } from '../render/viewport';
 import { FaunaSim } from './sim';
@@ -108,9 +109,13 @@ export function createFaunaSystem(opts: FaunaSystemOptions): FaunaSystem {
     });
   };
 
+  /** the garden on view; only the Japanese garden has wildlife until per-scenery rosters (S11) */
+  let sceneryId: SceneryId | null = null;
+  const wild = () => (sceneryId ?? DEFAULT_SCENERY) === DEFAULT_SCENERY;
   const follow = (state: GardenState) => {
-    unlocked = unlockedFauna(state, lookup);
-    sim?.setGarden(state.plants, unlocked, lookup);
+    const id = sceneryId ?? state.scenery;
+    unlocked = wild() ? unlockedFauna(state, lookup, id) : [];
+    sim?.setGarden(plantsIn(state, id), unlocked, lookup);
   };
 
   /**
@@ -140,6 +145,8 @@ export function createFaunaSystem(opts: FaunaSystemOptions): FaunaSystem {
     },
     now: () => clock?.now() ?? 0,
     init(ctx: SystemContext) {
+      const switched = !!ctx.scenery && ctx.scenery.id !== sceneryId;
+      if (ctx.scenery) sceneryId = ctx.scenery.id;
       if (!sim) {
         sim = new FaunaSim({ scene: ctx.scene, seed: opts.seed ?? ctx.clock.now(), reducedMotion: ctx.reducedMotion });
         const daylight = opts.daylight;
@@ -149,8 +156,12 @@ export function createFaunaSystem(opts: FaunaSystemOptions): FaunaSystem {
           if (next.plants !== prev.plants) follow(next);
         });
         follow(ctx.store.get());
-      } else if (sim.world.scene !== ctx.scene) {
-        sim.setScene(ctx.scene);
+      } else {
+        if (sim.world.scene !== ctx.scene) sim.setScene(ctx.scene);
+        if (switched) {
+          sim.resetResidents();
+          if (store) follow(store.get());
+        }
       }
       viewport = ctx.viewport;
       clock = ctx.clock;
@@ -161,7 +172,7 @@ export function createFaunaSystem(opts: FaunaSystemOptions): FaunaSystem {
       sim.setResolution(ctx.viewport.pixelScale);
     },
     update(f) {
-      if (!sim) return;
+      if (!sim || !wild()) return;
       const session = store?.get().session;
       sim.setLively(!!session && session.pausedAt === null);
       sim.update(f.dt, f.now);
@@ -178,10 +189,10 @@ export function createFaunaSystem(opts: FaunaSystemOptions): FaunaSystem {
       }
     },
     draw(layer, ctx) {
-      if (sim && LAYERS_DRAWN.has(layer)) sim.draw(layer, ctx);
+      if (sim && wild() && LAYERS_DRAWN.has(layer)) sim.draw(layer, ctx);
     },
     entities(): Drawable[] {
-      return sim ? sim.entities() : [];
+      return sim && wild() ? sim.entities() : [];
     },
     dispose() {
       unsubscribe?.();
