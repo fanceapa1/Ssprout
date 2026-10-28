@@ -3,7 +3,8 @@ import { createManualClock } from '../core/clock';
 import { createEventBus } from '../core/events';
 import { createDefaultState, createStore, reducer } from '../core/state';
 import { gardenScene } from '../scene/geometry';
-import { createRenderer, type RendererOptions } from './renderer';
+import { getScenery } from '../scenery/registry';
+import { createRenderer, SCENERY_FADE_S, type RendererOptions } from './renderer';
 import type { LayerId, System } from './types';
 
 interface FakeCanvas {
@@ -431,5 +432,71 @@ describe('renderer', () => {
       renderer.renderOnce();
       expect(out.some((o) => o.layer === 'paper')).toBe(false);
     });
+  });
+});
+
+describe('renderer › switching the scenery (ADR 0243)', () => {
+  const garden = getScenery('japanese-garden');
+  const falls = getScenery('waterfall');
+  const snapshotDraws = (log: string[]) => log.filter((l) => /^drawImage:cache\d+:source-over:sub$/.test(l));
+
+  it('re-initialises every system with the new scenery, its geometry and focus, at the overview', async () => {
+    const seen: string[] = [];
+    const { renderer } = setup({ scenery: garden });
+    await renderer.add({ id: 'a', init: (c) => void seen.push(`a:${c.scenery?.id}:${c.scene === c.scenery?.geometry}`) });
+    await renderer.add({ id: 'b', init: (c) => void seen.push(`b:${c.scenery?.id}`) });
+    await renderer.resize();
+    renderer.camera.zoomTo(2, undefined, { animate: false });
+    seen.length = 0;
+    await renderer.setScenery(falls);
+    expect(seen).toEqual(['a:waterfall:true', 'b:waterfall']);
+    expect(renderer.scenery?.id).toBe('waterfall');
+    expect(renderer.baseViewport.focus).toEqual(falls.view.focus);
+    expect(renderer.camera.isOverview()).toBe(true);
+    // the same scenery again changes nothing
+    seen.length = 0;
+    await renderer.setScenery(falls);
+    expect(seen).toEqual([]);
+  });
+
+  it('keeps the last frame over the new garden until it is ready, then fades it out', async () => {
+    let release!: () => void;
+    let gated = false;
+    const { renderer, tick, main } = setup({ scenery: garden });
+    await renderer.add({ id: 'slow', init: () => (gated ? new Promise<void>((r) => (release = r)) : undefined) });
+    renderer.start();
+    await renderer.whenReady();
+    tick(1000);
+    gated = true;
+    const ready = renderer.setScenery(falls);
+    expect(renderer.sceneryFade()).toBe(1);
+    main.log.length = 0;
+    tick(1016);
+    tick(1032);
+    expect(snapshotDraws(main.log)).toHaveLength(2);
+    expect(renderer.sceneryFade()).toBe(1); // not ready yet: no fade
+    release();
+    await ready;
+    await Promise.resolve();
+    tick(1100);
+    const mid = renderer.sceneryFade();
+    expect(mid).toBeGreaterThan(0);
+    expect(mid).toBeLessThan(1);
+    for (let ts = 1200; ts <= 1100 + SCENERY_FADE_S * 1000 + 200; ts += 50) tick(ts);
+    expect(renderer.sceneryFade()).toBe(0);
+    main.log.length = 0;
+    tick(3000);
+    expect(snapshotDraws(main.log)).toHaveLength(0);
+  });
+
+  it('cuts under reduced motion', async () => {
+    const { renderer, tick } = setup({ scenery: garden, reducedMotion: true });
+    await renderer.add({ id: 's', init: () => undefined });
+    renderer.start();
+    await renderer.whenReady();
+    tick(1000);
+    await renderer.setScenery(falls);
+    await Promise.resolve();
+    expect(renderer.sceneryFade()).toBe(0);
   });
 });
