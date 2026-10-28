@@ -122,9 +122,9 @@ Phase 10 (owner request 2026-10-27): land phase 9, then a second scenery, a rock
 | S6 | Waterfall painters: rocks, cliffs, ledges | `src/scenery/waterfall/{paint-rocks,sprites}.ts` | done (strata, wet streaks, moss ledges, own wet and mossy boulders; `SceneArt.rockSprites` hook; devlog 64) |
 | S6b | Waterfall rock forms (orchestrator review of S6): the buttress reads as a smooth rounded lump, ledges as flat trays stuck on the wall, the cliff top is nearly level; break the outlines (layout `CLIFF`), soften ledge shadows into the face, give the skyline a stepped broken edge and the gorge more presence | `src/scenery/waterfall/{layout,paint-rocks}.ts` | queued |
 | S7 | Waterfall painters: falls, plunge pool, stream | `src/scenery/waterfall/paint-water.ts` | done (streaked falls on reserved paper, deep cool pool with ripples from the foot, pale stream with riffles; devlog 65) |
-| S8 | Waterfall painters: vegetation and moss | `src/scenery/waterfall/paint-veg.ts` | in progress |
+| S8 | Waterfall painters: vegetation and moss | `src/scenery/waterfall/paint-veg.ts` | done (far ridge, banks, meadow, crown woods, overhanging trees, ferns, foreground; devlog 67) |
 | S9 | Animated falls, foam and spray (still under reduced motion, ≤ 1 ms a frame) | `src/scenery/waterfall/falls.ts` | queued (after S7; ADR 0246) |
-| S10 | Waterfall daylight: 4 sky plates, pool plate, light plates, grades | `src/scenery/waterfall/{sky,light}.ts` | queued (after S6–S8; ADR 0247) |
+| S10 | Waterfall daylight: 4 sky plates, pool plate, light plates, grades | `src/scenery/waterfall/{sky,light}.ts` | in progress (ADR 0247) |
 | S11 | Wildlife per scenery: unlock tables and copy per garden, roster, targets, perspective; shared creatures adapted | `src/core/fauna-unlocks.ts`, `src/fauna/**` | queued (after S3, S4; ADR 0248) |
 | S12 | Trout in the plunge pool | `src/fauna/creatures/trout.ts` | queued (after S11) |
 | S13 | Dipper on the wet rocks | `src/fauna/creatures/dipper.ts` | queued (after S11) |
