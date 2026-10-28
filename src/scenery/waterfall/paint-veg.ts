@@ -33,11 +33,11 @@ const MOSS = mix(PIGMENTS.sap, PIGMENTS.olive, 0.45);
 
 /** The far ridge in cool blue-grey, a nearer ridge under it, and a far tree line on that. */
 export function* paintFarRidge(p: Painter, rng: Rng): Strokes {
-  yield* p.parts.wash(FAR_RIDGE, atmos(mix(PIGMENTS.bellflower, PIGMENTS.stone, 0.45), 1.1), {
+  yield* p.parts.wash(FAR_RIDGE, atmos(mix(PIGMENTS.bellflower, PIGMENTS.stoneDark, 0.45), 0.45), {
     rng,
     deform: 0.03,
     spread: 0.05,
-    opacity: 0.26,
+    opacity: 0.42,
     edge: 0.3,
     edgeWidth: 2.5,
     sharpness: 0.6,
@@ -59,11 +59,11 @@ export function* paintFarRidge(p: Painter, rng: Rng): Strokes {
     ],
     20,
   );
-  yield* p.parts.wash([...near, { x: 1700, y: 480 }, { x: 990, y: 480 }], atmos(mix(PIGMENTS.sage, PIGMENTS.celadon, 0.45), 0.75), {
+  yield* p.parts.wash([...near, { x: 1700, y: 480 }, { x: 990, y: 480 }], atmos(mix(PIGMENTS.sage, PIGMENTS.celadonDeep, 0.45), 0.6), {
     rng,
     deform: 0.04,
     spread: 0.06,
-    opacity: 0.24,
+    opacity: 0.34,
     edge: 0.28,
     edgeWidth: 2,
     sharpness: 0.55,
@@ -81,11 +81,11 @@ export function* paintFarRidge(p: Painter, rng: Rng): Strokes {
     const canopy = 0.5 + 0.5 * noise(x / 22, 0.5) + 0.35 * Math.abs(noise(x / 8, 3.1));
     top.push({ x, y: 412 - stand * (4 + canopy * 14) });
   }
-  yield* p.parts.wash([...top, { x: 1700, y: 432 }, { x: 1000, y: 432 }], atmos(mix(PIGMENTS.olive, PIGMENTS.celadonDeep, 0.4), 0.6), {
+  yield* p.parts.wash([...top, { x: 1700, y: 432 }, { x: 1000, y: 432 }], atmos(mix(PIGMENTS.olive, PIGMENTS.celadonDeep, 0.4), 0.45), {
     rng,
     deform: 0.02,
     spread: 0.04,
-    opacity: 0.22,
+    opacity: 0.32,
     edge: 0.32,
     edgeWidth: 1.5,
     sharpness: 0.65,
@@ -138,7 +138,7 @@ export function* paintBanks(p: Painter, rng: Rng): Strokes {
     softness: 0.55,
     deform: 0.04,
     spread: 0.08,
-    opacity: 0.4,
+    opacity: 0.48,
     edge: 0.25,
     edgeWidth: 2.5,
     sharpness: 0.6,
@@ -161,7 +161,7 @@ export function* paintBanks(p: Painter, rng: Rng): Strokes {
     { x: 1060, y: 712 },
     { x: 1000, y: 650 },
   ];
-  yield* bank(p, rng, right, PIGMENTS.sageLight, mix(COOL, PIGMENTS.sap, 0.5), 0.46, Math.PI / 2 - 0.4);
+  yield* bank(p, rng, right, PIGMENTS.sageLight, mix(COOL, PIGMENTS.sap, 0.5), 0.58, Math.PI / 2 - 0.4);
   yield;
   // the left bank at the cliff's foot, round the pool's rim
   const left: Pt[] = [
@@ -176,7 +176,7 @@ export function* paintBanks(p: Painter, rng: Rng): Strokes {
     { x: 300, y: 812 },
     { x: -80, y: 800 },
   ];
-  yield* bank(p, rng, left, mix(PIGMENTS.sageLight, WARM, 0.3), mix(PIGMENTS.sap, COOL, 0.5), 0.48, Math.PI / 2 + 0.3);
+  yield* bank(p, rng, left, mix(PIGMENTS.sageLight, WARM, 0.3), mix(PIGMENTS.sap, COOL, 0.5), 0.58, Math.PI / 2 + 0.3);
   yield;
   // near mounds: warmer, either side of the trail and the stream
   const nearLeft: Pt[] = [
@@ -190,7 +190,7 @@ export function* paintBanks(p: Painter, rng: Rng): Strokes {
     { x: 560, y: 1080 },
     { x: -80, y: 1080 },
   ];
-  yield* bank(p, rng, nearLeft, mix(PIGMENTS.sageLight, WARM, 0.5), mix(PIGMENTS.sageLight, WARM, 0.15), 0.46, Math.PI / 2 + 0.6, 1);
+  yield* bank(p, rng, nearLeft, mix(PIGMENTS.sageLight, WARM, 0.5), mix(WARM, PIGMENTS.sage, 0.3), 0.56, Math.PI / 2 + 0.6, 1);
   yield;
   const middle: Pt[] = [
     { x: 740, y: 776 },
@@ -204,7 +204,7 @@ export function* paintBanks(p: Painter, rng: Rng): Strokes {
     { x: 780, y: 960 },
     { x: 760, y: 860 },
   ];
-  yield* bank(p, rng, middle, mix(PIGMENTS.sageLight, WARM, 0.45), mix(WARM, COOL, 0.4), 0.44, Math.PI / 2);
+  yield* bank(p, rng, middle, mix(PIGMENTS.sageLight, WARM, 0.45), mix(WARM, COOL, 0.4), 0.54, Math.PI / 2);
   yield;
   const nearRight: Pt[] = [
     { x: 1150, y: 790 },
@@ -217,7 +217,7 @@ export function* paintBanks(p: Painter, rng: Rng): Strokes {
     { x: 1230, y: 900 },
     { x: 1220, y: 830 },
   ];
-  yield* bank(p, rng, nearRight, mix(PIGMENTS.sageLight, WARM, 0.5), mix(PIGMENTS.sageLight, COOL, 0.3), 0.44, Math.PI / 2 - 0.6, 1);
+  yield* bank(p, rng, nearRight, mix(PIGMENTS.sageLight, WARM, 0.5), mix(COOL, PIGMENTS.sap, 0.4), 0.54, Math.PI / 2 - 0.6, 1);
   yield;
 
   // cool shade where the banks turn down to the water, and under the cliff
@@ -266,22 +266,22 @@ export function* paintCrownWoods(p: Painter, rng: Rng): Strokes {
   for (const [x0, x1] of runs) {
     const top: Pt[] = [];
     for (let x = x0; x <= x1; x += 10) top.push({ x, y: skylineAt(x) - 4 });
-    const under = [...top, ...top.slice().reverse().map((q) => ({ x: q.x, y: q.y + 34 }))];
-    yield* p.parts.wash(under, WOODS.mid, { rng, opacity: 0.3, deform: 0.08, spread: 0.12, edge: 0.2, fade: { angle: Math.PI / 2, start: 0.3, amount: 1, ragged: 0.7 } });
+    const under = [...top, ...top.slice().reverse().map((q) => ({ x: q.x, y: q.y + 44 }))];
+    yield* p.parts.wash(under, WOODS.mid, { rng, opacity: 0.5, deform: 0.08, spread: 0.12, edge: 0.2, fade: { angle: Math.PI / 2, start: 0.3, amount: 1, ragged: 0.7 } });
     yield;
   }
   for (const [x0, x1] of runs) {
-    for (let x = x0 + rng.range(0, 14); x < x1; x += rng.range(18, 34)) {
-      if (rng.next() < 0.22) continue; // a gap in the stand
+    for (let x = x0 + rng.range(0, 14); x < x1; x += rng.range(16, 28)) {
+      if (rng.next() < 0.14) continue; // a gap in the stand
       const nearSlot = CROWN_SLOTS.some((s) => Math.abs(s - x) < 34);
-      const k = nearSlot ? 0.55 : rng.range(0.8, 1.25);
-      const r = rng.range(15, 26) * k;
+      const k = nearSlot ? 0.6 : rng.range(0.85, 1.3);
+      const r = rng.range(22, 34) * k;
       const y = skylineAt(x) + r * 0.15;
       yield* p.parts.foliageClump({ x, y }, r, WOODS, { rng, flatness: rng.range(0.6, 0.85), shadow: 0.85, opacity: 0.8, gaps: 0.3, dabSize: 0.24 });
       yield;
       // now and then a spire: a narrow stack of clumps standing above the stand
       if (!nearSlot && rng.next() < 0.28) {
-        const h = rng.range(30, 52);
+        const h = rng.range(44, 70);
         for (let t = 0; t < 3; t++) {
           const yy = y - h * (0.35 + 0.3 * t);
           yield* p.parts.foliageClump({ x: x + rng.range(-3, 3), y: yy }, r * (0.62 - t * 0.14), WOODS, { rng, flatness: 1.3, shadow: 0.9, opacity: 0.78, gaps: 0.25 });
@@ -325,7 +325,7 @@ export const OVERHANG: readonly { trunk: Pt[]; crowns: [number, number, number][
 export function* paintOverhang(p: Painter, rng: Rng): Strokes {
   const bark = mix(PIGMENTS.wood, PIGMENTS.sumi, 0.55);
   for (const tree of OVERHANG) {
-    p.stroke(tree.trunk, { rng, pigment: bark, width: 6, taper: [0, 0.7], wobble: 0.3, wetness: 0.35, dryness: 0.25, opacity: 0.85 });
+    p.stroke(tree.trunk, { rng, pigment: bark, width: 9, taper: [0, 0.7], wobble: 0.3, wetness: 0.35, dryness: 0.25, opacity: 0.85 });
     yield;
     for (const [x, y, r] of tree.crowns) {
       yield* p.parts.foliageClump({ x, y }, r, WOODS, { rng, flatness: 0.55, shadow: 0.8, opacity: 0.82, gaps: 0.35, dabSize: 0.22 });
@@ -364,7 +364,7 @@ function frond(c: Ctx2D, rng: Rng, base: Pt, angle: number, len: number, bend: n
       const ny = Math.cos(la) * w;
       const mx = (q.x + tx) / 2;
       const my = (q.y + ty) / 2;
-      c.fillStyle = rgba(pig, rng.range(0.45, 0.75));
+      c.fillStyle = rgba(pig, rng.range(0.6, 0.9));
       c.beginPath();
       c.moveTo(q.x, q.y);
       c.quadraticCurveTo(mx + nx, my + ny, tx, ty);
@@ -386,14 +386,14 @@ function spray(c: Ctx2D, rng: Rng, at: Pt, size: number, lean: number): void {
 /** Fern roots: past each ledge's ends, and along the cliff's foot clear of its slots and the pool. */
 export const FERN_SPOTS: readonly { at: Pt; size: number; lean: number }[] = [
   ...LEDGES.flatMap((l) => [
-    { at: { x: l.edge[0].x - 6, y: l.edge[0].y + 4 }, size: 34 * l.scale, lean: -1 },
-    { at: { x: l.edge[1].x + 6, y: l.edge[1].y + 4 }, size: 34 * l.scale, lean: 1 },
+    { at: { x: l.edge[0].x - 6, y: l.edge[0].y + 4 }, size: 58 * l.scale, lean: -1 },
+    { at: { x: l.edge[1].x + 6, y: l.edge[1].y + 4 }, size: 58 * l.scale, lean: 1 },
   ]),
-  { at: { x: 160, y: 640 }, size: 34, lean: -1 },
-  { at: { x: 226, y: 636 }, size: 30, lean: 1 },
-  { at: { x: 384, y: 634 }, size: 32, lean: 1 },
-  { at: { x: 940, y: 614 }, size: 30, lean: 1 },
-  { at: { x: 1034, y: 500 }, size: 26, lean: 1 },
+  { at: { x: 160, y: 640 }, size: 52, lean: -1 },
+  { at: { x: 226, y: 636 }, size: 46, lean: 1 },
+  { at: { x: 384, y: 634 }, size: 50, lean: 1 },
+  { at: { x: 940, y: 614 }, size: 46, lean: 1 },
+  { at: { x: 1034, y: 500 }, size: 40, lean: 1 },
 ];
 
 /** Moss round the ledges' ends, then the fern sprays in one wet layer (they bleed where they touch). */
@@ -404,7 +404,7 @@ export function* paintFerns(p: Painter, rng: Rng): Strokes {
       yield;
     }
   }
-  const area: Rect = { x: 80, y: 280, w: 1000, h: 400 };
+  const area: Rect = { x: 60, y: 250, w: 1060, h: 450 };
   const L = p.layer(area);
   let i = 0;
   for (const s of FERN_SPOTS) {
@@ -438,7 +438,7 @@ export function* paintForeground(p: Painter, rng: Rng): Strokes {
     { x: 1560, y: 960 },
   ];
   for (const at of tufts) {
-    p.grassTuft(at, { rng, height: rng.range(36, 52), blades: rng.int(8, 13), ground: false, opacity: 0.7 });
+    p.grassTuft(at, { rng, height: rng.range(60, 90), blades: rng.int(9, 14), ground: false, opacity: 0.75 });
     yield;
   }
 }
