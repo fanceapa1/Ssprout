@@ -16,7 +16,7 @@ const section: StudioSection = {
     region('water-falls', 'falls (still): streaks, white paper, lifted threads, thin edges over wet rock, foam', { x: 460, y: 260, w: 320, h: 400 }, WET, false, 560),
     region('water-pool', 'plunge pool: deep heart, warm shallows, cliff reflection, churn at the foot', { x: 400, y: 560, w: 680, h: 220 }, WET, true, 800),
     region('water-stream', 'outflow stream: S curve widening to the viewer, ripple strokes, riffles round rocks', { x: 900, y: 660, w: 440, h: 340 }, WET, true, 640),
-    region('water-scene', 'the painting so far: rock, water and boulders over the vegetation and sky placeholders', { x: 0, y: 0, w: WORLD_W, h: WORLD_H }, undefined, true, 800),
+    region('water-scene', 'the painting so far: rock, water and boulders over the vegetation, under the sky placeholder', { x: 0, y: 0, w: WORLD_W, h: WORLD_H }, undefined, true, 800),
   ],
 };
 

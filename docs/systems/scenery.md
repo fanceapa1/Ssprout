@@ -19,9 +19,12 @@ weather and the daylight are shared (owner decisions, phase 10).
 | `waterfall/layout.ts` | the waterfall's skyline (`SKYLINE`, `skylineAt`, `openSky`), `CLIFF`, `FAR_RIDGE`, `LEDGES` (with their scale), `CROWN_SCALE`, `WATERFALL_SKY_LAYOUT`, `FOCUS`, `WATERFALL_AMBIENCE`, `WATERFALL_HABITAT_WORDS` |
 | `waterfall/geometry.ts` | `FALLS`, `POOL`, `WATERLINE`, `STREAM_LINE` and `STREAM`, `ROCKS`, `TRAIL`, `waterfallScene` |
 | `waterfall/slots.ts` | `WATERFALL_SLOTS`: 49 slots, explicit scale on the cliff |
-| `waterfall/index.ts` | `WATERFALL` (`available` only with `?dev&scenery=waterfall`), `waterfallSteps` (the rock, the water and the placeholders), `WATERFALL_SKY`, `WATERFALL_LIGHT_ART`, `WATERFALL_VIEW` |
+| `waterfall/index.ts` | `WATERFALL` (`available` only with `?dev&scenery=waterfall`), `waterfallSteps` (the land, the rock, the vegetation, the water and the sky placeholder), `WATERFALL_SKY`, `WATERFALL_LIGHT_ART`, `WATERFALL_VIEW` |
 | `waterfall/paint-rocks.ts` | the rock's painters (S6): `paintGorge`, `paintCliff`, `paintButtress`, `paintLedges`; `cliffBody`, `buttressShape`, `ROCK_LIGHT` and the rock pigments |
 | `waterfall/paint-water.ts` | the water's painters (S7): `paintPool`, `paintStream`, `paintFalls`; `sheetAt` (a point on the falling sheet) and the `WATER` pigments |
+| `waterfall/paint-veg.ts` | the vegetation and ground painters (S8): `paintFarRidge`, `paintBanks`, `paintWaterfallMeadow`, `paintWaterfallGrass`, `paintCrownWoods`, `paintOverhang`, `paintFerns`, `paintForeground`; `WATERFALL_GROUND` (where the meadow's texture may go), `WOODS`, `OVERHANG`, `FERN_SPOTS` |
+| `waterfall/veg.studio.ts` | studio `waterfall-veg` (108): `veg-banks`, `veg-woods`, `veg-ferns`, `veg-scene` |
+| `waterfall/veg.test.ts` | the vegetation's steps, ferns off the slots, hash pins, slice bounds, parts |
 | `waterfall/water.studio.ts` | studio `waterfall-water` (106): `water-falls`, `water-pool`, `water-stream`, `water-scene` |
 | `waterfall/water.test.ts` | the water's steps, the sheet's edges, hash pins, slice bounds, parts |
 | `waterfall/sprites.ts` | `WATERFALL_ROCKS` (`art.rockSprites`): `paintWaterfallRock`, `isWetRock` |
@@ -175,17 +178,22 @@ Steps, back to front (`only` filters by element):
 | Step | Element | Who | What |
 |---|---|---|---|
 | `sky` | `sky` | placeholder (S10) | flat wash over the open sky |
-| `far-ridge` | `ridge` | placeholder (S8) | flat far ridge and plain |
-| `banks` | `banks` | placeholder (S8) | flat ground from y 470 |
+| `far-ridge` | `ridge` | S8 | the far ridge, a nearer ridge and a far tree line (soft) |
+| `banks` | `banks` | S8 | the plain and the grassy banks, warm and cool passages, shade, lips (soft) |
+| `meadow` | `banks` | S8 | the garden's meadow patches, off the cliff, the pool, the stream and the edges |
+| `grass` | `banks` | S8 | the garden's sparse grass strokes, same mask |
 | `gorge` | `gorge` | S6 | the upper gorge behind the lip |
 | `cliff` | `cliff` | S6 | the cliff mass and its detail |
 | `buttress` | `cliff` | S6 | the buttress right of the falls |
 | `ledges` | `ledges` | S6 | the six ledges and their moss |
-| *(S8: crown woods, ledge ferns)* | | | |
+| `crown-woods` | `woods` | S8 | dark broken woods along the cliff top, with spires |
+| `overhang` | `woods` | S8 | two trees leaning out over the cliff edge |
+| `ferns` | `ferns` | S8 | moss at the ledges' ends, fern sprays there and at the cliff foot |
 | `pool` | `water` | S7 | the plunge pool: deep heart, shallows, reflections, churn |
 | `stream` | `water` | S7 | the outflow stream: channel, ripples, riffles |
 | `falls` | `falls` | S7 | the falling sheet (still) and the foam at its foot |
-| *(S8: near banks, the trail's earth, grass)* | | | |
+| `foreground` | `near` | S8 | deeper greens in the bottom corners, tall grass tufts |
+| `margins` | `near` | S8 | the garden's unpainted-paper margins (soft) |
 | `stones` | `path` | S6 | the trail's stepping stones (the garden's `paintStones`) |
 
 **The rock (S6, `paint-rocks.ts`).** Painted on white like the garden (ADR 0021), lit from the
@@ -243,6 +251,37 @@ Boulders are sprites, drawn over the whole background, so every boulder sits on 
   waterline (mostly under the sprite, it shows as a bright rim) and a broken wake either side.
 
 Studio: `waterfall-water/water-falls`, `/water-pool`, `/water-stream` and `/water-scene`.
+
+**The vegetation and ground (S8, `paint-veg.ts`).** On white, in parts, neutral daytime only. The
+land is painted first, under the cliff's reserved paper and the pool's rim reserve, so the rock
+and the water need nothing from it; the vegetation on the rock comes after the ledges; the near
+foreground and the margins come after the falls and before the stepping stones, as in the garden.
+`far-ridge`, `banks` and `margins` are `soft` (draft resolution), like the garden's big washes.
+- *Far ridge*: `FAR_RIDGE` in a cool blue-grey (bellflower and stone, through `atmos`), fading
+  down; a nearer, greener ridge under it; a scalloped tree line on that, broken into stands by
+  low-frequency noise.
+- *Banks*: a pale cool plain from y 452, then wet-in-wet banks far to near (the right bank up to
+  the plain, the left bank round the pool's rim, three warmer near mounds either side of the trail
+  and the stream), each with a lit lip bleeding into its body and a ragged fade toward its open
+  side. Soft warm (sap, gold, ochre) and cool (sage, celadon) passages with granulation, cool shade
+  glazes where the banks turn down to the water, dry-brush along the lips.
+- *Meadow and grass*: the garden's `paintMeadow` and `paintMeadowGrass` with `WATERFALL_GROUND`.
+  Its `pond` is the cliff and the pool as one shape plus a strip past the left edge, its `path`
+  the stream plus strips past the right and bottom edges, where the margins leave paper. That
+  keeps the work per row of cells under the slice bound and paints nothing under the cliff.
+- *Crown woods*: a dark under-wash along the skyline, then stands of `foliageClump`s in `WOODS`
+  (olive toward indigo and sumi) with gaps, now and then a spire of three stacked clumps. Over the
+  crown slots (`cliff-3`, `-4`, `-5`) the clumps stay small and no spire grows.
+- *Overhang*: `OVERHANG`, a tree left of the notch and one off the buttress's right flank, each a
+  dry trunk stroke leaning out and three clumps.
+- *Ferns*: a moss glaze at each ledge end, then fern sprays (`FERN_SPOTS`) just past the ledges'
+  ends, drooping outward, and five along the cliff foot clear of the slots. A frond is an arching
+  rachis with paired tapered leaflets; each spray is its own small wet layer, so its fronds bleed
+  together and no drying pass reads the whole cliff.
+- *Foreground*: deeper green glazes in the bottom corners and six tall grass tufts away from the
+  slots and the trail; the margins dissolve them toward the edge.
+
+Studio: `waterfall-veg/veg-banks`, `/veg-woods`, `/veg-ferns` and `/veg-scene`.
 
 ### Left for later tasks
 - S5: `WATERFALL_HABITAT_WORDS` ('in the plunge pool', 'on the mossy ledges'…) once the

@@ -145,7 +145,7 @@ const map: StudioEntry = {
 
 const placeholder: StudioEntry = {
   id: 'placeholder',
-  label: 'placeholder painting (flat shapes until S6–S8) with the painted boulders and the paper',
+  label: 'the painting (the sky a flat placeholder until S10) with the painted boulders and the paper',
   w: 800,
   h: 500,
   render(canvas, { seed }) {
