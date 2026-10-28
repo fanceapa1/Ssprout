@@ -9,10 +9,7 @@ import { paintMargins, paintStones } from '../../scene/paint-land';
 import type { Scenery, SceneryView } from '../types';
 import { TRAIL, waterfallScene } from './geometry';
 import { FOCUS, WATERFALL_AMBIENCE } from './layout';
-import type { LightArt } from '../../ambience/cast';
-import { WATERFALL_SKY_LAYOUT } from './layout';
-
-const WATERFALL_LIGHT_ART: LightArt = { trees: [], shrubs: [], sky: WATERFALL_SKY_LAYOUT };
+import { WATERFALL_LIGHT_ART } from './light';
 import { paintButtress, paintCliff, paintGorge, paintLedges } from './paint-rocks';
 import { paintFalls, paintPool, paintStream } from './paint-water';
 import { paintBanks, paintCrownWoods, paintFarRidge, paintFerns, paintForeground, paintOverhang, paintWaterfallGrass, paintWaterfallMeadow } from './paint-veg';
