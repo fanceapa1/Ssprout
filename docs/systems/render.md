@@ -73,12 +73,13 @@ Back → front: `background`, `underwater`, `waterSurface`, `entities`, `air`, `
   the clock and the worker ticker). A background tab gets no `requestAnimationFrame` at all, so
   `document.hidden` needs no gate of its own.
 
-## Renderer API (`createRenderer({ canvas, store, bus, clock, scene, reducedMotion?, … })`)
+## Renderer API (`createRenderer({ canvas, store, bus, clock, scene, scenery?, reducedMotion?, … })`)
 - `viewport` (the camera's view), `baseViewport` (the overview), `camera`, `frozen`, `running` (getters).
 - `add(system)` → Promise (rejects if a system with that `id` is already registered);
   `remove(id)` (disposes it); `systems()`.
 - `start()` / `stop()` (rAF loop plus resize listeners), `freeze()` / `unfreeze()`, `renderOnce()`,
   `resize()` (re-measure and re-init now), `invalidate(layer?)`, `whenReady()`, `dispose()`.
+- `scenery` (getter), `setScenery(s)` → Promise (ready), `sceneryFade()` (0..1); see below.
 - `visible` (getter), `setVisible(bool)`, `pauseWhenOffscreen(target, margin = '160px 0px')` →
   disconnect (a no-op without IntersectionObserver; disconnecting makes it visible again).
 - `frameStats()` → `{ frames, workAvg, workP95, workMax, intervalAvg, intervalP95 }` in ms over
@@ -88,7 +89,21 @@ Back → front: `background`, `underwater`, `waterSurface`, `entities`, `air`, `
   include it or not; compare whole main-thread time (CDP `TaskDuration` per frame) instead
   (ADR 0207, `camera.spec.ts` › cost at rest).
 
-`SystemContext` (passed to `init`): `{ viewport /* overview */, camera /* live CameraView */, store, bus, clock, scene, reducedMotion }`.
+`SystemContext` (passed to `init`): `{ viewport /* overview */, camera /* live CameraView */, store, bus, clock, scene, scenery?, reducedMotion }`.
+With a `scenery`, `scene` is its geometry and the default focus its `view.focus`.
+
+## Switching the scenery (ADR 0243)
+`setScenery(s)` (a no-op for the scenery on view):
+1. copies the canvas into an offscreen snapshot (kept if a switch is already covering the stage);
+2. sets the focus from `s.view.focus` and re-measures (`resize()`: new viewport, `camera.setBase`,
+   a new generation and every system's `init` with `scenery: s`);
+3. cuts the camera to the overview;
+4. draws the snapshot over every layer at alpha 1 until that generation is ready, then lowers its
+   alpha by `dt / SCENERY_FADE_S` (0.9 s) per frame. Reduced motion, a frozen, stopped or hidden
+   renderer drop it at once; `freeze()` also ends a fade under way.
+
+The snapshot holds the paper already, so it is drawn last with `source-over`. The scene system
+shows a new scenery's first painting without its own paper fade-in, so the only fade is this one.
 
 ## Adding a system
 ```ts

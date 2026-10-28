@@ -163,6 +163,9 @@ checks their order:
 | `plants`, `fauna` | a frame and a task each | `renderer.add(plants)`, then `createFauna` + add |
 | `ambience`, `done` | the last | `window.sprout` with every extension (`?dev`), `addAmbience`, the light reveal |
 
+The renderer is made with the scenery on view (`scenery`, from `state.scenery` and the URL flags)
+and the scenery host right after it, in the first task (ADR 0243).
+
 Rules:
 - The waits are `afterPaint()`: a frame and then a task, or a 100 ms timer when frames stall (in a
   background tab).
@@ -190,9 +193,11 @@ export interface System {
   entities?(f: FrameInfo): Drawable[];
   dispose?(): void;
 }
-export interface SystemContext { viewport: Viewport /* the overview */; camera?: CameraView /* live */; store: Store; bus: EventBus; clock: Clock; scene: SceneGeometry; reducedMotion: boolean; }
+export interface SystemContext { viewport: Viewport /* the overview */; camera?: CameraView /* live */; store: Store; bus: EventBus; clock: Clock; scene: SceneGeometry /* = scenery.geometry */; scenery?: Scenery /* on view */; reducedMotion: boolean; }
 ```
 The renderer sets `ctx` to world units before calling `draw`. Systems never touch the DOM.
+`init` runs again after `renderer.setScenery(s)` with the new `scenery` (ADR 0243): a system
+compares `ctx.scenery.id` with the one it was built for and rebuilds what belongs to the garden.
 
 ## Core contracts
 
@@ -315,7 +320,20 @@ The consumers take a scenery's data as an option and default to the Japanese gar
 `createSkyLight({ sky, scenery })`, `createCastLight(scene, art, seed, { scenery })`,
 `createAmbience({ scenery })` / `addAmbience(renderer, { scenery })`, `sunDisc(s, sky)`,
 `moonDisc(s, sky)`, `stars(n, seed, sky)`, `createWayfinding({ pathOut })`, `DEFAULT_FOCUS`
-(= the default scenery's `view.focus`). Runtime switching (`SystemContext.scenery`) is S3.
+(= the default scenery's `view.focus`).
+
+**Switching at runtime** (ADR 0243). `src/scenery/host.ts` follows `state.scenery` (only the
+sceneries `sceneries(flags)` offers; others read as the first) and calls
+`renderer.setScenery(scenery): Promise<void>`. The renderer keeps its last frame over the stage,
+sets the focus and the camera's base, cuts the camera to the overview and re-inits every system
+with `SystemContext.scenery` (the resize path). Once `whenReady()` resolves the old frame fades
+out over `SCENERY_FADE_S` (0.9 s); a cut under reduced motion, frozen, stopped or hidden.
+`renderer.scenery` and `renderer.sceneryFade()` (0..1) report it. A session from another
+garden that becomes active (start or switch) dispatches `scenery/view` to its garden first, in
+the same store dispatch, so the camera's glide to its seedling (ADR 0168) runs after the cut.
+The scene takes `art` and `sky`, the ambience its `light` and `ambience` (weather stays global),
+plants show `gardenOnView(state, id)`, fauna resets its residents (wildlife only in the Japanese
+garden until S11).
 
 ### State (`src/core/state.ts`, ADR 0003, ADR 0036, ADRs 0150–0154, 0170, 0240)
 Each session is one plant, chosen at start, growing live in its slot. Up to three sessions are in
@@ -650,6 +668,10 @@ each step's parts and longest part, the paint's `longest` uninterrupted part, AD
 `scenePainted()` (resolves when no background repaint is pending), `skyStats()` (daylight sky plates painted,
 composites, paint ms, the detail composite), `sceneDetail()` (the camera's detail painting: view,
 painting, fade, its `longest` part, extension, `cacheHits`, `cacheMisses`). `?dev&slots` draws the slot overlay.
+
+Sceneries (`src/dev/scenery-debug.ts`, ADR 0243): `scenery()` → `{ viewed, available, fade }`,
+`showScenery(id)` (dispatches `scenery/view`; resolves once the garden is ready, rejects an
+unavailable id). `?dev&scenery=waterfall` offers the waterfall.
 
 Paint cache (`src/paint/debug.ts`): `window.sprout.paintCache` is the app's `PaintCache` (ADR 0227),
 plus `open({ version?, maxBytes? })` for another cache on the same IndexedDB store.

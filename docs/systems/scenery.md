@@ -55,8 +55,8 @@ perspective; S11), `sound` (S15; `core/soundscape.ts` names its audio sceneries 
 and `coast`), `habitatWords` and `thumbnail` (S5), `surface` (the per-frame water animator; S9).
 
 ## Who reads what
-Each consumer takes the scenery's part as an option and defaults to the Japanese garden's, so
-`main.ts` is unchanged and runtime switching (S3) only has to pass the current scenery down.
+Each consumer takes the scenery's part as an option and defaults to the Japanese garden's; at
+runtime the renderer passes the scenery on view down (`SystemContext.scenery`, see Switching).
 
 | Consumer | Reads | Option |
 |---|---|---|
@@ -69,6 +69,28 @@ Each consumer takes the scenery's part as an option and defaults to the Japanese
 | viewport (`render/viewport.ts`) | `view.focus` | `DEFAULT_FOCUS`; the renderer's `focus` option |
 | wayfinding (`ui/wayfinding.ts`) | `view.pathOut` | `createWayfinding({ pathOut })` |
 | watering can (`plants/system.ts`) | `geometry.structure` | the geometry |
+
+## Switching (ADR 0243)
+`src/scenery/host.ts` (`createSceneryHost({ store, renderer, getScenery })`) follows
+`state.scenery` and calls `renderer.setScenery`; `main.ts` gives it the sceneries the URL flags
+offer (an unavailable id reads as the Japanese garden). The renderer covers the stage with its
+last frame, cuts the camera to the overview, re-inits every system with `SystemContext.scenery` and
+cross-fades over 0.9 s once the new garden is ready (a cut under reduced motion); docs/systems/render.md.
+
+| System | On a new scenery |
+|---|---|
+| scene (`scene/system.ts`) | drops its paintings, jobs, sky and water; paints `scenery.art` (or takes it from the paint cache) with `scenery.sky`; init blocks until painted |
+| ambience (`ambience/system.ts`) | builds its engine again with the scenery's `light` and `ambience`; the weather, the time override and the reveal carry over |
+| plants (`plants/system.ts`) | shows `gardenOnView(state, id)`: the finished plants and seedlings of that garden only; sessions elsewhere keep growing in state; watering applies only to a seedling on view |
+| fauna (`fauna/system.ts`) | the new scene, `resetResidents()`, unlocks and targets from that garden; no creatures outside the Japanese garden until per-scenery rosters (S11) |
+
+A session from another garden that becomes active (started or switched to) dispatches
+`scenery/view` first, in the same dispatch, so its garden is cut in before the glide to its
+seedling. The timeline and the weather are shared: the active session's weather shows in any garden.
+
+Dev API: `sprout.scenery()` → `{ viewed, available, fade }`; `sprout.showScenery(id)` resolves
+once the garden is ready (rejects an unavailable id); open `?dev&scenery=waterfall` to offer the
+waterfall.
 
 ## Paint cache (ADR 0242)
 Every key starts with the scenery id: `japanese-garden|s7|normal|0,0,1600,1000@1.5|2400x1500`
