@@ -9,7 +9,7 @@ import type { Rng } from '../../core/rng';
 import { PIGMENTS, blob, lighten, mix, type Painter, type Pigment } from '../../paint';
 import { WORLD_W, type Pt, type Rect } from '../../render/viewport';
 import type { ScenerySky } from '../types';
-import { FAR_RIDGE, openSky, SKY_TOP, skylineAt, WATERFALL_SKY_LAYOUT } from './layout';
+import { FAR_RIDGE, openSky, SKY_TOP, SKYLINE, skylineAt, WATERFALL_SKY_LAYOUT } from './layout';
 
 /** The band the sky plates cover: from above the world down past the far ridge's plain (y 470). */
 export const WATERFALL_SKY_RECT: Rect = { x: 0, y: SKY_TOP, w: WORLD_W, h: 740 };
@@ -77,10 +77,18 @@ function ridge(p: Painter, rng: Rng, pigment: Pigment, opacity: number): void {
   p.glaze(FAR_RIDGE as Pt[], pigment, { rng, opacity, fade: { angle: Math.PI / 2, start: 0.3, amount: 1 } });
 }
 
+/**
+ * The washes' outline: a short hang under the crown and the buttress (the pale cliff would show a
+ * longer one), a deeper one over the flank and the far ridge, where the distance takes the sky.
+ */
+export function plateSky(): Pt[] {
+  const line = SKYLINE.map((q) => ({ x: q.x, y: q.y + (q.x >= 870 ? 40 : 14) }));
+  return [{ x: -80, y: SKY_TOP - 40 }, { x: 1680, y: SKY_TOP - 40 }, ...line.reverse()];
+}
+
 /** One phase's sky, into a painter whose transform maps world units onto the plate. */
 export function paintWaterfallSky(p: Painter, rng: Rng, phase: DayPhase): void {
-  // a short hang under the skyline: the pale cliff would show a longer one (ADR 0247)
-  const sky = openSky(14);
+  const sky = plateSky();
   const { sunriseX, sunsetX, horizonY } = WATERFALL_SKY_LAYOUT;
   switch (phase) {
     case 'midday': {
