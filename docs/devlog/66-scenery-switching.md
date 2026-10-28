@@ -28,7 +28,7 @@ after another. This task switches the garden on view without a reload (ADR 0243)
 - **Fauna** (`fauna/system.ts`, `fauna/sim.ts`): `resetResidents()`. Unlocks and targets come
   from the garden on view (`plantsIn`, `unlockedFauna(state, lookup, id)`). Until S11 there are no
   creatures outside the Japanese garden, so no koi swim in the waterfall's rock.
-- **`main.ts`** (+11 lines):
+- **`main.ts`** (+12 lines, −4):
   - `sceneries(params)` is the list of available gardens; `pickScenery(id)` falls back to the
     first of them.
   - The renderer, the scene system and the ambience get the initial scenery.
