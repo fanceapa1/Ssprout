@@ -27,7 +27,11 @@ way to choose a garden from the page.
 - Thumbnails are **stills of the stage canvas**: the garden on view is copied after the garden's
   first paint, and a garden is copied again just before you leave it. A garden not seen yet shows
   a pale waiting wash. The canvas is cover-cropped into 192×120 and the card fades its edge with
-  an elliptical mask, like a wash on the sheet.
+  an elliptical mask, like a wash on the sheet. No still is taken while the cross-fade covers the
+  stage (`UIDeps.sceneryFade?()` > 0), so a still never mixes two gardens.
+- The timer pill offers the way back when the active session's seedling grows in the other garden:
+  "Growing in the rocky waterfall · Go" (the garden's name alone on phones); it calls
+  `controller.showScenery(session.sceneryId)`.
 
 ## Consequences
 - The thumbnail is honest (what you last saw) and costs one `drawImage`, but a garden you have not

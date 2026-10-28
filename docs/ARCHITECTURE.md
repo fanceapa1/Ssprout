@@ -733,7 +733,7 @@ Query flags: `?fixtures` (dev `fx-*` species, ADR 0055), `?uitime=0.05` (UI dela
 `?widget=fake`.
 
 ## UI (`src/ui/`, ADRs 0050–0055, 0121, 0124, 0130–0136, 0156, 0164–0168, 0175–0177, 0180–0181, 0190–0194, 0200–0205)
-`createUI({ root, stage?, controller, store, bus, clock, getSpecies, slots, habitatWords?, sceneries?, viewport, audio?, widget?,
+`createUI({ root, stage?, controller, store, bus, clock, getSpecies, slots, habitatWords?, sceneries?, sceneryFade?, viewport, audio?, widget?,
 notifications?, isKnownSpecies?, reducedMotion?, timeScale?, schedules?, camera?, whenGardenReady? })` → `{ dock, gardens, stage, scroll, plantView, wayfinding,
 calendar, camera, placement: { current(), subscribe(fn) }, state(), refresh(), previewsReady(), dockReady(), setTimeScale(), showPlantLabel(),
 dispose() }`. `slots()` and `habitatWords?()` are getters for the garden on view (main: the viewed

@@ -196,7 +196,12 @@ order 25, full span, helper "Each garden keeps its own plants."), from `ui/garde
 - choosing a card calls `controller.showScenery(id)`; the scenery host cross-fades the stage;
 - the thumbnail is a still of the stage canvas, cover-cropped to 192×120 and faded at its edge
   by an elliptical mask: the garden on view is copied after the first paint, and a garden again
-  just before you leave it. A garden not seen yet shows a pale waiting wash.
+  just before you leave it (never while the cross-fade covers the stage, `deps.sceneryFade?()`). A
+  garden not seen yet shows a pale waiting wash.
+
+When the active seedling grows in the other garden, the timer pill adds
+`button.pill-away` "Growing in the rocky waterfall · Go" (the garden's name alone at ≤ 600 px),
+which brings that garden into view.
 
 The rest of the UI reads the garden on view: `deps.slots()` (placement markers' positions, the
 camera's seedling framing, plant labels, `slotScreen`) and `deps.habitatWords?.()` (the planting
