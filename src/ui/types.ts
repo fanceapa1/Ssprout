@@ -213,6 +213,8 @@ export interface UIStage {
 export interface UI {
   /** sections below the garden: `ui.dock.addSection({ id, title, order, span, mount })` */
   readonly dock: Dock;
+  /** the Gardens section (null with one garden): which gardens have a thumbnail still */
+  readonly gardens: { stills(): SceneryId[] } | null;
   readonly stage: UIStage;
   readonly scroll: UIScroll;
   /** the dock's live plant view: `water()` plays the watering animation (automatic watering hook) */

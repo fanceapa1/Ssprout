@@ -38,6 +38,7 @@ import { createWayfinding } from './wayfinding';
 import type { PlantingDraft, UI, UIDeps, UIMode, UIState } from './types';
 // last, so the one hover language (ADR 0204) sits over every component's own styles
 import './hover.css';
+import { createGardensSection } from './gardens-section';
 
 export type { Dock, DockSection, DockSectionDef, DockSectionInfo, DockSpan } from './dock';
 export type {
@@ -249,6 +250,12 @@ export function createUI(deps: UIDeps): UI {
   dock.addSection({ id: 'plant', title: 'Your plant', order: 20, mount: (body) => plantView.mount(body) });
   // filled below when the app has a scheduler (ADR 0175); hidden until then (ADR 0130)
   dock.addSection({ id: 'calendar', title: 'Calendar', order: 30, span: 'full', backdrop: 'firm' });
+  // more than one garden to grow in: the Gardens section (ADR 0244)
+  const gardens = deps.sceneries && deps.sceneries.length > 1 ? createGardensSection(ctx, deps.sceneries, stage.canvas) : null;
+  if (gardens) {
+    dock.addSection({ id: 'gardens', title: 'Gardens', helper: 'Each garden keeps its own plants.', order: 25, span: 'full', mount: (body) => void body.append(gardens.el) });
+    void gardenReady?.then(() => !disposed && gardens.takeStill());
+  }
   dock.addSection({ id: 'tools', title: 'Garden tools', order: 90, span: 'full', mount: (body) => void body.append(tools.dock) });
 
   // ── scheduled sessions: the calendar, its editor, the waiting card (ADRs 0173–0177) ─────────
@@ -480,6 +487,7 @@ export function createUI(deps: UIDeps): UI {
       ctx.setMode('garden');
     }
     dueCards?.render();
+    gardens?.refresh();
     panel.render();
     sessions.render();
     pill.render();
@@ -553,6 +561,7 @@ export function createUI(deps: UIDeps): UI {
 
   return {
     dock,
+    gardens: gardens ? { stills: () => gardens.stills() } : null,
     stage: { el: stage.el, onZoomGesture: (fn) => stage.onZoomGesture(fn) },
     scroll: {
       state: () => scroller.state(),

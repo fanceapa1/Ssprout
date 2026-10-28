@@ -2675,6 +2675,87 @@ dialog.book::after {
   }
 }
 
+/* ── the Gardens section (ADR 0244) ───────────────────────────────────────── */
+.gardens {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+}
+.gardens > li {
+  display: flex;
+}
+.garden-card {
+  appearance: none;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 10px 12px 12px;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  position: relative;
+}
+.garden-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: var(--slip-faint);
+  background-size: 100% 100%;
+  opacity: 0;
+  transition: opacity var(--ui-mid);
+}
+.garden-card > * {
+  position: relative;
+}
+.garden-card:is(:hover, :focus-visible)::before {
+  opacity: 0.7;
+}
+.garden-card[aria-pressed='true'] {
+  cursor: default;
+}
+.garden-card[aria-pressed='true']::before {
+  opacity: 1;
+  background-image: var(--slip-2);
+}
+/* the still bleeds out at its edges like a wash on the sheet */
+.garden-thumb {
+  display: block;
+  width: 100%;
+  aspect-ratio: 8 / 5;
+  height: auto;
+  -webkit-mask-image: radial-gradient(ellipse 72% 70% at 50% 50%, #000 62%, transparent 100%);
+  mask-image: radial-gradient(ellipse 72% 70% at 50% 50%, #000 62%, transparent 100%);
+}
+.garden-thumb[data-still='waiting'] {
+  background: radial-gradient(ellipse at 50% 60%, rgba(120, 140, 120, 0.22), rgba(120, 140, 120, 0.06) 70%, transparent);
+}
+.garden-name {
+  font-family: var(--ui-display);
+  font-size: 17.5px;
+  letter-spacing: 0.02em;
+}
+.garden-blurb {
+  font-style: italic;
+  color: var(--ui-ink-soft);
+  line-height: 1.35;
+}
+.garden-mark {
+  font-size: 14px;
+  letter-spacing: 0.04em;
+  color: var(--ui-ink-soft);
+}
+.garden-card[aria-pressed='true'] .garden-mark {
+  color: inherit;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .ui-root *,
   .ui-root *::before,

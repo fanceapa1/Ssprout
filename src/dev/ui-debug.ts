@@ -17,6 +17,8 @@ declare module './debug' {
       setTimeScale(scale: number): void;
       /** placement markers as the renderer would see them */
       placement(): ReturnType<UI['placement']['current']>;
+      /** gardens whose Gardens-section card holds a still (ADR 0244) */
+      gardenStills(): string[];
       /** show the finished-plant label for the plant at a world point; returns its text */
       showPlantLabel(world: Pt): string | null;
       /**
@@ -113,6 +115,7 @@ export function installUiDebug({ ui, clock, widget, viewport, slots }: UiDebugDe
       refresh: () => ui.refresh(),
       setTimeScale: (s: number) => ui.setTimeScale(s),
       placement: () => ui.placement.current(),
+      gardenStills: () => ui.gardens?.stills() ?? [],
       showPlantLabel: (p: Pt) => ui.showPlantLabel(p),
       slotScreen(id: string) {
         const s = slots().find((x) => x.id === id);
