@@ -51,8 +51,8 @@ ADR 0247. In short:
   ridge, the falls and spray glowing pale. The strongest of the four.
 
 ## Results
-- Typecheck clean; `npx vitest run` (see the task report for counts); e2e `studio.spec.ts` and
-  `sceneries.spec.ts` (port 4363, 1 worker) pass.
+- Typecheck clean; `npx vitest run` 144 files, 1679 tests pass; e2e `studio.spec.ts` and
+  `sceneries.spec.ts` (port 4363, 1 worker) 19 pass in 1.7 min. No full e2e run (CPU budget).
 
 ## Left open
 - **Boulder shadows and rim light** still follow the global `castShadow` / `rimLight`: to the
