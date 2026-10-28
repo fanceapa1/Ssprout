@@ -19,8 +19,11 @@ weather and the daylight are shared (owner decisions, phase 10).
 | `waterfall/layout.ts` | the waterfall's skyline (`SKYLINE`, `skylineAt`, `openSky`), `CLIFF`, `FAR_RIDGE`, `LEDGES` (with their scale), `CROWN_SCALE`, `WATERFALL_SKY_LAYOUT`, `FOCUS`, `WATERFALL_AMBIENCE`, `WATERFALL_HABITAT_WORDS` |
 | `waterfall/geometry.ts` | `FALLS`, `POOL`, `WATERLINE`, `STREAM_LINE` and `STREAM`, `ROCKS`, `TRAIL`, `waterfallScene` |
 | `waterfall/slots.ts` | `WATERFALL_SLOTS`: 49 slots, explicit scale on the cliff |
-| `waterfall/index.ts` | `WATERFALL` (`available` only with `?dev&scenery=waterfall`), `waterfallSteps` (the rock and the placeholders), `WATERFALL_SKY`, `WATERFALL_LIGHT_ART`, `WATERFALL_VIEW` |
+| `waterfall/index.ts` | `WATERFALL` (`available` only with `?dev&scenery=waterfall`), `waterfallSteps` (the rock, the water and the placeholders), `WATERFALL_SKY`, `WATERFALL_LIGHT_ART`, `WATERFALL_VIEW` |
 | `waterfall/paint-rocks.ts` | the rock's painters (S6): `paintGorge`, `paintCliff`, `paintButtress`, `paintLedges`; `cliffBody`, `buttressShape`, `ROCK_LIGHT` and the rock pigments |
+| `waterfall/paint-water.ts` | the water's painters (S7): `paintPool`, `paintStream`, `paintFalls`; `sheetAt` (a point on the falling sheet) and the `WATER` pigments |
+| `waterfall/water.studio.ts` | studio `waterfall-water` (106): `water-falls`, `water-pool`, `water-stream`, `water-scene` |
+| `waterfall/water.test.ts` | the water's steps, the sheet's edges, hash pins, slice bounds, parts |
 | `waterfall/sprites.ts` | `WATERFALL_ROCKS` (`art.rockSprites`): `paintWaterfallRock`, `isWetRock` |
 | `waterfall/rocks.studio.ts` | studio `waterfall-rocks` (104): `cliff`, `ledges`, `boulders`, `scene` |
 | `waterfall/rocks.test.ts` | the rock's steps, wet and mossy boulders, hash pins, slice bounds |
@@ -157,8 +160,9 @@ Steps, back to front (`only` filters by element):
 | `buttress` | `cliff` | S6 | the buttress right of the falls |
 | `ledges` | `ledges` | S6 | the six ledges and their moss |
 | *(S8: crown woods, ledge ferns)* | | | |
-| `pool`, `stream` | `water` | placeholder (S7) | flat water |
-| `falls` | `falls` | placeholder (S7) | flat sheet, white foot |
+| `pool` | `water` | S7 | the plunge pool: deep heart, shallows, reflections, churn |
+| `stream` | `water` | S7 | the outflow stream: channel, ripples, riffles |
+| `falls` | `falls` | S7 | the falling sheet (still) and the foam at its foot |
 | *(S8: near banks, the trail's earth, grass)* | | | |
 | `stones` | `path` | S6 | the trail's stepping stones (the garden's `paintStones`) |
 
@@ -189,6 +193,35 @@ cushion on top and grass at the foot.
 
 Studio: `waterfall-rocks/cliff`, `/ledges`, `/boulders` and `/scene` (the whole painting so far).
 
+**The water (S7, `paint-water.ts`).** On white, in parts, in a cooler, bluer celadon than the
+garden's still pond (`WATER`: light, mid, deep, a warm `shallow` and the sheet's grey-blue).
+The pool and the stream come after the ledges and before the stepping stones; the falls come
+after both, so the sheet lies over the cliff's alcove and its foam over the pool's back edge.
+Boulders are sprites, drawn over the whole background, so every boulder sits on the water.
+- *Falls*: the sheet's paper is reserved by two lifts (0.8 over the outline, full over its inner
+  80 %), so the alcove's dark glaze shows faintly through the thin edges. `WET_ROCK` washes in
+  broken vertical runs down both edges are the cliff glimpsed through the thinnest water. A soft
+  glaze shades the left half (the light comes from the upper right). Then vertical strips
+  (`sheetAt` follows the sheet as it widens) in the sheet's grey-blue or the water's mid, each
+  faded at one end, leave white paper between them; thin lifts pull a few bright threads back
+  out. The lip is a darker glassy roll with a lifted gleam. The foam at the foot is nine soft
+  lifts in a flat mass, a cool shade under it and a misty lift up into the sheet's base.
+- *Pool*: the rim is reserved like the garden's pond (thin at the back, wider toward the viewer),
+  then the garden's `waterBody` recipe in the cooler palette. Over it, clipped to the pool: a deep
+  heart bled in under the falls (two soft glazes), warm shallows along the near edge fading toward
+  the deep, the cliff's dark wet reflection in broken pieces under the waterline (none under the
+  falls), and the reserves: the falls' pale reflection as stacked short lifts below the foot, and
+  the sky band as a few long level lifts, where the garden reserves its own. Churn rings
+  (`ripple`) spread from the foot toward the outflow with foam flecks drifting on the current.
+- *Stream*: its rim is reserved outside the pool only (an even-odd clip), so no rim line crosses
+  the outflow. One wet-in-wet body, deeper upstream and paler toward the viewer, a deeper channel
+  ribbon swaying down the middle, warm shallows inside the bends. Ripples are short, nearly level
+  marks (the stream lies flat, seen from above), half dark strokes, half lifts. Each rock in or
+  at the stream (`rock-outflow`, `rock-stream`, `rock-stream-bank`) gets a pale collar at its
+  waterline (mostly under the sprite, it shows as a bright rim) and a broken wake either side.
+
+Studio: `waterfall-water/water-falls`, `/water-pool`, `/water-stream` and `/water-scene`.
+
 ### Left for later tasks
 - S5: `WATERFALL_HABITAT_WORDS` ('in the plunge pool', 'on the mossy ledges'…) once the
   contract has habitat words.
@@ -198,7 +231,7 @@ Studio: `waterfall-rocks/cliff`, `/ledges`, `/boulders` and `/scene` (the whole 
 
 ## Tests
 - `src/scenery/waterfall/waterfall.test.ts`: the dev flag; self-consistency; no building,
-  lantern or eave; the placeholder steps; habitat words; the falls off centre under the notch, into
+  lantern or eave; the paint steps' order; habitat words; the falls off centre under the notch, into
   the pool; the pool at the cliff foot and the stream out of it to the bottom edge; the trail and
   `pathOut`; the portrait crop; boulders off the falls; slot counts, ids and prefixes; slots in the
   world, out of the sky and off the falls; at most a fifth of the falls hidden; water slots on the
