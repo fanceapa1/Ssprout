@@ -510,6 +510,8 @@ export function createRenderer(opts: RendererOptions): Renderer {
       frozen = true;
       if (rafId !== null) cancelFrame(rafId);
       rafId = null;
+      // a stable frame: a cross-fade under way ends now (a switch still loading keeps its cover)
+      if (snapshotFading) endSnapshot();
       frame(0);
     },
     unfreeze() {

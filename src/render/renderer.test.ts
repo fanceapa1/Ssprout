@@ -489,6 +489,20 @@ describe('renderer › switching the scenery (ADR 0243)', () => {
     expect(snapshotDraws(main.log)).toHaveLength(0);
   });
 
+  it('freezing ends a cross-fade under way', async () => {
+    const { renderer, tick } = setup({ scenery: garden });
+    await renderer.add({ id: 's', init: () => undefined });
+    renderer.start();
+    await renderer.whenReady();
+    tick(1000);
+    await renderer.setScenery(falls);
+    await Promise.resolve();
+    tick(1100);
+    expect(renderer.sceneryFade()).toBeGreaterThan(0);
+    renderer.freeze();
+    expect(renderer.sceneryFade()).toBe(0);
+  });
+
   it('cuts under reduced motion', async () => {
     const { renderer, tick } = setup({ scenery: garden, reducedMotion: true });
     await renderer.add({ id: 's', init: () => undefined });
