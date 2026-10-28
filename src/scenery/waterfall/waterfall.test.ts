@@ -70,9 +70,9 @@ describe('the waterfall scenery', () => {
     expect(waterfallScene.streams).toEqual([STREAM]);
   });
 
-  it('paints placeholder steps, and only the asked-for elements', () => {
+  it('paints its rock and placeholder steps back to front, and only the asked-for elements', () => {
     const steps = WATERFALL.art.steps(WATERFALL.art);
-    expect(steps.map((s) => s.name)).toEqual(['sky', 'far-ridge', 'banks', 'cliff', 'ledges', 'pool', 'stream', 'falls', 'trail']);
+    expect(steps.map((s) => s.name)).toEqual(['sky', 'far-ridge', 'banks', 'gorge', 'cliff', 'buttress', 'ledges', 'pool', 'stream', 'falls', 'stones']);
     expect(WATERFALL.art.steps(WATERFALL.art, ['water']).map((s) => s.name)).toEqual(['pool', 'stream']);
   });
 
