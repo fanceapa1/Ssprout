@@ -40,6 +40,7 @@ const EMPTY: PlacementHighlight = { active: false, speciesId: null, slots: [], f
 
 export function createPlacement(ctx: UIContext, draft: PlantingDraft, actions: PlacementActions): Placement {
   const { controller, getSpecies } = ctx.deps;
+  const words = () => ctx.deps.habitatWords?.() ?? HABITAT_WORDS;
   let open = false;
   let options: CompatibleSlot<Slot>[] = [];
   let focused: string | null = null;
@@ -95,7 +96,7 @@ export function createPlacement(ctx: UIContext, draft: PlantingDraft, actions: P
   }
 
   function marker(o: CompatibleSlot<Slot>): HTMLButtonElement {
-    const where = HABITAT_WORDS[o.slot.habitat];
+    const where = words()[o.slot.habitat];
     const name = occupantName(o);
     const label = o.occupiedBy ? `Replace ${name}, ${where}. It will be pressed into your herbarium.` : `Plant here, ${where}`;
     return h(
@@ -167,7 +168,7 @@ export function createPlacement(ctx: UIContext, draft: PlantingDraft, actions: P
     } else if (chosen.occupiedBy) {
       prompt.append(h('strong', {}, name), ` will take the place of ${occupantName(chosen)}.`);
     } else {
-      prompt.append(h('strong', {}, name), ` will grow ${HABITAT_WORDS[chosen.slot.habitat]}.`);
+      prompt.append(h('strong', {}, name), ` will grow ${words()[chosen.slot.habitat]}.`);
     }
     begin.disabled = !chosen;
   }

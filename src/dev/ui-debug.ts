@@ -102,7 +102,8 @@ export interface UiDebugDeps {
   clock: SpeedClock;
   widget: FakeWidget | null;
   viewport(): Viewport;
-  slots: readonly Slot[];
+  /** the viewed garden's slots */
+  slots(): readonly Slot[];
 }
 
 export function installUiDebug({ ui, clock, widget, viewport, slots }: UiDebugDeps): void {
@@ -114,7 +115,7 @@ export function installUiDebug({ ui, clock, widget, viewport, slots }: UiDebugDe
       placement: () => ui.placement.current(),
       showPlantLabel: (p: Pt) => ui.showPlantLabel(p),
       slotScreen(id: string) {
-        const s = slots.find((x) => x.id === id);
+        const s = slots().find((x) => x.id === id);
         if (!s) return null;
         const p = viewport().worldToScreen(s);
         const r = ui.stage.el.querySelector('canvas')?.getBoundingClientRect() ?? ui.stage.el.getBoundingClientRect();

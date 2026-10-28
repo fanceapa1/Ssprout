@@ -24,8 +24,8 @@ export const HABITAT_WORDS: Readonly<Record<Habitat, string>> = {
 };
 
 /** "on the water · at the pond’s edge" */
-export function habitatPhrase(habitats: readonly Habitat[]): string {
-  return habitats.map((h) => HABITAT_WORDS[h]).join(' · ');
+export function habitatPhrase(habitats: readonly Habitat[], words: Readonly<Record<Habitat, string>> = HABITAT_WORDS): string {
+  return habitats.map((h) => words[h]).join(' · ');
 }
 
 /** Timer face: `24:13`, `1:05:09`. */

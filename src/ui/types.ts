@@ -9,7 +9,8 @@ import type { CalendarView } from './calendar-model';
 import type { ScheduleSheetState } from './schedule-sheet';
 import type { DueCardsState } from './schedule-card';
 import type { Store } from '../core/state';
-import type { SpeciesDef } from '../plants/types';
+import type { Habitat, SpeciesDef } from '../plants/types';
+import type { SceneryId } from '../scenery/ids';
 import type { Camera } from '../render/camera';
 import type { Pt, Rect, Viewport } from '../render/viewport';
 import type { Slot } from '../scene/geometry';
@@ -98,8 +99,12 @@ export interface UIDeps {
   bus: EventBus;
   clock: Clock;
   getSpecies(id: string): SpeciesDef | undefined;
-  /** scene slots (to position placement markers) */
-  slots: readonly Slot[];
+  /** the viewed garden's slots (placement markers, framing, labels); re-read on every use */
+  slots(): readonly Slot[];
+  /** the viewed garden's words for each habitat ("in the plunge pool"); default: the Japanese garden's */
+  habitatWords?(): Readonly<Record<Habitat, string>>;
+  /** the gardens to choose from in the dock's Gardens section (without: no section) */
+  sceneries?: readonly GardenChoice[];
   /** the renderer's current viewport (`() => renderer.viewport`); re-read on every reposition */
   viewport(): Viewport;
   audio?: AudioIntegration;
@@ -245,4 +250,11 @@ export interface UI {
     state(): { touchAction: string; cursor: string; autoFocus: boolean };
   } | null;
   dispose(): void;
+}
+
+/** A garden the Gardens section offers (ADR 0244). */
+export interface GardenChoice {
+  id: SceneryId;
+  name: string;
+  blurb: string;
 }

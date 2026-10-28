@@ -24,6 +24,8 @@ import { createFauna, installFaunaDebug } from './fauna';
 import { createRenderer } from './render/renderer';
 import { getScenery, hasScenery, sceneries } from './scenery/registry';
 import { createSceneryHost } from './scenery/host';
+import { WATERFALL_HABITAT_WORDS } from './scenery/waterfall/layout';
+import { HABITAT_WORDS } from './ui/format';
 import { installSceneryDebug } from './dev/scenery-debug';
 import { gardenScene } from './scene/geometry';
 import { createUI } from './ui';
@@ -109,6 +111,8 @@ async function boot(): Promise<void> {
   const available = sceneries(params);
   const pickScenery = (id: string) => available.find((s) => s.id === id) ?? available[0]!;
   const initialScenery = pickScenery(store.get().scenery);
+  // the UI and the dev hooks read the garden on view at each use (ADR 0244)
+  const viewedSlots = () => pickScenery(store.get().scenery).geometry.slots;
   const renderer = createRenderer({ canvas, store, bus, clock, scene, scenery: initialScenery, reducedMotion });
   const sceneryHost = createSceneryHost({ store, renderer, getScenery: pickScenery });
   // one daylight for every system that paints or behaves with it (docs/systems/daylight.md)
@@ -154,7 +158,9 @@ async function boot(): Promise<void> {
     bus,
     clock,
     getSpecies,
-    slots: scene.slots,
+    slots: viewedSlots,
+    habitatWords: () => (pickScenery(store.get().scenery).id === 'waterfall' ? WATERFALL_HABITAT_WORDS : HABITAT_WORDS),
+    sceneries: available.map(({ id, name, blurb }) => ({ id, name, blurb })),
     viewport: () => renderer.viewport,
     audio,
     widget: fakeWidget ?? surfaces.widget,
@@ -187,10 +193,10 @@ async function boot(): Promise<void> {
     installDebug({ store, renderer, clock: speedClock });
     installAudioDebug(audio);
     installCoreDebug({ store, controller, clock: speedClock, species, slots: slots.of, saver: saver ?? undefined, isKnownSpecies });
-    installUiDebug({ ui, clock: speedClock, widget: fakeWidget, viewport: () => renderer.viewport, slots: scene.slots });
+    installUiDebug({ ui, clock: speedClock, widget: fakeWidget, viewport: () => renderer.viewport, slots: viewedSlots });
     installWidgetDebug({ surfaces, controller, store, bus });
     installServiceWorkerDebug(sw);
-    installSceneDebug(sceneSystem, scene);
+    installSceneDebug(sceneSystem, { ...scene, get slots() { return viewedSlots(); } });
     installSceneryDebug({ store, host: sceneryHost, available, fade: () => renderer.sceneryFade() });
     installPlantsDebug(plants);
     installFaunaDebug(fauna);
@@ -199,10 +205,10 @@ async function boot(): Promise<void> {
     installCameraDebug({
       renderer,
       ui,
-      slots: scene.slots,
+      slots: viewedSlots(),
       // a small plant's box at the slot (PLANT_SIZES.small)
       boundsForSlot: (slotId) => {
-        const slot = scene.slots.find((s) => s.id === slotId);
+        const slot = viewedSlots().find((s) => s.id === slotId);
         return slot ? plantWorldBounds({ size: { w: 86, h: 86 }, anchor: { x: 0.5, y: 0.92 } }, slot) : null;
       },
       plantBounds: (id) => plants.plantBounds(id),

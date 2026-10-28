@@ -1,4 +1,4 @@
-import type { PlantInstance } from '../core/state';
+import type { GardenState, PlantInstance } from '../core/state';
 import { plantWorldEdges } from '../plants/bounds';
 import type { SpeciesDef } from '../plants/types';
 import type { Pt } from '../render/viewport';
@@ -56,9 +56,19 @@ export function plantLabelText(plant: PlantInstance & { taskName?: string }, def
   return `${task} · ${plant.sessionMinutes} min · ${formatDay(plant.plantedAt)}`;
 }
 
+/** the finished plants of the garden on view */
+const onView = (state: GardenState): PlantInstance[] => state.plants.filter((x) => x.sceneryId === state.scenery);
+
 export function createPlantLabels(ctx: UIContext, canvas: HTMLElement | null): PlantLabels {
   const { store, getSpecies, slots } = ctx.deps;
-  const slotById = new Map(slots.map((s) => [s.id, s]));
+  let indexed: readonly Slot[] | null = null;
+  let byId = new Map<string, Slot>();
+  /** the viewed garden's slots by id, rebuilt when the garden changes */
+  const slotIndex = (): ReadonlyMap<string, Slot> => {
+    const list = slots();
+    if (list !== indexed) [indexed, byId] = [list, new Map(list.map((s) => [s.id, s]))];
+    return byId;
+  };
   const text = h('span.plant-label-text');
   const el = h('p.plant-label', { 'aria-hidden': 'true' }, text);
   let shown: string | null = null;
@@ -68,7 +78,7 @@ export function createPlantLabels(ctx: UIContext, canvas: HTMLElement | null): P
   const cam = ctx.deps.camera;
   /** the finished plant under a world point: painted pixels with the camera, sprite boxes without */
   const hit = (p: Pt): PlantInstance | null => {
-    if (!cam) return hitPlant(p, store.get().plants, slotById, getSpecies);
+    if (!cam) return hitPlant(p, onView(store.get()), slotIndex(), getSpecies);
     const h = cam.hitTest(p, 6 / ctx.deps.viewport().scale);
     return h && h.kind === 'finished' ? store.get().plants.find((x) => x.id === h.id) ?? null : null;
   };
@@ -79,7 +89,7 @@ export function createPlantLabels(ctx: UIContext, canvas: HTMLElement | null): P
       return null;
     }
     const def = getSpecies(plant.speciesId);
-    const slot = slotById.get(plant.slotId);
+    const slot = slotIndex().get(plant.slotId);
     if (!def || !slot) return null;
     const label = plantLabelText(plant, def);
     const vp = ctx.deps.viewport();

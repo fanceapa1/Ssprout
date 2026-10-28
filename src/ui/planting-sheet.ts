@@ -306,7 +306,7 @@ export function createPlantingSheet(ctx: UIContext, draft: PlantingDraft, action
           { id: `plant-desc-${def.id}` },
           s.locked ? `Needs ${s.requiredMinutes} min+` : noSpot ? 'Its spots all hold growing seedlings just now' : def.description,
         ),
-        s.locked ? null : h('span.plant-habitat', {}, habitatPhrase(def.habitats)),
+        s.locked ? null : h('span.plant-habitat', {}, habitatPhrase(def.habitats, ctx.deps.habitatWords?.())),
       );
       plants.appendChild(h('li', {}, card));
     }

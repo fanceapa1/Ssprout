@@ -161,7 +161,7 @@ export function createStageCamera(ctx: UIContext, deps: StageCameraDeps): StageC
     const state = ctx.deps.store.get();
     const p = state.plants.find((x) => x.id === id) ?? inProgressSessions(state).find((x) => x.id === id);
     const def = p ? ctx.deps.getSpecies(p.speciesId) : undefined;
-    const slot = p ? ctx.deps.slots.find((s) => s.id === p.slotId) : undefined;
+    const slot = p && p.sceneryId === state.scenery ? ctx.deps.slots().find((s) => s.id === p.slotId) : undefined;
     return def && slot ? plantWorldBounds(def, slot) : null;
   }
 
