@@ -2,6 +2,7 @@ import type { Clock } from '../core/clock';
 import type { EventBus } from '../core/events';
 import type { Store } from '../core/state';
 import type { SceneGeometry } from '../scene/geometry';
+import type { Scenery } from '../scenery/types';
 import type { CameraView } from './camera';
 import type { Viewport } from './viewport';
 
@@ -69,6 +70,9 @@ export interface SystemContext {
   store: Store;
   bus: EventBus;
   clock: Clock;
+  /** the garden on view's geometry (`scenery.geometry` when a scenery is set) */
   scene: SceneGeometry;
+  /** the scenery on view: init runs again with the new one after `renderer.setScenery` (ADR 0243) */
+  scenery?: Scenery;
   reducedMotion: boolean;
 }

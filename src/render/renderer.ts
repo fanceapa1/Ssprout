@@ -2,6 +2,7 @@ import type { Clock } from '../core/clock';
 import type { EventBus } from '../core/events';
 import type { Store } from '../core/state';
 import type { SceneGeometry } from '../scene/geometry';
+import type { Scenery } from '../scenery/types';
 import { createCamera, MAX_ZOOM, type Camera } from './camera';
 import { CACHED_LAYERS, LAYERS, type Drawable, type FrameInfo, type LayerId, type System, type SystemContext } from './types';
 import { createViewport, DEFAULT_FOCUS, type Pt, type Viewport } from './viewport';
@@ -19,8 +20,10 @@ export interface RendererOptions {
   bus: EventBus;
   clock: Clock;
   scene: SceneGeometry;
+  /** the scenery on view at start (its geometry replaces `scene`, its focus `focus`) */
+  scenery?: Scenery;
   reducedMotion?: boolean;
-  /** world point kept centred when the screen crops (default: pond centre) */
+  /** world point kept centred when the screen crops (default: the scenery's focus, else the pond centre) */
   focus?: Pt;
   /** debounce for resize-triggered re-init (ms, default 200) */
   resizeDebounceMs?: number;
@@ -72,6 +75,15 @@ export interface Renderer {
    * `margin` before it scrolls into view. Returns a disconnect; a no-op without IntersectionObserver.
    */
   pauseWhenOffscreen(target: Element, margin?: string): () => void;
+  /** the scenery on view (null when the renderer was made without one) */
+  readonly scenery: Scenery | null;
+  /**
+   * Show another garden (ADR 0243): keep the last frame, cut the camera to the new overview,
+   * re-init every system with it, then cross-fade (a cut under reduced motion). Resolves when ready.
+   */
+  setScenery(scenery: Scenery): Promise<void>;
+  /** 0..1 how much of the previous garden's last frame still shows (0: no switch under way) */
+  sceneryFade(): number;
   /** Re-measure and re-initialise immediately (resize events call this debounced). */
   resize(): Promise<void>;
   /** Rebuild a cached layer before the next frame (e.g. when the scene changes). */
@@ -92,6 +104,8 @@ export interface FrameStats {
 }
 
 const STAT_FRAMES = 600;
+/** Seconds the previous garden takes to fade out once the new one is ready (ADR 0243). */
+export const SCENERY_FADE_S = 0.9;
 
 function percentile(xs: number[], p: number): number {
   if (!xs.length) return 0;
@@ -111,9 +125,10 @@ export function createRenderer(opts: RendererOptions): Renderer {
     canvas,
     resizeDebounceMs = 200,
     maxDt = 0.1,
-    focus = DEFAULT_FOCUS,
     reducedMotion = false,
   } = opts;
+  let scenery: Scenery | null = opts.scenery ?? null;
+  let focus: Pt = opts.focus ?? scenery?.view.focus ?? DEFAULT_FOCUS;
   const win: (Window & typeof globalThis) | undefined = typeof window === 'undefined' ? undefined : window;
   const measure =
     opts.measure ??
@@ -162,6 +177,10 @@ export function createRenderer(opts: RendererOptions): Renderer {
   let t = 0;
   let resizeTimer: ReturnType<typeof setTimeout> | null = null;
   let disposed = false;
+  /** the previous garden's last frame while a switch is under way, and how much of it shows */
+  let snapshot: HTMLCanvasElement | null = null;
+  let snapshotAlpha = 0;
+  let snapshotFading = false;
 
   const systemContext = (): SystemContext => ({
     viewport,
@@ -169,7 +188,8 @@ export function createRenderer(opts: RendererOptions): Renderer {
     store: opts.store,
     bus: opts.bus,
     clock: opts.clock,
-    scene: opts.scene,
+    scene: scenery?.geometry ?? opts.scene,
+    ...(scenery ? { scenery } : {}),
     reducedMotion,
   });
 
@@ -333,6 +353,18 @@ export function createRenderer(opts: RendererOptions): Renderer {
         drawLayer(ctx, layer, f);
       }
     }
+    if (snapshot && snapshotAlpha > 0) {
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.globalAlpha = snapshotAlpha;
+      ctx.drawImage(snapshot, 0, 0, viewport.pixelW, viewport.pixelH);
+      ctx.globalAlpha = 1;
+    }
+  };
+
+  const endSnapshot = () => {
+    snapshot = null;
+    snapshotAlpha = 0;
+    snapshotFading = false;
   };
 
   const work: number[] = [];
@@ -342,6 +374,10 @@ export function createRenderer(opts: RendererOptions): Renderer {
     if (!sized) return;
     const t0 = perfNow();
     camera.update(dt);
+    if (snapshotFading) {
+      snapshotAlpha = Math.max(0, snapshotAlpha - dt / SCENERY_FADE_S);
+      if (snapshotAlpha <= 0) endSnapshot();
+    }
     const f = frameInfo(dt);
     for (const e of entries) {
       if (e.ready && e.system.update) guard(e.system.id, 'update', () => e.system.update!(f));
@@ -514,6 +550,39 @@ export function createRenderer(opts: RendererOptions): Renderer {
       };
     },
     resize,
+    get scenery() {
+      return scenery;
+    },
+    sceneryFade: () => snapshotAlpha,
+    setScenery(next) {
+      if (disposed || next === scenery || (scenery && next.id === scenery.id)) return readyPromise;
+      // keep what is on screen: it covers the new garden until that is ready
+      if (sized && canvas.width > 0 && canvas.height > 0) {
+        const snap = snapshot ?? createCanvas();
+        if (!snapshot) {
+          snap.width = canvas.width;
+          snap.height = canvas.height;
+          snap.getContext('2d')?.drawImage(canvas, 0, 0);
+        }
+        snapshot = snap;
+        snapshotAlpha = 1;
+        snapshotFading = false;
+      }
+      scenery = next;
+      focus = opts.focus ?? next.view.focus;
+      const ready = resize();
+      camera.overview({ animate: false });
+      const gen = generation;
+      void ready.then(() => {
+        if (gen !== generation || disposed || !snapshot) return;
+        // a cut under reduced motion, or when no frame loop would carry the fade
+        if (reducedMotion || frozen || !running || !visible) {
+          endSnapshot();
+          frame(0);
+        } else snapshotFading = true;
+      });
+      return ready;
+    },
     frameStats: () => ({
       frames: work.length,
       workAvg: r2(avg(work)),
@@ -539,6 +608,7 @@ export function createRenderer(opts: RendererOptions): Renderer {
       if (resizeTimer !== null) clearTimeout(resizeTimer);
       for (const e of entries.splice(0)) guard(e.system.id, 'dispose', () => e.system.dispose?.());
       caches.clear();
+      endSnapshot();
     },
   };
   return renderer;

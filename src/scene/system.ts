@@ -42,6 +42,7 @@ import { covers, createSkyLight, intersect, type SkyLight } from './sky-light';
 import type { CameraView } from '../render/camera';
 import { createRimCache, drawRim, type RimCache } from '../paint/rim';
 import { rimLight } from '../ambience/sky-layout';
+import type { Scenery, ScenerySky } from '../scenery/types';
 
 export interface SceneSystemOptions {
   art?: SceneArt;
@@ -170,7 +171,10 @@ export function canReuse(current: PaintView, wanted: PaintView, tolerance: numbe
 }
 
 export function createSceneSystem(opts: SceneSystemOptions = {}): SceneSystem {
-  const art = opts.art ?? GARDEN_ART;
+  let art = opts.art ?? GARDEN_ART;
+  let skySpec: ScenerySky | undefined;
+  /** a new scenery's first painting shows at once: the renderer cross-fades to it (ADR 0243) */
+  let switchedIn = false;
   const quality = opts.quality ?? 'normal';
   const fadeSeconds = opts.fadeSeconds ?? 1.2;
   const maxScale = opts.maxPaintScale ?? 1.5;
@@ -311,7 +315,8 @@ export function createSceneSystem(opts: SceneSystemOptions = {}): SceneSystem {
         if (cancelled()) return;
         previous = swap ? null : current;
         current = res;
-        fade = swap ? 1 : 0;
+        fade = swap || switchedIn ? 1 : 0;
+        switchedIn = false;
         if (!extend && !res.cached) stats.paints++;
         stats.lastPaintMs = res.totalMs;
         stats.lastCpuMs = res.cpuMs;
@@ -436,15 +441,36 @@ export function createSceneSystem(opts: SceneSystemOptions = {}): SceneSystem {
     drawPainting(ctx, b, e, 'lighter');
   };
 
+  /** another scenery: drop every painting, job and the sky; the next init paints it from scratch */
+  const switchTo = (s: Scenery) => {
+    art = s.art;
+    skySpec = s.sky;
+    if (extendTimer !== null) clearTimeout(extendTimer);
+    extendTimer = null;
+    jobId++;
+    detailJobId++;
+    job = null;
+    detailJob = null;
+    current = null;
+    previous = null;
+    detail = null;
+    detailWanted = null;
+    sky = null;
+    water = null;
+    switchedIn = true;
+  };
+
   return {
     id: 'scene',
     async init(ctx: SystemContext) {
       reducedMotion = ctx.reducedMotion;
       camera = ctx.camera ?? null;
       seenDetail = -1;
+      if (ctx.scenery && ctx.scenery.id !== art.scenery) switchTo(ctx.scenery);
+      else if (ctx.scenery && !skySpec) skySpec = ctx.scenery.sky;
       water ??= createWaterSurface(ctx.scene, { seed: art.seed, still: ctx.reducedMotion });
       if (!sky) {
-        sky = createSkyLight({ pond: art.scene.pond, seed: art.seed });
+        sky = createSkyLight({ pond: art.scene.pond, seed: art.seed, sky: skySpec, scenery: art.scenery });
         light = daylight.at(ctx.clock.now());
         sky.update(light, true);
         skyVersion = daylight.version;
