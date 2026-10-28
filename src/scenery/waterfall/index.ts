@@ -48,8 +48,8 @@ export function waterfallSteps(art: SceneArt, only?: readonly string[]): PaintSt
     // placeholder: the sky (S10)
     { el: 'sky', name: 'sky', run: (p) => fill(p, openSky(), lighten(PIGMENTS.cerulean, 0.7), 1) },
     // the land (S8): the far ridge, the banks and the meadow, under the cliff's reserved paper
-    { el: 'ridge', name: 'far-ridge', run: (p) => paintFarRidge(p, r('far-ridge')) },
-    { el: 'banks', name: 'banks', run: (p) => paintBanks(p, r('banks')) },
+    { el: 'ridge', name: 'far-ridge', soft: true, run: (p) => paintFarRidge(p, r('far-ridge')) },
+    { el: 'banks', name: 'banks', soft: true, run: (p) => paintBanks(p, r('banks')) },
     { el: 'banks', name: 'meadow', run: (p) => paintWaterfallMeadow(p, r('meadow')) },
     { el: 'banks', name: 'grass', run: (p) => paintWaterfallGrass(p, r('grass')) },
     // the rock (S6), back to front: the gorge behind the lip, the cliff, the buttress, the ledges
@@ -67,7 +67,7 @@ export function waterfallSteps(art: SceneArt, only?: readonly string[]): PaintSt
     { el: 'falls', name: 'falls', run: (p) => paintFalls(p, r('falls')) },
     // the near foreground and the paper margins (S8), before the stones as in the garden
     { el: 'near', name: 'foreground', run: (p) => paintForeground(p, r('foreground')) },
-    { el: 'near', name: 'margins', run: (p) => paintMargins(p, r('margins')) },
+    { el: 'near', name: 'margins', soft: true, run: (p) => paintMargins(p, r('margins')) },
     // the trail's stepping stones (S6), over the banks
     { el: 'path', name: 'stones', run: (p) => paintStones(p, r('stones'), scene.path) },
   ];

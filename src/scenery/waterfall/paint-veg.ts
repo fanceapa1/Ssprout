@@ -10,10 +10,38 @@ import type { Pt, Rect } from '../../render/viewport';
 import { paintMeadow, paintMeadowGrass, type GroundArt } from '../../scene/paint-ground';
 import { atmos, type Strokes } from '../../scene/paint-land';
 import { POOL, STREAM } from './geometry';
-import { FAR_RIDGE, LEDGES, skylineAt } from './layout';
+import { FAR_RIDGE, LEDGES, SKYLINE, skylineAt } from './layout';
 
-/** Where the meadow's texture may go: off the pool and the stream (no building here). */
-export const WATERFALL_GROUND: GroundArt = { pond: POOL, path: STREAM, pavilion: { x: 1e6, y: -1e6, w: 0, h: 0 } };
+/** The cliff and the pool as one shape: the meadow's texture stays off both (the cliff reserves its paper anyway). */
+export const CLIFF_AND_POOL: readonly Pt[] = [
+  { x: -300, y: 1200 },
+  { x: -300, y: 214 },
+  ...SKYLINE.filter((q) => q.x <= 1010),
+  { x: 1040, y: 420 },
+  { x: 1030, y: 500 },
+  { x: 990, y: 570 },
+  ...POOL.slice(POOL.findIndex((q) => q.x === 964)),
+  { x: 380, y: 636 },
+  { x: -10, y: 644 },
+  { x: -10, y: 1200 },
+];
+
+/** The stream joined to the strips past the sheet's right and bottom edges, where the margins leave paper. */
+const half = STREAM.length / 2;
+export const STREAM_AND_EDGE: readonly Pt[] = [
+  ...STREAM.slice(0, half).filter((q) => q.y < 1010),
+  { x: 1050, y: 1010 },
+  { x: 1050, y: 1200 },
+  { x: 1800, y: 1200 },
+  { x: 1800, y: 300 },
+  { x: 1610, y: 300 },
+  { x: 1610, y: 1010 },
+  { x: 1130, y: 1010 },
+  ...STREAM.slice(half).filter((q) => q.y < 1010),
+];
+
+/** Where the meadow's texture may go: off the cliff, the pool, the stream and the sheet's edges (no building here). */
+export const WATERFALL_GROUND: GroundArt = { pond: CLIFF_AND_POOL, path: STREAM_AND_EDGE, pavilion: { x: 1e6, y: -1e6, w: 0, h: 0 } };
 
 /** The woods' greens: darker and bluer than the garden's trees, a little hazed by distance. */
 export const WOODS: FoliagePigments = {
@@ -108,8 +136,9 @@ function bank(p: Painter, rng: Rng, shape: readonly Pt[], a: Pigment, b: Pigment
     deform: 0.05,
     spread: 0.1,
     opacity,
-    edge: 0.3,
+    edge: 0.18,
     edgeWidth: 3,
+    sharpness: 0.35,
     flow: 0.55,
     flowScale: 120,
     granulation: 0.25,
@@ -220,6 +249,19 @@ export function* paintBanks(p: Painter, rng: Rng): Strokes {
   yield* bank(p, rng, nearRight, mix(PIGMENTS.sageLight, WARM, 0.5), mix(COOL, PIGMENTS.sap, 0.4), 0.54, Math.PI / 2 - 0.6, 1);
   yield;
 
+  // warm and cool passages across the meadow, bled in soft
+  const passages: [number, number, number, number, Pigment][] = [
+    [300, 900, 200, 50, mix(PIGMENTS.sap, PIGMENTS.gold, 0.35)],
+    [880, 870, 120, 40, mix(PIGMENTS.sap, PIGMENTS.ochre, 0.2)],
+    [1380, 880, 190, 46, mix(PIGMENTS.sap, PIGMENTS.gold, 0.3)],
+    [180, 700, 180, 34, mix(PIGMENTS.sage, PIGMENTS.celadonMid, 0.45)],
+    [1420, 640, 200, 40, mix(PIGMENTS.sage, PIGMENTS.celadonMid, 0.4)],
+    [1180, 560, 150, 26, mix(PIGMENTS.sage, PIGMENTS.cerulean, 0.15)],
+  ];
+  for (const [cx, cy, rx, ry, pig] of passages) {
+    yield* p.parts.glaze(blob(cx, cy, rx, ry, rng, { irregularity: 0.3 }), pig, { rng, opacity: 0.2, deform: 0.4, spread: 0.4, edge: 0.1, granulation: 0.35, flow: 0.6, flowScale: 80 });
+    yield;
+  }
   // cool shade where the banks turn down to the water, and under the cliff
   const shade = mix(PIGMENTS.sage, PIGMENTS.celadonDeep, 0.35);
   const glazes: [number, number, number, number, number, number][] = [
@@ -404,19 +446,16 @@ export function* paintFerns(p: Painter, rng: Rng): Strokes {
       yield;
     }
   }
-  const area: Rect = { x: 60, y: 250, w: 1060, h: 450 };
-  const L = p.layer(area);
-  let i = 0;
+  // a small wet layer per spray: its fronds bleed together, and no drying pass reads the whole cliff
   for (const s of FERN_SPOTS) {
+    const reach = s.size * 1.4;
+    const area: Rect = { x: s.at.x - reach, y: s.at.y - reach, w: reach * 2, h: reach * 2 };
+    const L = p.layer(area);
     spray(L.ctx, rng, s.at, s.size, s.lean);
-    if (++i % 4 === 0) {
-      L.flush();
-      yield;
-    }
+    L.flush();
+    yield;
+    yield* L.dryParts({ opacity: 0.8, edge: 0.32, edgeWidth: 0.8, sharpness: 0.6, centreLift: 0.05, granulation: 0.18, flow: 0.4, flowScale: 20, darken: 0.18 });
   }
-  L.flush();
-  yield;
-  yield* L.dryParts({ opacity: 0.8, edge: 0.32, edgeWidth: 0.8, sharpness: 0.6, centreLift: 0.05, granulation: 0.18, flow: 0.4, flowScale: 20, darken: 0.18 });
 }
 
 /** The near foreground: deeper greens in the bottom corners and a few tall grass tufts, clear of the slots. */
