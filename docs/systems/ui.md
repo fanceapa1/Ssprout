@@ -200,7 +200,7 @@ order 25, full span, helper "Each garden keeps its own plants."), from `ui/garde
   garden not seen yet shows a pale waiting wash.
 
 When the active seedling grows in the other garden, the timer pill adds
-`button.pill-away` "Growing in the rocky waterfall · Go" (the garden's name alone at ≤ 600 px),
+`button.pill-away` "Growing in the rocky waterfall · Go" ("Waterfall · Go" at ≤ 600 px),
 which brings that garden into view.
 
 The rest of the UI reads the garden on view: `deps.slots()` (placement markers' positions, the

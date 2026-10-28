@@ -30,7 +30,7 @@ way to choose a garden from the page.
   an elliptical mask, like a wash on the sheet. No still is taken while the cross-fade covers the
   stage (`UIDeps.sceneryFade?()` > 0), so a still never mixes two gardens.
 - The timer pill offers the way back when the active session's seedling grows in the other garden:
-  "Growing in the rocky waterfall · Go" (the garden's name alone on phones); it calls
+  "Growing in the rocky waterfall · Go" ("Waterfall · Go" on phones, the last word of the name); it calls
   `controller.showScenery(session.sceneryId)`.
 
 ## Consequences

@@ -31,6 +31,12 @@ export interface PillActions {
   jump(): void;
 }
 
+/** "Rocky waterfall" → "Waterfall": the phone pill's short garden name */
+const shortName = (name: string): string => {
+  const last = name.split(' ').pop() ?? name;
+  return last.charAt(0).toUpperCase() + last.slice(1);
+};
+
 export function createPill(ctx: UIContext, actions: PillActions): Pill {
   const { controller } = ctx.deps;
   let current: PillView = 'idle';
@@ -84,7 +90,7 @@ export function createPill(ctx: UIContext, actions: PillActions): Pill {
     show(awayBtn, !!away);
     if (away) {
       setText(awayWhere, `Growing in the ${inSentence(away.name)}`);
-      setText(awayShort, away.name);
+      setText(awayShort, shortName(away.name));
       awayBtn.setAttribute('aria-label', `Your seedling is growing in the ${inSentence(away.name)}. Go there`);
     }
     if (more > 0) {
