@@ -100,9 +100,9 @@ const section: StudioSection = {
         const def = list[seed % list.length]!;
         const preview = createPreviewCache((id) => list.find((x) => x.id === id)).get(def.id, { w: 96, h: 92, dpr: pixelRatio, seed });
         if (preview) s.drawImage(preview, (w - preview.width) / 2, hh - preview.height);
-        const m = s.createRadialGradient(w / 2, hh / 2, 0, w / 2, hh / 2, w * 0.36 / 0.62);
+        const m = s.createRadialGradient(w / 2, hh / 2, 0, w / 2, hh / 2, w * 0.6);
         m.addColorStop(0, '#000');
-        m.addColorStop(0.62, '#000');
+        m.addColorStop(0.66, '#000');
         m.addColorStop(1, 'rgba(0,0,0,0)');
         s.globalCompositeOperation = 'destination-in';
         s.fillStyle = m;

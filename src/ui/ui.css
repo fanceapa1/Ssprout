@@ -450,6 +450,10 @@ dialog :focus-visible {
   display: none;
 }
 @media (max-width: 600px) {
+  .pill-away {
+    padding: 0 8px 0 7px;
+    font-size: 14.5px;
+  }
   .pill-away-where {
     display: none;
   }
@@ -2767,8 +2771,22 @@ dialog.book::after {
   width: 100%;
   aspect-ratio: 8 / 5;
   height: auto;
-  -webkit-mask-image: radial-gradient(ellipse 72% 70% at 50% 50%, #000 62%, transparent 100%);
-  mask-image: radial-gradient(ellipse 72% 70% at 50% 50%, #000 62%, transparent 100%);
+  -webkit-mask-image: radial-gradient(ellipse 60% 62% at 50% 50%, #000 66%, transparent 100%);
+  mask-image: radial-gradient(ellipse 60% 62% at 50% 50%, #000 66%, transparent 100%);
+}
+/* phones: the still beside the words, so two gardens fit a screen */
+@media (max-width: 600px) {
+  .garden-card {
+    display: grid;
+    grid-template-columns: 112px 1fr;
+    column-gap: 12px;
+    row-gap: 2px;
+    align-content: start;
+  }
+  .garden-thumb {
+    grid-row: 1 / span 3;
+    align-self: center;
+  }
 }
 .garden-thumb[data-still='waiting'] {
   background: radial-gradient(ellipse at 50% 60%, rgba(120, 140, 120, 0.22), rgba(120, 140, 120, 0.06) 70%, transparent);
