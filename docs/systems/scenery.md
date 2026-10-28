@@ -91,6 +91,11 @@ A session from another garden that becomes active (started or switched to) dispa
 `scenery/view` first, in the same dispatch, so its garden is cut in before the glide to its
 seedling. The timeline and the weather are shared: the active session's weather shows in any garden.
 
+From the page: the dock's **Gardens** section (docs/systems/ui.md › Gardens, ADR 0244) lists
+the available sceneries and calls `controller.showScenery(id)`. The UI reads the viewed
+scenery's slots and habitat words through getters, so placement, the planting sheet, the
+seedling framing, labels and the dev `slots()` hooks follow a switch.
+
 Dev API: `sprout.scenery()` → `{ viewed, available, fade }`; `sprout.showScenery(id)` resolves
 once the garden is ready (rejects an unavailable id); open `?dev&scenery=waterfall` to offer the
 waterfall.

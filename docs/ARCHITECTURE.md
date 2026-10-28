@@ -733,10 +733,13 @@ Query flags: `?fixtures` (dev `fx-*` species, ADR 0055), `?uitime=0.05` (UI dela
 `?widget=fake`.
 
 ## UI (`src/ui/`, ADRs 0050–0055, 0121, 0124, 0130–0136, 0156, 0164–0168, 0175–0177, 0180–0181, 0190–0194, 0200–0205)
-`createUI({ root, stage?, controller, store, bus, clock, getSpecies, slots, viewport, audio?, widget?,
-notifications?, isKnownSpecies?, reducedMotion?, timeScale?, schedules?, camera?, whenGardenReady? })` → `{ dock, stage, scroll, plantView, wayfinding,
+`createUI({ root, stage?, controller, store, bus, clock, getSpecies, slots, habitatWords?, sceneries?, viewport, audio?, widget?,
+notifications?, isKnownSpecies?, reducedMotion?, timeScale?, schedules?, camera?, whenGardenReady? })` → `{ dock, gardens, stage, scroll, plantView, wayfinding,
 calendar, camera, placement: { current(), subscribe(fn) }, state(), refresh(), previewsReady(), dockReady(), setTimeScale(), showPlantLabel(),
-dispose() }`. `whenGardenReady` (main: `renderer.whenReady()`) starts the planting sheet's preview
+dispose() }`. `slots()` and `habitatWords?()` are getters for the garden on view (main: the viewed
+scenery's `geometry.slots` and habitat words), re-read at each use so a switch needs no rebuild;
+`sceneries?` (id, name, blurb) adds the Gardens section when it lists two or more (ADR 0244).
+`whenGardenReady` (main: `renderer.whenReady()`) starts the planting sheet's preview
 prewarm on the next idle moment; `previewsReady()` resolves once every card on the sheet shows its
 preview (the sheet opens at once and fills in, ADR 0222). The dock's sheets, its guiding path and
 "Your plant" draw nothing before `whenGardenReady` resolves, then draw as each nears the window, or
@@ -796,7 +799,7 @@ Order: by `order`, then registration (`orderSections(list)`, pure). A section wi
 `fill`. Registered by the UI: `session` "Study" (10; the waiting cards of due scheduled sessions,
 the controls, then the sessions in progress, ADRs 0156, 0176), `plant` "Your plant" (20), `calendar`
 "Calendar" (30, full; a placeholder filled by the calendar when `createUI` has a scheduler, ADR 0175),
-`tools` "Garden tools" (90, full). The calendar's sheet is `firm`, the others `leaf`. One reading spine at every width (ADR 0200): each section
+`gardens` "Gardens" (25, full; only with two or more gardens, ADR 0244), `tools` "Garden tools" (90, full). The calendar's sheet is `firm`, the others `leaf`. One reading spine at every width (ADR 0200): each section
 takes the row, in order, on one left edge; wide screens may set two tracks inside a section
 (`--dock-main` / `--dock-aside`). The UI keeps the helper lines current from `ui/dock-guide.ts`: pure
 `guideLines(input) => { session, plant, calendar, tools }` over a `GuideInput` (panel, confirming, due,

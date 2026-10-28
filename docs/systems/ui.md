@@ -188,6 +188,21 @@ session discards its draft, so it cannot rename another session.
   (`applyPrefill`); Begin links the new session to the occurrence (`scheduler.link`). A normal Start
   studying clears a leftover link (`clearPrefill`).
 
+## Gardens (ADR 0244)
+With two or more available sceneries (`UIDeps.sceneries`) the dock shows **Gardens** (`gardens`,
+order 25, full span, helper "Each garden keeps its own plants."), from `ui/gardens-section.ts`:
+- a card per garden (`button.garden-card[data-scenery]`, a toggle: `aria-pressed` marks the
+  garden on view) with a thumbnail, the scenery's name and blurb, and "On view" / "Go here";
+- choosing a card calls `controller.showScenery(id)`; the scenery host cross-fades the stage;
+- the thumbnail is a still of the stage canvas, cover-cropped to 192×120 and faded at its edge
+  by an elliptical mask: the garden on view is copied after the first paint, and a garden again
+  just before you leave it. A garden not seen yet shows a pale waiting wash.
+
+The rest of the UI reads the garden on view: `deps.slots()` (placement markers' positions, the
+camera's seedling framing, plant labels, `slotScreen`) and `deps.habitatWords?.()` (the planting
+sheet's habitat line, the markers' names and the placement prompt: "will grow in the plunge
+pool"). The camera frames a seedling only in the garden on view. Studio: `ui/garden-thumbs`.
+
 ## Flows
 ```
 idle ── Start studying ──▶ planting sheet ── Choose a spot ──▶ placement ── Begin ──▶ focus
@@ -368,7 +383,7 @@ actual context to `GardenAudio.setScenery`. No coast selector is shown today.
 (fake only), `showPlantLabel(world)`, `slotScreen(id)` (client pixels), `scroll()`,
 `scrollTo(y | sectionId, { instant? })`, `dock()`, `dockReady()` (after the garden's first paint,
 draws the dock's deferred parts now and settles "Your plant"), `waterPlantView()`,
-`onZoomGesture(fn)`, `wayfinding({ layout? })`, `setSectionHidden(id, hidden)`. `ui.state().plantCard` is the open card. The camera's hooks are
+`onZoomGesture(fn)`, `wayfinding({ layout? })`, `setSectionHidden(id, hidden)`, `gardenStills()` (gardens whose card holds a still). `ui.state().plantCard` is the open card. The camera's hooks are
 `window.sprout.camera` (docs/systems/camera.md). `window.sprout.advance(ms)` jumps the dev
 clock and refreshes the UI (e.g. into a break or a long pause); `window.sprout.advanceTo('HH:MM')`
 jumps it forward to the next local time of day (pins the hour for tests).
@@ -377,7 +392,7 @@ jumps it forward to the next local time of day (pins the hour for tests).
 Unit: `near-view.test.ts`, `backdrop-sheet.test.ts`, `backdrop.test.ts`, `dock-guide.test.ts`, `wayfinding-path.test.ts`, `session-list.test.ts`, `format.test.ts`, `plan-line.test.ts`, `plant-labels.test.ts`, `previews.test.ts`, `planting-sheet.test.ts`,
 `ambient-light.test.ts`, `scroll-math.test.ts`, `smooth-scroll.test.ts`, `dock.test.ts`, `stage-edge.test.ts`, `ink.test.ts`,
 `tip-place.test.ts`, `plant-card.test.ts`, `pickers.test.ts`, `prefill.test.ts` (calendar: `calendar-model.test.ts`).
-E2E: `tests/e2e/deferred-dock.spec.ts` (nothing drawn in the dock before the garden's first paint,
+E2E: `tests/e2e/gardens.spec.ts` (the Gardens section: both gardens listed, choosing switches, planting in the waterfall through the real flow, keyboard, phone width), `tests/e2e/deferred-dock.spec.ts` (nothing drawn in the dock before the garden's first paint,
 every section drawn once scrolled to with no section moving, Begin's click under 100 ms with "Your
 plant" current once scrolled to), `tests/e2e/backdrops.spec.ts` (a sheet per section holding its content, the calendar's the
 strongest, re-layout on growth / resize / view and not on a tick or scroll, the lane outside the
