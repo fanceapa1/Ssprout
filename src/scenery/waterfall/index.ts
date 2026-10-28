@@ -1,6 +1,6 @@
 /**
- * The rocky waterfall as a scenery (phase 10). Its rock (S6) and water (S7) are painted; the
- * vegetation and the sky are flat placeholder shapes until their painters land (S8, S10).
+ * The rocky waterfall as a scenery (phase 10). Its rock (S6), water (S7) and vegetation (S8) are
+ * painted; the sky is a flat placeholder until its painter lands (S10).
  * Hidden behind `?dev&scenery=waterfall`. docs/systems/scenery.md › Waterfall.
  */
 import type { DayPhase } from '../../ambience/daylight';
@@ -10,12 +10,13 @@ import type { Painter } from '../../paint';
 import { lighten, PIGMENTS } from '../../paint';
 import { WORLD_W, type Pt, type Rect } from '../../render/viewport';
 import type { PaintStep, SceneArt } from '../../scene/background';
-import { paintStones } from '../../scene/paint-land';
+import { paintMargins, paintStones } from '../../scene/paint-land';
 import type { Scenery, ScenerySky, SceneryView } from '../types';
 import { TRAIL, waterfallScene } from './geometry';
-import { FAR_RIDGE, FOCUS, openSky, SKY_TOP, WATERFALL_AMBIENCE, WATERFALL_SKY_LAYOUT } from './layout';
+import { FOCUS, openSky, SKY_TOP, WATERFALL_AMBIENCE, WATERFALL_SKY_LAYOUT } from './layout';
 import { paintButtress, paintCliff, paintGorge, paintLedges } from './paint-rocks';
 import { paintFalls, paintPool, paintStream } from './paint-water';
+import { paintBanks, paintCrownWoods, paintFarRidge, paintFerns, paintForeground, paintOverhang, paintWaterfallGrass, paintWaterfallMeadow } from './paint-veg';
 import { WATERFALL_ROCKS } from './sprites';
 
 /** Is the waterfall offered under these URL flags? Only to developers until it is painted. */
@@ -35,37 +36,38 @@ function fill(p: Painter, shape: readonly Pt[], colour: string, alpha: number): 
   ctx.restore();
 }
 
-const GROUND: Pt[] = [
-  { x: -80, y: 470 },
-  { x: 1680, y: 470 },
-  { x: 1680, y: 1080 },
-  { x: -80, y: 1080 },
-];
+/** The painting's elements, a filter for studio views. The sky is a placeholder. */
+type Element = 'sky' | 'ridge' | 'banks' | 'gorge' | 'cliff' | 'ledges' | 'woods' | 'ferns' | 'water' | 'falls' | 'near' | 'path';
 
-/** The painting's elements, a filter for studio views. Sky, ridge and banks are placeholders. */
-type Element = 'sky' | 'ridge' | 'banks' | 'gorge' | 'cliff' | 'ledges' | 'water' | 'falls' | 'path';
-
-/** The paint steps, back to front. Flat placeholders mark where S8 (vegetation) and S10 (sky) slot in theirs. */
+/** The paint steps, back to front. A flat placeholder marks where S10 slots in the sky. */
 export function waterfallSteps(art: SceneArt, only?: readonly string[]): PaintStep[] {
   const root = createRng(art.seed);
   const r = (label: string) => root.fork(label);
   const { scene } = art;
   const steps: (PaintStep & { el: Element })[] = [
-    // placeholders: the sky (S10), the far ridge and the banks behind the cliff (S8)
+    // placeholder: the sky (S10)
     { el: 'sky', name: 'sky', run: (p) => fill(p, openSky(), lighten(PIGMENTS.cerulean, 0.7), 1) },
-    { el: 'ridge', name: 'far-ridge', run: (p) => fill(p, FAR_RIDGE, lighten(PIGMENTS.bellflower, 0.55), 1) },
-    { el: 'banks', name: 'banks', run: (p) => fill(p, GROUND, lighten(PIGMENTS.sageLight, 0.5), 1) },
+    // the land (S8): the far ridge, the banks and the meadow, under the cliff's reserved paper
+    { el: 'ridge', name: 'far-ridge', run: (p) => paintFarRidge(p, r('far-ridge')) },
+    { el: 'banks', name: 'banks', run: (p) => paintBanks(p, r('banks')) },
+    { el: 'banks', name: 'meadow', run: (p) => paintWaterfallMeadow(p, r('meadow')) },
+    { el: 'banks', name: 'grass', run: (p) => paintWaterfallGrass(p, r('grass')) },
     // the rock (S6), back to front: the gorge behind the lip, the cliff, the buttress, the ledges
     { el: 'gorge', name: 'gorge', run: (p) => paintGorge(p, r('gorge')) },
     { el: 'cliff', name: 'cliff', run: (p) => paintCliff(p, r('cliff')) },
     { el: 'cliff', name: 'buttress', run: (p) => paintButtress(p, r('buttress')) },
     { el: 'ledges', name: 'ledges', run: (p) => paintLedges(p, r('ledges')) },
-    // S8 slots in here: the crown woods, the ferns on the ledges
+    // the vegetation on the rock (S8): the crown woods, the trees over the edge, moss and ferns
+    { el: 'woods', name: 'crown-woods', run: (p) => paintCrownWoods(p, r('crown-woods')) },
+    { el: 'woods', name: 'overhang', run: (p) => paintOverhang(p, r('overhang')) },
+    { el: 'ferns', name: 'ferns', run: (p) => paintFerns(p, r('ferns')) },
     // the water (S7): the pool and the stream, then the falls over the cliff and the pool's back edge
     { el: 'water', name: 'pool', run: (p) => paintPool(p, r('pool')) },
     { el: 'water', name: 'stream', run: (p) => paintStream(p, r('stream')) },
     { el: 'falls', name: 'falls', run: (p) => paintFalls(p, r('falls')) },
-    // S8 slots in here: the near banks, the trail's earth and the grass
+    // the near foreground and the paper margins (S8), before the stones as in the garden
+    { el: 'near', name: 'foreground', run: (p) => paintForeground(p, r('foreground')) },
+    { el: 'near', name: 'margins', run: (p) => paintMargins(p, r('margins')) },
     // the trail's stepping stones (S6), over the banks
     { el: 'path', name: 'stones', run: (p) => paintStones(p, r('stones'), scene.path) },
   ];
