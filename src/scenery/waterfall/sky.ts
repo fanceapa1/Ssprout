@@ -86,8 +86,31 @@ export function plateSky(): Pt[] {
   return [{ x: -80, y: SKY_TOP - 40 }, { x: 1680, y: SKY_TOP - 40 }, ...line.reverse()];
 }
 
-/** One phase's sky, into a painter whose transform maps world units onto the plate. */
+/**
+ * One phase's sky, into a painter whose transform maps world units onto the plate. Clipped to the
+ * plate's outline: the washes spread, and their bleed showed as a band on the pale cliff top.
+ */
 export function paintWaterfallSky(p: Painter, rng: Rng, phase: DayPhase): void {
+  const ctx = p.ctx;
+  ctx.save();
+  ctx.beginPath();
+  plateSky().forEach((q, i) => (i ? ctx.lineTo(q.x, q.y) : ctx.moveTo(q.x, q.y)));
+  ctx.closePath();
+  ctx.clip();
+  paintPhaseSky(p, rng, phase);
+  ctx.restore();
+  // the far ridge takes the phase's distance colour unclipped, fading out by its plain
+  ridge(p, rng, ...RIDGE[phase]);
+}
+
+const RIDGE: Record<DayPhase, [Pigment, number]> = {
+  midday: [mix(PIGMENTS.cerulean, PIGMENTS.bellflower, 0.4), 0.16],
+  sunrise: [mix(PIGMENTS.bellflower, PIGMENTS.violet, 0.3), 0.28],
+  sunset: [mix(PIGMENTS.violet, PIGMENTS.indigo, 0.25), 0.36],
+  night: [mix(PIGMENTS.indigo, PIGMENTS.violet, 0.2), 0.38],
+};
+
+function paintPhaseSky(p: Painter, rng: Rng, phase: DayPhase): void {
   const sky = plateSky();
   const { sunriseX, sunsetX, horizonY } = WATERFALL_SKY_LAYOUT;
   switch (phase) {
@@ -124,7 +147,6 @@ export function paintWaterfallSky(p: Painter, rng: Rng, phase: DayPhase): void {
       lifts(p, rng, 1220, 150, 560, 56);
       lifts(p, rng, 380, 60, 480, 64);
       lifts(p, rng, 820, -120, 520, 70);
-      ridge(p, rng, mix(PIGMENTS.cerulean, PIGMENTS.bellflower, 0.4), 0.16);
       break;
     }
     case 'sunrise': {
@@ -157,7 +179,6 @@ export function paintWaterfallSky(p: Painter, rng: Rng, phase: DayPhase): void {
       bank(p, rng, 1260, 236, 520, 9, mix(PIGMENTS.violet, PIGMENTS.bellflower, 0.45), 0.36, mix(PIGMENTS.rose, PIGMENTS.apricot, 0.5));
       bank(p, rng, 1000, 296, 300, 6, mix(PIGMENTS.rose, PIGMENTS.violet, 0.35), 0.3, PIGMENTS.apricot);
       bank(p, rng, 300, 120, 440, 8, mix(PIGMENTS.violet, PIGMENTS.bellflower, 0.5), 0.24, mix(PIGMENTS.rose, PIGMENTS.apricot, 0.3));
-      ridge(p, rng, mix(PIGMENTS.bellflower, PIGMENTS.violet, 0.3), 0.28);
       break;
     }
     case 'sunset': {
@@ -190,7 +211,6 @@ export function paintWaterfallSky(p: Painter, rng: Rng, phase: DayPhase): void {
       bank(p, rng, 1240, 250, 560, 10, mix(PIGMENTS.violet, PIGMENTS.crimson, 0.4), 0.42, mix(PIGMENTS.crimson, PIGMENTS.ochre, 0.4));
       bank(p, rng, 420, 130, 520, 9, mix(PIGMENTS.crimson, PIGMENTS.violet, 0.3), 0.34, PIGMENTS.ochre);
       bank(p, rng, 900, 40, 480, 8, mix(PIGMENTS.violet, PIGMENTS.rose, 0.4), 0.28, PIGMENTS.rose);
-      ridge(p, rng, mix(PIGMENTS.violet, PIGMENTS.indigo, 0.25), 0.36);
       break;
     }
     case 'night': {
@@ -209,7 +229,6 @@ export function paintWaterfallSky(p: Painter, rng: Rng, phase: DayPhase): void {
         flowScale: 300,
       });
       p.glaze(band(-240, 160), mix(PIGMENTS.indigo, PIGMENTS.violet, 0.2), { rng, opacity: 0.16, fade: { angle: Math.PI / 2, start: 0.3, amount: 1, ragged: 0.4 } });
-      ridge(p, rng, mix(PIGMENTS.indigo, PIGMENTS.violet, 0.2), 0.38);
       for (const s of stars(30, 'stars', WATERFALL_SKY_LAYOUT)) reserveStar(p.ctx, s);
       break;
     }
