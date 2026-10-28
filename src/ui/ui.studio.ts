@@ -73,6 +73,43 @@ const section: StudioSection = {
         if (pressed) ctx.drawImage(pressed, canvas.width / 2, 0);
       },
     },
+    {
+      id: 'garden-thumbs',
+      label: 'Gardens card: waiting wash, then a still with its washed edge (ADR 0244)',
+      w: 400,
+      h: 120,
+      render(canvas, { seed, pixelRatio }) {
+        const ctx = canvas.getContext('2d')!;
+        const w = Math.round(192 * pixelRatio);
+        const hh = Math.round(120 * pixelRatio);
+        // the waiting wash, as `.garden-thumb[data-still='waiting']`
+        const g = ctx.createRadialGradient(w / 2, hh * 0.6, 0, w / 2, hh * 0.6, w * 0.55);
+        g.addColorStop(0, 'rgba(120,140,120,0.22)');
+        g.addColorStop(0.7, 'rgba(120,140,120,0.06)');
+        g.addColorStop(1, 'rgba(120,140,120,0)');
+        ctx.fillStyle = g;
+        ctx.fillRect(0, 0, w, hh);
+        // a stand-in still (a plant preview on a wash) under the card's elliptical mask
+        const still = document.createElement('canvas');
+        still.width = w;
+        still.height = hh;
+        const s = still.getContext('2d')!;
+        s.fillStyle = 'rgba(150,175,160,0.55)';
+        s.fillRect(0, 0, w, hh);
+        const list = pool();
+        const def = list[seed % list.length]!;
+        const preview = createPreviewCache((id) => list.find((x) => x.id === id)).get(def.id, { w: 96, h: 92, dpr: pixelRatio, seed });
+        if (preview) s.drawImage(preview, (w - preview.width) / 2, hh - preview.height);
+        const m = s.createRadialGradient(w / 2, hh / 2, 0, w / 2, hh / 2, w * 0.36 / 0.62);
+        m.addColorStop(0, '#000');
+        m.addColorStop(0.62, '#000');
+        m.addColorStop(1, 'rgba(0,0,0,0)');
+        s.globalCompositeOperation = 'destination-in';
+        s.fillStyle = m;
+        s.fillRect(0, 0, w, hh);
+        ctx.drawImage(still, canvas.width - w, 0);
+      },
+    },
   ],
 };
 
