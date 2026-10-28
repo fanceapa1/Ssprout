@@ -210,7 +210,7 @@ Boulders are sprites, drawn over the whole background, so every boulder sits on 
   then the garden's `waterBody` recipe in the cooler palette. Over it, clipped to the pool: a deep
   heart bled in under the falls (two soft glazes), warm shallows along the near edge fading toward
   the deep, the cliff's dark wet reflection in broken pieces under the waterline (none under the
-  falls), and the reserves: the falls' pale reflection as stacked short lifts below the foot, and
+  falls), soft dark reflections under the boulders in the pool, and the reserves: the falls' pale reflection as stacked short lifts below the foot, and
   the sky band as a few long level lifts, where the garden reserves its own. Churn rings
   (`ripple`) spread from the foot toward the outflow with foam flecks drifting on the current.
 - *Stream*: its rim is reserved outside the pool only (an even-odd clip), so no rim line crosses

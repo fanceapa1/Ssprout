@@ -215,13 +215,24 @@ export function* paintPool(p: Painter, rng: Rng): Strokes {
     }
     x += w + rng.range(4, 24);
   }
+  // the boulders' soft, dark reflections (their wet waterline is the sprite's own)
+  for (const r of ROCKS.filter((q) => inPool({ x: q.x, y: q.y + 4 }))) {
+    yield* p.parts.glaze(blob(r.x, r.y + r.h * 0.22, r.w * 0.42, r.h * 0.28, rng, { irregularity: 0.25, points: 16 }), mix(WET_ROCK, WATER.deep, 0.5), {
+      rng,
+      opacity: 0.32,
+      deform: 0.3,
+      spread: 0.3,
+      fade: { angle: Math.PI / 2, start: 0.3, amount: 1, ragged: 0.8 },
+    });
+    yield;
+  }
   // reserves: the falls' pale reflection and the sky band, lifted in broken horizontal strokes
-  for (let i = 0; i < 16; i++) {
-    const y = 640 + i * 6 + rng.range(-2, 2);
+  for (let i = 0; i < 12; i++) {
+    const y = 640 + i * 7 + rng.range(-2, 2);
     const w = rng.range(30, 70) * (1 - i / 24);
     const x = 615 + rng.range(-20, 20);
     if (!inPool({ x: x - w / 2, y }) || !inPool({ x: x + w / 2, y })) continue;
-    yield* p.parts.lift({ cx: x, cy: y, rx: w / 2, ry: rng.range(1, 2.2) }, { rng, amount: rng.range(0.35, 0.6), deform: 0.25, spread: 0.3, layers: 4 });
+    yield* p.parts.lift({ cx: x, cy: y, rx: w / 2, ry: rng.range(1, 2.2) }, { rng, amount: rng.range(0.25, 0.45), deform: 0.25, spread: 0.3, layers: 4 });
     yield;
   }
   for (let i = 0; i < 9; i++) {
