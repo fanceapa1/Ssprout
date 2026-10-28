@@ -14,7 +14,7 @@ import { paintMeadow, paintMeadowGrass } from './paint-ground';
 import { paintPavilion } from './paint-pavilion';
 import { paintReflections, paintWater, paintWaterDetail } from './paint-pond';
 import { paintShrub, paintTree } from './paint-trees';
-import { paintRockSprite, paintTuftSprite, rockBox, tuftBox, type Sprite } from './sprites';
+import { GARDEN_ROCKS, paintTuftSprite, tuftBox, type RockSprites, type Sprite } from './sprites';
 
 /** Everything the scene paints: the shared geometry plus painting-only layout. */
 export interface SceneArt {
@@ -29,6 +29,8 @@ export interface SceneArt {
   seed: number;
   /** the background's paint steps, back to front (`only`: just these elements, for the studio) */
   steps(art: SceneArt, only?: readonly string[]): PaintStep[];
+  /** the scenery's own boulder sprites for `scene.rocks` (default: the garden's, `GARDEN_ROCKS`) */
+  rockSprites?: RockSprites;
 }
 
 export interface PaintStep {
@@ -194,9 +196,10 @@ export function* paintJob(art: SceneArt, view: PaintView, opts: PaintRunOptions 
   const sprites: Sprite[] = [];
   if (opts.sprites ?? true) {
     const t: StepTiming = { name: 'sprites', ms: 0, longestMs: 0, parts: 0 };
+    const rocks = art.rockSprites ?? GARDEN_ROCKS;
     for (const rock of art.scene.rocks) {
       let s = now();
-      const marks = paintRockSprite(rock, art.seed, view.scale, quality);
+      const marks = rocks.paint(rock, art.seed, view.scale, quality);
       for (let r = marks.next(); ; r = marks.next()) {
         part(t, now() - s);
         if (r.done) {
@@ -313,12 +316,13 @@ export interface AtlasLayout {
 
 /**
  * The atlas the sprites of one paint scale are stored in. It follows from the geometry alone
- * (`rockBox`, `tuftBox` and the canvas size `makeCanvas` gives), so a stored atlas is cut up
+ * (the art's rock boxes, `tuftBox` and the canvas size `makeCanvas` gives), so a stored atlas is cut up
  * again without painting anything.
  */
 export function spriteAtlasLayout(art: SceneArt, scale: number): AtlasLayout {
+  const rocks = art.rockSprites ?? GARDEN_ROCKS;
   const specs = [
-    ...art.scene.rocks.map((r) => ({ id: r.id, box: rockBox(r), depth: r.y })),
+    ...art.scene.rocks.map((r) => ({ id: r.id, box: rocks.box(r), depth: r.y })),
     ...art.foregroundTufts.map((t, i) => ({ id: `tuft-${i}`, box: tuftBox(t), depth: t.y })),
   ];
   let y = 0;

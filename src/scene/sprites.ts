@@ -72,6 +72,15 @@ export function* paintRockSprite(r: Rock, seed: number, scale: number, quality: 
   return { id: r.id, box, depth: r.y, canvas };
 }
 
+/** How a scenery paints its boulders: the world box a rock's sprite covers, and its painter. */
+export interface RockSprites {
+  box(r: Rock): Rect;
+  paint(r: Rock, seed: number, scale: number, quality: Quality): Generator<void, Sprite, undefined>;
+}
+
+/** The Japanese garden's boulders (the default). */
+export const GARDEN_ROCKS: RockSprites = { box: rockBox, paint: paintRockSprite };
+
 /** A foreground grass tuft. */
 export function paintTuftSprite(t: TuftSpec, index: number, seed: number, scale: number, quality: Quality = 'normal'): Sprite {
   const box = tuftBox(t);

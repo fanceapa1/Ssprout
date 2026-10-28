@@ -295,7 +295,7 @@ export interface Scenery {                    // types.ts
   id: SceneryId; name: string; blurb: string; order: number;
   available(flags: URLSearchParams): boolean;
   geometry: SceneGeometry;
-  art: SceneArt;                              // seed, painting layout, steps(art, only?) (art.scene = geometry)
+  art: SceneArt;                              // seed, painting layout, steps(art, only?) (art.scene = geometry), rockSprites?
   sky: ScenerySky;                            // layout (SkyLayout), rect, shape(below?), paint, paintWater
   light: LightArt;                            // trees, shrubs, sky, shadows?(…), lights?(…)
   ambience: SceneryAmbience;                  // dew: Rect[], mistBands, veilTo
@@ -304,8 +304,12 @@ export interface Scenery {                    // types.ts
 getScenery(id): Scenery /* the default when not registered */; hasScenery(id); sceneries(flags?)  // registry.ts
 ```
 `JAPANESE_GARDEN` (`japanese-garden/index.ts`) and `WATERFALL` (`waterfall/index.ts`, ADR 0245)
-are registered. The waterfall is available only under `?dev&scenery=waterfall` and paints flat
-placeholder shapes until its painters land. The garden's painters stay in `src/scene/`;
+are registered. The waterfall is available only under `?dev&scenery=waterfall`; its rock is
+painted, its water, vegetation and sky are flat placeholders until their painters land.
+`SceneArt.rockSprites?: RockSprites` (`{ box(rock): Rect; paint(rock, seed, scale, quality) }`, a
+generator returning the `Sprite`) lets a scenery paint its own boulders for `geometry.rocks`. The
+sprite pass and the sprite atlas layout use it, and default to the garden's `GARDEN_ROCKS`
+(`scene/sprites.ts`). The garden's painters stay in `src/scene/`;
 its folder holds its numbers (`sky.ts`, `ambience.ts`, `view.ts`) and its light art (`light.ts`).
 The consumers take a scenery's data as an option and default to the Japanese garden's:
 `createSkyLight({ sky, scenery })`, `createCastLight(scene, art, seed, { scenery })`,
