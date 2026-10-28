@@ -70,10 +70,12 @@ describe('the waterfall scenery', () => {
     expect(waterfallScene.streams).toEqual([STREAM]);
   });
 
-  it('paints its rock and placeholder steps back to front, and only the asked-for elements', () => {
+  it('paints its rock, water and placeholder steps back to front, and only the asked-for elements', () => {
     const steps = WATERFALL.art.steps(WATERFALL.art);
+    // the water over the rock (the falls over the cliff and the pool), the stepping stones over the water
     expect(steps.map((s) => s.name)).toEqual(['sky', 'far-ridge', 'banks', 'gorge', 'cliff', 'buttress', 'ledges', 'pool', 'stream', 'falls', 'stones']);
     expect(WATERFALL.art.steps(WATERFALL.art, ['water']).map((s) => s.name)).toEqual(['pool', 'stream']);
+    expect(WATERFALL.art.steps(WATERFALL.art, ['falls']).map((s) => s.name)).toEqual(['falls']);
   });
 
   it('records a habitat word for every habitat (for the planting sheet, S5)', () => {
