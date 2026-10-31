@@ -306,10 +306,16 @@ else { paint(canvas); void cache.put('scene', key, canvas); } // copied now, enc
   phase… A missing ingredient shows the wrong painting.
 - **Version:** `__PAINT_VERSION__` plus the browser (a short user-agent hash). `__PAINT_VERSION__`
   is a build-time hash (`paint-version.ts`, `vite.config.ts` `define`). It covers every file in
-  the import closure of `src/paint`, `src/scene`, `src/ambience`, `src/plants`, `src/fauna`,
-  `src/render` and `src/core`, without tests and studio entries. Any change there, or anything
-  those files import from elsewhere, gives a new version, and old entries are dropped when the
-  store opens. The dev server and Vitest get `'dev'`, which turns the cache off.
+  the import closure of `PAINT_ROOTS` (`src/paint`, `src/scene`, `src/scenery`, `src/ambience`,
+  `src/plants`, `src/fauna`, `src/render` and `src/core`), without tests and studio entries. Any
+  change there, or anything those files import from elsewhere, gives a new version, and old
+  entries are dropped when the store opens.
+  `UNCACHED_DIRS` (`src/plants/species`, `src/plants/lib`, `src/plants/notes`,
+  `src/fauna/creatures`) are left out (ADR 0251): no cached painting holds a plant or a creature,
+  so merging a species, a creature or a note keeps the version. A file there is hashed only when
+  the closure of a root that holds none of these folders (scene, scenery, ambience, paint, render,
+  core) imports it; plants and fauna do not pull them in. Nothing does today: 124 hashed files
+  instead of 199. A cached painter that starts importing a plant helper brings it back in by itself. The dev server and Vitest get `'dev'`, which turns the cache off.
 - **Off (the null cache):** on the dev server, with `?nopaintcache` (compare against a fresh
   painting), without IndexedDB, or when it fails to open. `stats().off` says which:
   `dev | opted-out | unavailable | failed`.
@@ -358,6 +364,6 @@ parts with no part over a quarter of the calls or reading more than one wet laye
 defaults, quality scaling, pure brush geometry), `rim.test.ts` (rim width, screen draw, faint rims skipped, one mask per image, side and colour), `persist.test.ts` (keys, versions
 and the drop of other versions, LRU and the byte cap, idle encoding, the null cache, swallowed
 storage, encode and decode failures; Map adapter), `paint-version.test.ts` (the hashed import
-closure, what changes the version). E2E `paint-cache.spec.ts` (a bit-exact round trip across a
+closure, what changes the version, species, creatures and notes left out unless a cached painter imports them). E2E `paint-cache.spec.ts` (a bit-exact round trip across a
 reload, `?nopaintcache`, version drop and eviction in real IndexedDB). Visuals: the studio sections
 above.

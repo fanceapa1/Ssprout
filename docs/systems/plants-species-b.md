@@ -3,7 +3,7 @@
 Six tier-3 species (50–89 min sessions), painted only with the paint engine
 (`docs/systems/paint.md`). Each one grows live during a session, from seed to full bloom.
 
-Look at them: studio → **Plants · tier 3 shrubs review** (`shrubs-b`: all six side by side at
+Look at them: studio → **Plants · tier 3 shrubs review** (`shrubs-b`: every tier-3 species from the registry side by side at
 preview and garden scale, a ten-step growth strip per species, five seeds per species) and
 each species' own section (`species-<id>`).
 `npm run shots -- --entry shrubs-b/bloom` · `--entry shrubs-b/grow-lotus` · `--entry shrubs-b/seeds-camellia`.
@@ -97,7 +97,8 @@ dominated by the drying passes (pixel read-back and rim blur), then polygon defo
 
 ## Tests
 `src/plants/lib/shrub-structure.test.ts` (growth timing, polylines, skeleton/dome/leaf/floret
-determinism and invariants, petal projection) and `src/plants/lib/shrub-species.test.ts`
-(registration, builder determinism per species, growth-independent rng use, colourway
-variety, petal continuity from bud to bloom). Visuals: the studio sections above (the studio
+determinism and invariants, petal projection) and `shrubSuite(id, build, { habitats, sizeClass? })`
+(`src/plants/lib/suites.ts`, called from each `species/<id>.test.ts`, ADR 0251: registration with its
+habitats and size, builder determinism, growth-independent rng use); `species/chrysanthemum.test.ts`
+adds colourway variety and `species/camellia.test.ts` petal continuity from bud to bloom. Visuals: the studio sections above (the studio
 e2e spec renders every entry).

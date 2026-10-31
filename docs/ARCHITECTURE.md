@@ -44,6 +44,8 @@ src/
     types.ts              SpeciesDef contract (below)
     registry.ts           auto-discovers species via import.meta.glob('./species/*.ts') (not *.test/*.studio)
     species/<id>.ts       one file per species, default export SpeciesDef (25 real species)
+    species/<id>.test.ts  the species' family suite (lib/suites.ts: smallSuite, shrubSuite, treeSuite)
+    notes/<id>.ts         the species' plant-card note, default export { note, in? } (globbed by notes.ts)
     lib/                  shared species helpers (small-*, shrub-*, tree-*)
     sprites.ts            renders + caches plant sprites per instance & growth step (workers, LRU)
     hit-test.ts · notes.ts  painted-pixel hit-test (alpha masks); a note per species for the plant card
@@ -230,6 +232,10 @@ in module workers; the garden cross-fades (and morphs) between the two nearest s
 continuous (ADRs 0110–0112). `draw` must be deterministic per (seed, growth, w, h), stay inside its box
 and not touch the DOM (it runs in a worker). Runtime sway = horizontal skew (a bend for large plants
 and trees) about the base, driven by the garden wind (ADR 0113). Details: `docs/systems/plants.md`.
+
+A species is only added files (ADR 0251, `docs/systems/species-recipe.md`): `species/<id>.ts`,
+`species/<id>.test.ts` and `notes/<id>.ts`. `speciesNote(id, sceneryId?)` (`notes.ts`, main thread
+only) returns the note's `in[sceneryId]` when it has one, else `note`; null for an unknown id.
 
 ### Plant view (`src/plants/view.ts`, ADRs 0003, 0094, 0220, 0221, 0222)
 One species at an arbitrary growth, optionally mid-watering or wilting — used by the widget card,
@@ -620,7 +626,8 @@ render of the real graph returning RMS, peak and tail RMS for audio verification
 Blobs in IndexedDB `studysprout-paint`, stored under `version:kind:key`. The version is
 `__PAINT_VERSION__` plus a user-agent hash. `__PAINT_VERSION__` is a build-time `define`
 (`vite.config.ts`): a hash of the import closure of `src/paint`, `scene`, `scenery`, `ambience`, `plants`,
-`fauna`, `render` and `core`, without tests and studio entries (`src/paint/paint-version.ts`). It is
+`fauna`, `render` and `core`, without tests and studio entries, and without `src/plants/species`, `lib`,
+`notes` and `src/fauna/creatures` unless a cached painter imports them (`src/paint/paint-version.ts`, ADR 0251). It is
 `'dev'` on the dev server and in Vitest. Opening the store drops entries of other versions.
 `put` copies the canvas synchronously (unless `{ copy: false }`) and encodes it in idle time, one put
 at a time. Least recently used entries are evicted under a 48 MB cap. `get` decodes with no

@@ -4,7 +4,7 @@ The six spectacular rewards for 90–180 minute sessions. Each grows live, from 
 soil to a full tree in bloom, as one continuous painting per seed.
 
 Look at them: studio → **Plants · tier-4 trees side by side** (`plants-trees/lineup`, `/variety`,
-`/growth`) and each species' own section (`species-<id>`, growth stages + grow loop).
+`/growth`; every tier-4 species from the registry, in id order) and each species' own section (`species-<id>`, growth stages + grow loop).
 `npm run shots -- --entry plants-trees/lineup`.
 
 ## Species
@@ -89,7 +89,7 @@ their petals. A first naive cherry took ~400 ms.
 of `growLimb` (with and without `floor`), children attach where the parent has grown to,
 windows normalised to τ ≤ 1, monotonic branch progress, partial paths, `treeView`
 smoothness/monotonicity, `stagger`, `fitTree`, angle helpers.
-`src/plants/lib/tree-plans.test.ts` — for every species: registered as tier 4 with a sane
+`treeSuite(id, plan)` (`src/plants/lib/suites.ts`, called from each `species/<id>.test.ts`, ADR 0251) — for every species: registered as tier 4 with a sane
 box, plan deterministic per seed, varies across seeds, independent of the caller's rng
 position, and every skeleton point inside the sprite box for 12 seeds.
 Visuals: studio sections above; `tests/e2e/studio.spec.ts` renders all of them.

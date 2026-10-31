@@ -48,6 +48,12 @@ titled `T<tier> · <name>`, order `200 + tier`, all growth stages `0.1 / 0.3 / 0
 plus an animated grow loop. Species files themselves must not be named `*.studio.ts` inside
 `species/` (the registry ignores them).
 
+The family boards and the flora line-ups are generated from the registry (ADR 0251):
+`plants-a-review` takes tiers 1 and 2, `shrubs-b` tier 3 and `plants-trees` tier 4, in id order;
+`flora/<sceneryId>` lines up each garden's species by tier at one world scale (×0.5, growth 1). It
+lists every species until F1's `floraOf` lands (a marked one-line hook in `flora.studio.ts`). A new
+species shows up in all of them without editing a studio file.
+
 Where the sections live today:
 
 | File | Sections (`order`) |
@@ -61,6 +67,7 @@ Where the sections live today:
 | `src/scene/daylight.studio.ts` | `daylight` (105) |
 | `src/plants/species.studio.ts` | `species-<id>` (200 + tier) |
 | `src/plants/lib/small-review.studio.ts`, `tree-review.studio.ts` | `plants-a-review`, `plants-trees` (205) |
+| `src/plants/flora.studio.ts` | `flora` (206): one entry per scenery, its species by tier |
 | `src/plants/plants.studio.ts` | `plants-watering`, `plants-wither`, `plants-growth`, `plants-reflection` (250–253) |
 | `src/plants/close-view.studio.ts` | `close-view-plants` (262) |
 | `src/plants/lib/shrub-gallery.studio.ts` | `shrubs-b` (290) |

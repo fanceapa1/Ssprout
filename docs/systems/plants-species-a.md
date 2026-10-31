@@ -36,8 +36,8 @@ Medium sprites share the 120×160 box except the water lily, which is wide and f
 the water; anchor = the centre of its pad group on the surface). The five tier-1 flowers use
 `SMALL_SIZE` = `PLANT_SIZES.small` (86×86) as their garden box but still draw in the 70-unit
 `SMALL_DESIGN` box, scaled up by `plantFrame(p, def, opts, SMALL_DESIGN)` (`lib/small-size.ts`,
-ADR 0125); maidenhair fern keeps 70×70. The species list is `SPECIES_A` in
-`lib/small-species-list.ts`. `placeholder-sprout` is no longer a registered species: it is a
+ADR 0125); maidenhair fern keeps 70×70. There is no species list: the review boards take tiers 1
+and 2 from the registry, and each species calls `smallSuite` from `species/<id>.test.ts` (ADR 0251). `placeholder-sprout` is no longer a registered species: it is a
 dev/test fixture in `src/dev/placeholder-sprout.ts` (used by unit tests; not offered to players).
 
 ## Growth staging (how every species is built)
@@ -91,7 +91,7 @@ from the closed bud direction to its foreshortened open direction).
   `smallBlossom` (tiny flower in one layer — forget-me-not), `stamens`.
 
 `small-size.ts` — `SMALL_SIZE` (86, the garden box of the tier-1 flowers) and `SMALL_DESIGN`
-(70×70, the box they are drawn in). `small-species-list.ts` — `SPECIES_A` by tier.
+(70×70, the box they are drawn in).
 
 `small-recorder.ts` — `recordingPainter()` for node tests: logs every engine call with rng
 streams replaced by seeds, back-fills layer opacity onto `dabInto` marks; `callNumbers`,
@@ -106,8 +106,9 @@ marks (white petals, the berry, eyes over petals) use `blend: 'source-over'` (AD
 
 ## Tests
 `src/plants/lib/small-growth.test.ts` — staging maths and pure structure (determinism, growth
-continuity of `stemPoints`, projection). `src/plants/lib/small-species.test.ts` — for each of the
-13 species: well-formed definition; identical call log for the same seed + growth; different
+continuity of `stemPoints`, projection). `smallSuite(id)` (`src/plants/lib/suites.ts`, called from
+each `species/<id>.test.ts`, ADR 0251) — for each of the 13 species: well-formed definition (description under 80
+characters, a native name, known habitats, tier 1 or 2); identical call log for the same seed + growth; different
 for another seed; paints at every growth; and **continuous growth**: 200 growth steps × 2
 seeds, no mark may move more than 5 % of the sprite between neighbouring steps, and marks may
 only appear/vanish below 1.2 % of the sprite in size × opacity.
