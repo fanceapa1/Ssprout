@@ -160,6 +160,8 @@ const spiderLily: SpeciesDef = {
   id: 'spider-lily',
   name: 'Red Spider Lily',
   nativeName: 'Higanbana',
+  // Chinese; on Japan's paddy banks since antiquity
+  range: { realms: ['east-asia', 'japan'], biomes: ['wetland'], climates: ['warm-temperate'], cultivatedIn: ['japan'] },
   tier: 2,
   habitats: ['meadow', 'shore'],
   sizeClass: 'medium',

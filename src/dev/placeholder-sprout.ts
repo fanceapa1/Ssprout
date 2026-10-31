@@ -1,3 +1,4 @@
+import { EVERYWHERE } from '../plants/biomes';
 import type { SpeciesDef } from '../plants/types';
 
 /**
@@ -8,6 +9,7 @@ import type { SpeciesDef } from '../plants/types';
 export const placeholderSprout: SpeciesDef = {
   id: 'placeholder-sprout',
   name: 'Sprout',
+  range: EVERYWHERE,
   tier: 1,
   habitats: ['meadow', 'path', 'rock'],
   sizeClass: 'small',

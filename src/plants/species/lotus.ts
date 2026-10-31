@@ -225,6 +225,8 @@ const lotus: SpeciesDef = {
   id: 'lotus',
   name: 'Lotus',
   nativeName: 'Hasu',
+  // still ponds and marshes
+  range: { realms: ['japan', 'east-asia'], biomes: ['wetland'], climates: ['warm-temperate'], cultivatedIn: ['japan'] },
   tier: 3,
   habitats: ['water'],
   sizeClass: 'large',

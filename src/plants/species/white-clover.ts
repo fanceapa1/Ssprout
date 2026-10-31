@@ -182,6 +182,8 @@ const whiteClover: SpeciesDef = {
   id: 'white-clover',
   name: 'White Clover',
   nativeName: 'Shirotsumekusa',
+  // European, introduced in Japan
+  range: { realms: ['europe'], biomes: ['grassland'], climates: ['oceanic', 'cool-temperate'], cultivatedIn: ['japan'] },
   tier: 1,
   habitats: ['meadow', 'path'],
   sizeClass: 'small',

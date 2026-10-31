@@ -1,5 +1,6 @@
 import type { Rng } from '../core/rng';
 import type { Painter } from '../paint';
+import type { Range } from './biomes';
 
 export type Tier = 1 | 2 | 3 | 4;
 export type Habitat = 'water' | 'shore' | 'meadow' | 'path' | 'back' | 'rock';
@@ -24,6 +25,10 @@ export interface SpeciesDef {
   name: string;
   /** "Hanashōbu" */
   nativeName?: string;
+  /** BCP 47 language of `nativeName` (default `'ja-Latn'`, `nativeLang(def)`) */
+  nativeLang?: string;
+  /** where it grows wild and where it is planted: decides the sceneries that offer it (ADR 0250) */
+  range: Range;
   tier: Tier;
   habitats: Habitat[];
   sizeClass: SizeClass;
@@ -45,6 +50,11 @@ export interface SpeciesDef {
 
 export function fitsSize(species: SizeClass, slotMax: SizeClass): boolean {
   return SIZE_CLASSES.indexOf(species) <= SIZE_CLASSES.indexOf(slotMax);
+}
+
+/** The language of a species' native name, for the `lang` attribute. */
+export function nativeLang(def: Pick<SpeciesDef, 'nativeLang'>): string {
+  return def.nativeLang ?? 'ja-Latn';
 }
 
 export function reflects(def: SpeciesDef): boolean {

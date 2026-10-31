@@ -146,6 +146,8 @@ const maidenhairFern: SpeciesDef = {
   id: 'maidenhair-fern',
   name: 'Maidenhair Fern',
   nativeName: 'Kujakushida',
+  // cool mountain woods, spray and wet rock
+  range: { realms: ['japan', 'east-asia'], biomes: ['temperate-forest', 'montane-stream', 'wet-cliff'], climates: ['cool-temperate'], cultivatedIn: ['japan'] },
   tier: 1,
   habitats: ['rock', 'shore'],
   sizeClass: 'small',

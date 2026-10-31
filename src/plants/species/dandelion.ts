@@ -197,6 +197,8 @@ const dandelion: SpeciesDef = {
   id: 'dandelion',
   name: 'Dandelion',
   nativeName: 'Tanpopo',
+  // the European kind, introduced in Japan
+  range: { realms: ['europe'], biomes: ['grassland'], climates: ['oceanic', 'cool-temperate'], cultivatedIn: ['japan'] },
   tier: 1,
   habitats: ['meadow', 'path'],
   sizeClass: 'small',

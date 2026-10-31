@@ -207,6 +207,8 @@ const wildStrawberry: SpeciesDef = {
   id: 'wild-strawberry',
   name: 'Wild Strawberry',
   nativeName: 'No-ichigo',
+  // mountain meadows and forest paths
+  range: { realms: ['japan'], biomes: ['temperate-forest', 'alpine'], climates: ['cool-temperate', 'alpine'], cultivatedIn: ['japan'] },
   tier: 1,
   habitats: ['meadow', 'path', 'rock'],
   sizeClass: 'small',

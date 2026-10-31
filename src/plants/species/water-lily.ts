@@ -206,6 +206,8 @@ const waterLily: SpeciesDef = {
   id: 'water-lily',
   name: 'Water Lily',
   nativeName: 'Suiren',
+  // hitsujigusa of ponds and moats
+  range: { realms: ['japan', 'east-asia'], biomes: ['wetland'], climates: ['warm-temperate', 'cool-temperate'], cultivatedIn: ['japan'] },
   tier: 2,
   habitats: ['water'],
   sizeClass: 'medium',

@@ -137,6 +137,8 @@ const treePeony: SpeciesDef = {
   id: 'tree-peony',
   name: 'Tree Peony',
   nativeName: 'Botan',
+  // bred from wild peonies of Chinese mountain scrub
+  range: { realms: ['east-asia'], biomes: ['temperate-forest'], climates: ['cool-temperate'], cultivatedIn: ['japan'] },
   tier: 3,
   habitats: ['meadow', 'back'],
   sizeClass: 'large',

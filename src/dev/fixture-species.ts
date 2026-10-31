@@ -1,5 +1,6 @@
 import type { Rng } from '../core/rng';
 import { PIGMENTS, type Painter } from '../paint';
+import { EVERYWHERE } from '../plants/biomes';
 import type { Habitat, SizeClass, SpeciesDef, Tier } from '../plants/types';
 
 /**
@@ -106,6 +107,8 @@ function fx(
     id,
     name,
     ...(nativeName ? { nativeName } : {}),
+    // offered in every scenery (ADR 0250)
+    range: EVERYWHERE,
     tier,
     habitats,
     sizeClass,

@@ -233,6 +233,8 @@ const wisteria: SpeciesDef = {
   id: 'wisteria',
   name: 'Wisteria',
   nativeName: 'Fuji',
+  // wild fuji climbs on valley edges
+  range: { realms: ['japan'], biomes: ['temperate-forest'], climates: ['warm-temperate', 'cool-temperate'], cultivatedIn: ['japan'] },
   tier: 4,
   habitats: ['back', 'meadow', 'shore'],
   sizeClass: 'tree',

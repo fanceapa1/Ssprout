@@ -137,6 +137,8 @@ const japaneseMaple: SpeciesDef = {
   id: 'japanese-maple',
   name: 'Japanese Maple',
   nativeName: 'Momiji',
+  // mountain woods and gorges
+  range: { realms: ['japan', 'east-asia'], biomes: ['temperate-forest', 'montane-stream'], climates: ['warm-temperate', 'cool-temperate'], cultivatedIn: ['japan'] },
   tier: 4,
   habitats: ['back', 'meadow', 'shore'],
   sizeClass: 'tree',

@@ -181,6 +181,8 @@ const chrysanthemum: SpeciesDef = {
   id: 'chrysanthemum',
   name: 'Chrysanthemum',
   nativeName: 'Kiku',
+  // a cultigen: no wild range
+  range: { realms: [], biomes: [], climates: [], cultivatedIn: ['japan'] },
   tier: 3,
   habitats: ['meadow', 'path'],
   sizeClass: 'medium',

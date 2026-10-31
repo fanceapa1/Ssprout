@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { EVERYWHERE } from '../plants/biomes';
 import type { SpeciesDef } from '../plants/types';
 import type { Slot } from '../scene/geometry';
 import { createManualClock } from './clock';
@@ -37,6 +38,7 @@ function manualTicker() {
 const VIOLET: SpeciesDef = {
   id: 'violet',
   name: 'Violet',
+  range: EVERYWHERE,
   tier: 1,
   habitats: ['meadow'],
   sizeClass: 'small',

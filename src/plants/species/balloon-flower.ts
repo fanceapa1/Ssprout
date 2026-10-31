@@ -189,6 +189,8 @@ const balloonFlower: SpeciesDef = {
   id: 'balloon-flower',
   name: 'Balloon Flower',
   nativeName: 'Kikyō',
+  // sunny grassland
+  range: { realms: ['japan', 'east-asia'], biomes: ['grassland'], climates: ['warm-temperate', 'cool-temperate'], cultivatedIn: ['japan'] },
   tier: 2,
   habitats: ['meadow', 'path'],
   sizeClass: 'medium',

@@ -126,6 +126,8 @@ const plumBlossom: SpeciesDef = {
   id: 'plum-blossom',
   name: 'Plum Blossom',
   nativeName: 'Ume',
+  // Chinese, long planted in Japan
+  range: { realms: ['east-asia'], biomes: ['temperate-forest'], climates: ['warm-temperate'], cultivatedIn: ['japan'] },
   tier: 4,
   habitats: ['back', 'meadow', 'rock'],
   sizeClass: 'large',

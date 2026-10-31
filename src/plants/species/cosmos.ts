@@ -197,6 +197,8 @@ const cosmos: SpeciesDef = {
   id: 'cosmos',
   name: 'Cosmos',
   nativeName: 'Kosumosu',
+  // Mexican highland grassland
+  range: { realms: ['neotropics'], biomes: ['grassland'], climates: ['tropical-montane'], cultivatedIn: ['japan'] },
   tier: 2,
   habitats: ['meadow', 'back'],
   sizeClass: 'medium',

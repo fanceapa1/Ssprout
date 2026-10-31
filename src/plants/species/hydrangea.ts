@@ -107,6 +107,8 @@ const hydrangea: SpeciesDef = {
   id: 'hydrangea',
   name: 'Hydrangea',
   nativeName: 'Ajisai',
+  // the mophead is bred from gaku-ajisai of the Pacific coast
+  range: { realms: ['japan'], biomes: ['coast'], climates: ['warm-temperate'], cultivatedIn: ['japan'] },
   tier: 3,
   habitats: ['meadow', 'shore', 'back'],
   sizeClass: 'large',

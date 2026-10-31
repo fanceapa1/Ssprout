@@ -148,6 +148,8 @@ const camellia: SpeciesDef = {
   id: 'camellia',
   name: 'Camellia',
   nativeName: 'Tsubaki',
+  // yabu-tsubaki: warm evergreen forest and sea cliffs
+  range: { realms: ['japan', 'east-asia'], biomes: ['temperate-forest', 'coast'], climates: ['warm-temperate'], cultivatedIn: ['japan'] },
   tier: 3,
   habitats: ['back', 'meadow'],
   sizeClass: 'large',

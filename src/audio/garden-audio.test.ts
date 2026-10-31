@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { EVERYWHERE } from '../plants/biomes';
 import { createManualClock } from '../core/clock';
 import { createEventBus } from '../core/events';
 import { createSessionController, type StartOptions, type Ticker } from '../core/controller';
@@ -401,6 +402,7 @@ function parallel(soundscape?: SoundscapeSettings) {
   const species: SpeciesDef = {
     id: 'violet',
     name: 'violet',
+    range: EVERYWHERE,
     tier: 1,
     habitats: ['meadow'],
     sizeClass: 'small',

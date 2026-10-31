@@ -169,6 +169,8 @@ const violet: SpeciesDef = {
   id: 'violet',
   name: 'Violet',
   nativeName: 'Sumire',
+  // roadsides, mountain woods and rocks
+  range: { realms: ['japan', 'east-asia'], biomes: ['grassland', 'temperate-forest'], climates: ['warm-temperate', 'cool-temperate'], cultivatedIn: ['japan'] },
   tier: 1,
   habitats: ['meadow', 'path', 'rock'],
   sizeClass: 'small',

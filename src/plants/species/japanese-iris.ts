@@ -209,6 +209,8 @@ const japaneseIris: SpeciesDef = {
   id: 'japanese-iris',
   name: 'Japanese Iris',
   nativeName: 'Hanashōbu',
+  // hanashōbu is bred from nohanashōbu of wet meadows
+  range: { realms: ['japan', 'east-asia'], biomes: ['wetland'], climates: ['warm-temperate', 'cool-temperate'], cultivatedIn: ['japan'] },
   tier: 2,
   habitats: ['shore'],
   sizeClass: 'medium',

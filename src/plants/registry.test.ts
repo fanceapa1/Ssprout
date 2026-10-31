@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { EVERYWHERE } from './biomes';
 import { allSpecies, buildRegistry, getSpecies, speciesByTier } from './registry';
 import { fitsSize, reflects, TIERS, type SpeciesDef } from './types';
 
@@ -6,6 +7,7 @@ const stub = (id: string, extra: Partial<SpeciesDef> = {}): { default: SpeciesDe
   default: {
     id,
     name: id,
+    range: EVERYWHERE,
     tier: 1,
     habitats: ['meadow'],
     sizeClass: 'small',

@@ -64,6 +64,8 @@ const azalea: SpeciesDef = {
   id: 'azalea',
   name: 'Azalea',
   nativeName: 'Tsutsuji',
+  // wild satsuki: river rocks of warm south-western Japan
+  range: { realms: ['japan'], biomes: ['montane-stream'], climates: ['warm-temperate'], cultivatedIn: ['japan'] },
   tier: 3,
   habitats: ['meadow', 'rock', 'path'],
   sizeClass: 'medium',

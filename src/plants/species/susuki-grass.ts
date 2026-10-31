@@ -165,6 +165,8 @@ const susukiGrass: SpeciesDef = {
   id: 'susuki-grass',
   name: 'Silver Grass',
   nativeName: 'Susuki',
+  // sunny banks, clearings and cliff tops all over Japan
+  range: { realms: ['japan', 'east-asia'], biomes: ['grassland', 'temperate-forest', 'coast'], climates: ['warm-temperate', 'cool-temperate'], cultivatedIn: ['japan'] },
   tier: 2,
   habitats: ['back', 'meadow', 'shore'],
   sizeClass: 'medium',

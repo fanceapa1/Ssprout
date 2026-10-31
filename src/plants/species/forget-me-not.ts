@@ -194,6 +194,8 @@ const forgetMeNot: SpeciesDef = {
   id: 'forget-me-not',
   name: 'Forget-me-not',
   nativeName: 'Wasurenagusa',
+  // European; an invasive escape along Japanese rivers
+  range: { realms: ['europe'], biomes: ['wetland', 'montane-stream'], climates: ['oceanic', 'cool-temperate'], cultivatedIn: ['japan'] },
   tier: 1,
   habitats: ['shore', 'meadow'],
   sizeClass: 'small',

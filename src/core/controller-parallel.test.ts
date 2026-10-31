@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { EVERYWHERE } from '../plants/biomes';
 import type { Habitat, SizeClass, SpeciesDef, Tier } from '../plants/types';
 import type { Slot } from '../scene/geometry';
 import { createManualClock } from './clock';
@@ -17,6 +18,7 @@ import { makeSession, MIN, plan, T0 } from './testing';
 const def = (id: string, tier: Tier, habitats: Habitat[], sizeClass: SizeClass = 'small'): SpeciesDef => ({
   id,
   name: id,
+  range: EVERYWHERE,
   tier,
   habitats,
   sizeClass,

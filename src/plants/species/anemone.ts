@@ -181,6 +181,8 @@ const anemone: SpeciesDef = {
   id: 'anemone',
   name: 'Anemone',
   nativeName: 'Shūmeigiku',
+  // Chinese; naturalised near houses in Japan
+  range: { realms: ['east-asia'], biomes: ['temperate-forest', 'grassland'], climates: ['warm-temperate'], cultivatedIn: ['japan'] },
   tier: 2,
   habitats: ['meadow', 'path'],
   sizeClass: 'medium',

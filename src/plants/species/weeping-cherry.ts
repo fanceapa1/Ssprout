@@ -214,6 +214,8 @@ const weepingCherry: SpeciesDef = {
   id: 'weeping-cherry',
   name: 'Weeping Cherry',
   nativeName: 'Shidarezakura',
+  // the weeping form is only planted
+  range: { realms: [], biomes: [], climates: [], cultivatedIn: ['japan'] },
   tier: 4,
   habitats: ['back', 'meadow', 'shore'],
   sizeClass: 'tree',

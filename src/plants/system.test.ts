@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { EVERYWHERE } from './biomes';
 import { createManualClock } from '../core/clock';
 import { createEventBus } from '../core/events';
 import type { StudyPlan } from '../core/plans';
@@ -43,7 +44,7 @@ const placeholderScene: SceneGeometry = {
 };
 
 const species = (id: string, sizeClass: SpeciesDef['sizeClass'], w: number, h: number): SpeciesDef =>
-  ({ id, name: id, tier: 1, habitats: ['meadow', 'shore', 'water', 'back', 'path', 'rock'], sizeClass, size: { w, h }, anchor: { x: 0.5, y: 0.95 }, description: '', bloomColor: '#fff', pollinators: false, draw() {} }) as SpeciesDef;
+  ({ id, name: id, range: EVERYWHERE, tier: 1, habitats: ['meadow', 'shore', 'water', 'back', 'path', 'rock'], sizeClass, size: { w, h }, anchor: { x: 0.5, y: 0.95 }, description: '', bloomColor: '#fff', pollinators: false, draw() {} }) as SpeciesDef;
 
 const DEFS = new Map([species('small', 'small', 70, 70), species('tree', 'tree', 380, 460)].map((d) => [d.id, d]));
 const getSpecies = (id: string) => DEFS.get(id);

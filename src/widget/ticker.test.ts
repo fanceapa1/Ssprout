@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import { EVERYWHERE } from '../plants/biomes';
 import { createManualClock } from '../core/clock';
 import { createSessionController, type Ticker } from '../core/controller';
 import { createEventBus } from '../core/events';
@@ -194,6 +195,7 @@ describe('createWorkerTicker', () => {
     const violet: SpeciesDef = {
       id: 'violet',
       name: 'Violet',
+      range: EVERYWHERE,
       tier: 1,
       habitats: ['meadow'],
       sizeClass: 'small',

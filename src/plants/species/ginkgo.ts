@@ -116,6 +116,8 @@ const ginkgo: SpeciesDef = {
   id: 'ginkgo',
   name: 'Ginkgo',
   nativeName: 'Ichō',
+  // wild only in a few relict Chinese forests; planted at temples
+  range: { realms: ['east-asia'], biomes: ['temperate-forest'], climates: ['warm-temperate'], cultivatedIn: ['japan'] },
   tier: 4,
   habitats: ['back', 'meadow'],
   sizeClass: 'tree',

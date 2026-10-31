@@ -131,6 +131,8 @@ const blackPine: SpeciesDef = {
   id: 'black-pine',
   name: 'Black Pine',
   nativeName: 'Kuromatsu',
+  // coastal
+  range: { realms: ['japan', 'east-asia'], biomes: ['coast'], climates: ['warm-temperate'], cultivatedIn: ['japan'] },
   tier: 4,
   habitats: ['shore', 'rock', 'back'],
   sizeClass: 'tree',
