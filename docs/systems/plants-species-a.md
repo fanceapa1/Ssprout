@@ -32,6 +32,7 @@ npm run shots -- --entry plants-a-review/strip-balloon-flower --seed 3
 | `water-lily` | Water Lily · Suiren | 2 | water | 130×80 · .5/.62 | `#f7e5e2` | yes | slit pads in perspective (squash 0.36), cupped white or pink flowers on the surface |
 | `susuki-grass` | Silver Grass · Susuki | 2 | back, meadow, shore | 120×160 · .5/.94 | `#d1be9e` | no | arching fountain with pale midribs; russet spikes open into silver tassels downwind |
 | `iwatabako` | Rock Tobacco · Iwatabako | 1 | rock, path | 86×86 · .5/.5 | `#9468b0` | yes | 1–3 puckered glossy toothed leaves hanging like tongues; arching red-brown scape, loose umbel of violet-pink stars with yellow anther cones (waterfall only) |
+| `daimonjiso` | Daimonji Saxifrage · Daimonjisō | 1 | rock, shore | 86×86 · .5/.88 | `#f6f1ea` | yes | rosette of round lobed leaves on red stalks; loose sprays of white 大 flowers, two long lower petals; white / blush / rose tips (waterfall only) |
 
 Medium sprites share the 120×160 box except the water lily, which is wide and flat (it lies on
 the water; anchor = the centre of its pad group on the surface). The five tier-1 flowers use

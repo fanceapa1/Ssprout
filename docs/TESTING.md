@@ -661,3 +661,4 @@ Legend: unit tests as `folder/file › test`, under `src/` (`.test.ts` omitted).
 | # | Rule | Unit | E2E | Status |
 |---|---|---|---|---|
 | W1.1 | Iwatabako: `smallSuite` (determinism, continuous growth); 1–3 leaves with the first hanging down, 6–16 stars; leaves, scape and stars inside the design box; offered only at the waterfall | plants/species/iwatabako; scenery/flora | studio › every entry renders | ✔ |
+| W2.1 | Daimonjisō: `smallSuite` (deterministic, seeded, grows continuously, fits its box); offered only at the waterfall | plants/species/daimonjiso; scenery/flora | studio › every entry renders | ✔ |
