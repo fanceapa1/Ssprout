@@ -46,7 +46,7 @@ function setup(initial: GardenState = createDefaultState(T0), flora = false) {
   const store = createStore(initial, createReducer({ getSpecies: (id) => SPECIES.find((s) => s.id === id), getSlot: slots.get, grows }));
   const bus = createEventBus();
   const arrived: string[] = [];
-  bus.on('fauna:arrived', (p: EventMap['fauna:arrived']) => arrived.push(p.id));
+  bus.on('fauna:arrived', (p: EventMap['fauna:arrived']) => arrived.push(`${p.sceneryId}:${p.id}`));
   let tick: (() => void) | null = null;
   const ticker: Ticker = { start: (fn) => ((tick = fn), () => (tick = null)) };
   const controller = createSessionController({ store, clock, bus, species: SPECIES, speciesIn: flora ? speciesIn : undefined, slots: slots.of, ticker, seed: 1 });
@@ -109,7 +109,7 @@ describe('controller with per-scenery gardens', () => {
     expect(store.get().scenery).toBe('waterfall');
   });
 
-  it('announceFauna records a creature in a garden (default: the one on view) and announces the bare id', () => {
+  it('announceFauna records a creature in a garden (default: the one on view) and announces it with that garden', () => {
     const { controller, store, arrived } = setup();
     expect(controller.announceFauna('dragonfly')).toBe(true);
     expect(controller.announceFauna('dragonfly', 'waterfall')).toBe(true);
@@ -117,7 +117,7 @@ describe('controller with per-scenery gardens', () => {
     expect(controller.announceFauna('dragonfly')).toBe(false);
     expect(controller.announceFauna('')).toBe(false);
     expect(store.get().faunaSeen).toEqual(['dragonfly', 'waterfall:dragonfly']);
-    expect(arrived).toEqual(['dragonfly', 'dragonfly']);
+    expect(arrived).toEqual(['japanese-garden:dragonfly', 'waterfall:dragonfly']);
   });
 });
 

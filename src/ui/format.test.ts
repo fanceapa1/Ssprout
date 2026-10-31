@@ -43,9 +43,12 @@ describe('ui format helpers', () => {
   });
 
   it('reads arrival lines from the core unlock table and skips silent creatures', () => {
-    expect(faunaArrivalLine('koi-1')).toBe('A koi has found your pond.');
-    expect(faunaArrivalLine('striders')).toBeNull();
-    expect(faunaArrivalLine('unicorn')).toBeNull();
+    expect(faunaArrivalLine('japanese-garden', 'koi-1')).toBe('A koi has found your pond.');
+    expect(faunaArrivalLine('japanese-garden', 'striders')).toBeNull();
+    expect(faunaArrivalLine('japanese-garden', 'unicorn')).toBeNull();
+    // each garden its own line for a shared creature
+    expect(faunaArrivalLine('waterfall', 'dragonfly')).toBe('A red dragonfly hovers over the pool.');
+    expect(faunaArrivalLine('waterfall', 'koi-1')).toBeNull();
   });
 
   it('writes species names in a sentence with proper adjectives kept', () => {

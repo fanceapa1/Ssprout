@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { FAUNA_UNLOCKS } from '../core/fauna-unlocks';
 import { hashString } from '../core/rng';
 import type { PlantInstance } from '../core/state';
 import { gardenScene } from '../scene/geometry';
+import { JAPANESE_FAUNA } from '../scenery/japanese-garden/fauna';
 import { FaunaSim } from './sim';
 import type { TargetSpecies } from './targets';
 
@@ -15,7 +15,7 @@ const plants: PlantInstance[] = gardenScene.slots.map((s, i) => ({
 
 function fingerprint(seed: number, seconds: number, opts: { reduced?: boolean; hour?: number; ids?: string[] } = {}): string {
   const sim = new FaunaSim({ scene: gardenScene, seed, reducedMotion: opts.reduced });
-  sim.setGarden(plants, opts.ids ?? FAUNA_UNLOCKS.map((f) => f.id), lookup);
+  sim.setGarden(plants, JAPANESE_FAUNA.filter((f) => !opts.ids || opts.ids.includes(f.id)), lookup);
   sim.hourOverride = opts.hour ?? 12;
   const marks: string[] = [];
   for (let i = 0; i * 0.1 < seconds; i++) {
@@ -28,7 +28,7 @@ function fingerprint(seed: number, seconds: number, opts: { reduced?: boolean; h
 /** Hashes of the creatures' positions and states, taken before the creature registry (ADR 0248). */
 describe('Japanese garden regression', () => {
   it('the same table and seeds give the same garden as before wildlife went per scenery', () => {
-    const out = [fingerprint(7, 900), fingerprint(3, 600, { reduced: true }), fingerprint(11, 600, { hour: 23 }), fingerprint(5, 300, { ids: ['striders', 'dragonfly', 'koi-1'] })];
+    const out = [fingerprint(7, 900), fingerprint(3, 600, { reduced: true }), fingerprint(11, 600, { hour: 23 }), fingerprint(5, 300, { ids: ['striders', 'dragonfly', 'koi-1', 'leaf'] })];
     expect(out).toEqual(['312b82a4:11', 'cc5b6199:6', '4123856:7', '95ae85e7:6']);
   }, 60_000);
 });

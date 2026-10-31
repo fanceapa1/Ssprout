@@ -379,7 +379,7 @@ describe('createGardenAudio soundscape', () => {
     const s = setup({}, { muted: false });
     s.audio.unlock();
     s.audio.setTimeOfDay(10);
-    s.bus.emit('fauna:arrived', { id: 'swallows' });
+    s.bus.emit('fauna:arrived', { id: 'swallows', sceneryId: 'japanese-garden' });
     expect(s.fake.mixes.at(-1)!.rates.swallow).toBeGreaterThan(0);
   });
 

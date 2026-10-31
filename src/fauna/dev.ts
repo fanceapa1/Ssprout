@@ -7,7 +7,7 @@ import { makeCanvas } from '../paint';
 import { LAYERS } from '../render/types';
 import type { Pt, Rect } from '../render/viewport';
 import { pointInPolygon } from './math';
-import { kindOf } from './roster';
+import { faunaRow } from '../core/fauna-unlocks';
 import type { FaunaListing } from './sim';
 import type { FaunaSystem } from './system';
 import { creatureDef, creatureKinds } from './creatures/registry';
@@ -27,9 +27,9 @@ export interface FaunaBench {
 }
 
 export interface FaunaDebug {
-  /** creature kinds and unlock ids that `spawn` accepts */
+  /** creature kinds with a module (`spawn` also takes the garden on view's unlock ids) */
   kinds(): string[];
-  /** Bring a creature in now (ignores schedule, cap and night). Returns the new ids. */
+  /** Bring a creature in now (ignores schedule, cap and night), in this garden's variant. Returns the new ids. */
   spawn(id: string, count?: number): number[];
   list(): FaunaDebugListing[];
   /** Remove every creature and forget the schedule. */
@@ -40,8 +40,11 @@ export interface FaunaDebug {
   night(): boolean;
   /** Pin the local hour (0–24) for day/night behaviour; null follows the daylight. */
   setHour(hour: number | null): void;
-  /** Resident counts and visiting kinds currently enabled by the garden. */
-  roster(): { koi: number; striders: boolean; frog: boolean; visitors: string[] };
+  /**
+   * The garden on view's wildlife: its unlocked rows (`ids`), resident counts by kind, visiting
+   * kinds enabled now, every kind its rows bring that has a module (`kinds`), and its variants.
+   */
+  roster(): { scenery: string; ids: string[]; residents: Record<string, number>; visitors: string[]; kinds: string[]; variants: Record<string, string[]> };
   /** Seconds until each scheduled visit. */
   schedule(): Record<string, number>;
   /** Pond polygon and visible world rect (bounds checks in tests). */
@@ -71,7 +74,7 @@ export function installFaunaDebug(system: FaunaSystem): void {
   const api: FaunaDebug = {
     kinds: () => creatureKinds(),
     spawn(id, count) {
-      const kind = kindOf(id) ?? id;
+      const kind = creatureDef(id) ? id : (faunaRow(system.habitat().unlocks, id)?.kind ?? id);
       const def = creatureDef(kind);
       if (!def) throw new Error(`unknown creature "${id}" (try ${creatureKinds().join(', ')})`);
       return sim()
@@ -94,7 +97,15 @@ export function installFaunaDebug(system: FaunaSystem): void {
     },
     roster() {
       const r = sim().roster;
-      return { koi: r.koi, striders: r.striders, frog: r.frog, visitors: [...sim().enabledVisitors()] };
+      const kinds = [...new Set(system.unlocked().map((u) => u.kind))].filter((k) => creatureDef(k));
+      return {
+        scenery: system.sceneryId(),
+        ids: system.unlocked().map((u) => u.id),
+        residents: Object.fromEntries(r.residents),
+        visitors: [...sim().enabledVisitors()],
+        kinds,
+        variants: Object.fromEntries(r.variants),
+      };
     },
     schedule() {
       const s = sim();

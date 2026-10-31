@@ -8,6 +8,7 @@ import type { PaintStep, SceneArt } from '../../scene/background';
 import { paintMargins, paintStones } from '../../scene/paint-land';
 import type { Scenery, SceneryView } from '../types';
 import { WATERFALL_FLORA } from './flora';
+import { WATERFALL_WILDLIFE } from './fauna';
 import { TRAIL, waterfallScene } from './geometry';
 import { FOCUS, WATERFALL_AMBIENCE, WATERFALL_HABITAT_WORDS } from './layout';
 import { WATERFALL_LIGHT_ART } from './light';
@@ -92,4 +93,5 @@ export const WATERFALL: Scenery = {
   view: WATERFALL_VIEW,
   flora: WATERFALL_FLORA,
   habitatWords: WATERFALL_HABITAT_WORDS,
+  fauna: WATERFALL_WILDLIFE,
 };

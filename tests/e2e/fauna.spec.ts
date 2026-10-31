@@ -66,7 +66,7 @@ test.describe('fauna', () => {
     expect(koi).toHaveLength(1);
     expect(koi[0]!.layer).toBe('underwater');
     expect(koi[0]!.inPond).toBe(true);
-    expect(await page.evaluate(() => window.sprout!.fauna.roster())).toMatchObject({ koi: 1, striders: true });
+    expect(await page.evaluate(() => window.sprout!.fauna.roster())).toMatchObject({ residents: { koi: 1, strider: 1 } });
   });
 
   test('the unlock table drives the roster; visits are scheduled, not immediate', async ({ page }) => {
@@ -77,7 +77,7 @@ test.describe('fauna', () => {
       window.sprout!.fauna.step(0.5);
     });
     const roster = await page.evaluate(() => window.sprout!.fauna.roster());
-    expect(roster.koi).toBe(3);
+    expect(roster.residents.koi).toBe(3);
     // placeholder species attract no pollinators and grow no pads: no bees, butterflies or frog
     expect(roster.visitors.sort()).toEqual(['bird', 'dragonfly', 'heron', 'leaf', 'swallow']);
     const schedule = await page.evaluate(() => window.sprout!.fauna.schedule());

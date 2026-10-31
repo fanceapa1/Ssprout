@@ -1,3 +1,4 @@
+import type { SceneryId } from './sceneries';
 import type { OccurrenceView } from './schedule';
 import type { ActiveSession, PlantInstance, PressedFlower, Settings, TipRetireReason } from './state';
 
@@ -34,7 +35,8 @@ export interface EventMap {
   'session:complete': { sessionId: string; plant: PlantInstance };
   'plant:placed': { plant: PlantInstance };
   'plant:swapped': { plant: PlantInstance; removed: PressedFlower };
-  'fauna:arrived': { id: string };
+  /** a creature first seen in a garden (its table's row id; ADR 0120, 0248) */
+  'fauna:arrived': { id: string; sceneryId: SceneryId };
   /** `reason`: used, or dismissed with the note's × (ADR 0211) */
   'tip:retired': { id: string; reason: TipRetireReason };
   'settings:changed': { settings: Settings };

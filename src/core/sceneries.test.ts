@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Habitat, SizeClass, Tier } from '../plants/types';
-import { faunaSeenIn, faunaSeenKey, gardenCounts, newlyArrived, unlockedFauna, type SpeciesLookup } from './fauna-unlocks';
+import { faunaSeenIn, faunaSeenKey, gardenCounts, newlyArrived, unlockedFauna, type FaunaTable, type SpeciesLookup } from './fauna-unlocks';
 import { findPlan, type StudyPlan } from './plans';
 import { DEFAULT_SCENERY, isSceneryId, SCENERY_IDS, slotLookup, slotsOfAny, type SceneryId } from './sceneries';
 import {
@@ -175,6 +175,13 @@ describe('selectors', () => {
 
 describe('wildlife per garden', () => {
   const lookup: SpeciesLookup = (id) => SPECIES[id] && { habitats: SPECIES[id]!.habitats, pollinators: !!SPECIES[id]!.pollinators };
+  // the first rows of a table like the Japanese garden's (core never imports the sceneries' tables)
+  const table: FaunaTable = [
+    { id: 'striders', kind: 'strider', rule: 'always', arrival: 'Striders.', announce: false, unlocked: () => true },
+    { id: 'dragonfly', kind: 'dragonfly', rule: '2 plants', arrival: 'A dragonfly.', announce: true, unlocked: (c) => c.plants >= 2 },
+    { id: 'koi-1', kind: 'koi', rule: '3 plants', arrival: 'A koi.', announce: true, unlocked: (c) => c.plants >= 3 },
+  ];
+  const ids = (rows: readonly { id: string }[]) => rows.map((r) => r.id);
   const many = (n: number, sceneryId: SceneryId, speciesId = 'violet') =>
     Array.from({ length: n }, (_, i) => makePlant({ id: `${sceneryId}-${i}`, sceneryId, speciesId, slotId: `slot-${i}` }));
 
@@ -182,9 +189,8 @@ describe('wildlife per garden', () => {
     const state: GardenState = { ...fresh(), plants: [...many(3, 'japanese-garden'), ...many(1, 'waterfall', 'lily')] };
     expect(gardenCounts(state, lookup)).toEqual({ plants: 3, pollinatorFlowers: 3, waterPlants: 0 });
     expect(gardenCounts(state, lookup, 'waterfall')).toEqual({ plants: 1, pollinatorFlowers: 0, waterPlants: 1 });
-    expect(unlockedFauna(state, lookup)).toEqual(['striders', 'dragonfly', 'koi-1']);
-    expect(unlockedFauna(state, lookup, 'waterfall')).toEqual(['striders']);
-    expect(unlockedFauna({ ...state, scenery: 'waterfall' }, lookup)).toEqual(['striders']);
+    expect(ids(unlockedFauna(state, lookup, 'japanese-garden', table))).toEqual(['striders', 'dragonfly', 'koi-1']);
+    expect(ids(unlockedFauna(state, lookup, 'waterfall', table))).toEqual(['striders']);
   });
 
   it('announced creatures are namespaced outside the Japanese garden', () => {
@@ -193,9 +199,9 @@ describe('wildlife per garden', () => {
     const state: GardenState = { ...fresh(), plants: [...many(2, 'japanese-garden'), ...many(2, 'waterfall')], faunaSeen: ['dragonfly'] };
     expect(faunaSeenIn(state, 'japanese-garden', 'dragonfly')).toBe(true);
     expect(faunaSeenIn(state, 'waterfall', 'dragonfly')).toBe(false);
-    expect(newlyArrived(state, lookup)).toEqual(['striders']);
-    expect(newlyArrived(state, lookup, 'waterfall')).toEqual(['striders', 'dragonfly']);
+    expect(newlyArrived(state, lookup, 'japanese-garden', table)).toEqual(['striders']);
+    expect(newlyArrived(state, lookup, 'waterfall', table)).toEqual(['striders', 'dragonfly']);
     const seen = { ...state, faunaSeen: ['dragonfly', 'waterfall:striders', 'waterfall:dragonfly'] };
-    expect(newlyArrived(seen, lookup, 'waterfall')).toEqual([]);
+    expect(newlyArrived(seen, lookup, 'waterfall', table)).toEqual([]);
   });
 });

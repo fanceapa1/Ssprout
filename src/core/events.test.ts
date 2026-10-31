@@ -7,7 +7,7 @@ describe('event bus', () => {
     const calls: string[] = [];
     bus.on('fauna:arrived', (p) => calls.push(`a:${p.id}`));
     bus.on('fauna:arrived', (p) => calls.push(`b:${p.id}`));
-    bus.emit('fauna:arrived', { id: 'koi' });
+    bus.emit('fauna:arrived', { id: 'koi', sceneryId: 'japanese-garden' });
     expect(calls).toEqual(['a:koi', 'b:koi']);
   });
 
@@ -15,7 +15,7 @@ describe('event bus', () => {
     const bus = createEventBus();
     const fn = vi.fn();
     bus.on('tip:retired', fn);
-    bus.emit('fauna:arrived', { id: 'heron' });
+    bus.emit('fauna:arrived', { id: 'heron', sceneryId: 'japanese-garden' });
     expect(fn).not.toHaveBeenCalled();
   });
 
@@ -51,7 +51,7 @@ describe('event bus', () => {
       bus.off('fauna:arrived', second);
     });
     bus.on('fauna:arrived', second);
-    bus.emit('fauna:arrived', { id: 'frog' });
+    bus.emit('fauna:arrived', { id: 'frog', sceneryId: 'japanese-garden' });
     expect(second).toHaveBeenCalledTimes(1);
     expect(late).not.toHaveBeenCalled();
   });
@@ -74,7 +74,7 @@ describe('event bus', () => {
     const fn = vi.fn();
     bus.on('fauna:arrived', fn);
     bus.clear();
-    bus.emit('fauna:arrived', { id: 'x' });
+    bus.emit('fauna:arrived', { id: 'x', sceneryId: 'japanese-garden' });
     expect(fn).not.toHaveBeenCalled();
     expect(EVENT_NAMES).toHaveLength(15);
   });

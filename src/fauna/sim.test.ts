@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { FAUNA_UNLOCKS } from '../core/fauna-unlocks';
 import type { PlantInstance } from '../core/state';
 import { gardenScene } from '../scene/geometry';
+import { JAPANESE_FAUNA } from '../scenery/japanese-garden/fauna';
 import { pointInPolygon } from './math';
 import { FaunaSim } from './sim';
 import type { TargetSpecies } from './targets';
 import { FAUNA_TUNING } from './tuning';
 
-const ALL = FAUNA_UNLOCKS.map((f) => f.id);
+const ALL = JAPANESE_FAUNA;
 const flower: TargetSpecies = { pollinators: true, habitats: ['meadow', 'path', 'rock', 'shore', 'back'], size: { w: 60, h: 90 }, anchor: { x: 0.5, y: 0.95 }, bloomColor: '#e8a7a9' };
 const lily: TargetSpecies = { pollinators: false, habitats: ['water'], size: { w: 60, h: 30 }, anchor: { x: 0.5, y: 0.6 }, bloomColor: '#faf6ee' };
 const lookup = (id: string) => (id === 'lily' ? lily : flower);
@@ -105,7 +105,7 @@ describe('FaunaSim', () => {
 
   it('a garden that loses its plants lets the koi go', () => {
     const { sim } = run({ seconds: 2 });
-    sim.setGarden([], ['striders'], lookup);
+    sim.setGarden([], JAPANESE_FAUNA.filter((f) => f.id === 'striders' || f.id === 'leaf'), lookup);
     for (let t = 0; t < 30; t += 0.1) sim.update(0.1, 0);
     expect(sim.creatures.filter((c) => c.kind === 'koi')).toHaveLength(0);
     expect(sim.creatures.filter((c) => c.kind === 'frog')).toHaveLength(0);

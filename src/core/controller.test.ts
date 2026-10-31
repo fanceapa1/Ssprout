@@ -407,7 +407,7 @@ describe('settings, tips and fauna', () => {
     expect(controller.announceFauna('koi-1')).toBe(true);
     expect(controller.announceFauna('koi-1')).toBe(false);
     expect(store.get().faunaSeen).toEqual(['koi-1']);
-    expect(payload('fauna:arrived')).toEqual([{ id: 'koi-1' }]);
+    expect(payload('fauna:arrived')).toEqual([{ id: 'koi-1', sceneryId: 'japanese-garden' }]);
   });
 });
 

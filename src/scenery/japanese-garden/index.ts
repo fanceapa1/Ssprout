@@ -8,6 +8,7 @@ import { GARDEN_SKY } from '../../scene/paint-sky';
 import type { Scenery } from '../types';
 import { GARDEN_AMBIENCE } from './ambience';
 import { GARDEN_FLORA, GARDEN_HABITAT_WORDS } from './flora';
+import { JAPANESE_FAUNA } from './fauna';
 import { GARDEN_LIGHT_ART } from './light';
 import { GARDEN_VIEW } from './view';
 
@@ -25,4 +26,5 @@ export const JAPANESE_GARDEN: Scenery = {
   view: GARDEN_VIEW,
   flora: GARDEN_FLORA,
   habitatWords: GARDEN_HABITAT_WORDS,
+  fauna: { unlocks: JAPANESE_FAUNA },
 };

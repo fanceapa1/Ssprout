@@ -53,8 +53,8 @@ export const FAUNA_TUNING = {
   reducedGap: 3,
   reducedSpeed: 0.6,
   reducedMaxVisitors: 1,
-  /** koi-3 (25 plants): "more frequent birds" — bird gaps × this */
-  birdBoostGap: 0.6,
+  /** a boosted kind (koi-3 at 25 plants: "more frequent birds") — its gaps × this */
+  boostGap: 0.6,
   /** local hours when diurnal creatures rest: [from, to) wrapping midnight */
   nightHours: [20, 5] as Range,
   /** resident water striders */

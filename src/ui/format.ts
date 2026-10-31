@@ -1,4 +1,6 @@
-import { faunaUnlock } from '../core/fauna-unlocks';
+import { faunaRow } from '../core/fauna-unlocks';
+import type { SceneryId } from '../core/sceneries';
+import { faunaTable } from '../scenery/fauna';
 import { formatClock, MINUTE_MS } from '../core/session';
 import type { Habitat, Tier } from '../plants/types';
 import { GARDEN_HABITAT_WORDS } from '../scenery/japanese-garden/flora';
@@ -67,9 +69,9 @@ export function formatDay(ms: number): string {
   return new Date(ms).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
 }
 
-/** The single quiet line for a creature's first appearance, or null if it is not announced. */
-export function faunaArrivalLine(id: string): string | null {
-  const f = faunaUnlock(id);
+/** The single quiet line for a creature's first appearance in a garden, or null if it is not announced. */
+export function faunaArrivalLine(sceneryId: SceneryId, id: string): string | null {
+  const f = faunaRow(faunaTable(sceneryId), id);
   return f && f.announce ? f.arrival : null;
 }
 

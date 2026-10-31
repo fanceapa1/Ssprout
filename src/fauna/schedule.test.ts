@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { createRng } from '../core/rng';
-import { FAUNA_UNLOCKS } from '../core/fauna-unlocks';
-import { kindOf, rosterFor } from './roster';
+import { JAPANESE_FAUNA } from '../scenery/japanese-garden/fauna';
+import { creatureDef } from './creatures/registry';
+import { rosterFor } from './roster';
 import {
   CALM_MODE,
   dueVisits,
@@ -33,8 +34,8 @@ describe('visit delays', () => {
   it('are shorter during a session, much longer with reduced motion, shorter for birds at 25 plants', () => {
     expect(gapScale('bee', { ...CALM_MODE, lively: true })).toBeLessThan(1);
     expect(gapScale('bee', { ...CALM_MODE, reduced: true })).toBeGreaterThanOrEqual(2);
-    expect(gapScale('bird', { ...CALM_MODE, birdBoost: true })).toBeLessThan(1);
-    expect(gapScale('bee', { ...CALM_MODE, birdBoost: true })).toBe(1);
+    expect(gapScale('bird', { ...CALM_MODE, boost: new Set(['bird']) })).toBeLessThan(1);
+    expect(gapScale('bee', { ...CALM_MODE, boost: new Set(['bird']) })).toBe(1);
   });
 
   it('heron visits are rare: the quiet gap is at least a quarter of an hour', () => {
@@ -48,6 +49,10 @@ describe('refuseVisit', () => {
     expect(refuseVisit('bird', night, empty)).toBe('night');
     expect(refuseVisit('bee', night, empty)).toBe('night');
     expect(refuseVisit('butterfly', night, empty)).toBe('night');
+    // night-only visitors (fireflies) are refused by day and come at night
+    const nocturnal = { ...VISITS.dragonfly, diurnal: false, nocturnal: true };
+    expect(refuseVisit('firefly', CALM_MODE, empty, nocturnal)).toBe('day');
+    expect(refuseVisit('firefly', night, empty, nocturnal)).toBeNull();
     expect(refuseVisit('leaf', night, empty)).toBeNull();
   });
 
@@ -135,26 +140,39 @@ describe('dueVisits', () => {
   });
 });
 
-describe('roster (unlock → active set)', () => {
+describe('roster (unlocked rows → active set)', () => {
+  const rows = (...ids: string[]) => JAPANESE_FAUNA.filter((f) => ids.includes(f.id));
+
   it('maps the unlock table onto residents and visitors', () => {
-    const all = rosterFor(FAUNA_UNLOCKS.map((f) => f.id));
-    expect(all.koi).toBe(3);
-    expect(all.striders).toBe(true);
-    expect(all.frog).toBe(true);
-    expect(all.birdBoost).toBe(true);
-    expect([...all.visitors].sort()).toEqual(['bee', 'bird', 'butterfly', 'dragonfly', 'heron', 'leaf', 'swallow']);
+    const all = rosterFor(JAPANESE_FAUNA);
+    expect(Object.fromEntries(all.residents)).toEqual({ strider: 1, koi: 3, frog: 1 });
+    expect([...all.boosts]).toEqual(['bird']);
+    expect([...all.visitors]).toEqual(['dragonfly', 'butterfly', 'bee', 'bird', 'swallow', 'heron', 'leaf']);
+    expect(all.variants.size).toBe(0);
   });
 
   it('a new garden only has striders and leaves', () => {
-    const r = rosterFor(['striders']);
-    expect(r.koi).toBe(0);
+    const r = rosterFor(rows('striders', 'leaf'));
+    expect(r.residents.get('koi')).toBeUndefined();
     expect([...r.visitors]).toEqual(['leaf']);
-    expect(rosterFor(['striders', 'dragonfly', 'koi-1']).koi).toBe(1);
+    expect(rosterFor(rows('striders', 'dragonfly', 'koi-1')).residents.get('koi')).toBe(1);
   });
 
-  it('every unlock id names a creature kind', () => {
-    for (const f of FAUNA_UNLOCKS) expect(kindOf(f.id), f.id).toBeDefined();
-    expect(kindOf('unicorn')).toBeUndefined();
+  it('every Japanese garden row names a creature module', () => {
+    for (const f of JAPANESE_FAUNA) expect(creatureDef(f.kind), f.id).toBeDefined();
+  });
+
+  it('skips rows whose creature module does not exist yet, and gathers variants per kind in row order', () => {
+    const r = rosterFor([
+      { kind: 'not-painted-yet', variant: 'one' },
+      { kind: 'dragonfly', variant: 'aka' },
+      { kind: 'koi', variant: 'kohaku' },
+      { kind: 'koi', variant: 'showa' },
+      { kind: 'unicorn' },
+    ]);
+    expect([...r.visitors]).toEqual(['dragonfly']);
+    expect(Object.fromEntries(r.residents)).toEqual({ koi: 2 });
+    expect(Object.fromEntries(r.variants)).toEqual({ dragonfly: ['aka'], koi: ['kohaku', 'showa'] });
   });
 
   it('resident targets', () => {

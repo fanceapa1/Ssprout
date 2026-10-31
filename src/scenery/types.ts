@@ -5,6 +5,7 @@
  */
 import type { LightArt } from '../ambience/cast';
 import type { DayPhase } from '../ambience/daylight';
+import type { SceneryFauna } from '../fauna/habitat';
 import type { SkyLayout } from '../ambience/sky-layout';
 import type { Rng } from '../core/rng';
 import type { Painter } from '../paint';
@@ -66,4 +67,6 @@ export interface Scenery {
   flora: SceneryBiome;
   /** how the planting sheet and placement name each habitat here */
   habitatWords: Readonly<Record<Habitat, string>>;
+  /** its wildlife: unlock table, water, perches, heron stands, perspective (ADR 0248) */
+  fauna: SceneryFauna;
 }

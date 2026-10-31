@@ -428,7 +428,7 @@ export function createSessionController(deps: SessionControllerDeps): SessionCon
     announceFauna(id, sceneryId) {
       const sc = sceneryId ?? store.get().scenery;
       if (!id || !isSceneryId(sc) || !apply({ type: 'fauna/seen', id: faunaSeenKey(sc, id) }).changed) return false;
-      bus.emit('fauna:arrived', { id });
+      bus.emit('fauna:arrived', { id, sceneryId: sc });
       return true;
     },
 

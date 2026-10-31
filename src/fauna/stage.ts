@@ -7,6 +7,7 @@ import type { PlantInstance } from '../core/state';
 import { createPainter, lighten, makeCanvas, mix, paperTexture, PIGMENTS, type AnyCanvas } from '../paint';
 import type { LayerId } from '../render/types';
 import type { SceneGeometry, Slot } from '../scene/geometry';
+import { JAPANESE_FAUNA } from '../scenery/japanese-garden/fauna';
 import { creatureDef } from './creatures/registry';
 import { FaunaSim } from './sim';
 import type { TargetSpecies } from './targets';
@@ -128,8 +129,7 @@ export class Stage {
   ) {
     this.scene = stageScene(spec);
     this.sim = new FaunaSim({ scene: this.scene, seed, auto: only === null, view: { x: 0, y: 0, w: spec.w, h: spec.h } });
-    const all = ['striders', 'dragonfly', 'koi-1', 'butterflies', 'bees', 'koi-2', 'small-birds', 'frog', 'swallows', 'heron', 'koi-3'];
-    this.sim.setGarden(stagePlants(this.scene), only === null ? all : [], stageLookup);
+    this.sim.setGarden(stagePlants(this.scene), only === null ? JAPANESE_FAUNA : [], stageLookup);
     this.sim.hourOverride = 12;
   }
 

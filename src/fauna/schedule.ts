@@ -21,11 +21,11 @@ export interface FaunaMode {
   lively: boolean;
   /** diurnal creatures rest */
   night: boolean;
-  /** 25 plants: more frequent birds */
-  birdBoost: boolean;
+  /** kinds that visit more often (a row's `boost`: the third koi brings more birds) */
+  boost: ReadonlySet<FaunaKind>;
 }
 
-export const CALM_MODE: FaunaMode = { reduced: false, lively: false, night: false, birdBoost: false };
+export const CALM_MODE: FaunaMode = { reduced: false, lively: false, night: false, boost: new Set() };
 
 export function isNight(hour: number): boolean {
   return inHours(hour, FAUNA_TUNING.nightHours);
@@ -36,7 +36,7 @@ export function gapScale(kind: VisitorKind, mode: FaunaMode): number {
   let k = 1;
   if (mode.lively) k *= FAUNA_TUNING.livelyGap;
   if (mode.reduced) k *= FAUNA_TUNING.reducedGap;
-  if (kind === 'bird' && mode.birdBoost) k *= FAUNA_TUNING.birdBoostGap;
+  if (mode.boost.has(kind)) k *= FAUNA_TUNING.boostGap;
   return k;
 }
 
@@ -65,8 +65,7 @@ export interface Census {
 export type Refusal = 'night' | 'day' | 'cap' | 'kind-max' | 'mode' | null;
 
 /** Why a visit of `kind` can't start now (null = it may). */
-export function refuseVisit(kind: VisitorKind, mode: FaunaMode, census: Census): Refusal {
-  const t = visitTuning(kind);
+export function refuseVisit(kind: VisitorKind, mode: FaunaMode, census: Census, t: VisitTuning = visitTuning(kind)): Refusal {
   if (!allowedInMode(kind, mode)) return 'mode';
   if (t.diurnal && mode.night) return 'night';
   if (t.nocturnal && !mode.night) return 'day';

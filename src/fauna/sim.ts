@@ -11,7 +11,7 @@ import type { Pt, Rect } from '../render/viewport';
 import type { SceneGeometry } from '../scene/geometry';
 import { creatureDef, creatureDefs } from './creatures/registry';
 import { easeOut, localHour, polygonBounds, polygonCentroid, rangeOf, toPlane } from './math';
-import { rosterFor, type Roster } from './roster';
+import { rosterFor, type Roster, type RosterRow } from './roster';
 import { CALM_MODE, dueVisits, groupSize, isNight, residentTarget, visitTuning, type Census, type FaunaMode, type Schedule } from './schedule';
 import { ArtCache, drawSprite, paintSprite, type Sprite } from './sprite';
 import { flowerTargets, heronStands, lilyPads, perchesOf, perspectiveFit, type Stand, type TargetLookup } from './targets';
@@ -154,7 +154,8 @@ export class FaunaSim {
     this.world.art.setRes(pxPerUnit);
   }
 
-  setGarden(plants: readonly PlantInstance[], unlocked: readonly string[], lookup: TargetLookup): void {
+  /** The garden's plants and its unlocked rows (`unlockedFauna`). */
+  setGarden(plants: readonly PlantInstance[], unlocked: readonly RosterRow[], lookup: TargetLookup): void {
     this.plants = plants;
     this.lookup = lookup;
     this.roster = rosterFor(unlocked);
@@ -230,7 +231,7 @@ export class FaunaSim {
     const t = this.time;
     w.t = t;
     const night = this.hourOverride === null && this.nightSource ? this.nightSource(now) : isNight(this.hour(now));
-    w.mode = { reduced: this.reduced, lively: this.lively, night, birdBoost: this.roster.birdBoost };
+    w.mode = { reduced: this.reduced, lively: this.lively, night, boost: this.roster.boosts };
     if (step <= 0) return;
     if (this.auto) {
       this.upkeepResidents();

@@ -4,11 +4,14 @@
  * and draws creatures into the underwater, waterSurface, entities and air layers.
  */
 import type { EventBus } from '../core/events';
-import { faunaUnlock, unlockedFauna } from '../core/fauna-unlocks';
-import { DEFAULT_SCENERY, type SceneryId } from '../core/sceneries';
+import { faunaSeenIn, faunaSeenKey, unlockedFauna, type FaunaUnlock } from '../core/fauna-unlocks';
+import type { SceneryId } from '../core/sceneries';
 import { plantsIn, type GardenState, type Store } from '../core/state';
 import type { Drawable, LayerId, System, SystemContext } from '../render/types';
 import type { Rect, Viewport } from '../render/viewport';
+import { JAPANESE_FAUNA } from '../scenery/japanese-garden/fauna';
+import { creatureDef } from './creatures/registry';
+import type { SceneryFauna } from './habitat';
 import { FaunaSim } from './sim';
 import type { TargetLookup } from './targets';
 import type { Creature } from './types';
@@ -33,31 +36,23 @@ const idle = (fn: () => void) => {
   else setTimeout(fn, 16);
 };
 
-/** Creature kind → the unlock id it announces (koi are counted: koi-1, koi-2, koi-3). */
-const ARRIVAL_OF: Partial<Record<Creature['kind'], string>> = {
-  dragonfly: 'dragonfly',
-  butterfly: 'butterflies',
-  bee: 'bees',
-  bird: 'small-birds',
-  frog: 'frog',
-  swallow: 'swallows',
-  heron: 'heron',
-};
+type SightRow = Pick<FaunaUnlock, 'id' | 'kind' | 'variant'>;
 
-/** Unlock ids whose creatures are in sight right now (hand-spawned dev/studio creatures don't count). */
-export function sightedFauna(creatures: readonly Creature[], view: Rect): Set<string> {
+/**
+ * Unlock rows whose creatures are in sight right now: each row claims one creature of its kind
+ * (and variant, if it names one), in table order, so a second koi is `koi-2`. Hand-spawned
+ * dev/studio creatures and leaving ones don't count.
+ */
+export function sightedFauna(creatures: readonly Creature[], view: Rect, rows: readonly SightRow[]): Set<string> {
+  const inView = creatures.filter((c) => !c.forced && !c.done && c.x >= view.x && c.x <= view.x + view.w && c.y >= view.y && c.y <= view.y + view.h);
+  const claimed = new Set<Creature>();
   const ids = new Set<string>();
-  let koi = 0;
-  for (const c of creatures) {
-    if (c.forced || c.done) continue;
-    if (c.x < view.x || c.x > view.x + view.w || c.y < view.y || c.y > view.y + view.h) continue;
-    if (c.kind === 'koi') koi++;
-    else {
-      const id = ARRIVAL_OF[c.kind];
-      if (id) ids.add(id);
-    }
+  for (const r of rows) {
+    const c = inView.find((o) => !claimed.has(o) && o.kind === r.kind && (!r.variant || o.variant === r.variant));
+    if (!c) continue;
+    claimed.add(c);
+    ids.add(r.id);
   }
-  for (let i = 1; i <= Math.min(3, koi); i++) ids.add(`koi-${i}`);
   return ids;
 }
 
@@ -80,7 +75,16 @@ export interface FaunaSystem extends System {
   readonly viewport: Viewport | null;
   /** the app clock's now (epoch ms) */
   now(): number;
+  /** the garden on view's wildlife (its unlock table and targets) */
+  habitat(): SceneryFauna;
+  /** that garden's unlocked rows, in table order */
+  unlocked(): readonly FaunaUnlock[];
+  /** the garden on view */
+  sceneryId(): SceneryId;
 }
+
+/** Without a scenery in the context (unit tests), the Japanese garden's wildlife. */
+const DEFAULT_HABITAT: SceneryFauna = { unlocks: JAPANESE_FAUNA };
 
 const LAYERS_DRAWN: ReadonlySet<LayerId> = new Set(['underwater', 'waterSurface', 'air']);
 
@@ -92,7 +96,8 @@ export function createFaunaSystem(opts: FaunaSystemOptions): FaunaSystem {
   let clock: SystemContext['clock'] | null = null;
   let bus: EventBus | null = null;
   const lookup = opts.species;
-  let unlocked: string[] = [];
+  let unlocked: FaunaUnlock[] = [];
+  let habitat: SceneryFauna = DEFAULT_HABITAT;
   /** arrivals already emitted this run (the UI records them in state.faunaSeen when it says them) */
   const emitted = new Set<string>();
   let sightT = 0;
@@ -109,12 +114,12 @@ export function createFaunaSystem(opts: FaunaSystemOptions): FaunaSystem {
     });
   };
 
-  /** the garden on view; only the Japanese garden has wildlife until per-scenery rosters (S11) */
+  /** the garden on view (the store's until a scenery comes in the context) */
   let sceneryId: SceneryId | null = null;
-  const wild = () => (sceneryId ?? DEFAULT_SCENERY) === DEFAULT_SCENERY;
+  const viewed = (state: GardenState): SceneryId => sceneryId ?? state.scenery;
   const follow = (state: GardenState) => {
-    const id = sceneryId ?? state.scenery;
-    unlocked = wild() ? unlockedFauna(state, lookup, id) : [];
+    const id = viewed(state);
+    unlocked = unlockedFauna(state, lookup, id, habitat.unlocks);
     sim?.setGarden(plantsIn(state, id), unlocked, lookup);
   };
 
@@ -124,14 +129,15 @@ export function createFaunaSystem(opts: FaunaSystemOptions): FaunaSystem {
    */
   const lookForArrivals = () => {
     if (!sim || !store || !bus || !viewport) return;
-    const seen = store.get().faunaSeen;
-    const waiting = unlocked.filter((id) => !seen.includes(id) && !emitted.has(id) && faunaUnlock(id)?.announce);
+    const state = store.get();
+    const sc = viewed(state);
+    const waiting = unlocked.filter((r) => r.announce && creatureDef(r.kind) && !emitted.has(faunaSeenKey(sc, r.id)) && !faunaSeenIn(state, sc, r.id));
     if (waiting.length === 0) return;
-    const sighted = sightedFauna(sim.creatures, viewport.visible);
-    for (const id of waiting) {
-      if (!sighted.has(id)) continue;
-      emitted.add(id);
-      bus.emit('fauna:arrived', { id });
+    const sighted = sightedFauna(sim.creatures, viewport.visible, unlocked);
+    for (const r of waiting) {
+      if (!sighted.has(r.id)) continue;
+      emitted.add(faunaSeenKey(sc, r.id));
+      bus.emit('fauna:arrived', { id: r.id, sceneryId: sc });
     }
   };
 
@@ -144,9 +150,15 @@ export function createFaunaSystem(opts: FaunaSystemOptions): FaunaSystem {
       return viewport;
     },
     now: () => clock?.now() ?? 0,
+    habitat: () => habitat,
+    unlocked: () => unlocked,
+    sceneryId: () => sceneryId ?? store?.get().scenery ?? 'japanese-garden',
     init(ctx: SystemContext) {
       const switched = !!ctx.scenery && ctx.scenery.id !== sceneryId;
-      if (ctx.scenery) sceneryId = ctx.scenery.id;
+      if (ctx.scenery) {
+        sceneryId = ctx.scenery.id;
+        habitat = ctx.scenery.fauna;
+      }
       if (!sim) {
         sim = new FaunaSim({ scene: ctx.scene, seed: opts.seed ?? ctx.clock.now(), reducedMotion: ctx.reducedMotion });
         const daylight = opts.daylight;
@@ -172,7 +184,7 @@ export function createFaunaSystem(opts: FaunaSystemOptions): FaunaSystem {
       sim.setResolution(ctx.viewport.pixelScale);
     },
     update(f) {
-      if (!sim || !wild()) return;
+      if (!sim) return;
       const session = store?.get().session;
       sim.setLively(!!session && session.pausedAt === null);
       sim.update(f.dt, f.now);
@@ -189,10 +201,10 @@ export function createFaunaSystem(opts: FaunaSystemOptions): FaunaSystem {
       }
     },
     draw(layer, ctx) {
-      if (sim && wild() && LAYERS_DRAWN.has(layer)) sim.draw(layer, ctx);
+      if (sim && LAYERS_DRAWN.has(layer)) sim.draw(layer, ctx);
     },
     entities(): Drawable[] {
-      return sim && wild() ? sim.entities() : [];
+      return sim ? sim.entities() : [];
     },
     dispose() {
       unsubscribe?.();

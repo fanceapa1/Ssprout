@@ -1,14 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import {
-  FAUNA_IDS,
-  FAUNA_UNLOCKS,
-  faunaUnlock,
-  gardenCounts,
-  newlyArrived,
-  unlockedFauna,
-  type FaunaSpecies,
-} from './fauna-unlocks';
-import type { PlantInstance } from './state';
+import { faunaRow, gardenCounts, newlyArrived, unlockedFauna, type FaunaSpecies } from '../../core/fauna-unlocks';
+import type { PlantInstance } from '../../core/state';
+import { JAPANESE_FAUNA } from './fauna';
 
 const SPECIES: Record<string, FaunaSpecies> = {
   grass: { pollinators: false, habitats: ['meadow'] },
@@ -30,11 +23,16 @@ const plants = (n: number, speciesId = 'grass'): PlantInstance[] =>
     sessionMinutes: 25,
   }));
 const garden = (...groups: PlantInstance[][]) => ({ plants: groups.flat(), faunaSeen: [] as string[] });
-const unlocked = (...groups: PlantInstance[][]) => unlockedFauna(garden(...groups), lookup);
+// the falling leaf is always there and never announced: left out of the threshold lists below
+const unlocked = (...groups: PlantInstance[][]) =>
+  unlockedFauna(garden(...groups), lookup, 'japanese-garden', JAPANESE_FAUNA)
+    .map((f) => f.id)
+    .filter((id) => id !== 'leaf');
+const arrived = (g: { plants: PlantInstance[]; faunaSeen: string[] }) => newlyArrived(g, lookup, 'japanese-garden', JAPANESE_FAUNA).filter((id) => id !== 'leaf');
 
 describe('fauna unlock table', () => {
-  it('has the contract ids in SPEC order', () => {
-    expect(FAUNA_IDS).toEqual([
+  it('has the contract ids in SPEC order (the leaf row last)', () => {
+    expect(JAPANESE_FAUNA.map((f) => f.id)).toEqual([
       'striders',
       'dragonfly',
       'koi-1',
@@ -46,14 +44,21 @@ describe('fauna unlock table', () => {
       'swallows',
       'heron',
       'koi-3',
+      'leaf',
     ]);
   });
 
-  it('every creature has an arrival line; only striders are silent', () => {
-    for (const f of FAUNA_UNLOCKS) expect(f.arrival.length).toBeGreaterThan(5);
-    expect(FAUNA_UNLOCKS.filter((f) => !f.announce).map((f) => f.id)).toEqual(['striders']);
-    expect(faunaUnlock('koi-1')!.arrival).toBe('A koi has found your pond.');
-    expect(faunaUnlock('nope')).toBeUndefined();
+  it('every creature has an arrival line; only striders and the leaf are silent', () => {
+    for (const f of JAPANESE_FAUNA) expect(f.arrival.length).toBeGreaterThan(5);
+    expect(JAPANESE_FAUNA.filter((f) => !f.announce).map((f) => f.id)).toEqual(['striders', 'leaf']);
+    expect(faunaRow(JAPANESE_FAUNA, 'koi-1')!.arrival).toBe('A koi has found your pond.');
+    expect(faunaRow(JAPANESE_FAUNA, 'nope')).toBeUndefined();
+  });
+
+  it('rows name their creature kinds; the third koi brings more birds; no variants', () => {
+    expect(JAPANESE_FAUNA.map((f) => f.kind)).toEqual(['strider', 'dragonfly', 'koi', 'butterfly', 'bee', 'koi', 'bird', 'frog', 'swallow', 'heron', 'koi', 'leaf']);
+    expect(JAPANESE_FAUNA.filter((f) => f.boost).map((f) => [f.id, f.boost])).toEqual([['koi-3', 'bird']]);
+    expect(JAPANESE_FAUNA.some((f) => f.variant)).toBe(false);
   });
 });
 
@@ -108,11 +113,11 @@ describe('unlockedFauna', () => {
 describe('newlyArrived', () => {
   it('is unlocked minus already announced', () => {
     const g = { plants: plants(3), faunaSeen: ['striders'] };
-    expect(newlyArrived(g, lookup)).toEqual(['dragonfly', 'koi-1']);
-    expect(newlyArrived({ ...g, faunaSeen: ['striders', 'dragonfly', 'koi-1'] }, lookup)).toEqual([]);
+    expect(arrived(g)).toEqual(['dragonfly', 'koi-1']);
+    expect(arrived({ ...g, faunaSeen: ['striders', 'dragonfly', 'koi-1'] })).toEqual([]);
   });
 
   it('ignores seen ids that are no longer unlocked (e.g. after swaps)', () => {
-    expect(newlyArrived({ plants: [], faunaSeen: ['koi-3'] }, lookup)).toEqual(['striders']);
+    expect(arrived({ plants: [], faunaSeen: ['koi-3'] })).toEqual(['striders']);
   });
 });
