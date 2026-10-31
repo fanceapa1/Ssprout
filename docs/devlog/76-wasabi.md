@@ -75,8 +75,11 @@ and the racemes are clearly small white crosses with buds at the tip. At sunset 
 the warm light. At night the flowers hold as pale specks.
 
 ## Tests
-`npm run typecheck`; `npx vitest run src/plants src/scenery`; `tests/e2e/studio.spec.ts` with
-`E2E_WORKERS=1 E2E_PORT=4373` (results in the task report).
+`npm run typecheck` passes. After the rebase onto main, `npx vitest run
+src/plants/species/wasabi.test.ts src/scenery/flora.test.ts` (`VITEST_WORKERS=1`): 2 files, 22
+tests pass. The continuity test first failed: the leaf veins appeared at full length once a blade
+passed radius 2.5; they now draw out with the blade. The full `src/plants src/scenery` run and
+`tests/e2e/studio.spec.ts` were not run (the machine stayed loaded).
 
 ## For the orchestrator to place
 - **docs/systems/plants-species-a.md** › Species:

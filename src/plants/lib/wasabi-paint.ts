@@ -111,12 +111,13 @@ export function heartLeaf(p: Painter, rng: Rng, shape: HeartShape, pose: HeartPo
     L.fill(blob(q.x, q.y, pose.r * sr.range(0.45, 0.7), pose.r * sr.range(0.3, 0.45) * pose.tilt, sr, { rotation: pose.angle + Math.PI / 2 }), s.deep, 0.14);
   }
   L.ctx.restore();
-  // palmate veins fan from the sinus
-  if (pose.r > 2.5) {
+  // palmate veins fan from the sinus, drawing out as the blade grows past r 2.5
+  const vk = smooth((pose.r - 2.5) / 3);
+  if (visible(vk)) {
     shape.veins.forEach((a, i) => {
       const tip = place({ x: Math.sin(a) * UNIT * 0.95, y: (CENTRE + Math.cos(a) * 0.95) * UNIT }, pose);
       const ang = Math.atan2(tip.y - pose.sinus.y, tip.x - pose.sinus.x);
-      const len = Math.hypot(tip.x - pose.sinus.x, tip.y - pose.sinus.y) * 0.74;
+      const len = Math.hypot(tip.x - pose.sinus.x, tip.y - pose.sinus.y) * 0.74 * vk;
       p.dabInto(L, pose.sinus, mix(s.pigment, s.deep, 0.6), { rng: rng.fork(`vein-${i}`), variant: 'needle', angle: ang, length: len, width: Math.max(0.16, pose.r * 0.026), curve: (i % 2 ? 1 : -1) * 0.05, pool: 0, basePool: 0.4, layers: 2, asym: 0 });
     });
   }
