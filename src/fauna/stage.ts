@@ -7,6 +7,7 @@ import type { PlantInstance } from '../core/state';
 import { createPainter, lighten, makeCanvas, mix, paperTexture, PIGMENTS, type AnyCanvas } from '../paint';
 import type { LayerId } from '../render/types';
 import type { SceneGeometry, Slot } from '../scene/geometry';
+import { creatureDef } from './creatures/registry';
 import { FaunaSim } from './sim';
 import type { TargetSpecies } from './targets';
 import type { FaunaKind } from './tuning';
@@ -138,7 +139,7 @@ export class Stage {
     if (this.sim.creatures.some((c) => c.kind === this.only)) return;
     if (this.respawnAt < 0) this.respawnAt = t < 0.05 ? t : t + 1.5;
     if (t >= this.respawnAt) {
-      this.sim.spawn(this.only, { count: this.only === 'swallow' ? 3 : this.only === 'bee' ? 2 : 1 });
+      this.sim.spawn(this.only, { count: creatureDef(this.only)?.show?.group ?? 1 });
       this.respawnAt = -1;
     }
   }

@@ -6,7 +6,7 @@ import { createRng } from '../core/rng';
 import { createPainter } from '../paint';
 import type { StudioEntry, StudioSection } from '../studio/types';
 import { drawKoiStraight, KOI_PATTERNS, paintKoi } from './creatures/koi';
-import { SHEETS } from './creatures/sheets';
+import { creatureDefs } from './creatures/registry';
 import { multiplyPaper, Stage, type StageSpec } from './stage';
 import type { Sprite } from './sprite';
 import type { FaunaKind } from './tuning';
@@ -67,32 +67,15 @@ function sheetEntry(id: string, label: string, make: (res: number, seed: number)
   };
 }
 
-interface Show {
-  kind: FaunaKind;
-  title: string;
-  spec: StageSpec;
-  w: number;
-  h: number;
-}
+const shown = creatureDefs()
+  .filter((d) => d.show)
+  .sort((a, b) => (a.show!.order ?? 100) - (b.show!.order ?? 100) || a.kind.localeCompare(b.kind));
 
-const SHOWS: Show[] = [
-  { kind: 'koi', title: 'koi', spec: { w: 380, h: 230 }, w: 570, h: 345 },
-  { kind: 'strider', title: 'water striders', spec: { w: 260, h: 160 }, w: 520, h: 320 },
-  { kind: 'leaf', title: 'drifting leaf', spec: { w: 360, h: 240 }, w: 540, h: 360 },
-  { kind: 'dragonfly', title: 'dragonfly', spec: { w: 380, h: 240 }, w: 570, h: 360 },
-  { kind: 'butterfly', title: 'butterflies', spec: { w: 380, h: 240 }, w: 570, h: 360 },
-  { kind: 'bee', title: 'bees', spec: { w: 240, h: 150 }, w: 560, h: 350 },
-  { kind: 'bird', title: 'small birds', spec: { w: 300, h: 190 }, w: 570, h: 361 },
-  { kind: 'frog', title: 'frog', spec: { w: 220, h: 140 }, w: 550, h: 350 },
-  { kind: 'swallow', title: 'swallows', spec: { w: 700, h: 320 }, w: 560, h: 256 },
-  { kind: 'heron', title: 'grey heron', spec: { w: 560, h: 360 }, w: 560, h: 360 },
-];
-
-const sections: StudioSection[] = SHOWS.map((s, i) => {
-  const entries: StudioEntry[] = [aliveEntry('alive', `${s.title}, alone (behaviour loop)`, s.kind, s.spec, s.w, s.h)];
-  const sheet = SHEETS[s.kind];
-  if (sheet) entries.push(sheetEntry('parts', `${s.title}: painted parts and frames`, sheet.make, sheet.w, sheet.h));
-  return { id: `fauna-${s.kind}`, title: `Fauna · ${s.title}`, order: 310 + i, entries };
+const sections: StudioSection[] = shown.map((d, i) => {
+  const s = d.show!;
+  const entries: StudioEntry[] = [aliveEntry('alive', `${d.title}, alone (behaviour loop)`, d.kind, s.spec, s.w, s.h)];
+  if (d.sheet) entries.push(sheetEntry('parts', `${d.title}: painted parts and frames`, d.sheet.make, d.sheet.w, d.sheet.h));
+  return { id: `fauna-${d.kind}`, title: `Fauna · ${d.title}`, order: 310 + i, entries };
 });
 
 /** Every koi variety side by side: near the surface (top row) and deeper down (bottom row). */

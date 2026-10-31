@@ -7,8 +7,9 @@ import type { LayerId } from '../../render/types';
 import type { Pt } from '../../render/viewport';
 import { cubic, cubicLength, cubicTangent, offscreenPoint, rangeOf } from '../math';
 import { paintSprite, type Sprite } from '../sprite';
-import { FAUNA_TUNING, SIZES, SPEEDS } from '../tuning';
+import { FAUNA_TUNING, SIZES, SPEEDS, VISITS } from '../tuning';
 import { BaseCreature, type Ctx, type FaunaWorld } from '../types';
+import type { CreatureDef } from './lib/def';
 
 export interface SwallowParts {
   spread: Sprite;
@@ -132,3 +133,27 @@ export class Swallow extends BaseCreature {
     ctx.restore();
   }
 }
+
+const swallow: CreatureDef = {
+  kind: 'swallow',
+  title: 'swallows',
+  role: 'visitor',
+  visit: VISITS.swallow,
+  spawnCount: 3,
+  spawn(w, s) {
+    const side = w.rng.chance(0.5) ? -1 : 1;
+    const out: Swallow[] = [];
+    for (let i = 0; i < s.count; i++) out.push(new Swallow(w, side, i, i === 0 ? 0 : w.rng.range(0.15, 0.9) * i));
+    return out;
+  },
+  sheet: {
+    w: 420,
+    h: 130,
+    make(res, seed) {
+      const a = paintSwallows(res, seed);
+      return [a.spread, a.up, a.swept];
+    },
+  },
+  show: { order: 8, spec: { w: 700, h: 320 }, w: 560, h: 256, group: 3 },
+};
+export default swallow;

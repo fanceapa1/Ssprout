@@ -8,9 +8,10 @@ import type { Pt } from '../../render/viewport';
 import { approach, dist, isOffscreen, rangeOf, springStep } from '../math';
 import { paintSprite, type Sprite } from '../sprite';
 import type { FlowerTarget } from '../targets';
-import { FAUNA_TUNING, SIZES, SPEEDS } from '../tuning';
+import { FAUNA_TUNING, SIZES, SPEEDS, VISITS } from '../tuning';
 import { BaseCreature, type Ctx, type FaunaWorld } from '../types';
-import { entryPoint, exitPoint, nextFlower } from './flight';
+import type { CreatureDef } from './lib/def';
+import { entryPoint, exitPoint, nextFlower } from './lib/flight';
 
 export interface BeeParts {
   body: Sprite;
@@ -178,3 +179,26 @@ export class Bee extends BaseCreature {
     ctx.restore();
   }
 }
+
+const bee: CreatureDef = {
+  kind: 'bee',
+  title: 'bees',
+  role: 'visitor',
+  visit: VISITS.bee,
+  needs: (w) => w.flowers.length > 0,
+  spawn(w, s) {
+    const out: Bee[] = [];
+    for (let i = 0; i < s.count; i++) out.push(new Bee(w, (s.stay || 45) * w.rng.range(0.8, 1.1), i * w.rng.range(1.5, 5)));
+    return out;
+  },
+  sheet: {
+    w: 360,
+    h: 110,
+    make(res, seed) {
+      const a = paintBee(res, seed);
+      return [a.body, a.wings, a.blur];
+    },
+  },
+  show: { order: 5, spec: { w: 240, h: 150 }, w: 560, h: 350, group: 2 },
+};
+export default bee;

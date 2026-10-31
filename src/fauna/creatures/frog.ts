@@ -11,6 +11,7 @@ import { paintSprite, type Sprite } from '../sprite';
 import type { Pad } from '../targets';
 import { FAUNA_TUNING, SIZES } from '../tuning';
 import { BaseCreature, type Ctx, type FaunaWorld } from '../types';
+import type { CreatureDef } from './lib/def';
 
 export interface FrogParts {
   sit: Sprite;
@@ -193,3 +194,28 @@ export class Frog extends BaseCreature {
     ctx.restore();
   }
 }
+
+const frog: CreatureDef = {
+  kind: 'frog',
+  title: 'frog',
+  role: 'resident',
+  rank: 2,
+  // one frog, and only while a pad exists (a water species in a water slot)
+  resident: (n) => (n > 0 ? 1 : 0),
+  needs: (w) => w.pads.length > 0,
+  spawn(w) {
+    const used = new Set(w.creatures.filter((c): c is Frog => c instanceof Frog && !c.done).map((f) => f.pad.plantId));
+    const pad = w.pads.find((p) => !used.has(p.plantId));
+    return pad ? [new Frog(w, pad)] : [];
+  },
+  sheet: {
+    w: 420,
+    h: 120,
+    make(res, seed) {
+      const a = paintFrog(res, seed);
+      return [a.sit, a.throat, a.leap];
+    },
+  },
+  show: { order: 7, spec: { w: 220, h: 140 }, w: 550, h: 350 },
+};
+export default frog;

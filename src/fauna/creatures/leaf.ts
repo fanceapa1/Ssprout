@@ -7,8 +7,12 @@ import type { LayerId } from '../../render/types';
 import type { Pt } from '../../render/viewport';
 import { approach, clamp, containPoint, randomPointInside, rangeOf, TAU, toPlane, toWorld } from '../math';
 import { paintSprite, type Sprite } from '../sprite';
-import { SIZES, SPEEDS } from '../tuning';
+import { SIZES, SPEEDS, VISITS } from '../tuning';
 import { BaseCreature, type Ctx, type FaunaWorld } from '../types';
+import { variantOf, type CreatureDef } from './lib/def';
+
+/** The tints' names, in `LEAF_PIGMENTS` order (`FaunaUnlock.variant`). */
+export const LEAF_VARIANTS = ['katsura', 'maple', 'green'] as const;
 
 const LEAF_PIGMENTS: Pigment[] = [
   mix(PIGMENTS.gold, PIGMENTS.sage, 0.45),
@@ -35,7 +39,7 @@ export function leafSprite(res: number, variant: number): Sprite {
 export class Leaf extends BaseCreature {
   readonly kind = 'leaf' as const;
   readonly visitor = false;
-  private readonly variant: number;
+  private readonly tint: number;
   private readonly land: Pt;
   private readonly x0: number;
   private readonly swing: number;
@@ -48,10 +52,11 @@ export class Leaf extends BaseCreature {
   private spin = 0;
   private flip = 1;
 
-  constructor(w: FaunaWorld, stay: number) {
+  constructor(w: FaunaWorld, stay: number, variants: readonly string[] = []) {
     super();
     const rng = w.rng;
-    this.variant = rng.int(0, LEAF_PIGMENTS.length - 1);
+    this.variant = variantOf(variants, LEAF_VARIANTS, rng, () => LEAF_VARIANTS[rng.int(0, LEAF_PIGMENTS.length - 1)]!);
+    this.tint = LEAF_VARIANTS.indexOf(this.variant as (typeof LEAF_VARIANTS)[number]);
     const landPlane = randomPointInside(w.pond.plane, rng, 30);
     this.land = toWorld(landPlane, w.pond.cy, w.pond.squash);
     this.swing = rng.range(12, 22);
@@ -107,7 +112,7 @@ export class Leaf extends BaseCreature {
 
   draw(layer: LayerId, ctx: Ctx, w: FaunaWorld): void {
     if (layer !== this.layer) return;
-    const s = w.art.get(`leaf:${this.variant}`, (res) => leafSprite(res, this.variant));
+    const s = w.art.get(`leaf:${this.tint}`, (res) => leafSprite(res, this.tint));
     const ps = w.perspective(this.y);
     ctx.save();
     ctx.globalAlpha = this.alpha * (this.state === 'fall' ? 0.9 : 0.8);
@@ -124,3 +129,22 @@ export class Leaf extends BaseCreature {
     ctx.restore();
   }
 }
+
+const leaf: CreatureDef = {
+  kind: 'leaf',
+  title: 'drifting leaf',
+  role: 'drifter',
+  visit: VISITS.leaf,
+  variants: LEAF_VARIANTS,
+  needs: (w) => w.pond.world.length >= 3,
+  spawn: (w, s) => (w.pond.world.length < 3 ? [] : [new Leaf(w, s.stay, s.variants)]),
+  sheet: {
+    w: 360,
+    h: 100,
+    make(res) {
+      return [0, 1, 2].map((v) => leafSprite(res, v));
+    },
+  },
+  show: { order: 2, spec: { w: 360, h: 240 }, w: 540, h: 360 },
+};
+export default leaf;

@@ -1,11 +1,11 @@
 /**
  * Shared bits for flying visitors: where to come in from, where to leave to, and flower choice.
  */
-import type { Rng } from '../../core/rng';
-import type { Pt, Rect } from '../../render/viewport';
-import { dist, offscreenPoint } from '../math';
-import type { FlowerTarget } from '../targets';
-import { FAUNA_TUNING } from '../tuning';
+import type { Rng } from '../../../core/rng';
+import type { Pt, Rect } from '../../../render/viewport';
+import { dist, offscreenPoint } from '../../math';
+import type { FlowerTarget } from '../../targets';
+import { FAUNA_TUNING } from '../../tuning';
 
 /** A point just off a random side of the view at a height within [top, bottom] fractions. */
 export function entryPoint(view: Rect, rng: Rng, top: number, bottom: number, side = rng.chance(0.5) ? -1 : 1): Pt {

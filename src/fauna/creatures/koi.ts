@@ -25,6 +25,8 @@ import {
 import { deepCopy, drawSprite, paintSprite, type Sprite } from '../sprite';
 import { FAUNA_TUNING, SIZES, SPEEDS } from '../tuning';
 import { BaseCreature, type Ctx, type FaunaWorld } from '../types';
+import { hashString } from '../../core/rng';
+import type { CreatureDef } from './lib/def';
 
 export type KoiPattern = 'kohaku' | 'sanke' | 'yamabuki' | 'showa' | 'asagi';
 /** Classic varieties, in the order the pond's koi take them (the first is usually a kohaku). */
@@ -548,3 +550,33 @@ export class Koi extends BaseCreature {
     this.state = 'sink';
   }
 }
+
+export function koiPattern(koiSeed: number, index: number) {
+  // the first koi is a kohaku more often than not; then the others in a seeded order
+  const start = koiSeed % 3 === 0 ? 1 : 0;
+  return KOI_PATTERNS[(start + index) % KOI_PATTERNS.length]!;
+}
+
+const koi: CreatureDef = {
+  kind: 'koi',
+  title: 'koi',
+  role: 'resident',
+  rank: 0,
+  // one per unlocked row (koi-1, koi-2, koi-3), each with its own seeded pattern
+  resident: (n) => n,
+  needs: (w) => w.pond.world.length >= 3,
+  spawn(w, s) {
+    if (w.pond.world.length < 3) return [];
+    return [new Koi(w, { seed: hashString(`${s.seed}:${s.index}`), pattern: koiPattern(s.seed, s.index) })];
+  },
+  sheet: {
+    w: 620,
+    h: 150,
+    make(res, seed) {
+      const a = paintKoi(res, seed, 'kohaku', 60);
+      return [a.body, a.tail, a.fin, a.bodyDeep, a.tailDeep, a.finDeep];
+    },
+  },
+  show: { order: 0, spec: { w: 380, h: 230 }, w: 570, h: 345 },
+};
+export default koi;

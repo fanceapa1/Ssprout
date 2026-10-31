@@ -8,8 +8,13 @@ import type { LayerId } from '../../render/types';
 import type { Pt } from '../../render/viewport';
 import { approach, clamp, dist, isOffscreen, offscreenPoint, pointInPolygon, springStep, turnToward } from '../math';
 import { paintSprite, type Sprite } from '../sprite';
-import { FAUNA_TUNING, SIZES } from '../tuning';
+import { FAUNA_TUNING, SIZES, VISITS } from '../tuning';
 import { BaseCreature, type Ctx, type FaunaWorld } from '../types';
+import { variantOf, type CreatureDef } from './lib/def';
+
+/** The bodies' names, in `BODIES` order (`FaunaUnlock.variant`). */
+export const DRAGONFLY_VARIANTS = ['shiokara', 'aka', 'ochre'] as const;
+type DragonflyVariant = (typeof DRAGONFLY_VARIANTS)[number];
 
 const BODIES: Pigment[] = [
   mix(PIGMENTS.bellflower, PIGMENTS.stone, 0.45), // shiokara-tombo, blue-grey
@@ -80,17 +85,18 @@ export class Dragonfly extends BaseCreature {
   private target: Pt;
   private heading: number;
   private hoverFor = 0;
-  private readonly variant: number;
+  private readonly body: number;
   private readonly stay: number;
   private readonly side: number;
   private dipBase: Pt | null = null;
   private flutter = 0;
   private dipped = false;
 
-  constructor(w: FaunaWorld, stay: number) {
+  constructor(w: FaunaWorld, stay: number, variants: readonly string[] = []) {
     super();
     const rng = w.rng;
-    this.variant = rng.int(0, BODIES.length - 1);
+    this.variant = variantOf(variants, DRAGONFLY_VARIANTS, rng, () => DRAGONFLY_VARIANTS[rng.int(0, BODIES.length - 1)]!);
+    this.body = DRAGONFLY_VARIANTS.indexOf(this.variant as DragonflyVariant);
     this.stay = stay;
     this.side = rng.chance(0.5) ? -1 : 1;
     const b = w.pond.bounds;
@@ -184,7 +190,7 @@ export class Dragonfly extends BaseCreature {
 
   draw(layer: LayerId, ctx: Ctx, w: FaunaWorld): void {
     if (layer !== 'air') return;
-    const parts = w.art.get(`dragonfly:${this.variant}`, (res) => paintDragonfly(res, 400 + this.variant, this.variant));
+    const parts = w.art.get(`dragonfly:${this.body}`, (res) => paintDragonfly(res, 400 + this.body, this.body));
     const ps = w.perspective(this.y + 60);
     ctx.save();
     ctx.translate(this.x, this.y);
@@ -202,3 +208,23 @@ export class Dragonfly extends BaseCreature {
     ctx.restore();
   }
 }
+
+const dragonfly: CreatureDef = {
+  kind: 'dragonfly',
+  title: 'dragonfly',
+  role: 'visitor',
+  visit: VISITS.dragonfly,
+  variants: DRAGONFLY_VARIANTS,
+  spawn: (w, s) => [new Dragonfly(w, s.stay || 40, s.variants)],
+  sheet: {
+    w: 520,
+    h: 130,
+    make(res, seed) {
+      const a = paintDragonfly(res, seed, 0);
+      const b = paintDragonfly(res, seed + 3, 1);
+      return [a.body, a.wings, a.blur, b.body, b.wings];
+    },
+  },
+  show: { order: 3, spec: { w: 380, h: 240 }, w: 570, h: 360 },
+};
+export default dragonfly;

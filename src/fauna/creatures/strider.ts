@@ -9,6 +9,7 @@ import { angleDiff, approach, containPoint, insideWithMargin, randomPointInside,
 import { paintSprite, type Sprite } from '../sprite';
 import { FAUNA_TUNING, SIZES, SPEEDS } from '../tuning';
 import { BaseCreature, type Ctx, type FaunaWorld } from '../types';
+import type { CreatureDef } from './lib/def';
 
 /** Legs as (angle from heading, length) pairs, per side, for a pose. */
 const LEGS = {
@@ -66,14 +67,14 @@ export class Strider extends BaseCreature {
   heading: number;
   speed = 0;
   private rest: number;
-  private readonly variant: number;
+  private readonly look: number;
 
   constructor(w: FaunaWorld) {
     super();
     this.p = randomPointInside(w.pond.plane, w.rng, FAUNA_TUNING.striderMargin * 2);
     this.heading = w.rng.range(0, TAU);
     this.rest = w.rng.range(1, 4);
-    this.variant = w.rng.int(0, 2);
+    this.look = w.rng.int(0, 2);
     this.alpha = 0;
     this.state = 'rest';
     this.sync(w);
@@ -140,7 +141,7 @@ export class Strider extends BaseCreature {
 
   draw(layer: LayerId, ctx: Ctx, w: FaunaWorld): void {
     if (layer !== 'waterSurface' || this.alpha <= 0.01) return;
-    const sp = w.art.get(`strider:${this.variant}`, (res) => striderSprites(res, 300 + this.variant));
+    const sp = w.art.get(`strider:${this.look}`, (res) => striderSprites(res, 300 + this.look));
     const s = this.state === 'skate' && this.timer < 0.18 ? sp.row : sp.rest;
     const ps = w.perspective(this.y);
     ctx.save();
@@ -156,3 +157,29 @@ export class Strider extends BaseCreature {
     this.leaving = true;
   }
 }
+
+const strider: CreatureDef = {
+  kind: 'strider',
+  title: 'water striders',
+  role: 'resident',
+  rank: 1,
+  resident: (n, mode) => (n > 0 ? (mode.reduced ? FAUNA_TUNING.reducedStriders : FAUNA_TUNING.striders) : 0),
+  needs: (w) => w.pond.world.length >= 3,
+  spawn(w, s) {
+    if (w.pond.world.length < 3) return [];
+    const out: Strider[] = [];
+    for (let i = 0; i < s.count; i++) out.push(new Strider(w));
+    return out;
+  },
+  sheet: {
+    w: 360,
+    h: 120,
+    make(res, seed) {
+      const a = striderSprites(res, seed);
+      const b = striderSprites(res, seed + 7);
+      return [a.rest, a.row, b.rest, b.row];
+    },
+  },
+  show: { order: 1, spec: { w: 260, h: 160 }, w: 520, h: 320 },
+};
+export default strider;

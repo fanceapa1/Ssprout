@@ -4,7 +4,15 @@
  */
 import type { Rng } from '../core/rng';
 import { inHours, rangeOf } from './math';
-import { FAUNA_TUNING, VISITS, type FaunaKind, type ResidentKind, type VisitorKind } from './tuning';
+import { creatureDef } from './creatures/registry';
+import { FAUNA_TUNING, type FaunaKind, type ResidentKind, type VisitorKind, type VisitTuning } from './tuning';
+
+const NEVER: VisitTuning = { gap: [Infinity, Infinity], first: [Infinity, Infinity], stay: [0, 0], group: [0, 0], max: 0, diurnal: false, visitor: false };
+
+/** A kind's visit pacing (its def's `visit`); a kind without one never visits. */
+export function visitTuning(kind: VisitorKind): VisitTuning {
+  return creatureDef(kind)?.visit ?? NEVER;
+}
 
 export interface FaunaMode {
   /** prefers-reduced-motion */
@@ -34,7 +42,7 @@ export function gapScale(kind: VisitorKind, mode: FaunaMode): number {
 
 /** Seconds until the next visit of `kind` (`first`: the first one after unlock / load). */
 export function visitDelay(kind: VisitorKind, rng: Rng, mode: FaunaMode, first = false): number {
-  const t = VISITS[kind];
+  const t = visitTuning(kind);
   return rangeOf(rng, first ? t.first : t.gap) * gapScale(kind, mode);
 }
 
@@ -49,18 +57,19 @@ export function allowedInMode(kind: FaunaKind, mode: FaunaMode): boolean {
 
 export interface Census {
   /** individuals per kind currently present */
-  byKind: Partial<Record<FaunaKind, number>>;
+  byKind: Record<FaunaKind, number>;
   /** individuals that count against the visitor cap */
   visitors: number;
 }
 
-export type Refusal = 'night' | 'cap' | 'kind-max' | 'mode' | null;
+export type Refusal = 'night' | 'day' | 'cap' | 'kind-max' | 'mode' | null;
 
 /** Why a visit of `kind` can't start now (null = it may). */
 export function refuseVisit(kind: VisitorKind, mode: FaunaMode, census: Census): Refusal {
-  const t = VISITS[kind];
+  const t = visitTuning(kind);
   if (!allowedInMode(kind, mode)) return 'mode';
   if (t.diurnal && mode.night) return 'night';
+  if (t.nocturnal && !mode.night) return 'day';
   if ((census.byKind[kind] ?? 0) >= t.max) return 'kind-max';
   if (t.visitor && census.visitors >= maxVisitors(mode)) return 'cap';
   return null;
@@ -68,7 +77,7 @@ export function refuseVisit(kind: VisitorKind, mode: FaunaMode, census: Census):
 
 /** How many individuals a visit brings, never more than the room left. */
 export function groupSize(kind: VisitorKind, rng: Rng, mode: FaunaMode, census: Census): number {
-  const t = VISITS[kind];
+  const t = visitTuning(kind);
   const want = Math.round(rangeOf(rng, [t.group[0], t.group[1] + 0.49]));
   const kindRoom = t.max - (census.byKind[kind] ?? 0);
   const capRoom = t.visitor ? maxVisitors(mode) - census.visitors : Infinity;
@@ -107,14 +116,14 @@ export function dueVisits(
     }
     out.push(kind);
     running.byKind[kind] = (running.byKind[kind] ?? 0) + 1;
-    if (VISITS[kind].visitor) running.visitors++;
+    if (visitTuning(kind).visitor) running.visitors++;
     schedule.set(kind, t + visitDelay(kind, rng, mode));
   }
   return out;
 }
 
-/** Resident counts wanted for a mode. */
+/** Resident counts wanted for a mode (the def's `resident`; by default one per unlocked row). */
 export function residentTarget(kind: ResidentKind, unlockedCount: number, mode: FaunaMode): number {
-  if (kind === 'strider') return unlockedCount > 0 ? (mode.reduced ? FAUNA_TUNING.reducedStriders : FAUNA_TUNING.striders) : 0;
-  return unlockedCount;
+  const def = creatureDef(kind);
+  return def?.resident ? def.resident(unlockedCount, mode) : unlockedCount;
 }

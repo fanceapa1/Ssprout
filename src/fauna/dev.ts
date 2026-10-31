@@ -10,7 +10,7 @@ import { pointInPolygon } from './math';
 import { kindOf } from './roster';
 import type { FaunaListing } from './sim';
 import type { FaunaSystem } from './system';
-import { FAUNA_KINDS, type FaunaKind } from './tuning';
+import { creatureDef, creatureKinds } from './creatures/registry';
 
 export interface FaunaDebugListing extends FaunaListing {
   /** for koi and striders: is it inside the pond polygon */
@@ -69,12 +69,13 @@ export function installFaunaDebug(system: FaunaSystem): void {
     return system.sim;
   };
   const api: FaunaDebug = {
-    kinds: () => [...FAUNA_KINDS],
+    kinds: () => creatureKinds(),
     spawn(id, count) {
-      const kind = kindOf(id);
-      if (!kind) throw new Error(`unknown creature "${id}" (try ${FAUNA_KINDS.join(', ')})`);
+      const kind = kindOf(id) ?? id;
+      const def = creatureDef(kind);
+      if (!def) throw new Error(`unknown creature "${id}" (try ${creatureKinds().join(', ')})`);
       return sim()
-        .spawn(kind as FaunaKind, { forced: true, count: count ?? (kind === 'swallow' ? 3 : 1) })
+        .spawn(kind, { forced: true, count: count ?? def.spawnCount ?? 1 })
         .map((c) => c.id);
     },
     list() {

@@ -10,8 +10,9 @@ import type { Pt } from '../../render/viewport';
 import { approach, clamp, cubic, cubicLength, cubicTangent, easeInOut, isOffscreen, offscreenPoint, TAU } from '../math';
 import { paintSprite, type Sprite } from '../sprite';
 import type { Stand } from '../targets';
-import { FAUNA_TUNING, SIZES, SPEEDS } from '../tuning';
+import { FAUNA_TUNING, SIZES, SPEEDS, VISITS } from '../tuning';
 import { BaseCreature, type Ctx, type FaunaWorld } from '../types';
+import type { CreatureDef } from './lib/def';
 
 export interface HeronParts {
   body: Sprite; // standing body with legs, feet at the origin
@@ -291,3 +292,25 @@ export class Heron extends BaseCreature {
   }
 }
 
+const heron: CreatureDef = {
+  kind: 'heron',
+  title: 'grey heron',
+  role: 'visitor',
+  visit: VISITS.heron,
+  needs: (w) => w.stands().length > 0 && w.pond.world.length >= 3,
+  spawn(w, s) {
+    const stands = w.stands();
+    if (w.pond.world.length < 3 || stands.length === 0) return [];
+    return [new Heron(w, w.rng.pick(stands), s.stay || 120)];
+  },
+  sheet: {
+    w: 720,
+    h: 240,
+    make(res, seed) {
+      const a = paintHeron(res, seed);
+      return [a.body, a.neck, a.flyBody, a.wing];
+    },
+  },
+  show: { order: 9, spec: { w: 560, h: 360 }, w: 560, h: 360 },
+};
+export default heron;

@@ -8,7 +8,7 @@ import type { Pt, Rect } from '../render/viewport';
 import type { SceneGeometry } from '../scene/geometry';
 import type { FaunaMode } from './schedule';
 import type { ArtCache } from './sprite';
-import type { FlowerTarget, Pad, Perch } from './targets';
+import type { FlowerTarget, Pad, Perch, Stand } from './targets';
 import type { FaunaKind } from './tuning';
 
 export type Ctx = CanvasRenderingContext2D;
@@ -24,13 +24,23 @@ export interface PondInfo {
   bounds: Rect;
 }
 
+/** All the water a garden has (ADR 0248): the still `pond` above, moving streams, and the clip for water layers. */
+export interface WaterInfo {
+  /** streams and runs: no striders, no reflections */
+  moving: Pt[][];
+  /** the water layers draw inside these (the whole pool, foam included, and the streams) */
+  clip: Pt[][];
+}
+
 export interface FaunaWorld {
   /** animation seconds */
   t: number;
   rng: Rng;
   noise: Noise2D;
   scene: SceneGeometry;
+  /** the still water creatures live on (a pool minus its foam) */
   pond: PondInfo;
+  water: WaterInfo;
   /** visible world rect: creatures enter and leave beyond it */
   view: Rect;
   mode: FaunaMode;
@@ -40,8 +50,10 @@ export interface FaunaWorld {
   perches: Perch[];
   pads: Pad[];
   art: ArtCache;
-  /** perspective scale at a world y (far = smaller) */
-  perspective(y: number): number;
+  /** where a heron could wade right now (cached) */
+  stands(): Stand[];
+  /** perspective scale at a world point (far = smaller); `x` matters where the ground is not a plane (a cliff) */
+  perspective(y: number, x?: number): number;
   /** a ring on the water at a world point (size ≈ outer width in world units) */
   ripple(x: number, y: number, size: number, strength?: number): void;
   creatures: readonly Creature[];
@@ -56,6 +68,8 @@ export interface Creature {
   y: number;
   /** the layer the creature is mostly on right now (for list / tests) */
   layer: LayerId;
+  /** the variant it took (`FaunaUnlock.variant`: 'aka', 'wagtail'…), if its kind has any */
+  variant?: string;
   /** behaviour state name (for list / tests / studio) */
   state: string;
   /** remove me */
@@ -81,6 +95,7 @@ export abstract class BaseCreature implements Creature {
   x = 0;
   y = 0;
   layer: LayerId = 'air';
+  variant?: string;
   state = 'enter';
   done = false;
   forced = false;

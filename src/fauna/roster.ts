@@ -14,6 +14,10 @@ export interface Roster {
   visitors: Set<VisitorKind>;
   /** koi-3 (25 plants): "more frequent birds" */
   birdBoost: boolean;
+  /** resident kind → how many to keep alive for it */
+  residents: Map<string, number>;
+  /** kind → the variants the garden allows (none: any) */
+  variants: Map<string, string[]>;
 }
 
 const VISITOR_OF: Record<string, VisitorKind> = {
@@ -34,13 +38,10 @@ export function rosterFor(unlocked: readonly string[]): Roster {
   }
   const striders = ids.has('striders');
   if (striders) visitors.add('leaf');
-  return {
-    koi: ['koi-1', 'koi-2', 'koi-3'].filter((k) => ids.has(k)).length,
-    striders,
-    frog: ids.has('frog'),
-    visitors,
-    birdBoost: ids.has('koi-3'),
-  };
+  const koi = ['koi-1', 'koi-2', 'koi-3'].filter((k) => ids.has(k)).length;
+  const frog = ids.has('frog');
+  const residents = new Map([['koi', koi], ['strider', striders ? 1 : 0], ['frog', frog ? 1 : 0]]);
+  return { koi, striders, frog, visitors, birdBoost: ids.has('koi-3'), residents, variants: new Map() };
 }
 
 const KIND_ALIASES: Record<string, FaunaKind> = {

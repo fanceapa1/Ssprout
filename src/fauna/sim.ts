@@ -9,14 +9,14 @@ import { createSimplex2D, PIGMENTS } from '../paint';
 import type { Drawable, LayerId } from '../render/types';
 import type { Pt, Rect } from '../render/viewport';
 import type { SceneGeometry } from '../scene/geometry';
-import { spawnCreatures, warmArt } from './creatures';
+import { creatureDef, creatureDefs } from './creatures/registry';
 import { easeOut, localHour, polygonBounds, polygonCentroid, rangeOf, toPlane } from './math';
 import { rosterFor, type Roster } from './roster';
-import { CALM_MODE, dueVisits, groupSize, isNight, residentTarget, type Census, type FaunaMode, type Schedule } from './schedule';
+import { CALM_MODE, dueVisits, groupSize, isNight, residentTarget, visitTuning, type Census, type FaunaMode, type Schedule } from './schedule';
 import { ArtCache, drawSprite, paintSprite, type Sprite } from './sprite';
 import { flowerTargets, heronStands, lilyPads, perchesOf, perspectiveFit, type Stand, type TargetLookup } from './targets';
-import { FAUNA_TUNING, VISITS, type FaunaKind, type VisitorKind } from './tuning';
-import type { Creature, Ctx, FaunaWorld, PondInfo } from './types';
+import { FAUNA_TUNING, type FaunaKind, type VisitorKind } from './tuning';
+import type { Creature, Ctx, FaunaWorld, PondInfo, WaterInfo } from './types';
 
 interface Ripple {
   x: number;
@@ -52,7 +52,19 @@ export interface FaunaListing {
   layer: LayerId;
   state: string;
   visitor: boolean;
+  variant?: string;
 }
+
+function waterInfo(scene: SceneGeometry): WaterInfo {
+  const moving = scene.streams.map((s) => s.map((p) => ({ x: p.x, y: p.y })));
+  return { moving, clip: [scene.pond, ...moving].filter((p) => p.length >= 3) };
+}
+
+/** Resident kinds, in the order upkeep keeps them (`CreatureDef.rank`). */
+const RESIDENTS: readonly FaunaKind[] = creatureDefs()
+  .filter((d) => d.role === 'resident')
+  .sort((a, b) => (a.rank ?? 10) - (b.rank ?? 10) || a.kind.localeCompare(b.kind))
+  .map((d) => d.kind);
 
 function pondInfo(scene: SceneGeometry): PondInfo {
   const world = scene.pond.map((p) => ({ x: p.x, y: p.y }));
@@ -77,7 +89,7 @@ export class FaunaSim {
   private plants: readonly PlantInstance[] = [];
   private lookup: TargetLookup = () => undefined;
   private lively = false;
-  private koiSeed: number;
+  private readonly seed: number;
   private nightApplied = false;
   /** simulation seconds (advanced by update; dev `step` and studio presimulation share it) */
   time = 0;
@@ -86,7 +98,7 @@ export class FaunaSim {
 
   constructor(opts: SimOptions) {
     this.rng = createRng(opts.seed).fork('fauna');
-    this.koiSeed = hashString(`koi-${opts.seed}`);
+    this.seed = opts.seed;
     this.auto = opts.auto ?? true;
     this.reduced = opts.reducedMotion ?? false;
     const scene = opts.scene;
@@ -99,6 +111,7 @@ export class FaunaSim {
       noise: createSimplex2D(this.rng.fork('noise')),
       scene,
       pond,
+      water: waterInfo(scene),
       view: opts.view ?? { x: 0, y: 0, w: 1600, h: 1000 },
       mode,
       speed: this.reduced ? FAUNA_TUNING.reducedSpeed : 1,
@@ -107,6 +120,7 @@ export class FaunaSim {
       pads: [],
       art: new ArtCache(),
       perspective: perspectiveFit(scene.slots),
+      stands: () => sim.heronStands(),
       ripple: (x, y, size, strength = 1) => sim.addRipple(x, y, size, strength),
       get creatures() {
         return sim.creatures;
@@ -119,6 +133,7 @@ export class FaunaSim {
     const w = this.world;
     w.scene = scene;
     w.pond = pondInfo(scene);
+    w.water = waterInfo(scene);
     w.perches = perchesOf(scene);
     w.perspective = perspectiveFit(scene.slots);
     this.refreshTargets();
@@ -200,10 +215,8 @@ export class FaunaSim {
     const w = this.world;
     const out = new Set<VisitorKind>();
     for (const k of this.roster.visitors) {
-      if ((k === 'bee' || k === 'butterfly') && w.flowers.length === 0) continue;
-      if (k === 'bird' && w.perches.length === 0) continue;
-      if (k === 'heron' && this.heronStands().length === 0) continue;
-      if ((k === 'leaf' || k === 'heron') && w.pond.world.length < 3) continue;
+      const def = creatureDef(k);
+      if (!def?.visit || (def.needs && !def.needs(w))) continue;
       out.add(k);
     }
     return out;
@@ -221,15 +234,18 @@ export class FaunaSim {
     if (step <= 0) return;
     if (this.auto) {
       this.upkeepResidents();
-      if (w.mode.night && !this.nightApplied) {
-        for (const c of this.creatures) if (c.kind !== 'leaf' && c.visitor && VISITS[c.kind as VisitorKind]?.diurnal) c.leave(w);
+      if (w.mode.night !== this.nightApplied) {
+        // nightfall sends the diurnal visitors away, daybreak the nocturnal ones
+        for (const c of this.creatures) {
+          const t = visitTuning(c.kind);
+          if (c.visitor && (w.mode.night ? t.diurnal : t.nocturnal)) c.leave(w);
+        }
       }
       this.nightApplied = w.mode.night;
       for (const kind of dueVisits(this.schedule, t, this.enabledVisitors(), w.mode, this.census(), this.rng)) {
         const n = Math.max(1, groupSize(kind, this.rng, w.mode, this.census()));
         this.spawn(kind, { forced: false, count: n });
       }
-      warmArt(this.roster, w);
     }
     for (const c of this.creatures) c.update(step, w);
     this.creatures = this.creatures.filter((c) => !c.done);
@@ -239,33 +255,27 @@ export class FaunaSim {
 
   private upkeepResidents(): void {
     const w = this.world;
-    const live = (k: FaunaKind) => this.creatures.filter((c) => c.kind === k && !c.forced && !c.done && !(c as { leaving?: boolean }).leaving);
-    // koi: one per unlocked koi, each with its own seeded pattern
-    const koi = live('koi');
-    const wantKoi = residentTarget('koi', this.roster.koi, w.mode);
-    if (koi.length < wantKoi) this.spawn('koi', { forced: false });
-    else if (koi.length > wantKoi) koi[koi.length - 1]!.leave(w);
-    const striders = live('strider');
-    const wantS = residentTarget('strider', this.roster.striders ? 1 : 0, w.mode);
-    if (striders.length < wantS && w.pond.world.length >= 3) this.spawn('strider', { forced: false });
-    else if (striders.length > wantS) striders[striders.length - 1]!.leave(w);
-    const frogs = live('frog');
-    const wantFrog = this.roster.frog && w.pads.length > 0 ? 1 : 0;
-    if (frogs.length < wantFrog) this.spawn('frog', { forced: false });
-    else if (frogs.length > wantFrog) frogs[0]!.leave(w);
+    for (const kind of RESIDENTS) {
+      const def = creatureDef(kind)!;
+      const live = this.creatures.filter((c) => c.kind === kind && !c.forced && !c.done && !(c as { leaving?: boolean }).leaving);
+      const want = def.needs && !def.needs(w) ? 0 : residentTarget(kind, this.roster.residents.get(kind) ?? 0, w.mode);
+      if (live.length < want) this.spawn(kind, { forced: false });
+      else if (live.length > want) live[live.length - 1]!.leave(w);
+    }
   }
 
   /** Bring a creature (or a small group) into the garden now. Returns those spawned. */
   spawn(kind: FaunaKind, opts: SpawnOptions = {}): Creature[] {
     const forced = opts.forced ?? true;
     const count = opts.count ?? 1;
-    const koiIndex = this.creatures.filter((c) => c.kind === 'koi').length;
-    const made = spawnCreatures(kind, this.world, {
+    const def = creatureDef(kind);
+    if (!def) return [];
+    const made = def.spawn(this.world, {
       count,
-      koiSeed: this.koiSeed,
-      koiIndex,
-      stands: kind === 'heron' ? this.heronStands() : [],
-      stay: kind in VISITS ? rangeOf(this.rng, VISITS[kind as VisitorKind].stay) * (this.reduced ? 1.5 : 1) : 0,
+      index: this.creatures.filter((c) => c.kind === kind).length,
+      seed: hashString(`${kind}-${this.seed}`),
+      stay: def.visit ? rangeOf(this.rng, def.visit.stay) * (this.reduced ? 1.5 : 1) : 0,
+      variants: this.roster.variants.get(kind) ?? [],
     });
     for (const c of made) {
       c.forced = forced;
@@ -282,17 +292,18 @@ export class FaunaSim {
   }
 
   list(): FaunaListing[] {
-    return this.creatures.map((c) => ({ id: c.id, kind: c.kind, x: c.x, y: c.y, layer: c.layer, state: c.state, visitor: c.visitor }));
+    return this.creatures.map((c) => ({ id: c.id, kind: c.kind, x: c.x, y: c.y, layer: c.layer, state: c.state, visitor: c.visitor, variant: c.variant }));
   }
 
   // -------------------------------------------------------------------------------------------
   // drawing
 
-  private clipPond(ctx: Ctx): void {
-    const pond = this.world.pond.world;
+  private clipWater(ctx: Ctx): void {
     ctx.beginPath();
-    pond.forEach((p, i) => (i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y)));
-    ctx.closePath();
+    for (const poly of this.world.water.clip) {
+      poly.forEach((p, i) => (i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y)));
+      ctx.closePath();
+    }
     ctx.clip();
   }
 
@@ -307,9 +318,9 @@ export class FaunaSim {
   draw(layer: LayerId, ctx: Ctx): void {
     const w = this.world;
     if (layer === 'underwater' || layer === 'waterSurface') {
-      if (w.pond.world.length < 3) return;
+      if (w.water.clip.length === 0) return;
       ctx.save();
-      this.clipPond(ctx);
+      this.clipWater(ctx);
       if (layer === 'waterSurface') {
         for (const r of this.ripples) {
           const k = r.age / r.life;

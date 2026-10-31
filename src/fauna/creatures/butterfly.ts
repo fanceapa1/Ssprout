@@ -9,11 +9,13 @@ import type { Pt } from '../../render/viewport';
 import { approach, clamp, dist, isOffscreen, springStep, TAU } from '../math';
 import type { FlowerTarget } from '../targets';
 import { paintSprite, type Sprite } from '../sprite';
-import { FAUNA_TUNING, SIZES, SPEEDS } from '../tuning';
+import { FAUNA_TUNING, SIZES, SPEEDS, VISITS } from '../tuning';
 import { BaseCreature, type Ctx, type FaunaWorld } from '../types';
-import { entryPoint, exitPoint, nextFlower } from './flight';
+import { variantOf, type CreatureDef } from './lib/def';
+import { entryPoint, exitPoint, nextFlower } from './lib/flight';
 
-export type ButterflySpecies = 'white' | 'swallowtail';
+export const BUTTERFLY_VARIANTS = ['white', 'swallowtail'] as const;
+export type ButterflySpecies = (typeof BUTTERFLY_VARIANTS)[number];
 
 export interface ButterflyParts {
   wingR: Sprite;
@@ -139,10 +141,11 @@ export class Butterfly extends BaseCreature {
   private readonly cruise: number;
   private readonly hz: number;
 
-  constructor(w: FaunaWorld, stay: number, species?: ButterflySpecies) {
+  constructor(w: FaunaWorld, stay: number, variants: readonly string[] = []) {
     super();
     const rng = w.rng;
-    this.species = species ?? (rng.chance(0.65) ? 'white' : 'swallowtail');
+    this.species = variantOf(variants, BUTTERFLY_VARIANTS, rng, () => (rng.chance(0.65) ? 'white' : 'swallowtail'));
+    this.variant = this.species;
     this.stay = stay;
     this.visits = rng.int(2, 4);
     this.cruise = rng.range(SPEEDS.butterfly[0], SPEEDS.butterfly[1]) * (this.species === 'white' ? 1 : 0.85);
@@ -269,3 +272,28 @@ export class Butterfly extends BaseCreature {
     ctx.restore();
   }
 }
+
+const butterfly: CreatureDef = {
+  kind: 'butterfly',
+  title: 'butterflies',
+  role: 'visitor',
+  visit: VISITS.butterfly,
+  variants: BUTTERFLY_VARIANTS,
+  needs: (w) => w.flowers.length > 0,
+  spawn(w, s) {
+    const out: Butterfly[] = [];
+    for (let i = 0; i < s.count; i++) out.push(new Butterfly(w, (s.stay || 50) * w.rng.range(0.8, 1.1), s.variants));
+    return out;
+  },
+  sheet: {
+    w: 560,
+    h: 140,
+    make(res, seed) {
+      const a = paintButterfly(res, seed, 'white');
+      const b = paintButterfly(res, seed + 3, 'swallowtail');
+      return [a.wingL, a.wingR, a.body, b.wingL, b.wingR, b.body];
+    },
+  },
+  show: { order: 4, spec: { w: 380, h: 240 }, w: 570, h: 360 },
+};
+export default butterfly;

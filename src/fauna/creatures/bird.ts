@@ -9,11 +9,13 @@ import type { Pt } from '../../render/viewport';
 import { clamp, cubic, cubicLength, cubicTangent, easeInOut, isOffscreen, lerp, TAU } from '../math';
 import { paintSprite, type Sprite } from '../sprite';
 import { choosePerch, perchY, type Perch } from '../targets';
-import { FAUNA_TUNING, SIZES, SPEEDS } from '../tuning';
+import { FAUNA_TUNING, SIZES, SPEEDS, VISITS } from '../tuning';
 import { BaseCreature, type Ctx, type FaunaWorld } from '../types';
-import { entryPoint, exitPoint } from './flight';
+import { variantOf, type CreatureDef } from './lib/def';
+import { entryPoint, exitPoint } from './lib/flight';
 
-export type BirdSpecies = 'wagtail' | 'sparrow';
+export const BIRD_VARIANTS = ['wagtail', 'sparrow'] as const;
+export type BirdSpecies = (typeof BIRD_VARIANTS)[number];
 
 export interface BirdParts {
   body: Sprite; // standing/perched body without legs or tail, anchored at the hip
@@ -200,11 +202,12 @@ export class Bird extends BaseCreature {
   private heading = 0;
   private timerAct = 0;
 
-  constructor(w: FaunaWorld, stay: number, taken: readonly Pt[]) {
+  constructor(w: FaunaWorld, stay: number, taken: readonly Pt[], variants: readonly string[] = []) {
     super();
     const rng = w.rng;
     this.stay = stay;
-    this.species = rng.chance(0.5) ? 'wagtail' : 'sparrow';
+    this.species = variantOf(variants, BIRD_VARIANTS, rng, () => (rng.chance(0.5) ? 'wagtail' : 'sparrow'));
+    this.variant = this.species;
     this.perch = choosePerch(w.perches, taken, rng, this.species === 'wagtail' ? 'rock' : 'stone');
     const sky = w.scene.skyBand;
     const side = rng.chance(0.5) ? -1 : 1;
@@ -363,3 +366,36 @@ export class Bird extends BaseCreature {
     ctx.restore();
   }
 }
+
+const bird: CreatureDef = {
+  kind: 'bird',
+  title: 'small birds',
+  role: 'visitor',
+  visit: VISITS.bird,
+  variants: BIRD_VARIANTS,
+  needs: (w) => w.perches.length > 0,
+  spawn(w, s) {
+    const taken: Pt[] = [];
+    for (const c of w.creatures) if (c instanceof Bird && !c.done) taken.push(...(c.spot() ? [c.spot()!] : []));
+    const out: Bird[] = [];
+    for (let i = 0; i < s.count; i++) {
+      const b = new Bird(w, (s.stay || 30) * w.rng.range(0.8, 1.2), taken, s.variants);
+      if (b.done) break;
+      const spot = b.spot();
+      if (spot) taken.push(spot);
+      out.push(b);
+    }
+    return out;
+  },
+  sheet: {
+    w: 700,
+    h: 200,
+    make(res, seed) {
+      const a = paintBird(res, seed, 'wagtail');
+      const b = paintBird(res, seed + 5, 'sparrow');
+      return [a.body, a.tail, a.legs, a.flyUp, a.flyDown, b.body, b.tail, b.flyUp, b.fold];
+    },
+  },
+  show: { order: 6, spec: { w: 300, h: 190 }, w: 570, h: 361 },
+};
+export default bird;
