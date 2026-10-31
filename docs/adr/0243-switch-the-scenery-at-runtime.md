@@ -1,6 +1,6 @@
 # ADR 0243: Switch the scenery at runtime
 
-- Status: accepted
+- Status: accepted; amended by ADR 0248 (every garden has wildlife: fauna re-inits with the scenery's `fauna`)
 - Date: 2026-10-28
 - Builds on: ADR 0240 (a garden per scenery), ADR 0241 (the scenery contract), ADR 0242 (cache keys carry the scenery)
 

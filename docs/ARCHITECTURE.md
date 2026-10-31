@@ -30,7 +30,7 @@ src/
     rewards.ts            tier from minutes, selectable species per total
     plans.ts              study plans: recommendPlans(total), plan validation
     placement.ts          slot compatibility (habitat + size class), swap candidates
-    fauna-unlocks.ts      which creatures are unlocked for a given state
+    fauna-unlocks.ts      which rows of a scenery's unlock table a garden has unlocked (generic, ADR 0248)
     tips.ts               tooltip registry + seen/retired logic
     controller.ts         session controller: the single API the UI/widget call (no DOM)
     testing.ts            unit-test helpers (fixtures for states and sessions)
@@ -54,7 +54,8 @@ src/
     draw.ts · watering.ts · wither.ts · reflection.ts · highlight.ts · bounds.ts · wind-adapter.ts
     view.ts               renderPlantView (widget, previews) — docs/systems/plants.md
     debug.ts              ?dev hooks (window.sprout.plants, plantsReady)
-  fauna/                  creatures (one file each) + FaunaSystem — docs/systems/fauna.md
+  fauna/                  creatures (creatures/<kind>.ts, one default-exported def each, globbed by
+                          creatures/registry.ts) + FaunaSim + FaunaSystem — docs/systems/fauna.md
   ambience/               session weather (sun/rain/mist), motes, wind field, the daylight (sun times,
                           four phases, the shared source, light plates) — docs/systems/daylight.md
   render/                 Renderer, layers, viewport (world↔screen), camera (zoom/pan over it), System interface, frame loop
@@ -307,9 +308,11 @@ plants draw in a 70-unit design box scaled up, ADR 0125), medium 120×160, large
 tree 380×460 (`slots.ts`, ADR 0043). **Garden plants are drawn `GARDEN_PLANT_SCALE` (1.25) larger**:
 a plant's box is `size × plantScale(slot)` (`plantScale(slot) = slot.scale × 1.25`, ADR 0148) —
 `plantWorldBounds` (`src/plants/bounds.ts`) is the one place that computes it; `slot.scale` itself
-stays the ground's perspective (fauna uses it for creatures).
+stays the ground's perspective. Creatures read `w.perspective(y, x)`: a scenery may give its own
+(`Scenery.fauna.perspective`, the waterfall's knows the cliff); otherwise a line fitted through the
+slots' scales.
 
-### Sceneries (`src/scenery/`, ADRs 0241, 0242; docs/systems/scenery.md)
+### Sceneries (`src/scenery/`, ADRs 0241, 0242, 0248; docs/systems/scenery.md)
 ```ts
 export const SCENERY_IDS = ['japanese-garden', 'waterfall'] as const;  // core/sceneries.ts (ADR 0240); ids.ts re-exports
 export type SceneryId = (typeof SCENERY_IDS)[number];
@@ -325,6 +328,7 @@ export interface Scenery {                    // types.ts
   view: SceneryView;                          // focus (portrait crop), pathOut (guiding path origin)
   flora: SceneryBiome;                        // its place in the world: the species it offers (ADR 0250)
   habitatWords: Record<Habitat, string>;      // how the planting sheet and placement name each habitat
+  fauna: SceneryFauna;                        // fauna/habitat.ts: unlocks (FaunaTable); water? { still, moving, avoid? }, perches?, stands?, perspective?(x, y)
 }
 getScenery(id): Scenery /* the default when not registered */; hasScenery(id); sceneries(flags?)  // registry.ts
 ```
@@ -342,6 +346,12 @@ The consumers take a scenery's data as an option and default to the Japanese gar
 `moonDisc(s, sky)`, `stars(n, seed, sky)`, `createWayfinding({ pathOut })`, `DEFAULT_FOCUS`
 (= the default scenery's `view.focus`).
 
+**Wildlife** (ADR 0248). A scenery's `fauna.unlocks` is its unlock table, data in
+`<id>/fauna.ts` (`JAPANESE_FAUNA`, `WATERFALL_FAUNA`; `scenery/fauna.ts › faunaTable(id)` without the
+painting). Rows name creature kinds (`src/fauna/creatures/<kind>.ts`); rows without a module are
+skipped. The optional `water`, `perches`, `stands` and `perspective` replace what the fauna sim
+would derive from `geometry` (the Japanese garden gives none; the waterfall gives all four).
+
 **Switching at runtime** (ADR 0243). `src/scenery/host.ts` follows `state.scenery` (only the
 sceneries `sceneries(flags)` offers; others read as the first) and calls
 `renderer.setScenery(scenery): Promise<void>`. The renderer keeps its last frame over the stage,
@@ -352,8 +362,8 @@ out over `SCENERY_FADE_S` (0.9 s); a cut under reduced motion, frozen, stopped o
 garden that becomes active (start or switch) dispatches `scenery/view` to its garden first, in
 the same store dispatch, so the camera's glide to its seedling (ADR 0168) runs after the cut.
 The scene takes `art` and `sky`, the ambience its `light` and `ambience` (weather stays global),
-plants show `gardenOnView(state, id)`, fauna resets its residents (wildlife only in the Japanese
-garden until S11).
+plants show `gardenOnView(state, id)`, fauna takes the scenery's `fauna`, resets its residents
+and follows that garden's unlocked rows.
 
 ### State (`src/core/state.ts`, ADR 0003, ADR 0036, ADRs 0150–0154, 0170, 0240)
 Each session is one plant, chosen at start, growing live in its slot. Up to three sessions are in
@@ -447,8 +457,11 @@ Types exported alongside: `Settings`, `GardenStats`, `Action`, `ActionType`, `Re
 `lastLeftSession`, `sessionsIn(state, sceneryId)`, `heldSlotIds(state, sceneryId)`, `plantsIn(state, sceneryId)`.
 `core/sceneries.ts`: `SCENERY_IDS`, `SceneryId`, `DEFAULT_SCENERY`, `isSceneryId`, `SlotsOf<S>`,
 `slotLookup(of) => { of, get(sceneryId, slotId) }`, `slotsOfAny`. Wildlife (`core/fauna-unlocks.ts`):
-`unlockedFauna(state, lookup, sceneryId = state.scenery)` counts that garden's plants;
-`faunaSeenKey(sceneryId, id)`, `faunaSeenIn`.
+`FaunaUnlock { id, kind, variant?, rule, arrival, announce, unlocked(counts), boost? }`, `FaunaTable`;
+`unlockedFauna(state, lookup, sceneryId, table)` (the rows that garden's plants unlock),
+`newlyArrived(state, lookup, sceneryId, table)`, `faunaRow(table, id)`, `gardenCounts`,
+`faunaSeenKey(sceneryId, id)`, `faunaSeenIn`. The tables live with the sceneries (ADR 0248); core
+imports neither `src/fauna` nor `src/scenery`.
 
 ### Session log (`src/core/session-log.ts`, ADR 0151)
 `state.log` is the history for the calendar: oldest first, appended by the reducer on
@@ -553,11 +566,12 @@ focus watering, ADR 0153), `'session:start': { session, pausedId? }` (`pausedId`
 waits), `'session:pause': { sessionId, at, reason? }` (`'user'` or `'switch'`), `'session:resume' |
 'session:cancel': { sessionId, at }`, `'session:switch': { from, to, at }` (after the pause/resume it
 implies; `from` null when nothing was active), `'session:complete': { sessionId, plant }`, `'plant:placed': { plant }`
-and `'plant:swapped': { plant, removed }` (both on completion; swapped first), `'fauna:arrived': { id }`,
+and `'plant:swapped': { plant, removed }` (both on completion; swapped first), `'fauna:arrived': { id, sceneryId }`,
 `'tip:retired': { id, reason }` (`'used' | 'dismissed'`, ADR 0211), `'settings:changed': { settings }`, `'schedule:due': { occurrence }` (an
 `OccurrenceView` whose time has come, from the scheduler's tick, ADR 0172). `fauna:arrived` is emitted by the fauna
-system the first time a newly unlocked creature is actually in view (ADR 0120); the UI's quiet line
-announces it and records it with `controller.announceFauna(id)`.
+system the first time a newly unlocked creature is actually in view in a garden (ADRs 0120, 0248); the UI's
+quiet line announces it in that garden's words and records it there with
+`controller.announceFauna(id, sceneryId)`, which emits it again with the same payload.
 `createEventBus()` → `{ on, once, off, emit, clear }`; `on` returns an unsubscribe function;
 delivery is synchronous to a snapshot of handlers; a throwing handler does not stop the others.
 
@@ -726,8 +740,10 @@ transitions to steady state), `ambience()` (phase, levels, daylight phase and we
 hour for fauna; audio keeps the real clock).
 
 Fauna (`src/fauna/dev.ts`, installed by `createFauna({ debug })`): `window.sprout.fauna` —
-`kinds()`, `spawn(id, count?)` (returns creature ids), `list()`, `clear()`, `step(seconds, dt?)`,
-`setHour(h)`, `night()`, `roster()`, `schedule()`, `pond()`, `view()`, `targets()`, `bench(frames?)`,
+`kinds()`, `spawn(id, count?)` (a kind or the viewed garden's unlock id; returns creature ids), `list()`
+(with `variant`, `inPond`, `edge`), `clear()`, `step(seconds, dt?)`, `setHour(h)`, `night()`, `roster()`
+(`{ scenery, ids, residents, visitors, kinds, variants }`), `schedule()`, `pond()` (the still water),
+`water()` (`{ still, moving, clip }`), `view()`, `targets()`, `bench(frames?)`,
 `art()` (parts' resolution, parts waiting to be painted sharper, parts painted), `settleArt()` (paint them
 now) (docs/systems/fauna.md).
 

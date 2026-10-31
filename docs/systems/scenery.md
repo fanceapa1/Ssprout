@@ -9,7 +9,9 @@ weather and the daylight are shared (owner decisions, phase 10).
 | File | What |
 |---|---|
 | `ids.ts` | re-exports `SCENERY_IDS` (`japanese-garden`, `waterfall`), `SceneryId`, `DEFAULT_SCENERY`, `isSceneryId` from `src/core/sceneries.ts`, where core keys plants, sessions and slots by them (ADR 0240; docs/systems/core.md › Gardens) |
-| `types.ts` | the `Scenery` contract and its parts: `ScenerySky`, `SceneryAmbience`, `SceneryView` |
+| `types.ts` | the `Scenery` contract and its parts: `ScenerySky`, `SceneryAmbience`, `SceneryView` (and `SceneryFauna` from `src/fauna/habitat.ts`) |
+| `fauna.ts` | `faunaTable(id)`: every scenery's unlock table without loading its painting (the quiet line's arrival lines) |
+| `japanese-garden/fauna.ts` | `JAPANESE_FAUNA`: the garden's unlock table (SPEC §4, ADR 0248) |
 | `registry.ts` | `getScenery(id)` (the default for an id not registered yet), `hasScenery(id)`, `sceneries(flags?)` (available ones, in `order`) |
 | `japanese-garden/index.ts` | `JAPANESE_GARDEN`: gathers the garden's geometry, painting, sky, light art, ambience numbers and view |
 | `japanese-garden/sky.ts` | `GARDEN_SKY_LAYOUT`: horizon y 368, sun x 966 rising / 556 setting, the moon's arc, where stars may be |
@@ -22,6 +24,8 @@ weather and the daylight are shared (owner decisions, phase 10).
 | `waterfall/layout.ts` | the waterfall's skyline (`SKYLINE`, `skylineAt`, `openSky`), `CLIFF`, `FAR_RIDGE`, `LEDGES` (with their scale), `CROWN_SCALE`, `WATERFALL_SKY_LAYOUT`, `FOCUS`, `WATERFALL_AMBIENCE`, `WATERFALL_HABITAT_WORDS` |
 | `waterfall/geometry.ts` | `FALLS`, `POOL`, `WATERLINE`, `STREAM_LINE` and `STREAM`, `ROCKS`, `TRAIL`, `waterfallScene` |
 | `waterfall/slots.ts` | `WATERFALL_SLOTS`: 49 slots, explicit scale on the cliff |
+| `waterfall/fauna.ts` | the waterfall's wildlife (ADR 0248): `WATERFALL_FAUNA` (its unlock table), `FOAM`, `waterfallPerspective(x, y)`, `WATERFALL_WILDLIFE` (`Scenery.fauna`: still pool minus the foam, the stream, ledge and wet-rock perches, heron stands) |
+| `waterfall/fauna.test.ts` | the table: ids, lines, shared kinds in their gorge variants, thresholds, rows without a module skipped |
 | `waterfall/index.ts` | `WATERFALL` (`available` only with `?dev&scenery=waterfall`), `waterfallSteps` (the land, the rock, the vegetation and the water; the sky is the daylight's plates), re-exports `WATERFALL_SKY` and `WATERFALL_LIGHT_ART`, `WATERFALL_VIEW` |
 | `waterfall/sky.ts` | the daylight's sky (S10, ADR 0247): `WATERFALL_SKY` (`paintWaterfallSky`, `paintWaterfallWaterSky`), `plateSky` (the washes' clip), `WATERFALL_SKY_RECT` |
 | `waterfall/light.ts` | `WATERFALL_LIGHT_ART`: no trees or shrubs; `shadows` (ledges, cliff foot, notch, left cliff) and `lights` (warm rock at sunrise and sunset, moonlit falls at night) hooks |
@@ -57,6 +61,7 @@ interface Scenery {
   view: SceneryView;                            // focus: Pt; pathOut: Pt[] (nearest first)
   flora: SceneryBiome;                          // realm, biomes, climate, cultivated, also?, except? (ADR 0250)
   habitatWords: Record<Habitat, string>;        // how the planting sheet and placement name each habitat
+  fauna: SceneryFauna;                          // unlocks: FaunaTable; water?, perches?, stands?, perspective?(x, y) (ADR 0248)
 }
 ```
 A scenery is consistent with itself: `art.scenery === id`, `art.scene === geometry`,
@@ -86,6 +91,8 @@ reducer's `grows` and the dev hooks take it. The slot habitats (`water`, `shore`
 10–30 species, at least 2 per tier, at least 2 for each habitat its slots have, and at least 6
 offered nowhere else. Its own species carry a wild `range` without `cultivatedIn`, so they stay
 out of the Japanese garden.
+**Left out for now**, with the task whose consumer sets its shape: `sound` (S15; `core/soundscape.ts` names its audio sceneries `SoundSceneryId`, `pond`
+and `coast`), `habitatWords` and `thumbnail` (S5), `surface` (the per-frame water animator; S9).
 
 ## Who reads what
 Each consumer takes the scenery's part as an option and defaults to the Japanese garden's; at
@@ -102,6 +109,8 @@ runtime the renderer passes the scenery on view down (`SystemContext.scenery`, s
 | viewport (`render/viewport.ts`) | `view.focus` | `DEFAULT_FOCUS`; the renderer's `focus` option |
 | wayfinding (`ui/wayfinding.ts`) | `view.pathOut` | `createWayfinding({ pathOut })` |
 | watering can (`plants/system.ts`) | `geometry.structure` | the geometry |
+| fauna (`fauna/system.ts`, `fauna/sim.ts`) | `fauna` (unlock table, water, perches, stands, perspective), `geometry` (pond, streams, rocks, path, slots, sky band) | `SystemContext.scenery`; `FaunaSim({ habitat })` (default: the Japanese garden's table, everything else from the geometry) |
+| quiet line (`ui/format.ts`) | the table's arrival lines | `faunaTable(id)` |
 
 ## Switching (ADR 0243)
 `src/scenery/host.ts` (`createSceneryHost({ store, renderer, getScenery })`) follows
@@ -115,7 +124,7 @@ cross-fades over 0.9 s once the new garden is ready (a cut under reduced motion)
 | scene (`scene/system.ts`) | drops its paintings, jobs, sky and water; paints `scenery.art` (or takes it from the paint cache) with `scenery.sky`; init blocks until painted |
 | ambience (`ambience/system.ts`) | builds its engine again with the scenery's `light` and `ambience`; the weather, the time override and the reveal carry over |
 | plants (`plants/system.ts`) | shows `gardenOnView(state, id)`: the finished plants and seedlings of that garden only; sessions elsewhere keep growing in state; watering applies only to a seedling on view |
-| fauna (`fauna/system.ts`) | the new scene, `resetResidents()`, unlocks and targets from that garden; no creatures outside the Japanese garden until per-scenery rosters (S11) |
+| fauna (`fauna/system.ts`) | the new scene and the scenery's `fauna` (`setScene(scene, habitat)`), `resetResidents()`, that garden's unlocked rows and targets (ADR 0248) |
 
 A session from another garden that becomes active (started or switched to) dispatches
 `scenery/view` first, in the same dispatch, so its garden is cut in before the glide to its
@@ -139,7 +148,10 @@ Every key starts with the scenery id: `japanese-garden|s7|normal|0,0,1600,1000@1
 ## Adding a scenery
 1. A folder `src/scenery/<id>/` with its geometry, painting (`SceneArt` with its own `steps`),
    `ScenerySky`, `LightArt`, `SceneryAmbience` and `SceneryView`, gathered in `index.ts`.
-2. Register it in `registry.ts`; keep `available` false behind a dev flag until it is done.
+2. Register it in `registry.ts` and its unlock table in `fauna.ts`; keep `available` false behind a
+   dev flag until it is done. Its wildlife: `<id>/fauna.ts`, a table (rows name creature kinds; rows
+   without a module are skipped) and, where the geometry alone is not enough, water, perches, stands
+   and perspective (docs/systems/fauna.md › Sceneries).
 3. Studio entries for everything it paints (`*.studio.ts`).
 4. Nothing else changes: the consumers above already read the scenery.
 
@@ -326,9 +338,24 @@ plate darkens toward the cliff's back edge. `light.ts` adds the rock's shadows (
 both low suns are right of the buttress), warm light on the sun-facing rock and moonlight on the falls
 and their spray. Grades stay global. Studio `waterfall-daylight`.
 
+### Wildlife (S11, ADR 0248)
+`fauna.ts` holds the waterfall's whole unlock table: the striders (`margin`: they keep to the
+pool's edge), the dipper and a maple leaf from the start; then the damselfly, iwana, a red
+dragonfly, swallowtails, bees, a wagtail, the yamame, sawagani, kajika (no water plant needed),
+house martins, fireflies (night only), the heron and the rare crested kingfisher
+(docs/systems/fauna.md › The waterfall's table). Rows whose creature is not painted yet are
+skipped. Still water is `POOL` minus `FOAM` (an 84 × 30 ellipse at the falls' foot); `STREAM` is
+moving water; the water layers clip to both. Perches are the six `LEDGES` edges and the four wet
+rocks (`rock-foot`, `rock-pool-left`, `rock-outflow`, `rock-stream`). The heron wades at three
+stands on the pool's back edge right of the falls. `waterfallPerspective(x, y)` is
+`perspectiveScale(y)` outside `CLIFF`; inside it runs from `CROWN_SCALE` under the skyline through
+the shelves' mean heights and scales to the cliff foot, within 0.02 of every slot.
+
 ### Left for later tasks
 - S11: a fauna perspective per scenery. `perspectiveFit(slots)` fits a line through (y, scale),
   which the ledges bend.
+- S5: `WATERFALL_HABITAT_WORDS` ('in the plunge pool', 'on the mossy ledges'…) once the
+  contract has habitat words.
 
 ## Tests
 - `src/scenery/waterfall/waterfall.test.ts`: the dev flag; self-consistency; no building,
@@ -350,6 +377,8 @@ and their spray. Grades stay global. Studio `waterfall-daylight`.
   the fixtures grow everywhere; the Japanese garden's 25 (a pin) and the waterfall's 5 (the art
   tasks extend it); released sceneries: 10–30 species, ≥ 2 per tier, ≥ 2 per slot habitat, ≥ 6
   exclusive; the lotus on the garden's two large water slots.
+- `src/scenery/waterfall/fauna.test.ts`, `src/fauna/waterfall.test.ts`, `tests/e2e/fauna-waterfall.spec.ts`:
+  the waterfall's table, targets and perspective (docs/systems/fauna.md › Tests).
 - `src/scenery/registry.test.ts`: ids, the registry and its fallback, self-consistency, the
   Japanese garden's focus, path and ambience numbers, `PAINT_ROOTS`.
 - `src/scene/geometry.test.ts`: the eave matches the engawa's frame; no streams, no falls, one

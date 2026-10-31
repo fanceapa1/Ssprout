@@ -1,6 +1,6 @@
 # ADR 0240: Schema v4, a garden per scenery
 
-- Status: accepted
+- Status: accepted; amended by ADR 0248 (the fauna unlock tables move to `src/scenery/<id>/fauna.ts`)
 - Date: 2026-10-28
 - Amends: ADR 0033 (persistence format), ADR 0154 (schema v2), ADR 0213 (supersedes its line that
   the viewed scenery is runtime context only), ADR 0120 (announced wildlife)

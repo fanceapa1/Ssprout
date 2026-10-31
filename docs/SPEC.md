@@ -156,7 +156,8 @@ offers it (`src/scenery/flora.test.ts`; which garden offers which species: ADR 0
 Wildlife is unlocked by garden progress, introduced one at a time, rare at first. Animals behave
 like real animals: koi drift and turn slowly, bees visit flowers that attract pollinators, birds
 land on rocks then leave, dragonflies hover over water. Never more than a handful visible at once.
-Unlock table (initial; tune in `src/core/fauna-unlocks.ts`):
+Unlock table of the Japanese garden (tune in `src/scenery/japanese-garden/fauna.ts`; each garden has
+its own, the waterfall's in `src/scenery/waterfall/fauna.ts`, ADR 0248):
 
 | Unlocks at | Creature |
 |---|---|

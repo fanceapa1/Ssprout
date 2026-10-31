@@ -186,18 +186,24 @@ notifies nobody and nothing is saved). The reducer never mutates its input.
 
 `reducer` (no world) accepts any species/slot ids; the app uses `createReducer({ getSpecies, getSlot: (sceneryId, slotId) => …, grows: flora.grows })`.
 
-## Fauna (`fauna-unlocks.ts`)
-`FAUNA_UNLOCKS` (in order, each with an `arrival` line): `striders` always (silent) · `dragonfly` 2
-plants · `koi-1` 3 · `butterflies` 4 pollinator flowers · `bees` 6 pollinator flowers · `koi-2` 7 ·
-`small-birds` 8 · `frog` a water plant + 10 plants · `swallows` 14 · `heron` 20 · `koi-3` 25.
+## Fauna (`fauna-unlocks.ts`, ADR 0248)
+Generic over a scenery's unlock table: `FaunaUnlock { id, kind, variant?, rule, arrival, announce,
+unlocked(counts), boost? }`, `FaunaTable`. The tables are data with the sceneries (core imports
+neither `src/fauna` nor `src/scenery`): the Japanese garden's `JAPANESE_FAUNA`
+(`src/scenery/japanese-garden/fauna.ts`, in order, each with an `arrival` line): `striders` always
+(silent) · `dragonfly` 2 plants · `koi-1` 3 · `butterflies` 4 pollinator flowers · `bees` 6 pollinator
+flowers · `koi-2` 7 · `small-birds` 8 · `frog` a water plant + 10 plants · `swallows` 14 · `heron` 20 ·
+`koi-3` 25 (boosts birds) · `leaf` always (silent). The waterfall's: docs/systems/fauna.md › The
+waterfall's table.
 Counts use finished plants only (the growing seedling does not count). "Pollinator flower" =
 species with `pollinators: true`; "water plant" = species whose habitats include `water`.
-**Each garden unlocks its own wildlife from its own plants** (ADR 0240): `gardenCounts`,
-`unlockedFauna(state, lookup, sceneryId = state.scenery)` count only that garden's plants.
+**Each garden unlocks its own wildlife from its own plants** (ADR 0240): `gardenCounts(state,
+lookup, sceneryId?)` counts only that garden's plants; `unlockedFauna(state, lookup, sceneryId,
+table)` returns the rows they unlock; `faunaRow(table, id)`.
 `faunaSeen` holds Japanese-garden ids bare (as before v4) and others as `<scenery>:<id>`
 (`faunaSeenKey(sceneryId, id)`, `faunaSeenIn(state, sceneryId, id)`); `controller.announceFauna(id,
-sceneryId?)` stores the key and emits the bare id. One table serves every garden until S11 gives
-each scenery its own. `newlyArrived(state, lookup, sceneryId?)` = unlocked − seen there (kept and
+sceneryId?)` stores the key and emits `fauna:arrived { id, sceneryId }`. `newlyArrived(state, lookup,
+sceneryId, table)` = unlocked − seen there (kept and
 tested, but the UI no longer uses it: arrivals come from the fauna system on first sight, ADR 0120).
 
 ## Tips (`tips.ts`)
