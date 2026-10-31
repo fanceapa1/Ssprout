@@ -239,7 +239,6 @@ A species is only added files (ADR 0251, `docs/systems/species-recipe.md`): `spe
 `species/<id>.test.ts` and `notes/<id>.ts`. `speciesNote(id, sceneryId?)` (`notes.ts`, main thread
 only) returns the note's `in[sceneryId]` when it has one, else `note`; null for an unknown id.
 
-
 **Flora** (`src/plants/biomes.ts`, `src/plants/flora.ts`, ADR 0250). The vocabulary is `REALMS`,
 `BIOMES` and `CLIMATES` (one line per tag; a new scenery extends them there), and
 `Range = { realms; biomes; climates; cultivatedIn? }`. A scenery's profile is
