@@ -281,9 +281,8 @@ The dev fixtures (`fx-*`) and the placeholder sprout have the `EVERYWHERE` range
 scenery stands: docs/systems/scenery.md › Flora.
 
 ## How species integrate
+Drop `species/<id>.ts` (with its `range`), its `species/<id>.test.ts` and `notes/<id>.ts` (see
 [species-recipe.md](species-recipe.md) and ARCHITECTURE › Species). The system relies only on: `size`/`anchor`
-Drop `species/<id>.ts` (see ARCHITECTURE › Species), with its `range`. The system relies only on: `size`/`anchor`
-Drop `species/<id>.ts` with its `species/<id>.test.ts` and `notes/<id>.ts` (see
 (box and base), `sizeClass` (sway), `habitats`/`reflect` (reflections) and `draw(p, rng, { w, h,
 growth })` being **deterministic for (seed, growth, w, h)** and painting inside its box (anything
 outside is clipped). `draw` must not touch `document`/`window` (it runs in workers). It is called
@@ -326,12 +325,10 @@ bounds, LRU budget/epoch/best, scheduling, workers incl. fallback and death), `d
 growth + look-ahead, easing, displacement, wither, watering, bloom, bounds, reflections,
 highlight, 50-plant budget, plantsReady waits for the store change, sprites and fade-in, "finished plants sway with the wind, and hold still under reduced
 motion"), `shadow.test.ts` (cast shadow length, side, pool), `view.test.ts`, `hit-test.test.ts`,
-`notes.test.ts`, `registry.test.ts` (discovery, well-formed species, tiers, id/file
 `notes.test.ts`, `species/<id>.test.ts` (each species' family suite from `lib/suites.ts`: 115 tests,
 726,075 assertions, as many as the family files they replaced), `registry.test.ts` (discovery, well-formed species, tiers, id/file
-garden slots), `view-prewarm.test.ts` (whenReady, lazy workers, the idle lane, prewarm =
-match), `plantable.test.ts`, `view-prewarm.test.ts` (whenReady, lazy workers, the idle lane, prewarm =
 match), `src/scenery/flora.test.ts` (each scenery's flora, every offered species has a slot there; the lotus's two
+garden slots), `view-prewarm.test.ts` (whenReady, lazy workers, the idle lane, prewarm =
 draw specs, pending → drawn, growth-framing follow-up, main-thread fallback, the real worker module
 painting the same strokes as the main thread). E2E: `tests/e2e/plants.spec.ts` (watering, wither, bloom + reload,
 reflection, placement highlight, bounds + budget; the growth test runs in a reduced-motion block

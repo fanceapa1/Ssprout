@@ -637,10 +637,6 @@ Legend: unit tests as `folder/file › test`, under `src/` (`.test.ts` omitted).
 | S8.2 | The vegetation paints the same marks: quantised recording hash pins of the overview and a close view on the low left ledge and the cliff foot | scenery/waterfall/veg › paints the same marks (recording hash pins) | — | ✔ |
 | S8.3 | The vegetation paints in parts: no part over 130 k canvas calls or 400 k pixels (overview and close view); every vegetation step but the grass and the margins comes in many parts | scenery/waterfall/veg › no part of a step does more than one big mark’s work (overview, detail); › pauses inside the vegetation steps… | — | ✔ |
 | S8.4 | The vegetation looks like watercolour (a receding blue-grey ridge, broken dark crown woods, trees over the edge, fern sprays and moss at the ledges, banks in warm and cool greens with broken lips and granulation, a meadow, paper margins) | — | studio `waterfall-veg/veg-banks`, `/veg-woods`, `/veg-ferns`, `/veg-scene` (render in the studio spec; looked at) | ✔ |
-
-
-### Species scaffolding (phase 12, ADR 0251)
-| # | Rule | Unit | E2E | Status |
 | F1.1 | Each species has a range (realms, biomes, climates, cultivatedIn); a scenery offers a species when its realm, a biome and its climate match, or it is cultivated and the species is planted in its realm; `except` wins, `also` adds (ADR 0250) | scenery/flora › the offer rule (all) | — | ✔ |
 | F1.2 | Every species has a range and at least one scenery, and a slot in every scenery that offers it; `also`/`except` ids exist; the fixtures grow everywhere | scenery/flora › every species has a range and a home (all) | — | ✔ |
 | F1.3 | The Japanese garden offers exactly its 25 species; the waterfall exactly the five shared by biology (maidenhair fern, Japanese maple, violet, wild strawberry, silver grass) until the art tasks add its own | scenery/flora › each garden’s flora › the Japanese garden offers exactly the 25…; › the waterfall shares exactly the five… | gardens › the waterfall’s planting sheet lists its own flora and the fixtures… | ✔ |
@@ -650,8 +646,12 @@ Legend: unit tests as `folder/file › test`, under `src/` (`.test.ts` omitted).
 | F1.7 | The planting sheet lists the flora it is given, names only habitats the garden's slots have, and marks a native name with the species' language; the plant card carries that language | ui/planting-sheet › planting sheet: the garden’s flora (all); ui/plant-card › carries the native name’s language… | gardens › the waterfall’s planting sheet…; planting-previews, lotus (unchanged) | ✔ |
 | F1.8 | The herbarium is one book; once it holds more than one garden's specimens, each names its garden | — | gardens › the herbarium is one book… | ✔ |
 | F1.9 | Dev: `sprout.flora(sceneryId?)`; `start`, `addPlants` and `schedule.fillHistory` pick from the target garden's flora | — | gardens › the waterfall’s planting sheet… (`flora`); sceneries › each garden shows only its own plants (`addPlants` in the waterfall) | ✔ |
+
+### Species scaffolding (phase 12, ADR 0251)
+
+| # | Rule | Unit | E2E | Status |
+|---|---|---|---|---|
 | F2.1 | Adding a species only adds files: the registry and the notes glob them, no list or count is pinned | plants/registry (all); plants/notes › every registered species has a note…; › no note is left for a species that does not exist | — | ✔ |
 | F2.2 | Every species runs its family suite from `species/<id>.test.ts` (tiers 1–2: definition, determinism, seed variety, paints at every growth, continuous growth; tier 3: habitats and size, builder determinism, growth-independent rng; tier 4: sane box, plan determinism, seed variety, rng independence, inside the box) | plants/species/<id> (all, via lib/suites) | — | ✔ |
 | F2.3 | The family boards and the flora line-ups come from the registry; every entry paints | — | studio › every entry renders without errors and paints something (shards) | ✔ |
 | F2.4 | Merging a species, a creature, a note or a helper only they import keeps the paint version; what a cached painter imports stays hashed | paint/paint-version › species, creatures and notes (ADR 0251) (all); › covers this project's painters… | — | ✔ |
-|---|---|---|---|---|

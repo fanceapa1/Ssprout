@@ -235,16 +235,18 @@ continuous (ADRs 0110–0112). `draw` must be deterministic per (seed, growth, w
 and not touch the DOM (it runs in a worker). Runtime sway = horizontal skew (a bend for large plants
 and trees) about the base, driven by the garden wind (ADR 0113). Details: `docs/systems/plants.md`.
 
+A species is only added files (ADR 0251, `docs/systems/species-recipe.md`): `species/<id>.ts`,
+`species/<id>.test.ts` and `notes/<id>.ts`. `speciesNote(id, sceneryId?)` (`notes.ts`, main thread
+only) returns the note's `in[sceneryId]` when it has one, else `note`; null for an unknown id.
+
+
 **Flora** (`src/plants/biomes.ts`, `src/plants/flora.ts`, ADR 0250). The vocabulary is `REALMS`,
-`!except.includes(id) && (also.includes(id) || (realm ∈ realms && biomes ∩ scenery.biomes ≠ ∅ &&
 `BIOMES` and `CLIMATES` (one line per tag; a new scenery extends them there), and
-`floraOf(all, profile)` keeps the registry's order; `floraLookup(all, profileOf)` caches one list
 `Range = { realms; biomes; climates; cultivatedIn? }`. A scenery's profile is
 `SceneryBiome = { realm; biomes; climate; cultivated; also?; except? }`. A species is offered when
-`species/<id>.test.ts` and `notes/<id>.ts`. `speciesNote(id, sceneryId?)` (`notes.ts`, main thread
-A species is only added files (ADR 0251, `docs/systems/species-recipe.md`): `species/<id>.ts`,
+`!except.includes(id) && (also.includes(id) || (realm ∈ realms && biomes ∩ scenery.biomes ≠ ∅ &&
 climate ∈ climates) || (cultivated && realm ∈ cultivatedIn))` (`growsIn(id, range, profile)`).
-only) returns the note's `in[sceneryId]` when it has one, else `note`; null for an unknown id.
+`floraOf(all, profile)` keeps the registry's order; `floraLookup(all, profileOf)` caches one list
 per scenery as `{ of(id), grows(speciesId, id) }`. `EVERYWHERE` is the fixtures' range. The sprite
 worker still paints any species by id.
 
