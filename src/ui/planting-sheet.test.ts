@@ -47,15 +47,16 @@ function spyPreviews(drawnAtOnce: ReadonlySet<string> = new Set()) {
   return { cache: cache as unknown as PreviewCache & typeof cache, hurried };
 }
 
-function makeSheet(previews: PreviewCache) {
+function makeSheet(previews: PreviewCache, over: { species?: unknown[]; slots?: unknown[]; habitatWords?: () => unknown } = {}) {
   const controller = {
     recommendPlans: () => [{ id: 'p1', name: 'Steady', blocks: [{ kind: 'focus', minutes: 25 }] }],
-    selectableSpecies: () => SPECIES,
+    selectableSpecies: () => over.species ?? SPECIES,
     placementOptions: () => [{ slotId: 's1' }],
     retireTip: () => {},
     updateSettings: () => {},
   };
-  const deps = { controller, clock: { now: () => 0 }, getSpecies: () => undefined } as unknown as UIDeps;
+  const slots = over.slots ?? [{ id: 's1', habitat: 'meadow' }];
+  const deps = { controller, clock: { now: () => 0 }, getSpecies: () => undefined, slots: () => slots, habitatWords: over.habitatWords } as unknown as UIDeps;
   const ctx = {
     deps,
     previews,
@@ -150,5 +151,41 @@ describe('planting sheet previews', () => {
     // the options key the prewarm: the card's pixel size and seed
     expect(cache.prewarm.mock.calls[0]![1]).toMatchObject({ w: 96, h: 92, seed: 'preview:violet' });
     expect(cache.paint).not.toHaveBeenCalled();
+  });
+});
+
+describe('planting sheet: the garden’s flora (ADR 0250)', () => {
+  const card = (el: HTMLElement, id: string) => el.querySelector<HTMLElement>(`.plant-card[data-species-id="${id}"]`)!;
+  const offer = (id: string, habitats: string[], native?: { name: string; lang?: string }) => ({
+    species: { id, name: id, tier: 1, description: `${id} line`, habitats, ...(native ? { nativeName: native.name, nativeLang: native.lang } : {}) },
+    locked: false,
+    earned: true,
+    requiredMinutes: 10,
+  });
+
+  it('lists the species the controller offers for the garden on view', () => {
+    const sheet = makeSheet(spyPreviews().cache, { species: [offer('fern', ['rock']), offer('maple', ['back'])] });
+    sheet.open();
+    expect([...sheet.el.querySelectorAll<HTMLElement>('.plant-card')].map((c) => c.dataset.speciesId)).toEqual(['fern', 'maple']);
+  });
+
+  it('names only the habitats this garden’s slots have, in its own words', () => {
+    const words = { water: 'in the pool', shore: 'by the pool', meadow: 'on the banks', path: 'by the trail', back: 'atop the cliff', rock: 'on the ledges' };
+    const sheet = makeSheet(spyPreviews().cache, {
+      species: [offer('fern', ['water', 'rock', 'meadow'])],
+      slots: [{ id: 'l1', habitat: 'rock' }, { id: 'm1', habitat: 'meadow' }],
+      habitatWords: () => words,
+    });
+    sheet.open();
+    expect(card(sheet.el, 'fern').querySelector('.plant-habitat')!.textContent).toBe('on the ledges · on the banks');
+  });
+
+  it('marks the native name with the species’ language (default romanised Japanese)', () => {
+    const sheet = makeSheet(spyPreviews().cache, {
+      species: [offer('fern', ['meadow'], { name: 'Kujakushida' }), offer('heather', ['meadow'], { name: 'Fraoch', lang: 'gd' })],
+    });
+    sheet.open();
+    expect(card(sheet.el, 'fern').querySelector('.plant-native')!.getAttribute('lang')).toBe('ja-Latn');
+    expect(card(sheet.el, 'heather').querySelector('.plant-native')!.getAttribute('lang')).toBe('gd');
   });
 });

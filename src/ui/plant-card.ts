@@ -1,7 +1,7 @@
 import { sessionTimeline, MINUTE_MS, MAX_TASK_NAME, normalizeTaskName } from '../core/session';
 import { inProgressSessions, type GardenState } from '../core/state';
 import { speciesNote } from '../plants/notes';
-import type { SpeciesDef } from '../plants/types';
+import { nativeLang, type SpeciesDef } from '../plants/types';
 import { CHEVRON, chevronSvg } from './calendar-art';
 import type { UIContext } from './context';
 import { clear, fragment, h, setText } from './dom';
@@ -28,6 +28,8 @@ export interface PlantStory {
   speciesId: string;
   name: string;
   nativeName: string | null;
+  /** the native name's language (`lang`) */
+  nativeLang: string;
   /** the species' poetic line */
   line: string;
   /** its place in Japanese gardens and culture */
@@ -58,6 +60,7 @@ export function plantStory(state: GardenState, id: string, now: number, getSpeci
       speciesId: plant.speciesId,
       name: def?.name ?? 'A plant',
       nativeName: def?.nativeName ?? null,
+      nativeLang: nativeLang(def ?? {}),
       line: def?.description ?? '',
       note: speciesNote(plant.speciesId),
       task: plant.taskName?.trim() || 'Study session',
@@ -80,6 +83,7 @@ export function plantStory(state: GardenState, id: string, now: number, getSpeci
     speciesId: session.speciesId,
     name: def?.name ?? 'A seedling',
     nativeName: def?.nativeName ?? null,
+    nativeLang: nativeLang(def ?? {}),
     line: def?.description ?? '',
     note: speciesNote(session.speciesId),
     task: session.taskName?.trim() || 'Study session',
@@ -258,6 +262,7 @@ export function createPlantCard(ctx: UIContext): PlantCard {
     el.dataset.speciesId = story.speciesId;
     setText(title, story.name);
     setText(native, story.nativeName ?? '');
+    native.lang = story.nativeLang;
     native.hidden = !story.nativeName;
     setText(line, story.line);
     line.hidden = !story.line;

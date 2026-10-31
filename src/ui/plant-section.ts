@@ -2,6 +2,7 @@ import { WATERING_SECONDS } from '../plants/watering';
 import type { PlantInstance } from '../core/state';
 import { createRng } from '../core/rng';
 import { createPainter, mix, PIGMENTS } from '../paint';
+import { nativeLang } from '../plants/types';
 import { drawPlantView, renderPlantView } from '../plants/view';
 import type { UIContext } from './context';
 import { h, setText } from './dom';
@@ -315,6 +316,7 @@ export function createPlantSection(ctx: UIContext, opts: PlantSectionOptions = {
     } else if (mode === 'growing' && s) {
       setText(name, def?.name ?? 'Your seedling');
       setText(native, def?.nativeName ?? '');
+      native.lang = nativeLang(def ?? {});
       setText(task, `for “${s.taskName}”`);
       setText(stage, wateringStart !== null ? 'Drinking it in' : stageWord(growth));
       canvas.setAttribute('aria-label', `Your ${inSentence(def?.name ?? 'seedling')}, ${Math.round(growth * 100)} percent grown`);
@@ -322,6 +324,7 @@ export function createPlantSection(ctx: UIContext, opts: PlantSectionOptions = {
       const last = lastBloom()!;
       setText(name, def?.name ?? 'Your plant');
       setText(native, def?.nativeName ?? '');
+      native.lang = nativeLang(def ?? {});
       setText(task, `${last.taskName?.trim() ? `“${last.taskName.trim()}” · ` : ''}${last.sessionMinutes} min · ${formatDay(last.plantedAt)}`);
       setText(stage, 'Your latest bloom');
       canvas.setAttribute('aria-label', `Your latest bloom: ${def?.name ?? 'a plant'}`);

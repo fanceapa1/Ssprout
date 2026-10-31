@@ -14,6 +14,7 @@ const SPECIES: Record<string, Partial<SpeciesDef>> = {
   violet: { name: 'Wood Violet', nativeName: 'Sumire', description: 'A small violet hush.' },
   clover: { name: 'White Clover', nativeName: 'Shirotsumekusa', description: 'Three leaves for patience.' },
   iris: { name: 'Japanese Iris', description: 'Violet sails.' },
+  heather: { name: 'Heather', nativeName: 'Fraoch', nativeLang: 'gd', description: 'Purple on the moor.' },
 };
 const getSpecies = (id: string) => SPECIES[id] as SpeciesDef | undefined;
 
@@ -22,6 +23,12 @@ function garden(over: Partial<GardenState>): GardenState {
 }
 
 describe('plantStory and storyLines', () => {
+  it('carries the native name’s language from the species (default romanised Japanese)', () => {
+    const state = garden({ plants: [makePlant({ id: 'a', speciesId: 'violet' }), makePlant({ id: 'b', speciesId: 'heather', slotId: 'meadow-2' })] });
+    expect(plantStory(state, 'a', T0, getSpecies)).toMatchObject({ nativeName: 'Sumire', nativeLang: 'ja-Latn' });
+    expect(plantStory(state, 'b', T0, getSpecies)).toMatchObject({ nativeName: 'Fraoch', nativeLang: 'gd' });
+  });
+
   it('a finished plant that took a pressed plant’s place names it, with its task', () => {
     const plant = makePlant({ id: 'p2', speciesId: 'violet', taskName: 'Essay', completedAt: T0 });
     const state = garden({ plants: [plant], pressed: [makePressed({ speciesId: 'clover', taskName: 'Kanji', removedAt: T0 })] });

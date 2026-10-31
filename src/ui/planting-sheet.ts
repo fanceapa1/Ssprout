@@ -1,4 +1,5 @@
 import type { StartPrefill } from '../core/schedule';
+import { nativeLang } from '../plants/types';
 import type { UIContext } from './context';
 import { clear, h, setText } from './dom';
 import { createDurationControl } from './duration';
@@ -264,6 +265,8 @@ export function createPlantingSheet(ctx: UIContext, draft: PlantingDraft, action
     clear(plants);
     waiting.clear();
     const ordered = orderedSpecies(list);
+    // the habitat line names only places this garden has
+    const here = new Set(ctx.deps.slots().map((slot) => slot.habitat));
     for (const s of ordered) {
       const def = s.species;
       const canvas = h('canvas.plant-preview', { 'aria-hidden': 'true' });
@@ -300,13 +303,13 @@ export function createPlantingSheet(ctx: UIContext, draft: PlantingDraft, action
         },
         art,
         h('span.plant-name', {}, def.name),
-        def.nativeName ? h('span.plant-native', { lang: 'ja-Latn' }, def.nativeName) : null,
+        def.nativeName ? h('span.plant-native', { lang: nativeLang(def) }, def.nativeName) : null,
         h(
           'span.plant-desc',
           { id: `plant-desc-${def.id}` },
           s.locked ? `Needs ${s.requiredMinutes} min+` : noSpot ? 'Its spots all hold growing seedlings just now' : def.description,
         ),
-        s.locked ? null : h('span.plant-habitat', {}, habitatPhrase(def.habitats, ctx.deps.habitatWords?.())),
+        s.locked ? null : h('span.plant-habitat', {}, habitatPhrase(def.habitats.filter((x) => here.has(x)), ctx.deps.habitatWords?.())),
       );
       plants.appendChild(h('li', {}, card));
     }

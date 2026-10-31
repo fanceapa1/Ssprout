@@ -1,6 +1,7 @@
 import { createRng } from '../core/rng';
 import { speciesNote } from '../plants/notes';
 import { allSpecies } from '../plants/registry';
+import { nativeLang } from '../plants/types';
 import type { StudioSection } from '../studio/types';
 import { CHEVRON } from './calendar-art';
 import { drawIcon, type IconName } from './icons';
@@ -116,6 +117,7 @@ function storyFor(seed: number, growing = false, speciesId?: string): PlantStory
     speciesId: def.id,
     name: def.name,
     nativeName: def.nativeName ?? null,
+    nativeLang: nativeLang(def),
     line: def.description,
     note: speciesNote(def.id),
     task: ['Kanji', 'Essay draft', 'Organic chemistry', 'Piano theory'][seed % 4]!,

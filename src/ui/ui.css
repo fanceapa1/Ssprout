@@ -2111,8 +2111,13 @@ dialog.book::after {
   /* "grew from / 7 October 2026", never a lone year on the last line */
   text-wrap: balance;
 }
-.specimen-grew {
+.specimen-grew,
+.specimen-garden {
   color: var(--ui-ink-mute);
+}
+.specimen-garden {
+  font-size: 16px;
+  font-style: italic;
 }
 .empty-note {
   margin: 4px 0 6px;
