@@ -67,9 +67,9 @@ interface Scenery {
 A scenery is consistent with itself: `art.scenery === id`, `art.scene === geometry`,
 `light.sky === sky.layout` (`registry.test.ts` checks every registered one).
 
-**Left out for now**, with the task whose consumer sets its shape: `fauna` (unlocks, roster,
-perspective; S11), `sound` (S15; `core/soundscape.ts` names its audio sceneries `SoundSceneryId`, `pond`
-and `coast`), `thumbnail` (S5), `surface` (the per-frame water animator; S9).
+**Left out for now**, with the task whose consumer sets its shape: `sound` (S15; `core/soundscape.ts`
+names its audio sceneries `SoundSceneryId`, `pond` and `coast`), `thumbnail` (S5b), `surface` (the
+per-frame water animator; S9).
 
 ## Flora (ADR 0250)
 Each scenery offers its own species, from where they really grow. Its `flora` is its place in the
@@ -91,8 +91,6 @@ reducer's `grows` and the dev hooks take it. The slot habitats (`water`, `shore`
 10–30 species, at least 2 per tier, at least 2 for each habitat its slots have, and at least 6
 offered nowhere else. Its own species carry a wild `range` without `cultivatedIn`, so they stay
 out of the Japanese garden.
-**Left out for now**, with the task whose consumer sets its shape: `sound` (S15; `core/soundscape.ts` names its audio sceneries `SoundSceneryId`, `pond`
-and `coast`), `habitatWords` and `thumbnail` (S5), `surface` (the per-frame water animator; S9).
 
 ## Who reads what
 Each consumer takes the scenery's part as an option and defaults to the Japanese garden's; at
@@ -354,8 +352,6 @@ the shelves' mean heights and scales to the cliff foot, within 0.02 of every slo
 ### Left for later tasks
 - S11: a fauna perspective per scenery. `perspectiveFit(slots)` fits a line through (y, scale),
   which the ledges bend.
-- S5: `WATERFALL_HABITAT_WORDS` ('in the plunge pool', 'on the mossy ledges'…) once the
-  contract has habitat words.
 
 ## Tests
 - `src/scenery/waterfall/waterfall.test.ts`: the dev flag; self-consistency; no building,
