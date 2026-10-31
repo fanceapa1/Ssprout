@@ -1,14 +1,14 @@
 import { createRng } from '../../core/rng';
 import { PIGMENTS, createPainter, mix, paperTexture, type AnyCanvas } from '../../paint';
 import type { StudioEntry, StudioSection } from '../../studio/types';
-import { getSpecies } from '../registry';
+import { getSpecies, speciesByTier } from '../registry';
 import type { SpeciesDef } from '../types';
-import { SPECIES_A } from './small-species-list';
 
 /**
  * Review boards for the tier 1–2 species: every species at full bloom side by side at the same
  * world scale (do they belong to one painting?), and per-species growth strips (does it grow
- * believably?). Painted on white with the paper multiplied last, like the garden.
+ * believably?). Painted on white with the paper multiplied last, like the garden. The species
+ * come from the registry by tier (ADR 0251).
  */
 
 export const STRIP = [0, 0.06, 0.12, 0.2, 0.3, 0.45, 0.55, 0.65, 0.75, 0.82, 0.9, 1] as const;
@@ -55,7 +55,7 @@ function place(p: ReturnType<typeof createPainter>, def: SpeciesDef, x: number, 
 }
 
 function lineup(tier: 1 | 2): StudioEntry {
-  const defs = SPECIES_A[tier].map((id) => getSpecies(id)).filter((d): d is SpeciesDef => !!d);
+  const defs = speciesByTier(tier);
   const gap = 12;
   const W = defs.reduce((s, d) => s + d.size.w * SCALE + gap, gap);
   const above = Math.max(...defs.map((d) => d.size.h * SCALE * d.anchor.y), 10);
@@ -108,7 +108,7 @@ const section: StudioSection = {
   id: 'plants-a-review',
   title: 'Plants A · tier 1–2 review boards',
   order: 205,
-  entries: [lineup(1), lineup(2), ...[...SPECIES_A[1], ...SPECIES_A[2]].map(strip).filter((e): e is StudioEntry => !!e)],
+  entries: [lineup(1), lineup(2), ...[...speciesByTier(1), ...speciesByTier(2)].map((d) => strip(d.id)).filter((e): e is StudioEntry => !!e)],
 };
 
 export default section;

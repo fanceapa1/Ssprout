@@ -1,11 +1,11 @@
 import { createRng } from '../../core/rng';
 import { createPainter, makeCanvas } from '../../paint';
 import type { StudioEntry, StudioSection } from '../../studio/types';
-import { getSpecies } from '../registry';
+import { speciesByTier } from '../registry';
 import type { SpeciesDef } from '../types';
 
-/** The tier-4 centrepieces, reviewed side by side (each species also has its own section). */
-const TREES = ['weeping-cherry', 'japanese-maple', 'wisteria', 'black-pine', 'ginkgo', 'plum-blossom'];
+/** The tier-4 centrepieces from the registry, reviewed side by side (each also has its own section). */
+const TREES = speciesByTier(4);
 
 const CELL = { w: 190, h: 230 };
 
@@ -28,10 +28,7 @@ function grid(id: string, label: string, rows: { growth: number; seedOffset: num
     render(canvas, { seed, pixelRatio }) {
       const ctx = canvas.getContext('2d')!;
       rows.forEach((row, ri) =>
-        TREES.forEach((tid, i) => {
-          const def = getSpecies(tid);
-          if (def) drawInto(ctx, def, seed + row.seedOffset, row.growth, i * CELL.w, ri * CELL.h, pixelRatio);
-        }),
+        TREES.forEach((def, i) => drawInto(ctx, def, seed + row.seedOffset, row.growth, i * CELL.w, ri * CELL.h, pixelRatio)),
       );
     },
   };
@@ -42,7 +39,7 @@ const section: StudioSection = {
   title: 'Plants · tier-4 trees side by side',
   order: 205,
   entries: [
-    grid('lineup', 'all six at full bloom, shared scale', [{ growth: 1, seedOffset: 0 }]),
+    grid('lineup', 'every tree at full bloom, shared scale', [{ growth: 1, seedOffset: 0 }]),
     grid('variety', 'three more seeds each', [
       { growth: 1, seedOffset: 101 },
       { growth: 1, seedOffset: 202 },

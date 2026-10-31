@@ -2,14 +2,14 @@
  * Review sheet for the tier-3 flowering shrubs: all of them side by side at full bloom, and a
  * growth strip per species (same seed, growth 0 → 1) to check that it reads as one plant
  * growing continuously. Each species also has its automatic section (species.studio.ts).
+ * The shrubs are the registry's tier 3 (ADR 0251).
  */
 import { createRng } from '../../core/rng';
 import { createPainter, makeCanvas } from '../../paint';
 import type { StudioEntry, StudioSection } from '../../studio/types';
-import { getSpecies } from '../registry';
+import { speciesByTier } from '../registry';
 import type { SpeciesDef } from '../types';
 
-export const SHRUB_IDS = ['tree-peony', 'hydrangea', 'azalea', 'camellia', 'chrysanthemum', 'lotus'] as const;
 const STRIP = [0.04, 0.1, 0.2, 0.3, 0.42, 0.55, 0.68, 0.8, 0.9, 1] as const;
 
 function paintInto(target: HTMLCanvasElement, def: SpeciesDef, seed: number, growth: number, x: number, y: number, scale: number): void {
@@ -21,16 +21,18 @@ function paintInto(target: HTMLCanvasElement, def: SpeciesDef, seed: number, gro
   ctx.drawImage(c as CanvasImageSource, Math.round(x - w * def.anchor.x), Math.round(y - h * def.anchor.y));
 }
 
-const defs = (): SpeciesDef[] => SHRUB_IDS.map((id) => getSpecies(id)).filter((d): d is SpeciesDef => d !== undefined);
+const defs = (): SpeciesDef[] => speciesByTier(3);
+/** wide enough for every shrub, 1400 up to six */
+const ROW_W = Math.max(1400, defs().length * 230);
 
 const bloomRow = (id: string, label: string, scale: number, seedOffset: number): StudioEntry => ({
   id,
   label,
-  w: 1400,
+  w: ROW_W,
   h: Math.round(250 * scale),
   render(canvas, { seed, pixelRatio }) {
     const list = defs();
-    const cw = 1400 / Math.max(1, list.length);
+    const cw = ROW_W / Math.max(1, list.length);
     list.forEach((def, i) => paintInto(canvas, def, seed + seedOffset, 1, (cw * i + cw / 2) * pixelRatio, 236 * scale * pixelRatio, scale * pixelRatio));
   },
 });
