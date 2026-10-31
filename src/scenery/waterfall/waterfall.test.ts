@@ -229,14 +229,8 @@ describe('waterfall slots', () => {
   });
 });
 
-describe('every species has somewhere to grow by the waterfall', () => {
-  it('has a compatible slot for every species', () => {
-    const homeless = allSpecies()
-      .filter((sp) => !slots.some((s) => isCompatible(sp, s)))
-      .map((sp) => sp.id);
-    expect(homeless).toEqual([]);
-  });
-
+// which species grow here, and that each has a slot, is src/scenery/flora.test.ts (ADR 0250)
+describe('the plunge pool', () => {
   it('gives the lotus at least two large pool slots', () => {
     const lotus = allSpecies().find((sp) => sp.id === 'lotus')!;
     const spots = slots.filter((s) => isCompatible(lotus, s));

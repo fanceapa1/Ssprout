@@ -66,6 +66,8 @@ export interface SessionControllerDeps {
   bus: EventBus;
   /** every species that can be planted (the plant registry) */
   species: readonly SpeciesDef[];
+  /** the species a garden offers (its flora, ADR 0250; default: every one of `species`) */
+  speciesIn?: (sceneryId: SceneryId) => readonly SpeciesDef[];
   /** each scenery's slots, for `placementOptions`; a plain list is the default scenery's (default: none) */
   slots?: readonly Slot[] | SlotsOf<Slot>;
   ticker?: Ticker;
@@ -153,8 +155,9 @@ export interface SessionController {
   /** Focused time until the active session's next automatic watering (ms), or null. */
   nextFocusWatering(): number | null;
   recommendPlans(totalMinutes: number): StudyPlan[];
-  selectableSpecies(totalMinutes: number): SelectableSpecies[];
-  /** Slots of a garden (default: the one on view) this species fits, each with its finished occupant (a swap) if any. */
+  /** The species a garden (default: the one on view) offers, with their tier for this total. */
+  selectableSpecies(totalMinutes: number, sceneryId?: SceneryId): SelectableSpecies[];
+  /** Slots of a garden (default: the one on view) this species grows in and fits, each with its finished occupant (a swap) if any. */
   placementOptions(speciesId: string, sceneryId?: SceneryId): CompatibleSlot[];
   /** Show another garden; sessions keep growing in theirs. False for an unknown id or the one on view. */
   showScenery(id: SceneryId): boolean;
@@ -178,6 +181,7 @@ export function createSessionController(deps: SessionControllerDeps): SessionCon
   const species = deps.species;
   const slotsOf = slotsOfAny(deps.slots);
   const speciesById = new Map(species.map((s) => [s.id, s]));
+  const speciesIn = deps.speciesIn ?? (() => species);
 
   let rng: Rng = createRng(deps.seed ?? clock.now());
   let ticker = deps.ticker ?? createIntervalTicker();
@@ -394,13 +398,13 @@ export function createSessionController(deps: SessionControllerDeps): SessionCon
 
     recommendPlans: (totalMinutes) => recommendPlans(totalMinutes),
 
-    selectableSpecies: (totalMinutes) => selectableSpecies(species, totalMinutes),
+    selectableSpecies: (totalMinutes, sceneryId = store.get().scenery) => selectableSpecies(speciesIn(sceneryId), totalMinutes),
 
     placementOptions(speciesId, sceneryId) {
       const def = speciesById.get(speciesId);
       const state = store.get();
       const sc = sceneryId ?? state.scenery;
-      if (!def || !isSceneryId(sc)) return [];
+      if (!def || !isSceneryId(sc) || !speciesIn(sc).some((s) => s.id === speciesId)) return [];
       return compatibleSlots(def, slotsOf(sc), plantsIn(state, sc), heldSlotIds(state, sc));
     },
 

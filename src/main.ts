@@ -7,7 +7,7 @@ import { createSessionController } from './core/controller';
 import { createScheduler } from './core/schedule-controller';
 import { createEventBus } from './core/events';
 import { createSaver, loadState, type StorageLike } from './core/persistence';
-import { slotLookup } from './core/sceneries';
+import { slotLookup, type SceneryId } from './core/sceneries';
 import { createReducer, createStore } from './core/state';
 import { installCoreDebug } from './dev/core-debug';
 import { installDebug, isDev } from './dev/debug';
@@ -17,6 +17,7 @@ import { createFakeWidget, installUiDebug } from './dev/ui-debug';
 import { installPlantsDebug } from './plants/debug';
 import { installCameraDebug } from './dev/camera-debug';
 import { plantWorldBounds } from './plants/bounds';
+import { floraLookup } from './plants/flora';
 import { allSpecies } from './plants/registry';
 import { createPlantSystem } from './plants/system';
 import { setPlantViewSpecies } from './plants/view';
@@ -24,8 +25,6 @@ import { createFauna, installFaunaDebug } from './fauna';
 import { createRenderer } from './render/renderer';
 import { getScenery, hasScenery, sceneries } from './scenery/registry';
 import { createSceneryHost } from './scenery/host';
-import { WATERFALL_HABITAT_WORDS } from './scenery/waterfall/layout';
-import { HABITAT_WORDS } from './ui/format';
 import { installSceneryDebug } from './dev/scenery-debug';
 import { gardenScene } from './scene/geometry';
 import { createUI } from './ui';
@@ -88,6 +87,8 @@ async function boot(): Promise<void> {
   const speciesById = new Map(species.map((s) => [s.id, s]));
   const getSpecies = (id: string) => speciesById.get(id);
   const isKnownSpecies = (id: string) => speciesById.has(id);
+  // each garden's flora (ADR 0250): what its planting sheet lists and a start accepts
+  const flora = floraLookup(species, (id: SceneryId) => getScenery(id).flora);
   const storage = browserStorage();
   const loaded = loadState(storage, clock.now(), { isKnownSpecies });
   if (loaded.status === 'recovered') console.warn('[persistence] unreadable garden backed up as', loaded.backupKey, loaded.error);
@@ -101,10 +102,10 @@ async function boot(): Promise<void> {
   });
 
   const slots = slotLookup((id) => (hasScenery(id) ? getScenery(id).geometry.slots : []));
-  const reducer = createReducer({ getSpecies, getSlot: slots.get });
+  const reducer = createReducer({ getSpecies, getSlot: slots.get, grows: flora.grows });
   const store = createStore(loaded.state, reducer, (next) => saver?.schedule(next));
   const bus = createEventBus();
-  const controller = createSessionController({ store, clock, bus, species, slots: slots.of });
+  const controller = createSessionController({ store, clock, bus, species, speciesIn: flora.of, slots: slots.of });
   const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
 
   // the garden on view follows `state.scenery`, switched at runtime (ADR 0243)
@@ -159,7 +160,7 @@ async function boot(): Promise<void> {
     clock,
     getSpecies,
     slots: viewedSlots,
-    habitatWords: () => (pickScenery(store.get().scenery).id === 'waterfall' ? WATERFALL_HABITAT_WORDS : HABITAT_WORDS),
+    habitatWords: () => pickScenery(store.get().scenery).habitatWords,
     sceneries: available.map(({ id, name, blurb }) => ({ id, name, blurb })),
     sceneryFade: () => renderer.sceneryFade(),
     viewport: () => renderer.viewport,
@@ -193,7 +194,7 @@ async function boot(): Promise<void> {
   if (speedClock) {
     installDebug({ store, renderer, clock: speedClock });
     installAudioDebug(audio);
-    installCoreDebug({ store, controller, clock: speedClock, species, slots: slots.of, saver: saver ?? undefined, isKnownSpecies });
+    installCoreDebug({ store, controller, clock: speedClock, species, speciesIn: flora.of, slots: slots.of, saver: saver ?? undefined, isKnownSpecies });
     installUiDebug({ ui, clock: speedClock, widget: fakeWidget, viewport: () => renderer.viewport, slots: viewedSlots });
     installWidgetDebug({ surfaces, controller, store, bus });
     installServiceWorkerDebug(sw);
@@ -202,7 +203,7 @@ async function boot(): Promise<void> {
     installPlantsDebug(plants);
     installFaunaDebug(fauna);
     installPaintCacheDebug();
-    installScheduleDebug({ store, scheduler, clock: speedClock, ui, species, slots: slots.of });
+    installScheduleDebug({ store, scheduler, clock: speedClock, ui, species: flora.of, slots: slots.of });
     installCameraDebug({
       renderer,
       ui,

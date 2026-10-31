@@ -265,6 +265,8 @@ export type Reducer<S = GardenState, A = Action> = (state: S, action: A) => S;
 export interface ReducerWorld {
   getSpecies(id: string): (PlacementSpecies & Pick<SpeciesDef, 'tier'>) | undefined;
   getSlot(sceneryId: SceneryId, slotId: string): PlacementSlot | undefined;
+  /** whether a garden offers this species (its flora, ADR 0250); checked only at `session/start` */
+  grows?(speciesId: string, sceneryId: SceneryId): boolean;
 }
 
 const WEATHER_SET: ReadonlySet<string> = new Set<Weather>(['sun', 'rain', 'mist']);
@@ -323,8 +325,8 @@ export function logEntry(s: ActiveSession, outcome: SessionLogEntry['outcome'], 
 /**
  * Build the root reducer (rules: docs/systems/core.md). Invalid actions are no-ops and return the
  * same state reference. With a `world`, `session/start` also checks the species exists, its tier
- * is earned by the total, and the slot exists and fits it (habitat + size class); without one,
- * any species/slot id is accepted.
+ * is earned by the total, the slot exists and fits it (habitat + size class), and the garden
+ * offers it (`grows`); without one, any species/slot id is accepted.
  */
 export function createReducer(world?: ReducerWorld): Reducer {
   return (state, action) => {
@@ -342,6 +344,7 @@ export function createReducer(world?: ReducerWorld): Reducer {
           const def = world.getSpecies(speciesId);
           const slot = world.getSlot(sceneryId, slotId);
           if (!def || !slot || def.tier > tierForMinutes(goalMinutes) || !isCompatible(def, slot)) return state;
+          if (world.grows && !world.grows(speciesId, sceneryId)) return state;
         }
         const displaced = state.plants.find((p) => p.sceneryId === sceneryId && p.slotId === slotId);
         return {

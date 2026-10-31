@@ -62,7 +62,8 @@ export interface ScheduleDebugDeps {
   scheduler: Scheduler;
   clock: SpeedClock;
   ui: UI;
-  species: readonly Pick<SpeciesDef, 'id' | 'tier'>[];
+  /** the species a garden offers (its flora, ADR 0250): the history picks from them */
+  species: (sceneryId: SceneryId) => readonly Pick<SpeciesDef, 'id' | 'tier'>[];
   /** each scenery's slots, for the history's slot ids (without it, only the Japanese garden) */
   slots?: SlotsOf<{ id: string }>;
 }
@@ -139,7 +140,7 @@ export function installScheduleDebug({ store, scheduler, clock, ui, species, slo
       },
       fillHistory(days = 30, seed = 11, sceneryId = store.get().scenery) {
         const slotIds = slots?.(sceneryId).map((s) => s.id);
-        const entries = buildHistory(createRng(seed).fork('history'), species, { now: clock.now(), days, idPrefix: `history-${seed}`, sceneryId, slotIds });
+        const entries = buildHistory(createRng(seed).fork('history'), species(sceneryId), { now: clock.now(), days, idPrefix: `history-${seed}`, sceneryId, slotIds });
         const r = validateState(withHistory(store.get(), entries), { now: clock.now() });
         if (!r.ok) throw new Error(`fillHistory: ${r.error.message}`);
         store.dispatch({ type: 'state/replace', state: r.value.state });

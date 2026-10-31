@@ -143,7 +143,7 @@ export const WATERFALL_AMBIENCE: SceneryAmbience = {
   veilTo: 737,
 };
 
-/** How the planting sheet names each habitat here (S5 wires it in; the garden's are in `ui/format.ts`). */
+/** How the planting sheet names each habitat here (`WATERFALL.habitatWords`). */
 export const WATERFALL_HABITAT_WORDS: Readonly<Record<Habitat, string>> = {
   water: 'in the plunge pool',
   shore: 'by the pool and the stream',

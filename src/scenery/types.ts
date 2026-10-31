@@ -8,6 +8,8 @@ import type { DayPhase } from '../ambience/daylight';
 import type { SkyLayout } from '../ambience/sky-layout';
 import type { Rng } from '../core/rng';
 import type { Painter } from '../paint';
+import type { SceneryBiome } from '../plants/flora';
+import type { Habitat } from '../plants/types';
 import type { Pt, Rect } from '../render/viewport';
 import type { SceneArt } from '../scene/background';
 import type { SceneGeometry } from '../scene/geometry';
@@ -60,4 +62,8 @@ export interface Scenery {
   light: LightArt;
   ambience: SceneryAmbience;
   view: SceneryView;
+  /** where it lies in the world: decides which species it offers (ADR 0250) */
+  flora: SceneryBiome;
+  /** how the planting sheet and placement name each habitat here */
+  habitatWords: Readonly<Record<Habitat, string>>;
 }

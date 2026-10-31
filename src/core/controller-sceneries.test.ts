@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { EVERYWHERE } from '../plants/biomes';
 import type { Habitat, SizeClass, SpeciesDef, Tier } from '../plants/types';
 import type { Slot } from '../scene/geometry';
 import { createManualClock } from './clock';
@@ -16,6 +17,7 @@ import { makePlant, MIN, T0 } from './testing';
 const def = (id: string, tier: Tier, habitats: Habitat[], sizeClass: SizeClass = 'small'): SpeciesDef => ({
   id,
   name: id,
+  range: EVERYWHERE,
   tier,
   habitats,
   sizeClass,
@@ -33,16 +35,21 @@ const SLOTS: Record<SceneryId, Slot[]> = {
   waterfall: [slot('pool-1', 'water', 'medium'), slot('shared-1', 'rock', 'small'), slot('ledge-1', 'rock', 'small')],
 };
 
-function setup(initial: GardenState = createDefaultState(T0)) {
+/** each garden's flora (ADR 0250): the lily grows only in the Japanese garden */
+const FLORA: Record<SceneryId, string[]> = { 'japanese-garden': ['violet', 'lily'], waterfall: ['violet'] };
+const speciesIn = (id: SceneryId) => SPECIES.filter((s) => FLORA[id].includes(s.id));
+
+function setup(initial: GardenState = createDefaultState(T0), flora = false) {
   const clock = createManualClock(T0);
   const slots = slotLookup((id) => SLOTS[id]);
-  const store = createStore(initial, createReducer({ getSpecies: (id) => SPECIES.find((s) => s.id === id), getSlot: slots.get }));
+  const grows = flora ? (speciesId: string, id: SceneryId) => FLORA[id].includes(speciesId) : undefined;
+  const store = createStore(initial, createReducer({ getSpecies: (id) => SPECIES.find((s) => s.id === id), getSlot: slots.get, grows }));
   const bus = createEventBus();
   const arrived: string[] = [];
   bus.on('fauna:arrived', (p: EventMap['fauna:arrived']) => arrived.push(p.id));
   let tick: (() => void) | null = null;
   const ticker: Ticker = { start: (fn) => ((tick = fn), () => (tick = null)) };
-  const controller = createSessionController({ store, clock, bus, species: SPECIES, slots: slots.of, ticker, seed: 1 });
+  const controller = createSessionController({ store, clock, bus, species: SPECIES, speciesIn: flora ? speciesIn : undefined, slots: slots.of, ticker, seed: 1 });
   const to = (min: number) => {
     clock.set(T0 + min * MIN);
     tick?.();
@@ -111,5 +118,37 @@ describe('controller with per-scenery gardens', () => {
     expect(controller.announceFauna('')).toBe(false);
     expect(store.get().faunaSeen).toEqual(['dragonfly', 'waterfall:dragonfly']);
     expect(arrived).toEqual(['dragonfly', 'dragonfly']);
+  });
+});
+
+describe('each garden offers its own flora (ADR 0250)', () => {
+  it('selectableSpecies lists the garden on view, or the one asked for', () => {
+    const { controller } = setup(createDefaultState(T0), true);
+    const listed = (sc?: SceneryId) => controller.selectableSpecies(25, sc).map((s) => s.species.id);
+    expect(listed()).toEqual(['lily', 'violet']);
+    expect(listed('waterfall')).toEqual(['violet']);
+    controller.showScenery('waterfall');
+    expect(listed()).toEqual(['violet']);
+    expect(listed('japanese-garden')).toEqual(['lily', 'violet']);
+  });
+
+  it('a species that does not grow in a garden has no spot there, and starting it there is a no-op', () => {
+    const { controller, store } = setup(createDefaultState(T0), true);
+    expect(controller.placementOptions('lily', 'waterfall')).toEqual([]);
+    const before = store.get();
+    expect(controller.start(opts({ speciesId: 'lily', sceneryId: 'waterfall', slotId: 'pool-1' }))).toBe(false);
+    expect(store.get()).toBe(before);
+    expect(controller.placementOptions('lily', 'japanese-garden')).toEqual([]); // no water slot here
+  });
+
+  it('keeps a plant already growing where its species is no longer offered, and lets a new seedling take its spot', () => {
+    const old = makePlant({ id: 'old-lily', speciesId: 'lily', sceneryId: 'waterfall', slotId: 'ledge-1' });
+    const { controller, store, to } = setup({ ...createDefaultState(T0), plants: [old] }, true);
+    expect(controller.start(opts({ sceneryId: 'waterfall', slotId: 'shared-1' }))).toBe(true);
+    to(25);
+    expect(store.get().plants.map((p) => p.id)).toContain('old-lily');
+    expect(controller.placementOptions('violet', 'waterfall').find((o) => o.slot.id === 'ledge-1')?.occupiedBy?.id).toBe('old-lily');
+    expect(controller.start(opts({ sceneryId: 'waterfall', slotId: 'ledge-1' }))).toBe(true);
+    expect(store.get().session?.displacedPlantId).toBe('old-lily');
   });
 });

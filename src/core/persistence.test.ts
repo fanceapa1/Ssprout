@@ -16,6 +16,7 @@ import {
   type Migrations,
   type StorageLike,
 } from './persistence';
+import { getSpecies } from '../plants/registry';
 import { createDefaultState, STATE_VERSION, type GardenState } from './state';
 import { makePlant, makePressed, makeSession, MIN, plan } from './testing';
 
@@ -314,6 +315,16 @@ describe('loadState', () => {
     const r = loadState(storage, T0, { isKnownSpecies: (id) => id === 'violet' });
     expect(r.warnings.unknownSpecies).toEqual(['clover', 'iris']);
     expect(r.state.plants).toHaveLength(2);
+  });
+
+  it('loads a plant whose species its garden no longer offers, without a warning (ADR 0250)', () => {
+    // the real registry: the lotus is a garden species, offered nowhere wild
+    const lotus = makePlant({ id: 'wf-lotus', speciesId: 'lotus', sceneryId: 'waterfall', slotId: 'pool-1' });
+    const storage = memoryStorage({ [STORAGE_KEY]: JSON.stringify({ ...createDefaultState(T0), plants: [lotus] }) });
+    const r = loadState(storage, T0, { isKnownSpecies: (id) => getSpecies(id) !== undefined });
+    expect(r.status).toBe('loaded');
+    expect(r.warnings.unknownSpecies).toEqual([]);
+    expect(r.state.plants).toEqual([lotus]);
   });
 });
 

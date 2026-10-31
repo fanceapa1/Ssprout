@@ -1,6 +1,7 @@
 import { faunaUnlock } from '../core/fauna-unlocks';
 import { formatClock, MINUTE_MS } from '../core/session';
 import type { Habitat, Tier } from '../plants/types';
+import { GARDEN_HABITAT_WORDS } from '../scenery/japanese-garden/flora';
 
 /**
  * Pure presentation helpers for the UI (unit-tested in format.test.ts). No DOM.
@@ -14,17 +15,8 @@ export const TIER_WORDS: Readonly<Record<Tier, string>> = {
   4: 'centrepiece',
 };
 
-export const HABITAT_WORDS: Readonly<Record<Habitat, string>> = {
-  water: 'on the water',
-  shore: 'at the pond’s edge',
-  meadow: 'in the meadow',
-  path: 'beside the path',
-  back: 'on the far bank',
-  rock: 'among the stones',
-};
-
 /** "on the water · at the pond’s edge" */
-export function habitatPhrase(habitats: readonly Habitat[], words: Readonly<Record<Habitat, string>> = HABITAT_WORDS): string {
+export function habitatPhrase(habitats: readonly Habitat[], words: Readonly<Record<Habitat, string>> = GARDEN_HABITAT_WORDS): string {
   return habitats.map((h) => words[h]).join(' · ');
 }
 

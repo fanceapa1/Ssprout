@@ -1,8 +1,8 @@
 import type { CompatibleSlot } from '../core/placement';
 import type { Slot } from '../scene/geometry';
+import { GARDEN_HABITAT_WORDS } from '../scenery/japanese-garden/flora';
 import type { UIContext } from './context';
 import { clear, fragment, h, setText } from './dom';
-import { HABITAT_WORDS } from './format';
 import { ICONS } from './icons';
 import type { PlacementHighlight, PlantingDraft } from './types';
 
@@ -40,7 +40,7 @@ const EMPTY: PlacementHighlight = { active: false, speciesId: null, slots: [], f
 
 export function createPlacement(ctx: UIContext, draft: PlantingDraft, actions: PlacementActions): Placement {
   const { controller, getSpecies } = ctx.deps;
-  const words = () => ctx.deps.habitatWords?.() ?? HABITAT_WORDS;
+  const words = () => ctx.deps.habitatWords?.() ?? GARDEN_HABITAT_WORDS;
   let open = false;
   let options: CompatibleSlot<Slot>[] = [];
   let focused: string | null = null;

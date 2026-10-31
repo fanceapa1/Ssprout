@@ -7,8 +7,9 @@ import { createRng } from '../../core/rng';
 import type { PaintStep, SceneArt } from '../../scene/background';
 import { paintMargins, paintStones } from '../../scene/paint-land';
 import type { Scenery, SceneryView } from '../types';
+import { WATERFALL_FLORA } from './flora';
 import { TRAIL, waterfallScene } from './geometry';
-import { FOCUS, WATERFALL_AMBIENCE } from './layout';
+import { FOCUS, WATERFALL_AMBIENCE, WATERFALL_HABITAT_WORDS } from './layout';
 import { WATERFALL_LIGHT_ART } from './light';
 import { paintButtress, paintCliff, paintGorge, paintLedges } from './paint-rocks';
 import { paintFalls, paintPool, paintStream } from './paint-water';
@@ -89,4 +90,6 @@ export const WATERFALL: Scenery = {
   light: WATERFALL_LIGHT_ART,
   ambience: WATERFALL_AMBIENCE,
   view: WATERFALL_VIEW,
+  flora: WATERFALL_FLORA,
+  habitatWords: WATERFALL_HABITAT_WORDS,
 };
