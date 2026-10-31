@@ -10,7 +10,7 @@ ADR numbering ranges (to avoid collisions in parallel work):
 0100–0109 audio · 0110–0119 plant view/growth/watering · 0120–0129 integration/polish ·
 0130–0139 app shell & dock · 0140–0149 daylight & colour · 0150–0159 parallel sessions & watering ·
 0160–0169 camera & plant descriptions · 0170–0179 calendar & scheduling · 0180–0189 v2 polish 1 & close views ·
-0190–0194 v2 polish 2 · 0200–0204 dock wayfinding · 0205+ queue tasks (Q1 0205, Q2 0206, Q3 0207, Q11 0208–0209, Q13 0210) · 0220–0239 performance (phase 9, one block of numbers per task) · 0240–0259 sceneries (phase 10) · 0260–0279 accounts (phase 11, branch `feat/accounts`).
+0190–0194 v2 polish 2 · 0200–0204 dock wayfinding · 0205+ queue tasks (Q1 0205, Q2 0206, Q3 0207, Q11 0208–0209, Q13 0210) · 0220–0239 performance (phase 9, one block of numbers per task) · 0240–0259 sceneries (phase 10) · 0260–0279 accounts (phase 11, branch `feat/accounts`) · 0250–0259 per-scenery flora and fauna (phase 12; S11 keeps 0248) · 0280–0299 phase 12 art tasks (only for real decisions).
 
 | Phase | Task | Area (owned paths) | Status |
 |---|---|---|---|
@@ -127,8 +127,8 @@ Phase 10 (owner request 2026-10-27): land phase 9, then a second scenery, a rock
 | S8 | Waterfall painters: vegetation and moss | `src/scenery/waterfall/paint-veg.ts` | done (far ridge, banks, meadow, crown woods, overhanging trees, ferns, foreground; devlog 67) |
 | S9 | Animated falls, foam and spray (still under reduced motion, ≤ 1 ms a frame) | `src/scenery/waterfall/falls.ts` | queued (after S7; ADR 0246) |
 | S10 | Waterfall daylight: 4 sky plates, pool plate, light plates, grades | `src/scenery/waterfall/{sky,light}.ts` | done (4 sky plates cut to the skyline, pool plate, cliff shadows and crown light, moonlit falls at night; ADR 0247) |
-| S11 | Wildlife per scenery: unlock tables and copy per garden, roster, targets, perspective; shared creatures adapted | `src/core/fauna-unlocks.ts`, `src/fauna/**` | queued (after S3, S4; ADR 0248) |
-| S12 | Trout in the plunge pool | `src/fauna/creatures/trout.ts` | queued (after S11) |
+| S11 (old) | superseded by the phase 12 S11 row below | — | moved |
+| S12 | Iwana char in the plunge pool (renamed from trout: introduced trout are invasive in Japanese headwaters, B0) | `src/fauna/creatures/iwana.ts` | queued (after S11) |
 | S13 | Dipper on the wet rocks | `src/fauna/creatures/dipper.ts` | queued (after S11) |
 | S15 | Waterfall sound bed (`falls` layer, roar, rumble, spray hiss, splash events, dipper song) | `src/audio/**`, `src/core/soundscape.ts`, `src/ui/sound-mixer.ts` | queued (after S1, S3; ADR 0249) |
 | S17 | Acceptance and docs: SPEC, ARCHITECTURE, `docs/systems/scenery.md`, TESTING matrix, a v3 export imports, switch-time numbers, shots of both gardens | `docs/**`, `tests/**` | queued (last) |
@@ -139,5 +139,8 @@ Phase 12 (owner request 2026-10-31): the waterfall gets its own flora and fauna.
 
 | # | Task | Area | Status |
 |---|---|---|---|
-| B0 | Biome research (web, read-only): candidate regions for a rocky waterfall, their flora and fauna, distinctiveness and paintability; a habitat taxonomy for about 10 future sceneries; what is shared with the Japanese garden | scratch report | in progress |
-| B1 | Code audit (read-only): species and creature registries, tiers, habitats and slots, unlocks, studio, tests; a per-scenery availability contract; an "add a species" / "add a creature" recipe | scratch report | in progress |
+| B0 | Biome research (web, read-only): candidate regions for a rocky waterfall, their flora and fauna, distinctiveness and paintability; a habitat taxonomy for about 10 future sceneries; what is shared with the Japanese garden | scratch report | done (recommended: a Japanese cool-temperate beech-forest mountain gorge, Oirase / Nikkō; 12 plants, 8 creatures; shared by biology: maple, maidenhair fern, violet, wild strawberry, susuki; striders, aka-tombo, swallowtail, bees, wagtail, heron, leaf; a taxonomy of 10 sceneries) |
+| B1 | Code audit (read-only): species and creature registries, tiers, habitats and slots, unlocks, studio, tests; a per-scenery availability contract; an "add a species" / "add a creature" recipe | scratch report | done (registry already globbed; plants have no unlock progress, tiers come from session length; no schema change; faunaSeen reader bugs; fitted perspective 7–15 % off at the waterfall; recipes) |
+| F1 | Species availability per scenery: a range on each species (realms, biomes, climates, `cultivatedIn`), a biome profile on each scenery plus `also`/`except`, `floraOf`; core, planting sheet, herbarium and dev hooks per garden; flora invariants; `nativeLang` | `src/plants/{types,flora,biomes}.ts`, `species/*.ts` (range line only), `src/scenery`, `src/core/{controller,state}.ts`, `src/dev`, `src/ui/{planting-sheet,herbarium,plant-card,types,index}.ts`, `src/main.ts` | in progress (ADR 0250) |
+| F2 | Scaffolding so species tasks only add files: notes per species (globbed), family test suites, `species/<id>.test.ts`, line-up studio per scenery, `docs/systems/species-recipe.md`; narrow `PAINT_ROOTS` so art merges stop invalidating cached landscapes | `src/plants/notes*`, `src/plants/lib/*.test.ts`, `src/plants/lib/suites.ts`, review studios, `src/paint/paint-version.ts` | in progress (ADR 0251) |
+| S11 | Wildlife per scenery (scope widened by B1): a creature registry (one default-exported def per file), unlock tables per scenery (the waterfall's 8 rows up front), remove `wild()`, fix the `faunaSeen` readers and `fauna:arrived` payload, waterfall targets (pool minus foam, stream, ledge perches, heron stands), `perspective(x, y)`, a falls studio stage | `src/fauna/**`, `src/core/fauna-unlocks.ts`, `src/scenery/*/fauna.ts`, `src/ui/{quiet-line,format}.ts`, `tests/e2e/fauna*.spec.ts` | in progress (ADR 0248) |
