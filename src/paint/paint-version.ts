@@ -9,7 +9,8 @@
  * transitively, wherever it lives (today `src/dev/debug.ts` and `src/dev/fixture-species.ts`). A new import
  * from a painter is therefore covered without anyone editing a list. The roots err on the side of
  * more: a needless change costs one repaint per visitor after a deploy, a missed one shows stale
- * art.
+ * art. The species, creatures and notes (`UNCACHED_DIRS`) are left out, since no cached painting
+ * holds a plant or a creature, unless a cached painter imports them (ADR 0251).
  */
 import { createHash } from 'node:crypto';
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
@@ -26,6 +27,12 @@ export const PAINT_ROOTS: readonly string[] = [
   'src/render', // viewport, camera, layer composition
   'src/core', // seeded Rng, state shapes the painters read
 ];
+
+/**
+ * Folders under the roots whose code never reaches a cached painting. Their files are hashed only
+ * when the closure of a root that holds none of them (scene, scenery…) imports them.
+ */
+export const UNCACHED_DIRS: readonly string[] = ['src/plants/species', 'src/plants/lib', 'src/plants/notes', 'src/fauna/creatures'];
 
 /** Files that never reach a painting: unit tests and studio entries. */
 export function isPaintSource(path: string): boolean {
@@ -63,24 +70,39 @@ function resolveImport(fromFile: string, spec: string): string | null {
 }
 
 /** Every file the paint version hashes, as sorted root-relative paths with `/` separators. */
-export function paintSources(root: string, roots: readonly string[] = PAINT_ROOTS): string[] {
-  const start: string[] = [];
-  for (const r of roots) {
-    const dir = resolve(root, r);
-    if (existsSync(dir)) listTs(dir, start);
-  }
+export function paintSources(root: string, roots: readonly string[] = PAINT_ROOTS, uncached: readonly string[] = UNCACHED_DIRS): string[] {
+  const skipped = uncached.map((d) => resolve(root, d) + sep);
+  const isSkipped = (file: string) => skipped.some((d) => file.startsWith(d));
+  const filesUnder = (dirs: readonly string[]) => {
+    const out: string[] = [];
+    for (const r of dirs) {
+      const dir = resolve(root, r);
+      if (existsSync(dir)) listTs(dir, out);
+    }
+    return out;
+  };
+  // roots that hold an uncached folder (plants, fauna) do not follow imports into those folders
+  const cachedRoots = roots.filter((r) => !uncached.some((d) => d.startsWith(`${r}/`)));
   const seen = new Set<string>();
+  closure(filesUnder(roots).filter((f) => !isSkipped(f)), seen, isSkipped);
+  closure(filesUnder(cachedRoots), seen, () => false);
+  return [...seen].map((f) => relative(root, f).split(sep).join('/')).sort();
+}
+
+/** Adds to `seen` every file reachable from `start`, not entering files `stop` refuses. */
+function closure(start: string[], seen: Set<string>, stop: (file: string) => boolean): void {
+  const visited = new Set<string>();
   const queue = [...start];
   while (queue.length > 0) {
     const file = queue.pop()!;
-    if (seen.has(file)) continue;
+    if (visited.has(file)) continue;
+    visited.add(file);
     seen.add(file);
     for (const spec of relativeImports(readFileSync(file, 'utf8'))) {
       const dep = resolveImport(file, spec);
-      if (dep && isPaintSource(dep) && !seen.has(dep)) queue.push(dep);
+      if (dep && isPaintSource(dep) && !visited.has(dep) && !stop(dep)) queue.push(dep);
     }
   }
-  return [...seen].map((f) => relative(root, f).split(sep).join('/')).sort();
 }
 
 /** The paint version: the first 12 hex digits of a SHA-256 over every paint source's path and bytes. */

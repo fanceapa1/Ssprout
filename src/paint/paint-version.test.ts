@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { computePaintVersion, paintSources, relativeImports } from './paint-version';
+import { computePaintVersion, PAINT_ROOTS, paintSources, relativeImports, UNCACHED_DIRS } from './paint-version';
 
 let dirs: string[] = [];
 afterEach(() => {
@@ -93,6 +93,54 @@ describe('paint version', () => {
     expect(computePaintVersion(root, roots)).not.toBe(v0);
   });
 
+  describe('species, creatures and notes (ADR 0251)', () => {
+    const roots = ['src/scene', 'src/plants', 'src/fauna'];
+    const garden = {
+      'src/scene/meadow.ts': "import { tuft } from '../plants/lib/tuft';",
+      'src/plants/lib/tuft.ts': "import { ink } from './ink';\nexport const tuft = ink;",
+      'src/plants/lib/ink.ts': 'export const ink = 1;',
+      'src/plants/lib/petals.ts': 'export const petals = 1;',
+      'src/plants/registry.ts': "const m = import.meta.glob(['./species/*.ts']);",
+      'src/plants/view.ts': "import { petals } from './lib/petals';",
+      'src/plants/species/violet.ts': "import { petals } from '../lib/petals';",
+      'src/plants/notes/violet.ts': "export default { note: 'A note.' };",
+      'src/fauna/sim.ts': "import { koi } from './creatures';",
+      'src/fauna/creatures/index.ts': "export { koi } from './koi';",
+      'src/fauna/creatures/koi.ts': 'export const koi = 1;',
+    };
+
+    it('leaves them out unless a cached painter imports them', () => {
+      expect(paintSources(project(garden), roots)).toEqual([
+        'src/fauna/sim.ts',
+        'src/plants/lib/ink.ts',
+        'src/plants/lib/tuft.ts',
+        'src/plants/registry.ts',
+        'src/plants/view.ts',
+        'src/scene/meadow.ts',
+      ]);
+    });
+
+    it('adding or editing a species, a creature, a note or an unshared helper keeps the version', () => {
+      const root = project(garden);
+      const v0 = computePaintVersion(root, roots);
+      writeFileSync(join(root, 'src/plants/species/iwatabako.ts'), "import { moss } from '../lib/moss';");
+      writeFileSync(join(root, 'src/plants/species/iwatabako.test.ts'), '// its suite');
+      writeFileSync(join(root, 'src/plants/lib/moss.ts'), 'export const moss = 1;');
+      writeFileSync(join(root, 'src/plants/notes/iwatabako.ts'), "export default { note: 'Two.' };");
+      writeFileSync(join(root, 'src/fauna/creatures/dipper.ts'), 'export const dipper = 1;');
+      writeFileSync(join(root, 'src/fauna/creatures/index.ts'), "export { koi } from './koi';\nexport { dipper } from './dipper';");
+      writeFileSync(join(root, 'src/plants/lib/petals.ts'), '// repainted petals');
+      expect(computePaintVersion(root, roots)).toBe(v0);
+    });
+
+    it('editing a helper the scene imports changes it', () => {
+      const root = project(garden);
+      const v0 = computePaintVersion(root, roots);
+      writeFileSync(join(root, 'src/plants/lib/ink.ts'), 'export const ink = 2;');
+      expect(computePaintVersion(root, roots)).not.toBe(v0);
+    });
+  });
+
   it("covers this project's painters and what they import from elsewhere", () => {
     const root = resolve(import.meta.dirname, '../..');
     const files = paintSources(root);
@@ -100,7 +148,11 @@ describe('paint version', () => {
       expect(files, f).toContain(f);
     }
     expect(files.some((f) => /\.(test|studio)\.ts$/.test(f))).toBe(false);
-    expect(files.some((f) => f.startsWith('src/plants/species/'))).toBe(true);
+    for (const dir of UNCACHED_DIRS) expect(files.some((f) => f.startsWith(`${dir}/`)), dir).toBe(false);
+    // what the scene and the sceneries import from those folders (nothing today) stays in
+    const scene = paintSources(root, ['src/scene', 'src/scenery'], []);
+    for (const f of scene) expect(files, f).toContain(f);
+    expect(PAINT_ROOTS).toContain('src/plants');
     expect(files.some((f) => f.startsWith('src/ui/') || f.startsWith('src/studio/'))).toBe(false);
   });
 });
