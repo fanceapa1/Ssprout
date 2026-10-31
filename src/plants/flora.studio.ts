@@ -3,6 +3,7 @@ import { SCENERY_IDS, type SceneryId } from '../core/sceneries';
 import { createPainter, makeCanvas, paperTexture } from '../paint';
 import { getScenery } from '../scenery/registry';
 import type { StudioEntry, StudioSection } from '../studio/types';
+import { floraOf } from './flora';
 import { allSpecies } from './registry';
 import { TIERS, type SpeciesDef, type Tier } from './types';
 
@@ -11,8 +12,7 @@ import { TIERS, type SpeciesDef, type Tier } from './types';
  * so a new species is seen beside its neighbours (docs/systems/species-recipe.md, ADR 0251).
  */
 
-// F1 hook (ADR 0250): use `floraOf(sceneryId)` from ./flora once it is on main.
-const offeredIn = (_sceneryId: SceneryId): SpeciesDef[] => allSpecies();
+const offeredIn = (sceneryId: SceneryId): SpeciesDef[] => floraOf(allSpecies(), getScenery(sceneryId).flora);
 
 /** canvas px per world unit (trees stay on screen, small plants still read) */
 const SCALE = 0.5;
