@@ -110,6 +110,7 @@ describe('each garden’s flora', () => {
     // the art tasks add the waterfall's own species: extend this list with each one
     expect(ids(offered(getScenery('waterfall')))).toEqual([
       'daimonjiso',
+      'iwakagami',
       'iwatabako',
       'japanese-maple',
       'maidenhair-fern',
