@@ -5,6 +5,7 @@ sprites, live growth, sway, the bloom, the wither, the watering moment, pond ref
 placement highlight, and the shared `renderPlantView` used by the widget and the planting sheet
 (with `prewarmPlantView`/`drawPlantView` for previews painted ahead in a worker).
 Species themselves (`species/*.ts`, `lib/*`) only paint; see `types.ts` and ARCHITECTURE › Species.
+**Adding a species**: follow [species-recipe.md](species-recipe.md); it only adds files (ADR 0251).
 
 Look at it: studio sections **Plants · watering**, **· wither**, **· growth timelapse**,
 **· reflections & placement**, and **Close view · a plant** (`close-view-plants`, ADR 0187)
@@ -23,7 +24,7 @@ Look at it: studio sections **Plants · watering**, **· wither**, **· growth t
 | `shadow.ts` | the cast-shadow blot (`shadowBlot`), `shadowBox`, `drawPlantShadow` (ADR 0146) |
 | `bounds.ts` | `plantWorldBounds` / `plantWorldEdges` — world box of a placed plant |
 | `hit-test.ts` | painted-pixel hit-testing: per-bitmap alpha masks (`MASK_CELLS`, `HIT_ALPHA`) (ADR 0166) |
-| `notes.ts` | `SPECIES_NOTES` / `speciesNote` — the plant card's note per species (ADR 0167) |
+| `notes.ts` | `speciesNote(id, sceneryId?)`, `pickNote`, `SPECIES_NOTES` — the plant card's note per species, globbed from `notes/<id>.ts` (`{ note, in? }`); main thread only (ADRs 0167, 0251) |
 | `view.ts` | `renderPlantView` (widget, previews, studio; returns `false` for an unknown species or no 2D context), `drawPlantView` / `prewarmPlantView` / `plantViewSprites` / `whenPlantViewsReady` (ADR 0221), `plantLayout`, `growthZoom`, `seedBedAlpha`, `setPlantViewSpecies`, `setPlantViewCacheOptions`, `plantViewStats` |
 | `wind-adapter.ts` | the garden wind for sway: `src/ambience/wind.ts`'s `wind`/`windBoost` (picked up by glob; a local `createFallbackWind` stays as a stand-in if that module is absent) |
 | `debug.ts` | `window.sprout.plants` (?dev) |
@@ -32,8 +33,10 @@ Look at it: studio sections **Plants · watering**, **· wither**, **· growth t
 | `registry.ts` | auto-discovery of `species/<id>.ts` (file name = id): `getSpecies`, `allSpecies`, `speciesByTier`, `buildRegistry` |
 | `types.ts` | `SpeciesDef`, `Tier`, `Habitat`, `SizeClass`, `TIERS`, `HABITATS`, `SIZE_CLASSES` |
 | `species.studio.ts` | one studio section per registered species (`GROWTH_STAGES` + grow loop) |
+| `flora.studio.ts` | `flora/<scenery>`: each garden's species by tier at full bloom, one world scale (ADR 0251) |
 | `test-canvas.ts` | test-only fake canvases (`FakeCanvas`, `fakeContext`, `installFakeOffscreenCanvas`) |
-| `lib/` | shared species painting: `small-*` (tier 1–2 plants, `small-species-list.ts`), `shrub-*` (tier 3), `tree-*` (tier 4) |
+| `lib/` | shared species painting: `small-*` (tier 1–2 plants), `shrub-*` (tier 3), `tree-*` (tier 4); `suites.ts` (test-only: `smallSuite`, `shrubSuite`, `treeSuite`) |
+| `species/<id>.test.ts` | each species calls its family suite (ADR 0251) |
 | `view-prewarm.test.ts` | the view cache's worker, prewarm and deferred draws, the idle lane (ADRs 0220, 0221) |
 | `plantable.test.ts` | every species has a compatible garden slot; the lotus fits exactly `water-1`/`water-3` and has none only when seedlings hold both (Q1, ADR 0205) |
 
@@ -227,12 +230,17 @@ rect sprites are drawn into; `system.plantBounds(plantId)` returns it for finish
 seedlings. `system.hitTest(world, tolerance)` (ADR 0166, `hit-test.ts`) returns the front-most
 plant whose **painted pixels** are at a world point (finished plants and every seedling), using a
 coarse alpha mask per sprite bitmap (≤ 96 cells, alpha ≥ 28); the hover label and the plant card
-use it. `notes.ts` holds `SPECIES_NOTES`, a two-to-three-sentence note on each species' place in
-Japanese gardens and culture, shown on the plant card (ADR 0167; `notes.test.ts`: every species
-has one).
+use it. Each species has `notes/<id>.ts`, a two-to-three-sentence note on its place in Japanese
+gardens and culture, shown on the plant card (ADR 0167). A species shared between gardens may add
+`in: { <sceneryId>: '…' }`; `speciesNote(id, sceneryId?)` returns that garden's note, else the
+species note (ADR 0251). `notes.ts` globs the files on the main thread only: the sprite worker never
+imports it. `notes.test.ts`: every species has a note and no note lacks a species (no count pin),
+the style rules (2–3 sentences, ≤ 330 characters, no loud words) for every text, known scenery ids.
+The plant card still calls `speciesNote(id)` without the plant's scenery (left for F1's card change).
 
 ## How species integrate
-Drop `species/<id>.ts` (see ARCHITECTURE › Species). The system relies only on: `size`/`anchor`
+Drop `species/<id>.ts` with its `species/<id>.test.ts` and `notes/<id>.ts` (see
+[species-recipe.md](species-recipe.md) and ARCHITECTURE › Species). The system relies only on: `size`/`anchor`
 (box and base), `sizeClass` (sway), `habitats`/`reflect` (reflections) and `draw(p, rng, { w, h,
 growth })` being **deterministic for (seed, growth, w, h)** and painting inside its box (anything
 outside is clipped). `draw` must not touch `document`/`window` (it runs in workers). It is called
@@ -275,7 +283,8 @@ bounds, LRU budget/epoch/best, scheduling, workers incl. fallback and death), `d
 growth + look-ahead, easing, displacement, wither, watering, bloom, bounds, reflections,
 highlight, 50-plant budget, plantsReady waits for the store change, sprites and fade-in, "finished plants sway with the wind, and hold still under reduced
 motion"), `shadow.test.ts` (cast shadow length, side, pool), `view.test.ts`, `hit-test.test.ts`,
-`notes.test.ts`, `registry.test.ts` (discovery, well-formed species, tiers, id/file
+`notes.test.ts`, `species/<id>.test.ts` (each species' family suite from `lib/suites.ts`: 115 tests,
+726,075 assertions, as many as the family files they replaced), `registry.test.ts` (discovery, well-formed species, tiers, id/file
 match), `plantable.test.ts`, `view-prewarm.test.ts` (whenReady, lazy workers, the idle lane, prewarm =
 draw specs, pending → drawn, growth-framing follow-up, main-thread fallback, the real worker module
 painting the same strokes as the main thread). E2E: `tests/e2e/plants.spec.ts` (watering, wither, bloom + reload,

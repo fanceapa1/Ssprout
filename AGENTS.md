@@ -18,6 +18,7 @@ agent) picks up the work next.
 6. `docs/adr/README.md`: every decision with status and a one-line summary. Read the ADRs of
    the area you touch.
 7. `docs/systems/<system>.md`: the system you are about to change.
+   Adding a species? Follow `docs/systems/species-recipe.md`: it only adds files.
 8. `docs/devlog/README.md`: what each task did and left open. Read the latest entries for the
    current state: 30 (v2 acceptance), 31 and 33 (time-pinned tests, the calendar on a DST day),
    34 (sheet focus) and 35 (docs audit). Entries are history; the system docs win where they differ.
