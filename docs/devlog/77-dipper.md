@@ -98,6 +98,17 @@ wagtail, heron), art settled, one untimed `bench(60)` first: **update 0.005–0.
 0.24–0.25 ms = 0.24–0.26 ms a frame**, under the 1.5 ms budget. The machine was busy (load
 about 16).
 
+## Status
+- `npm run typecheck`: clean.
+- `VITEST_WORKERS=1 npx vitest run src/fauna src/scenery`: 20 files, 197 tests pass.
+- E2E (`E2E_WORKERS=1 E2E_PORT=4375`, under `nice -n 15`, load 16–22 from Spotlight indexing):
+  the two specs took 1.6 h. Six tests hit the 60 s test timeout and ten passed. A rerun of
+  `fauna-waterfall.spec.ts` alone passed three and timed out on the fourth, in `openDev` while
+  waiting for `window.sprout` (page boot, before any fauna code). Across the two runs each
+  waterfall test passed at least once. The four studio tests that failed (every entry shards
+  1–2, `?entry`, controls) all timed out; none reported an error. Rerun both specs on a quiet
+  machine before merging.
+
 ## Rows for the orchestrator
 fauna.md › Creatures and behaviour:
 
