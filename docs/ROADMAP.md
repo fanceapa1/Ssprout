@@ -134,3 +134,10 @@ Phase 10 (owner request 2026-10-27): land phase 9, then a second scenery, a rock
 | S17 | Acceptance and docs: SPEC, ARCHITECTURE, `docs/systems/scenery.md`, TESTING matrix, a v3 export imports, switch-time numbers, shots of both gardens | `docs/**`, `tests/**` | queued (last) |
 
 Phase 11 (deferred by the owner on 2026-10-28 to a later session; owner request 2026-10-27, branch `feat/accounts`, not merged to main): simple user/password accounts, with progress stored in a database. Local setup only: a Node (Fastify) server, Postgres in Docker. Owner decision: guest mode stays local, and signing up offers to import the local garden.
+
+Phase 12 (owner request 2026-10-31): the waterfall gets its own flora and fauna. Research what grows and lives in such a biome, then create the plants and creatures for it. The plan is about 10 sceneries in the future, each with special plants and fauna. A species can be shared between sceneries where biology and geography allow, but each garden must feel unique. Owner decisions: research chooses the region; about 12 plants and 8 creatures of its own; species are shared by biology. Up to 3 agents at a time, with the same art process (the `drawing-assets` skill).
+
+| # | Task | Area | Status |
+|---|---|---|---|
+| B0 | Biome research (web, read-only): candidate regions for a rocky waterfall, their flora and fauna, distinctiveness and paintability; a habitat taxonomy for about 10 future sceneries; what is shared with the Japanese garden | scratch report | in progress |
+| B1 | Code audit (read-only): species and creature registries, tiers, habitats and slots, unlocks, studio, tests; a per-scenery availability contract; an "add a species" / "add a creature" recipe | scratch report | in progress |
