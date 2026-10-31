@@ -6,15 +6,17 @@ import { extendDebug } from '../dev/debug';
 import { makeCanvas } from '../paint';
 import { LAYERS } from '../render/types';
 import type { Pt, Rect } from '../render/viewport';
-import { pointInPolygon } from './math';
+import { closestOnPolygon, pointInPolygon, toPlane } from './math';
 import { faunaRow } from '../core/fauna-unlocks';
 import type { FaunaListing } from './sim';
 import type { FaunaSystem } from './system';
 import { creatureDef, creatureKinds } from './creatures/registry';
 
 export interface FaunaDebugListing extends FaunaListing {
-  /** for koi and striders: is it inside the pond polygon */
+  /** inside the still water (the pond; a plunge pool minus its foam) */
   inPond: boolean;
+  /** distance to the still water's edge in the pond plane */
+  edge: number;
 }
 
 export interface FaunaBench {
@@ -47,8 +49,10 @@ export interface FaunaDebug {
   roster(): { scenery: string; ids: string[]; residents: Record<string, number>; visitors: string[]; kinds: string[]; variants: Record<string, string[]> };
   /** Seconds until each scheduled visit. */
   schedule(): Record<string, number>;
-  /** Pond polygon and visible world rect (bounds checks in tests). */
+  /** The still water's polygon (bounds checks in tests). */
   pond(): Pt[];
+  /** All the water: still (the pond), moving (streams), and what the water layers clip to. */
+  water(): { still: Pt[]; moving: Pt[][]; clip: Pt[][] };
   /** Where creatures go right now: flower heads, lily pads, perches, heron wading spots. */
   targets(): { flowers: Pt[]; pads: Pt[]; perches: Pt[]; stands: Pt[] };
   view(): Rect;
@@ -83,8 +87,8 @@ export function installFaunaDebug(system: FaunaSystem): void {
     },
     list() {
       const s = sim();
-      const pond = s.world.pond.world;
-      return s.list().map((c) => ({ ...c, inPond: pointInPolygon(c, pond) }));
+      const { world: pond, plane, cy, squash } = s.world.pond;
+      return s.list().map((c) => ({ ...c, inPond: pointInPolygon(c, pond), edge: closestOnPolygon(toPlane(c, cy, squash), plane).d }));
     },
     clear: () => sim().clear(),
     step(seconds, dt = 1 / 30) {
@@ -112,6 +116,11 @@ export function installFaunaDebug(system: FaunaSystem): void {
       return Object.fromEntries([...s.schedule.entries()].map(([k, due]) => [k, Math.max(0, due - s.time)]));
     },
     pond: () => sim().world.pond.world.map((p) => ({ ...p })),
+    water() {
+      const w = sim().world;
+      const copy = (poly: readonly Pt[]) => poly.map((p) => ({ ...p }));
+      return { still: copy(w.pond.world), moving: w.water.moving.map(copy), clip: w.water.clip.map(copy) };
+    },
     targets() {
       const w = sim().world;
       const xy = (p: Pt) => ({ x: p.x, y: p.y });

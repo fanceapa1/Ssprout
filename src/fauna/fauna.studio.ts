@@ -14,7 +14,7 @@ import type { FaunaKind } from './tuning';
 const stages = new Map<string, Stage>();
 
 /** An animated entry running a stage; `?t=` presimulates up to t so stills show real behaviour. */
-function aliveEntry(id: string, label: string, kind: FaunaKind | null, spec: StageSpec, w: number, h: number): StudioEntry {
+function aliveEntry(id: string, label: string, kind: FaunaKind | null, spec: StageSpec, w: number, h: number, place: Stage['kind'] = 'pond'): StudioEntry {
   return {
     id,
     label,
@@ -22,10 +22,10 @@ function aliveEntry(id: string, label: string, kind: FaunaKind | null, spec: Sta
     h,
     animated: true,
     render(canvas, { t, dt, seed, frame, pixelRatio }) {
-      const key = `${kind ?? 'all'}:${id}`;
+      const key = `${place}:${kind ?? 'all'}:${id}`;
       let stage = stages.get(key);
       if (!stage || stage.seed !== seed || frame === 0) {
-        stage = new Stage(spec, seed, kind);
+        stage = new Stage(spec, seed, kind, place);
         stages.set(key, stage);
         for (let s = 0; s < t; s += 1 / 30) {
           stage.tickRespawn(s);
@@ -73,7 +73,7 @@ const shown = creatureDefs()
 
 const sections: StudioSection[] = shown.map((d, i) => {
   const s = d.show!;
-  const entries: StudioEntry[] = [aliveEntry('alive', `${d.title}, alone (behaviour loop)`, d.kind, s.spec, s.w, s.h)];
+  const entries: StudioEntry[] = [aliveEntry('alive', `${d.title}, alone (behaviour loop)`, d.kind, s.spec, s.w, s.h, s.stage)];
   if (d.sheet) entries.push(sheetEntry('parts', `${d.title}: painted parts and frames`, d.sheet.make, d.sheet.w, d.sheet.h));
   return { id: `fauna-${d.kind}`, title: `Fauna · ${d.title}`, order: 310 + i, entries };
 });
@@ -112,6 +112,13 @@ sections.unshift({
   title: 'Fauna · everyone (scheduled visits)',
   order: 300,
   entries: [aliveEntry('all', 'all creatures unlocked, real pacing', null, { w: 900, h: 560 }, 720, 448)],
+});
+
+sections.splice(1, 0, {
+  id: 'fauna-falls',
+  title: 'Fauna · the falls (the waterfall’s table, scheduled visits)',
+  order: 301,
+  entries: [aliveEntry('all', 'the waterfall’s creatures that are painted so far, real pacing; still pool, foam, stream, ledge', null, { w: 900, h: 560 }, 720, 448, 'falls')],
 });
 
 export default sections;
