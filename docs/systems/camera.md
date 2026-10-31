@@ -72,7 +72,7 @@ plants, `grab` when zoomed.
 
 ## Plant card (ADRs 0166, 0167)
 A click/tap hit-tests painted pixels (front-most wins). The card (`.plant-story`, a dialog named
-after the plant) shows species, Japanese name, the poetic line, `SPECIES_NOTES[id]`, and the
+after the plant) shows species, Japanese name, the poetic line, `speciesNote(id)`, and the
 plant's story (`plantStory()` / `storyLines()`, pure). Wide stages: on the side away from the
 plant, the camera frames the plant beside it (inset + slack); phones (< 640 px): docked at the
 bottom, the pill and zoom chips step back. Esc, the close mark, bare garden, or anywhere else on
