@@ -671,3 +671,4 @@ Legend: unit tests as `folder/file › test`, under `src/` (`.test.ts` omitted).
 | S11.7 | Perspective at the waterfall is within 0.02 of every slot's scale (ledges and crown included) and the ground's outside the cliff | fauna/waterfall › the waterfall's perspective (all) | — | ✔ |
 | S11.8 | Night-only visitors are refused by day and come at night | fauna/schedule › rests diurnal creatures at night but not leaves | — | ◐ no nocturnal creature painted yet |
 | S11.9 | The waterfall's fauna renders cleanly and stays cheap; the falls studio stage runs the waterfall's table | — | fauna-waterfall › a busy pool renders cleanly and stays cheap; studio `fauna-falls/all` | ✔ |
+| W4.1 | Wasabi: `smallSuite` (deterministic, seeded, grows continuously, fits its box); offered only at the waterfall | plants/species/wasabi; scenery/flora | studio › every entry renders | ✔ |
