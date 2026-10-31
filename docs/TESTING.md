@@ -655,3 +655,9 @@ Legend: unit tests as `folder/file › test`, under `src/` (`.test.ts` omitted).
 | F2.2 | Every species runs its family suite from `species/<id>.test.ts` (tiers 1–2: definition, determinism, seed variety, paints at every growth, continuous growth; tier 3: habitats and size, builder determinism, growth-independent rng; tier 4: sane box, plan determinism, seed variety, rng independence, inside the box) | plants/species/<id> (all, via lib/suites) | — | ✔ |
 | F2.3 | The family boards and the flora line-ups come from the registry; every entry paints | — | studio › every entry renders without errors and paints something (shards) | ✔ |
 | F2.4 | Merging a species, a creature, a note or a helper only they import keeps the paint version; what a cached painter imports stays hashed | paint/paint-version › species, creatures and notes (ADR 0251) (all); › covers this project's painters… | — | ✔ |
+
+### Waterfall species (phase 12, one row per species; devlogs 73+)
+
+| # | Rule | Unit | E2E | Status |
+|---|---|---|---|---|
+| W1.1 | Iwatabako: `smallSuite` (determinism, continuous growth); 1–3 leaves with the first hanging down, 6–16 stars; leaves, scape and stars inside the design box; offered only at the waterfall | plants/species/iwatabako; scenery/flora | studio › every entry renders | ✔ |

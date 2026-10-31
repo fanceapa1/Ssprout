@@ -149,9 +149,9 @@ Phase 12 art queue: one species or creature per task (atomic), 2–3 at a time, 
 
 | # | Task | Area | Status |
 |---|---|---|---|
-| W1 | Iwatabako (rock tobacco, *Conandron ramondioides*): T1, wet cliff and ledges | `src/plants/species/iwatabako.ts` | in progress |
+| W1 | Iwatabako (rock tobacco, *Conandron ramondioides*): T1, wet cliff and ledges | `src/plants/species/iwatabako.ts` | done (devlog 73) |
 | W2 | Daimonjisō (*Saxifraga fortunei*): T1, spray-zone rock | `src/plants/species/daimonjiso.ts` | in progress |
-| W3 | Iwakagami (*Shortia soldanelloides*): T1, mossy banks and ledges | `src/plants/species/iwakagami.ts` | queued |
+| W3 | Iwakagami (*Shortia soldanelloides*): T1, mossy banks and ledges | `src/plants/species/iwakagami.ts` | in progress |
 | W4 | Wasabi (*Eutrema japonicum*): T1, stream shore | `src/plants/species/wasabi.ts` | queued |
 | W5 | Kurinsō (*Primula japonica*): T2, stream banks | `src/plants/species/kurinso.ts` | queued |
 | W6 | Baikamo (*Ranunculus nipponicus* var. *submersus*): T2, water, flowing | `src/plants/species/baikamo.ts` | queued |
