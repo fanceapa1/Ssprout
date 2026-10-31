@@ -115,3 +115,67 @@ test.describe('gardens · choosing the garden on view (ADR 0244)', () => {
     expect(await viewed(page)).toBe('waterfall');
   });
 });
+
+test.describe('gardens · each garden’s flora (ADR 0250)', () => {
+  test.beforeEach(({ page }) => page.setViewportSize({ width: 1440, height: 900 }));
+
+  const sheet = (page: Page) => page.locator('dialog[data-dialog="planting"]');
+  async function listed(page: Page): Promise<string[]> {
+    await page.locator('.panel').getByRole('button', { name: 'Start studying' }).click();
+    await expect(sheet(page)).toBeVisible();
+    const ids = await sheet(page).locator('.plant-card').evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.speciesId!));
+    await page.keyboard.press('Escape');
+    await expect(sheet(page)).toBeHidden();
+    return ids.sort();
+  }
+  const flora = (page: Page, id: 'japanese-garden' | 'waterfall') => page.evaluate((s) => window.sprout!.flora(s).sort(), id);
+
+  test('the waterfall’s planting sheet lists its own flora and the fixtures; the garden keeps its own', async ({ page }) => {
+    await openUi(page, FLAG);
+    const garden = await listed(page);
+    expect(garden).toEqual(await flora(page, 'japanese-garden'));
+    expect(garden).toContain('lotus');
+
+    await card(page, 'waterfall').click();
+    await ready(page);
+    const falls = await listed(page);
+    expect(falls).toEqual(await flora(page, 'waterfall'));
+    expect(falls).not.toContain('lotus');
+    // the species shared by biology (the art tasks add the waterfall's own)
+    for (const id of ['japanese-maple', 'maidenhair-fern', 'susuki-grass', 'violet', 'wild-strawberry']) expect(falls).toContain(id);
+    // the dev fixtures grow everywhere
+    const fixtures = (ids: string[]) => ids.filter((id) => id.startsWith('fx-'));
+    expect(fixtures(falls).length).toBeGreaterThan(0);
+    expect(fixtures(falls)).toEqual(fixtures(garden));
+  });
+
+  test('the herbarium is one book; with two gardens in it, each specimen names its garden', async ({ page }) => {
+    await openUi(page, FLAG);
+    const book = page.locator('dialog[data-dialog="herbarium"]');
+    const press = (gardens: Array<[string, 'japanese-garden' | 'waterfall']>) =>
+      page.evaluate((list) => {
+        const now = window.sprout!.now();
+        const pressed = list.map(([speciesId, sceneryId]) => ({ speciesId, sceneryId, seed: 1, plantedAt: now - 86_400_000, removedAt: now, taskName: '' }));
+        window.sprout!.setState({ pressed });
+      }, gardens);
+    const openBook = async (count: number) => {
+      await page.locator('.menu').getByRole('button', { name: 'Pressed flowers' }).click();
+      await expect(book.locator('.specimen')).toHaveCount(count);
+    };
+
+    await press([['lotus', 'japanese-garden']]);
+    await openBook(1);
+    await expect(book.locator('.specimen-garden')).toHaveCount(0);
+    await page.keyboard.press('Escape');
+    await expect(book).toBeHidden();
+
+    await press([
+      ['lotus', 'japanese-garden'],
+      ['violet', 'waterfall'],
+    ]);
+    await openBook(2);
+    await expect(book.locator('.specimen[data-scenery-id="japanese-garden"] .specimen-garden')).toHaveText('in the Japanese garden');
+    await expect(book.locator('.specimen[data-scenery-id="waterfall"] .specimen-garden')).toHaveText('in the rocky waterfall');
+    await expect(book.locator('.specimen-native').first()).toHaveAttribute('lang', 'ja-Latn');
+  });
+});
