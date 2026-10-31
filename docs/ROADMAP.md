@@ -128,8 +128,8 @@ Phase 10 (owner request 2026-10-27): land phase 9, then a second scenery, a rock
 | S9 | Animated falls, foam and spray (still under reduced motion, ≤ 1 ms a frame) | `src/scenery/waterfall/falls.ts` | queued (after S7; ADR 0246) |
 | S10 | Waterfall daylight: 4 sky plates, pool plate, light plates, grades | `src/scenery/waterfall/{sky,light}.ts` | done (4 sky plates cut to the skyline, pool plate, cliff shadows and crown light, moonlit falls at night; ADR 0247) |
 | S11 (old) | superseded by the phase 12 S11 row below | — | moved |
-| S12 | Iwana char in the plunge pool (renamed from trout: introduced trout are invasive in Japanese headwaters, B0) | `src/fauna/creatures/iwana.ts` | queued (after S11) |
-| S13 | Dipper on the wet rocks | `src/fauna/creatures/dipper.ts` | queued (after S11) |
+| S12 | Iwana char in the plunge pool (renamed from trout: introduced trout are invasive in Japanese headwaters, B0) | `src/fauna/creatures/iwana.ts` | moved to C3 |
+| S13 | Dipper on the wet rocks | `src/fauna/creatures/dipper.ts` | moved to C1 |
 | S15 | Waterfall sound bed (`falls` layer, roar, rumble, spray hiss, splash events, dipper song) | `src/audio/**`, `src/core/soundscape.ts`, `src/ui/sound-mixer.ts` | queued (after S1, S3; ADR 0249) |
 | S17 | Acceptance and docs: SPEC, ARCHITECTURE, `docs/systems/scenery.md`, TESTING matrix, a v3 export imports, switch-time numbers, shots of both gardens | `docs/**`, `tests/**` | queued (last) |
 
@@ -144,3 +144,28 @@ Phase 12 (owner request 2026-10-31): the waterfall gets its own flora and fauna.
 | F1 | Species availability per scenery: a range on each species (realms, biomes, climates, `cultivatedIn`), a biome profile on each scenery plus `also`/`except`, `floraOf`; core, planting sheet, herbarium and dev hooks per garden; flora invariants; `nativeLang` | `src/plants/{types,flora,biomes}.ts`, `species/*.ts` (range line only), `src/scenery`, `src/core/{controller,state}.ts`, `src/dev`, `src/ui/{planting-sheet,herbarium,plant-card,types,index}.ts`, `src/main.ts` | in progress (ADR 0250) |
 | F2 | Scaffolding so species tasks only add files: notes per species (globbed), family test suites, `species/<id>.test.ts`, line-up studio per scenery, `docs/systems/species-recipe.md`; narrow `PAINT_ROOTS` so art merges stop invalidating cached landscapes | `src/plants/notes*`, `src/plants/lib/*.test.ts`, `src/plants/lib/suites.ts`, review studios, `src/paint/paint-version.ts` | in progress (ADR 0251) |
 | S11 | Wildlife per scenery (scope widened by B1): a creature registry (one default-exported def per file), unlock tables per scenery (the waterfall's 8 rows up front), remove `wild()`, fix the `faunaSeen` readers and `fauna:arrived` payload, waterfall targets (pool minus foam, stream, ledge perches, heron stands), `perspective(x, y)`, a falls studio stage | `src/fauna/**`, `src/core/fauna-unlocks.ts`, `src/scenery/*/fauna.ts`, `src/ui/{quiet-line,format}.ts`, `tests/e2e/fauna*.spec.ts` | in progress (ADR 0248) |
+
+Phase 12 art queue: one species or creature per task (atomic), 2–3 at a time, after F1, F2 and S11. Each task follows `docs/systems/species-recipe.md` or the fauna recipe and the `drawing-assets` skill. Descriptions for illustrators are in B0 §2 and §3.
+
+| # | Task | Area | Status |
+|---|---|---|---|
+| W1 | Iwatabako (rock tobacco, *Conandron ramondioides*): T1, wet cliff and ledges | `src/plants/species/iwatabako.ts` | queued |
+| W2 | Daimonjisō (*Saxifraga fortunei*): T1, spray-zone rock | `src/plants/species/daimonjiso.ts` | queued |
+| W3 | Iwakagami (*Shortia soldanelloides*): T1, mossy banks and ledges | `src/plants/species/iwakagami.ts` | queued |
+| W4 | Wasabi (*Eutrema japonicum*): T1, stream shore | `src/plants/species/wasabi.ts` | queued |
+| W5 | Kurinsō (*Primula japonica*): T2, stream banks | `src/plants/species/kurinso.ts` | queued |
+| W6 | Baikamo (*Ranunculus nipponicus* var. *submersus*): T2, water, flowing | `src/plants/species/baikamo.ts` | queued |
+| W7 | Mizubashō (*Lysichiton camtschatcensis*): T2, water and shore | `src/plants/species/mizubasho.ts` | queued |
+| W8 | Hototogisu (toad lily, *Tricyrtis hirta*): T2, cliff foot | `src/plants/species/hototogisu.ts` | queued |
+| W9 | Yamabuki (*Kerria japonica*): T3 shrub | `src/plants/species/yamabuki.ts` | queued |
+| W10 | Taniutsugi (*Weigela hortensis*): T3 shrub | `src/plants/species/taniutsugi.ts` | queued |
+| W11 | Katsura (*Cercidiphyllum japonicum*): T4 tree | `src/plants/species/katsura.ts` | queued |
+| W12 | Tochinoki (*Aesculus turbinata*): T4 tree | `src/plants/species/tochinoki.ts` | queued |
+| C1 | Brown dipper (kawagarasu): bobs on wet rocks, walks under water (was S13) | `src/fauna/creatures/dipper.ts` | queued |
+| C2 | Miyama-kawatombo damselfly | `src/fauna/creatures/kawatombo.ts` | queued |
+| C3 | Iwana char in the plunge pool (was S12) | `src/fauna/creatures/iwana.ts` | queued |
+| C4 | Sawagani river crab | `src/fauna/creatures/sawagani.ts` | queued |
+| C5 | Kajika frog on the stream stones | `src/fauna/creatures/kajika.ts` | queued |
+| C6 | Iwatsubame (Asian house martin) along the cliff | `src/fauna/creatures/iwatsubame.ts` | queued |
+| C7 | Genji firefly (night only) | `src/fauna/creatures/firefly.ts` | queued |
+| C8 | Yamasemi (crested kingfisher, rare) | `src/fauna/creatures/yamasemi.ts` | queued |
