@@ -101,7 +101,7 @@ function paintBody(p: Painter, r: number, c: Colours, wing: 'fold' | 'up' | 'dow
     return;
   }
   // short, rounded wings: broad petal dabs, a pale haze when they whirr
-  const wingDab = (a: number, len: number, op: number) => p.dab(shoulder, mix(c.dark, c.brown, 0.5), { rng, variant: 'petal', angle: a, length: len * r, width: len * 0.55 * r, curve: 0.1, pool: 0.2, opacity: op });
+  const wingDab = (a: number, len: number, op: number) => p.dab(shoulder, mix(c.dark, c.brown, 0.5), { rng, variant: 'petal', angle: a, length: len * r, width: len * 0.55 * r, curve: 0.1, pool: 0.2, edge: 0.3, opacity: op });
   if (wing === 'up') wingDab(-Math.PI / 2 - 0.55, 9, 0.8);
   else if (wing === 'down') wingDab(Math.PI / 2 + 0.45, 8.4, 0.8);
   else if (wing === 'swim') wingDab(Math.PI - 0.55, 9, 0.75);
