@@ -122,8 +122,8 @@ Tier by **total session length** (chosen at start; gates which species can be pl
 forget-me-not, wild strawberry, dandelion, maidenhair fern · tier 2 Japanese iris, anemone, balloon
 flower, cosmos, red spider lily, silver grass, water lily · tier 3 tree peony, hydrangea, azalea,
 camellia, chrysanthemum, lotus · tier 4 weeping cherry, Japanese maple, wisteria, black pine, ginkgo,
-plum blossom. Not yet: moss and dianthus. Every species has a compatible slot
-(`src/plants/plantable.test.ts`); the lotus (size class `large`) fits the two large open-water slots
+plum blossom. Not yet: moss and dianthus. Every species has a compatible slot in each garden that
+offers it (`src/scenery/flora.test.ts`; which garden offers which species: ADR 0250); the lotus (size class `large`) fits the two large open-water slots
 `water-1` and `water-3`.
 
 - The plant is chosen at session start from all species with tier ≤ earned tier (§2 step 4).

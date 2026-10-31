@@ -212,6 +212,8 @@ export interface SpeciesDef {
   id: string;                 // kebab-case, equals file name
   name: string;               // "Japanese Iris"
   nativeName?: string;        // "Hanashōbu"
+  nativeLang?: string;        // BCP 47 of nativeName; nativeLang(def) defaults to 'ja-Latn'
+  range: Range;               // where it grows wild and is planted: the sceneries that offer it (ADR 0250)
   tier: Tier;
   habitats: Habitat[];
   sizeClass: SizeClass;
@@ -233,9 +235,18 @@ continuous (ADRs 0110–0112). `draw` must be deterministic per (seed, growth, w
 and not touch the DOM (it runs in a worker). Runtime sway = horizontal skew (a bend for large plants
 and trees) about the base, driven by the garden wind (ADR 0113). Details: `docs/systems/plants.md`.
 
-A species is only added files (ADR 0251, `docs/systems/species-recipe.md`): `species/<id>.ts`,
+**Flora** (`src/plants/biomes.ts`, `src/plants/flora.ts`, ADR 0250). The vocabulary is `REALMS`,
+`!except.includes(id) && (also.includes(id) || (realm ∈ realms && biomes ∩ scenery.biomes ≠ ∅ &&
+`BIOMES` and `CLIMATES` (one line per tag; a new scenery extends them there), and
+`floraOf(all, profile)` keeps the registry's order; `floraLookup(all, profileOf)` caches one list
+`Range = { realms; biomes; climates; cultivatedIn? }`. A scenery's profile is
+`SceneryBiome = { realm; biomes; climate; cultivated; also?; except? }`. A species is offered when
 `species/<id>.test.ts` and `notes/<id>.ts`. `speciesNote(id, sceneryId?)` (`notes.ts`, main thread
+A species is only added files (ADR 0251, `docs/systems/species-recipe.md`): `species/<id>.ts`,
+climate ∈ climates) || (cultivated && realm ∈ cultivatedIn))` (`growsIn(id, range, profile)`).
 only) returns the note's `in[sceneryId]` when it has one, else `note`; null for an unknown id.
+per scenery as `{ of(id), grows(speciesId, id) }`. `EVERYWHERE` is the fixtures' range. The sprite
+worker still paints any species by id.
 
 ### Plant view (`src/plants/view.ts`, ADRs 0003, 0094, 0220, 0221, 0222)
 One species at an arbitrary growth, optionally mid-watering or wilting — used by the widget card,
@@ -311,6 +322,8 @@ export interface Scenery {                    // types.ts
   light: LightArt;                            // trees, shrubs, sky, shadows?(…), lights?(…)
   ambience: SceneryAmbience;                  // dew: Rect[], mistBands, veilTo
   view: SceneryView;                          // focus (portrait crop), pathOut (guiding path origin)
+  flora: SceneryBiome;                        // its place in the world: the species it offers (ADR 0250)
+  habitatWords: Record<Habitat, string>;      // how the planting sheet and placement name each habitat
 }
 getScenery(id): Scenery /* the default when not registered */; hasScenery(id); sceneries(flags?)  // registry.ts
 ```
@@ -390,9 +403,11 @@ from inside a listener are queued and applied after the current delivery (ADR 00
 Reducers are pure and live in `core/`.
 
 The app reducer is `createReducer(world)` with
-`ReducerWorld = { getSpecies(id): { habitats, sizeClass, tier } | undefined; getSlot(sceneryId, slotId): { id, habitat, maxSize } | undefined }`
-so `session/start` can enforce the earned tier and slot compatibility (core never imports
-`src/scenery`: `main.ts` injects `slotLookup(id => registered ? getScenery(id).geometry.slots : [])`); `reducer` is
+`ReducerWorld = { getSpecies(id): { habitats, sizeClass, tier } | undefined; getSlot(sceneryId, slotId): { id, habitat, maxSize } | undefined; grows?(speciesId, sceneryId): boolean }`
+so `session/start` can enforce the earned tier, slot compatibility and the garden's flora (core never imports
+`src/scenery`: `main.ts` injects `slotLookup(id => registered ? getScenery(id).geometry.slots : [])` and
+`floraLookup(species, id => getScenery(id).flora).grows`). `grows` is checked only at `session/start`:
+loading, importing and plants already in a garden are never checked against it (ADR 0250); `reducer` is
 `createReducer()` (no world: any species/slot accepted). **Invalid actions are no-ops returning the
 same reference** (ADR 0030). Every rule is listed in `docs/systems/core.md`.
 
@@ -402,7 +417,7 @@ deterministic. `type Action =`
 
 | type | payload | meaning |
 |---|---|---|
-| `session/start` | `id, taskName, goalMinutes, plan, speciesId, sceneryId?, slotId, seed, now, weather` | plant a seedling in `sceneryId`'s garden (default `state.scenery`) and make it the active session (fewer than 3 in progress; plan sums to the total; species tier ≤ earned; compatible slot of that scenery not held by another session there; that garden's occupant becomes `displacedPlantId`; sets `settings.lastGoalMinutes`); the previous active one moves to `waiting`, paused at `now` |
+| `session/start` | `id, taskName, goalMinutes, plan, speciesId, sceneryId?, slotId, seed, now, weather` | plant a seedling in `sceneryId`'s garden (default `state.scenery`) and make it the active session (fewer than 3 in progress; plan sums to the total; species tier ≤ earned; the garden grows it (`world.grows`); compatible slot of that scenery not held by another session there; that garden's occupant becomes `displacedPlantId`; sets `settings.lastGoalMinutes`); the previous active one moves to `waiting`, paused at `now` |
 | `session/switch` | `id, now` | the waiting session `id` becomes active and resumes (its wait goes into `pausedTotalMs`); the active one waits, paused |
 | `session/pause` | `now` | pause the active session (focus or break) |
 | `session/resume` | `now` | resume it; adds the paused span to `pausedTotalMs` |
@@ -498,12 +513,12 @@ Also: `sessionPhase(state, now)` (of the active session) → `'idle' | 'focus' |
 (`core/rewards.ts`).
 
 ### Session controller (`src/core/controller.ts`, ADRs 0032, 0036, 0150–0153, 0240)
-`createSessionController({ store, clock, bus, species, slots? /* sceneryId => Slot[], or the default scenery's list */, ticker?, seed? })` is the **single
+`createSessionController({ store, clock, bus, species, speciesIn? /* sceneryId => its flora; default every species */, slots? /* sceneryId => Slot[], or the default scenery's list */, ticker?, seed? })` is the **single
 API the UI and widget use**: `start({ taskName, goalMinutes, planId?, speciesId, sceneryId?, slotId }) => boolean`
 (the new session becomes active; the active one waits), `pause()`, `resume()`, `rename(id, taskName)`, `switchTo(id)`,
 `water()`, `skipBreak()`, `cancel(id?)`, `check()`, `nextFocusWatering()`, `recommendPlans(min)`,
-`selectableSpecies(min) => { species, locked, requiredMinutes, earned }[]`,
-`placementOptions(speciesId, sceneryId?) => { slot, occupiedBy? }[]` (that garden, default the one on view; held slots left out),
+`selectableSpecies(min, sceneryId?) => { species, locked, requiredMinutes, earned }[]` (that garden's flora, default the one on view; tiers stay global),
+`placementOptions(speciesId, sceneryId?) => { slot, occupiedBy? }[]` (that garden, default the one on view; held slots left out; `[]` for a species it does not grow),
 `showScenery(id)`, `retireTip(id, reason = 'used')`, `updateSettings(patch)`, `announceFauna(id, sceneryId?)`,
 `status() => { phase, session, timeline, pausedForMs, longPause, sessions, canStart, maxSessions }`
 (`sessions`: every session in progress, oldest first, as `{ session, sceneryId, timeline, active, running,
@@ -666,9 +681,10 @@ with others in progress the new one becomes active, null at the limit), `startSe
 totalRemainingMs, growth, pausedAt, focusWaterings), `switchTo(id)`, `log()`, `nextFocusWatering()`,
 `focusWater()` (jump to the next automatic watering and play it),
 `pause()`, `resume()`, `water()`, `skipBreak()`, `cancel(id?)`, `toBreak()`, `skipToBlock(i)`,
-`completeSession()` (these jump the dev clock), `plans(min)`, `selectableSpecies(min)`,
-`placementOptions(speciesId?, sceneryId?)`, `addPlants(n, tier?, sceneryId?)` (finished plants with task names, in the
-garden on view by default), `setState(partial)` (validated; a plant's `sceneryId` may be left out), `status()`, `flush()`, `exportState()`, `importState(json)`.
+`completeSession()` (these jump the dev clock), `plans(min)`, `selectableSpecies(min, sceneryId?)`,
+`flora(sceneryId?)` (the ids a garden offers, ADR 0250), `placementOptions(speciesId?, sceneryId?)`,
+`addPlants(n, tier?, sceneryId?)` (finished plants with task names, of that garden's flora, in the
+garden on view by default; `start` too picks from the garden's flora), `setState(partial)` (validated; a plant's `sceneryId` may be left out), `status()`, `flush()`, `exportState()`, `importState(json)`.
 
 Scene (`src/scene/debug.ts`): `slots()`, `sceneStats()` (paints, rescales, per-step timings with
 each step's parts and longest part, the paint's `longest` uninterrupted part, ADR 0226; `cacheHits`, `cacheMisses`, `lastLookupMs`: overview paintings taken from the paint cache, ADR 0228),
@@ -716,7 +732,7 @@ now) (docs/systems/fauna.md).
 
 Schedules (`src/dev/schedule-debug.ts`): `window.sprout.schedule` — `add(input?)`, `list()`,
 `occurrences(from?, to?)`, `due()`, `get(key)`, `jumpToDue(scheduleId?)`, `jumpPast(key)`, `edit(key, edit,
-scope?)`, `remove(key, scope?)`, `check()`, `fillHistory(days?, seed?, sceneryId?)`, `demo(opts?)`; `window.sprout.calendar`
+scope?)`, `remove(key, scope?)`, `check()`, `fillHistory(days?, seed?, sceneryId?)` (species of that garden's flora), `demo(opts?)`; `window.sprout.calendar`
 — `state()`, `setView(view)`, `go(date)` (docs/systems/calendar.md).
 
 Widget (`src/widget/dev.ts`, `installWidgetDebug`): `window.sprout.widget` — `supported()`,

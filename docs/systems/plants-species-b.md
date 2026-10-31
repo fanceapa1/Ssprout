@@ -22,7 +22,7 @@ each species' own section (`species-<id>`).
 All have `pollinators: true`; lotus and hydrangea reflect (water/shore habitats). The lotus fits
 exactly two garden slots, the large open-water `water-1` and `water-3`; when seedlings of other
 sessions in progress hold both, the planting sheet shows it full instead of offering it (ADR 0205,
-`src/plants/plantable.test.ts`).
+`src/scenery/flora.test.ts`).
 Each species file exports its pure builder (`buildPeony`, `buildHydrangea`, …) for tests.
 
 ## Approach: build once, reveal by growth (ADR 0064)

@@ -16,6 +16,9 @@ weather and the daylight are shared (owner decisions, phase 10).
 | `japanese-garden/light.ts` | `GARDEN_LIGHT_ART` (trees, shrubs, sky) and `ENGAWA_LIGHT`, the engawa's own light marks (its cast shadow, the lamp-lit shoji) |
 | `japanese-garden/ambience.ts` | `GARDEN_AMBIENCE`: dew boxes on the near banks, dawn mist bands 1–3, the veil to y 592 |
 | `japanese-garden/view.ts` | `GARDEN_VIEW`: focus (800, 560), the stepping stones' near edges for the guiding path |
+| `japanese-garden/flora.ts` | `GARDEN_FLORA` (a cultivated garden in warm Japan, see Flora) and `GARDEN_HABITAT_WORDS` ('on the water', 'at the pond’s edge'…; the UI's default) |
+| `waterfall/flora.ts` | `WATERFALL_FLORA`: a wild, cool montane gorge in Japan, see Flora |
+| `flora.test.ts` | each scenery's flora: the offer rule, every species has a home and a slot there, `also`/`except` ids, the garden's 25, the waterfall's 5, the released sceneries' balance (ADR 0250) |
 | `waterfall/layout.ts` | the waterfall's skyline (`SKYLINE`, `skylineAt`, `openSky`), `CLIFF`, `FAR_RIDGE`, `LEDGES` (with their scale), `CROWN_SCALE`, `WATERFALL_SKY_LAYOUT`, `FOCUS`, `WATERFALL_AMBIENCE`, `WATERFALL_HABITAT_WORDS` |
 | `waterfall/geometry.ts` | `FALLS`, `POOL`, `WATERLINE`, `STREAM_LINE` and `STREAM`, `ROCKS`, `TRAIL`, `waterfallScene` |
 | `waterfall/slots.ts` | `WATERFALL_SLOTS`: 49 slots, explicit scale on the cliff |
@@ -36,7 +39,7 @@ weather and the daylight are shared (owner decisions, phase 10).
 | `waterfall/rocks.test.ts` | the rock's steps, wet and mossy boulders, hash pins, slice bounds |
 | `waterfall/map.studio.ts` | studio `waterfall-map` (103): the composition map and the placeholder painting |
 | `registry.test.ts` | ids, registry, each scenery consistent with itself, the garden's numbers, `PAINT_ROOTS` |
-| `waterfall/waterfall.test.ts` | the waterfall's composition, slot, species, spacing and sky invariants |
+| `waterfall/waterfall.test.ts` | the waterfall's composition, slot, spacing and sky invariants |
 
 The Japanese garden's painters stay in `src/scene/` (docs/systems/scene.md): its geometry
 (`gardenScene`), its painting (`GARDEN_ART`, `gardenSteps`) and its sky (`GARDEN_SKY`).
@@ -52,6 +55,8 @@ interface Scenery {
   light: LightArt;                              // trees, shrubs, sky?, shadows?(p, rng, scene, shadow, pigment), lights?(p, rng, scene, phase)
   ambience: SceneryAmbience;                    // dew: Rect[]; mistBands: number[]; veilTo: number
   view: SceneryView;                            // focus: Pt; pathOut: Pt[] (nearest first)
+  flora: SceneryBiome;                          // realm, biomes, climate, cultivated, also?, except? (ADR 0250)
+  habitatWords: Record<Habitat, string>;        // how the planting sheet and placement name each habitat
 }
 ```
 A scenery is consistent with itself: `art.scenery === id`, `art.scene === geometry`,
@@ -59,7 +64,28 @@ A scenery is consistent with itself: `art.scenery === id`, `art.scene === geomet
 
 **Left out for now**, with the task whose consumer sets its shape: `fauna` (unlocks, roster,
 perspective; S11), `sound` (S15; `core/soundscape.ts` names its audio sceneries `SoundSceneryId`, `pond`
-and `coast`), `habitatWords` and `thumbnail` (S5), `surface` (the per-frame water animator; S9).
+and `coast`), `thumbnail` (S5), `surface` (the per-frame water animator; S9).
+
+## Flora (ADR 0250)
+Each scenery offers its own species, from where they really grow. Its `flora` is its place in the
+world: a realm, its biomes, a climate, whether people plant it (`cultivated`), and two escape
+hatches, `also` and `except`, for what biology alone cannot say (each id with a comment why). A
+species is offered when its `range` matches (docs/systems/plants.md › Flora). `main.ts` builds
+`floraLookup(species, id => getScenery(id).flora)` once: the controller's `speciesIn`, the
+reducer's `grows` and the dev hooks take it. The slot habitats (`water`, `shore`…) still decide
+*where in a scene* a plant goes; the flora decides *which scene*.
+
+| Scenery | Flora | Offers |
+|---|---|---|
+| Japanese garden | `japan · garden · warm-temperate`, cultivated | the 25 garden species (all `cultivatedIn: ['japan']`) |
+| Waterfall | `japan · montane-stream, wet-cliff, temperate-forest · cool-temperate`, wild; `except: ['wisteria']` (the sprite hangs from a trellis) | maidenhair fern, Japanese maple, violet, wild strawberry, silver grass; its own species come with the art tasks |
+
+**Adding a scenery**: give it a `flora` (extend `REALMS`, `BIOMES` or `CLIMATES` in
+`src/plants/biomes.ts` if it needs a new tag, one line each) and its `habitatWords`, then check
+`src/scenery/flora.test.ts`: once it is released (`available(new URLSearchParams())`) it needs
+10–30 species, at least 2 per tier, at least 2 for each habitat its slots have, and at least 6
+offered nowhere else. Its own species carry a wild `range` without `cultivatedIn`, so they stay
+out of the Japanese garden.
 
 ## Who reads what
 Each consumer takes the scenery's part as an option and defaults to the Japanese garden's; at
@@ -301,8 +327,6 @@ both low suns are right of the buttress), warm light on the sun-facing rock and 
 and their spray. Grades stay global. Studio `waterfall-daylight`.
 
 ### Left for later tasks
-- S5: `WATERFALL_HABITAT_WORDS` ('in the plunge pool', 'on the mossy ledges'…) once the
-  contract has habitat words.
 - S11: a fauna perspective per scenery. `perspectiveFit(slots)` fits a line through (y, scale),
   which the ledges bend.
 
@@ -313,7 +337,7 @@ and their spray. Grades stay global. Studio `waterfall-daylight`.
   `pathOut`; the portrait crop; boulders off the falls; slot counts, ids and prefixes; slots in the
   world, out of the sky and off the falls; at most a fifth of the falls hidden; water slots on the
   water, land slots off it, shore slots near it; ledge, crown and ground slots and their scales;
-  stones and boulders; every species placeable, the lotus on 2 large pool slots; spacing at 1.25×
+  stones and boulders; the lotus-sized pool slots; spacing at 1.25×
   (distance, footprint overlap, cliff plants, tree crowns); the sun at 8–16°, the moon's arc and
   the stars in open sky; the sun clear of the tree crowns; the sky plates' band.
 - `src/scenery/waterfall/daylight.test.ts`: the sky and light wiring, the sun's centre and the
@@ -321,6 +345,11 @@ and their spray. Grades stay global. Studio `waterfall-daylight`.
   washes' outline clear of the plate's lower edge, `waterfall` in both plate keys.
 - `tests/e2e/sceneries.spec.ts` › the waterfall has its own daylight: night darker and bluer than
   noon, sky plates stored under `waterfall|` and taken from the cache on a second load.
+- `src/scenery/flora.test.ts` (ADR 0250): the offer rule (`growsIn`, `floraLookup`); every species
+  has a range and a scenery, and a slot in every scenery that offers it; `also`/`except` ids exist;
+  the fixtures grow everywhere; the Japanese garden's 25 (a pin) and the waterfall's 5 (the art
+  tasks extend it); released sceneries: 10–30 species, ≥ 2 per tier, ≥ 2 per slot habitat, ≥ 6
+  exclusive; the lotus on the garden's two large water slots.
 - `src/scenery/registry.test.ts`: ids, the registry and its fallback, self-consistency, the
   Japanese garden's focus, path and ambience numbers, `PAINT_ROOTS`.
 - `src/scene/geometry.test.ts`: the eave matches the engawa's frame; no streams, no falls, one

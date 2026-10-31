@@ -71,7 +71,7 @@ session discards its draft, so it cannot rename another session.
 | `duration.ts` | numeral + slider 10–180/5 + chips 25/50/90 + tier words |
 | `plan-line.ts` | plan as a segmented brush line (focus strokes, water-drop breaks); pure geometry `planSegments`, `xAtMinutes`, `planSummary` |
 | `placement.ts` | markers `button[data-slot-id]` for `controller.placementOptions(speciesId)`, swap markers, Back/Begin bar, `highlight` observable |
-| `herbarium.ts` | Pressed Flowers book: each pressed plant's own sprite, desaturated and laid flat, with dates |
+| `herbarium.ts` | Pressed Flowers book: each pressed plant's own sprite, desaturated and laid flat, with dates; one book for every garden, each specimen naming its garden once it holds more than one (ADR 0250) |
 | `garden-data.ts` | export (`study-sprout-garden-YYYY-MM-DD.json`) / import (validated, errors inline, confirm before replacing) |
 | `hints.ts` | ⓘ list of every tip incl. learned (retired) ones |
 | `tips.ts` | floating hint notes with leader lines, one at a time (ADR 0124), riding with the page (ADR 0181) |
@@ -207,6 +207,15 @@ The rest of the UI reads the garden on view: `deps.slots()` (placement markers' 
 camera's seedling framing, plant labels, `slotScreen`) and `deps.habitatWords?.()` (the planting
 sheet's habitat line, the markers' names and the placement prompt: "will grow in the plunge
 pool"). The camera frames a seedling only in the garden on view. Studio: `ui/garden-thumbs`.
+
+**Each garden's flora** (ADR 0250). The planting sheet lists `controller.selectableSpecies(min)`,
+which is the garden on view's flora: the waterfall's sheet shows only what grows wild in a
+mountain gorge (plus the `fx-*` fixtures, which grow everywhere). A card's habitat line names only
+the habitats the garden's slots have, in its words (`Scenery.habitatWords`; `GARDEN_HABITAT_WORDS`
+without `deps.habitatWords`). A native name's `lang` comes from the species (`nativeLang(def)`,
+default `ja-Latn`) on the sheet, the herbarium, the plant card and the plant view. The herbarium is one
+book across gardens: once it holds specimens from more than one, each says where it grew
+(`.specimen-garden`, "in the rocky waterfall"; `data-scenery-id` on the specimen).
 
 ## Flows
 ```

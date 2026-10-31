@@ -31,14 +31,15 @@ Look at it: studio sections **Plants · watering**, **· wither**, **· growth t
 | `plants.studio.ts` | studio sections |
 | `close-view.studio.ts` | studio: a plant over the hill line, overview sprite vs close sprite (ADR 0187) |
 | `registry.ts` | auto-discovery of `species/<id>.ts` (file name = id): `getSpecies`, `allSpecies`, `speciesByTier`, `buildRegistry` |
-| `types.ts` | `SpeciesDef`, `Tier`, `Habitat`, `SizeClass`, `TIERS`, `HABITATS`, `SIZE_CLASSES` |
+| `types.ts` | `SpeciesDef`, `Tier`, `Habitat`, `SizeClass`, `TIERS`, `HABITATS`, `SIZE_CLASSES`, `nativeLang(def)` |
+| `biomes.ts` | the flora vocabulary: `REALMS`, `BIOMES`, `CLIMATES` (one line per tag), `Range`, `EVERYWHERE` (ADR 0250) |
+| `flora.ts` | `SceneryBiome`, `growsIn`, `floraOf`, `floraLookup`: which species a scenery offers (ADR 0250) |
 | `species.studio.ts` | one studio section per registered species (`GROWTH_STAGES` + grow loop) |
 | `flora.studio.ts` | `flora/<scenery>`: each garden's species by tier at full bloom, one world scale (ADR 0251) |
 | `test-canvas.ts` | test-only fake canvases (`FakeCanvas`, `fakeContext`, `installFakeOffscreenCanvas`) |
 | `lib/` | shared species painting: `small-*` (tier 1–2 plants), `shrub-*` (tier 3), `tree-*` (tier 4); `suites.ts` (test-only: `smallSuite`, `shrubSuite`, `treeSuite`) |
 | `species/<id>.test.ts` | each species calls its family suite (ADR 0251) |
 | `view-prewarm.test.ts` | the view cache's worker, prewarm and deferred draws, the idle lane (ADRs 0220, 0221) |
-| `plantable.test.ts` | every species has a compatible garden slot; the lotus fits exactly `water-1`/`water-3` and has none only when seedlings hold both (Q1, ADR 0205) |
 
 ## Wiring (`src/main.ts`)
 ```ts
@@ -238,9 +239,51 @@ imports it. `notes.test.ts`: every species has a note and no note lacks a specie
 the style rules (2–3 sentences, ≤ 330 characters, no loud words) for every text, known scenery ids.
 The plant card still calls `speciesNote(id)` without the plant's scenery (left for F1's card change).
 
+## Flora (ADR 0250)
+Every species has a `range`: the realms, biomes and climates where it grows wild, and
+`cultivatedIn`, the realms whose gardens plant it. A scenery's `flora` profile picks the species
+whose range matches its realm, one of its biomes and its climate; a cultivated scenery (the
+Japanese garden) also takes what is planted in its realm. `also` and `except` on the profile cover
+what biology alone cannot say. Tag a species with where it really grows, in the form its sprite
+shows (a bred or trained form is cultivated only). The 25 garden species:
+
+| Species | Realms | Biomes | Climates | Why |
+|---|---|---|---|---|
+| anemone | east-asia | temperate-forest, grassland | warm | Chinese; naturalised near houses in Japan |
+| azalea | japan | montane-stream | warm | wild satsuki on river rocks of the warm south-west |
+| balloon-flower | japan, east-asia | grassland | warm, cool | sunny grassland |
+| black-pine | japan, east-asia | coast | warm | coastal |
+| camellia | japan, east-asia | temperate-forest, coast | warm | yabu-tsubaki of warm forest and sea cliffs |
+| chrysanthemum | — | — | — | a cultigen |
+| cosmos | neotropics | grassland | tropical-montane | Mexican highlands |
+| dandelion | europe | grassland | oceanic, cool | the European kind, introduced in Japan |
+| forget-me-not | europe | wetland, montane-stream | oceanic, cool | an invasive escape on Japanese rivers |
+| ginkgo | east-asia | temperate-forest | warm | relict Chinese forests; planted at temples |
+| hydrangea | japan | coast | warm | bred from the coastal gaku-ajisai |
+| japanese-iris | japan, east-asia | wetland | warm, cool | bred from nohanashōbu of wet meadows |
+| japanese-maple | japan, east-asia | temperate-forest, montane-stream | warm, cool | mountain woods and gorges |
+| lotus | japan, east-asia | wetland | warm | still ponds and marshes |
+| maidenhair-fern | japan, east-asia | temperate-forest, montane-stream, wet-cliff | cool | spray and wet rock |
+| plum-blossom | east-asia | temperate-forest | warm | Chinese, long planted |
+| spider-lily | east-asia, japan | wetland | warm | on paddy banks since antiquity |
+| susuki-grass | japan, east-asia | grassland, temperate-forest, coast | warm, cool | sunny banks, clearings, cliff tops |
+| tree-peony | east-asia | temperate-forest | cool | bred from wild Chinese mountain peonies |
+| violet | japan, east-asia | grassland, temperate-forest | warm, cool | roadsides, mountain woods and rocks |
+| water-lily | japan, east-asia | wetland | warm, cool | hitsujigusa of ponds and moats |
+| weeping-cherry | — | — | — | the weeping form is only planted |
+| white-clover | europe | grassland | oceanic, cool | introduced in Japan |
+| wild-strawberry | japan | temperate-forest, alpine | cool, alpine | mountain meadows and forest paths |
+| wisteria | japan | temperate-forest | warm, cool | wild on valley edges (the waterfall excepts the trellised sprite) |
+
+Every one is also `cultivatedIn: ['japan']`. `nativeLang` (BCP 47, default `ja-Latn`) gives the
+native name's language to the planting sheet, the herbarium, the plant card and the plant view.
+The dev fixtures (`fx-*`) and the placeholder sprout have the `EVERYWHERE` range. Where each
+scenery stands: docs/systems/scenery.md › Flora.
+
 ## How species integrate
-Drop `species/<id>.ts` with its `species/<id>.test.ts` and `notes/<id>.ts` (see
 [species-recipe.md](species-recipe.md) and ARCHITECTURE › Species). The system relies only on: `size`/`anchor`
+Drop `species/<id>.ts` (see ARCHITECTURE › Species), with its `range`. The system relies only on: `size`/`anchor`
+Drop `species/<id>.ts` with its `species/<id>.test.ts` and `notes/<id>.ts` (see
 (box and base), `sizeClass` (sway), `habitats`/`reflect` (reflections) and `draw(p, rng, { w, h,
 growth })` being **deterministic for (seed, growth, w, h)** and painting inside its box (anything
 outside is clipped). `draw` must not touch `document`/`window` (it runs in workers). It is called
@@ -283,9 +326,12 @@ bounds, LRU budget/epoch/best, scheduling, workers incl. fallback and death), `d
 growth + look-ahead, easing, displacement, wither, watering, bloom, bounds, reflections,
 highlight, 50-plant budget, plantsReady waits for the store change, sprites and fade-in, "finished plants sway with the wind, and hold still under reduced
 motion"), `shadow.test.ts` (cast shadow length, side, pool), `view.test.ts`, `hit-test.test.ts`,
+`notes.test.ts`, `registry.test.ts` (discovery, well-formed species, tiers, id/file
 `notes.test.ts`, `species/<id>.test.ts` (each species' family suite from `lib/suites.ts`: 115 tests,
 726,075 assertions, as many as the family files they replaced), `registry.test.ts` (discovery, well-formed species, tiers, id/file
+garden slots), `view-prewarm.test.ts` (whenReady, lazy workers, the idle lane, prewarm =
 match), `plantable.test.ts`, `view-prewarm.test.ts` (whenReady, lazy workers, the idle lane, prewarm =
+match), `src/scenery/flora.test.ts` (each scenery's flora, every offered species has a slot there; the lotus's two
 draw specs, pending → drawn, growth-framing follow-up, main-thread fallback, the real worker module
 painting the same strokes as the main thread). E2E: `tests/e2e/plants.spec.ts` (watering, wither, bloom + reload,
 reflection, placement highlight, bounds + budget; the growth test runs in a reduced-motion block
