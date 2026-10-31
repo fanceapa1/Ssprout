@@ -159,16 +159,87 @@ export function randomPointInside(poly: readonly Pt[], rng: Rng, margin = 0, tri
 
 /**
  * Keep a moving point inside `poly` (with `margin`): if `p` is outside, return the nearest
- * point pulled `margin` inward toward the centroid; otherwise `p` itself.
+ * point pulled `margin` inward toward the centroid (or, where a notch faces away from the
+ * centroid, along the edge's inward normal); otherwise `p` itself.
  */
 export function containPoint(p: Pt, poly: readonly Pt[], margin: number, centre = polygonCentroid(poly)): Pt {
   if (insideWithMargin(p, poly, margin)) return p;
-  const { pt } = closestOnPolygon(p, poly);
+  const { pt, d: off } = closestOnPolygon(p, poly);
   const dx = centre.x - pt.x;
   const dy = centre.y - pt.y;
   const d = Math.hypot(dx, dy) || 1;
   const k = Math.min(margin, d * 0.9);
-  return { x: pt.x + (dx / d) * k, y: pt.y + (dy / d) * k };
+  const q = { x: pt.x + (dx / d) * k, y: pt.y + (dy / d) * k };
+  if (off < 1e-6 || pointInPolygon(q, poly)) return q;
+  const sign = pointInPolygon(p, poly) ? 1 : -1;
+  return { x: pt.x + ((p.x - pt.x) / off) * sign * margin, y: pt.y + ((p.y - pt.y) / off) * sign * margin };
+}
+
+/** Twice the signed area (positive: clockwise on screen, y down). */
+export function signedArea(poly: readonly Pt[]): number {
+  let a = 0;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) a += poly[j]!.x * poly[i]!.y - poly[i]!.x * poly[j]!.y;
+  return a;
+}
+
+/** The same polygon, wound clockwise on screen (so a nonzero clip of several is their union). */
+export function clockwise(poly: readonly Pt[]): Pt[] {
+  return signedArea(poly) >= 0 ? poly.map((p) => ({ ...p })) : [...poly].reverse().map((p) => ({ ...p }));
+}
+
+/**
+ * `poly` with an ellipse (`cx, cy, rx, ry`) bitten out of its edge: vertices inside are dropped and
+ * the bite follows the ellipse inside the polygon. For a bite at the edge (foam at a pool's back).
+ */
+export function carveEllipse(poly: readonly Pt[], e: { x: number; y: number; rx: number; ry: number }, steps = 14): Pt[] {
+  const n = poly.length;
+  const toU = (p: Pt): Pt => ({ x: (p.x - e.x) / e.rx, y: (p.y - e.y) / e.ry });
+  const toW = (p: Pt): Pt => ({ x: e.x + p.x * e.rx, y: e.y + p.y * e.ry });
+  const inside = (p: Pt) => {
+    const u = toU(p);
+    return u.x * u.x + u.y * u.y < 1;
+  };
+  const start = poly.findIndex((p) => !inside(p));
+  if (start < 0) return [];
+  const out: Pt[] = [];
+  let entry: number | null = null;
+  for (let k = 0; k < n; k++) {
+    const a = poly[(start + k) % n]!;
+    const b = poly[(start + k + 1) % n]!;
+    if (entry === null) out.push(a);
+    const ua = toU(a);
+    const ub = toU(b);
+    const dx = ub.x - ua.x;
+    const dy = ub.y - ua.y;
+    const qa = dx * dx + dy * dy;
+    const qb = 2 * (ua.x * dx + ua.y * dy);
+    const qc = ua.x * ua.x + ua.y * ua.y - 1;
+    const disc = qb * qb - 4 * qa * qc;
+    if (disc <= 0 || qa === 0) continue;
+    const ts = [(-qb - Math.sqrt(disc)) / (2 * qa), (-qb + Math.sqrt(disc)) / (2 * qa)].filter((t) => t > 0 && t < 1);
+    for (const t of ts) {
+      const u = { x: ua.x + dx * t, y: ua.y + dy * t };
+      const ang = Math.atan2(u.y, u.x);
+      if (entry === null) {
+        out.push(toW(u));
+        entry = ang;
+        continue;
+      }
+      // the arc from entry to exit that runs inside the polygon
+      let sweep = ang - entry;
+      while (sweep <= -Math.PI) sweep += 2 * Math.PI;
+      while (sweep > Math.PI) sweep -= 2 * Math.PI;
+      const mid = toW({ x: Math.cos(entry + sweep / 2), y: Math.sin(entry + sweep / 2) });
+      if (!pointInPolygon(mid, poly)) sweep -= Math.sign(sweep) * 2 * Math.PI;
+      for (let i = 1; i < steps; i++) {
+        const t2 = entry + (sweep * i) / steps;
+        out.push(toW({ x: Math.cos(t2), y: Math.sin(t2) }));
+      }
+      out.push(toW(u));
+      entry = null;
+    }
+  }
+  return out;
 }
 
 /** Pond plane ↔ world: the pond is seen at an angle, so plane y is stretched by 1/squash about `cy`. */

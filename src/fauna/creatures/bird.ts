@@ -335,7 +335,7 @@ export class Bird extends BaseCreature {
     if ((ground && layer !== 'entities') || (!ground && layer !== 'air')) return;
     const variant = this.id % 2;
     const parts = w.art.get(`bird:${this.species}:${variant}`, (res) => paintBird(res, 800 + variant * 7 + (this.species === 'wagtail' ? 3 : 0), this.species));
-    const ps = w.perspective(ground ? this.perch!.depth : this.y + 80) * 1.0;
+    const ps = w.perspective(ground ? this.perch!.depth : this.y + 80, this.x);
     ctx.save();
     ctx.translate(this.x, this.y);
     ctx.scale(ps * this.facing, ps);

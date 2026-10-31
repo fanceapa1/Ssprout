@@ -191,7 +191,7 @@ export class Dragonfly extends BaseCreature {
   draw(layer: LayerId, ctx: Ctx, w: FaunaWorld): void {
     if (layer !== 'air') return;
     const parts = w.art.get(`dragonfly:${this.body}`, (res) => paintDragonfly(res, 400 + this.body, this.body));
-    const ps = w.perspective(this.y + 60);
+    const ps = w.perspective(this.y + 60, this.x);
     ctx.save();
     ctx.translate(this.x, this.y);
     ctx.scale(ps, ps * 0.72);

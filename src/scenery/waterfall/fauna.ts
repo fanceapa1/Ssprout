@@ -5,6 +5,11 @@
  */
 import type { FaunaTable } from '../../core/fauna-unlocks';
 import type { SceneryFauna } from '../../fauna/habitat';
+import { pointInPolygon } from '../../fauna/math';
+import { ledgePerch, perchesOf, type Stand } from '../../fauna/targets';
+import { perspectiveScale } from '../../scene/slots';
+import { FALLS, POOL, ROCKS, STREAM, WATERLINE } from './geometry';
+import { CLIFF, CROWN_SCALE, LEDGES, skylineAt } from './layout';
 
 export const WATERFALL_FAUNA: FaunaTable = [
   {
@@ -145,5 +150,51 @@ export const WATERFALL_FAUNA: FaunaTable = [
   },
 ];
 
-/** What the waterfall tells its wildlife (targets come with S11 b3). */
-export const WATERFALL_WILDLIFE: SceneryFauna = { unlocks: WATERFALL_FAUNA };
+/** The foam at the falls' foot: an 84-unit disc on the water, seen at the pool's squash (0.36). */
+export const FOAM = { x: FALLS.foot.x, y: FALLS.foot.y + 6, rx: 84, ry: 30 };
+
+/** Boulders in or at the water's edge: the dipper's and the wagtail's. */
+const WET_ROCKS = new Set(['rock-foot', 'rock-pool-left', 'rock-outflow', 'rock-stream']);
+
+/** Wading spots on the pool's back edge right of the falls, clear of the spray and the foot boulder. */
+const STANDS: Stand[] = [
+  { x: 830, y: 620, facing: -1 },
+  { x: 880, y: 628, facing: -1 },
+  { x: 940, y: 646, facing: -1 },
+];
+
+/** Cliff scale knots (y, scale): each shelf height's mean edge y and its scale, top to bottom. */
+const SHELVES: readonly { y: number; s: number }[] = [...new Set(LEDGES.map((l) => l.scale))]
+  .sort((a, b) => a - b)
+  .map((scale) => {
+    const edges = LEDGES.filter((l) => l.scale === scale).flatMap((l) => l.edge);
+    return { y: edges.reduce((sum, q) => sum + q.y, 0) / edges.length, s: scale };
+  });
+
+/**
+ * Perspective at a world point: the ground's `perspectiveScale(y)`, but inside the cliff the scale
+ * of what stands there, from the crown under the skyline through the shelves to the cliff's foot.
+ */
+export function waterfallPerspective(x: number, y: number): number {
+  if (!pointInPolygon({ x, y }, CLIFF)) return perspectiveScale(y);
+  const knots = [{ y: skylineAt(x), s: CROWN_SCALE }, ...SHELVES, { y: WATERLINE, s: perspectiveScale(WATERLINE) }];
+  if (y <= knots[0]!.y) return knots[0]!.s;
+  for (let i = 1; i < knots.length; i++) {
+    const a = knots[i - 1]!;
+    const b = knots[i]!;
+    if (y <= b.y) return a.s + ((b.s - a.s) * (y - a.y)) / (b.y - a.y || 1);
+  }
+  return knots[knots.length - 1]!.s;
+}
+
+/** What the waterfall tells its wildlife: still pool minus the foam, the stream, ledges and wet rocks, heron stands. */
+export const WATERFALL_WILDLIFE: SceneryFauna = {
+  unlocks: WATERFALL_FAUNA,
+  water: { still: POOL, moving: [STREAM], avoid: [FOAM] },
+  perches: [
+    ...perchesOf({ rocks: ROCKS.filter((r) => WET_ROCKS.has(r.id)), path: [] }),
+    ...LEDGES.map((l) => ledgePerch(`ledge-${l.id}`, l.edge[0], l.edge[1])),
+  ],
+  stands: STANDS,
+  perspective: waterfallPerspective,
+};

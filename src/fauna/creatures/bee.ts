@@ -165,7 +165,7 @@ export class Bee extends BaseCreature {
     if (layer !== 'air' || this.state === 'wait') return;
     const variant = this.id % 3;
     const parts = w.art.get(`bee:${variant}`, (res) => paintBee(res, 600 + variant * 3));
-    const ps = w.perspective(this.y + 30);
+    const ps = w.perspective(this.y + 30, this.x);
     const flying = this.state !== 'land';
     ctx.save();
     ctx.translate(this.x, this.y);

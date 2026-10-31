@@ -124,7 +124,7 @@ export class Swallow extends BaseCreature {
     const burst = Math.sin(this.flapT * 1.7) > 0.2;
     const ph = (this.flapT * 9) % 1;
     const s = burst ? (ph < 0.5 ? parts.spread : parts.up) : parts.swept;
-    const ps = w.perspective(this.y);
+    const ps = w.perspective(this.y, this.x);
     ctx.save();
     ctx.translate(this.x, this.y);
     ctx.rotate(this.heading);

@@ -160,7 +160,7 @@ export function createFaunaSystem(opts: FaunaSystemOptions): FaunaSystem {
         habitat = ctx.scenery.fauna;
       }
       if (!sim) {
-        sim = new FaunaSim({ scene: ctx.scene, seed: opts.seed ?? ctx.clock.now(), reducedMotion: ctx.reducedMotion });
+        sim = new FaunaSim({ scene: ctx.scene, seed: opts.seed ?? ctx.clock.now(), reducedMotion: ctx.reducedMotion, habitat });
         const daylight = opts.daylight;
         if (daylight) sim.nightSource = (now) => daylight.at(now).night >= 0.5;
         store = ctx.store;
@@ -169,7 +169,7 @@ export function createFaunaSystem(opts: FaunaSystemOptions): FaunaSystem {
         });
         follow(ctx.store.get());
       } else {
-        if (sim.world.scene !== ctx.scene) sim.setScene(ctx.scene);
+        if (sim.world.scene !== ctx.scene || switched) sim.setScene(ctx.scene, habitat);
         if (switched) {
           sim.resetResidents();
           if (store) follow(store.get());

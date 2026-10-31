@@ -253,7 +253,7 @@ export class Heron extends BaseCreature {
     const want: LayerId = grounded ? 'entities' : 'air';
     if (layer !== want && !(grounded && layer === 'waterSurface')) return;
     const parts = w.art.get('heron', (res) => paintHeron(res, 1400));
-    const ps = w.perspective(grounded ? this.stand.y : this.y + 120);
+    const ps = w.perspective(grounded ? this.stand.y : this.y + 120, grounded ? this.stand.x : this.x);
     const crouch = this.state === 'crouch' ? Math.min(1, this.timer / 1.2) : 0;
     ctx.save();
     ctx.translate(this.x, this.y);

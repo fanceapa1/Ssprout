@@ -10,7 +10,8 @@ import type { Drawable, LayerId } from '../render/types';
 import type { Pt, Rect } from '../render/viewport';
 import type { SceneGeometry } from '../scene/geometry';
 import { creatureDef, creatureDefs } from './creatures/registry';
-import { easeOut, localHour, polygonBounds, polygonCentroid, rangeOf, toPlane } from './math';
+import type { SceneryFauna } from './habitat';
+import { carveEllipse, clockwise, dist, easeOut, localHour, polygonBounds, polygonCentroid, rangeOf, toPlane } from './math';
 import { rosterFor, type Roster, type RosterRow } from './roster';
 import { CALM_MODE, dueVisits, groupSize, isNight, residentTarget, visitTuning, type Census, type FaunaMode, type Schedule } from './schedule';
 import { ArtCache, drawSprite, paintSprite, type Sprite } from './sprite';
@@ -35,6 +36,8 @@ export interface SimOptions {
   /** keep residents and schedule visits (false: only what is spawned by hand — studio stages) */
   auto?: boolean;
   view?: Rect;
+  /** the scenery's wildlife data (water, perches, stands, perspective); default: from `scene` alone */
+  habitat?: SceneryFauna;
 }
 
 export interface SpawnOptions {
@@ -55,9 +58,16 @@ export interface FaunaListing {
   variant?: string;
 }
 
-function waterInfo(scene: SceneGeometry): WaterInfo {
-  const moving = scene.streams.map((s) => s.map((p) => ({ x: p.x, y: p.y })));
-  return { moving, clip: [scene.pond, ...moving].filter((p) => p.length >= 3) };
+/** The still water creatures live on (foam carved out) and all the water the layers clip to. */
+function watersOf(scene: SceneGeometry, habitat?: SceneryFauna): { still: Pt[]; water: WaterInfo } {
+  const spec = habitat?.water;
+  const copy = (poly: readonly Pt[]) => poly.map((p) => ({ x: p.x, y: p.y }));
+  const outline = copy(spec ? spec.still : scene.pond);
+  const still = (spec?.avoid ?? []).reduce((poly, foam) => carveEllipse(poly, foam), outline);
+  const moving = (spec ? spec.moving : scene.streams).map(copy);
+  const all = [outline, ...moving].filter((p) => p.length >= 3);
+  // several polygons are wound alike so that the nonzero clip is their union
+  return { still, water: { moving, clip: all.length > 1 ? all.map(clockwise) : all } };
 }
 
 /** Resident kinds, in the order upkeep keeps them (`CreatureDef.rank`). */
@@ -66,12 +76,18 @@ const RESIDENTS: readonly FaunaKind[] = creatureDefs()
   .sort((a, b) => (a.rank ?? 10) - (b.rank ?? 10) || a.kind.localeCompare(b.kind))
   .map((d) => d.kind);
 
-function pondInfo(scene: SceneGeometry): PondInfo {
-  const world = scene.pond.map((p) => ({ x: p.x, y: p.y }));
+function pondInfo(still: readonly Pt[]): PondInfo {
+  const world = still.map((p) => ({ x: p.x, y: p.y }));
   const centre = world.length ? polygonCentroid(world) : { x: 800, y: 560 };
   const squash = FAUNA_TUNING.pondSquash;
   const cy = centre.y;
   return { world, plane: world.map((p) => toPlane(p, cy, squash)), cy, squash, centre, bounds: polygonBounds(world) };
+}
+
+function perspectiveOf(scene: SceneGeometry, habitat: SceneryFauna | undefined, pond: PondInfo): FaunaWorld['perspective'] {
+  const own = habitat?.perspective;
+  if (!own) return perspectiveFit(scene.slots);
+  return (y, x = pond.centre.x) => own(x, y);
 }
 
 export class FaunaSim {
@@ -90,6 +106,7 @@ export class FaunaSim {
   private lookup: TargetLookup = () => undefined;
   private lively = false;
   private readonly seed: number;
+  private habitat: SceneryFauna | undefined;
   private nightApplied = false;
   /** simulation seconds (advanced by update; dev `step` and studio presimulation share it) */
   time = 0;
@@ -102,7 +119,9 @@ export class FaunaSim {
     this.auto = opts.auto ?? true;
     this.reduced = opts.reducedMotion ?? false;
     const scene = opts.scene;
-    const pond = pondInfo(scene);
+    this.habitat = opts.habitat;
+    const waters = watersOf(scene, opts.habitat);
+    const pond = pondInfo(waters.still);
     const mode: FaunaMode = { ...CALM_MODE, reduced: this.reduced };
     const sim = this;
     this.world = {
@@ -111,15 +130,15 @@ export class FaunaSim {
       noise: createSimplex2D(this.rng.fork('noise')),
       scene,
       pond,
-      water: waterInfo(scene),
+      water: waters.water,
       view: opts.view ?? { x: 0, y: 0, w: 1600, h: 1000 },
       mode,
       speed: this.reduced ? FAUNA_TUNING.reducedSpeed : 1,
       flowers: [],
-      perches: perchesOf(scene),
+      perches: opts.habitat?.perches ?? perchesOf(scene),
       pads: [],
       art: new ArtCache(),
-      perspective: perspectiveFit(scene.slots),
+      perspective: perspectiveOf(scene, opts.habitat, pond),
       stands: () => sim.heronStands(),
       ripple: (x, y, size, strength = 1) => sim.addRipple(x, y, size, strength),
       get creatures() {
@@ -128,14 +147,16 @@ export class FaunaSim {
     };
   }
 
-  /** Swap in new scene geometry (keeps creatures; residents are re-contained on their next step). */
-  setScene(scene: SceneGeometry): void {
+  /** Swap in new scene geometry and wildlife data (keeps creatures; residents are re-contained on their next step). */
+  setScene(scene: SceneGeometry, habitat: SceneryFauna | undefined = this.habitat): void {
     const w = this.world;
+    this.habitat = habitat;
+    const waters = watersOf(scene, habitat);
     w.scene = scene;
-    w.pond = pondInfo(scene);
-    w.water = waterInfo(scene);
-    w.perches = perchesOf(scene);
-    w.perspective = perspectiveFit(scene.slots);
+    w.pond = pondInfo(waters.still);
+    w.water = waters.water;
+    w.perches = habitat?.perches ?? perchesOf(scene);
+    w.perspective = perspectiveOf(scene, habitat, w.pond);
     this.refreshTargets();
   }
 
@@ -183,6 +204,12 @@ export class FaunaSim {
 
   private computeStands(): Stand[] {
     const w = this.world;
+    const given = this.habitat?.stands;
+    if (given) {
+      // the scenery's own wading spots, clear of lily pads when it can
+      const clear = given.filter((s) => w.pads.every((p) => dist(p, s) >= 50));
+      return clear.length > 0 ? clear : [...given];
+    }
     const avoid: Pt[] = [...w.pads, ...w.scene.rocks.map((r) => ({ x: r.x, y: r.y - r.h * 0.4 }))];
     // plants growing on the far bank would stand in its way; if they fill it, wade among them
     const slots = new Map(w.scene.slots.map((s) => [s.id, s]));

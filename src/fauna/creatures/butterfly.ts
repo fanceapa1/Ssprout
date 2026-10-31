@@ -252,7 +252,7 @@ export class Butterfly extends BaseCreature {
     if (layer !== 'air') return;
     const variant = this.id % 2;
     const parts = w.art.get(`butterfly:${this.species}:${variant}`, (res) => paintButterfly(res, 500 + variant * 10 + (this.species === 'white' ? 0 : 5), this.species));
-    const ps = w.perspective(this.y + 40);
+    const ps = w.perspective(this.y + 40, this.x);
     ctx.save();
     ctx.translate(this.x, this.y);
     ctx.scale(ps * 0.9, ps * 0.8);

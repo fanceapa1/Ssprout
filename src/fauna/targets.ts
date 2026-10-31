@@ -78,7 +78,8 @@ export function lilyPads(plants: readonly PlantInstance[], slots: readonly Slot[
 
 export interface Perch {
   id: string;
-  kind: 'rock' | 'stone';
+  /** a boulder's top, a stepping stone, or a shelf on a cliff */
+  kind: 'rock' | 'stone' | 'ledge';
   /** centre of the standing area; y is the surface there */
   x: number;
   y: number;
@@ -101,6 +102,13 @@ export function perchesOf(scene: Pick<SceneGeometry, 'rocks' | 'path'>): Perch[]
     out.push({ id: `stone-${i}`, kind: 'stone', x: s.x, y: s.y - s.ry * 0.15, spread: s.rx * 0.5, dome: s.ry * 0.1, depth: s.y + s.ry * 0.6 });
   });
   return out;
+}
+
+/** A flat shelf's top edge (`a` → `b`, world units) as a perch: birds stand along its middle 70 %. */
+export function ledgePerch(id: string, a: Pt, b: Pt): Perch {
+  const x = (a.x + b.x) / 2;
+  const y = (a.y + b.y) / 2;
+  return { id, kind: 'ledge', x, y, spread: Math.abs(b.x - a.x) * 0.35, dome: 0, depth: y + 1 };
 }
 
 /** Surface y of a perch at `x` (clamped to its spread). */

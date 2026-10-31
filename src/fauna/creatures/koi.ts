@@ -459,7 +459,7 @@ export class Koi extends BaseCreature {
     const near = 1 - smoothstep((this.deep - 0.25) / 0.6);
     const a = lerp(0.95, 0.5, this.deep) * this.alpha;
     if (a < 0.01) return;
-    const ps = w.perspective(this.y);
+    const ps = w.perspective(this.y, this.x);
     const pts = this.spine(w.t);
     // compose each variant at full opacity, then lay it down faded (no doubled alpha at seams)
     const R = this.len * 1.25;

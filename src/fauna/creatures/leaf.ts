@@ -113,7 +113,7 @@ export class Leaf extends BaseCreature {
   draw(layer: LayerId, ctx: Ctx, w: FaunaWorld): void {
     if (layer !== this.layer) return;
     const s = w.art.get(`leaf:${this.tint}`, (res) => leafSprite(res, this.tint));
-    const ps = w.perspective(this.y);
+    const ps = w.perspective(this.y, this.x);
     ctx.save();
     ctx.globalAlpha = this.alpha * (this.state === 'fall' ? 0.9 : 0.8);
     ctx.translate(this.x, this.y);

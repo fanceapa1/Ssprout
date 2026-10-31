@@ -5,7 +5,7 @@
 import { mix, PIGMENTS, type Painter } from '../../paint';
 import type { LayerId } from '../../render/types';
 import type { Pt } from '../../render/viewport';
-import { angleDiff, approach, containPoint, insideWithMargin, randomPointInside, rangeOf, TAU, toWorld } from '../math';
+import { angleDiff, approach, closestOnPolygon, containPoint, insideWithMargin, randomPointInside, rangeOf, TAU, toWorld } from '../math';
 import { paintSprite, type Sprite } from '../sprite';
 import { FAUNA_TUNING, SIZES, SPEEDS } from '../tuning';
 import { BaseCreature, type Ctx, type FaunaWorld } from '../types';
@@ -58,6 +58,12 @@ export function striderSprites(res: number, seed: number): { rest: Sprite; row: 
   };
 }
 
+/** 'open' roams the whole pond; 'margin' keeps near the edge (a plunge pool's quiet margins). */
+export const STRIDER_VARIANTS = ['open', 'margin'] as const;
+
+/** A margin strider stays within this of the still water's edge (pond-plane units). */
+const MARGIN_BAND = 70;
+
 export class Strider extends BaseCreature {
   readonly kind = 'strider' as const;
   readonly visitor = false;
@@ -69,12 +75,19 @@ export class Strider extends BaseCreature {
   private rest: number;
   private readonly look: number;
 
-  constructor(w: FaunaWorld) {
+  constructor(w: FaunaWorld, variants: readonly string[] = []) {
     super();
     this.p = randomPointInside(w.pond.plane, w.rng, FAUNA_TUNING.striderMargin * 2);
     this.heading = w.rng.range(0, TAU);
     this.rest = w.rng.range(1, 4);
     this.look = w.rng.int(0, 2);
+    if (variants.includes('margin')) {
+      this.variant = 'margin';
+      // start inside the band: pulled toward the nearest edge
+      const c = closestOnPolygon(this.p, w.pond.plane);
+      const keep = MARGIN_BAND * 0.6;
+      if (c.d > keep) this.p = { x: c.pt.x + ((this.p.x - c.pt.x) * keep) / c.d, y: c.pt.y + ((this.p.y - c.pt.y) * keep) / c.d };
+    }
     this.alpha = 0;
     this.state = 'rest';
     this.sync(w);
@@ -115,6 +128,7 @@ export class Strider extends BaseCreature {
       const h = this.heading + w.rng.gaussian(0, 1.1);
       const probe = { x: this.p.x + Math.cos(h) * 30, y: this.p.y + Math.sin(h) * 30 };
       let score = insideWithMargin(probe, plane, FAUNA_TUNING.striderMargin * 1.5) ? 1 : -2;
+      if (this.variant === 'margin') score -= Math.max(0, closestOnPolygon(probe, plane).d - MARGIN_BAND) / 20;
       score -= Math.abs(angleDiff(this.heading, h)) * 0.2;
       for (const o of w.creatures) {
         if (o instanceof Strider && o !== this) {
@@ -143,7 +157,7 @@ export class Strider extends BaseCreature {
     if (layer !== 'waterSurface' || this.alpha <= 0.01) return;
     const sp = w.art.get(`strider:${this.look}`, (res) => striderSprites(res, 300 + this.look));
     const s = this.state === 'skate' && this.timer < 0.18 ? sp.row : sp.rest;
-    const ps = w.perspective(this.y);
+    const ps = w.perspective(this.y, this.x);
     ctx.save();
     ctx.globalAlpha = this.alpha * 0.9;
     ctx.translate(this.x, this.y);
@@ -163,12 +177,13 @@ const strider: CreatureDef = {
   title: 'water striders',
   role: 'resident',
   rank: 1,
+  variants: STRIDER_VARIANTS,
   resident: (n, mode) => (n > 0 ? (mode.reduced ? FAUNA_TUNING.reducedStriders : FAUNA_TUNING.striders) : 0),
   needs: (w) => w.pond.world.length >= 3,
   spawn(w, s) {
     if (w.pond.world.length < 3) return [];
     const out: Strider[] = [];
-    for (let i = 0; i < s.count; i++) out.push(new Strider(w));
+    for (let i = 0; i < s.count; i++) out.push(new Strider(w, s.variants));
     return out;
   },
   sheet: {
