@@ -108,7 +108,7 @@ describe('each garden’s flora', () => {
 
   it('the waterfall shares exactly the five that grow wild in a mountain gorge', () => {
     // the art tasks add the waterfall's own species: extend this list with each one
-    expect(ids(offered(getScenery('waterfall')))).toEqual(['japanese-maple', 'maidenhair-fern', 'susuki-grass', 'violet', 'wild-strawberry']);
+    expect(ids(offered(getScenery('waterfall')))).toEqual(['iwatabako', 'japanese-maple', 'maidenhair-fern', 'susuki-grass', 'violet', 'wild-strawberry']);
   });
 
   describe.each(RELEASED.map((s) => [s.id, s] as const))('released: %s', (_, s) => {
