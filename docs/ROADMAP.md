@@ -154,14 +154,14 @@ Phase 12 art queue: one species or creature per task (atomic), 2–3 at a time, 
 | W3 | Iwakagami (*Shortia soldanelloides*): T1, mossy banks and ledges | `src/plants/species/iwakagami.ts` | done (devlog 75) |
 | W4 | Wasabi (*Eutrema japonicum*): T1, stream shore | `src/plants/species/wasabi.ts` | done (devlog 76) |
 | W5 | Kurinsō (*Primula japonica*): T2, stream banks | `src/plants/species/kurinso.ts` | in progress |
-| W6 | Baikamo (*Ranunculus nipponicus* var. *submersus*): T2, water, flowing | `src/plants/species/baikamo.ts` | queued |
+| W6 | Baikamo (*Ranunculus nipponicus* var. *submersus*): T2, water, flowing | `src/plants/species/baikamo.ts` | in progress |
 | W7 | Mizubashō (*Lysichiton camtschatcensis*): T2, water and shore | `src/plants/species/mizubasho.ts` | queued |
 | W8 | Hototogisu (toad lily, *Tricyrtis hirta*): T2, cliff foot | `src/plants/species/hototogisu.ts` | queued |
 | W9 | Yamabuki (*Kerria japonica*): T3 shrub | `src/plants/species/yamabuki.ts` | queued |
 | W10 | Taniutsugi (*Weigela hortensis*): T3 shrub | `src/plants/species/taniutsugi.ts` | queued |
 | W11 | Katsura (*Cercidiphyllum japonicum*): T4 tree | `src/plants/species/katsura.ts` | queued |
 | W12 | Tochinoki (*Aesculus turbinata*): T4 tree | `src/plants/species/tochinoki.ts` | queued |
-| C1 | Brown dipper (kawagarasu): bobs on wet rocks, walks under water (was S13) | `src/fauna/creatures/dipper.ts` | in progress |
+| C1 | Brown dipper (kawagarasu): bobs on wet rocks, walks under water (was S13) | `src/fauna/creatures/dipper.ts` | done (devlog 77; polish in C1b) |
 | C1b | Dipper polish (orchestrator review): the body reads as a smooth flat blob with a dot eye, more cartoon than watercolour; add plumage texture and edge variation, visible legs while wading, smoother flight frames | `src/fauna/creatures/dipper.ts` | queued |
 | C2 | Miyama-kawatombo damselfly | `src/fauna/creatures/kawatombo.ts` | in progress |
 | C3 | Iwana char in the plunge pool (was S12) | `src/fauna/creatures/iwana.ts` | queued |
