@@ -84,3 +84,5 @@ never used.
 | 73 | [W1: iwatabako (rock tobacco)](73-iwatabako.md) | The waterfall's first own species: hanging glossy tongue leaves on wet ledges, an arching red-brown scape with violet-pink stars; offered only at the waterfall |
 | 74 | [W2: daimonjisō (Daimonji saxifrage)](74-daimonjiso.md) | A rosette of round lobed leaves on wet rock with airy sprays of white 大 flowers; the shape reads close up, a white puff in the overview |
 | 76 | [W4: wasabi](76-wasabi.md) | A fountain of glossy heart leaves on long stalks at the stream edge, rhizome in the current, airy white crucifer sprays; veins draw out with the blade |
+| 75 | [W3: iwakagami (rock mirror)](75-iwakagami.md) | A tuft of round glossy bronze-rimmed leaves with nodding fringed rose bells on the ledges |
+| 77 | [C1: brown dipper](77-dipper.md) | The waterfall's resident bird: bobs and blinks on wet rocks, dives and walks under water, flies low down the stream; leaves at night |

@@ -109,6 +109,7 @@ striders; last keeps the visit order and so the seeds).
 Birds on a rock use the rock's base y (+1) rather than their feet y, so they draw in front of the
 rock entity they stand on (feet are on its top, which is above its base). On a ledge the depth is
 the edge's y (+1).
+- `dipper` (waterfall) on a perch or in the water → `entities` (depth: the perch's, or `max(rock depth, y)` in the water; clipped above the waterline), the part below the waterline and the whole bird when under → `underwater`, in flight → `air` (devlog 77).
 
 ## Creatures and behaviour
 | Kind (Japanese unlock id) | Behaviour |
@@ -123,6 +124,7 @@ the edge's y (+1).
 | `frog` | resident once `frog` unlocks (a water plant and 10 finished plants) **and** a lily pad exists (a water species in a water slot). Sits on the pad, throat pulses with breath, sometimes turns; every 240–700 s (`frogDive`) crouches and hops into open water (big ring), stays under 30–90 s (`frogAway`), climbs back. |
 | `swallow` (swallows) | visitor group of 1–3 sweeping one swooping cubic across the sky band, flap bursts and swept glides. Not in reduced motion. |
 | `heron` | rare visitor. Slow wingbeats in (the wing foreshortens through edge-on as it beats), glides down to a wading spot (the scenery's stands, or the far edge of the pond clear of boulders, pads and far-bank plants: `heronStands`, cached), stands 1.5–4 min: slow neck drift, craning forward, a rare step; crouches and leaves with slow beats. Faint reflection. |
+| `dipper` (waterfall: dipper) | resident ×1 by day (`resident` 0 at night: it flies off down the stream, back by day; on its perch from the start). Bobs in bursts of dips (legs bend, tail flicks), blinks a white eyelid; every 10–30 s it dives (walks down its rock to the water's edge, wades, sinks, 5–12 s under to 24–70 units on, emerges, floats, flies off), flies low and straight to another perch (rocks 4×, ledges 1×), or (rarely, after 90 s) goes away down the stream for 25–70 s. Only in `w.pond.world` and `w.water.moving`, never in the foam. |
 
 **Targets.** Flowers: finished plants whose species has `pollinators`, a seeded point in the top
 third of the sprite box (slot position + `size` × `scale` + `anchor`). Pads: water species in water
