@@ -16,7 +16,7 @@ const LEAF = '#6f9a6a';
 const DEEP = mix(LEAF, mix(PIGMENTS.olive, PIGMENTS.celadonDeep, 0.5), 0.55);
 const TIP = mix(LEAF, PIGMENTS.sageLight, 0.3);
 const GLAZE = PIGMENTS.celadon;
-const STALK = mix(LEAF, PIGMENTS.sageLight, 0.45);
+const STALK = mix(PIGMENTS.sageLight, LEAF, 0.35);
 
 /** Vertical squash of the water plane, seen from the bank. */
 const FLAT = 0.42;
@@ -277,11 +277,11 @@ function drawBlossoms(p: Painter, rng: Rng, plan: BaikamoPlan, g: number) {
     const h = b.stalk * easeOut(budK);
     const top = { x: water.x + b.lean * h, y: water.y - h };
     p.ripple({ x: water.x, y: water.y + 0.3 }, { rng: rng.fork(`ring-${i}`), width: 6.5 * easeOut(budK), count: 1, squash: 0.3, opacity: 0.3 * budK, light: 0.4, lineWidth: 0.35 });
-    p.stroke([water, { x: (water.x + top.x) / 2 + b.lean * 0.4, y: (water.y + top.y) / 2 }, top], { rng: rng.fork(`stalk-${i}`), pigment: STALK, width: 0.34 * budK, taper: [0.1, 0.3], wobble: 0.1, wetness: 0.3, opacity: 0.8, edge: 0.3 });
+    p.stroke([water, { x: (water.x + top.x) / 2 + b.lean * 0.4, y: (water.y + top.y) / 2 }, top], { rng: rng.fork(`stalk-${i}`), pigment: STALK, width: 0.28 * budK, taper: [0.1, 0.3], wobble: 0.1, wetness: 0.3, opacity: 0.6, edge: 0.3 });
     const ok = ease(g, b.open[0], b.open[1]);
     const fade = 1 - smooth(ok / 0.5);
     if (visible(fade)) {
-      const bud = mix(mix(PIGMENTS.sageLight, STALK, 0.3), PIGMENTS.petalWhite, smooth(budK) * 0.55);
+      const bud = mix(PIGMENTS.sageLight, PIGMENTS.petalWhite, 0.35 + smooth(budK) * 0.45);
       p.dab({ x: top.x, y: top.y + 0.2 }, bud, { rng: rng.fork(`bud-${i}`), variant: 'round', angle: UP + b.lean, length: lerp(0.3, 1.5, budK), width: lerp(0.3, 1.25, budK), opacity: 0.92 * fade, edge: 0.4, blend: 'source-over' });
     }
     if (visible(ok)) open.push({ id: i, c: top, petals: b.petals, view: { tilt: b.tilt, roll: UP + b.lean * 0.3 }, size: b.size, open: ok });
