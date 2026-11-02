@@ -169,3 +169,93 @@ runs an eval file. `npm run shots` was used for r1.
   - `tests/e2e/studio.spec.ts`;
   - the close view frames the tree's foot, so the crown is cropped at the top. The slot focus is
     not the species' to change.
+
+## W11b polish
+The review: in the waterfall overview the crown read as a handful of gold-and-pink tufts on visible
+grey sticks, with sky between them, and it cost 80 ms at 1.6×.
+
+### What changed
+- **Crown body:** `paintPadMass` is gone. Each pad now lays a large soft blot in one source-over
+  wash at soft resolution (`paintBlots` in `katsura-paint.ts`, flood 0.95, so overlaps merge into
+  one wash, opacity 0.92). The wash covers the limbs and twigs inside the crown: they show only
+  faintly. The ring of grey stems below the crown is unchanged.
+- **Clumps:** the limb tips are thinned to clump centres (spaced 0.4 of the crown's half-width).
+  Each pad gets a `lit` value (−1 … 1) from its place in its clump and in the whole dome, so each
+  clump has a lit top and a shaded underside. A second `paintBlots` pass (multiplied) lays the
+  shade under each clump in three nested rings, so it fades out wet-in-wet instead of making discs.
+- **Sky holes:** 1–2 per tree (`plan.holes`), in the upper half of the crown, where they show sky.
+  They are lifted out of the wash and the shade, and no pad or heart sits in them. They open with
+  the foliage.
+- **Hearts:** about twice as many, a little larger (6.4–8.6 units), so they make the leaf texture
+  and the scalloped rim. Hearts in a clump's shade go toward the shadow tone, and the back hearts
+  are quieter (opacity 0.45, little edge darkening), so they no longer read as orange freckles.
+  The heart outline still reads at the rim, on the suckers and among the fallen leaves.
+- **Spring colour:** the young leaves now turn wine → a clear bronze (`#c9a777`) → blue-green.
+  Under the opaque wash, the straight wine-to-green mix went mauve-grey.
+- The design box, the range, the autumn colours and the growth windows are unchanged. Every mark
+  still grows in from nothing: the blots scale with their pad's arrival.
+
+### Paint time
+Main thread, headless Chromium, growth 1, 608×736 (1.6×), seeds 1–12, warm, under `nice`:
+- before: **82 / 87 ms** (median / max);
+- after: **63 / 70 ms** (three runs: 66/79, 64/70, 63/69).
+
+Without the clump-shade rings and the denser hearts it was about 50 ms. They were worth the cost.
+
+### Looked at
+All shots are in `artifacts/katsura-b/` (gitignored). They come from `sheet.mjs` (a studio-free sheet
+of seeds and growth steps) and `garden.mjs` (waterfall, katsura on `cliff-1` with seed 11 and on
+`bank-16` with seed 23). Both ran against my own dev server on port 5419.
+- **Before:**
+  - `r0-seeds.png`: seeds 1–8;
+  - `r0-wf.png` and `r0-wf-crop.png`: the overview, and both trees upscaled 3×. This is the
+    sparse, twiggy crown from the review.
+- **r1–r3** (`r1-seeds.png`, `r2-seeds.png`, `r2-zoom.png`, `r3-seeds.png`, `r3-wf-crop.png`):
+  - Per-pad blots were flat lozenges with freckles. → Larger, flooded blots.
+  - Holes that removed whole pads left big gaps. → The holes are lifted out instead.
+- **r4–r7** (`r4-growth.png`, `r6-zoom.png`, `r6-wf-crop.png`, `r7-seeds.png`, `r7-growth.png`):
+  - The crown reads as one mass.
+  - The unfurl at step 16 went mud. → The bronze midpoint (`r8-growth.png`, steps 14–19).
+- **r9–r11** (`r9-close.png`, `r9-close2.png`, `r10-close-crop.png`, `r11-close-crop.png`):
+  - Close, the shade blots read as stacked discs. → Nested rings.
+- **r12–r14, after:**
+  - `r13-seeds.png`: seeds 1–8;
+  - `r12-wf.png`, `r13-wf-crop.png`: the overview;
+  - `r11-close.png` / `r11-close-crop.png`: close on `cliff-1`;
+  - `r9-close2.png`: close on `bank-16`;
+  - `r12-sunset.png`, `r12-night.png`;
+  - `r14-phone.png`: phone, focused on `cliff-1`.
+
+**What reads well now:**
+- **Overview:** two full, rounded, clumped gold-and-pink clouds on rings of grey stems. Only a few
+  limbs show inside the crowns.
+- **Sunset:** the gold takes the warm light.
+- **Night:** muted apricot domes.
+- **Phone and close:** clump tops are lit and undersides shaded, with scalloped heart rims.
+- **Growth:** wine tips, rosy unfurl, bronze, blue-green, then gold.
+
+### Tests
+- `npm run typecheck` passes.
+- `VITEST_WORKERS=1 npx vitest run src/plants/species/katsura.test.ts src/scenery`: 11 files pass.
+- New test: the crown masses in clumps, with `lit` spanning lit and shaded within ±1. Each seed has
+  at most 2 sky holes, in the upper half, with no pad or heart inside.
+- No local e2e, as briefed.
+
+### For the orchestrator: species-table row
+`| \`katsura\` | Katsura · Katsura | 380×460 · tree | back, meadow | \`#e3a24c\` | no | a ring of 4–6 grey, slightly shaggy stems from one base, opening like a vase, with wine-red suckers at the foot; a full, rounded cloud of clumps (one soft wash over the twigs, lit tops, shaded undersides, a few sky holes) edged with round heart leaves in pairs; wine-red young growth, through bronze to blue-green, maturing to apricot-gold with patches of pink; fallen hearts (waterfall only) |`
+
+Under Helpers, add `paintBlots` (soft scalloped blots in one wet layer with holes lifted out:
+flood to merge overlaps, rings to fade out). Under Performance: `katsura | 608×736 (1.6×) |
+63 / 70 ms`, from the same main-thread probe.
+
+### Still open
+- **Twigs:** a few thin limbs still show faintly through the wash, most of all in pink lobes and
+  near the top where a tall stem ends.
+- **Flat interior:** close up, the crown's centre is a fairly even wash with heart dabs. The lobes
+  come from the shade, not from varied foliage marks. Some pad edges still show as soft colour
+  steps between gold and pink pads.
+- **Holes at the frame edge:** both tree slots sit at the scene's edges. A hole there shows the
+  pale dissolve at the edge, so at night it reads as a light chip.
+- **The olive turn:** around step 20, a pad between green and gold reads olive. This is natural,
+  but slightly dull.
+- **Not checked:** the worker paint time, the planting-sheet preview, `tests/e2e/studio.spec.ts`.
