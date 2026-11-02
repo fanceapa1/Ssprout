@@ -89,3 +89,4 @@ never used.
 | 78 | [W5: kurinsō (Japanese primrose)](78-kurinso.md) | A crinkled spoon-leaf rosette with 3–5 stacked whorls of magenta primroses opening bottom-up by the stream |
 | 79 | [C2: miyama-kawatombo damselfly](79-damselfly.md) | A jewel-green needle under smoky wings, fluttering slowly over the stream and perching wings-closed by the water |
 | 80 | [W6: baikamo (plum-blossom water weed)](80-baikamo.md) | Thread-fine tresses combed downstream under clear water, with small white blossoms at the surface |
+| 81 | [W7: mizubashō (Asian skunk cabbage)](81-mizubasho.md) | A white hood around a yellow-green club, standing in the shallows before its paddle leaves |
