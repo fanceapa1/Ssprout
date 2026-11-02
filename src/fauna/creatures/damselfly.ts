@@ -6,7 +6,7 @@
  * makes short sallies out over the water and back. Side view, painted facing right.
  */
 import type { Rng } from '../../core/rng';
-import { lighten, mix, PIGMENTS, smoothPolygon, type Painter, type Pigment } from '../../paint';
+import { blob, lighten, mix, PIGMENTS, smoothPolygon, type Painter, type Pigment } from '../../paint';
 import type { LayerId } from '../../render/types';
 import type { Pt } from '../../render/viewport';
 import { approach, clamp, closestOnPolygon, dist, insideWithMargin, isOffscreen, lerp, offscreenPoint, randomPointInside, springStep, TAU } from '../math';
@@ -175,36 +175,40 @@ function paintBody(p: Painter, c: Colours, sex: DamselflySex, legs: 'grip' | 'tu
   const tip = line[line.length - 1]!;
   p.dab({ x: tip.x + 0.2 * s, y: tip.y }, c.dark, { rng, variant: 'leaf', angle: Math.PI + (sex === 'male' ? -0.25 : 0.3), length: 1.3 * s, width: 0.55 * s, opacity: 0.85 });
 
-  // the thorax: stout and slanted, deep metallic green going near-black underneath
+  // the thorax: slanted (wings back, legs forward), deep metallic green going near-black below
   const thorax = smoothPolygon(
     [
-      { x: 3.0 * s, y: 0.7 * s },
-      { x: 1.6 * s, y: -0.35 * s },
-      { x: -0.4 * s, y: -0.2 * s },
-      { x: -1.6 * s, y: 0.8 * s },
-      { x: -1.5 * s, y: 1.9 * s },
-      { x: -0.4 * s, y: 2.6 * s },
-      { x: 1.4 * s, y: 3.0 * s },
-      { x: 2.8 * s, y: 2.3 * s },
+      { x: -1.5 * s, y: 0.35 * s },
+      { x: -0.3 * s, y: -0.4 * s },
+      { x: 1.1 * s, y: -0.2 * s },
+      { x: 2.2 * s, y: 0.7 * s },
+      { x: 2.9 * s, y: 2.1 * s },
+      { x: 2.2 * s, y: 3.0 * s },
+      { x: 0.6 * s, y: 3.05 * s },
+      { x: -0.6 * s, y: 2.4 * s },
+      { x: -1.4 * s, y: 1.5 * s },
     ],
     2,
   );
-  p.wash(thorax, c.body, { rng, opacity: 0.95, edge: 0.45, edgeWidth: 0.3, centreLift: 0.05, deform: 0.05, spread: 0.06, flow: 0.4, flowScale: 2, blend: 'source-over' });
-  p.glaze(thorax, c.dark, { rng, opacity: 0.75, edge: 0.2, edgeWidth: 0.3, deform: 0.06, fade: { angle: -Math.PI / 2 - 0.3, start: 0.35 } });
-  // a sheen along the shoulder, and a second, fainter, lower down: the metallic glint
-  p.dab({ x: 0.8 * s, y: 0.15 * s }, c.lift, { rng, variant: 'leaf', angle: -0.3, length: 2.4 * s, width: 0.5 * s, opacity: 0.7, blend: 'source-over', edge: 0.1 });
-  p.dab({ x: 0.3 * s, y: 1.5 * s }, mix(c.lift, PIGMENTS.gold, 0.2), { rng, variant: 'leaf', angle: -0.9, length: 1.6 * s, width: 0.35 * s, opacity: 0.35, blend: 'source-over', edge: 0.1 });
+  p.wash(thorax, c.body, { rng, opacity: 0.95, edge: 0.45, edgeWidth: 0.3, centreLift: 0.05, deform: 0.06, spread: 0.06, flow: 0.4, flowScale: 2, blend: 'source-over' });
+  p.glaze(thorax, c.dark, { rng, opacity: 0.75, edge: 0.2, edgeWidth: 0.3, deform: 0.06, fade: { angle: -Math.PI / 2 - 0.4, start: 0.35 } });
+  // the dark suture slanting down the side, then the metallic glint either side of it
+  p.inkLine([{ x: -0.2 * s, y: -0.1 * s }, { x: 0.9 * s, y: 1.4 * s }, { x: 1.7 * s, y: 2.9 * s }], { rng, width: 0.3 * s, opacity: 0.45, breaks: 0.2, wobble: 0.2, taper: [0.2, 0.3], pigment: c.dark });
+  // a sheen along the shoulder, a fainter one slanting down the side
+  p.dab({ x: 0.5 * s, y: 0.1 * s }, c.lift, { rng, variant: 'leaf', angle: 0.25, length: 2.4 * s, width: 0.5 * s, opacity: 0.7, blend: 'source-over', edge: 0.1 });
+  p.dab({ x: 0.2 * s, y: 0.9 * s }, mix(c.lift, PIGMENTS.gold, 0.2), { rng, variant: 'leaf', angle: 1.05, length: 2.0 * s, width: 0.32 * s, opacity: 0.35, blend: 'source-over', edge: 0.1 });
 
-  // the head: wide dark compound eyes over a small dark face
-  p.dab({ x: 3.6 * s, y: 2.0 * s }, c.dark, { rng, variant: 'round', angle: Math.PI / 2, length: 1.2 * s, width: 0.8 * s, opacity: 0.9 });
-  p.dab({ x: 3.35 * s, y: 1.15 * s }, c.eye, { rng, variant: 'round', angle: 0.4, length: 1.8 * s, width: 1.6 * s, opacity: 0.95, pool: 0.4 });
-  p.dab({ x: 3.6 * s, y: 0.8 * s }, PIGMENTS.petalWhite, { rng, variant: 'round', angle: 0, length: 0.4 * s, width: 0.3 * s, opacity: 0.5, blend: 'source-over' });
+  // the head, one wet shape over the thorax's front: a dark compound eye bleeding into the face
+  const head = blob(3.35 * s, 1.15 * s, 1.15 * s, 1.15 * s, rng, { irregularity: 0.12, rotation: 0.4 });
+  p.wash(head, c.eye, { rng, opacity: 0.96, edge: 0.5, edgeWidth: 0.25, centreLift: 0.08, deform: 0.04, spread: 0.05, flow: 0.4, flowScale: 1.5, blend: 'source-over' });
+  p.glaze(head, mix(c.dark, c.body, 0.35), { rng, opacity: 0.6, edge: 0.2, edgeWidth: 0.25, deform: 0.05, fade: { angle: -Math.PI / 2 - 0.5, start: 0.4 } });
+  p.dab({ x: 3.55 * s, y: 0.6 * s }, PIGMENTS.petalWhite, { rng, variant: 'leaf', angle: -0.5, length: 0.7 * s, width: 0.28 * s, opacity: 0.45, blend: 'source-over' });
 
   // long spiny legs: gripping the perch below, or folded under the thorax in flight
   const hips = [
-    { x: 2.0 * s, y: 2.8 * s },
-    { x: 1.0 * s, y: 3.0 * s },
-    { x: 0.0, y: 3.0 * s },
+    { x: 2.2 * s, y: 2.8 * s },
+    { x: 1.3 * s, y: 3.0 * s },
+    { x: 0.4 * s, y: 2.9 * s },
   ];
   const legPig = mix(PIGMENTS.sumi, c.dark, 0.3);
   hips.forEach((h, i) => {
@@ -378,7 +382,7 @@ export function perchSpots(w: Pick<FaunaWorld, 'pond' | 'water' | 'perches' | 'f
   for (const f of w.flowers) {
     if (!near({ x: f.x, y: f.baseY })) continue;
     // the target is high in the plant's box; the flower sprays it can cling to are lower
-    out.push({ id: f.plantId, kind: 'plant', x: f.x, y: lerp(f.y, f.baseY, 0.55), g: f.baseY, spread: Math.min(3, f.r * 0.3) });
+    out.push({ id: f.plantId, kind: 'plant', x: f.x, y: lerp(f.y, f.baseY, 0.65), g: f.baseY, spread: Math.min(3, f.r * 0.3) });
   }
   return out;
 }
