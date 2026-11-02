@@ -90,3 +90,4 @@ never used.
 | 79 | [C2: miyama-kawatombo damselfly](79-damselfly.md) | A jewel-green needle under smoky wings, fluttering slowly over the stream and perching wings-closed by the water |
 | 80 | [W6: baikamo (plum-blossom water weed)](80-baikamo.md) | Thread-fine tresses combed downstream under clear water, with small white blossoms at the surface |
 | 81 | [W7: mizubashō (Asian skunk cabbage)](81-mizubasho.md) | A white hood around a yellow-green club, standing in the shallows before its paddle leaves |
+| 82 | [W8: hototogisu (toad lily)](82-hototogisu.md) | Arching stems leaning from the rock with purple-freckled white stars in the leaf axils |

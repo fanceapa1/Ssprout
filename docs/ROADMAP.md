@@ -157,7 +157,8 @@ Phase 12 art queue: one species or creature per task (atomic), 2–3 at a time, 
 | W6 | Baikamo (*Ranunculus nipponicus* var. *submersus*): T2, water, flowing | `src/plants/species/baikamo.ts` | done (devlog 80) |
 | W6b | Baikamo polish: the sunset rim light lands on the underwater weed (needs a species opt-out on the shared type); bolder blossoms at overview size | `src/plants/species/baikamo.ts`, plants rim light | queued |
 | W7 | Mizubashō (*Lysichiton camtschatcensis*): T2, water and shore | `src/plants/species/mizubasho.ts` | done (devlog 81) |
-| W8 | Hototogisu (toad lily, *Tricyrtis hirta*): T2, cliff foot | `src/plants/species/hototogisu.ts` | in progress |
+| W8 | Hototogisu (toad lily, *Tricyrtis hirta*): T2, cliff foot | `src/plants/species/hototogisu.ts` | done (devlog 82; polish in W8b) |
+| W8b | Hototogisu polish (orchestrator review): too small and faint on its ledge, even in close view; bigger, whiter stars and a fuller clump so it holds its own beside the violet | `src/plants/species/hototogisu.ts` | queued |
 | W9 | Yamabuki (*Kerria japonica*): T3 shrub | `src/plants/species/yamabuki.ts` | queued |
 | W10 | Taniutsugi (*Weigela hortensis*): T3 shrub | `src/plants/species/taniutsugi.ts` | queued |
 | W11 | Katsura (*Cercidiphyllum japonicum*): T4 tree | `src/plants/species/katsura.ts` | queued |
