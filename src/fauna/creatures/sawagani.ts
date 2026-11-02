@@ -68,8 +68,8 @@ function colours(morph: SawaganiMorph): Colours {
   const shell = '#b5614a';
   return {
     shell,
-    light: mix(shell, PIGMENTS.ochre, 0.35),
-    deep: mix(mix(shell, PIGMENTS.crimson, 0.3), PIGMENTS.sumi, 0.35),
+    light: mix(shell, PIGMENTS.ochre, 0.18),
+    deep: mix(mix(shell, PIGMENTS.crimson, 0.35), PIGMENTS.sumi, 0.42),
     legs: mix(shell, PIGMENTS.vermilion, 0.3),
     claw: '#efe6d8',
     clawWarm: mix('#efe6d8', PIGMENTS.apricot, 0.45),
@@ -113,7 +113,7 @@ function paintCarapace(p: Painter, k: number, c: Colours): void {
   p.wetInWet(shell, c.light, c.shell, {
     rng,
     angle: Math.PI / 2 + 0.55,
-    split: 0.42,
+    split: 0.3,
     softness: 0.5,
     fingers: 0.45,
     opacity: 0.96,
@@ -128,12 +128,13 @@ function paintCarapace(p: Painter, k: number, c: Colours): void {
   const M = p.layer({ x: -6 * k, y: -5 * k, w: 12 * k, h: 8.5 * k });
   M.clip(shell);
   // the shell rounds off into deeper colour on its shaded right flank and along the front margin
-  M.fill(blob(5.0 * k, 0.6 * k, 3.4 * k, 4.4 * k, rng, { rotation: 0.25 }), c.deep, 0.3);
+  M.fill(blob(5.0 * k, 0.6 * k, 3.6 * k, 4.6 * k, rng, { rotation: 0.25 }), c.deep, 0.42);
   M.fill(blob(-5.2 * k, 0.6 * k, 1.6 * k, 3.2 * k, rng, { rotation: -0.2 }), c.deep, 0.18);
-  M.fill(blob(0.4 * k, 2.3 * k, 5.2 * k, 1.0 * k, rng), c.deep, 0.34);
+  M.fill(blob(0.4 * k, 2.2 * k, 5.4 * k, 1.3 * k, rng), c.deep, 0.42);
+  M.fill(blob(-0.6 * k, -2.0 * k, 3.0 * k, 1.4 * k, rng), c.shell, 0.25);
   M.dry({ opacity: 0.8, edge: 0, edgeWidth: 0.4 * k, sharpness: 0.1, flow: 0.5, flowScale: 2 * k, granulation: 0.3 });
   // wet gloss along the lit back edge
-  p.dab(P(-1.6, -2.7), PIGMENTS.petalWhite, { rng, variant: 'leaf', angle: 0.25, length: 2.2 * k, width: 0.55 * k, opacity: 0.45, blend: 'source-over', layers: 3 });
+  p.dab(P(-1.6, -2.7), PIGMENTS.petalWhite, { rng, variant: 'leaf', angle: 0.25, length: 1.6 * k, width: 0.4 * k, opacity: 0.3, blend: 'source-over', layers: 3 });
 }
 
 function paintEyes(p: Painter, k: number, c: Colours): void {
@@ -209,9 +210,9 @@ export interface SawaganiPose {
 
 export const REST_POSE: SawaganiPose = { gait: 0, bob: 0, tilt: 0, alert: 0, pickClaw: 0, pick: 0, raise: 0 };
 
-function drawClaw(ctx: Ctx, s: Sprite, k: number, side: 1 | -1, pick: number, lift: number): void {
+function drawClaw(ctx: Ctx, s: Sprite, k: number, side: 1 | -1, pick: number, lift: number, out = 0): void {
   ctx.save();
-  ctx.translate(side * SHOULDER.x * k, SHOULDER.y * k);
+  ctx.translate(side * (SHOULDER.x + out) * k, (SHOULDER.y - out * 0.6) * k);
   ctx.scale(side, 1);
   ctx.translate(0, pick * 1.2 * k);
   ctx.rotate(-lift + pick * 0.3);
@@ -240,7 +241,7 @@ export function drawSawagani(ctx: Ctx, parts: SawaganiParts, pose: SawaganiPose)
   const guard = pose.alert * 0.35;
   drawClaw(ctx, parts.small, k, -1, pose.pickClaw === 0 ? pose.pick : 0, guard);
   const up = pose.raise * pose.raise * (3 - 2 * pose.raise);
-  drawClaw(ctx, up > 0.5 ? parts.clawOpen : parts.claw, k, 1, pose.pickClaw === 1 ? pose.pick : 0, Math.max(guard, up * 1.7));
+  drawClaw(ctx, up > 0.5 ? parts.clawOpen : parts.claw, k, 1, pose.pickClaw === 1 ? pose.pick : 0, Math.max(guard, up * 1.25), up * 2.2);
   ctx.restore();
 }
 
@@ -304,9 +305,13 @@ function inView(p: Pt, w: Waters, margin: number): boolean {
   return p.x > v.x + margin && p.x < v.x + v.w - margin && p.y > v.y + margin && p.y < v.y + v.h - margin;
 }
 
-/** Off the stone, a spot is at the waterline (within a few units of it) and clear of the foam. */
+/** Keeps 40 units inside the view (less on a small studio stage). */
+const viewMargin = (w: Waters) => Math.min(40, w.view.w * 0.06);
+
+/** Off the stone, a spot is in the shallows or within a few units of the waterline, and clear of the foam. */
 function goodFoot(p: Pt, w: Waters): boolean {
-  return inView(p, w, 40) && waterlineDistance(p, w) <= 12 && !inFoam(p, w, 8);
+  const wet = pointInPolygon(p, w.pond.world) || w.water.moving.some((m) => pointInPolygon(p, m));
+  return inView(p, w, viewMargin(w)) && (wet || waterlineDistance(p, w) <= 12) && !inFoam(p, w, 8);
 }
 
 /** Every wet stone side a crab could live under: its door and foot spots at the waterline, none in or near the foam. */
@@ -322,7 +327,7 @@ export function crabHomes(w: Pick<FaunaWorld, 'pond' | 'water' | 'view' | 'scene
       for (const u of [0.14, 0.26, 0.38]) {
         for (const v of [0.1, 0.2]) {
           const q = { x: rock.x + side * rock.w * u, y: rock.y - rock.h * v, on: 'face' as const };
-          if (inView(q, w, 40) && !inFoam(q, w, 6)) spots.push(q);
+          if (inView(q, w, viewMargin(w)) && !inFoam(q, w, 6)) spots.push(q);
         }
       }
       for (const dx of [3, 9]) {
@@ -448,7 +453,10 @@ export class Sawagani extends BaseCreature {
     const night = w.mode.night;
     this.scale = w.perspective(this.home.rock.y, this.pos.x);
     this.alert = Math.max(0, this.alert - dt * 0.6);
-    if (this.state !== 'hidden') this.senses(dt, w);
+    if (this.state !== 'hidden') {
+      this.outFor -= dt;
+      this.senses(dt, w);
+    }
     this.moving = false;
     switch (this.state) {
       case 'hidden':
@@ -473,7 +481,7 @@ export class Sawagani extends BaseCreature {
         break;
       case 'forage':
         this.forage(dt, w);
-        if (this.leaving || this.timer > this.outFor) {
+        if (this.leaving || this.outFor <= 0) {
           this.homeward('sidle');
           this.go('return');
         }
