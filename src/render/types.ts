@@ -6,7 +6,10 @@ import type { Scenery } from '../scenery/types';
 import type { CameraView } from './camera';
 import type { Viewport } from './viewport';
 
-/** Back → front. `background` and `paper` are cached per resize; the rest redraw every frame. */
+/**
+ * Back → front. `background` and `paper` are cached per resize; the rest redraw every frame.
+ * `lights` comes after the light plate: living lights (fireflies) stay paper under the night (ADR 0280).
+ */
 export type LayerId =
   | 'background'
   | 'underwater'
@@ -15,6 +18,7 @@ export type LayerId =
   | 'air'
   | 'ambience'
   | 'lighting'
+  | 'lights'
   | 'paper';
 
 export const LAYERS: readonly LayerId[] = [
@@ -25,6 +29,7 @@ export const LAYERS: readonly LayerId[] = [
   'air',
   'ambience',
   'lighting',
+  'lights',
   'paper',
 ];
 

@@ -361,6 +361,7 @@ export class FaunaSim {
       return;
     }
     if (layer === 'air') for (const c of this.creatures) c.draw(layer, ctx, w);
+    else if (layer === 'lights') for (const c of this.creatures) c.drawLights?.(ctx, w);
   }
 
   entities(): Drawable[] {

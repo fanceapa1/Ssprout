@@ -83,6 +83,8 @@ export interface Creature {
   draw(layer: LayerId, ctx: Ctx, w: FaunaWorld): void;
   /** entities depth while on the ground, else null */
   depth(): number | null;
+  /** its own light, drawn after the light plate (the `lights` layer, ADR 0280): fireflies */
+  drawLights?(ctx: Ctx, w: FaunaWorld): void;
   /** go away now (night, unlocked no more…): exit naturally */
   leave(w: FaunaWorld): void;
 }

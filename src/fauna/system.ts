@@ -1,7 +1,7 @@
 /**
  * The garden's fauna as a render System: it follows the store (plants → unlocked creatures and
  * their targets), the session (a running session is a little livelier) and the clock (night),
- * and draws creatures into the underwater, waterSurface, entities and air layers.
+ * and draws creatures into the underwater, waterSurface, entities, air and lights layers.
  */
 import type { EventBus } from '../core/events';
 import { faunaSeenIn, faunaSeenKey, unlockedFauna, type FaunaUnlock } from '../core/fauna-unlocks';
@@ -86,7 +86,7 @@ export interface FaunaSystem extends System {
 /** Without a scenery in the context (unit tests), the Japanese garden's wildlife. */
 const DEFAULT_HABITAT: SceneryFauna = { unlocks: JAPANESE_FAUNA };
 
-const LAYERS_DRAWN: ReadonlySet<LayerId> = new Set(['underwater', 'waterSurface', 'air']);
+const LAYERS_DRAWN: ReadonlySet<LayerId> = new Set(['underwater', 'waterSurface', 'air', 'lights']);
 
 export function createFaunaSystem(opts: FaunaSystemOptions): FaunaSystem {
   let sim: FaunaSim | null = null;

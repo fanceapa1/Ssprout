@@ -102,6 +102,7 @@ describe('renderer', () => {
       'a:air',
       'a:ambience',
       'a:lighting',
+      'a:lights',
     ]);
     // cached layers are composited: background normally, paper with multiply, paper last
     expect(main.log).toEqual(['clear', 'drawImage:cache0:source-over', 'drawImage:cache1:multiply']);

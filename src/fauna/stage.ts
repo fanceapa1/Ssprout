@@ -278,8 +278,8 @@ export class Stage {
     }
   }
 
-  /** Advance and draw into a studio canvas (logical size × pixelRatio). */
-  render(canvas: HTMLCanvasElement, t: number, dt: number): void {
+  /** Advance and draw into a studio canvas (logical size × pixelRatio); `light` stands in for the light plate. */
+  render(canvas: HTMLCanvasElement, t: number, dt: number, light?: (ctx: CanvasRenderingContext2D) => void): void {
     const k = canvas.width / this.spec.w;
     this.sim.setResolution(k);
     const key = `${canvas.width}x${canvas.height}`;
@@ -316,6 +316,15 @@ export class Stage {
     }
     ctx.save();
     this.sim.draw('air', ctx);
+    ctx.restore();
+    if (light) {
+      ctx.save();
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      light(ctx);
+      ctx.restore();
+    }
+    ctx.save();
+    this.sim.draw('lights', ctx);
     ctx.restore();
     multiplyPaper(canvas);
   }
