@@ -98,7 +98,7 @@ export function planTochinoki(rng: Rng): TochinokiPlan {
     if (b.order > 1) continue;
     for (const f of b.order === 0 ? [1] : [0.55, 1]) {
       const q = pointAt(b, f);
-      pads.push({ x: q.x + (cx - q.x) * 0.25 + 4, y: q.y + 10, r: pr.range(22, 32), delay: Math.min(1, b.t1 * 0.5 + pr.range(0, 0.4)), id: pads.length, depth: pr.range(-1, 1), branch: b.id });
+      pads.push({ x: q.x + (cx - q.x) * 0.3 + 4, y: q.y + 2, r: pr.range(18, 27), delay: Math.min(1, b.t1 * 0.5 + pr.range(0, 0.4)), id: pads.length, depth: pr.range(-1, 1), branch: b.id });
     }
   }
 
@@ -108,13 +108,13 @@ export function planTochinoki(rng: Rng): TochinokiPlan {
   for (const b of tree.branches) for (const f of b.order === 0 ? [0.7, 0.85, 1] : [0.35, 0.55, 0.75, 1]) wood.push({ at: pointAt(b, f), t1: b.t1 });
   const xs = tips.map((t) => t.at.x);
   const ys = tips.map((t) => t.at.y);
-  const env = { x0: Math.min(...xs) - 14, x1: Math.max(...xs) + 14, y0: Math.min(...ys) - 12, y1: Math.max(...ys) + 26 };
+  const env = { x0: Math.min(...xs) - 22, x1: Math.max(...xs) + 22, y0: Math.min(...ys) - 12, y1: Math.max(...ys) + 26 };
   const ex = (env.x0 + env.x1) / 2;
   const ey = (env.y0 + env.y1) / 2;
   const rx = (env.x1 - env.x0) / 2;
   const ry = (env.y1 - env.y0) / 2;
   const hands: HandPlan[] = [];
-  const STEP = 19;
+  const STEP = 17;
   for (let gy = env.y0; gy <= env.y1; gy += STEP * 0.8) {
     for (let gx = env.x0; gx <= env.x1; gx += STEP) {
       const x = gx + hr.range(-0.45, 0.45) * STEP;
@@ -141,7 +141,7 @@ export function planTochinoki(rng: Rng): TochinokiPlan {
       }
       const out = Math.atan2(y - ey, x - ex);
       // rosettes on the upper dome carry the candles; the rest hang outward from their twigs
-      const top = y < ey + ry * 0.35 && (y < ey - ry * 0.2 ? topChance < 0.3 + 0.5 * d : d > 0.6 && topChance < 0.55);
+      const top = y < ey + ry * 0.35 && (y < ey - ry * 0.2 ? topChance < 0.2 + 0.45 * d : d > 0.6 && topChance < 0.55);
       const back = Math.hypot(near.at.x - x, near.at.y - y);
       const stalk = Math.min(back, 13);
       const twig = back > 0.1 ? { x: x + ((near.at.x - x) / back) * stalk, y: y + ((near.at.y - y) / back) * stalk } : { x, y: y + 1 };
@@ -178,9 +178,9 @@ export function planTochinoki(rng: Rng): TochinokiPlan {
 const LEAF = '#7e9550';
 const LEAF_SHADE = '#6d7c44';
 const BAND: Record<0 | 1 | 2, { pigment: Pigment; shade: Pigment }> = {
-  0: { pigment: mix(LEAF_SHADE, PIGMENTS.celadonDeep, 0.18), shade: shade(mix(LEAF_SHADE, PIGMENTS.shadow, 0.2), 0.25) },
-  1: { pigment: LEAF, shade: LEAF_SHADE },
-  2: { pigment: mix(LEAF, PIGMENTS.sap, 0.35), shade: LEAF_SHADE },
+  0: { pigment: shade(mix(LEAF_SHADE, PIGMENTS.celadonDeep, 0.2), 0.12), shade: shade(mix(LEAF_SHADE, PIGMENTS.shadow, 0.2), 0.3) },
+  1: { pigment: mix(LEAF, LEAF_SHADE, 0.4), shade: shade(LEAF_SHADE, 0.15) },
+  2: { pigment: mix(LEAF, PIGMENTS.sap, 0.12), shade: LEAF_SHADE },
 };
 const YOUNG = mix(PIGMENTS.sageLight, PIGMENTS.gold, 0.3);
 const BARK = mix(PIGMENTS.wood, PIGMENTS.sumi, 0.42);
