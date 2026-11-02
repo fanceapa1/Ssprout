@@ -110,7 +110,7 @@ export function paintHands(p: Painter, hands: readonly HandMark[], rng: Rng, dry
       L.fill(deformPolygon(lf.shadow, r, { depth: 1, variance: 0.05 }), h.shadePigment, a * 0.6);
       if (h.length > 7) {
         const vw = Math.max(0.14, h.length * 0.012);
-        L.lift(ribbon(lf.axis.slice(0, 9), (t) => vw * (1 - t * 0.8)), 0.2 * h.alpha);
+        L.lift(ribbon(lf.axis.slice(2, 9), (t) => vw * (1 - t * 0.8)), 0.16 * h.alpha);
       }
     }
     len += h.length;

@@ -184,7 +184,7 @@ const BAND: Record<0 | 1 | 2, { pigment: Pigment; shade: Pigment }> = {
 };
 const YOUNG = mix(PIGMENTS.sageLight, PIGMENTS.gold, 0.3);
 const BARK = mix(PIGMENTS.wood, PIGMENTS.sumi, 0.42);
-const INTERIOR = mix(mix(LEAF_SHADE, PIGMENTS.celadonDeep, 0.2), PIGMENTS.sumi, 0.15);
+const INTERIOR = shade(mix(LEAF_SHADE, PIGMENTS.celadonDeep, 0.15), 0.1);
 const CANDLE = { cream: '#f4ecd8', bud: mix(PIGMENTS.sageLight, '#f4ecd8', 0.35), pink: '#d47a6a', yellow: mix(PIGMENTS.gold, '#f4ecd8', 0.35), shade: mix(PIGMENTS.petalShade, PIGMENTS.sage, 0.25) };
 
 export interface TochinokiPose {
@@ -311,7 +311,9 @@ const tochinoki: SpeciesDef = {
     inUnits(p, SIZE, opts, () => {
       paintGroundShadow(p, plan.tree.base, 110, view, pr);
       paintSeed(p, plan.tree.base, g, pr, mix(PIGMENTS.wood, PIGMENTS.sumi, 0.25));
-      paintSkeleton(p, plan.tree, view, pr, { pigment: BARK, texture: 0.95, modelling: 0.75, flare: 0.55, wobble: 0.15 });
+      // limbs a little paler than the trunk, so the crown reads as leaves, not an X-ray of wood
+      paintSkeleton(p, plan.tree, view, pr.fork('limbs'), { pigment: BARK, texture: 0.5, modelling: 0.5, wobble: 0.15, opacity: 0.62, skipTags: ['trunk'] });
+      paintSkeleton(p, plan.tree, view, pr, { pigment: BARK, texture: 0.95, modelling: 0.75, flare: 0.55, wobble: 0.15, skipTags: [''] });
       paintCrownShade(
         p,
         plan.pads.map((pad) => {
