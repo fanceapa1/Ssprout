@@ -159,7 +159,7 @@ Phase 12 art queue: one species or creature per task (atomic), 2–3 at a time, 
 | W7 | Mizubashō (*Lysichiton camtschatcensis*): T2, water and shore | `src/plants/species/mizubasho.ts` | done (devlog 81) |
 | W8 | Hototogisu (toad lily, *Tricyrtis hirta*): T2, cliff foot | `src/plants/species/hototogisu.ts` | done (devlog 82; polish in W8b) |
 | W8b | Hototogisu polish (orchestrator review): too small and faint on its ledge, even in close view; bigger, whiter stars and a fuller clump so it holds its own beside the violet | `src/plants/species/hototogisu.ts` | queued |
-| W9 | Yamabuki (*Kerria japonica*): T3 shrub | `src/plants/species/yamabuki.ts` | queued |
+| W9 | Yamabuki (*Kerria japonica*): T3 shrub | `src/plants/species/yamabuki.ts` | in progress |
 | W10 | Taniutsugi (*Weigela hortensis*): T3 shrub | `src/plants/species/taniutsugi.ts` | queued |
 | W11 | Katsura (*Cercidiphyllum japonicum*): T4 tree | `src/plants/species/katsura.ts` | queued |
 | W12 | Tochinoki (*Aesculus turbinata*): T4 tree | `src/plants/species/tochinoki.ts` | queued |
@@ -167,7 +167,7 @@ Phase 12 art queue: one species or creature per task (atomic), 2–3 at a time, 
 | C1b | Dipper polish (orchestrator review): the body reads as a smooth flat blob with a dot eye, more cartoon than watercolour; add plumage texture and edge variation, visible legs while wading, smoother flight frames | `src/fauna/creatures/dipper.ts` | queued |
 | C2 | Miyama-kawatombo damselfly | `src/fauna/creatures/damselfly.ts` | done (devlog 79; phone read weak) |
 | C3 | Iwana char in the plunge pool (was S12) | `src/fauna/creatures/iwana.ts` | in progress |
-| C4 | Sawagani river crab | `src/fauna/creatures/sawagani.ts` | queued |
+| C4 | Sawagani river crab | `src/fauna/creatures/sawagani.ts` | in progress |
 | C5 | Kajika frog on the stream stones | `src/fauna/creatures/kajika.ts` | queued |
 | C6 | Iwatsubame (Asian house martin) along the cliff | `src/fauna/creatures/iwatsubame.ts` | queued |
 | C7 | Genji firefly (night only) | `src/fauna/creatures/firefly.ts` | queued |
