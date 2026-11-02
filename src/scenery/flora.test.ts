@@ -122,6 +122,7 @@ describe('each garden’s flora', () => {
       'violet',
       'wasabi',
       'wild-strawberry',
+      'yamabuki',
     ]);
   });
 
