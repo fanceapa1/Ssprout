@@ -63,8 +63,8 @@ function colours(): Colours {
     under: UNDER,
     flank: mix(UNDER, PIGMENTS.stoneDark, 0.3),
     rump: mix(PIGMENTS.petalWhite, UNDER, 0.25),
-    mud: mix(PIGMENTS.stoneWarm, PIGMENTS.woodLight, 0.45),
-    mudDark: mix(PIGMENTS.wood, PIGMENTS.stoneDark, 0.5),
+    mud: mix(PIGMENTS.stoneWarm, PIGMENTS.woodLight, 0.4),
+    mudDark: mix(PIGMENTS.stoneDark, PIGMENTS.wood, 0.35),
   };
 }
 
@@ -148,10 +148,10 @@ function paintWings(p: Painter, c: Colours, pose: Pose, below: boolean): void {
     const out = Math.atan2(tip.y - wrist.y * 0.5, tip.x);
     if (below) {
       // grey-brown underwing, the flight feathers darker toward the tip, light through them
-      p.wetInWet(shape, c.underwing, c.soot, { rng, angle: out, split: 0.45, softness: 0.55, fingers: 0.5, opacity: 0.86, edge: 0.4, edgeWidth: 0.5, deform: 0.07, granulation: 0.25, flow: 0.4, flowScale: 2, blend: 'source-over' });
+      p.wetInWet(shape, c.underwing, c.soot, { rng, angle: out, split: 0.45, softness: 0.55, fingers: 0.5, opacity: 0.86, edge: 0.4, edgeWidth: 0.5, deform: 0.07, granulation: 0.08, flow: 0.4, flowScale: 2, blend: 'source-over' });
     } else {
       // glossy blue-black coverts on the arm bleeding into sooty flight feathers
-      p.wetInWet(shape, c.sheen, c.soot, { rng, angle: out + side * 0.6, split: 0.4, softness: 0.45, fingers: 0.55, opacity: 0.96, edge: 0.45, edgeWidth: 0.45, deform: 0.07, granulation: 0.3, flow: 0.45, flowScale: 2, blend: 'source-over' });
+      p.wetInWet(shape, c.sheen, c.soot, { rng, angle: out + side * 0.6, split: 0.4, softness: 0.45, fingers: 0.55, opacity: 0.96, edge: 0.45, edgeWidth: 0.45, deform: 0.07, granulation: 0.1, flow: 0.45, flowScale: 2, blend: 'source-over' });
     }
     // two primaries hinted along the hand, broken
     for (let k = 0; k < 2; k++) {
@@ -169,7 +169,7 @@ function paintBack(p: Painter, c: Colours): void {
   // the cap and mantle darkest, a bluer sheen on the back
   p.wetInWet(body, c.back, c.sheen, { rng, angle: Math.PI, split: 0.35, softness: 0.4, fingers: 0.4, opacity: 0.97, edge: 0.3, edgeWidth: 0.6, deform: 0.05, blend: 'source-over' });
   // the white rump: a broad saddle over the lower back, spilling onto the flanks
-  const rump = smoothPolygon([P(-0.5, -1.4), P(-1.9, -2.4), P(-4.0, -2.2), P(-5.0, 0), P(-4.0, 2.2), P(-1.9, 2.4), P(-0.5, 1.4), P(-0.9, 0)], 2);
+  const rump = smoothPolygon([P(-1.1, -1.85), P(-2.6, -2.1), P(-4.0, -1.6), P(-4.5, 0), P(-4.0, 1.6), P(-2.6, 2.1), P(-1.1, 1.85), P(-1.6, 0)], 2);
   p.wash(rump, c.rump, { rng, opacity: 1, edge: 0.12, edgeWidth: 0.4, centreLift: 0, deform: 0.1, blend: 'source-over', layers: 7 });
   // the mantle's blue-black bleeding a little into its front edge, a cool shade toward the tail
   p.glaze(rump, c.back, { rng, opacity: 0.3, edge: 0.05, deform: 0.12, fade: { angle: Math.PI, start: 0.02, amount: 1, ragged: 0.8 } });
@@ -181,14 +181,17 @@ function paintBack(p: Painter, c: Colours): void {
 function paintBelly(p: Painter, c: Colours): void {
   const rng = p.rng;
   p.wetInWet(tailShape(), mix(c.soot, c.underwing, 0.3), c.soot, { rng, angle: Math.PI, split: 0.5, opacity: 0.88, edge: 0.55, edgeWidth: 0.5, deform: 0.06, blend: 'source-over' });
-  const body = bodyShape();
+  // from below: a fuller breast, the vent narrowing to the tail
+  const body = smoothPolygon([P(5.5, 0), P(5.0, -0.9), P(3.8, -1.5), P(1.8, -2.1), P(-0.6, -1.9), P(-2.8, -1.3), P(-4.0, 0), P(-2.8, 1.3), P(-0.6, 1.9), P(1.8, 2.1), P(3.8, 1.5), P(5.0, 0.9)], 2);
   // dusky white below, greyer on the flanks, the dark cap just showing at the bill
   p.wetInWet(body, c.under, c.flank, { rng, angle: Math.PI / 2, split: 0.5, softness: 0.6, fingers: 0.4, opacity: 0.96, edge: 0.3, edgeWidth: 0.6, deform: 0.05, blend: 'source-over' });
   p.glaze(body, c.flank, { rng, opacity: 0.18, edge: 0.1, deform: 0.05, fade: { angle: -Math.PI / 2, start: 0.35 } });
   // the dark cap reaching round the eyes to the bill, lost into the throat
-  p.glaze(blob(4.7 * K, 0, 1.2 * K, 1.4 * K, rng), c.back, { rng, opacity: 0.75, edge: 0.1, deform: 0.08, fade: { angle: Math.PI, start: 0.25, amount: 1, ragged: 0.6 } });
-  // white undertail coverts
-  p.dab(P(-3.4, 0), c.rump, { rng, variant: 'round', angle: Math.PI, length: 2.4 * K, width: 2.6 * K, opacity: 0.9, blend: 'source-over' });
+  p.glaze(blob(5.0 * K, 0, 0.75 * K, 0.95 * K, rng), c.back, { rng, opacity: 0.6, edge: 0.05, deform: 0.1, fade: { angle: Math.PI, start: 0.15, amount: 1, ragged: 0.6 } });
+  // the dusky wash across the breast
+  p.glaze(blob(2.0 * K, 0, 1.8 * K, 2.0 * K, rng), c.flank, { rng, opacity: 0.2, edge: 0.05, deform: 0.12, fade: { angle: Math.PI, start: 0.4 } });
+  // whiter undertail coverts, lost into the belly
+  p.glaze(blob(-3.0 * K, 0, 1.3 * K, 1.2 * K, rng), c.rump, { rng, opacity: 0.6, edge: 0.02, deform: 0.15, blend: 'source-over', fade: { angle: 0, start: 0.2 } });
 }
 
 /** At the cup, from behind: head up in the entrance (the origin), back and white rump, folded wings and tail below. */
@@ -211,13 +214,17 @@ function paintCling(p: Painter, c: Colours): void {
 
 /** A mud cup under an overhang, hanging from the origin: rows of pellets, the dark entrance on top. */
 function paintCup(p: Painter, c: Colours, rng: Rng): void {
-  const cup = smoothPolygon([P(-4.6, -0.2), P(4.6, -0.2), P(4.4, 2.0), P(3.3, 4.3), P(0.4, 5.9), P(-2.9, 4.6), P(-4.3, 2.2)], 2);
-  p.wetInWet(cup, c.mud, c.mudDark, { rng, angle: Math.PI / 2 + 0.3, split: 0.55, softness: 0.5, opacity: 0.92, edge: 0.55, edgeWidth: 0.5, deform: 0.1, granulation: 0.7, blend: 'source-over' });
+  // each cup its own lumpy bowl, a little lopsided
+  const wd = rng.range(3.8, 4.8);
+  const dp = rng.range(4.4, 6.2);
+  const lean = rng.range(-0.8, 0.8);
+  const cup = smoothPolygon([P(-wd, -0.2), P(wd, -0.2), P(wd * 0.96, dp * 0.34), P(wd * 0.72 + lean * 0.5, dp * 0.74), P(lean, dp), P(-wd * 0.66 + lean * 0.5, dp * 0.78), P(-wd * 0.94, dp * 0.36)], 2);
+  p.wetInWet(cup, c.mud, c.mudDark, { rng, angle: Math.PI / 2 + 0.3, split: 0.55, softness: 0.5, opacity: 0.92, edge: 0.5, edgeWidth: 0.5, deform: 0.22, granulation: 0.5, blend: 'source-over' });
   for (let row = 0; row < 4; row++) {
-    const y = 0.9 + row * 1.25;
-    const half = 4.0 - row * 0.85;
+    const y = 0.9 + row * dp * 0.2;
+    const half = (wd - 0.7) * (1 - row / 4.2);
     for (let x = -half; x <= half; x += rng.range(1.0, 1.4)) {
-      p.dab(P(x, y + rng.range(-0.2, 0.2)), rng.chance(0.5) ? mix(c.mud, c.mudDark, 0.6) : lighten(c.mud, 0.12), { rng, variant: 'round', angle: rng.range(0, TAU), length: rng.range(0.8, 1.2) * K, width: 0.7 * K, opacity: rng.range(0.12, 0.3), edge: 0.3 });
+      p.dab(P(x, y + rng.range(-0.2, 0.2)), rng.chance(0.5) ? mix(c.mud, c.mudDark, 0.6) : lighten(c.mud, 0.12), { rng, variant: 'round', angle: rng.range(0, TAU), length: rng.range(0.8, 1.2) * K, width: 0.7 * K, opacity: rng.range(0.06, 0.16), edge: 0.2 });
     }
   }
   // the entrance: a dark slot against the rock above
@@ -463,7 +470,7 @@ export class Martin extends BaseCreature {
     this.nestT = rng.range(3, IWATSUBAME_TUNING.nestGap[1]);
     this.flapT = rng.range(0, 10);
     this.ps = w.perspective(clamp(this.y, f.y, f.y + f.h), clamp(this.x, f.x, f.x + f.w));
-    this.belly = rng.chance(0.35);
+    this.belly = rng.chance(0.25);
     this.state = delay > 0 ? 'wait' : 'enter';
   }
 
@@ -503,7 +510,8 @@ export class Martin extends BaseCreature {
     this.bank = approach(this.bank, this.state === 'cling' ? 0 : k, 6, dt);
     if (this.bank > 0.7 && !this.edgeOn) {
       this.edgeOn = true;
-      if (this.rng.chance(0.55)) this.belly = !this.belly;
+      // mostly the dark back and white rump toward us, now and then the pale underside
+      this.belly = this.rng.chance(0.3);
     } else if (this.bank < 0.35) this.edgeOn = false;
   }
 
