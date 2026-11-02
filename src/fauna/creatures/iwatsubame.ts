@@ -1,9 +1,6 @@
 /**
- * Iwatsubame (イワツバメ, Asian house martin, Delichon dasypus): the waterfall's cliff swallows.
- * A loose flock swirls in arcs along the cliff face and through the falls' spray; now and then one
- * darts up under a ledge's overhang to its mud cup, clings there and drops away again. Stubby:
- * blue-black above with a bright white rump, dusky white below, a short shallow-forked tail.
- * Plan view against the cliff, painted facing right. docs/systems/fauna.md › Creatures and behaviour.
+ * Iwatsubame (Asian house martin): a loose flock swirling along the waterfall's cliff, darting up to mud
+ * cups under the ledges. Plan view, facing right. docs/systems/fauna.md › Creatures and behaviour.
  */
 import type { Rng } from '../../core/rng';
 import { blob, darken, lighten, mix, PIGMENTS, smoothPolygon, type Painter, type Pigment } from '../../paint';
