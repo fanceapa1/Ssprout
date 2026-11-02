@@ -120,3 +120,99 @@ server on port 5407. Shots in the waterfall are in `artifacts/shots/`.
 - **The tepal bases** have no yellow, though real *T. hirta* often has it there.
 - **Checks not made:** the worker paint time (measured on the main thread only) and the
   planting sheet preview.
+
+## W8b polish
+The orchestrator's review: on its ledge the toad lily was too small and faint, even in a close
+view. On `ledge-3` it was a thin spray, smaller than the violet beside it, and at overview size
+its stars blended into a pale lilac tint.
+
+### What changed
+- **A fuller clump:**
+  - 3–5 stems, up from 2–4, and longer (108–126).
+  - The side stems splay out lower and stand more upright than the main arch, so the clump fans
+    out like a fountain.
+  - The fit to the box now straightens an arch that reaches past the sides before it shortens
+    it. Stems keep their height. The side reach goes from 46 to 50 units.
+  - Leaves are about a quarter longer and wider (20–26 × 6.2–7.8), so they fill the clump.
+- **Bigger, whiter stars:**
+  - The tepals are about 45% larger: axil flowers 11–12.6 and tip flowers 10–11.2, up from
+    7.2–8.4 and 6.6–7.6.
+  - There are fewer of them: axil chance .24, a pair only 1 in 10, and mostly one at the tip.
+  - The shadow is closer and tighter round each tepal, so the white star has an edge against
+    pale rock.
+- **Bolder, fewer freckles:**
+  - 0–2 per tepal, down from 1–5, with a quarter of the tepals bare. They are larger (r 0.9–1.5)
+    and mostly crisp.
+  - They sit in the inner half of the tepal, so the tips stay clean paper-white.
+- **A touch of yellow at the tepal bases** (`gold` toward white). It replaces the violet flush,
+  as in real *T. hirta*. `StarStyle` gains `throat`.
+- **A paler column:** its lilac is more white, and it carries only the three arm dots. At
+  overview size the column and its dots had been adding most of the lilac cast.
+- **Continuity:**
+  - The bigger tepals made a tepal appear too large at the moment it opened (2.0 > 1.92 in the
+    suite).
+  - The tepals now swell from nothing over the first tenth of the opening, behind the fading bud.
+- **The box is unchanged** (medium, 120×160, .5/.9), so the slot and flora tests hold as they
+  were.
+
+### Looked at
+Shots are in `artifacts/shots/hototogisu-b/` (gitignored). They come from Playwright probes
+against my dev server on port 5418. The probe plants hototogisu on `ledge-3`, `ledge-8`, `cliff-2`
+and `bank-18`, with a violet on `ledge-4` and a daimonjisō on `ledge-9` for scale.
+- **Before:**
+  - `r0-close.png`: `focusSlot('ledge-3')`.
+  - `r0-wf.png`: the overview.
+  - `r0-sheet.png`: growth 0.2–1 × seeds 1–6, beside the violet and the daimonjisō at the same
+    scale.
+  - `r0-zoom.png`: seeds 1–6 at 3×.
+- **r1** (`r1-zoom.png`): the stars were bigger, but there were too many freckles, too large.
+  Flowers crowded into purple masses at the tips. → Fewer freckles; fewer axil flowers.
+- **r2** (`r2-zoom.png`, `r2-close.png`, `r2-wfzoom.png`): white freckled stars. But the
+  arch-fit shortened every stem, and the ledge clump read as a narrow upright bunch. → Straighten
+  before shortening; side stems splay lower.
+- **r3** (`r3-zoom.png`, `r3-close.png`): a fountain clump, clearly bigger than the violet. The
+  leaves were too sparse for the larger flowers. → Longer leaves.
+- **r4:**
+  - `r4-sheet.png`: growth × seeds.
+  - `r4-lights.png`: sunset and night, close.
+  - `r4-phone.png`: 390×844.
+  - `r4-wf.png`, `r4-wfzoom.png`, `r4-wfbank.png`: overview crops.
+  - At 3× the overview stars still had a lilac cast, from the lilac column, its four dots and the
+    violet-grey shadow. → A paler column, three dots, an olive-grey shadow.
+- **After:**
+  - `r5-close.png`, and `r5-closecmp.png` (before | after, close on `ledge-3`).
+  - `r5-wf.png`, and `r5-wfzoom.png` / `r5-wfzoom8.png` (before | r4 | after, `ledge-3` and
+    `ledge-8` at 4×).
+  - `r5-zoom.png`: seeds 1–6.
+
+**What reads well now:**
+- **Close:** a leafy fountain of arching stems, taller and wider than the violet. It carries big
+  white six-pointed stars with yellow hearts and a few bold purple freckles.
+- **Overview:** white stars with dark specks, no longer a lilac haze.
+- **Night:** the stars hold as pale freckled stars.
+- **Sunset:** they take the warm light.
+- **Distinctness:** still nothing like the daimonjisō's low rosette of unspotted 大 flowers.
+
+**Cost:** 22–37 ms at growth 1 for seeds 1–6 at 1.6×, timed on the main thread in the probe
+(budget 4–127 ms).
+
+### Tests
+- `npm run typecheck` passes.
+- `VITEST_WORKERS=1 npx vitest run src/plants/species/hototogisu.test.ts src/scenery`: 11 files,
+  120 tests pass. That includes continuity over 200 growths, the waterfall slots and the flora.
+- No local e2e, as briefed.
+
+### Species-table row for the orchestrator
+The box is unchanged; the description changes:
+`| \`hototogisu\` | Toad Lily · Hototogisu | 2 | rock, back | 120×160 · .5/.9 | \`#d9c7dc\` | yes | a fountain of 3–5 hairy stems leaning out and arching over, alternate clasping lance leaves; large upward-facing white six-tepalled stars in the upper axils and at the tips, yellow at the base, a few bold purple freckles round a pale column; a one-sided clump roots off-centre (waterfall only) |`
+
+Helper list: `hototogisu-paint.ts` `freckledStars` now takes a `throat` colour (the yellow at the
+tepal bases) in place of the violet flush.
+
+### Left open
+- **Main-thread timing only:** the worker paint time was not measured separately.
+- **Box edges:** some one-sided seeds (seed 4) still mass their flowers near the tip. The stems
+  reach 50 units from the anchor, 10 from the box's side; this was not checked against a ledge's
+  edge.
+- **Hairs** are still only the dry-brush halo.
+- **Not checked:** the planting-sheet preview and the studio e2e.
