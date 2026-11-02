@@ -146,6 +146,14 @@ describe('a night of fireflies', () => {
     expect(Math.max(...f.lights.map((L) => Math.hypot(L.vel.x, L.vel.y)))).toBeLessThan(15);
   });
 
+  it('a swarm spawned by hand stays by day (dev, studio)', () => {
+    const sim = waterfallSim(4, { hour: 12 });
+    sim.spawn('firefly');
+    run(sim, 120);
+    expect(swarms(sim)).toHaveLength(1);
+    expect(swarms(sim)[0]!.state).not.toBe('leave');
+  });
+
   it('goes dark at daybreak, one by one', () => {
     const sim = waterfallSim(4);
     run(sim, 200);
