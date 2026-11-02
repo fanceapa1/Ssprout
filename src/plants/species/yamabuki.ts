@@ -15,7 +15,7 @@ const CANE = '#8fa456';
 const LEAF = '#9bb25a';
 const GOLD = '#e5b02f';
 const GOLD_SHADE = '#c78f24';
-const BUD = mix('#b9c46a', GOLD, 0.15);
+const BUD = mix('#b9c46a', GOLD, 0.45);
 const PETAL = mix(GOLD, '#f4cf4a', 0.4);
 const PETAL_TIP = mix(GOLD, '#f6dc78', 0.5);
 
@@ -109,7 +109,7 @@ function flowerBloom(rng: Rng): Bloom {
 
 export function buildYamabuki(rng: Rng): Yamabuki {
   const lean: 1 | -1 = rng.chance(0.5) ? 1 : -1;
-  const n = rng.int(8, 11);
+  const n = rng.int(9, 12);
   // the crown sits a little back from the side the fountain leans over
   const foot = -lean * rng.range(6, 14);
   const green = jitter(LEAF, rng, 0.025);
@@ -241,7 +241,9 @@ export function poseYamabuki(plant: Yamabuki, g: number): YamabukiPose {
         const at = { x: lerp(node.x, tip.x, l.t), y: lerp(node.y, tip.y, l.t) };
         pose.leaves.push(leafMark(l, at, dir, k, c.band, (j + m) % 2, `sleaf-${i}-${j}-${m}`));
       });
-      const st = bloomState(g, f.bud, f.open);
+      const base = bloomState(g, f.bud, f.open);
+      // a plump bud: a little larger than the shared bud, settling as the flower opens
+      const st = { ...base, size: base.size + 0.25 * ramp(g, f.bud[0], f.bud[1]) * (1 - base.open) };
       if (st.size * k < 0.02) return;
       const centre = { x: tip.x + Math.cos(dir) * 1.2 * k, y: tip.y + Math.sin(dir) * 1.2 * k };
       pose.flowers.push({ id: `flower-${f.id}`, band: c.band, bloom: { ...f.bloom, x: centre.x, y: centre.y }, state: { ...st, size: st.size * k } });
