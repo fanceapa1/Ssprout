@@ -66,11 +66,11 @@ function planTepals(rng: Rng): Tepal[] {
   // some tepals are heavily freckled, some sparsely: dabbed, not stippled
   return Array.from({ length: 6 }, (_, i) => {
     const freckles: Freckle[] = [];
-    const n = rng.int(2, 6);
+    const n = rng.int(1, 5);
     const centres = [rng.range(0.25, 0.5), rng.range(0.45, 0.75)];
     for (let k = 0; k < n; k++) {
       const c = centres[k % 2]!;
-      freckles.push({ u: clamp01(c + rng.gaussian(0, 0.12)) * 0.9 + 0.05, v: Math.max(-0.85, Math.min(0.85, rng.gaussian(0, 0.42))), r: rng.range(0.6, 1.5), soft: rng.chance(0.4), tone: rng.next() });
+      freckles.push({ u: clamp01(c + rng.gaussian(0, 0.12)) * 0.9 + 0.05, v: Math.max(-0.85, Math.min(0.85, rng.gaussian(0, 0.42))), r: rng.range(0.6, 1.5), soft: rng.chance(0.5), tone: rng.next() });
     }
     return { a: rot + (i / 6) * Math.PI * 2 + rng.gaussian(0, 0.07), len: rng.range(0.92, 1.06), wid: rng.range(0.34, 0.42), curve: rng.gaussian(0, 0.08), freckles };
   });
@@ -106,7 +106,7 @@ export function planHototogisu(rng: Rng): HototogisuPlan {
     const leaves: LeafPlan[] = [];
     let alt: 1 | -1 = rng.chance(0.5) ? 1 : -1;
     for (let j = 0; j < nLeaves; j++) {
-      const t = lerp(0.14, 0.93, j / (nLeaves - 1)) + rng.gaussian(0, 0.015);
+      const t = lerp(0.14, 0.93, (j + rng.range(-0.3, 0.3)) / (nLeaves - 1));
       // longest a little below the middle, small toward the tip
       const size = Math.sin(Math.PI * lerp(0.25, 0.92, t)) * lerp(1, 0.55, t ** 2);
       leaves.push({ t, side: alt, turn: rng.range(0.42, 0.75), length: rng.range(15, 20) * size, width: rng.range(5, 6.4) * size, curve: alt * rng.range(0.04, 0.14), tone: jitter(mix(green, PIGMENTS.olive, rng.range(0, 0.3)), rng, 0.03) });
@@ -115,15 +115,15 @@ export function planHototogisu(rng: Rng): HototogisuPlan {
     stalks.push({ plan, window: [0.06 + i * 0.035, 0.58 + i * 0.03], leaves, width: main ? 1.25 : 1.05 });
     // flowers in the upper axils, often in pairs, and a few at the tip
     for (const l of leaves) {
-      if (l.t < 0.42 || !rng.chance(0.55)) continue;
-      const m = rng.chance(0.2) ? 2 : 1;
+      if (l.t < 0.3 || !rng.chance(0.36)) continue;
+      const m = rng.chance(0.15) ? 2 : 1;
       for (let k = 0; k < m; k++) {
-        blooms.push({ id: blooms.length, stem: i, t: l.t, side: l.side, ped: rng.range(1.5, 3.2) + k * 2.2, size: rng.range(5.6, 6.6), tilt: rng.range(0.42, 0.66), turn: rng.gaussian(0, 0.18), tepals: planTepals(rng), arms: [UP - rng.range(1.1, 1.5), UP + rng.gaussian(0, 0.25), UP + rng.range(1.1, 1.5)], bud: [0, 0], open: [0, 0] });
+        blooms.push({ id: blooms.length, stem: i, t: l.t, side: l.side, ped: rng.range(1.5, 3.2) + k * 2.2, size: rng.range(7.2, 8.4), tilt: rng.range(0.55, 0.8), turn: rng.gaussian(0, 0.18), tepals: planTepals(rng), arms: [UP - rng.range(1.1, 1.5), UP + rng.gaussian(0, 0.25), UP + rng.range(1.1, 1.5)], bud: [0, 0], open: [0, 0] });
       }
     }
-    const tip = rng.int(1, 2);
+    const tip = rng.chance(0.6) ? 1 : 2;
     for (let k = 0; k < tip; k++) {
-      blooms.push({ id: blooms.length, stem: i, t: 0.985, side: k % 2 ? 1 : -1, ped: rng.range(1, 2.4), size: rng.range(5.2, 6), tilt: rng.range(0.42, 0.62), turn: rng.gaussian(0, 0.2), tepals: planTepals(rng), arms: [UP - rng.range(1.1, 1.5), UP + rng.gaussian(0, 0.25), UP + rng.range(1.1, 1.5)], bud: [0, 0], open: [0, 0] });
+      blooms.push({ id: blooms.length, stem: i, t: 0.985, side: k % 2 ? 1 : -1, ped: rng.range(1, 2.4), size: rng.range(6.6, 7.6), tilt: rng.range(0.55, 0.75), turn: rng.gaussian(0, 0.2), tepals: planTepals(rng), arms: [UP - rng.range(1.1, 1.5), UP + rng.gaussian(0, 0.25), UP + rng.range(1.1, 1.5)], bud: [0, 0], open: [0, 0] });
     }
   }
   // buds form and open from the base of each stem outward
@@ -167,7 +167,7 @@ function drawStalk(p: Painter, rng: Rng, s: Stalk, gs: Grown) {
     const ny = Math.cos(node.angle) * l.side;
     const at = { x: node.x - nx * 0.6 * k, y: node.y - ny * 0.6 * k };
     paintLeaf(p, rng.fork(`leaf-${j}`), at, { angle, length: l.length, width: l.width, curve: l.curve, asym: 0.15 * l.side, k, fold: node.angle }, { pigment: l.tone, opacity: 0.8, vein: 0.14 });
-    p.dab(at, mix(l.tone, STEM, 0.3), { rng: rng.fork(`clasp-${j}`), variant: 'round', angle: node.angle, length: l.width * 0.55 * k, width: l.width * 0.4 * k, opacity: 0.55 * k, edge: 0.4, layers: 2 });
+    p.dab(at, mix(l.tone, STEM, 0.3), { rng: rng.fork(`clasp-${j}`), variant: 'round', angle: node.angle, length: l.width * 0.55 * k, width: l.width * 0.4 * k, opacity: 0.3 * k, edge: 0.25, layers: 2 });
   });
 }
 

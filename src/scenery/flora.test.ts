@@ -111,6 +111,7 @@ describe('each garden’s flora', () => {
     expect(ids(offered(getScenery('waterfall')))).toEqual([
       'baikamo',
       'daimonjiso',
+      'hototogisu',
       'iwakagami',
       'iwatabako',
       'japanese-maple',

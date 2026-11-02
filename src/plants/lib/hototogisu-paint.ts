@@ -94,26 +94,26 @@ export function freckledStars(p: Painter, rng: Rng, flowers: readonly StarFlower
   const all = open.map((f) => ({ f, ps: poses(f) }));
   const S = p.layer(s.area);
   for (const { f, ps } of all) {
-    const off = { x: f.c.x + f.size * 0.12, y: f.c.y + f.size * 0.42 };
+    const off = { x: f.c.x + f.size * 0.08, y: f.c.y + f.size * 0.22 };
     for (const q of ps) {
       p.dabInto(S, off, SHADOW, { rng: rng.fork(`sh-${f.id}-${q.j}`), variant: 'leaf', angle: q.angle, length: q.length * 1.04, width: q.width * 1.15, curve: q.curve, pool: 0.1, basePool: 0.2, layers: 2, asym: 0, jitter: 0 });
     }
   }
-  S.dry({ opacity: 0.26, edge: 0.2, edgeWidth: 0.25, sharpness: 0.35, centreLift: 0.05, granulation: 0.05 });
+  S.dry({ opacity: 0.15, edge: 0.2, edgeWidth: 0.25, sharpness: 0.35, centreLift: 0.05, granulation: 0.05 });
 
   const W = p.layer(s.area);
-  const flush = mix(PIGMENTS.petalShade, s.column, 0.45);
-  const soft = mix(s.freckle, PIGMENTS.petalWhite, 0.4);
+  const flush = mix(PIGMENTS.petalWhite, s.column, 0.5);
+  const soft = mix(s.freckle, PIGMENTS.petalWhite, 0.55);
   for (const { f, ps } of all) {
     const k = smooth(clamp01((f.open - 0.25) / 0.6));
     for (const q of ps) {
       const common = { variant: 'leaf' as const, angle: q.angle, curve: q.curve, asym: 0 };
-      p.dabInto(W, f.c, PIGMENTS.petalWhite, { ...common, rng: rng.fork(`p-${f.id}-${q.j}`), length: q.length, width: q.width, pool: 0.35, poolSide: shadowSide(q.angle), basePool: 0.12, layers: 3 });
-      p.dabInto(W, f.c, flush, { ...common, rng: rng.fork(`f-${f.id}-${q.j}`), length: q.length * 0.4, width: q.width * 0.55, pool: 0, basePool: 0.5, layers: 2 });
+      p.dabInto(W, f.c, PIGMENTS.petalWhite, { ...common, rng: rng.fork(`p-${f.id}-${q.j}`), length: q.length, width: q.width, pool: 0.3, poolSide: shadowSide(q.angle), basePool: 0.1, layers: 4 });
+      p.dabInto(W, f.c, flush, { ...common, rng: rng.fork(`f-${f.id}-${q.j}`), length: q.length * 0.3, width: q.width * 0.4, pool: 0, basePool: 0.4, layers: 2 });
       if (!visible(k)) continue;
       q.t.freckles.forEach((fr, n) => {
         if (!fr.soft) return;
-        const r = fr.r * f.size * 0.07 * k;
+        const r = fr.r * f.size * 0.06 * k;
         p.dabInto(W, frecklePoint(f.c, q, fr), mix(soft, s.freckle, fr.tone), { rng: rng.fork(`sf-${f.id}-${q.j}-${n}`), variant: 'round', angle: q.angle, length: r * 2.2, width: r * 1.7, pool: 0.2, basePool: 0, layers: 2, asym: 0 });
       });
     }
@@ -127,7 +127,7 @@ export function freckledStars(p: Painter, rng: Rng, flowers: readonly StarFlower
     for (const q of ps) {
       q.t.freckles.forEach((fr, n) => {
         if (fr.soft) return;
-        const r = fr.r * f.size * 0.055 * k;
+        const r = fr.r * f.size * 0.045 * k;
         p.dabInto(P, frecklePoint(f.c, q, fr), mix(s.freckle, PIGMENTS.sumi, fr.tone * 0.3), { rng: rng.fork(`cf-${f.id}-${q.j}-${n}`), variant: 'round', angle: q.angle + fr.v, length: r * 2, width: r * 1.5, pool: 0.4, basePool: 0, layers: 2, asym: 0 });
       });
     }
@@ -141,19 +141,22 @@ export function freckledStars(p: Painter, rng: Rng, flowers: readonly StarFlower
 function column(p: Painter, rng: Rng, f: StarFlower, s: StarStyle): void {
   const k = smooth(clamp01((f.open - 0.45) / 0.5));
   if (!visible(k)) return;
-  const h = f.size * 0.62 * k;
+  const h = f.size * 0.42 * k;
   const lean = (f.view.roll - UP) * 0.5;
   const top = { x: f.c.x + Math.cos(UP + lean) * h, y: f.c.y + Math.sin(UP + lean) * h };
-  const ink = mix(s.column, s.freckle, 0.25);
-  p.inkLine([f.c, { x: (f.c.x + top.x) / 2, y: (f.c.y + top.y) / 2 }, top], { rng: rng.fork('stalk'), width: Math.max(0.3, f.size * 0.11), pigment: ink, opacity: 0.8 * k, breaks: 0, wobble: 0.1, taper: [0.05, 0.3] });
+  const pale = { rng: rng.fork('stalk'), pigment: s.column, width: Math.max(0.35, f.size * 0.13), opacity: 0.7 * k, taper: [0.05, 0.25] as [number, number], wobble: 0.1, wetness: 0.3, edge: 0.4 };
+  p.stroke([f.c, { x: (f.c.x + top.x) / 2, y: (f.c.y + top.y) / 2 }, top], pale);
+  const dots: Pt[] = [{ x: lerp(f.c.x, top.x, 0.55), y: lerp(f.c.y, top.y, 0.55) }];
   f.arms.forEach((a, i) => {
-    const L = f.size * 0.5 * k;
-    const mid = { x: top.x + Math.cos(a) * L * 0.55, y: top.y + Math.sin(a) * L * 0.55 - L * 0.12 };
-    const end = { x: top.x + Math.cos(a) * L, y: top.y + Math.sin(a) * L + L * 0.25 };
-    p.inkLine([top, mid, end], { rng: rng.fork(`arm-${i}`), width: Math.max(0.25, f.size * 0.07), pigment: ink, opacity: 0.75 * k, breaks: 0, wobble: 0.15, taper: [0.1, 0.5] });
-    p.dab(mid, s.freckle, { rng: rng.fork(`dot-${i}`), variant: 'round', angle: a, length: f.size * 0.13 * k, width: f.size * 0.1 * k, opacity: 0.8 * k, edge: 0.5, layers: 2 });
+    const L = f.size * 0.42 * k;
+    const mid = { x: top.x + Math.cos(a) * L * 0.55, y: top.y + Math.sin(a) * L * 0.55 - L * 0.1 };
+    const end = { x: top.x + Math.cos(a) * L, y: top.y + Math.sin(a) * L + L * 0.3 };
+    p.stroke([top, mid, end], { ...pale, rng: rng.fork(`arm-${i}`), width: Math.max(0.3, f.size * 0.09), opacity: 0.65 * k, taper: [0.1, 0.45] });
+    dots.push(mid);
   });
-  p.dab({ x: (f.c.x + top.x) / 2, y: (f.c.y + top.y) / 2 }, s.freckle, { rng: rng.fork('dot-c'), variant: 'round', angle: UP, length: f.size * 0.12 * k, width: f.size * 0.1 * k, opacity: 0.75 * k, edge: 0.5, layers: 2 });
+  dots.forEach((d, i) => {
+    p.dab(d, s.freckle, { rng: rng.fork(`dot-${i}`), variant: 'round', angle: UP, length: f.size * 0.08 * k, width: f.size * 0.065 * k, opacity: 0.7 * k, edge: 0.5, layers: 2 });
+  });
 }
 
 /** A closed bud: an upright greenish-white spindle, flecked violet as it whitens. */
