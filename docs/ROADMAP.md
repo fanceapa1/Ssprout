@@ -165,7 +165,7 @@ Phase 12 art queue: one species or creature per task (atomic), 2–3 at a time, 
 | W11b | Katsura polish (orchestrator review): the crown is sparse and twiggy at overview size, not yet the brief's broad round cloud; fill it, hide more twigs, cut paint cost (80 ms, twice the ginkgo) | `src/plants/species/katsura.ts` | done (devlog 88 › W11b; crown dabs a little stamped) |
 | W12 | Tochinoki (*Aesculus turbinata*): T4 tree | `src/plants/species/tochinoki.ts` | done (devlog 89) |
 | C1 | Brown dipper (kawagarasu): bobs on wet rocks, walks under water (was S13) | `src/fauna/creatures/dipper.ts` | done (devlog 77; polish in C1b) |
-| C1b | Dipper polish (orchestrator review): the body reads as a smooth flat blob with a dot eye, more cartoon than watercolour; add plumage texture and edge variation, visible legs while wading, smoother flight frames | `src/fauna/creatures/dipper.ts` | queued |
+| C1b | Dipper polish (orchestrator review): the body reads as a smooth flat blob with a dot eye, more cartoon than watercolour; add plumage texture and edge variation, visible legs while wading, smoother flight frames | `src/fauna/creatures/dipper.ts` | in progress |
 | C2 | Miyama-kawatombo damselfly | `src/fauna/creatures/damselfly.ts` | done (devlog 79; phone read weak) |
 | C3 | Iwana char in the plunge pool (was S12) | `src/fauna/creatures/iwana.ts` | done (devlog 83) |
 | C4 | Sawagani river crab | `src/fauna/creatures/sawagani.ts` | done (devlog 85; no dusk/rain signal yet) |
