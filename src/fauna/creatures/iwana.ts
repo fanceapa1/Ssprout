@@ -391,6 +391,7 @@ export class Iwana extends BaseCreature {
   private phase = 0;
   private bend = 0;
   private night = false;
+  private ringed = true;
   /** seconds of evening rise left */
   dusk = 0;
   /** rises to the surface so far (tests) */
@@ -483,7 +484,8 @@ export class Iwana extends BaseCreature {
         if (this.deep < 0.08) {
           // the sip: a ring where the snout breaks the surface
           const ps = w.perspective(this.y, this.x);
-          w.ripple(this.x, this.y, this.len * 0.42 * ps, 0.8);
+          w.ripple(this.x, this.y, this.len * 1.1 * ps, 1);
+          this.ringed = false;
           this.rises++;
           this.deepTarget = DEEP;
           this.hold = w.rng.range(0.4, 0.9);
@@ -496,6 +498,11 @@ export class Iwana extends BaseCreature {
       }
       case 'sip': {
         arrive(this.p, this.v, this.target ?? st, 3 * k * sf, 20 * k * sf, 4 * k, dt);
+        if (!this.ringed && this.timer > 0.3 / sf) {
+          // a second, smaller ring as the tail turns down
+          this.ringed = true;
+          w.ripple(this.x, this.y, this.len * 0.6 * w.perspective(this.y, this.x), 0.6);
+        }
         if (this.timer > this.hold / sf) this.go('back');
         break;
       }
@@ -570,15 +577,16 @@ export class Iwana extends BaseCreature {
     const tip = pts[SEGMENTS]!;
     const off = this.len * (0.26 + 0.35 * (1 - this.deep));
     drawSprite(ctx, parts.shadow, off * 0.15, off, Math.atan2(tip.y, tip.x), 1, 1, a * (0.16 + 0.12 * this.deep));
-    for (const deep of [true, false]) {
-      const weight = deep ? 1 - near : near;
-      if (weight < 0.03) continue;
-      const sc = w.art.scratch(2 * R * k);
-      sc.ctx.setTransform(k, 0, 0, k, R * k, R * k);
-      this.compose(sc.ctx, parts, deep, pts, w.t);
-      ctx.globalAlpha = a * weight;
-      ctx.drawImage(sc.canvas as CanvasImageSource, 0, 0, 2 * R * k, 2 * R * k, -R, -R, 2 * R, 2 * R);
+    // one scratch: the soft deep copy, the crisp one over it as the fish nears the surface
+    const sc = w.art.scratch(2 * R * k);
+    sc.ctx.setTransform(k, 0, 0, k, R * k, R * k);
+    if (near < 0.97) this.compose(sc.ctx, parts, true, pts, w.t);
+    if (near > 0.03) {
+      sc.ctx.globalAlpha = near < 0.97 ? near : 1;
+      this.compose(sc.ctx, parts, false, pts, w.t);
     }
+    ctx.globalAlpha = a;
+    ctx.drawImage(sc.canvas as CanvasImageSource, 0, 0, 2 * R * k, 2 * R * k, -R, -R, 2 * R, 2 * R);
     ctx.restore();
   }
 
