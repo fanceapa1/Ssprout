@@ -18,6 +18,7 @@ each species' own section (`species-<id>`).
 | `camellia` | Camellia · Tsubaki | back, meadow | large · 180×220 · (0.5, 0.94) | `#da4d58` | upright oval evergreen on 2–3 grey stems, dark foliage with glossy lifted leaf highlights, 8–12 cupped flowers (red, pink or white) with a brush of yellow stamens; one or two whole flowers fall to the ground at the very end |
 | `chrysanthemum` | Chrysanthemum · Kiku | meadow, path | medium · 125×110 · (0.5, 0.92) | `#edb946` | grey-green cushion of 34–42 small ray-floret blooms (gold, rust, white or mauve) with a deeper inner rosette and a disc |
 | `lotus` | Lotus · Hasu | water | large · 200×220 · (0.5, 0.84) | `#f5a0b7` | 3–5 floating pads and 2–4 raised bowl-shaped leaves with radial veins, one or two tall pink-tipped blooms, often a bud, usually a ripening seed pod |
+| `yamabuki` | Japanese Kerria · Yamabuki | shore, meadow, back | large · 200×220 · (0.5, 0.93) | `#e5b02f` | a fountain of 9–12 thin green canes from an off-centre crown, inner ones tall and bowing over, outer ones arching low; alternate ovate, long-pointed, double-toothed leaves with pale impressed veins; single five-petalled gold flowers on short shoots spaced along the upper arches (waterfall only) |
 
 All have `pollinators: true`; lotus and hydrangea reflect (water/shore habitats). The lotus fits
 exactly two garden slots, the large open-water `water-1` and `water-3`; when seedlings of other

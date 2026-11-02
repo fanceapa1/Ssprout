@@ -91,3 +91,4 @@ never used.
 | 80 | [W6: baikamo (plum-blossom water weed)](80-baikamo.md) | Thread-fine tresses combed downstream under clear water, with small white blossoms at the surface |
 | 81 | [W7: mizubashō (Asian skunk cabbage)](81-mizubasho.md) | A white hood around a yellow-green club, standing in the shallows before its paddle leaves |
 | 82 | [W8: hototogisu (toad lily)](82-hototogisu.md) | Arching stems leaning from the rock with purple-freckled white stars in the leaf axils |
+| 84 | [W9: yamabuki (Japanese kerria)](84-yamabuki.md) | A fountain of arching green canes with single gold flowers spaced along them, the first waterfall shrub |
