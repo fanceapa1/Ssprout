@@ -205,7 +205,8 @@ const BARK_BACK = mix(PIGMENTS.stoneDark, PIGMENTS.stone, 0.45);
 const LIMB = mix(PIGMENTS.stoneDark, PIGMENTS.stoneWarm, 0.35);
 const WINE = '#b5525c';
 const WINE_LIGHT = lighten(mix(WINE, '#d98a8e', 0.4), 0.04);
-const YOUNG: FoliagePigments = { light: WINE_LIGHT, mid: WINE, shadow: darken(WINE, 0.15), dark: darken(mix(WINE, PIGMENTS.sumi, 0.3), 0.1) };
+/** the flush of new leaves: a clear rosy wash, so it does not mud as it greens */
+const YOUNG: FoliagePigments = { light: mix(WINE, '#f2c4bc', 0.55), mid: mix(WINE, '#e3a0a0', 0.25), shadow: WINE, dark: darken(WINE, 0.12) };
 /** katsura's summer leaf is a cool blue-green, glaucous beneath */
 const SUMMER: FoliagePigments = { light: '#aec29a', mid: '#8ea870', shadow: '#5f8a7c', dark: '#4b6a60' };
 const GOLD: FoliagePigments = { light: '#f0c681', mid: '#e3a24c', shadow: '#c88444', dark: '#9b6040' };
@@ -222,7 +223,7 @@ const arrival = (d: number) => FOLIAGE[0] + clamp01(d) * (FOLIAGE[1] - FOLIAGE[0
 /** A pad's colour at growth g: wine-red as it unfurls, blue-green, then gold and pink. */
 export function katsuraPadColour(pad: KatsuraPad, g: number): FoliagePigments {
   const a = arrival(pad.delay);
-  const green = ramp(g, a + 0.02, a + 0.2);
+  const green = ramp(g, a + 0.04, a + 0.16);
   const autumn = blend(GOLD, PINK, pad.pink * 0.8);
   return blend(blend(YOUNG, SUMMER, green), autumn, stagger(g, 0.74, 1, pad.turn, 0.16));
 }
