@@ -158,7 +158,7 @@ Phase 12 art queue: one species or creature per task (atomic), 2–3 at a time, 
 | W6b | Baikamo polish: the sunset rim light lands on the underwater weed (needs a species opt-out on the shared type); bolder blossoms at overview size | `src/plants/species/baikamo.ts`, plants rim light | queued |
 | W7 | Mizubashō (*Lysichiton camtschatcensis*): T2, water and shore | `src/plants/species/mizubasho.ts` | done (devlog 81) |
 | W8 | Hototogisu (toad lily, *Tricyrtis hirta*): T2, cliff foot | `src/plants/species/hototogisu.ts` | done (devlog 82; polish in W8b) |
-| W8b | Hototogisu polish (orchestrator review): too small and faint on its ledge, even in close view; bigger, whiter stars and a fuller clump so it holds its own beside the violet | `src/plants/species/hototogisu.ts` | queued |
+| W8b | Hototogisu polish (orchestrator review): too small and faint on its ledge, even in close view; bigger, whiter stars and a fuller clump so it holds its own beside the violet | `src/plants/species/hototogisu.ts` | in progress |
 | W9 | Yamabuki (*Kerria japonica*): T3 shrub | `src/plants/species/yamabuki.ts` | done (devlog 84) |
 | W10 | Taniutsugi (*Weigela hortensis*): T3 shrub | `src/plants/species/taniutsugi.ts` | done (devlog 86) |
 | W11 | Katsura (*Cercidiphyllum japonicum*): T4 tree | `src/plants/species/katsura.ts` | done (devlog 88; polish in W11b) |
@@ -172,4 +172,4 @@ Phase 12 art queue: one species or creature per task (atomic), 2–3 at a time, 
 | C5 | Kajika frog on the stream stones | `src/fauna/creatures/kajika.ts` | done (devlog 87) |
 | C6 | Iwatsubame (Asian house martin) along the cliff | `src/fauna/creatures/iwatsubame.ts` | done (devlog 90) |
 | C7 | Genji firefly (night only) | `src/fauna/creatures/firefly.ts` | queued |
-| C8 | Yamasemi (crested kingfisher, rare) | `src/fauna/creatures/yamasemi.ts` | queued |
+| C8 | Yamasemi (crested kingfisher, rare) | `src/fauna/creatures/yamasemi.ts` | in progress |
