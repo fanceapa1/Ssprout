@@ -64,7 +64,7 @@ export interface FireflyParts {
 }
 
 function paintHalo(p: Painter, rng: Rng): void {
-  const soft = { rng, edge: 0, sharpness: 0, centreLift: 0, granulation: 0.06, flow: 0.35, flowScale: 4, deform: 0.3, spread: 0.35, layers: 24, blend: 'source-over' as const };
+  const soft = { rng, edge: 0, edgeWidth: 0.4, darken: 0, sharpness: 0, centreLift: 0, granulation: 0.06, flow: 0.35, flowScale: 4, deform: 0.3, spread: 0.35, layers: 24, blend: 'source-over' as const };
   // thin glazes that thicken toward the light, so the bloom grades out with no step; only the
   // outermost dried with a faint rim where the wet bleed stopped
   p.wash(blob(0, 0, 10.5, 9.6, rng, { irregularity: 0.16 }), C.haloRim, { ...soft, opacity: 0.1, edge: 0.22, edgeWidth: 0.6, darken: 0.05, sharpness: 0.1 });
@@ -84,7 +84,7 @@ function paintHalo(p: Painter, rng: Rng): void {
 export function paintFirefly(res: number, seed: number): FireflyParts {
   const halos = [0, 1, 2].map((i) => paintSprite(res, { w: 23, h: 23, ox: 11.5, oy: 11.5 }, seed + i * 7, (p, rng) => paintHalo(p, rng)));
   const core = paintSprite(res, { w: 6, h: 6, ox: 3, oy: 3 }, seed + 31, (p, rng) => {
-    p.wash(blob(0, 0, 1.9, 1.7, rng, { irregularity: 0.15 }), C.core, { rng, opacity: 1, edge: 0, sharpness: 0.2, centreLift: 0, granulation: 0, flow: 0.1, blend: 'source-over' });
+    p.wash(blob(0, 0, 1.9, 1.7, rng, { irregularity: 0.15 }), C.core, { rng, opacity: 1, edge: 0, edgeWidth: 0.2, darken: 0, sharpness: 0.3, centreLift: 0, granulation: 0, flow: 0, blend: 'source-over' });
   });
   const body = paintSprite(res, { w: 6, h: 3.4, ox: 3, oy: 1.7 }, seed + 41, (p, rng) => {
     // wing cases, head to the right; the lantern at the tail, the pronotum's red-orange shield
