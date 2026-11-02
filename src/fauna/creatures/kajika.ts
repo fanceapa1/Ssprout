@@ -28,7 +28,7 @@ export const KAJIKA_TUNING = {
   /** seconds between song bouts: the evening chorus, the night, the day */
   boutDusk: [3, 9] as const,
   boutNight: [7, 22] as const,
-  boutDay: [45, 150] as const,
+  boutDay: [30, 100] as const,
   /** notes in a bout; their gaps shorten from the first to the last (a trill) */
   notes: [6, 12] as const,
   gap: [0.62, 0.17] as const,
@@ -845,6 +845,6 @@ const kajika: CreatureDef = {
       return [a.sit, a.raised, a.sac, a.leap, a.swim];
     },
   },
-  show: { stage: 'falls', spec: { w: 300, h: 190 }, w: 570, h: 361, order: 23 },
+  show: { stage: 'falls', spec: { w: 420, h: 266 }, w: 570, h: 361, order: 23 },
 };
 export default kajika;

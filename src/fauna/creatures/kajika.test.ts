@@ -217,8 +217,8 @@ describe('the kajika at the waterfall', () => {
 
 describe('the kajika on the studio’s falls stage', () => {
   it('finds a stone by the water and a way into it', () => {
-    const { scene, habitat } = fallsStage({ w: 300, h: 190 });
-    const w = { pond: { world: habitat.water!.still }, water: { moving: habitat.water!.moving, clip: [] }, perches: habitat.perches!, scene, view: { x: 0, y: 0, w: 300, h: 190 } };
+    const { scene, habitat } = fallsStage({ w: 420, h: 266 });
+    const w = { pond: { world: habitat.water!.still }, water: { moving: habitat.water!.moving, clip: [] }, perches: habitat.perches!, scene, view: { x: 0, y: 0, w: 420, h: 266 } };
     const seats = kajikaSeats(w as never);
     expect(seats.length).toBeGreaterThan(0);
     expect(edgePoint(seats[0]!, kajikaWaters(w as never), createRng(2))).not.toBeNull();
