@@ -34,7 +34,7 @@ export const SAWAGANI_TUNING = {
   emerge: 4.5,
   scuttle: 32,
   /** how near each kind may come before it freezes (world units) */
-  threats: { dipper: 80, bird: 70, heron: 170, yamasemi: 150 } as Record<string, number>,
+  threats: { dipper: 60, bird: 60, heron: 170, yamasemi: 150 } as Record<string, number>,
   /** the rare blue-grey regional morph */
   blue: 0.1,
 };
@@ -397,16 +397,21 @@ export class Sawagani extends BaseCreature {
   private seenRes = 0;
   private tilt = 0;
   private wake = 0;
+  private outBefore = false;
 
-  constructor(w: FaunaWorld, home: CrabHome, morph: SawaganiMorph) {
+  /** its own stream, forked from the world's: a crab coming or going leaves the others' runs as they were */
+  private readonly rng: Rng;
+
+  constructor(w: FaunaWorld, home: CrabHome, morph: SawaganiMorph, rng: Rng) {
     super();
+    this.rng = rng;
     this.home = home;
     this.morph = morph;
     this.variant = morph;
     this.pos = { ...home.den };
     this.layer = 'entities';
     this.state = 'hidden';
-    this.hideFor = rangeOf(w.rng, [...SAWAGANI_TUNING.first]) / w.speed;
+    this.hideFor = rangeOf(this.rng, [...SAWAGANI_TUNING.first]) / w.speed;
     this.scale = w.perspective(home.rock.y, home.rock.x);
     this.seenRes = w.art.res;
     this.alpha = 0;
@@ -442,8 +447,8 @@ export class Sawagani extends BaseCreature {
 
   private pickSpot(w: FaunaWorld): Pt {
     const spots = this.home.spots.filter((s) => dist(s, this.pos) > 2.5);
-    const s = spots.length ? w.rng.pick(spots) : this.home.door;
-    return { x: s.x + w.rng.range(-1.2, 1.2), y: s.y + w.rng.range(-0.8, 0.8) };
+    const s = spots.length ? this.rng.pick(spots) : this.home.door;
+    return { x: s.x + this.rng.range(-1.2, 1.2), y: s.y + this.rng.range(-0.8, 0.8) };
   }
 
   update(dt: number, w: FaunaWorld): void {
@@ -467,15 +472,17 @@ export class Sawagani extends BaseCreature {
         if (this.timer > this.hideFor) {
           // out by the door, in little stops, looking about
           this.walkTo([this.home.door], 'emerge');
-          this.pause = w.rng.range(0.3, 0.9) / sf;
-          this.outFor = rangeOf(w.rng, night ? [...SAWAGANI_TUNING.outNight] : [...SAWAGANI_TUNING.outDay]) / sf;
+          this.pause = this.rng.range(0.3, 0.9) / sf;
+          // its first outing is a long one, even by day: the one the arrival line speaks of
+          this.outFor = rangeOf(this.rng, night || !this.outBefore ? [...SAWAGANI_TUNING.outNight] : [...SAWAGANI_TUNING.outDay]) / sf;
+          this.outBefore = true;
           this.go('emerge');
         }
         break;
       case 'emerge':
         if (this.step(dt, w)) {
           this.behind = false;
-          this.dwell = w.rng.range(1.5, 4) / sf;
+          this.dwell = this.rng.range(1.5, 4) / sf;
           this.go('forage');
         }
         break;
@@ -488,8 +495,8 @@ export class Sawagani extends BaseCreature {
         break;
       case 'sidle':
         if (this.step(dt, w)) {
-          this.dwell = w.rng.range(2.5, 7) / sf;
-          this.tilt = w.rng.range(-0.12, 0.12);
+          this.dwell = this.rng.range(2.5, 7) / sf;
+          this.tilt = this.rng.range(-0.12, 0.12);
           this.go('forage');
         }
         break;
@@ -509,7 +516,7 @@ export class Sawagani extends BaseCreature {
         if (this.step(dt, w)) {
           this.behind = true;
           const scared = this.state === 'flee';
-          this.hideFor = rangeOf(w.rng, scared ? [...SAWAGANI_TUNING.hideScared] : night ? [...SAWAGANI_TUNING.hideNight] : [...SAWAGANI_TUNING.hideDay]) / sf;
+          this.hideFor = rangeOf(this.rng, scared ? [...SAWAGANI_TUNING.hideScared] : night ? [...SAWAGANI_TUNING.hideNight] : [...SAWAGANI_TUNING.hideDay]) / sf;
           this.raise = 0;
           this.pickT = -1;
           this.go('hidden');
@@ -542,8 +549,8 @@ export class Sawagani extends BaseCreature {
       return;
     }
     if (this.state === 'emerge') this.resumeTo = 'flee';
-    else this.resumeTo = this.state === 'sidle' ? 'sidle' : fright === 'camera' && w.rng.chance(0.45) ? 'flee' : 'forage';
-    this.freezeFor = (fright === 'bird' ? w.rng.range(0.5, 1.4) : w.rng.range(1.5, 3.5)) / w.speed;
+    else this.resumeTo = this.state === 'sidle' ? 'sidle' : fright === 'camera' && this.rng.chance(0.45) ? 'flee' : 'forage';
+    this.freezeFor = (fright === 'bird' ? this.rng.range(0.5, 1.4) : this.rng.range(1.5, 3.5)) / w.speed;
     this.raise = Math.min(this.raise, 0.3);
     this.pickT = -1;
     this.go('freeze');
@@ -551,7 +558,7 @@ export class Sawagani extends BaseCreature {
 
   private forage(dt: number, w: FaunaWorld): void {
     const sf = w.speed;
-    const rng = w.rng;
+    const rng = this.rng;
     // the big claw goes up now and then, fingers open
     if (this.raiseFor > 0) {
       this.raiseFor -= dt;
@@ -604,7 +611,7 @@ export class Sawagani extends BaseCreature {
     } else {
       this.pos = { x: this.pos.x + ((to.x - this.pos.x) / d) * s, y: this.pos.y + ((to.y - this.pos.y) / d) * s };
       // cautious: a stop or two on the way out
-      if (this.pace === 'emerge' && w.rng.chance(dt / 1.2)) this.pause = w.rng.range(0.4, 1.2) / w.speed;
+      if (this.pace === 'emerge' && this.rng.chance(dt / 1.2)) this.pause = this.rng.range(0.4, 1.2) / w.speed;
     }
     const next = this.path[0];
     this.behind = this.state === 'emerge' ? next !== undefined : next !== undefined ? next.den === true : this.behind;
@@ -615,7 +622,7 @@ export class Sawagani extends BaseCreature {
   private ripples(dt: number, w: FaunaWorld): void {
     this.wake -= dt;
     if (this.wake > 0 || waterlineDistance(this.pos, w) > 0 || !pointInPolygon(this.pos, w.pond.world)) return;
-    this.wake = w.rng.range(0.6, 1.2) / w.speed;
+    this.wake = this.rng.range(0.6, 1.2) / w.speed;
     w.ripple(this.pos.x, this.pos.y + 0.5, 6 * this.scale, 0.25);
   }
 
@@ -675,10 +682,11 @@ const sawagani: CreatureDef = {
     const taken = w.creatures.filter((c): c is Sawagani => c instanceof Sawagani && !c.done).map((c) => c.home);
     const out: Sawagani[] = [];
     for (let i = 0; i < s.count; i++) {
-      const home = chooseHome(homes, taken, w.rng);
+      const rng = w.rng.fork(`sawagani:${s.seed}:${w.t.toFixed(3)}:${s.index + i}:${w.creatures.length}`);
+      const home = chooseHome(homes, taken, rng);
       if (!home) break;
-      const morph = variantOf(s.variants, SAWAGANI_VARIANTS, w.rng, () => (w.rng.chance(SAWAGANI_TUNING.blue) ? 'blue' : 'red'));
-      out.push(new Sawagani(w, home, morph));
+      const morph = variantOf(s.variants, SAWAGANI_VARIANTS, rng, () => (rng.chance(SAWAGANI_TUNING.blue) ? 'blue' : 'red'));
+      out.push(new Sawagani(w, home, morph, rng));
       taken.push(home);
     }
     return out;
@@ -699,6 +707,6 @@ const sawagani: CreatureDef = {
       ];
     },
   },
-  show: { stage: 'falls', spec: { w: 300, h: 190 }, w: 570, h: 361, order: 22 },
+  show: { stage: 'falls', spec: { w: 440, h: 278 }, w: 570, h: 360, order: 22 },
 };
 export default sawagani;
