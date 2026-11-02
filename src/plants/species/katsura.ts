@@ -9,6 +9,8 @@ import type { SpeciesDef } from '../types';
 const SIZE = { w: 380, h: 460 };
 const BASE_Y = SIZE.h * 0.94;
 const UP = -Math.PI / 2;
+/** pads deeper than this are in front: their leaves cover the twigs */
+const FRONT = 0.2;
 
 export interface KatsuraPad extends Pad {
   /** 0 gold … 1 pink in autumn */
@@ -51,7 +53,7 @@ export function planKatsura(rng: Rng): KatsuraPlan {
       angle: UP + u * spread + r.gaussian(0, 0.04),
       length: trunkLen * (1 - 0.2 * au) * r.range(0.9, 1.04),
       width: (8 - 2.4 * au) * r.range(0.88, 1.08),
-      tipWidth: 1.8,
+      tipWidth: 0.9,
       limb: { segments: 7, wander: 0.05, gravity: -0.02, curl: 0 },
       dur: 0.9,
       tag: rank % 2 === 1 ? 'back' : 'trunk',
@@ -90,59 +92,70 @@ export function planKatsura(rng: Rng): KatsuraPlan {
   const phase2 = pr.range(0, 6.3);
   const add = (x: number, y: number, rad: number, delay: number, branch: number) => {
     for (const q of pads) if (Math.hypot(q.x - x, (q.y - y) * 1.2) < (q.r + rad) * 0.42) return;
-    const pinkNoise = 0.5 + 0.35 * Math.sin(x / 41 + phase) * Math.cos(y / 33 + phase2) + pr.range(-0.2, 0.2);
-    pads.push({ x, y, r: rad, delay, id: pads.length, depth: pr.range(-1, 1), branch, pink: clamp01(pinkNoise), turn: 0 });
+    // patches of pink among the gold, not an even salmon
+    const noise = Math.sin(x / 37 + phase) * Math.cos(y / 29 + phase2) + 0.5 * Math.sin((x + y) / 23 + phase2) + pr.range(-0.35, 0.35);
+    pads.push({ x, y, r: rad, delay, id: pads.length, depth: pr.range(-1, 1), branch, pink: ramp(noise, 0.05, 0.75), turn: 0 });
   };
   const crown = tree.branches.filter((b) => b.tag !== 'sucker' && (b.order >= 1 || b.parent < 0));
-  for (const b of crown) {
-    const tip = pointAt(b, 1);
-    const rad = b.order === 0 ? pr.range(26, 32) : b.order === 1 ? pr.range(22, 29) : pr.range(17, 23);
-    add(tip.x, tip.y - rad * 0.1, rad, Math.min(1, b.t1 * 0.55 + pr.range(0, 0.4)), b.id);
-  }
-  // fill the dome between the tips: a broad, lobed, rounded crown
   const tips = crown.map((b) => pointAt(b, 1));
   const x0 = Math.min(...tips.map((q) => q.x));
   const x1 = Math.max(...tips.map((q) => q.x));
-  const top = Math.min(...tips.map((q) => q.y));
+  // the dome mounds above the highest tip, so its top is rounded, not flat
+  const top = Math.min(...tips.map((q) => q.y)) - 18;
+  const low = tips.map((q) => q.y).sort((a, b) => a - b)[Math.floor(tips.length * 0.85)]!;
+  // a broad, lobed dome around the tips, its underside flatter
   const cx = (x0 + x1) / 2;
-  const rx = (x1 - x0) / 2 + 6;
-  const ry = Math.max(70, rx * 0.6);
-  const cy = top + ry - 6;
-  const lobe = (a: number) => 1 + 0.07 * Math.sin(3 * a + phase) + 0.05 * Math.sin(5 * a + phase2);
-  for (let y = top + 6; y < cy + ry * 0.5; y += 22)
-    for (let x = cx - rx; x <= cx + rx; x += 24) {
-      const jx = x + pr.range(-8, 8);
-      const jy = y + pr.range(-7, 7);
-      const a = Math.atan2((jy - cy) / ry, (jx - cx) / rx);
-      const d = Math.hypot((jx - cx) / rx, (jy - cy) / ry);
-      const keep = pr.chance(0.9);
-      const rad = pr.range(18, 26);
-      if (!keep || d > 0.92 * lobe(a)) continue;
-      let near = crown[0]!;
-      let best = Infinity;
-      for (const b of crown) {
-        const q = pointAt(b, 1);
-        const dd = Math.hypot(q.x - jx, q.y - jy);
-        if (dd < best) {
-          best = dd;
-          near = b;
-        }
+  const rx = (x1 - x0) / 2 + 10;
+  const cy = top + (low - top) * 0.5;
+  const ry = cy - top;
+  const lobe = (a: number) => 1 + 0.06 * Math.sin(3 * a + phase) + 0.05 * Math.sin(5 * a + phase2) + 0.03 * Math.sin(8 * a + phase * 2);
+  const dome = (x: number, y: number) => Math.hypot((x - cx) / rx, (y - cy) / (y > cy ? ry * 0.9 : ry));
+  const nearest = (x: number, y: number) => {
+    let near = crown[0]!;
+    let best = Infinity;
+    for (const b of crown) {
+      const q = pointAt(b, 1);
+      const dd = Math.hypot(q.x - x, q.y - y);
+      if (dd < best) {
+        best = dd;
+        near = b;
       }
-      add(jx, jy, rad, Math.min(1, near.t1 * 0.55 + 0.1 + pr.range(0, 0.35)), near.id);
     }
+    return near;
+  };
+  let row = 0;
+  for (let y = top + 8; y < cy + ry * 0.95; y += 17, row++)
+    for (let x = cx - rx + (row % 2) * 13; x <= cx + rx; x += 26) {
+      const jx = x + pr.range(-6, 6);
+      const jy = y + pr.range(-5, 5);
+      const d = dome(jx, jy);
+      const rim = pr.range(0.86, 0.96);
+      const rad = pr.range(20, 27) * (1.1 - 0.25 * d);
+      if (d > rim * lobe(Math.atan2(jy - cy, jx - cx))) continue;
+      const near = nearest(jx, jy);
+      add(jx, jy, rad, Math.min(1, near.t1 * 0.55 + 0.05 + 0.3 * d + pr.range(0, 0.15)), near.id);
+    }
+  // tips that reach past the dome carry a small tuft of their own
+  for (const b of crown) {
+    const tip = pointAt(b, 1);
+    if (dome(tip.x, tip.y) < 0.95) continue;
+    add(tip.x, tip.y - 2, pr.range(14, 19), Math.min(1, b.t1 * 0.55 + 0.3 + pr.range(0, 0.15)), b.id);
+  }
   // autumn comes to the top and the outside first
   for (const pad of pads) {
-    const d = Math.hypot((pad.x - cx) / rx, (pad.y - cy) / ry);
-    pad.turn = clamp01(0.55 * (1 - d) + 0.25 * ((pad.y - top) / (2 * ry)) + pr.range(0, 0.4));
+    const d = dome(pad.x, pad.y);
+    pad.turn = clamp01(0.45 * (1 - d) + 0.25 * ((pad.y - top) / (2 * ry)) + pr.range(0, 0.35));
   }
 
   // pairs of round hearts on short spurs: thick on the rim and the lit top
   const hr = rng.fork('hearts');
   const hearts: Heart[] = [];
   for (const pad of pads) {
-    const spurs = Math.round(pad.r / 4.6);
+    const d = dome(pad.x, pad.y);
+    const spurs = Math.round((pad.r / 5) * (d > 0.72 ? 1 : (pad.depth ?? 0) > FRONT ? 0.8 : 0.3));
     for (let i = 0; i < spurs; i++) {
-      const th = hr.range(-Math.PI, Math.PI);
+      // rim spurs face outward from the dome's centre
+      const th = d > 0.72 ? Math.atan2(pad.y - cy, pad.x - cx) + hr.gaussian(0, 0.9) : hr.range(-Math.PI, Math.PI);
       const k = hr.chance(0.7) ? hr.range(0.75, 1.05) : hr.range(0.2, 0.7);
       const sx = pad.x + Math.cos(th) * pad.r * k;
       const sy = pad.y + Math.sin(th) * pad.r * 0.62 * k;
@@ -158,10 +171,10 @@ export function planKatsura(rng: Rng): KatsuraPlan {
   const sucker: Heart[] = [];
   for (const b of tree.branches) {
     if (b.tag !== 'sucker') continue;
-    for (const f of [0.45, 0.75, 1]) {
+    for (const f of [0.6, 1]) {
       const at = pointAt(b, f);
       const a = UP + (at.x > base.x ? 0.4 : -0.4);
-      for (let s = -1; s <= 1; s += 2) sucker.push({ x: at.x, y: at.y, angle: a + s * sr.range(0.6, 1), length: sr.range(3.8, 5) * (f === 1 ? 0.8 : 1), tone: sr.range(0, 1), delay: f, id: sucker.length, group: b.id });
+      for (let s = -1; s <= 1; s += 2) sucker.push({ x: at.x, y: at.y, angle: a + s * sr.range(0.5, 0.9), length: sr.range(5.5, 7) * (f === 1 ? 0.85 : 1), tone: sr.range(0, 1), delay: f, id: sucker.length, group: b.id });
     }
   }
   const fr = rng.fork('fallen');
@@ -180,6 +193,7 @@ export function planKatsura(rng: Rng): KatsuraPlan {
 
 const BARK = PIGMENTS.stoneDark;
 const BARK_BACK = mix(PIGMENTS.stoneDark, PIGMENTS.stone, 0.45);
+const LIMB = mix(PIGMENTS.stoneDark, PIGMENTS.stoneWarm, 0.35);
 const WINE = '#b5525c';
 const WINE_LIGHT = lighten(mix(WINE, '#d98a8e', 0.4), 0.04);
 const YOUNG: FoliagePigments = { light: WINE_LIGHT, mid: WINE, shadow: darken(WINE, 0.15), dark: darken(mix(WINE, PIGMENTS.sumi, 0.3), 0.1) };
@@ -225,18 +239,21 @@ const katsura: SpeciesDef = {
     const pr = rng.fork('paint');
     const padArrive = (pad: Pad) => stagger(g, FOLIAGE[0], FOLIAGE[1], pad.delay, FOLIAGE[2]);
     const colours = new Map(plan.pads.map((pad) => [pad.id, katsuraPadColour(pad, g)]));
+    const depth = new Map(plan.pads.map((pad) => [pad.id, pad.depth ?? 0]));
     const carpet = ramp(g, 0.93, 1);
     inUnits(p, SIZE, opts, () => {
       paintGroundShadow(p, plan.tree.base, 100, view, pr);
       paintSeed(p, plan.tree.base, g, pr, mix(PIGMENTS.wood, WINE, 0.25));
-      const backTree = { base: plan.tree.base, branches: plan.tree.branches.filter((b) => b.tag === 'back') };
-      const back = paintSkeleton(p, backTree, view, pr.fork('back'), { pigment: BARK_BACK, texture: 0.6, modelling: 0.4, flare: 0.3, opacity: 0.85 });
+      const part = (keep: (b: Branch) => boolean) => ({ base: plan.tree.base, branches: plan.tree.branches.filter(keep) });
+      const back = paintSkeleton(p, part((b) => b.order === 0 && b.tag === 'back'), view, pr.fork('back'), { pigment: BARK_BACK, texture: 0.6, modelling: 0.4, flare: 0.3, opacity: 0.85 });
       paintShaggyBark(p, back, pr.fork('back-shag'), BARK_BACK, 0.7);
-      const front = paintSkeleton(p, plan.tree, view, pr, { pigment: BARK, texture: 0.85, modelling: 0.55, flare: 0.35, skipTags: ['back', 'sucker'] });
+      const front = paintSkeleton(p, part((b) => b.order === 0 && b.tag === 'trunk'), view, pr, { pigment: BARK, texture: 0.85, modelling: 0.55, flare: 0.35 });
       paintShaggyBark(p, front, pr.fork('shag'), BARK);
+      // limbs and twigs paler, so the crown is not crossed by ink
+      const limbs = paintSkeleton(p, part((b) => b.order > 0), view, pr.fork('limbs'), { pigment: LIMB, texture: 0.3, modelling: 0.3, opacity: 0.58 });
       const suckerTree = { base: plan.tree.base, branches: plan.tree.branches.filter((b) => b.tag === 'sucker') };
       const whips = paintSkeleton(p, suckerTree, view, pr.fork('sucker'), { pigment: mix(BARK, WINE, 0.35), texture: 0, modelling: 0, flare: 0 });
-      paintTipHearts(p, [...back, ...front], view, 1 - ramp(g, 0.5, 0.7), pr.fork('tips'), WINE);
+      paintTipHearts(p, [...back, ...front, ...limbs], view, 1 - ramp(g, 0.56, 0.74), pr.fork('tips'), WINE);
       paintPadMass(p, plan.pads, view, pr, padArrive, (pad) => colours.get(pad.id)!, {
         flatness: 0.7,
         light: -2.2,
@@ -246,8 +263,12 @@ const katsura: SpeciesDef = {
         shadow: 0.6,
         scallop: 9,
       });
-      const tone = (c: FoliagePigments, t: number): Pigment => mix(c.light, c.mid, t);
-      paintHearts(p, plan.hearts, view, pr.fork('hearts'), (h) => stagger(g, FOLIAGE[0] + 0.04, FOLIAGE[1] + 0.06, h.delay, 0.16), (h) => tone(colours.get(h.group)!, h.tone));
+      const tone = (c: FoliagePigments, t: number): Pigment => mix(c.light, c.mid, t * 0.7);
+      const heartSize = (h: Heart) => stagger(g, FOLIAGE[0] + 0.04, FOLIAGE[1] + 0.06, h.delay, 0.16);
+      const inFront = (h: Heart) => (depth.get(h.group) ?? 0) > FRONT;
+      paintHearts(p, plan.hearts.filter((h) => !inFront(h)), view, pr.fork('hearts'), heartSize, (h) => tone(colours.get(h.group)!, h.tone), { opacity: 0.72 });
+      // front leaves cover the twigs behind them
+      paintHearts(p, plan.hearts.filter(inFront), view, pr.fork('hearts-front'), heartSize, (h) => tone(colours.get(h.group)!, h.tone * 0.6), { opacity: 0.85, blend: 'source-over' });
       if (whips.length) paintHearts(p, plan.sucker, view, pr.fork('sucker-hearts'), (h) => ramp(g, 0.62 + h.delay * 0.1, 0.8 + h.delay * 0.1), (h) => mix(WINE_LIGHT, WINE, h.tone));
       if (carpet > 0.01) paintHearts(p, plan.fallen, view, pr.fork('fallen'), (h) => ramp(carpet, h.delay * 0.6, h.delay * 0.6 + 0.4), (h) => tone(h.group ? PINK : GOLD, h.tone), { opacity: 0.75 });
     });
