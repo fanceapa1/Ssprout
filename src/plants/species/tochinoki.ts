@@ -108,7 +108,7 @@ export function planTochinoki(rng: Rng): TochinokiPlan {
   for (const b of tree.branches) for (const f of b.order === 0 ? [0.7, 0.85, 1] : [0.35, 0.55, 0.75, 1]) wood.push({ at: pointAt(b, f), t1: b.t1 });
   const xs = tips.map((t) => t.at.x);
   const ys = tips.map((t) => t.at.y);
-  const env = { x0: Math.min(...xs) - 22, x1: Math.max(...xs) + 22, y0: Math.min(...ys) - 12, y1: Math.max(...ys) + 26 };
+  const env = { x0: Math.min(...xs) - 28, x1: Math.max(...xs) + 28, y0: Math.min(...ys) - 12, y1: Math.max(...ys) + 44 };
   const ex = (env.x0 + env.x1) / 2;
   const ey = (env.y0 + env.y1) / 2;
   const rx = (env.x1 - env.x0) / 2;
