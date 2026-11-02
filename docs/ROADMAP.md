@@ -160,7 +160,7 @@ Phase 12 art queue: one species or creature per task (atomic), 2–3 at a time, 
 | W8 | Hototogisu (toad lily, *Tricyrtis hirta*): T2, cliff foot | `src/plants/species/hototogisu.ts` | done (devlog 82; polish in W8b) |
 | W8b | Hototogisu polish (orchestrator review): too small and faint on its ledge, even in close view; bigger, whiter stars and a fuller clump so it holds its own beside the violet | `src/plants/species/hototogisu.ts` | queued |
 | W9 | Yamabuki (*Kerria japonica*): T3 shrub | `src/plants/species/yamabuki.ts` | done (devlog 84) |
-| W10 | Taniutsugi (*Weigela hortensis*): T3 shrub | `src/plants/species/taniutsugi.ts` | queued |
+| W10 | Taniutsugi (*Weigela hortensis*): T3 shrub | `src/plants/species/taniutsugi.ts` | done (devlog 86) |
 | W11 | Katsura (*Cercidiphyllum japonicum*): T4 tree | `src/plants/species/katsura.ts` | queued |
 | W12 | Tochinoki (*Aesculus turbinata*): T4 tree | `src/plants/species/tochinoki.ts` | queued |
 | C1 | Brown dipper (kawagarasu): bobs on wet rocks, walks under water (was S13) | `src/fauna/creatures/dipper.ts` | done (devlog 77; polish in C1b) |

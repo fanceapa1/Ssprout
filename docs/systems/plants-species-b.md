@@ -19,6 +19,7 @@ each species' own section (`species-<id>`).
 | `chrysanthemum` | Chrysanthemum · Kiku | meadow, path | medium · 125×110 · (0.5, 0.92) | `#edb946` | grey-green cushion of 34–42 small ray-floret blooms (gold, rust, white or mauve) with a deeper inner rosette and a disc |
 | `lotus` | Lotus · Hasu | water | large · 200×220 · (0.5, 0.84) | `#f5a0b7` | 3–5 floating pads and 2–4 raised bowl-shaped leaves with radial veins, one or two tall pink-tipped blooms, often a bud, usually a ripening seed pod |
 | `yamabuki` | Japanese Kerria · Yamabuki | shore, meadow, back | large · 200×220 · (0.5, 0.93) | `#e5b02f` | a fountain of 9–12 thin green canes from an off-centre crown, inner ones tall and bowing over, outer ones arching low; alternate ovate, long-pointed, double-toothed leaves with pale impressed veins; single five-petalled gold flowers on short shoots spaced along the upper arches (waterfall only) |
+| `taniutsugi` | Valley Weigela · Taniutsugi | meadow, back | large · 200×220 · (0.5, 0.93) | `#e992ab` | an open vase of 6–8 woody wands from a narrow crown, curving up from a splayed foot and arching out at the tips, some with a side wand; opposite, decussate, oval pointed leaves, finely toothed, the shaded half grey-green; pink funnel trumpets in twos and threes at the upper leaf pairs, rose outside, some turned to show a pale five-lobed mouth (waterfall only) |
 
 All have `pollinators: true`; lotus and hydrangea reflect (water/shore habitats). The lotus fits
 exactly two garden slots, the large open-water `water-1` and `water-3`; when seedlings of other

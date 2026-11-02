@@ -94,3 +94,4 @@ never used.
 | 83 | [C3: iwana char and yamame](83-iwana.md) | Dim, spotted cool fish holding station in the plunge pool tail, darting aside and rising to sip at dusk |
 | 84 | [W9: yamabuki (Japanese kerria)](84-yamabuki.md) | A fountain of arching green canes with single gold flowers spaced along them, the first waterfall shrub |
 | 85 | [C4: sawagani river crab](85-sawagani.md) | A red-brown crab with milky claws that sidles out from under its wet stone at dusk and hides from birds |
+| 86 | [W10: taniutsugi (valley weigela)](86-taniutsugi.md) | An open vase of leaning wands with pink trumpets in pairs at the leaf joints, pale inside and rose outside |
