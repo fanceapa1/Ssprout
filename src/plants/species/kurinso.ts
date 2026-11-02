@@ -119,13 +119,13 @@ export function planKurinso(rng: Rng): KurinsoPlan {
     const at = lerp(low, 0.985, 1 - (1 - q) ** 1.25);
     const m = rng.int(6, 9) - (q > 0.8 ? 1 : 0);
     const turn = rng.range(0, Math.PI * 2);
-    const scale = lerp(1, 0.78, q);
+    const scale = lerp(1, 0.74, q);
     const flowers: WhorlFlower[] = [];
     for (let k = 0; k < m; k++) {
       const lobeRot = rng.range(0, Math.PI * 2);
       flowers.push({
         phi: turn + (k / m) * Math.PI * 2 + rng.gaussian(0, 0.18),
-        reach: rng.range(7.5, 10) * scale,
+        reach: rng.range(8, 10.5) * scale,
         lift: rng.range(2.4, 4) * scale,
         size: rng.range(4.6, 5.4) * scale,
         lobes: Array.from({ length: 5 }, (_, i) => lobeRot + (i / 5) * Math.PI * 2 + rng.gaussian(0, 0.07)),
@@ -139,7 +139,7 @@ export function planKurinso(rng: Rng): KurinsoPlan {
       flowers[fi]!.open = [...stagger(k, m, open, 0.65)] as [number, number];
     });
     const bracts = Array.from({ length: rng.int(2, 3) }, () => ({ angle: rng.range(-Math.PI, 0), length: rng.range(2.5, 4) * scale }));
-    whorls.push({ at, flowers, bud: [...stagger(j, nw, [0.4, 0.82], 0.5)] as [number, number], bracts });
+    whorls.push({ at, flowers, bud: [...stagger(j, nw, [0.36, 0.76], 0.62)] as [number, number], bracts });
   }
   return { leaves, scape, whorls, colour };
 }
@@ -197,7 +197,8 @@ function drawFlowers(p: Painter, rng: Rng, placed: Placed[], plan: KurinsoPlan, 
   for (const pl of placed) {
     const { f, at, node, bud } = pl;
     const r = rng.fork(`f-${pl.key}`);
-    p.inkLine([node, { x: (node.x + at.x) / 2, y: (node.y + at.y) / 2 - 0.6 }, at], { rng: r.fork('ped'), width: 0.34, pigment: SCAPE, opacity: 0.75 * smooth(bud * 3), breaks: 0, wobble: 0.1, taper: [0.05, 0.3] });
+    const tip = { x: lerp(node.x, at.x, 0.8), y: lerp(node.y, at.y, 0.8) };
+    p.inkLine([node, { x: (node.x + tip.x) / 2, y: (node.y + tip.y) / 2 - 0.5 }, tip], { rng: r.fork('ped'), width: 0.4, pigment: mix(SCAPE, LEAF, 0.3), opacity: 0.55 * smooth(bud * 3), breaks: 0, wobble: 0.1, taper: [0.05, 0.4] });
     const k = ease(g, f.open[0], f.open[1]);
     const { view, face } = flowerView(f);
     const fade = 1 - smooth(k / 0.45);
@@ -217,7 +218,7 @@ function drawBracts(p: Painter, rng: Rng, plan: KurinsoPlan, pts: Pt[], g: numbe
     if (!visible(k)) return;
     const node = pointAt(pts, w.at);
     w.bracts.forEach((b, i) => {
-      p.dab(node, mix(SCAPE, LEAF, 0.4), { rng: rng.fork(`bract-${j}-${i}`), variant: 'leaf', angle: b.angle, length: b.length * k, width: b.length * 0.3 * k, opacity: 0.7 * smooth(k * 3), edge: 0.4 });
+      p.dab(node, mix(mix(SCAPE, LEAF, 0.4), PIGMENTS.petalWhite, 0.2), { rng: rng.fork(`bract-${j}-${i}`), variant: 'leaf', angle: b.angle, length: b.length * k, width: b.length * 0.3 * k, opacity: 0.55 * smooth(k * 3), edge: 0.25 });
     });
   });
 }
@@ -252,7 +253,7 @@ const kurinso: SpeciesDef = {
         const pts = stemPoints(plan.scape, lerp(0.06, 1, ext) * smooth(ext * 4), lerp(0.3, 1, ext));
         const placed = placeFlowers(plan, pts, g);
         plan.whorls.forEach((_, j) => drawFlowers(p, r, placed.filter((pl) => pl.whorl === j && pl.depth < 0), plan, g, `${j}-back`));
-        paintStem(p, r.fork('scape'), pts, { width: 1.8, pigment: SCAPE, opacity: 0.85, ink: 0.18 * ext, inkReach: 0.5, wetness: 0.5 });
+        paintStem(p, r.fork('scape'), pts, { width: 2.3, pigment: SCAPE, opacity: 0.85, ink: 0.18 * ext, inkReach: 0.5, wetness: 0.5 });
         drawBracts(p, r, plan, pts, g);
         plan.whorls.forEach((_, j) => drawFlowers(p, r, placed.filter((pl) => pl.whorl === j && pl.depth >= 0).sort((a, b) => a.depth - b.depth), plan, g, `${j}-front`));
       }

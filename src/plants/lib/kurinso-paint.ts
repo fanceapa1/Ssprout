@@ -51,25 +51,26 @@ export function spoonLeaf(p: Painter, rng: Rng, at: Pt, pose: SpoonPose, s: Spoo
   const vk = smooth((length - 6) / 10) * smooth(k * 1.5 - 0.3);
   if (visible(vk)) {
     for (let i = 0; i < s.veins; i++) {
-      const t = 0.3 + (0.58 * (i + 0.5)) / s.veins;
+      const t = 0.26 + (0.52 * (i + 0.5)) / s.veins;
       const q = axis[Math.round(t * 20)]!;
       const q2 = axis[Math.min(20, Math.round(t * 20) + 1)]!;
       const ta = Math.atan2(q2.y - q.y, q2.x - q.x);
-      const hw = width * 0.5 * lerp(0.45, 1, t);
+      const hw = width * 0.5 * lerp(0.5, 1, t) * (1 - smooth((t - 0.65) / 0.3) * 0.4);
       for (const sgn of [-1, 1]) {
-        p.dabInto(L, q, s.deep, { rng: rng.fork(`v-${i}-${sgn}`), variant: 'needle', angle: ta + sgn * 0.8, length: hw * 0.85 * vk, width: Math.max(0.3, width * 0.06), curve: sgn * 0.15, pool: 0, basePool: 0.3, layers: 2 });
+        p.dabInto(L, q, mix(s.deep, s.pigment, 0.3), { rng: rng.fork(`v-${i}-${sgn}`), variant: 'needle', angle: ta + sgn * 0.75, length: hw * 0.7 * vk, width: Math.max(0.25, width * 0.04), curve: -sgn * 0.25, pool: 0, basePool: 0.15, layers: 2 });
       }
     }
   }
   L.dry({
-    opacity: (s.opacity ?? 0.9) * smooth(length / 3),
-    edge: 0.5,
+    opacity: (s.opacity ?? 0.9) * smooth(length / 7),
+    edge: 0.35,
     edgeWidth: Math.max(0.25, Math.min(1.4, width * 0.08)),
     sharpness: 0.7,
     centreLift: 0.3,
-    granulation: 0.12,
-    flow: 0.45,
-    flowScale: Math.max(3, length * 0.4),
+    granulation: 0.2,
+    // a fine mottle in the wash reads as the blistered, crinkled surface
+    flow: 0.75,
+    flowScale: Math.max(2, width * 0.3),
     darken: 0.3,
     blend: 'source-over',
   });
