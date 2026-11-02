@@ -97,3 +97,5 @@ never used.
 | 86 | [W10: taniutsugi (valley weigela)](86-taniutsugi.md) | An open vase of leaning wands with pink trumpets in pairs at the leaf joints, pale inside and rose outside |
 | 87 | [C5: kajika frog](87-kajika.md) | A flat grey frog camouflaged on the stream stones, singing at nightfall with a pale throat bubble |
 | 88 | [W11: katsura](88-katsura.md) | A ring of grey stems under a rounded crown of small round hearts, wine-red young and apricot-gold with pink when mature |
+| 89 | [W12: tochinoki (Japanese horse chestnut)](89-tochinoki.md) | One massive trunk under a dome of big palmate hands, with cream candles standing on the top hands |
+| 90 | [C6: iwatsubame house martins](90-iwatsubame.md) | A loose flock of small blue-black martins with white rumps swirling along the cliff, darting up to mud cups under the ledges |
