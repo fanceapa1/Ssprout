@@ -28,12 +28,12 @@ function run(sim: FaunaSim, seconds: number, each?: (t: number) => void) {
 describe('the flash', () => {
   it('swells, fades and goes dark once a cycle', () => {
     expect(flash(0)).toBe(0);
-    expect(flash(0.2)).toBeCloseTo(1, 5);
+    expect(flash(0.22)).toBeCloseTo(1, 5);
     expect(flash(0.1)).toBeGreaterThan(0.3);
     expect(flash(0.4)).toBeGreaterThan(0);
     expect(flash(0.4)).toBeLessThan(flash(0.25));
     expect(flash(0.7)).toBe(0);
-    expect(flash(1.2)).toBeCloseTo(1, 5);
+    expect(flash(1.22)).toBeCloseTo(1, 5);
   });
 
   it('pulls scattered phases into step, but never quite into one', () => {
@@ -71,6 +71,7 @@ describe('where they fly and rest', () => {
     expect(spots.some((s) => s.kind === 'rock')).toBe(true);
     for (const s of spots) {
       expect(nearFoam({ x: s.x, y: s.g }, w, 1.2), s.id).toBe(false);
+      expect(s.g, `${s.id} up on the cliff`).toBeGreaterThanOrEqual(w.pond.bounds.y);
       expect(s.x).toBeGreaterThan(w.view.x);
       expect(s.x).toBeLessThan(w.view.x + w.view.w);
     }

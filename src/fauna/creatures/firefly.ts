@@ -22,9 +22,9 @@ export const FIREFLY_TUNING = {
   /** seconds per flash: the eastern Genji's slow ~4 s rhythm */
   period: [3.7, 4.4] as const,
   /** phase pull toward the swarm's mean rhythm (rad/s at full order) */
-  coupling: 0.7,
+  coupling: 0.45,
   /** random phase wander (rad/√s): they tend to sync, never perfectly */
-  wander: 0.12,
+  wander: 0.18,
   /** world units / s in flight */
   speed: [4, 9] as const,
   /** flight height over the water (world units at perspective 1) */
@@ -64,39 +64,27 @@ export interface FireflyParts {
 }
 
 function paintHalo(p: Painter, rng: Rng): void {
-  // a soft wet dab with a faint dried rim, bled round the light
-  p.wash(blob(0, 0, 6.4, 5.8, rng, { irregularity: 0.24 }), C.halo, {
-    rng,
-    opacity: 0.5,
-    edge: 0.3,
-    edgeWidth: 0.9,
-    darken: 0.12,
-    sharpness: 0.2,
-    centreLift: 0,
-    granulation: 0.12,
-    flow: 0.45,
-    flowScale: 5,
-    deform: 0.3,
-    spread: 0.22,
-    blend: 'source-over',
-  });
-  p.wash(blob(rng.range(-0.4, 0.4), rng.range(-0.4, 0.4), 3.4, 3.1, rng, { irregularity: 0.2 }), C.inner, {
-    rng,
-    opacity: 0.6,
-    edge: 0,
-    sharpness: 0.1,
-    centreLift: 0,
-    granulation: 0,
-    flow: 0.3,
-    flowScale: 3,
-    blend: 'source-over',
-  });
+  const soft = { rng, edge: 0, sharpness: 0, centreLift: 0, granulation: 0.06, flow: 0.35, flowScale: 4, deform: 0.3, spread: 0.35, layers: 24, blend: 'source-over' as const };
+  // thin glazes that thicken toward the light, so the bloom grades out with no step; only the
+  // outermost dried with a faint rim where the wet bleed stopped
+  p.wash(blob(0, 0, 10.5, 9.6, rng, { irregularity: 0.16 }), C.haloRim, { ...soft, opacity: 0.1, edge: 0.22, edgeWidth: 0.6, darken: 0.05, sharpness: 0.1 });
+  const steps = [
+    { r: 8, a: 0.1, c: C.halo },
+    { r: 6, a: 0.13, c: C.halo },
+    { r: 4.4, a: 0.18, c: C.halo },
+    { r: 3.1, a: 0.26, c: C.inner },
+    { r: 2.2, a: 0.32, c: C.inner },
+  ];
+  for (const s of steps) {
+    const o = s.r * 0.06;
+    p.wash(blob(rng.range(-o, o), rng.range(-o, o), s.r, s.r * 0.93, rng, { irregularity: 0.14 }), s.c, { ...soft, opacity: s.a });
+  }
 }
 
 export function paintFirefly(res: number, seed: number): FireflyParts {
-  const halos = [0, 1, 2].map((i) => paintSprite(res, { w: 17, h: 17, ox: 8.5, oy: 8.5 }, seed + i * 7, (p, rng) => paintHalo(p, rng)));
-  const core = paintSprite(res, { w: 5, h: 5, ox: 2.5, oy: 2.5 }, seed + 31, (p, rng) => {
-    p.wash(blob(0, 0, 1.5, 1.35, rng, { irregularity: 0.15 }), C.core, { rng, opacity: 1, edge: 0.05, sharpness: 0.35, centreLift: 0, granulation: 0, flow: 0.1, blend: 'source-over' });
+  const halos = [0, 1, 2].map((i) => paintSprite(res, { w: 23, h: 23, ox: 11.5, oy: 11.5 }, seed + i * 7, (p, rng) => paintHalo(p, rng)));
+  const core = paintSprite(res, { w: 6, h: 6, ox: 3, oy: 3 }, seed + 31, (p, rng) => {
+    p.wash(blob(0, 0, 1.9, 1.7, rng, { irregularity: 0.15 }), C.core, { rng, opacity: 1, edge: 0, sharpness: 0.2, centreLift: 0, granulation: 0, flow: 0.1, blend: 'source-over' });
   });
   const body = paintSprite(res, { w: 6, h: 3.4, ox: 3, oy: 1.7 }, seed + 41, (p, rng) => {
     // wing cases, head to the right; the lantern at the tail, the pronotum's red-orange shield
@@ -115,8 +103,8 @@ export function paintFirefly(res: number, seed: number): FireflyParts {
 /** Brightness 0..1 through one flash: a slow swell, a longer fade, then dark. */
 export function flash(phase: number): number {
   const f = phase - Math.floor(phase);
-  if (f < 0.2) return smoothstep(f / 0.2);
-  if (f < 0.56) return 1 - smoothstep((f - 0.2) / 0.36);
+  if (f < 0.22) return smoothstep(f / 0.22);
+  if (f < 0.64) return 1 - smoothstep((f - 0.22) / 0.42);
   return 0;
 }
 
@@ -232,7 +220,9 @@ export function restSpots(w: Pick<FaunaWorld, 'pond' | 'water' | 'view' | 'scene
       }
     }
   });
-  const near = (q: Pt) => polys.some((poly) => pointInPolygon(q, poly) || closestOnPolygon(q, poly).d < 90);
+  // nothing up on the cliff: a spot's ground is never above the still pool's back edge
+  const top = w.scene.falls ? w.pond.bounds.y : -Infinity;
+  const near = (q: Pt) => q.y >= top && polys.some((poly) => pointInPolygon(q, poly) || closestOnPolygon(q, poly).d < 90);
   for (const f of w.flowers) {
     const base = { x: f.x, y: f.baseY };
     if (!near(base) || !inView(base, w, 36) || nearFoam(base, w, 1.5)) continue;
@@ -242,7 +232,7 @@ export function restSpots(w: Pick<FaunaWorld, 'pond' | 'water' | 'view' | 'scene
   for (const p of w.perches) {
     if (p.kind === 'ledge') continue;
     const at = { x: p.x, y: perchY(p, p.x) + p.dome * 0.3 };
-    if (!inView(at, w, 36) || nearFoam(at, w, 1.2)) continue;
+    if (!inView(at, w, 36) || nearFoam(at, w, 1.2) || p.depth < top) continue;
     // on the wet moss low on its face, not on the dry top
     out.push({ id: `rock-${p.id}`, kind: 'rock', x: at.x + p.spread * 0.4, y: Math.max(at.y, p.depth - 16), g: p.depth });
   }
@@ -466,7 +456,7 @@ export class Firefly extends BaseCreature {
     if (L.state === 'wait' || L.state === 'out') return 0;
     const b = flash(this.phases[i]!);
     // resting ones glow a little between flashes; reduced motion breathes gently, never dark
-    const floor = w.mode.reduced ? 0.4 : L.state === 'rest' ? 0.1 : 0.04;
+    const floor = w.mode.reduced ? 0.4 : L.state === 'rest' ? 0.12 : 0.06;
     const peak = w.mode.reduced ? 0.8 : L.state === 'rest' ? 0.85 : 1;
     return L.on * (floor + (peak - floor) * b);
   }
@@ -509,14 +499,15 @@ export class Firefly extends BaseCreature {
   /** The light, after the light plate (ADR 0280): a pale reserved spot in a wet yellow-green bloom. */
   drawLights(ctx: Ctx, w: FaunaWorld): void {
     const parts = this.parts(w);
+    const tip = clamp(4.5 / w.art.res, 1, 1.5);
     for (let i = 0; i < this.lights.length; i++) {
       const L = this.lights[i]!;
       const b = this.brightness(i, w);
       if (b < 0.01) continue;
       const p = this.where(L, w);
       const ps = w.perspective(L.g.y, L.g.x);
-      // the halo spreads a little as the light swells, like a wet bloom
-      this.blit(ctx, parts.halos[L.v]!, p.x, p.y, L.rot, ps * (0.72 + 0.32 * b), b * 0.9);
+      // the halo spreads a little as the light swells; far out it can't be smaller than a brush tip
+      this.blit(ctx, parts.halos[L.v]!, p.x, p.y, L.rot, ps * (0.95 + 0.35 * b) * tip, b);
       this.blit(ctx, parts.core, p.x, p.y, -L.rot, ps * (0.8 + 0.25 * b), Math.min(1, b * 1.25));
     }
   }
