@@ -16,11 +16,12 @@ const LEAF = '#8b9c5a';
 const STEM = mix('#8b9c5a', '#7a5468', 0.32);
 const FRECKLE = '#6b4a8c';
 const COLUMN = mix('#b9a2c9', PIGMENTS.petalWhite, 0.3);
+const THROAT = mix(PIGMENTS.gold, PIGMENTS.petalWhite, 0.45);
 const BUD_GREEN = mix(PIGMENTS.sap, PIGMENTS.sageLight, 0.4);
 
-/** Box 120×160, base at (60, 144): stems kept 46 to each side so leaves and stars clear the edges. */
+/** Box 120×160, base at (60, 144): stems kept 50 to each side so leaves and stars clear the edges. */
 const BOX = { w: 120, h: 160, ax: 0.5, ay: 0.9 };
-const REACH = { side: 46, up: 132, down: 6 };
+const REACH = { side: 50, up: 138, down: 6 };
 
 interface LeafPlan {
   /** node position along the stem (0 base … 1 tip) */
@@ -68,11 +69,11 @@ function planTepals(rng: Rng): Tepal[] {
   // some tepals are heavily freckled, some sparsely: dabbed, not stippled
   return Array.from({ length: 6 }, (_, i) => {
     const freckles: Freckle[] = [];
-    const n = rng.int(1, 5);
-    const centres = [rng.range(0.25, 0.5), rng.range(0.45, 0.75)];
+    const n = rng.chance(0.2) ? 0 : rng.chance(0.55) ? 1 : 2;
+    const centres = [rng.range(0.2, 0.4), rng.range(0.38, 0.6)];
     for (let k = 0; k < n; k++) {
       const c = centres[k % 2]!;
-      freckles.push({ u: clamp01(c + rng.gaussian(0, 0.12)) * 0.9 + 0.05, v: Math.max(-0.85, Math.min(0.85, rng.gaussian(0, 0.42))), r: rng.range(0.6, 1.5), soft: rng.chance(0.5), tone: rng.next() });
+      freckles.push({ u: clamp01(c + rng.gaussian(0, 0.1)) * 0.8 + 0.06, v: Math.max(-0.7, Math.min(0.7, rng.gaussian(0, 0.38))), r: rng.range(0.9, 1.5), soft: rng.chance(0.25), tone: rng.next() });
     }
     return { a: rot + (i / 6) * Math.PI * 2 + rng.gaussian(0, 0.07), len: rng.range(0.92, 1.06), wid: rng.range(0.34, 0.42), curve: rng.gaussian(0, 0.08), freckles };
   });
@@ -85,27 +86,31 @@ function fullPoints(s: StemPlan): Pt[] {
 
 export function planHototogisu(rng: Rng): HototogisuPlan {
   const lean: 1 | -1 = rng.chance(0.5) ? 1 : -1;
-  const n = rng.chance(0.25) ? 2 : rng.chance(0.6) ? 3 : 4;
+  const n = rng.chance(0.2) ? 3 : rng.chance(0.6) ? 4 : 5;
   const green = jitter(LEAF, rng, 0.03);
   const stalks: Stalk[] = [];
   const blooms: Bloom[] = [];
   // most stems lean out one way; now and then one leans back the other
   const sides = Array.from({ length: n }, (_, i) => (i > 0 && rng.chance(0.28) ? -lean : lean) as 1 | -1);
   // a clump leaning all one way roots toward the far side, so its arch can reach out
-  const foot = sides.every((v) => v === lean) ? -lean * 20 : 0;
+  const foot = sides.every((v) => v === lean) ? -lean * 22 : 0;
   for (let i = 0; i < n; i++) {
     const side = sides[i]!;
     const main = i === 0;
-    const length = rng.range(92, 112) * (main ? 1 : rng.range(0.7, 0.92));
-    const angle = UP + side * rng.range(0.06, 0.3);
-    const bend = side * rng.range(1.8, 2.4);
+    const length = rng.range(108, 126) * (main ? 1 : rng.range(0.62, 0.92));
+    // the side stems splay out lower, so the clump fans like a fountain
+    const angle = UP + side * (main ? rng.range(0.04, 0.2) : rng.range(0.16, 0.48));
+    // the main stem arches over furthest; the others stand a little more upright
+    const bend = side * (main ? rng.range(1.9, 2.4) : rng.range(1.2, 2.1));
     let plan = makeStem(rng, { base: { x: foot + rng.range(-3, 3), y: -0.5 }, length, angle, bend, segments: 12, tipBias: 0.75, wobble: 0.025 });
-    // shorten until the arch sits inside the box
-    for (let tries = 0; tries < 12; tries++) {
+    // straighten an arch that reaches past the sides, then shorten, until it sits in the box
+    for (let tries = 0; tries < 16; tries++) {
       const pts = fullPoints(plan);
-      const out = pts.some((q) => Math.abs(q.x) > REACH.side || q.y < -REACH.up || q.y > REACH.down);
-      if (!out) break;
-      plan = { ...plan, length: plan.length * 0.92 };
+      const wide = pts.some((q) => Math.abs(q.x) > REACH.side);
+      if (!wide && !pts.some((q) => q.y < -REACH.up || q.y > REACH.down)) break;
+      const total = Math.abs(plan.bends.reduce((a, v) => a + v, 0));
+      if (wide && total > 1.15) plan = { ...plan, angle: lerp(plan.angle, UP, 0.12), bends: plan.bends.map((v) => v * 0.93) };
+      else plan = { ...plan, length: plan.length * 0.93 };
     }
     const nLeaves = rng.int(8, 11);
     const leaves: LeafPlan[] = [];
@@ -114,21 +119,21 @@ export function planHototogisu(rng: Rng): HototogisuPlan {
       const t = lerp(0.14, 0.93, (j + rng.range(-0.3, 0.3)) / (nLeaves - 1));
       // longest a little below the middle, small toward the tip
       const size = Math.sin(Math.PI * lerp(0.25, 0.92, t)) * lerp(1, 0.55, t ** 2);
-      leaves.push({ t, side: alt, turn: rng.range(0.42, 0.75), length: rng.range(15, 20) * size, width: rng.range(5, 6.4) * size, curve: alt * rng.range(0.04, 0.14), tone: jitter(mix(green, PIGMENTS.olive, rng.range(0, 0.3)), rng, 0.03) });
+      leaves.push({ t, side: alt, turn: rng.range(0.42, 0.75), length: rng.range(17, 22) * size, width: rng.range(5.6, 7) * size, curve: alt * rng.range(0.04, 0.14), tone: jitter(mix(green, PIGMENTS.olive, rng.range(0, 0.3)), rng, 0.03) });
       alt = -alt as 1 | -1;
     }
-    stalks.push({ plan, window: [0.06 + i * 0.035, 0.58 + i * 0.03], leaves, width: main ? 1.25 : 1.05 });
+    stalks.push({ plan, window: [0.06 + i * 0.03, 0.58 + i * 0.025], leaves, width: main ? 1.25 : 1.05 });
     // flowers in the upper axils, often in pairs, and a few at the tip
     for (const l of leaves) {
-      if (l.t < 0.3 || !rng.chance(0.36)) continue;
-      const m = rng.chance(0.15) ? 2 : 1;
+      if (l.t < 0.34 || !rng.chance(0.24)) continue;
+      const m = rng.chance(0.1) ? 2 : 1;
       for (let k = 0; k < m; k++) {
-        blooms.push({ id: blooms.length, stem: i, t: l.t, side: l.side, ped: rng.range(1.5, 3.2) + k * 2.2, size: rng.range(7.2, 8.4), tilt: rng.range(0.55, 0.8), turn: rng.gaussian(0, 0.18), tepals: planTepals(rng), arms: [UP - rng.range(1.1, 1.5), UP + rng.gaussian(0, 0.25), UP + rng.range(1.1, 1.5)], bud: [0, 0], open: [0, 0] });
+        blooms.push({ id: blooms.length, stem: i, t: l.t, side: l.side, ped: rng.range(1.8, 3.6) + k * 3, size: rng.range(11, 12.6), tilt: rng.range(0.55, 0.8), turn: rng.gaussian(0, 0.18), tepals: planTepals(rng), arms: [UP - rng.range(1.1, 1.5), UP + rng.gaussian(0, 0.25), UP + rng.range(1.1, 1.5)], bud: [0, 0], open: [0, 0] });
       }
     }
-    const tip = rng.chance(0.6) ? 1 : 2;
+    const tip = rng.chance(0.75) ? 1 : 2;
     for (let k = 0; k < tip; k++) {
-      blooms.push({ id: blooms.length, stem: i, t: 0.985, side: k % 2 ? 1 : -1, ped: rng.range(1, 2.4), size: rng.range(6.6, 7.6), tilt: rng.range(0.55, 0.75), turn: rng.gaussian(0, 0.2), tepals: planTepals(rng), arms: [UP - rng.range(1.1, 1.5), UP + rng.gaussian(0, 0.25), UP + rng.range(1.1, 1.5)], bud: [0, 0], open: [0, 0] });
+      blooms.push({ id: blooms.length, stem: i, t: 0.985, side: k % 2 ? 1 : -1, ped: rng.range(1.2, 2.8), size: rng.range(10, 11.2), tilt: rng.range(0.55, 0.75), turn: rng.gaussian(0, 0.2), tepals: planTepals(rng), arms: [UP - rng.range(1.1, 1.5), UP + rng.gaussian(0, 0.25), UP + rng.range(1.1, 1.5)], bud: [0, 0], open: [0, 0] });
     }
   }
   // buds form and open from the base of each stem outward
@@ -221,7 +226,7 @@ const hototogisu: SpeciesDef = {
         freckledBud(p, fr, c, { angle: roll, size: b.size * 0.75, k: budK, white: ease(g, b.open[0] - 0.12, b.open[0] + 0.02), opacity: fade, green: BUD_GREEN, freckle: FRECKLE });
         if (visible(open)) stars.push({ id: b.id, c, tepals: b.tepals, view: { tilt: b.tilt, roll }, size: b.size, open, arms: b.arms });
       }
-      freckledStars(p, r.fork('stars'), stars, { freckle: FRECKLE, column: COLUMN, area: { x: -BOX.w * BOX.ax, y: -BOX.h * BOX.ay, w: BOX.w, h: BOX.h } });
+      freckledStars(p, r.fork('stars'), stars, { freckle: FRECKLE, column: COLUMN, throat: THROAT, area: { x: -BOX.w * BOX.ax, y: -BOX.h * BOX.ay, w: BOX.w, h: BOX.h } });
     } finally {
       end();
     }
