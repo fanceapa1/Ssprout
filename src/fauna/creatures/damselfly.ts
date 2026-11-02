@@ -16,8 +16,8 @@ import { FAUNA_TUNING } from '../tuning';
 import { BaseCreature, type Ctx, type FaunaWorld } from '../types';
 import { variantOf, type CreatureDef } from './lib/def';
 
-/** Head to abdomen tip at perspective 1 (world units): a little longer than the aka-tombo. */
-export const DAMSELFLY_SIZE = 31;
+/** Head to abdomen tip at perspective 1 (world units): longer than the aka-tombo. */
+export const DAMSELFLY_SIZE = 34;
 export const DAMSELFLY_VARIANTS = ['male', 'female'] as const;
 export type DamselflySex = (typeof DAMSELFLY_VARIANTS)[number];
 
@@ -64,8 +64,8 @@ function colours(sex: DamselflySex): Colours {
       lift: '#7eb4ac',
       dark: mix(PIGMENTS.sumi, body, 0.45),
       tip: mix(body, PIGMENTS.cerulean, 0.3),
-      wing: '#a07a4e',
-      wingTip: mix(PIGMENTS.sumi, PIGMENTS.wood, 0.25),
+      wing: mix('#a07a4e', PIGMENTS.sumi, 0.25),
+      wingTip: mix(PIGMENTS.sumi, PIGMENTS.wood, 0.2),
       eye: mix(PIGMENTS.sumi, body, 0.2),
     };
   }
@@ -120,7 +120,7 @@ function paintWing(p: Painter, c: Colours, sex: DamselflySex): void {
   const s = K;
   const shape = wingShape();
   // smoky amber, deepening wet-in-wet toward the tip, the base losing its edge
-  p.wetInWet(shape, lighten(c.wing, 0.08), c.wingTip, { rng, angle: 0, split: 0.6, softness: 0.45, fingers: 0.45, opacity: sex === 'male' ? 0.68 : 0.55, edge: 0.65, edgeWidth: 0.45, sharpness: 0.55, deform: 0.05, spread: 0.06, granulation: 0.35, flow: 0.5, flowScale: 3, blooms: 1, bloomSize: 0.22, fade: { angle: Math.PI, start: 0.72, amount: 0.55 }, blend: 'source-over' });
+  p.wetInWet(shape, lighten(c.wing, 0.08), c.wingTip, { rng, angle: 0, split: 0.6, softness: 0.45, fingers: 0.45, opacity: sex === 'male' ? 0.8 : 0.64, edge: 0.65, edgeWidth: 0.45, sharpness: 0.55, deform: 0.05, spread: 0.06, granulation: 0.35, flow: 0.5, flowScale: 3, blooms: 1, bloomSize: 0.22, fade: { angle: Math.PI, start: 0.72, amount: 0.55 }, blend: 'source-over' });
   // darker smoke pooled where the wing broadens, a paler lift along the leading edge
   const L = p.layer({ x: -1 * s, y: -3.5 * s, w: 22 * s, h: 7 * s });
   L.clip(shape);
@@ -595,7 +595,7 @@ export class Damselfly extends BaseCreature {
       this.vel.x = approach(this.vel.x, Math.cos(toward + wander) * sp, 2.4, dt);
       this.vel.y = approach(this.vel.y, Math.sin(toward + wander) * sp, 2.4, dt);
       this.pos.x += this.vel.x * dt;
-      this.pos.y += (this.vel.y - Math.max(0, Math.sin(this.phase)) * 9 * sf + 5.7 * sf) * dt;
+      this.pos.y += (this.vel.y + (9 / Math.PI - Math.max(0, Math.sin(this.phase)) * 9) * sf) * dt;
       if (d < 4 && !wp.perch) {
         this.route.shift();
         this.startLeg();
@@ -603,6 +603,8 @@ export class Damselfly extends BaseCreature {
     }
     const k = clamp(1 - dist(this.pos, wp) / this.from.d, 0, 1);
     if (this.state !== 'perch') this.g = lerp(this.from.g, wp.g, k);
+    // never down on the ground or the water in flight
+    if (this.state !== 'land') this.pos.y = Math.min(this.pos.y, this.g - 3 * w.perspective(this.g, this.pos.x));
     if (Math.abs(this.vel.x) > 5) this.facing = Math.sign(this.vel.x);
     this.pitch = approach(this.pitch, clamp(-this.vel.y * this.facing * 0.006, -0.25, 0.25) - 0.06, 3, dt);
     if (this.state === 'leave' && isOffscreen(this.pos, w.view, FAUNA_TUNING.offscreen * 0.4)) this.done = true;
