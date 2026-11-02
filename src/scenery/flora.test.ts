@@ -109,6 +109,7 @@ describe('each garden’s flora', () => {
   it('the waterfall shares exactly the five that grow wild in a mountain gorge', () => {
     // the art tasks add the waterfall's own species: extend this list with each one
     expect(ids(offered(getScenery('waterfall')))).toEqual([
+      'baikamo',
       'daimonjiso',
       'iwakagami',
       'iwatabako',

@@ -74,30 +74,32 @@ export function planBaikamo(rng: Rng): BaikamoPlan {
   const drift = rng.range(0.08, 0.22);
   const tresses: Tress[] = [];
   const order = rng.shuffle(Array.from({ length: n }, (_, i) => i));
+  // two or three rooted crowns upstream; the tresses fan out from them
+  const crowns = Array.from({ length: rng.int(2, 3) }, (_, c, a = rng.range(-30, -14)) => ({ x: a + c * rng.range(4, 9), z: rng.range(-20, 20) }));
   for (let i = 0; i < n; i++) {
     const u = i / (n - 1) - 0.5;
     const length = rng.range(46, 84) * (1 - Math.abs(u) * 0.35);
     const nodes: Node[] = [];
     const tone = jitter(LEAF, rng, 0.03);
-    for (let s = rng.range(1.5, 3.5); s < length - 1; s += rng.range(2.6, 3.8)) {
+    for (let s = rng.range(1.5, 3); s < length - 1; s += rng.range(2.2, 3.2)) {
       const q = s / length;
-      const nt = rng.int(3, 5);
+      const nt = rng.int(4, 7);
       const threads: Thread[] = [];
       for (let t = 0; t < nt; t++) {
         const side = t % 2 ? 1 : -1;
         threads.push({
-          off: side * rng.range(0.2, 0.75),
+          off: side * rng.range(0.18, 0.8),
           // the leaves are longest mid-tress, a tight young tuft at the tip
-          len: rng.range(6, 12) * lerp(0.75, 1, Math.sin(Math.min(1, q * 1.4) * Math.PI * 0.5)) * lerp(1, 0.45, smooth((q - 0.75) / 0.25)),
+          len: rng.range(8, 17) * lerp(0.75, 1, Math.sin(Math.min(1, q * 1.4) * Math.PI * 0.5)) * lerp(1, 0.45, smooth((q - 0.75) / 0.25)),
           fork: rng.chance(0.6) ? { at: rng.range(0.3, 0.6), off: -side * rng.range(0.12, 0.3), len: rng.range(0.4, 0.7) } : null,
-          width: rng.range(0.32, 0.5),
+          width: rng.range(0.22, 0.36),
         });
       }
       nodes.push({ s, threads, tone: jitter(mix(mix(DEEP, tone, smooth(q * 2.5)), TIP, smooth((q - 0.6) / 0.4) * 0.7), rng, 0.025) });
     }
     tresses.push({
-      root: { x: rng.range(-30, 4) + u * 6, z: u * 30 + rng.gaussian(0, 2.5) },
-      angle: drift + u * 0.22 + rng.gaussian(0, 0.05),
+      root: { x: crowns[i % crowns.length]!.x + rng.gaussian(0, 1.5), z: crowns[i % crowns.length]!.z + rng.gaussian(0, 1.5) },
+      angle: drift + u * rng.range(0.55, 0.8) + rng.gaussian(0, 0.06),
       length,
       amp: rng.range(1.4, 3.6),
       freq: (Math.PI * 2) / rng.range(22, 38),
@@ -112,10 +114,10 @@ export function planBaikamo(rng: Rng): BaikamoPlan {
   });
   // the flowers stand on the tresses nearest the surface, mostly downstream
   const lifted = tresses.map((t, i) => ({ t, i })).sort((a, b) => b.t.depth - a.t.depth);
-  const nb = rng.int(5, 8);
+  const nb = rng.int(6, 10);
   const blossoms: Blossom[] = [];
   for (let b = 0; b < nb; b++) {
-    const { t, i } = lifted[b % Math.min(lifted.length, 4)]!;
+    const { t, i } = lifted[b % Math.min(lifted.length, 5)]!;
     const s = t.length * rng.range(0.35, 0.9);
     blossoms.push({
       tress: i,
@@ -174,7 +176,7 @@ function threadPath(t: Tress, base: { x: number; z: number; a: number }, off: nu
   const n = Math.max(2, Math.ceil(len / 1.2));
   for (let i = 1; i <= n; i++) {
     const u = i / n;
-    const a = base.a + off * (1 - smooth(u * 1.7)) + Math.sin(u * 5 + base.x * 0.3) * 0.05;
+    const a = base.a + off * (1 - smooth(u * 2.6)) + Math.sin(u * 5 + base.x * 0.3) * 0.05;
     x += (Math.cos(a) * len) / n;
     z += (Math.sin(a) * len) / n;
     pts.push(project(x, z, sink));
@@ -183,16 +185,20 @@ function threadPath(t: Tress, base: { x: number; z: number; a: number }, off: nu
 }
 
 /** The tress's leaves as ribbons, grown by how far its tip has passed each node. */
-function tressMarks(t: Tress, g: number): { stem: Pt[] | null; halo: Pt[] | null; threads: { poly: Pt[]; tone: Pigment }[]; len: number } {
+function tressMarks(t: Tress, g: number): { stem: Pt[] | null; halo: Pt[][]; threads: { poly: Pt[]; tone: Pigment }[]; len: number } {
   const k = ease(g, t.window[0], t.window[1]);
   const len = t.length * easeOut(k);
-  const out = { stem: null as Pt[] | null, halo: null as Pt[] | null, threads: [] as { poly: Pt[]; tone: Pigment }[], len };
+  const out = { stem: null as Pt[] | null, halo: [] as Pt[][], threads: [] as { poly: Pt[]; tone: Pigment }[], len };
   if (len < 0.4) return out;
   const sink = sinkOf(t);
   const path = stemPath(t, len);
   const grow = smooth(k * 2.5);
-  out.stem = ribbon(path, (q) => 0.42 * grow * (1 - q * 0.6));
-  out.halo = ribbon(path, (q) => lerp(1.6, 4.2, smooth(q * 3)) * (1 - smooth((q - 0.8) / 0.2) * 0.6) * grow);
+  out.stem = ribbon(path, (q) => 0.3 * grow * (1 - q * 0.6));
+  const hw = (q: number) => lerp(0.6, 4.6, smooth(q * 3)) * smooth(q * 12) * (1 - smooth((q - 0.72) / 0.28) * 0.85) * grow;
+  for (const f of [0.6, 1, 1.5]) {
+    const h = ribbon(path, (q) => hw(q) * f);
+    if (h) out.halo.push(h);
+  }
   for (const node of t.nodes) {
     if (node.s > len) break;
     const base = stemAt(t, node.s);
@@ -222,19 +228,16 @@ function drawTresses(p: Painter, plan: BaikamoPlan, g: number) {
   const area = { x: -50, y: -24, w: 145, h: 46 };
   // the weed's shadow on the gravel bed, a little below it
   const B = p.layer(area);
-  for (const { m } of marks) {
-    if (!m.halo) continue;
-    B.fill(m.halo.map((q) => ({ x: q.x + 1.5, y: q.y + 3.2 })), mix(PIGMENTS.celadonDeep, PIGMENTS.shadow, 0.3), 0.32);
-  }
-  B.dry({ opacity: 0.32, edge: 0.05, edgeWidth: 1, sharpness: 0.1, centreLift: 0, granulation: 0.25, flow: 0.5, flowScale: 10 });
+  for (const { m } of marks) for (const h of m.halo) B.fill(h.map((q) => ({ x: q.x + 0.8, y: q.y + 1.6 })), mix(PIGMENTS.celadonDeep, PIGMENTS.shadow, 0.3), 0.1);
+  B.dry({ opacity: 0.3, edge: 0.05, edgeWidth: 1, sharpness: 0.1, centreLift: 0, granulation: 0.25, flow: 0.5, flowScale: 10 });
   // deep tresses first, softer and cooler; those near the surface over them
   for (const deep of [true, false]) {
     const L = p.layer(area);
     for (const { t, m } of marks) {
       if (t.depth < 0.5 !== deep) continue;
       const cool = deep ? 0.35 : 0.12;
-      if (m.halo) L.fill(m.halo, mix(DEEP, GLAZE, cool), 0.16);
-      for (const th of m.threads) L.fill(th.poly, mix(th.tone, GLAZE, cool), 0.55);
+      for (const h of m.halo.slice(0, 2)) L.fill(h, mix(DEEP, GLAZE, cool), 0.07);
+      for (const th of m.threads) L.fill(th.poly, mix(th.tone, GLAZE, cool), 0.42);
       if (m.stem) L.fill(m.stem, mix(DEEP, GLAZE, cool * 0.5), 0.6);
     }
     // light on the surface lifts out of the weed below it
@@ -243,8 +246,8 @@ function drawTresses(p: Painter, plan: BaikamoPlan, g: number) {
   }
   // the cold water's glaze over the whole mass
   const G = p.layer(area);
-  for (const { m } of marks) if (m.halo) G.fill(m.halo.map((q, i) => ({ x: q.x, y: q.y + (i < m.halo!.length / 2 ? -1.2 : 1.2) })), GLAZE, 0.4);
-  G.dry({ opacity: 0.4, edge: 0.08, edgeWidth: 1.2, sharpness: 0.12, centreLift: 0, granulation: 0.12, flow: 0.4, flowScale: 12 });
+  for (const { m } of marks) for (const h of m.halo) G.fill(h, GLAZE, 0.16);
+  G.dry({ opacity: 0.42, edge: 0.08, edgeWidth: 1.2, sharpness: 0.12, centreLift: 0, granulation: 0.12, flow: 0.4, flowScale: 12 });
 }
 
 /** A thin horizontal lens of light on the water. */
@@ -268,16 +271,16 @@ function drawBlossoms(p: Painter, rng: Rng, plan: BaikamoPlan, g: number) {
     const h = b.stalk * easeOut(budK);
     const top = { x: water.x + b.lean * h, y: water.y - h };
     p.ripple({ x: water.x, y: water.y + 0.3 }, { rng: rng.fork(`ring-${i}`), width: 6.5 * easeOut(budK), count: 1, squash: 0.3, opacity: 0.3 * budK, light: 0.4, lineWidth: 0.35 });
-    p.stroke([water, { x: (water.x + top.x) / 2 + b.lean * 0.4, y: (water.y + top.y) / 2 }, top], { rng: rng.fork(`stalk-${i}`), pigment: STALK, width: 0.5 * budK, taper: [0.1, 0.3], wobble: 0.1, wetness: 0.3, opacity: 0.8, edge: 0.3 });
+    p.stroke([water, { x: (water.x + top.x) / 2 + b.lean * 0.4, y: (water.y + top.y) / 2 }, top], { rng: rng.fork(`stalk-${i}`), pigment: STALK, width: 0.34 * budK, taper: [0.1, 0.3], wobble: 0.1, wetness: 0.3, opacity: 0.8, edge: 0.3 });
     const ok = ease(g, b.open[0], b.open[1]);
     const fade = 1 - smooth(ok / 0.5);
     if (visible(fade)) {
       const bud = mix(mix(PIGMENTS.sageLight, STALK, 0.3), PIGMENTS.petalWhite, smooth(budK) * 0.55);
       p.dab({ x: top.x, y: top.y + 0.2 }, bud, { rng: rng.fork(`bud-${i}`), variant: 'round', angle: UP + b.lean, length: lerp(0.3, 1.5, budK), width: lerp(0.3, 1.25, budK), opacity: 0.92 * fade, edge: 0.4, blend: 'source-over' });
     }
-    if (visible(ok)) open.push({ c: top, petals: b.petals, view: { tilt: b.tilt, roll: UP + b.lean * 0.3 }, size: b.size, open: ok });
+    if (visible(ok)) open.push({ id: i, c: top, petals: b.petals, view: { tilt: b.tilt, roll: UP + b.lean * 0.3 }, size: b.size, open: ok });
   });
-  plumFlowers(p, rng.fork('flowers'), open, { eye: PIGMENTS.gold });
+  plumFlowers(p, rng.fork('flowers'), open, { eye: mix(PIGMENTS.gold, '#f2d36b', 0.45) });
 }
 
 const baikamo: SpeciesDef = {

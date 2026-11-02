@@ -38,6 +38,8 @@ export function ribbon(pts: readonly Pt[], width: (t: number) => number): Pt[] |
 export const threadWidth = (w: number) => (t: number) => w * (0.55 + 0.45 * Math.sin(Math.min(1, t * 2.2) * Math.PI * 0.5)) * (1 - t) ** 0.7;
 
 export interface PlumFlower {
+  /** stable identity: keeps each flower's marks its own as others open */
+  id: number;
   c: Pt;
   petals: readonly PetalPlan[];
   view: FlowerView;
@@ -67,9 +69,10 @@ export function plumFlowers(p: Painter, rng: Rng, flowers: readonly PlumFlower[]
     f.petals
       .map((pl) => ({ pl, pose: petalPose(pl.a, f.view, f.open, 0.5) }))
       .sort((a, b) => a.pose.depth - b.pose.depth)
-      .map(({ pl, pose }) => ({ angle: pose.angle, length: f.size * pl.len * pose.len * lerp(0.35, 1, easeOut(f.open)), width: f.size * 0.86 * pl.wid * lerp(0.5, 1, f.open), curve: pl.curve }));
+      .map(({ pl, pose }) => ({ angle: pose.angle, length: f.size * pl.len * pose.len * lerp(0.35, 1, easeOut(f.open)), width: f.size * 0.74 * pl.wid * lerp(0.5, 1, f.open), curve: pl.curve }));
   const S = p.layer(area);
-  open.forEach((f, i) => {
+  open.forEach((f) => {
+    const i = f.id;
     const off = { x: f.c.x + f.size * 0.2, y: f.c.y + f.size * 0.75 };
     poses(f).forEach((pl, j) => {
       p.dabInto(S, off, SHADOW, { rng: rng.fork(`sh-${i}-${j}`), variant: 'petal', angle: pl.angle, length: pl.length * 1.1, width: pl.width * 1.05, pool: 0.1, basePool: 0.2, layers: 2, asym: 0, jitter: 0 });
@@ -77,17 +80,19 @@ export function plumFlowers(p: Painter, rng: Rng, flowers: readonly PlumFlower[]
   });
   S.dry({ opacity: 0.3, edge: 0.15, edgeWidth: 0.25, sharpness: 0.3, centreLift: 0.05, granulation: 0.05 });
   const W = p.layer(area);
-  open.forEach((f, i) => {
+  open.forEach((f) => {
+    const i = f.id;
     poses(f).forEach((pl, j) => {
       p.dabInto(W, f.c, o.white ?? PIGMENTS.petalWhite, { rng: rng.fork(`p-${i}-${j}`), variant: 'petal', angle: pl.angle, length: pl.length, width: pl.width, curve: pl.curve, pool: 0.3, poolSide: shadowSide(pl.angle), basePool: 0.15, layers: 3, asym: 0 });
       p.dabInto(W, f.c, SHADE, { rng: rng.fork(`s-${i}-${j}`), variant: 'petal', angle: pl.angle, length: pl.length * 0.5, width: pl.width * 0.4, pool: 0, basePool: 0.55, layers: 2, asym: 0 });
     });
   });
   W.dry({ opacity: 0.96, edge: 0.5, edgeWidth: 0.18, sharpness: 0.75, centreLift: 0.12, granulation: 0.03, flow: 0.2, flowScale: 2, darken: 0.32, blend: 'source-over' });
-  open.forEach((f, i) => {
+  open.forEach((f) => {
+    const i = f.id;
     const k = clamp01((f.open - 0.35) / 0.5);
     if (!visible(k)) return;
     const s = f.size * easeOut(k);
-    p.dab({ x: f.c.x, y: f.c.y - f.size * 0.05 }, o.eye, { rng: rng.fork(`eye-${i}`), variant: 'round', angle: 0, length: s * 0.55, width: s * 0.42, opacity: 0.92 * smooth(k), blend: 'source-over', edge: 0.4, pool: 0.4, poolSide: 1 });
+    p.dab({ x: f.c.x, y: f.c.y - f.size * 0.05 }, o.eye, { rng: rng.fork(`eye-${i}`), variant: 'round', angle: 0, length: s * 0.5, width: s * 0.36, opacity: 0.95 * smooth(k), blend: 'source-over', edge: 0.2, pool: 0.15, basePool: 0, darken: 0.12 });
   });
 }
