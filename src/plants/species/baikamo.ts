@@ -20,6 +20,7 @@ const STALK = mix(LEAF, PIGMENTS.sageLight, 0.45);
 
 /** Vertical squash of the water plane, seen from the bank. */
 const FLAT = 0.42;
+const BOX = { w: 140, h: 56, ax: 0.4, ay: 0.55 };
 /** Sampling step along a tress, in plane units. */
 const STEP = 1.6;
 
@@ -135,9 +136,9 @@ export function planBaikamo(rng: Rng): BaikamoPlan {
     blossoms[bi]!.bud = [...stagger(k, nb, [0.6, 0.86], 0.5)] as [number, number];
     blossoms[bi]!.open = [...stagger(k, nb, [0.78, 1], 0.55)] as [number, number];
   });
-  const glints = Array.from({ length: rng.int(3, 5) }, () => {
-    const x0 = rng.range(-30, 40);
-    return { y: rng.range(-7, 7), x0, x1: x0 + rng.range(18, 40), h: rng.range(0.35, 0.8) };
+  const glints = Array.from({ length: rng.int(5, 8) }, () => {
+    const x0 = rng.range(-40, 45);
+    return { y: rng.range(-9, 9), x0, x1: x0 + rng.range(22, 55), h: rng.range(0.3, 0.7) };
   });
   return { tresses, blossoms, glints };
 }
@@ -225,7 +226,8 @@ function tressMarks(t: Tress, g: number): { stem: Pt[] | null; halo: Pt[][]; thr
 function drawTresses(p: Painter, plan: BaikamoPlan, g: number) {
   const marks = plan.tresses.map((t) => ({ t, m: tressMarks(t, g) })).filter((x) => x.m.stem);
   if (!marks.length) return;
-  const area = { x: -50, y: -24, w: 145, h: 46 };
+  // the whole sprite box: a tress fanning toward the bank must not be cut by its layer
+  const area = { x: -BOX.w * BOX.ax, y: -BOX.h * BOX.ay, w: BOX.w, h: BOX.h };
   // the weed's shadow on the gravel bed, a little below it
   const B = p.layer(area);
   for (const { m } of marks) for (const h of m.halo) B.fill(h.map((q) => ({ x: q.x + 0.8, y: q.y + 1.6 })), mix(PIGMENTS.celadonDeep, PIGMENTS.shadow, 0.3), 0.1);
@@ -235,19 +237,23 @@ function drawTresses(p: Painter, plan: BaikamoPlan, g: number) {
     const L = p.layer(area);
     for (const { t, m } of marks) {
       if (t.depth < 0.5 !== deep) continue;
-      const cool = deep ? 0.35 : 0.12;
+      const cool = deep ? 0.5 : 0.3;
       for (const h of m.halo.slice(0, 2)) L.fill(h, mix(DEEP, GLAZE, cool), 0.07);
-      for (const th of m.threads) L.fill(th.poly, mix(th.tone, GLAZE, cool), 0.42);
+      for (const th of m.threads) {
+        // a faint doubled copy blurs each hair, as water does
+        L.fill(th.poly.map((q) => ({ x: q.x + 0.3, y: q.y + 0.45 })), mix(th.tone, GLAZE, cool + 0.15), 0.14);
+        L.fill(th.poly, mix(th.tone, GLAZE, cool), 0.36);
+      }
       if (m.stem) L.fill(m.stem, mix(DEEP, GLAZE, cool * 0.5), 0.6);
     }
     // light on the surface lifts out of the weed below it
-    for (const gl of plan.glints) L.lift(lens(gl), 0.55);
-    L.dry({ opacity: deep ? 0.62 : 0.82, edge: 0.18, edgeWidth: 0.35, sharpness: deep ? 0.15 : 0.32, centreLift: 0.06, granulation: 0.18, flow: 0.45, flowScale: 8, darken: 0.25 });
+    for (const gl of plan.glints) L.lift(lens(gl), 0.62);
+    L.dry({ opacity: deep ? 0.6 : 0.74, edge: 0.14, edgeWidth: 0.35, sharpness: deep ? 0.12 : 0.22, centreLift: 0.06, granulation: 0.18, flow: 0.45, flowScale: 8, darken: 0.25 });
   }
   // the cold water's glaze over the whole mass
   const G = p.layer(area);
   for (const { m } of marks) for (const h of m.halo) G.fill(h, GLAZE, 0.16);
-  G.dry({ opacity: 0.42, edge: 0.08, edgeWidth: 1.2, sharpness: 0.12, centreLift: 0, granulation: 0.12, flow: 0.4, flowScale: 12 });
+  G.dry({ opacity: 0.52, edge: 0.08, edgeWidth: 1.2, sharpness: 0.12, centreLift: 0, granulation: 0.12, flow: 0.4, flowScale: 12 });
 }
 
 /** A thin horizontal lens of light on the water. */
@@ -292,8 +298,8 @@ const baikamo: SpeciesDef = {
   tier: 2,
   habitats: ['water'],
   sizeClass: 'medium',
-  size: { w: 140, h: 56 },
-  anchor: { x: 0.4, y: 0.55 },
+  size: { w: BOX.w, h: BOX.h },
+  anchor: { x: BOX.ax, y: BOX.ay },
   description: 'Baikamo — plum blossom in the current, in the middle of summer.',
   bloomColor: '#f8f4ea',
   pollinators: true,
