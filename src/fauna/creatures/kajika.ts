@@ -6,7 +6,7 @@
  * now and then. Three-quarter side view, painted facing right. docs/systems/fauna.md.
  */
 import type { Rng } from '../../core/rng';
-import { blob, smoothPolygon, type Painter } from '../../paint';
+import { blob, mix, smoothPolygon, type Painter } from '../../paint';
 import type { LayerId } from '../../render/types';
 import type { Pt } from '../../render/viewport';
 import { clamp, closestOnPolygon, dist, easeInOut, insideWithMargin, lerp, rangeOf } from '../math';
@@ -73,7 +73,7 @@ export interface KajikaParts {
 }
 
 /** Chin points (where the sac hangs), in body lengths, for the sit and the raised pose. */
-export const CHIN = { sit: { x: 0.42, y: -0.04 }, raised: { x: 0.43, y: -0.14 } } as const;
+export const CHIN = { sit: { x: 0.44, y: -0.04 }, raised: { x: 0.45, y: -0.14 } } as const;
 /** The front rises about the hips (x −0.2) when it calls. */
 const lift = (x: number, y: number, raise: number) => ({ x, y: y - raise * 0.21 * Math.max(0, x + 0.2) });
 
@@ -85,16 +85,18 @@ function paintBody(p: Painter, L: number, raise: number): void {
   };
   const G = (x: number, y: number) => ({ x: x * L, y: y * L });
   // a soft cool shadow where it presses on the stone
-  p.wash(blob(-0.02 * L, 0.012 * L, 0.42 * L, 0.04 * L, rng, { irregularity: 0.08 }), '#8c89a1', { rng, opacity: 0.3, edge: 0, sharpness: 0.15, centreLift: 0, granulation: 0.3, fade: { angle: 0, start: 0.6, amount: 0.8 } });
+  p.wash(blob(-0.02 * L, 0.012 * L, 0.44 * L, 0.04 * L, rng, { irregularity: 0.08 }), '#8c89a1', { rng, opacity: 0.3, edge: 0, sharpness: 0.15, centreLift: 0, granulation: 0.3, fade: { angle: 0, start: 0.6, amount: 0.8 } });
+  // the far hand, a little ahead of the near one
+  p.dab(G(0.47, 0.004), C.leg, { rng, variant: 'round', angle: 0, length: L * 0.07, width: L * 0.03, opacity: 0.45 });
 
   const body = smoothPolygon(
-    [P(0.56, -0.085), P(0.5, -0.16), P(0.4, -0.215), P(0.31, -0.28), P(0.2, -0.285), P(0.09, -0.245), P(-0.1, -0.255), P(-0.28, -0.235), P(-0.42, -0.17), P(-0.49, -0.08), P(-0.44, -0.005), P(-0.15, 0.01), P(0.2, 0.0), P(0.42, -0.025), P(0.52, -0.05)],
+    [P(0.57, -0.08), P(0.52, -0.13), P(0.44, -0.18), P(0.36, -0.245), P(0.29, -0.3), P(0.21, -0.275), P(0.12, -0.235), P(-0.05, -0.245), P(-0.22, -0.262), P(-0.34, -0.235), P(-0.44, -0.16), P(-0.47, -0.08), P(-0.42, -0.025), P(-0.1, -0.012), P(0.2, -0.01), P(0.42, -0.03), P(0.52, -0.05)],
     2,
   );
   p.wetInWet(body, C.back, C.flank, {
     rng,
     angle: Math.PI / 2 + 0.1,
-    split: 0.48,
+    split: 0.5,
     softness: 0.5,
     opacity: 0.9,
     edge: 0.2,
@@ -106,68 +108,76 @@ function paintBody(p: Painter, L: number, raise: number): void {
     deform: 0.05,
     spread: 0.04,
     drops: [
-      { pigment: C.blotch, at: P(-0.15, -0.22), size: L * 0.12, alpha: 0.45 },
+      { pigment: C.blotch, at: P(-0.15, -0.21), size: L * 0.12, alpha: 0.45 },
       { pigment: C.warm, at: P(0.15, -0.19), size: L * 0.07, alpha: 0.2 },
     ],
   });
-  // the folded hind leg, its bars and the mottling in one wet layer: they bleed and dry as one
-  const thigh = smoothPolygon([P(-0.44, -0.1), P(-0.33, -0.18), P(-0.1, -0.15), P(0.07, -0.085), P(0.04, -0.035), P(-0.2, -0.045), P(-0.41, -0.025)], 2);
-  const shank = smoothPolygon([P(0.06, -0.06), P(0.03, -0.02), P(-0.34, -0.004), P(-0.38, -0.035), P(-0.2, -0.05)], 2);
+  // mottling in one wet layer: the blotches bleed together and dry as one
   const M = p.layer({ x: -L * 0.6, y: -L * 0.5, w: L * 1.25, h: L * 0.6 });
   M.clip(body);
-  for (let i = 0; i < 9; i++) {
-    const c = P(rng.range(-0.42, 0.44), rng.range(-0.27, -0.1));
-    M.fill(blob(c.x, c.y, L * rng.range(0.035, 0.075), L * rng.range(0.022, 0.045), rng, { irregularity: 0.4 }), rng.chance(0.15) ? C.warm : C.blotch, rng.range(0.3, 0.55));
+  for (let i = 0; i < 10; i++) {
+    const c = P(rng.range(-0.42, 0.44), rng.range(-0.26, -0.12));
+    M.fill(blob(c.x, c.y, L * rng.range(0.035, 0.075), L * rng.range(0.022, 0.045), rng, { irregularity: 0.4 }), rng.chance(0.15) ? C.warm : C.blotch, rng.range(0.38, 0.62));
   }
-  const bar = P(0.13, -0.26);
-  M.fill(blob(bar.x, bar.y, L * 0.06, L * 0.03, rng, { irregularity: 0.35 }), C.bar, 0.55);
-  M.fill(thigh, C.leg, 0.4);
-  M.fill(shank, C.leg, 0.3);
-  for (const u of [-0.33, -0.17, -0.03]) {
-    const c = P(u + rng.range(-0.02, 0.02), -0.1);
-    M.fill(blob(c.x, c.y, L * 0.03, L * 0.065, rng, { irregularity: 0.45 }), C.bar, rng.range(0.25, 0.4));
-  }
-  M.dry({ opacity: 0.72, edge: 0.25, edgeWidth: L * 0.015, sharpness: 0.35, granulation: 0.5, flow: 0.5 });
+  M.fill(blob(P(0.14, -0.245).x, P(0.14, -0.245).y, L * 0.06, L * 0.03, rng, { irregularity: 0.35 }), C.bar, 0.6);
+  // the dark stripe from the eye to the nostril, and the fold over the eardrum
+  M.fill(smoothPolygon([P(0.35, -0.255), P(0.53, -0.13), P(0.52, -0.105), P(0.34, -0.215)], 1), C.bar, 0.5);
+  M.fill(smoothPolygon([P(0.23, -0.27), P(0.13, -0.235), P(0.07, -0.17), P(0.1, -0.16), P(0.16, -0.215), P(0.23, -0.24)], 1), C.bar, 0.45);
+  M.dry({ opacity: 0.75, edge: 0.25, edgeWidth: L * 0.015, sharpness: 0.35, granulation: 0.5, flow: 0.5 });
   p.granulate(body, '#7e7a6e', { rng, strength: 0.5 });
   // a cool glaze low on the flank, lost upward: it sits on the stone
   p.glaze(body, '#8c89a1', { rng, opacity: 0.2, edge: 0, fade: { angle: -Math.PI / 2, start: 0.25, amount: 1 } });
 
+  // the folded hind leg over the flank: a soft shadow under the thigh, the thigh lit on top and barred
+  const thigh = smoothPolygon([P(-0.45, -0.12), P(-0.36, -0.19), P(-0.18, -0.175), P(0.0, -0.12), P(0.09, -0.075), P(0.06, -0.04), P(-0.12, -0.035), P(-0.42, -0.03)], 2);
+  p.wetInWet(thigh, mix(C.back, C.flank, 0.5), C.leg, { rng, angle: Math.PI / 2 + 0.25, split: 0.5, softness: 0.5, opacity: 0.85, edge: 0.22, edgeWidth: L * 0.014, sharpness: 0.4, granulation: 0.5, flow: 0.5, flowScale: L * 0.2, deform: 0.05 });
+  const B = p.layer({ x: -L * 0.55, y: -L * 0.3, w: L * 0.75, h: L * 0.32 });
+  B.clip(thigh);
+  for (const u of [-0.33, -0.19, -0.05]) {
+    const c = P(u + rng.range(-0.015, 0.015), -0.1);
+    B.fill(smoothPolygon([{ x: c.x - L * 0.012, y: c.y - L * 0.09 }, { x: c.x + L * 0.03, y: c.y - L * 0.08 }, { x: c.x + L * 0.03, y: c.y + L * 0.08 }, { x: c.x - L * 0.015, y: c.y + L * 0.08 }], 1), C.bar, rng.range(0.3, 0.42));
+  }
+  B.dry({ opacity: 0.7, edge: 0.2, sharpness: 0.3, granulation: 0.45, flow: 0.5 });
+  const shank = smoothPolygon([P(0.08, -0.06), P(0.06, -0.02), P(-0.32, 0.004), P(-0.36, -0.025), P(-0.2, -0.045)], 2);
+  p.wash(shank, C.leg, { rng, opacity: 0.42, edge: 0.08, edgeWidth: L * 0.01, sharpness: 0.3, granulation: 0.4, deform: 0.05, fade: { angle: Math.PI / 2, start: 0.5, amount: 0.5 } });
+
   const toes = (from: Pt, tips: readonly Pt[], op: number) => {
     for (const t of tips) {
-      p.stroke([from, { x: lerp(from.x, t.x, 0.6), y: lerp(from.y, t.y, 0.6) - L * 0.006 }, t], { rng, pigment: C.leg, width: L * 0.016, opacity: op, wetness: 0.5, wobble: 0.2, taper: [0.1, 0.2] });
+      p.stroke([from, { x: lerp(from.x, t.x, 0.6), y: lerp(from.y, t.y, 0.6) - L * 0.006 }, t], { rng, pigment: C.leg, width: L * 0.018, opacity: op, wetness: 0.5, wobble: 0.2, taper: [0.1, 0.2] });
       // the big round toe pad, paler than the toe
-      p.dab(t, C.pad, { rng, variant: 'round', angle: 0, length: L * 0.032, width: L * 0.028, opacity: 0.6, edge: 0.3, blend: 'source-over' });
+      p.dab(t, C.pad, { rng, variant: 'round', angle: 0, length: L * 0.034, width: L * 0.03, opacity: 0.65, edge: 0.3, blend: 'source-over' });
     }
   };
-  toes(G(-0.28, -0.005), [G(-0.1, 0.012), G(0.0, 0.006)], 0.45);
-  // the near arm: a tapering wash from the shoulder to a splayed hand on the stone
+  // the hind foot: long toes forward along the stone, under the knee
+  const sole = smoothPolygon([G(-0.3, -0.004), G(-0.1, -0.01), G(0.0, 0.004), G(-0.1, 0.02), G(-0.28, 0.016)], 1);
+  p.wash(sole, C.leg, { rng, opacity: 0.35, edge: 0.05, sharpness: 0.25, granulation: 0.3, deform: 0.06 });
+  toes(G(-0.02, 0.006), [G(0.06, 0.026), G(0.11, 0.008), G(0.09, 0.03)], 0.4);
+  // the near arm: elbow back and out, a splayed hand on the stone
   const sh = P(0.27, -0.1);
-  const wr = G(0.34, -0.006);
-  // the elbow sits back and out: the arm bends under the shoulder
-  const el = { x: lerp(sh.x, wr.x, 0.45) - L * 0.035, y: lerp(sh.y, wr.y, 0.55) };
-  const arm = smoothPolygon([{ x: sh.x - L * 0.035, y: sh.y }, { x: sh.x + L * 0.035, y: sh.y - L * 0.005 }, { x: el.x + L * 0.03, y: el.y }, { x: wr.x + L * 0.016, y: wr.y }, { x: wr.x - L * 0.014, y: wr.y + L * 0.004 }, { x: el.x - L * 0.022, y: el.y + L * 0.01 }], 1);
+  const wr = G(0.35, -0.004);
+  const el = { x: lerp(sh.x, wr.x, 0.45) - L * 0.04, y: lerp(sh.y, wr.y, 0.55) };
+  const arm = smoothPolygon([{ x: sh.x - L * 0.04, y: sh.y }, { x: sh.x + L * 0.04, y: sh.y - L * 0.005 }, { x: el.x + L * 0.032, y: el.y }, { x: wr.x + L * 0.016, y: wr.y }, { x: wr.x - L * 0.014, y: wr.y + L * 0.004 }, { x: el.x - L * 0.024, y: el.y + L * 0.01 }], 1);
   p.wetInWet(arm, C.leg, C.blotch, { rng, angle: Math.PI, split: 0.55, opacity: 0.85, edge: 0.25, edgeWidth: L * 0.01, sharpness: 0.4, granulation: 0.4, deform: 0.04 });
-  toes(wr, [G(0.42, 0.01), G(0.46, 0.002), G(0.38, 0.016)], 0.5);
+  toes(wr, [G(0.43, 0.01), G(0.47, 0.0), G(0.39, 0.016)], 0.55);
 
-  // eye: a bump, a gold iris with a dark horizontal pupil, a lidded top and one speck of light
-  const eye = P(0.265, -0.262);
-  p.dab({ x: eye.x, y: eye.y - L * 0.002 }, C.back, { rng, variant: 'round', angle: 0, length: L * 0.105, width: L * 0.092, opacity: 0.45, edge: 0.1, sharpness: 0.2 });
-  p.dab(eye, C.eye, { rng, variant: 'round', angle: 0, length: L * 0.085, width: L * 0.075, opacity: 0.95, edge: 0.45, blend: 'source-over' });
-  p.dab({ x: eye.x + L * 0.004, y: eye.y + L * 0.003 }, '#3b352e', { rng, variant: 'round', angle: 0, length: L * 0.052, width: L * 0.02, opacity: 0.9 });
-  p.dab({ x: eye.x + L * 0.018, y: eye.y - L * 0.014 }, '#faf6ee', { rng, variant: 'round', angle: 0, length: L * 0.015, width: L * 0.013, opacity: 0.85, blend: 'source-over' });
+  // eye: a bump, a gold iris with a dark horizontal pupil and one speck of light
+  const eye = P(0.28, -0.258);
+  p.dab({ x: eye.x, y: eye.y - L * 0.004 }, C.back, { rng, variant: 'round', angle: 0, length: L * 0.11, width: L * 0.1, opacity: 0.45, edge: 0.1, sharpness: 0.2 });
+  p.dab(eye, C.eye, { rng, variant: 'round', angle: 0, length: L * 0.095, width: L * 0.085, opacity: 0.95, edge: 0.45, blend: 'source-over' });
+  p.dab({ x: eye.x + L * 0.004, y: eye.y + L * 0.003 }, '#3b352e', { rng, variant: 'round', angle: 0, length: L * 0.058, width: L * 0.022, opacity: 0.9 });
+  p.dab({ x: eye.x + L * 0.02, y: eye.y - L * 0.016 }, '#faf6ee', { rng, variant: 'round', angle: 0, length: L * 0.016, width: L * 0.014, opacity: 0.85, blend: 'source-over' });
   // eardrum and the line of the mouth, faint
-  const ear = P(0.14, -0.18);
-  p.dab(ear, C.blotch, { rng, variant: 'round', angle: 0, length: L * 0.055, width: L * 0.05, opacity: 0.3, edge: 0.35 });
-  p.inkLine([P(0.54, -0.085), P(0.4, -0.13), P(0.22, -0.15)], { rng, pigment: '#5e564a', width: L * 0.01, opacity: 0.3, breaks: 0.35, taper: [0.2, 0.5] });
+  p.dab(P(0.15, -0.17), C.blotch, { rng, variant: 'round', angle: 0, length: L * 0.055, width: L * 0.05, opacity: 0.3, edge: 0.35 });
+  p.inkLine([P(0.55, -0.075), P(0.4, -0.12), P(0.22, -0.14)], { rng, pigment: '#5e564a', width: L * 0.01, opacity: 0.3, breaks: 0.35, taper: [0.2, 0.5] });
 }
 
 function paintSac(p: Painter, L: number): void {
   const rng = p.rng;
-  const r = L * 0.165;
+  const r = L * 0.13;
   // a pale bubble hung from the chin: no rim, lost where it joins, a cool shade low, light high
-  const shape = blob(0, r * 0.95, r, r * 0.9, rng, { irregularity: 0.05 });
-  p.wetInWet(shape, '#f4f0e8', '#bdb7c6', { rng, angle: Math.PI / 2 + 0.5, split: 0.62, softness: 0.55, opacity: 0.9, edge: 0.04, sharpness: 0.25, centreLift: 0, granulation: 0.08, fade: { angle: -Math.PI / 2, start: 0.6, amount: 0.7 }, deform: 0.03, blend: 'source-over' });
-  p.dab({ x: r * 0.28, y: r * 0.5 }, '#ffffff', { rng, variant: 'round', angle: 0, length: r * 0.42, width: r * 0.34, opacity: 0.7, edge: 0, sharpness: 0.2, blend: 'source-over' });
+  const shape = blob(0, r * 0.8, r, r * 0.86, rng, { irregularity: 0.05 });
+  p.wetInWet(shape, '#f6f2ea', '#aaa4b8', { rng, angle: Math.PI / 2 + 0.5, split: 0.6, softness: 0.55, opacity: 0.86, edge: 0.04, sharpness: 0.25, centreLift: 0, granulation: 0.08, fade: { angle: -Math.PI / 2, start: 0.6, amount: 0.7 }, deform: 0.03, blend: 'source-over' });
+  p.dab({ x: r * 0.28, y: r * 0.4 }, '#ffffff', { rng, variant: 'round', angle: 0, length: r * 0.42, width: r * 0.34, opacity: 0.7, edge: 0, sharpness: 0.2, blend: 'source-over' });
 }
 
 function paintLeap(p: Painter, L: number): void {
@@ -213,7 +223,7 @@ export function paintKajika(res: number, seed: number): KajikaParts {
     sit: paintSprite(res, box, seed, (p) => paintBody(p, L, 0)),
     // the same seed: the same mottling, lifted
     raised: paintSprite(res, box, seed, (p) => paintBody(p, L, 1)),
-    sac: paintSprite(res, { w: L * 0.4, h: L * 0.38, ox: L * 0.2, oy: L * 0.02 }, seed + 2, (p) => paintSac(p, L)),
+    sac: paintSprite(res, { w: L * 0.32, h: L * 0.3, ox: L * 0.16, oy: L * 0.02 }, seed + 2, (p) => paintSac(p, L)),
     leap,
     swim: paintSprite(res, { w: L * 0.5, h: L * 0.16, ox: L * 0.14, oy: L * 0.12 }, seed + 4, (p) => paintSwim(p, L)),
     deep: deepCopy(leap, res, '#5b9a91', 0.3, 3),
@@ -786,7 +796,7 @@ export class Kajika extends BaseCreature {
       const k = 0.22 + 0.78 * sac;
       ctx.translate(chin.x * L, chin.y * L);
       ctx.scale(k * (1 + 0.06 * sac), k);
-      ctx.globalAlpha = this.alpha * Math.min(1, 0.35 + sac);
+      ctx.globalAlpha = this.alpha * Math.min(0.9, 0.3 + sac);
       ctx.drawImage(parts.sac.img as CanvasImageSource, -parts.sac.ox, -parts.sac.oy, parts.sac.w, parts.sac.h);
     }
     ctx.restore();
