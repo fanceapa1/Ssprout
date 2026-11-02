@@ -161,9 +161,10 @@ export interface Blot {
 
 /**
  * Soft scalloped blots in one wet layer (view units), with `holes` lifted out: the crown's body
- * wash and its lobe shade. Each blot keeps its own seed, so only its size and opacity change.
+ * wash and its lobe shade. A high `flood` merges overlaps into one wash. Each blot keeps its own
+ * seed, so only its size and opacity change.
  */
-export function paintBlots(p: Painter, blots: readonly Blot[], rng: Rng, holes: readonly { x: number; y: number; r: number }[], dry: DryOptions, res?: number, squash = 0.82): void {
+export function paintBlots(p: Painter, blots: readonly Blot[], rng: Rng, holes: readonly { x: number; y: number; r: number }[], dry: DryOptions, res?: number, squash = 0.82, flood = 0.6): void {
   const live = blots.filter((b) => b.alpha > 0.02 && b.r > 0.8);
   if (!live.length) return;
   const maxR = live.reduce((m, b) => Math.max(m, b.r), 1);
@@ -171,8 +172,8 @@ export function paintBlots(p: Painter, blots: readonly Blot[], rng: Rng, holes: 
   for (const b of live) {
     const r = createRng(b.id * 131 + 17);
     const poly = blob(b.x, b.y, b.r, b.r * squash * r.range(0.9, 1.05), r, { points: 16, irregularity: 0.22, scallop: 0.5, scallops: r.int(5, 8), rotation: r.range(-0.4, 0.4) });
-    L.fill(poly, b.pigment, b.alpha * 0.6);
-    L.fill(deformPolygon(poly, r, { depth: 1, variance: 0.08, cap: b.r * 0.1 }), b.pigment, b.alpha * 0.45);
+    L.fill(poly, b.pigment, b.alpha * flood);
+    L.fill(deformPolygon(poly, r, { depth: 1, variance: 0.08, cap: b.r * 0.1 }), b.pigment, b.alpha * 0.45 * (1 - flood / 2));
   }
   holes.forEach((h, i) => {
     const r = createRng(i * 59 + 3);

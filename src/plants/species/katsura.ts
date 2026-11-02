@@ -236,6 +236,8 @@ const WINE = '#b5525c';
 const WINE_LIGHT = lighten(mix(WINE, '#d98a8e', 0.4), 0.04);
 /** the flush of new leaves: a clear rosy wash, so it does not mud as it greens */
 const YOUNG: FoliagePigments = { light: mix(WINE, '#f2c4bc', 0.55), mid: mix(WINE, '#e3a0a0', 0.25), shadow: WINE, dark: darken(WINE, 0.12) };
+/** the turn from wine to green goes through a clear bronze, not grey */
+const BRONZE: FoliagePigments = { light: '#e9cfa6', mid: '#c9a777', shadow: '#94866a', dark: '#6f6550' };
 /** katsura's summer leaf is a cool blue-green, glaucous beneath */
 const SUMMER: FoliagePigments = { light: '#aec29a', mid: '#8ea870', shadow: '#5f8a7c', dark: '#4b6a60' };
 const GOLD: FoliagePigments = { light: '#f0c681', mid: '#e3a24c', shadow: '#c88444', dark: '#9b6040' };
@@ -254,7 +256,8 @@ export function katsuraPadColour(pad: KatsuraPad, g: number): FoliagePigments {
   const a = arrival(pad.delay);
   const green = ramp(g, a + 0.04, a + 0.16);
   const autumn = blend(GOLD, PINK, pad.pink * 0.8);
-  return blend(blend(YOUNG, SUMMER, green), autumn, stagger(g, 0.74, 1, pad.turn, 0.16));
+  const spring = green < 0.5 ? blend(YOUNG, BRONZE, green * 2) : blend(BRONZE, SUMMER, green * 2 - 1);
+  return blend(spring, autumn, stagger(g, 0.74, 1, pad.turn, 0.16));
 }
 
 /** How far each mark has arrived at growth g (0 = not yet, 1 = full size); the draw uses these. */
@@ -309,7 +312,7 @@ const katsura: SpeciesDef = {
       const live = plan.pads.map((pad) => ({ pad, k: arrive.pad(pad), at: viewPt(view, pad), c: colours.get(pad.id)! }));
       const body: Blot[] = live.map(({ pad, k, at, c }) => ({ x: at.x, y: at.y, r: pad.r * view.scale * k * 0.95, alpha: Math.min(1, k * 2.5) * 0.85, pigment: mix(c.light, c.mid, 0.2 + 0.35 * (1 - pad.lit) / 2), id: pad.id }));
       const holes = plan.holes.map((h) => ({ ...viewPt(view, h), r: h.r * view.scale * ramp(g, FOLIAGE[0], FOLIAGE[1]) }));
-      paintBlots(p, body, pr.fork('body'), holes, { opacity: 0.85, edge: 0.2, edgeWidth: 1.4, sharpness: 0.5, centreLift: 0.2, granulation: 0.16, flow: 0.45, flowScale: 14, blend: 'source-over' }, softRes(p));
+      paintBlots(p, body, pr.fork('body'), holes, { opacity: 0.92, edge: 0.2, edgeWidth: 1.4, sharpness: 0.5, centreLift: 0.2, granulation: 0.16, flow: 0.45, flowScale: 14, blend: 'source-over' }, softRes(p), 0.82, 0.95);
       const shade: Blot[] = live
         .filter(({ pad }) => pad.lit < 0.3)
         .map(({ pad, k, at, c }) => ({ x: at.x + pad.r * view.scale * k * 0.08, y: at.y + pad.r * view.scale * k * 0.28, r: pad.r * view.scale * k * 0.72, alpha: Math.min(1, k * 2.5) * ramp(0.3 - pad.lit, 0, 0.9), pigment: c.shadow, id: pad.id + 500 }));
