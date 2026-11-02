@@ -119,6 +119,7 @@ describe('each garden’s flora', () => {
       'maidenhair-fern',
       'mizubasho',
       'susuki-grass',
+      'taniutsugi',
       'violet',
       'wasabi',
       'wild-strawberry',

@@ -168,7 +168,7 @@ export function buildTaniutsugi(rng: Rng): Taniutsugi {
     const band = bandOf();
     const tone = toneOf(band);
     const nodes = nodesOf(rng, plan.length, tone, flowers, { from: 0.22, bloom: [0.42, 0.9], chance: 0.5 });
-    const main: Wand = { plan, parent: -1, at: 0, offset: 0, window: [start, start + rng.range(0.3, 0.36)], width: rng.range(2.7, 3.3), band, tone, nodes, seed: seedOf(rng) };
+    const main: Wand = { plan, parent: -1, at: 0, offset: 0, window: [start, start + rng.range(0.36, 0.42)], width: rng.range(2.7, 3.3), band, tone, nodes, seed: seedOf(rng) };
     wands.push(main);
     // a side wand from the middle of a tall one, leaning outward
     if (plan.length > 140 && rng.chance(0.6)) {
@@ -186,7 +186,7 @@ export function buildTaniutsugi(rng: Rng): Taniutsugi {
         parent: wands.length - 1,
         at,
         offset,
-        window: [s0, s0 + rng.range(0.22, 0.27)],
+        window: [s0, s0 + rng.range(0.3, 0.35)],
         width: rng.range(1.5, 1.8),
         band: sb,
         tone: toneOf(sb),
@@ -252,11 +252,11 @@ export function poseTaniutsugi(plant: Taniutsugi, g: number): TaniutsugiPose {
     const bark = mix(BARK, w.tone, w.parent < 0 ? 0.12 : 0.4);
     pose.wands.push({ id: `wand-${i}`, band: w.band, pts: gs.pts, width: w.width * thick * smooth(gs.ext * 5), pigment: bark, seed: w.seed });
     w.nodes.forEach((nd, j) => {
-      const k = smooth(clamp01((gs.ext - nd.t * 0.7) / 0.3));
+      const k = smooth(clamp01((gs.ext - nd.t * 0.8) / 0.35));
       if (k < 0.015) return;
       const node = nodeAt(gs, nd.t);
       nd.leaves.forEach((l, m) => {
-        const e = 1 - (1 - k) ** 3;
+        const e = 1 - (1 - k) ** 2;
         const angle = lerpAngle(node.angle, node.angle + l.side * l.turn, smooth(k));
         const curve = (Math.cos(angle) >= 0 ? 1 : -1) * l.droop * k;
         const lit = Math.sin(angle) * l.side;
