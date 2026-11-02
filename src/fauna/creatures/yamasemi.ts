@@ -410,7 +410,12 @@ export function standOn(p: Perch, x: number): Pt {
 }
 
 /** A spot to plunge at: in the still water `margin` from its edge (so never in the foam), within reach. */
-export function plungeSpot(w: Pick<FaunaWorld, 'pond' | 'view'>, from: Pt, rng: Rng, facing = 0): Pt | null {
+/** On (or just behind) a boulder standing in the water: no place to dive. */
+export function onRock(q: Pt, rocks: readonly { x: number; y: number; w: number; h: number }[], pad = 12): boolean {
+  return rocks.some((r) => Math.abs(q.x - r.x) < r.w / 2 + pad && q.y > r.y - r.h - pad && q.y < r.y + pad);
+}
+
+export function plungeSpot(w: Pick<FaunaWorld, 'pond' | 'view' | 'scene'>, from: Pt, rng: Rng, facing = 0): Pt | null {
   const pond = w.pond.world;
   const [r0, r1] = YAMASEMI_TUNING.reach;
   // the side it faces first (by default the pool's), then anywhere; distances in the pool's plane
@@ -420,7 +425,7 @@ export function plungeSpot(w: Pick<FaunaWorld, 'pond' | 'view'>, from: Pt, rng: 
     const a = rng.range(-1.3, 1.3);
     const d = rng.range(r0, r1);
     const q = { x: from.x + side * Math.cos(a) * d, y: from.y + Math.sin(a) * d * w.pond.squash };
-    if (!insideWithMargin(q, pond, YAMASEMI_TUNING.margin)) continue;
+    if (!insideWithMargin(q, pond, YAMASEMI_TUNING.margin) || onRock(q, w.scene.rocks)) continue;
     if (q.y - 90 < w.view.y || q.x < w.view.x + 20 || q.x > w.view.x + w.view.w - 20) continue;
     return q;
   }
@@ -672,6 +677,8 @@ export class Yamasemi extends BaseCreature {
     else if (this.then === 'hover') {
       this.hoverAt = { ...this.pos };
       this.hoverFor = rangeOf(this.rng, [...YAMASEMI_TUNING.hover]) / sf;
+      // over the water it draws among the entities at the spot's depth
+      this.layer = 'entities';
       this.go('hover');
     } else this.land(w);
   }

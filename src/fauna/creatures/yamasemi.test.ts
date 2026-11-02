@@ -9,7 +9,7 @@ import { FaunaSim } from '../sim';
 import { Stage } from '../stage';
 import { THREATS } from './kajika';
 import { SAWAGANI_TUNING } from './sawagani';
-import yamasemi, { choosePerch, FALLS_CLEAR, plungeSpot, Route, streamWay, Yamasemi, YAMASEMI_TUNING, yamasemiPerches } from './yamasemi';
+import yamasemi, { choosePerch, FALLS_CLEAR, onRock, plungeSpot, Route, streamWay, Yamasemi, YAMASEMI_TUNING, yamasemiPerches } from './yamasemi';
 
 const plants: PlantInstance[] = [];
 const ONLY = WATERFALL_FAUNA.filter((r) => r.kind === 'yamasemi');
@@ -57,6 +57,7 @@ describe('where the yamasemi perches and fishes', () => {
         found++;
         expect(insideWithMargin(s, w.pond.world, YAMASEMI_TUNING.margin - 0.01)).toBe(true);
         expect(inFoam(s)).toBe(false);
+        expect(onRock(s, waterfallScene.rocks, 11.9)).toBe(false);
       }
     }
     expect(found).toBeGreaterThan(100);
