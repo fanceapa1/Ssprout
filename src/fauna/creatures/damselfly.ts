@@ -678,7 +678,7 @@ export class Damselfly extends BaseCreature {
       ctx.rotate(this.pitch);
       ctx.translate(-THORAX.x, -THORAX.y);
     }
-    drawDamselfly(ctx, parts, perched ? restPose(this.open) : flightPose(this.phase), perched, perched ? 0.45 : 0.7);
+    drawDamselfly(ctx, parts, perched ? restPose(this.open) : flightPose(this.phase), perched, perched ? 0.45 : 0.85);
     ctx.restore();
   }
 }
@@ -706,7 +706,7 @@ const damselfly: CreatureDef = {
       const m = paintDamselfly(res, seed, 'male');
       const f = paintDamselfly(res, seed + 5, 'female');
       const box = { w: 36 * K, h: 26 * K, ox: 30 * K, oy: 16 * K };
-      const pose = (parts: DamselflyParts, p: WingPose, perched: boolean) => paintSprite(res, box, seed + 9, (pt) => drawDamselfly(pt.ctx, parts, p, perched, perched ? 0.45 : 0.7));
+      const pose = (parts: DamselflyParts, p: WingPose, perched: boolean) => paintSprite(res, box, seed + 9, (pt) => drawDamselfly(pt.ctx, parts, p, perched, perched ? 0.45 : 0.85));
       return [pose(m, restPose(0), true), pose(m, restPose(1), true), pose(m, flightPose(1.2), false), pose(m, flightPose(4.4), false), pose(f, restPose(0.3), true), m.wing, f.wing];
     },
   },
