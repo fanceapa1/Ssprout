@@ -81,20 +81,29 @@ export function planKurinso(rng: Rng): KurinsoPlan {
     // spread round the base in the ground plane, ascending, foreshortened toward us
     const phi = rot + (i / n) * Math.PI * 2 + rng.gaussian(0, 0.2);
     const lift = rng.range(0.15, 0.5);
-    const ax = Math.cos(phi);
-    const ay = 0.42 * Math.sin(phi) - lift;
+    let ax = Math.cos(phi);
+    let ay = 0.42 * Math.sin(phi) - lift;
+    // a leaf toward us would be a stub in this box: it lies out sideways instead
+    if (ay > 0.08) {
+      ay = 0.08;
+      ax = (ax < 0 ? -1 : 1) * Math.max(Math.abs(ax), 0.75);
+    }
     const angle = Math.atan2(ay, ax);
     const reach = Math.hypot(ax, ay) / Math.hypot(1, lift);
     let length = rng.range(34, 46) * lerp(0.7, 1, reach);
-    // the box: 8 below the base, 56 to each side
-    const down = Math.sin(angle);
-    if (down > 0.05) length = Math.min(length, 7.5 / down);
+    const width = rng.range(11, 14) * lerp(0.75, 1, Math.min(1, length / 34));
+    // the box: its blade, flank included, stays 8 below the base and 56 to each side
+    const curve = (Math.cos(angle) > 0 ? 1 : -1) * rng.range(0.04, 0.14);
+    // the tip droops by about 0.7 × curve × length
+    const down = Math.sin(angle) + Math.abs(curve) * 0.7 * Math.abs(Math.cos(angle));
+    const flank = (width / 2) * Math.abs(Math.cos(angle));
+    if (down > 0.05) length = Math.min(length, Math.max(4, (7.5 - flank) / down));
     length = Math.min(length, 54 / Math.max(0.05, Math.abs(Math.cos(angle))));
     leaves.push({
       angle,
       length,
-      width: rng.range(11, 14) * lerp(0.75, 1, Math.min(1, length / 34)),
-      curve: (Math.cos(angle) > 0 ? 1 : -1) * rng.range(0.04, 0.14),
+      width: width * lerp(0.6, 1, Math.min(1, length / 20)),
+      curve,
       window: [0, 0],
       tone: jitter(mix(green, LEAF_DEEP, rng.range(0, 0.3)), rng, 0.025),
       veins: rng.int(6, 8),
@@ -107,11 +116,11 @@ export function planKurinso(rng: Rng): KurinsoPlan {
   });
 
   const colour = pickColour(rng);
-  const length = rng.range(112, 134);
+  const length = rng.range(98, 120);
   const lean = rng.gaussian(0, 0.05);
   const scape = makeStem(rng, { base: { x: rng.range(-1, 1), y: -1 }, length, angle: UP + lean, bend: rng.gaussian(0, 0.12), segments: 10, tipBias: 0.5, wobble: 0.015 });
   const nw = rng.int(3, 5);
-  const low = rng.range(0.4, 0.48);
+  const low = rng.range(0.34, 0.42);
   const whorls: Whorl[] = [];
   for (let j = 0; j < nw; j++) {
     const q = j / (nw - 1);
@@ -203,7 +212,7 @@ function drawFlowers(p: Painter, rng: Rng, placed: Placed[], plan: KurinsoPlan, 
     const { view, face } = flowerView(f);
     const fade = 1 - smooth(k / 0.45);
     if (visible(fade)) {
-      primroseBud(p, r.fork('bud'), at, { angle: view.roll, length: f.size * 0.8, k: bud, colour: ease(g, f.open[0] - 0.12, f.open[0] + 0.05), pigment: c.pigment, green: SCAPE, opacity: 0.88 * fade });
+      primroseBud(p, r.fork('bud'), at, { angle: view.roll, length: f.size * 0.8, k: bud, colour: ease(g, f.open[0] - 0.12, f.open[0] + 0.05), pigment: c.pigment, green: mix(SCAPE, PIGMENTS.sageLight, 0.35), opacity: 0.85 * fade });
     }
     if (visible(k)) open.push({ key: pl.key, c: at, view, size: f.size, open: k, lobes: f.lobes, face });
   }

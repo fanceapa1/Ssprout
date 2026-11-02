@@ -28,7 +28,8 @@ describe('kurinso plan', () => {
     for (let seed = 1; seed <= 60; seed++) {
       const plan = planKurinso(createRng(seed).fork('plan'));
       for (const l of plan.leaves) {
-        expect(Math.sin(l.angle) * l.length, `seed ${seed}`).toBeLessThan(8.5);
+        const droop = Math.abs(l.curve) * 0.7 * Math.abs(Math.cos(l.angle)) * l.length;
+        expect(Math.sin(l.angle) * l.length + droop + (l.width / 2) * Math.abs(Math.cos(l.angle)), `seed ${seed}`).toBeLessThan(9.6);
         expect(Math.abs(Math.cos(l.angle)) * l.length + l.width * 0.5, `seed ${seed}`).toBeLessThan(60);
       }
       const pts = stemPoints(plan.scape, 1, 1);
