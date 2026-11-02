@@ -18,9 +18,9 @@ const FRECKLE = '#6b4a8c';
 const COLUMN = mix('#b9a2c9', PIGMENTS.petalWhite, 0.3);
 const BUD_GREEN = mix(PIGMENTS.sap, PIGMENTS.sageLight, 0.4);
 
-/** Box 120×160, base at (60, 144): room 58 to each side, 140 above, 14 below. */
+/** Box 120×160, base at (60, 144): stems kept 46 to each side so leaves and stars clear the edges. */
 const BOX = { w: 120, h: 160, ax: 0.5, ay: 0.9 };
-const REACH = { side: 55, up: 136, down: 6 };
+const REACH = { side: 46, up: 132, down: 6 };
 
 interface LeafPlan {
   /** node position along the stem (0 base … 1 tip) */
