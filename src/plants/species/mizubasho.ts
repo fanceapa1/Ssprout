@@ -64,7 +64,7 @@ export function planMizubasho(rng: Rng): MizubashoPlan {
     const wk = rng.range(0.27, 0.32);
     const bend = u * rng.range(0.15, 0.4);
     // keep the blade, its flank included, 54 to each side and 138 above the base
-    const reach = (Math.abs(Math.cos(angle)) + Math.abs(Math.cos(angle + bend))) / 2 + (wk / 2) * Math.abs(Math.sin(angle + bend));
+    const reach = (Math.abs(Math.cos(angle)) + Math.abs(Math.cos(angle + bend))) / 2 + wk / 2;
     length = Math.min(length, 54 / reach, 138 / ((Math.abs(Math.sin(angle)) + Math.abs(Math.sin(angle + bend))) / 2 + wk / 2));
     leaves.push({
       shape: paddleShape(rng.fork(`leaf-${i}`), { neck: rng.range(0.3, 0.36), asym: rng.range(-0.08, 0.08), veins: rng.int(6, 8) }),
@@ -74,7 +74,7 @@ export function planMizubasho(rng: Rng): MizubashoPlan {
       width: length * wk,
       bend,
       window: [0, 0],
-      tone: jitter(mix(green, LEAF_DEEP, rng.range(0, 0.25)), rng, 0.02),
+      tone: jitter(mix(green, LEAF_DEEP, rng.range(0.12, 0.32)), rng, 0.02),
       front,
     });
   }

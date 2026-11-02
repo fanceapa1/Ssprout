@@ -348,7 +348,7 @@ export function paddleLeaf(p: Painter, rng: Rng, shape: PaddleShape, pose: AxisP
     }
     L.ctx.restore();
   }
-  L.dry({ opacity: s.opacity * smooth(pose.length / 6), edge: 0.42, edgeWidth: Math.max(0.25, Math.min(1.3, pose.width * 0.035)), sharpness: 0.72, centreLift: 0.25, granulation: 0.15, flow: 0.35, flowScale: Math.max(4, pose.width * 0.6), darken: 0.3, blend: 'source-over' });
+  L.dry({ opacity: s.opacity * smooth(pose.length / 6), edge: 0.34, edgeWidth: Math.max(0.25, Math.min(1.3, pose.width * 0.035)), sharpness: 0.66, centreLift: 0.25, granulation: 0.15, flow: 0.35, flowScale: Math.max(4, pose.width * 0.6), darken: 0.3, blend: 'source-over' });
   // the pale midrib, lifted the length of the leaf
   if (pose.length > 4) {
     const rib = [0, 0.2, 0.4, 0.6, 0.8, 0.93].map((t) => map({ x: 0, y: t * LEN }));
