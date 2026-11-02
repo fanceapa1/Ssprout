@@ -145,8 +145,9 @@ export function planKatsura(rng: Rng): KatsuraPlan {
   const holes: { x: number; y: number; r: number }[] = [];
   const nh = pr.int(1, 2);
   for (let tries = 0; tries < 60 && holes.length < nh; tries++) {
-    const a = pr.range(-Math.PI, Math.PI);
-    const d = pr.range(0.4, 0.72);
+    // in the upper half, where they show sky
+    const a = pr.range(-Math.PI * 0.95, -Math.PI * 0.05);
+    const d = pr.range(0.35, 0.7);
     const x = cx + Math.cos(a) * rx * d;
     const y = cy + Math.sin(a) * ry * d * 0.8;
     const room = Math.min(...clumps.map((c) => Math.hypot(c.x - x, c.y - y)));
@@ -202,7 +203,7 @@ export function planKatsura(rng: Rng): KatsuraPlan {
       const tone = hr.range(0, 1);
       const delay = clamp01(pad.delay + hr.range(-0.05, 0.12));
       for (let s = -1; s <= 1; s += 2)
-        if (!holes.some((h) => Math.hypot(h.x - sx, h.y - sy) < h.r + 4)) hearts.push({ x: sx, y: sy, angle: out + s * hr.range(0.45, 0.8) + hr.gaussian(0, 0.12), length: len * hr.range(0.88, 1.08), tone: clamp01(tone + hr.range(-0.2, 0.2)), delay, id: hearts.length, group: pad.id });
+        if (!holes.some((h) => Math.hypot(h.x - sx, h.y - sy) < h.r * 0.7)) hearts.push({ x: sx, y: sy, angle: out + s * hr.range(0.45, 0.8) + hr.gaussian(0, 0.12), length: len * hr.range(0.88, 1.08), tone: clamp01(tone + hr.range(-0.2, 0.2)), delay, id: hearts.length, group: pad.id });
     }
   }
   const sr = rng.fork('sucker');
@@ -327,7 +328,7 @@ const katsura: SpeciesDef = {
         const l = lit.get(h.group) ?? 0;
         return l > -0.1 ? tone(c, t) : mix(c.mid, c.shadow, Math.min(0.5, (-0.1 - l) * 0.8 + t * 0.2));
       };
-      paintHearts(p, plan.hearts.filter((h) => !inFront(h)), view, pr.fork('hearts'), heartSize, (h) => leaf(h, h.tone), { opacity: 0.5, darken: 0.1, edge: 0.4 });
+      paintHearts(p, plan.hearts.filter((h) => !inFront(h)), view, pr.fork('hearts'), heartSize, (h) => leaf(h, h.tone), { opacity: 0.45, darken: 0.05, edge: 0.28 });
       // front leaves cover the twigs behind them
       paintHearts(p, plan.hearts.filter(inFront), view, pr.fork('hearts-front'), heartSize, (h) => leaf(h, h.tone * 0.6), { opacity: 0.85, blend: 'source-over' });
       if (whips.length) paintHearts(p, plan.sucker, view, pr.fork('sucker-hearts'), arrive.sucker, (h) => mix(WINE_LIGHT, WINE, h.tone));

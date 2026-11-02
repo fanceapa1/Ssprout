@@ -182,7 +182,7 @@ export function paintBlots(p: Painter, blots: readonly Blot[], rng: Rng, holes: 
   }
   holes.forEach((h, i) => {
     const r = createRng(i * 59 + 3);
-    if (h.r > 0.8) L.lift(blob(h.x, h.y, h.r * 1.25, h.r * 0.6, r, { points: 12, irregularity: 0.45, rotation: r.range(-0.6, 0.6) }), 1);
+    if (h.r > 0.8) L.lift(blob(h.x, h.y, h.r * 1.2, h.r * 0.7, r, { points: 14, irregularity: 0.28, scallop: 0.4, scallops: 6, rotation: r.range(-0.6, 0.6) }), 0.9);
   });
   L.dry(dry);
 }
