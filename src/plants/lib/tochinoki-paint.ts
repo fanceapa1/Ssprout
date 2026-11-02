@@ -110,7 +110,7 @@ export function paintHands(p: Painter, hands: readonly HandMark[], rng: Rng, dry
       L.fill(deformPolygon(lf.shadow, r, { depth: 1, variance: 0.05 }), h.shadePigment, a * 0.6);
       if (h.length > 7) {
         const vw = Math.max(0.14, h.length * 0.012);
-        L.lift(ribbon(lf.axis.slice(0, 9), (t) => vw * (1 - t * 0.8)), 0.3 * h.alpha);
+        L.lift(ribbon(lf.axis.slice(0, 9), (t) => vw * (1 - t * 0.8)), 0.2 * h.alpha);
       }
     }
     len += h.length;
@@ -129,6 +129,19 @@ export function paintPetioles(p: Painter, stalks: readonly { from: Pt; to: Pt; w
     L.fill(ribbon([s.from, mid, s.to], (t) => s.width * (1 - 0.4 * t)), pigment, 0.7 * s.alpha);
   }
   L.dry({ opacity: 0.8, edge: 0.4, edgeWidth: 0.4, sharpness: 0.8, centreLift: 0.1, granulation: 0.05, flowScale: 6 });
+}
+
+/** The crown's shaded interior: a few big soft blots, multiplied under the hands. */
+export function paintCrownShade(p: Painter, blots: readonly { x: number; y: number; r: number; alpha: number; id: number }[], pigment: Pigment, rng: Rng): void {
+  const live = blots.filter((b) => b.alpha > 0.02 && b.r > 1);
+  if (!live.length) return;
+  const area = padRect(bounds(live.flatMap((b) => [{ x: b.x - b.r, y: b.y - b.r }, { x: b.x + b.r, y: b.y + b.r }])), 6);
+  const L = stableLayer(p, area, rng.fork('crown-shade-dry'), softRes(p));
+  for (const b of live) {
+    const r = createRng(b.id * 101 + 7);
+    L.fill(blob(b.x, b.y, b.r, b.r * r.range(0.6, 0.8), r, { points: 14, irregularity: 0.3, scallop: 0.6, scallops: r.int(5, 8) }), jitter(pigment, r, 0.03), 0.6 * b.alpha);
+  }
+  L.dry({ opacity: 0.7, edge: 0.25, edgeWidth: 2, sharpness: 0.35, centreLift: 0.1, granulation: 0.15, flow: 0.5, flowScale: 30 });
 }
 
 // ---------------------------------------------------------------------------------------------

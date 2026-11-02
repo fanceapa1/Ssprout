@@ -1,8 +1,7 @@
 import type { Rng } from '../../core/rng';
 import { PIGMENTS, mix, shade, type Pigment, type Pt } from '../../paint';
-import type { FoliagePigments } from '../../paint/recipes';
-import { paintCandles, paintHands, paintPetioles, type CandleMark, type HandMark } from '../lib/tochinoki-paint';
-import { inUnits, paintGroundShadow, paintPadMass, paintSeed, paintSkeleton, visibleBranches, type Pad } from '../lib/tree-paint';
+import { paintCandles, paintCrownShade, paintHands, paintPetioles, type CandleMark, type HandMark } from '../lib/tochinoki-paint';
+import { inUnits, paintGroundShadow, paintSeed, paintSkeleton, visibleBranches, type Pad } from '../lib/tree-paint';
 import { fitTree, growChildren, normalise, pointAt, ramp, stagger, startTree, steer, treeView, viewPt, type Tree, type TreeView } from '../lib/tree-structure';
 import type { SpeciesDef } from '../types';
 
@@ -70,7 +69,7 @@ export function planTochinoki(rng: Rng): TochinokiPlan {
     angle: UP + r.range(-0.04, 0.04),
     length: r.range(285, 315),
     width: r.range(20, 24),
-    tipWidth: 4.5,
+    tipWidth: 2.4,
     limb: { segments: 8, wander: 0.025, curl: r.range(-0.01, 0.01) },
     dur: 1,
   });
@@ -99,7 +98,7 @@ export function planTochinoki(rng: Rng): TochinokiPlan {
     if (b.order > 1) continue;
     for (const f of b.order === 0 ? [1] : [0.55, 1]) {
       const q = pointAt(b, f);
-      pads.push({ x: q.x, y: q.y - 4, r: pr.range(30, 42), delay: Math.min(1, b.t1 * 0.5 + pr.range(0, 0.4)), id: pads.length, depth: pr.range(-1, 1), branch: b.id });
+      pads.push({ x: q.x + (cx - q.x) * 0.25 + 4, y: q.y + 10, r: pr.range(22, 32), delay: Math.min(1, b.t1 * 0.5 + pr.range(0, 0.4)), id: pads.length, depth: pr.range(-1, 1), branch: b.id });
     }
   }
 
@@ -142,7 +141,7 @@ export function planTochinoki(rng: Rng): TochinokiPlan {
       }
       const out = Math.atan2(y - ey, x - ex);
       // rosettes on the upper dome carry the candles; the rest hang outward from their twigs
-      const top = y < ey - ry * 0.15 && topChance < 0.5 + 0.4 * d;
+      const top = y < ey + ry * 0.35 && (y < ey - ry * 0.2 ? topChance < 0.3 + 0.5 * d : d > 0.6 && topChance < 0.55);
       const back = Math.hypot(near.at.x - x, near.at.y - y);
       const stalk = Math.min(back, 13);
       const twig = back > 0.1 ? { x: x + ((near.at.x - x) / back) * stalk, y: y + ((near.at.y - y) / back) * stalk } : { x, y: y + 1 };
@@ -160,7 +159,7 @@ export function planTochinoki(rng: Rng): TochinokiPlan {
         droop: top ? jit[7]! : jit[3]!,
         band: (d < 0.5 ? (bandRoll < 0.7 ? 0 : 1) : top ? (bandRoll < 0.75 ? 2 : 1) : bandRoll < 0.25 ? 0 : bandRoll < 0.6 ? 1 : 2) as 0 | 1 | 2,
         top,
-        delay: Math.min(1, near.t1 * 0.5 + d * 0.25 + jit[8]!),
+        delay: Math.min(1, near.t1 * 0.3 + d * 0.3 + jit[8]! * 1.2),
         seed,
       });
     }
@@ -185,7 +184,7 @@ const BAND: Record<0 | 1 | 2, { pigment: Pigment; shade: Pigment }> = {
 };
 const YOUNG = mix(PIGMENTS.sageLight, PIGMENTS.gold, 0.3);
 const BARK = mix(PIGMENTS.wood, PIGMENTS.sumi, 0.42);
-const INTERIOR: FoliagePigments = { light: mix(LEAF_SHADE, PIGMENTS.celadonDeep, 0.15), mid: mix(LEAF_SHADE, PIGMENTS.sumi, 0.15), shadow: mix(LEAF_SHADE, PIGMENTS.shadow, 0.35), dark: mix(LEAF_SHADE, PIGMENTS.sumi, 0.45) };
+const INTERIOR = mix(mix(LEAF_SHADE, PIGMENTS.celadonDeep, 0.2), PIGMENTS.sumi, 0.15);
 const CANDLE = { cream: '#f4ecd8', bud: mix(PIGMENTS.sageLight, '#f4ecd8', 0.35), pink: '#d47a6a', yellow: mix(PIGMENTS.gold, '#f4ecd8', 0.35), shade: mix(PIGMENTS.petalShade, PIGMENTS.sage, 0.25) };
 
 export interface TochinokiPose {
@@ -195,7 +194,7 @@ export interface TochinokiPose {
   candles: CandleMark[];
 }
 
-export const handOpen = (g: number, h: Pick<HandPlan, 'delay'>) => stagger(g, 0.46, 0.8, h.delay, 0.18);
+export const handOpen = (g: number, h: Pick<HandPlan, 'delay'>) => stagger(g, 0.44, 0.84, h.delay, 0.22);
 export const candleArrive = (g: number, c: Pick<CandlePlan, 'delay'>) => stagger(g, 0.7, 1, c.delay, 0.2);
 
 /** Every mark at a growth (pure): what the draw paints and the tests check. */
@@ -206,7 +205,7 @@ export function poseTochinoki(plan: TochinokiPlan, g: number): TochinokiPose {
   const candles: CandleMark[] = [];
 
   // the sapling's own small hands at its growing tips, fading as the crown leafs out
-  const amount = 1 - ramp(g, 0.44, 0.62);
+  const amount = 1 - ramp(g, 0.5, 0.68);
   if (amount > 0.01) {
     for (const v of visibleBranches(plan.tree, view)) {
       if (v.b.order > 1) continue;
@@ -223,7 +222,7 @@ export function poseTochinoki(plan: TochinokiPlan, g: number): TochinokiPose {
           facing: head + s * 0.95,
           spread: 1.9,
           squash: 1,
-          length: 7.5 * (0.55 + 0.45 * view.scale) * ramp(v.f, 0, 0.3),
+          length: 10 * (0.55 + 0.45 * view.scale) * ramp(v.f, 0, 0.3),
           lens: LENS[5]!,
           width: 0.34,
           droop: 0.15,
@@ -313,19 +312,20 @@ const tochinoki: SpeciesDef = {
       paintGroundShadow(p, plan.tree.base, 110, view, pr);
       paintSeed(p, plan.tree.base, g, pr, mix(PIGMENTS.wood, PIGMENTS.sumi, 0.25));
       paintSkeleton(p, plan.tree, view, pr, { pigment: BARK, texture: 0.95, modelling: 0.75, flare: 0.55, wobble: 0.15 });
-      paintPadMass(p, plan.pads, view, pr, (pad) => stagger(g, 0.48, 0.78, pad.delay, 0.16), () => INTERIOR, {
-        flatness: 0.7,
-        light: -2.2,
-        opacity: 0.55,
-        gaps: 0.5,
-        dabSize: 0.26,
-        shadow: 0.7,
-      });
+      paintCrownShade(
+        p,
+        plan.pads.map((pad) => {
+          const at = viewPt(view, pad);
+          return { x: at.x, y: at.y, r: pad.r * view.scale * (0.5 + 0.5 * stagger(g, 0.52, 0.86, pad.delay, 0.2)), alpha: stagger(g, 0.52, 0.86, pad.delay, 0.2), id: pad.id };
+        }),
+        INTERIOR,
+        pr,
+      );
       const band = (b: 0 | 1 | 2) => pose.hands.filter((h) => h.band === b);
       paintHands(p, band(0), pr.fork('hands-0'));
       paintPetioles(p, pose.petioles, mix(LEAF_SHADE, PIGMENTS.wood, 0.3), pr);
       paintHands(p, band(1), pr.fork('hands-1'));
-      paintHands(p, band(2), pr.fork('hands-2'));
+      paintHands(p, band(2), pr.fork('hands-2'), { opacity: 0.92 });
       paintCandles(p, pose.candles, pr.fork('candles'), CANDLE);
     });
   },
