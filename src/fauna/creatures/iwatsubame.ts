@@ -706,7 +706,8 @@ export class Martin extends BaseCreature {
 const iwatsubame: CreatureDef = {
   kind: 'iwatsubame',
   title: 'iwatsubame house martins',
-  role: 'visitor',
+  // scheduled but not counted: a flock small and far on the cliff
+  role: 'drifter',
   visit: { gap: [110, 280], first: [20, 60], stay: [70, 150], group: [3, 7], max: 8, diurnal: true, visitor: false },
   spawnCount: 5,
   needs: (w) => ledgesOf(w).length > 0,
