@@ -61,6 +61,24 @@ describe('katsura', () => {
     }
   });
 
+  it('masses its crown in clumps, lit on top and shaded beneath, with a few sky holes', () => {
+    for (let s = 1; s <= 12; s++) {
+      const p = plan(s);
+      expect(p.holes.length, `seed ${s}`).toBeLessThanOrEqual(2);
+      const top = Math.min(...p.pads.map((q) => q.y));
+      const bottom = Math.max(...p.pads.map((q) => q.y));
+      for (const h of p.holes) {
+        expect(h.y).toBeLessThan((top + bottom) / 2 + 10);
+        for (const q of p.pads) expect(Math.hypot(q.x - h.x, q.y - h.y)).toBeGreaterThanOrEqual(h.r);
+        for (const l of p.hearts) expect(Math.hypot(l.x - h.x, l.y - h.y)).toBeGreaterThanOrEqual(h.r * 0.7);
+      }
+      const lit = p.pads.map((q) => q.lit);
+      expect(Math.min(...lit)).toBeLessThan(-0.2);
+      expect(Math.max(...lit)).toBeGreaterThan(0.2);
+      for (const v of lit) expect(Math.abs(v)).toBeLessThanOrEqual(1);
+    }
+  });
+
   it('turns wine-red, then blue-green, then autumn gold', () => {
     const pad = { ...plan(1).pads[0]!, delay: 0, turn: 0.5, pink: 0 };
     const at = (g: number) => hexToRgb(katsuraPadColour(pad, g).mid);
