@@ -69,7 +69,7 @@ function planTepals(rng: Rng): Tepal[] {
   // some tepals are heavily freckled, some sparsely: dabbed, not stippled
   return Array.from({ length: 6 }, (_, i) => {
     const freckles: Freckle[] = [];
-    const n = rng.chance(0.2) ? 0 : rng.chance(0.55) ? 1 : 2;
+    const n = rng.chance(0.25) ? 0 : rng.chance(0.65) ? 1 : 2;
     const centres = [rng.range(0.2, 0.4), rng.range(0.38, 0.6)];
     for (let k = 0; k < n; k++) {
       const c = centres[k % 2]!;
@@ -119,7 +119,7 @@ export function planHototogisu(rng: Rng): HototogisuPlan {
       const t = lerp(0.14, 0.93, (j + rng.range(-0.3, 0.3)) / (nLeaves - 1));
       // longest a little below the middle, small toward the tip
       const size = Math.sin(Math.PI * lerp(0.25, 0.92, t)) * lerp(1, 0.55, t ** 2);
-      leaves.push({ t, side: alt, turn: rng.range(0.42, 0.75), length: rng.range(17, 22) * size, width: rng.range(5.6, 7) * size, curve: alt * rng.range(0.04, 0.14), tone: jitter(mix(green, PIGMENTS.olive, rng.range(0, 0.3)), rng, 0.03) });
+      leaves.push({ t, side: alt, turn: rng.range(0.42, 0.75), length: rng.range(20, 26) * size, width: rng.range(6.2, 7.8) * size, curve: alt * rng.range(0.04, 0.14), tone: jitter(mix(green, PIGMENTS.olive, rng.range(0, 0.3)), rng, 0.03) });
       alt = -alt as 1 | -1;
     }
     stalks.push({ plan, window: [0.06 + i * 0.03, 0.58 + i * 0.025], leaves, width: main ? 1.25 : 1.05 });
