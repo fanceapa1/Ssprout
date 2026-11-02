@@ -162,7 +162,7 @@ Phase 12 art queue: one species or creature per task (atomic), 2–3 at a time, 
 | W9 | Yamabuki (*Kerria japonica*): T3 shrub | `src/plants/species/yamabuki.ts` | done (devlog 84) |
 | W10 | Taniutsugi (*Weigela hortensis*): T3 shrub | `src/plants/species/taniutsugi.ts` | done (devlog 86) |
 | W11 | Katsura (*Cercidiphyllum japonicum*): T4 tree | `src/plants/species/katsura.ts` | done (devlog 88; polish in W11b) |
-| W11b | Katsura polish (orchestrator review): the crown is sparse and twiggy at overview size, not yet the brief's broad round cloud; fill it, hide more twigs, cut paint cost (80 ms, twice the ginkgo) | `src/plants/species/katsura.ts` | queued |
+| W11b | Katsura polish (orchestrator review): the crown is sparse and twiggy at overview size, not yet the brief's broad round cloud; fill it, hide more twigs, cut paint cost (80 ms, twice the ginkgo) | `src/plants/species/katsura.ts` | in progress |
 | W12 | Tochinoki (*Aesculus turbinata*): T4 tree | `src/plants/species/tochinoki.ts` | done (devlog 89) |
 | C1 | Brown dipper (kawagarasu): bobs on wet rocks, walks under water (was S13) | `src/fauna/creatures/dipper.ts` | done (devlog 77; polish in C1b) |
 | C1b | Dipper polish (orchestrator review): the body reads as a smooth flat blob with a dot eye, more cartoon than watercolour; add plumage texture and edge variation, visible legs while wading, smoother flight frames | `src/fauna/creatures/dipper.ts` | queued |
