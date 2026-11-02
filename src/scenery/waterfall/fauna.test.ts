@@ -25,8 +25,9 @@ describe('the waterfall’s unlock table', () => {
     for (const f of WATERFALL_FAUNA) expect(f.arrival, f.id).toMatch(/^[A-Z].{10,}\.$/);
   });
 
+  const OWN = ['dipper', 'damselfly', 'iwana', 'sawagani', 'kajika', 'iwatsubame', 'firefly', 'yamasemi'];
   it('shares only what lives in a gorge, in its gorge form; no koi, lily-pad frog or garden swallows', () => {
-    const shared = Object.fromEntries(WATERFALL_FAUNA.filter((f) => creatureDef(f.kind) && f.kind !== 'bee' && f.kind !== 'heron').map((f) => [f.kind, f.variant]));
+    const shared = Object.fromEntries(WATERFALL_FAUNA.filter((f) => creatureDef(f.kind) && !OWN.includes(f.kind) && f.kind !== 'bee' && f.kind !== 'heron').map((f) => [f.kind, f.variant]));
     expect(shared).toEqual({ strider: 'margin', leaf: 'maple', butterfly: 'swallowtail', dragonfly: 'aka', bird: 'wagtail' });
     for (const f of WATERFALL_FAUNA) {
       expect(['koi', 'frog', 'swallow']).not.toContain(f.kind);
