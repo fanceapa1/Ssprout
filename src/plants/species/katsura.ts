@@ -11,7 +11,7 @@ const SIZE = { w: 380, h: 460 };
 const BASE_Y = SIZE.h * 0.94;
 const UP = -Math.PI / 2;
 /** pads deeper than this are in front: their leaves cover the twigs */
-const FRONT = 0.2;
+const FRONT = -0.15;
 
 export interface KatsuraPad extends Pad {
   /** 0 gold … 1 pink in autumn */
@@ -161,7 +161,7 @@ export function planKatsura(rng: Rng): KatsuraPlan {
   const hearts: Heart[] = [];
   for (const pad of pads) {
     const d = dome(pad.x, pad.y);
-    const spurs = Math.round((pad.r / 5) * (d > 0.72 ? 1 : (pad.depth ?? 0) > FRONT ? 0.8 : 0.3));
+    const spurs = Math.round((pad.r / 5) * (d > 0.72 ? 1 : (pad.depth ?? 0) > FRONT ? 1.1 : 0.3));
     for (let i = 0; i < spurs; i++) {
       // rim spurs face outward from the dome's centre
       const th = d > 0.72 ? Math.atan2(pad.y - cy, pad.x - cx) + hr.gaussian(0, 0.9) : hr.range(-Math.PI, Math.PI);
@@ -272,7 +272,7 @@ const katsura: SpeciesDef = {
       const front = paintSkeleton(p, part((b) => b.order === 0 && b.tag === 'trunk'), view, pr, { pigment: BARK, texture: 0.85, modelling: 0.55, flare: 0.35 });
       paintShaggyBark(p, front, pr.fork('shag'), BARK);
       // limbs and twigs paler, so the crown is not crossed by ink
-      const limbs = paintSkeleton(p, part((b) => b.order > 0), view, pr.fork('limbs'), { pigment: LIMB, texture: 0.3, modelling: 0.3, opacity: 0.58 });
+      const limbs = paintSkeleton(p, part((b) => b.order > 0), view, pr.fork('limbs'), { pigment: LIMB, texture: 0.3, modelling: 0.3, opacity: 0.5 });
       const suckerTree = { base: plan.tree.base, branches: plan.tree.branches.filter((b) => b.tag === 'sucker') };
       const whips = paintSkeleton(p, suckerTree, view, pr.fork('sucker'), { pigment: mix(BARK, WINE, 0.35), texture: 0, modelling: 0, flare: 0 });
       paintTipHearts(p, [...back, ...front, ...limbs], view, arrive.tips, pr.fork('tips'), WINE);
