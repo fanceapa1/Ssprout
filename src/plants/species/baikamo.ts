@@ -196,7 +196,7 @@ function tressMarks(t: Tress, g: number): { stem: Pt[] | null; halo: Pt[][]; thr
   const grow = smooth(k * 2.5);
   out.stem = ribbon(path, (q) => 0.3 * grow * (1 - q * 0.6));
   const hw = (q: number) => lerp(0.6, 4.6, smooth(q * 3)) * smooth(q * 12) * (1 - smooth((q - 0.72) / 0.28) * 0.85) * grow;
-  for (const f of [0.6, 1, 1.5]) {
+  for (const f of [0.45, 0.75, 1]) {
     const h = ribbon(path, (q) => hw(q) * f);
     if (h) out.halo.push(h);
   }
@@ -230,19 +230,20 @@ function drawTresses(p: Painter, plan: BaikamoPlan, g: number) {
   const area = { x: -BOX.w * BOX.ax, y: -BOX.h * BOX.ay, w: BOX.w, h: BOX.h };
   // the weed's shadow on the gravel bed, a little below it
   const B = p.layer(area);
-  for (const { m } of marks) for (const h of m.halo) B.fill(h.map((q) => ({ x: q.x + 0.8, y: q.y + 1.6 })), mix(PIGMENTS.celadonDeep, PIGMENTS.shadow, 0.3), 0.1);
-  B.dry({ opacity: 0.3, edge: 0.05, edgeWidth: 1, sharpness: 0.1, centreLift: 0, granulation: 0.25, flow: 0.5, flowScale: 10 });
+  for (const { m } of marks) for (const h of m.halo) B.fill(h.map((q) => ({ x: q.x + 0.6, y: q.y + 1.2 })), PIGMENTS.shadow, 0.1);
+  B.dry({ opacity: 0.24, edge: 0.05, edgeWidth: 1, sharpness: 0.1, centreLift: 0, granulation: 0.25, flow: 0.5, flowScale: 10 });
   // deep tresses first, softer and cooler; those near the surface over them
   for (const deep of [true, false]) {
     const L = p.layer(area);
     for (const { t, m } of marks) {
       if (t.depth < 0.5 !== deep) continue;
-      const cool = deep ? 0.5 : 0.3;
-      for (const h of m.halo.slice(0, 2)) L.fill(h, mix(DEEP, GLAZE, cool), 0.07);
+      // the cold water's celadon glaze is mixed into the weed, never washed round it
+      const cool = deep ? 0.55 : 0.36;
+      for (const h of m.halo) L.fill(h, mix(DEEP, GLAZE, cool), 0.06);
       for (const th of m.threads) {
         // a faint doubled copy blurs each hair, as water does
-        L.fill(th.poly.map((q) => ({ x: q.x + 0.3, y: q.y + 0.45 })), mix(th.tone, GLAZE, cool + 0.15), 0.14);
-        L.fill(th.poly, mix(th.tone, GLAZE, cool), 0.36);
+        L.fill(th.poly.map((q) => ({ x: q.x + 0.3, y: q.y + 0.45 })), mix(mix(th.tone, GLAZE, cool + 0.15), PIGMENTS.stone, 0.14), 0.14);
+        L.fill(th.poly, mix(mix(th.tone, GLAZE, cool), PIGMENTS.stone, 0.14), 0.36);
       }
       if (m.stem) L.fill(m.stem, mix(DEEP, GLAZE, cool * 0.5), 0.6);
     }
@@ -250,10 +251,6 @@ function drawTresses(p: Painter, plan: BaikamoPlan, g: number) {
     for (const gl of plan.glints) L.lift(lens(gl), 0.62);
     L.dry({ opacity: deep ? 0.6 : 0.74, edge: 0.14, edgeWidth: 0.35, sharpness: deep ? 0.12 : 0.22, centreLift: 0.06, granulation: 0.18, flow: 0.45, flowScale: 8, darken: 0.25 });
   }
-  // the cold water's glaze over the whole mass
-  const G = p.layer(area);
-  for (const { m } of marks) for (const h of m.halo) G.fill(h, GLAZE, 0.16);
-  G.dry({ opacity: 0.52, edge: 0.08, edgeWidth: 1.2, sharpness: 0.12, centreLift: 0, granulation: 0.12, flow: 0.4, flowScale: 12 });
 }
 
 /** A thin horizontal lens of light on the water. */
