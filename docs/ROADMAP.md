@@ -154,7 +154,8 @@ Phase 12 art queue: one species or creature per task (atomic), 2–3 at a time, 
 | W3 | Iwakagami (*Shortia soldanelloides*): T1, mossy banks and ledges | `src/plants/species/iwakagami.ts` | done (devlog 75) |
 | W4 | Wasabi (*Eutrema japonicum*): T1, stream shore | `src/plants/species/wasabi.ts` | done (devlog 76) |
 | W5 | Kurinsō (*Primula japonica*): T2, stream banks | `src/plants/species/kurinso.ts` | done (devlog 78) |
-| W6 | Baikamo (*Ranunculus nipponicus* var. *submersus*): T2, water, flowing | `src/plants/species/baikamo.ts` | in progress |
+| W6 | Baikamo (*Ranunculus nipponicus* var. *submersus*): T2, water, flowing | `src/plants/species/baikamo.ts` | done (devlog 80) |
+| W6b | Baikamo polish: the sunset rim light lands on the underwater weed (needs a species opt-out on the shared type); bolder blossoms at overview size | `src/plants/species/baikamo.ts`, plants rim light | queued |
 | W7 | Mizubashō (*Lysichiton camtschatcensis*): T2, water and shore | `src/plants/species/mizubasho.ts` | in progress |
 | W8 | Hototogisu (toad lily, *Tricyrtis hirta*): T2, cliff foot | `src/plants/species/hototogisu.ts` | queued |
 | W9 | Yamabuki (*Kerria japonica*): T3 shrub | `src/plants/species/yamabuki.ts` | queued |

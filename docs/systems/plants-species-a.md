@@ -36,6 +36,7 @@ npm run shots -- --entry plants-a-review/strip-balloon-flower --seed 3
 | `wasabi` | Wasabi · Wasabi | 1 | shore | 86×86 · .5/.88 | `#f6f2e6` | yes | fountain of long-stalked glossy heart-to-kidney leaves from a knobbly rhizome in a celadon current; airy racemes of small white four-petalled crosses (waterfall only) |
 | `iwakagami` | Rock Mirror · Iwakagami | 1 | rock, path | 86×86 · .5/.82 | `#e88ca8` | yes | tuft of 4–7 round glossy leathery leaves with bronze toothed rims and a lifted shine; reddish scape nodding with 3–6 rose-pink fringed bells (waterfall only) |
 | `kurinso` | Japanese Primrose · Kurinsō | 2 | shore, meadow | 120×160 · .5/.94 | `#c9568a` | yes | low rosette of long crinkled spoon leaves; one stout stem with 3–5 stacked whorls of flat notched magenta primroses with dark eyes, opening from the bottom up; crimson, rose and white forms (waterfall only) |
+| `baikamo` | Baikamo · Baikamo | 2 | water | 140×56 · .4/.55 | `#f8f4ea` | yes | long tresses of thread-fine forked leaves combed downstream under clear water (celadon mixed into the green, blurred, surface light lifted out); small white five-petalled plum blossoms with gold eyes on short stalks at the surface; no pads (waterfall only) |
 
 Medium sprites share the 120×160 box except the water lily, which is wide and flat (it lies on
 the water; anchor = the centre of its pad group on the surface). The five tier-1 flowers use
