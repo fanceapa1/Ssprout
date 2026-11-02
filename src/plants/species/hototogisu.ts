@@ -59,6 +59,8 @@ interface Stalk {
 export interface HototogisuPlan {
   stalks: Stalk[];
   blooms: Bloom[];
+  /** where the clump roots, across from the anchor */
+  foot: number;
 }
 
 function planTepals(rng: Rng): Tepal[] {
@@ -87,14 +89,17 @@ export function planHototogisu(rng: Rng): HototogisuPlan {
   const green = jitter(LEAF, rng, 0.03);
   const stalks: Stalk[] = [];
   const blooms: Bloom[] = [];
+  // most stems lean out one way; now and then one leans back the other
+  const sides = Array.from({ length: n }, (_, i) => (i > 0 && rng.chance(0.28) ? -lean : lean) as 1 | -1);
+  // a clump leaning all one way roots toward the far side, so its arch can reach out
+  const foot = sides.every((v) => v === lean) ? -lean * 20 : 0;
   for (let i = 0; i < n; i++) {
-    // most stems lean out one way; now and then one leans back the other
-    const side: 1 | -1 = i > 0 && rng.chance(0.28) ? (-lean as 1 | -1) : lean;
+    const side = sides[i]!;
     const main = i === 0;
     const length = rng.range(92, 112) * (main ? 1 : rng.range(0.7, 0.92));
     const angle = UP + side * rng.range(0.06, 0.3);
     const bend = side * rng.range(1.8, 2.4);
-    let plan = makeStem(rng, { base: { x: rng.range(-3, 3), y: -0.5 }, length, angle, bend, segments: 12, tipBias: 0.75, wobble: 0.025 });
+    let plan = makeStem(rng, { base: { x: foot + rng.range(-3, 3), y: -0.5 }, length, angle, bend, segments: 12, tipBias: 0.75, wobble: 0.025 });
     // shorten until the arch sits inside the box
     for (let tries = 0; tries < 12; tries++) {
       const pts = fullPoints(plan);
@@ -132,7 +137,7 @@ export function planHototogisu(rng: Rng): HototogisuPlan {
     blooms[i]!.bud = [...stagger(k, order.length, [0.46, 0.84], 0.42)] as [number, number];
     blooms[i]!.open = [...stagger(k, order.length, [0.74, 1], 0.4)] as [number, number];
   });
-  return { stalks, blooms };
+  return { stalks, blooms, foot };
 }
 
 interface Grown {
@@ -191,8 +196,8 @@ const hototogisu: SpeciesDef = {
     const end = plantFrame(p, this, opts);
     try {
       const r = rng.fork('paint');
-      groundShadow(p, r, { rx: 22, k: ease(g, 0.08, 0.6), opacity: 0.2 });
-      seedMound(p, r, g, { rx: 8 });
+      groundShadow(p, r, { rx: 22, x: plan.foot * 0.6, k: ease(g, 0.08, 0.6), opacity: 0.2 });
+      seedMound(p, r, g, { rx: 8, x: plan.foot });
       const grown = plan.stalks.map((s) => grow(s, g));
       // the shorter stems stand behind the main one
       for (let i = plan.stalks.length - 1; i >= 0; i--) {
