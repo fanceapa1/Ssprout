@@ -1,4 +1,5 @@
 import type { Rng } from '../../core/rng';
+import type { Pt } from '../../paint/geometry';
 import { PIGMENTS, darken, lighten, mix, type Pigment } from '../../paint/pigments';
 import type { FoliagePigments } from '../../paint/recipes';
 import { paintHearts, paintShaggyBark, paintTipHearts, type Heart } from '../lib/katsura-paint';
@@ -31,7 +32,7 @@ export interface KatsuraPlan {
 }
 
 const LEVELS: LevelSpec[] = [
-  { count: [3, 4], span: [0.42, 0.97], angle: [0.4, 0.85], length: [0.26, 0.4], shrink: 0.35, up: 0.12, side: 'alternate', limb: { segments: 4, wander: 0.1, gravity: -0.01 }, width: 0.55, tipWidth: 0.3, dur: 0.7 },
+  { count: [3, 5], span: [0.3, 0.97], angle: [0.4, 0.9], length: [0.3, 0.46], shrink: 0.35, up: 0.12, side: 'alternate', limb: { segments: 4, wander: 0.1, gravity: -0.01 }, width: 0.55, tipWidth: 0.3, dur: 0.7 },
   { count: [1, 2], span: [0.35, 1], angle: [0.35, 0.75], length: [0.4, 0.6], limb: { segments: 3, wander: 0.14 }, width: 0.6, tipWidth: 0.4, dur: 0.6 },
 ];
 
@@ -42,8 +43,8 @@ export function planKatsura(rng: Rng): KatsuraPlan {
   const tree: Tree = { base: { ...base }, branches: [] };
   // a ring of stems from one base: centre ones tall and upright, outer ones leaning out
   const n = r.int(4, 6);
-  const trunkLen = r.range(290, 330);
-  const spread = r.range(0.3, 0.42);
+  const trunkLen = r.range(255, 295);
+  const spread = r.range(0.32, 0.46);
   const order = Array.from({ length: n }, (_, i) => i).sort((a, b) => Math.abs(a - (n - 1) / 2) - Math.abs(b - (n - 1) / 2));
   const stems: Branch[] = [];
   order.forEach((i, rank) => {
@@ -52,7 +53,7 @@ export function planKatsura(rng: Rng): KatsuraPlan {
     const stem = addTrunk(tree, r, { x: base.x + u * r.range(5, 8), y: base.y }, {
       angle: UP + u * spread + r.gaussian(0, 0.04),
       length: trunkLen * (1 - 0.2 * au) * r.range(0.9, 1.04),
-      width: (8 - 2.4 * au) * r.range(0.88, 1.08),
+      width: (10 - 3 * au) * r.range(0.88, 1.08),
       tipWidth: 0.9,
       limb: { segments: 7, wander: 0.05, gravity: -0.02, curl: 0 },
       dur: 0.9,
@@ -98,18 +99,23 @@ export function planKatsura(rng: Rng): KatsuraPlan {
   };
   const crown = tree.branches.filter((b) => b.tag !== 'sucker' && (b.order >= 1 || b.parent < 0));
   const tips = crown.map((b) => pointAt(b, 1));
-  const x0 = Math.min(...tips.map((q) => q.x));
-  const x1 = Math.max(...tips.map((q) => q.x));
+  const at = (k: number, key: (q: Pt) => number) => tips.map(key).sort((a, b) => a - b)[Math.min(tips.length - 1, Math.floor(tips.length * k))]!;
+  const x0 = at(0.06, (q) => q.x);
+  const x1 = at(0.94, (q) => q.x);
   // the dome mounds above the highest tip, so its top is rounded, not flat
-  const top = Math.min(...tips.map((q) => q.y)) - 18;
-  const low = tips.map((q) => q.y).sort((a, b) => a - b)[Math.floor(tips.length * 0.85)]!;
-  // a broad, lobed dome around the tips, its underside flatter
+  const top = (at(0.08, (q) => q.y) + Math.min(...tips.map((q) => q.y))) / 2 - 16;
+  const low = at(0.9, (q) => q.y);
+  // a broad, lobed dome around most tips, its underside flatter
   const cx = (x0 + x1) / 2;
-  const rx = (x1 - x0) / 2 + 10;
-  const cy = top + (low - top) * 0.5;
-  const ry = cy - top;
+  const rx = (x1 - x0) / 2 + 16;
+  const ry = Math.min((low - top) * 0.52, rx * 0.75);
+  const cy = top + ry;
   const lobe = (a: number) => 1 + 0.06 * Math.sin(3 * a + phase) + 0.05 * Math.sin(5 * a + phase2) + 0.03 * Math.sin(8 * a + phase * 2);
-  const dome = (x: number, y: number) => Math.hypot((x - cx) / rx, (y - cy) / (y > cy ? ry * 0.9 : ry));
+  // a lower exponent above the centre cuts the shoulders, so the top mounds instead of flattening
+  const dome = (x: number, y: number) => {
+    const p = y < cy ? 1.65 : 2;
+    return (Math.abs((x - cx) / rx) ** p + Math.abs((y - cy) / (y > cy ? ry * 0.9 : ry)) ** p) ** (1 / p);
+  };
   const nearest = (x: number, y: number) => {
     let near = crown[0]!;
     let best = Infinity;
@@ -124,22 +130,25 @@ export function planKatsura(rng: Rng): KatsuraPlan {
     return near;
   };
   let row = 0;
-  for (let y = top + 8; y < cy + ry * 0.95; y += 17, row++)
-    for (let x = cx - rx + (row % 2) * 13; x <= cx + rx; x += 26) {
+  for (let y = top + 10; y < cy + ry * 0.95; y += 20, row++)
+    for (let x = cx - rx + (row % 2) * 15; x <= cx + rx; x += 30) {
       const jx = x + pr.range(-6, 6);
       const jy = y + pr.range(-5, 5);
       const d = dome(jx, jy);
       const rim = pr.range(0.86, 0.96);
-      const rad = pr.range(20, 27) * (1.1 - 0.25 * d);
+      const rad = pr.range(23, 30) * (1.1 - 0.25 * d);
       if (d > rim * lobe(Math.atan2(jy - cy, jx - cx))) continue;
       const near = nearest(jx, jy);
       add(jx, jy, rad, Math.min(1, near.t1 * 0.55 + 0.05 + 0.3 * d + pr.range(0, 0.15)), near.id);
     }
-  // tips that reach past the dome carry a small tuft of their own
+  // limbs that reach past the dome carry leaves out along them: a lobe, not a lone tuft
   for (const b of crown) {
-    const tip = pointAt(b, 1);
-    if (dome(tip.x, tip.y) < 0.95) continue;
-    add(tip.x, tip.y - 2, pr.range(14, 19), Math.min(1, b.t1 * 0.55 + 0.3 + pr.range(0, 0.15)), b.id);
+    if (dome(pointAt(b, 1).x, pointAt(b, 1).y) < 0.95) continue;
+    for (let f = 1; f > (b.order === 0 ? 0.85 : 0.45); f -= 14 / Math.max(14, b.len)) {
+      const q = pointAt(b, f);
+      if (dome(q.x, q.y) < 0.85) break;
+      add(q.x, q.y - 2, pr.range(17, 23) * (0.8 + 0.2 * f), Math.min(1, b.t1 * 0.55 + 0.25 + pr.range(0, 0.15)), b.id);
+    }
   }
   // autumn comes to the top and the outside first
   for (const pad of pads) {
@@ -218,6 +227,19 @@ export function katsuraPadColour(pad: KatsuraPad, g: number): FoliagePigments {
   return blend(blend(YOUNG, SUMMER, green), autumn, stagger(g, 0.74, 1, pad.turn, 0.16));
 }
 
+/** How far each mark has arrived at growth g (0 = not yet, 1 = full size); the draw uses these. */
+export function katsuraArrivals(g: number) {
+  const carpet = ramp(g, 0.8, 1);
+  return {
+    pad: (pad: Pad) => stagger(g, FOLIAGE[0], FOLIAGE[1], pad.delay, FOLIAGE[2]),
+    heart: (h: Heart) => stagger(g, FOLIAGE[0] + 0.04, FOLIAGE[1] + 0.06, h.delay, 0.16),
+    sucker: (h: Heart) => ramp(g, 0.62 + h.delay * 0.1, 0.8 + h.delay * 0.1),
+    fallen: (h: Heart) => ramp(carpet, h.delay * 0.4, h.delay * 0.4 + 0.6),
+    /** opacity of the young tip leaves, which hand over to the crown */
+    tips: 1 - ramp(g, 0.56, 0.74),
+  };
+}
+
 const katsura: SpeciesDef = {
   id: 'katsura',
   name: 'Katsura',
@@ -237,10 +259,9 @@ const katsura: SpeciesDef = {
     const plan = planKatsura(rng);
     const view = treeView(g, plan.tree.base);
     const pr = rng.fork('paint');
-    const padArrive = (pad: Pad) => stagger(g, FOLIAGE[0], FOLIAGE[1], pad.delay, FOLIAGE[2]);
+    const arrive = katsuraArrivals(g);
     const colours = new Map(plan.pads.map((pad) => [pad.id, katsuraPadColour(pad, g)]));
     const depth = new Map(plan.pads.map((pad) => [pad.id, pad.depth ?? 0]));
-    const carpet = ramp(g, 0.93, 1);
     inUnits(p, SIZE, opts, () => {
       paintGroundShadow(p, plan.tree.base, 100, view, pr);
       paintSeed(p, plan.tree.base, g, pr, mix(PIGMENTS.wood, WINE, 0.25));
@@ -253,8 +274,8 @@ const katsura: SpeciesDef = {
       const limbs = paintSkeleton(p, part((b) => b.order > 0), view, pr.fork('limbs'), { pigment: LIMB, texture: 0.3, modelling: 0.3, opacity: 0.58 });
       const suckerTree = { base: plan.tree.base, branches: plan.tree.branches.filter((b) => b.tag === 'sucker') };
       const whips = paintSkeleton(p, suckerTree, view, pr.fork('sucker'), { pigment: mix(BARK, WINE, 0.35), texture: 0, modelling: 0, flare: 0 });
-      paintTipHearts(p, [...back, ...front, ...limbs], view, 1 - ramp(g, 0.56, 0.74), pr.fork('tips'), WINE);
-      paintPadMass(p, plan.pads, view, pr, padArrive, (pad) => colours.get(pad.id)!, {
+      paintTipHearts(p, [...back, ...front, ...limbs], view, arrive.tips, pr.fork('tips'), WINE);
+      paintPadMass(p, plan.pads, view, pr, arrive.pad,(pad) => colours.get(pad.id)!, {
         flatness: 0.7,
         light: -2.2,
         opacity: 0.8,
@@ -262,15 +283,17 @@ const katsura: SpeciesDef = {
         dabSize: 0.21,
         shadow: 0.6,
         scallop: 9,
+        density: 0.8,
+        groups: 1,
       });
       const tone = (c: FoliagePigments, t: number): Pigment => mix(c.light, c.mid, t * 0.7);
-      const heartSize = (h: Heart) => stagger(g, FOLIAGE[0] + 0.04, FOLIAGE[1] + 0.06, h.delay, 0.16);
+      const heartSize = arrive.heart;
       const inFront = (h: Heart) => (depth.get(h.group) ?? 0) > FRONT;
       paintHearts(p, plan.hearts.filter((h) => !inFront(h)), view, pr.fork('hearts'), heartSize, (h) => tone(colours.get(h.group)!, h.tone), { opacity: 0.72 });
       // front leaves cover the twigs behind them
       paintHearts(p, plan.hearts.filter(inFront), view, pr.fork('hearts-front'), heartSize, (h) => tone(colours.get(h.group)!, h.tone * 0.6), { opacity: 0.85, blend: 'source-over' });
-      if (whips.length) paintHearts(p, plan.sucker, view, pr.fork('sucker-hearts'), (h) => ramp(g, 0.62 + h.delay * 0.1, 0.8 + h.delay * 0.1), (h) => mix(WINE_LIGHT, WINE, h.tone));
-      if (carpet > 0.01) paintHearts(p, plan.fallen, view, pr.fork('fallen'), (h) => ramp(carpet, h.delay * 0.6, h.delay * 0.6 + 0.4), (h) => tone(h.group ? PINK : GOLD, h.tone), { opacity: 0.75 });
+      if (whips.length) paintHearts(p, plan.sucker, view, pr.fork('sucker-hearts'), arrive.sucker, (h) => mix(WINE_LIGHT, WINE, h.tone));
+      if (g > 0.8) paintHearts(p, plan.fallen, view, pr.fork('fallen'), arrive.fallen,(h) => tone(h.group ? PINK : GOLD, h.tone), { opacity: 0.75 });
     });
   },
 };

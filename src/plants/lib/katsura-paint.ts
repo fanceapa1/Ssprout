@@ -5,11 +5,10 @@
  */
 import type { Rng } from '../../core/rng';
 import type { Painter } from '../../paint';
-import { bounds, padRect, type Pt } from '../../paint/geometry';
+import { bounds, padRect, ribbon, type Pt } from '../../paint/geometry';
 import { lighten, mix, shade, type Pigment } from '../../paint/pigments';
-import { dryBrush, stroke } from '../../paint/primitives';
 import type { DryOptions } from '../../paint/wet';
-import { stableLayer, stableTarget, type visibleBranches } from './tree-paint';
+import { stableLayer, type visibleBranches } from './tree-paint';
 import { ramp, viewPt, type TreeView } from './tree-structure';
 
 type Visible = ReturnType<typeof visibleBranches>[number];
@@ -108,35 +107,43 @@ export function paintTipHearts(p: Painter, vis: readonly Visible[], view: TreeVi
  */
 export function paintShaggyBark(p: Painter, vis: readonly Visible[], rng: Rng, bark: Pigment, amount = 1): void {
   const dark = shade(bark, 0.35);
-  for (const v of vis) {
-    if (v.b.order !== 0) continue;
+  const pale = mix(bark, '#ffffff', 0.25);
+  const stems = vis.filter((v) => v.b.order === 0 && v.hw(0.1) * 2 >= 2.4);
+  if (!stems.length || amount <= 0.02) return;
+  const pts: Pt[] = [];
+  for (const v of stems) for (const q of v.path) pts.push(q);
+  const area = padRect(bounds(pts), 8);
+  const D = stableLayer(p, area, rng.fork('shag-dark-dry'));
+  const P = stableLayer(p, area, rng.fork('shag-pale-dry'));
+  let any = false;
+  for (const v of stems) {
     const w0 = v.hw(0.1) * 2;
     const fade = ramp(w0, 2.4, 5.5) * amount;
-    if (fade <= 0.02) continue;
     const r = rng.fork(`shag-${v.b.id}`);
-    const t = stableTarget(p, r);
     const n = v.path.length;
-    const strips = 7;
-    for (let s = 0; s < strips; s++) {
-      const t0 = r.range(0.02, 0.55);
-      const t1 = Math.min(0.92, t0 + r.range(0.12, 0.3));
+    for (let s = 0; s < 12; s++) {
+      const t0 = r.range(0.02, 0.6);
+      const t1 = Math.min(0.92, t0 + r.range(0.06, 0.22));
       const side = r.range(-0.6, 0.6);
-      const dark1 = r.chance(0.55);
+      const isDark = r.chance(0.55);
+      const wk = r.range(0.8, 1.2);
       const i0 = Math.floor(t0 * (n - 1));
-      const i1 = Math.max(i0 + 2, Math.floor(t1 * (n - 1)));
-      if (i1 >= n) continue;
+      const i1 = Math.min(n - 1, Math.max(i0 + 2, Math.floor(t1 * (n - 1))));
       const seg: Pt[] = [];
-      for (let i = i0; i <= i1; i += 3) {
-        const q = v.path[i]!;
-        const tt = i / (n - 1);
-        seg.push({ x: q.x + side * v.hw(tt), y: q.y });
-      }
+      for (let i = i0; i <= i1; i++) seg.push({ x: v.path[i]!.x + side * v.hw(i / (n - 1)), y: v.path[i]!.y });
       if (seg.length < 2) continue;
-      if (dark1) {
-        stroke(t, seg, { rng: r, pigment: dark, width: Math.max(0.5, w0 * 0.1), taper: [0.3, 0.4], wobble: 0.3, wetness: 0.3, opacity: 0.5 * fade, edge: 0.4 });
-      } else {
-        dryBrush(t, seg, { rng: r, pigment: mix(bark, '#ffffff', 0.18), width: w0 * 0.22, dryness: 0.8, opacity: 0.45 * fade, blend: 'source-over' });
-      }
+      // a strip tapers at both ends and ripples a little, like a lifted flake
+      const hw = (t: number) => w0 * (isDark ? 0.06 : 0.11) * wk * Math.sin(Math.PI * Math.min(1, Math.max(0, t)));
+      const off = (t: number) => w0 * 0.05 * Math.sin(t * 9 + s);
+      (isDark ? D : P).fill(ribbon(seg, hw, off), isDark ? dark : pale, (isDark ? 0.75 : 0.6) * fade);
+      any = true;
     }
   }
+  if (!any) {
+    D.discard();
+    P.discard();
+    return;
+  }
+  D.dry({ opacity: 0.7, edge: 0.4, edgeWidth: 0.5, sharpness: 0.8, centreLift: 0.1, granulation: 0.3, flowScale: 8 });
+  P.dry({ opacity: 0.6, edge: 0.25, edgeWidth: 0.5, sharpness: 0.75, centreLift: 0.1, granulation: 0.4, flowScale: 8, blend: 'source-over' });
 }
