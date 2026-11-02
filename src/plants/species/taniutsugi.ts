@@ -13,7 +13,7 @@ import type { SpeciesDef } from '../types';
 
 const LEAF = '#9cb46a';
 const UNDER = '#a9b49a';
-const BARK = '#8d7c68';
+const BARK = '#9a8a74';
 const PINK = '#e992ab';
 const OUTER = '#d9708f';
 const INNER = '#f4bccb';
@@ -29,6 +29,7 @@ interface LeafPlan {
   length: number;
   width: number;
   teeth: number;
+  droop: number;
   tone: Pigment;
   seed: number;
 }
@@ -82,13 +83,14 @@ function fits(pts: readonly Pt[]): boolean {
 }
 
 function leafPlan(rng: Rng, side: 1 | -1, size: number, turn: number, green: Pigment): LeafPlan {
-  const length = rng.range(15, 20) * size;
+  const length = rng.range(17, 23) * size;
   return {
     side,
     turn,
     length,
     width: length * rng.range(0.5, 0.6),
     teeth: rng.int(9, 13),
+    droop: rng.range(0.04, 0.2),
     tone: jitter(mix(green, rng.chance(0.5) ? lighten(green, 0.1) : PIGMENTS.olive, rng.range(0, 0.22)), rng, 0.03),
     seed: seedOf(rng),
   };
@@ -102,8 +104,8 @@ function flowerPlan(rng: Rng, side: 1 | -1, flowers: FlowerPlan[]): FlowerPlan {
     side,
     turn: rng.range(0.6, 1.15),
     lift: rng.range(0.1, 0.3),
-    length: rng.range(11, 14),
-    mouth: rng.range(4, 4.9),
+    length: rng.range(10, 12.5),
+    mouth: rng.range(3.6, 4.4),
     tilt,
     roll: rng.range(0, Math.PI),
     pedicel: rng.range(1.5, 3),
@@ -126,12 +128,12 @@ function nodesOf(rng: Rng, length: number, tone: Pigment, flowers: FlowerPlan[],
     const facing = j % 2 === 1;
     const turn = facing ? rng.range(0.35, 0.55) : rng.range(0.8, 1.15);
     const k = facing ? 0.78 : 1;
-    const leaves = [leafPlan(rng, 1, size * k, turn, tone), leafPlan(rng, -1, size * k * rng.range(0.9, 1.05), turn + rng.range(-0.1, 0.1), tone)];
+    const leaves = [leafPlan(rng, 1, size * k, turn + rng.range(-0.2, 0.2), tone), leafPlan(rng, -1, size * k * rng.range(0.85, 1.05), turn + rng.range(-0.25, 0.25), tone)];
     const fl: FlowerPlan[] = [];
     if (t >= o.bloom[0] && t <= o.bloom[1] && rng.chance(o.chance)) {
       const first: 1 | -1 = rng.chance(0.5) ? 1 : -1;
       fl.push(flowerPlan(rng, first, flowers), flowerPlan(rng, -first as 1 | -1, flowers));
-      if (rng.chance(0.45)) fl.push(flowerPlan(rng, rng.chance(0.5) ? 1 : -1, flowers));
+      if (rng.chance(0.3)) fl.push(flowerPlan(rng, rng.chance(0.5) ? 1 : -1, flowers));
     }
     nodes.push({ t, leaves, flowers: fl });
   }
@@ -153,15 +155,16 @@ export function buildTaniutsugi(rng: Rng): Taniutsugi {
     // a vase: the inner wands rise straight and tall, the outer ones lean out and arch at the top
     const s = clamp01(Math.abs(lerp(-1, 1, i / (n - 1)) + rng.range(-0.16, 0.16))) * Math.sign(i - (n - 1) / 2 || rng.range(-1, 1));
     const outer = Math.abs(s);
-    const length = lerp(200, 145, outer ** 1.3) * rng.range(0.92, 1.04);
-    const angle = UP + lean + s * 0.34 + rng.range(-0.04, 0.04);
-    const bend = Math.sign(s || 1) * lerp(0.05, 0.8, outer ** 1.2) * rng.range(0.85, 1.15) + rng.range(-0.12, 0.12);
-    let plan = makeStem(rng, { base: { x: rng.range(-5, 5), y: 0 }, length, angle, bend, segments: 16, tipBias: 0.7, wobble: 0.02 });
+    const length = lerp(205, 150, outer ** 1.3) * rng.range(0.8, 1.04);
+    const angle = UP + lean + s * 0.38 + rng.range(-0.05, 0.05);
+    // every wand arches outward at the top, the outer ones most
+    const bend = Math.sign(s || 1) * lerp(0.3, 1.15, outer ** 1.1) * rng.range(0.85, 1.15) + rng.range(-0.1, 0.1);
+    let plan = makeStem(rng, { base: { x: s * 9 + rng.range(-3, 3), y: 0 }, length, angle, bend, segments: 16, tipBias: 0.8, wobble: 0.025 });
     for (let k = 0; k < 24 && !fits(stemPoints(plan, 1, 1)); k++) plan = { ...plan, length: plan.length * 0.95 };
     const start = 0.1 + 0.14 * rng.next();
     const band = bandOf();
     const tone = toneOf(band);
-    const nodes = nodesOf(rng, plan.length, tone, flowers, { from: 0.2, bloom: [0.34, 0.9], chance: 0.72 });
+    const nodes = nodesOf(rng, plan.length, tone, flowers, { from: 0.3, bloom: [0.42, 0.9], chance: 0.5 });
     const main: Wand = { plan, parent: -1, at: 0, offset: 0, window: [start, start + rng.range(0.3, 0.36)], width: rng.range(2.4, 3), band, tone, nodes, seed: seedOf(rng) };
     wands.push(main);
     // a side wand from the middle of a tall one, leaning outward
@@ -184,7 +187,7 @@ export function buildTaniutsugi(rng: Rng): Taniutsugi {
         width: rng.range(1.5, 1.8),
         band: sb,
         tone: toneOf(sb),
-        nodes: nodesOf(rng, side.length, toneOf(sb), flowers, { from: 0.15, bloom: [0.25, 0.9], chance: 0.75 }),
+        nodes: nodesOf(rng, side.length, toneOf(sb), flowers, { from: 0.15, bloom: [0.3, 0.9], chance: 0.55 }),
         seed: seedOf(rng),
       });
     }
@@ -252,7 +255,7 @@ export function poseTaniutsugi(plant: Taniutsugi, g: number): TaniutsugiPose {
       nd.leaves.forEach((l, m) => {
         const e = 1 - (1 - k) ** 3;
         const angle = lerpAngle(node.angle, node.angle + l.side * l.turn, smooth(k));
-        const curve = (Math.cos(angle) >= 0 ? 1 : -1) * 0.1 * k;
+        const curve = (Math.cos(angle) >= 0 ? 1 : -1) * l.droop * k;
         const lit = Math.sin(angle) * l.side;
         pose.leaves.push({
           id: `leaf-${i}-${j}-${m}`,

@@ -108,7 +108,7 @@ export function paintOvalLeaves(p: Painter, leaves: readonly OvalLeaf[], dry: Dr
   const L = p.layer(padRect(bounds(blades.flatMap((b) => b.blade.outline)), 4));
   let len = 0;
   for (const { l, rng, blade } of blades) {
-    const a = 0.5 * l.alpha;
+    const a = 0.62 * l.alpha;
     L.fill(blade.outline, jitter(l.pigment, rng, 0.03), a);
     L.fill(deformPolygon(blade.outline, rng, { depth: 1, variance: 0.05 }), jitter(l.pigment, rng, 0.03), a * 0.65);
     L.fill(deformPolygon(blade.shadow, rng, { depth: 1, variance: 0.05 }), shade(l.under, 0.22), a * 0.5);
@@ -188,6 +188,8 @@ export interface Trumpet {
 export interface TrumpetShape {
   outline: Pt[];
   shadow: Pt[];
+  /** the narrow lower part of the tube */
+  tube: Pt[];
   /** the opening, painted pale: we see the inside */
   mouth: Pt[];
   throat: Pt[];
@@ -256,7 +258,8 @@ export function trumpetShape(t: Trumpet): TrumpetShape {
     const end = rim(th);
     lines.push([tc, { x: tc.x * 0.4 + end.x * 0.6, y: tc.y * 0.4 + end.y * 0.6 }, { x: tc.x * 0.12 + end.x * 0.88, y: tc.y * 0.12 + end.y * 0.88 }]);
   }
-  return { outline, shadow, mouth, throat, lines, centre: mc, radius: rEnd };
+  const tube = [...right.slice(0, 8), ...left.slice(0, 8).reverse(), ...back];
+  return { outline, shadow, tube, mouth, throat, lines, centre: mc, radius: rEnd };
 }
 
 export interface TrumpetStyle {
@@ -288,9 +291,11 @@ export function paintTrumpets(p: Painter, items: readonly Trumpet[], o: TrumpetS
       L.fill(deformPolygon(s.outline, r, { depth: 1, variance: 0.04 }), jitter(body, r, 0.03), 0.62 * t.alpha);
       L.fill(s.outline, body, 0.38 * t.alpha);
       L.fill(s.shadow, o.deep, 0.42 * t.alpha);
+      // the narrow tube stays deeper than the flaring lobes
+      L.fill(s.tube, o.deep, 0.5 * t.alpha);
     }
     const mean = set.reduce((a, x) => a + x.t.length, 0) / set.length;
-    L.dry({ opacity: 0.94 * alpha, blend: 'source-over', edge: 0.45, edgeWidth: Math.max(0.3, mean * 0.05), darken: 0.18, sharpness: 0.75, centreLift: 0.22, granulation: 0.05, flow: 0.25, flowScale: 6 });
+    L.dry({ opacity: 0.94 * alpha, blend: 'source-over', edge: 0.45, edgeWidth: Math.max(0.3, mean * 0.05), darken: 0.18, sharpness: 0.75, centreLift: 0.06, granulation: 0.05, flow: 0.25, flowScale: 6 });
   }
   const open = shapes.filter((x) => x.t.open > 0.15);
   if (open.length) {
@@ -298,7 +303,7 @@ export function paintTrumpets(p: Painter, items: readonly Trumpet[], o: TrumpetS
     for (const { t, s, r } of open) {
       const k = smooth01((t.open - 0.15) / 0.6) * t.alpha;
       M.fill(deformPolygon(s.mouth, r, { depth: 1, variance: 0.03 }), jitter(o.inner, r, 0.02), 0.95 * k);
-      M.fill(s.throat, mix(o.inner, o.outer, 0.55), 0.5 * k);
+      M.fill(s.throat, mix(o.inner, o.deep, 0.5), 0.6 * k);
       if (s.radius > 2.2) for (const ln of s.lines) M.fill(ribbon(ln, (u) => Math.max(0.12, s.radius * 0.05) * (1 - u * 0.8)), mix(o.inner, o.deep, 0.5), 0.35 * k);
     }
     M.dry({ opacity: 0.95 * alpha, blend: 'source-over', edge: 0.3, edgeWidth: 0.35, darken: 0.12, sharpness: 0.7, centreLift: 0.12, granulation: 0.03, flow: 0.2, flowScale: 5 });
