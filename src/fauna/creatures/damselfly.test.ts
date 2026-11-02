@@ -173,10 +173,11 @@ describe('the damselfly at the waterfall', () => {
       sim.spawn('damselfly', { count: 2 });
       for (let s = 0; s < 3 * 60 * 10; s++) {
         sim.update(0.1, 0);
-        const birds = sim.creatures.filter((c) => c.kind === 'dipper').map((c) => (c as unknown as { spot(): { x: number; y: number } | null }).spot());
+        // a dipper standing on the same stone (its plan to fly there is seen a frame later)
+        const birds = sim.creatures.filter((c) => c.kind === 'dipper' && c.state === 'perch');
         for (const d of damsels(sim)) {
           if (d.state !== 'perch' || d.timer < 1.5) continue;
-          for (const b of birds) if (b && Math.hypot(b.x - d.x, b.y - d.y) < 18) problems.push(`seed ${seed}: on the dipper’s perch at ${s / 10}s`);
+          for (const b of birds) if (Math.hypot(b.x - d.x, b.y - d.y) < 18) problems.push(`seed ${seed}: on the dipper’s perch at ${s / 10}s`);
         }
       }
     }

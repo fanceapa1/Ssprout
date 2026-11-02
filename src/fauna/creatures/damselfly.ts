@@ -476,9 +476,12 @@ export class Damselfly extends BaseCreature {
 
   /** Someone else is on (or flying to) the perch it is on or making for. */
   private crowded(w: FaunaWorld): boolean {
-    const at = this.route.length > 0 ? this.route[this.route.length - 1]!.perch : this.state === 'perch' ? this.perch : null;
+    const end = this.route[this.route.length - 1];
+    const at = end ? end.perch : this.state === 'perch' ? this.perch : null;
     if (!at) return false;
-    return this.taken(w).some((t) => dist(t, at) < 22);
+    // where it sits (or will) as well as the perch's middle: a wide rock has room for both
+    const sit = end ?? this.pos;
+    return this.taken(w).some((t) => dist(t, at) < 22 || dist(t, sit) < 22);
   }
 
   /** Append a landing on a perch (`to`, or a new one), or nothing when none is free. */
