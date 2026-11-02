@@ -167,7 +167,7 @@ Phase 12 art queue: one species or creature per task (atomic), 2–3 at a time, 
 | C1b | Dipper polish (orchestrator review): the body reads as a smooth flat blob with a dot eye, more cartoon than watercolour; add plumage texture and edge variation, visible legs while wading, smoother flight frames | `src/fauna/creatures/dipper.ts` | queued |
 | C2 | Miyama-kawatombo damselfly | `src/fauna/creatures/damselfly.ts` | done (devlog 79; phone read weak) |
 | C3 | Iwana char in the plunge pool (was S12) | `src/fauna/creatures/iwana.ts` | done (devlog 83) |
-| C4 | Sawagani river crab | `src/fauna/creatures/sawagani.ts` | in progress |
+| C4 | Sawagani river crab | `src/fauna/creatures/sawagani.ts` | done (devlog 85; no dusk/rain signal yet) |
 | C5 | Kajika frog on the stream stones | `src/fauna/creatures/kajika.ts` | queued |
 | C6 | Iwatsubame (Asian house martin) along the cliff | `src/fauna/creatures/iwatsubame.ts` | queued |
 | C7 | Genji firefly (night only) | `src/fauna/creatures/firefly.ts` | queued |

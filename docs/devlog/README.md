@@ -93,3 +93,4 @@ never used.
 | 82 | [W8: hototogisu (toad lily)](82-hototogisu.md) | Arching stems leaning from the rock with purple-freckled white stars in the leaf axils |
 | 83 | [C3: iwana char and yamame](83-iwana.md) | Dim, spotted cool fish holding station in the plunge pool tail, darting aside and rising to sip at dusk |
 | 84 | [W9: yamabuki (Japanese kerria)](84-yamabuki.md) | A fountain of arching green canes with single gold flowers spaced along them, the first waterfall shrub |
+| 85 | [C4: sawagani river crab](85-sawagani.md) | A red-brown crab with milky claws that sidles out from under its wet stone at dusk and hides from birds |
