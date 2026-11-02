@@ -59,7 +59,7 @@ interface Palette {
 }
 
 const PALETTE: Record<IwanaVariant, Palette> = {
-  iwana: { back: '#6f7258', flank: mix('#d9a46a', '#a39c80', 0.45), fin: mix('#d9a46a', '#8a8670', 0.5), spot: '#e8dfc8' },
+  iwana: { back: mix('#6f7258', '#4f5446', 0.35), flank: mix('#d9a46a', '#a39c80', 0.45), fin: mix('#d9a46a', '#8a8670', 0.5), spot: '#e8dfc8' },
   yamame: { back: mix('#6f7a66', '#8e958a', 0.35), flank: mix('#c4c8bd', '#b7b2a6', 0.4), fin: mix('#b9b48f', '#9da08e', 0.5), spot: '#5d5a6e' },
 };
 
@@ -74,6 +74,8 @@ export interface IwanaParts {
   pecDeep: Sprite;
   pel: Sprite;
   pelDeep: Sprite;
+  /** its soft shadow on the pool bed */
+  shadow: Sprite;
 }
 
 function bodyPolygon(len: number): Pt[] {
@@ -217,6 +219,12 @@ export function paintIwana(res: number, seed: number, v: IwanaVariant, len: numb
   const ql = len * 0.095;
   const pel = paintSprite(res, { w: ql + 3, h: ql * 0.9 + 2, ox: 1, oy: ql * 0.45 + 1 }, seed + 3, (p, rng) => paintFin(p, rng, ql, v));
 
+  // the shadow on the bed: the silhouette in one cool wash, blurred well
+  const sh = paintSprite(res, { w: len * 1.05 + 6, h: hw * 2 + 8, ox: len * 0.04 + 3, oy: hw + 4 }, seed + 4, (p, rng) => {
+    const poly = bodyPolygon(len);
+    poly.splice(31, 0, { x: lb + tl * 0.9, y: -tl * 0.35 }, { x: lb + tl * 0.8, y: 0 }, { x: lb + tl * 0.9, y: tl * 0.35 });
+    p.wash(poly, mix(PIGMENTS.indigo, PIGMENTS.stoneDark, 0.6), { rng, blend: 'source-over', opacity: 0.9, edge: 0, centreLift: 0, sharpness: 0.1, granulation: 0.2 });
+  });
   const cool = PIGMENTS.celadonDeep;
   return {
     len,
@@ -229,6 +237,7 @@ export function paintIwana(res: number, seed: number, v: IwanaVariant, len: numb
     pecDeep: deepCopy(pec, res, cool, 0.3, 3),
     pel,
     pelDeep: deepCopy(pel, res, cool, 0.3, 3),
+    shadow: deepCopy(deepCopy(sh, res, cool, 0.2, 4), res, cool, 0, 4),
   };
 }
 
@@ -286,13 +295,24 @@ export interface Station {
   heading: number;
 }
 
+/** Head, middle and tail (and the shadow under them) clear of the boulders, which the water draws under. */
+export function clearOfRocks(w: FaunaWorld, q: Pt, heading: number, len: number): boolean {
+  for (let s = 0; s <= 1; s += 0.5) {
+    const b = toWorld({ x: q.x - Math.cos(heading) * s * len * BODY, y: q.y - Math.sin(heading) * s * len * BODY }, w.pond.cy, w.pond.squash);
+    for (const dy of [0, len * 0.2]) {
+      if (w.scene.rocks.some((r) => Math.hypot((b.x - r.x) / (r.w * 0.55 + 4), (b.y + dy - (r.y - r.h * 0.3)) / (r.h * 0.6 + 3)) < 1)) return false;
+    }
+  }
+  return true;
+}
+
 /** Inside the still water with room for the body, clear of the boulders, in view. */
-export function stationOk(w: FaunaWorld, q: Pt, len: number): boolean {
-  if (!insideWithMargin(q, w.pond.plane, len * 0.85)) return false;
+export function stationOk(w: FaunaWorld, q: Pt, heading: number, len: number, room = 0.85): boolean {
+  if (!insideWithMargin(q, w.pond.plane, len * room)) return false;
   const p = toWorld(q, w.pond.cy, w.pond.squash);
   const v = w.view;
   if (p.x < v.x + len || p.x > v.x + v.w - len || p.y < v.y + len * 0.5 || p.y > v.y + v.h - len * 0.5) return false;
-  return w.scene.rocks.every((r) => Math.hypot((p.x - r.x) / (r.w * 0.6 + len * 0.3), (p.y - (r.y - r.h * 0.3)) / (r.h * 0.6 + len * 0.15)) > 1);
+  return clearOfRocks(w, q, heading, len);
 }
 
 /** A station in the pool's tail (a quarter to a half of the way up from the outflow), apart from `others`. */
@@ -301,16 +321,21 @@ export function chooseStation(w: FaunaWorld, len: number, rng: Rng, others: read
   const n = { x: -ax.up.y, y: ax.up.x };
   let pick: Pt | null = null;
   let score = -Infinity;
-  for (let i = 0; i < 40; i++) {
-    const u = rng.range(0.15, 0.5) * ax.length;
+  let pickApart = 0;
+  // a small pool has no room in its tail: allow less room and further up, step by step
+  for (let i = 0; i < 160; i++) {
+    const relax = Math.floor(i / 40);
+    if (i % 40 === 0 && pick && pickApart >= len) break;
+    const u = rng.range(0.15, 0.5 + relax * 0.15) * ax.length;
     const across = rng.range(-0.3, 0.3) * ax.length;
     const q = { x: ax.mouth.x + ax.up.x * u + n.x * across, y: ax.mouth.y + ax.up.y * u + n.y * across };
-    if (!stationOk(w, q, len)) continue;
+    if (!stationOk(w, q, Math.atan2(ax.head.y - q.y, ax.head.x - q.x), len, 0.85 - relax * 0.2)) continue;
     const apart = others.length ? Math.min(...others.map((o) => dist(o, q))) : len * 3;
     const s = Math.min(apart, len * 2.5) - (u / ax.length) * len * 0.8 + rng.range(0, len * 0.4);
     if (s > score) {
       score = s;
       pick = q;
+      pickApart = apart;
     }
   }
   const p = pick ?? containPoint(polygonCentroid(w.pond.plane), w.pond.plane, len);
@@ -328,6 +353,7 @@ export function sidePoint(w: FaunaWorld, st: Station, len: number, rng: Rng, ris
     const q = { x: st.p.x + up.x * along + n.x * across, y: st.p.y + up.y * along + n.y * across };
     if (!insideWithMargin(q, w.pond.plane, len * 0.7)) continue;
     if (others.some((o) => dist(o, q) < len * 0.9)) continue;
+    if (!clearOfRocks(w, q, st.heading, len)) continue;
     return q;
   }
   return null;
@@ -435,7 +461,7 @@ export class Iwana extends BaseCreature {
       }
       case 'dart': {
         const q = this.target!;
-        arrive(this.p, this.v, q, 75 * k * sf, 420 * k * sf, 5 * k, dt);
+        arrive(this.p, this.v, q, 75 * k * sf, 420 * k * sf, 10 * k, dt);
         want = up + clamp(angleDiff(up, Math.atan2(q.y - this.p.y, q.x - this.p.x)), -0.95, 0.95);
         turn = 9;
         if (dist(this.p, q) < 1.2 * k || this.timer > 2.5 / sf) {
@@ -445,7 +471,7 @@ export class Iwana extends BaseCreature {
         break;
       }
       case 'pause': {
-        arrive(this.p, this.v, this.target ?? st, 2 * k * sf, 40 * k * sf, 4 * k, dt);
+        arrive(this.p, this.v, this.target ?? st, 2 * k * sf, 260 * k * sf, 4 * k, dt);
         turn = 2.6;
         if (this.timer > this.hold / sf) this.go('back');
         break;
@@ -484,7 +510,7 @@ export class Iwana extends BaseCreature {
         arrive(this.p, this.v, st, 6 * k * sf, 10 * k * sf, 8 * k, dt);
     }
     this.heading = turnToward(this.heading, want, turn * sf, dt);
-    this.p = containPoint(this.p, w.pond.plane, this.len * 0.5);
+    this.p = containPoint(this.p, w.pond.plane, this.len * 0.3);
 
     // depth: rising fast to sip, sinking back slowly
     this.deep = approach(this.deep, this.deepTarget, (this.state === 'rise' ? 0.9 : 0.5) * sf, dt);
@@ -540,6 +566,10 @@ export class Iwana extends BaseCreature {
     ctx.save();
     ctx.translate(this.x, this.y);
     ctx.scale(ps, ps * DRAW_SQUASH);
+    // its shadow on the bed, further off the higher it swims
+    const tip = pts[SEGMENTS]!;
+    const off = this.len * (0.26 + 0.35 * (1 - this.deep));
+    drawSprite(ctx, parts.shadow, off * 0.15, off, Math.atan2(tip.y, tip.x), 1, 1, a * (0.16 + 0.12 * this.deep));
     for (const deep of [true, false]) {
       const weight = deep ? 1 - near : near;
       if (weight < 0.03) continue;
