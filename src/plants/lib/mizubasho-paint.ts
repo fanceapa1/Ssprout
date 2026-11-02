@@ -75,7 +75,7 @@ export interface SpatheShape {
 /** Half-width of the spathe at `t` (0 base … 1 tip), as a fraction of HW. */
 function spatheHalf(t: number): number {
   const p = lerp(0.8, 1.9, t);
-  return 0.12 * (1 - t) ** 2 + Math.sin(Math.PI * t ** 0.62) ** p;
+  return 0.12 * (1 - t) ** 2 + Math.sin(Math.PI * t ** 0.76) ** p;
 }
 
 export function spatheShape(rng: Rng, o: { side: 1 | -1; hook: number; asym: number }): SpatheShape {
@@ -91,7 +91,7 @@ export function spatheShape(rng: Rng, o: { side: 1 | -1; hook: number; asym: num
   }
   const outerPts = [...right, ...left.reverse().slice(1, -1)];
   const h0 = rng.range(0.08, 0.11);
-  const h1 = rng.range(0.56, 0.62);
+  const h1 = rng.range(0.52, 0.58);
   const m = 24;
   const hr: Pt[] = [];
   const hl: Pt[] = [];
@@ -180,9 +180,14 @@ export function spathe(p: Painter, rng: Rng, shape: SpatheShape, pose: AxisPose,
   }
   S.fill(band.map(map), s.shade, 0.32);
   const flush = lerp(0.85, 0.16, smooth(open));
-  for (let k = 0; k < 3; k++) {
-    const q = map({ x: sr.gaussian(0, 1.5), y: LEN * flush * sr.range(0.15, 0.4) });
-    S.fill(blob(q.x, q.y, pose.width * sr.range(0.2, 0.28), pose.length * flush * sr.range(0.35, 0.5), sr, { rotation: pose.angle }), s.green, 0.2);
+  // graded up from the clasping foot in a few ragged steps
+  for (let k = 0; k < 4; k++) {
+    const top = flush * (1 - k * 0.2) * sr.range(0.9, 1.1);
+    const strip: Pt[] = [];
+    for (let i = 0; i <= 8; i++) strip.push({ x: -HW * 1.2, y: LEN * top * (i / 8) });
+    for (let i = 0; i <= 6; i++) strip.push({ x: lerp(-HW * 1.2, HW * 1.2, i / 6), y: LEN * top * (1 + sr.gaussian(0, 0.16) + 0.25 * Math.sin(i * 1.3 + k)) });
+    for (let i = 8; i >= 0; i--) strip.push({ x: HW * 1.2, y: LEN * top * (i / 8) });
+    S.fill(strip.map(map), s.green, 0.09);
   }
   S.ctx.restore();
   S.dry({ opacity: 0.7 * gr.opacity, edge: 0.4, edgeWidth: Math.max(0.25, pose.width * 0.03), sharpness: 0.55, centreLift: 0.2, granulation: 0.1, flow: 0.4, flowScale: Math.max(2, pose.width * 0.3), darken: 0.25 });
@@ -195,7 +200,7 @@ export function spathe(p: Painter, rng: Rng, shape: SpatheShape, pose: AxisPose,
     const hollow = shape.hollow.base.map(hm);
     const H = p.layer(boundsOf(hollow, 2));
     const hr = rng.fork('hollow');
-    for (let k = 0; k < 2; k++) H.fill(outlineLayer(shape.hollow, hr, 0.06).map(hm), s.shade, 0.2);
+    for (let k = 0; k < 3; k++) H.fill(outlineLayer(shape.hollow, hr, 0.025).map(hm), s.shade, 0.16);
     H.ctx.save();
     H.clip(hollow);
     const under = hm({ x: shape.side * 1.5, y: LEN * lerp(shape.h0, shape.h1, 0.95) });

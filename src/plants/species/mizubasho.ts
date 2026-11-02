@@ -40,15 +40,15 @@ export interface MizubashoPlan {
 
 export function planMizubasho(rng: Rng): MizubashoPlan {
   const side = rng.chance(0.5) ? 1 : -1;
-  const lean = rng.gaussian(0, 0.08);
-  const spatheLen = rng.range(56, 64);
+  const lean = rng.gaussian(0, 0.1);
+  const spatheLen = rng.range(60, 68);
   const sp = {
     shape: spatheShape(rng.fork('spathe'), { side, hook: rng.range(0.3, 0.8) * (rng.chance(0.6) ? -side : side), asym: rng.range(-0.06, 0.06) }),
     base: { x: rng.range(-3, 3), y: 0 },
     stalk: rng.range(8, 13),
     angle: UP + lean,
     length: spatheLen,
-    width: spatheLen * rng.range(0.46, 0.52),
+    width: spatheLen * rng.range(0.41, 0.46),
     bend: rng.gaussian(0, 0.1),
   };
   const n = rng.int(3, 5);
