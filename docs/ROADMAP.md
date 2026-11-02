@@ -155,7 +155,7 @@ Phase 12 art queue: one species or creature per task (atomic), 2–3 at a time, 
 | W4 | Wasabi (*Eutrema japonicum*): T1, stream shore | `src/plants/species/wasabi.ts` | done (devlog 76) |
 | W5 | Kurinsō (*Primula japonica*): T2, stream banks | `src/plants/species/kurinso.ts` | done (devlog 78) |
 | W6 | Baikamo (*Ranunculus nipponicus* var. *submersus*): T2, water, flowing | `src/plants/species/baikamo.ts` | in progress |
-| W7 | Mizubashō (*Lysichiton camtschatcensis*): T2, water and shore | `src/plants/species/mizubasho.ts` | queued |
+| W7 | Mizubashō (*Lysichiton camtschatcensis*): T2, water and shore | `src/plants/species/mizubasho.ts` | in progress |
 | W8 | Hototogisu (toad lily, *Tricyrtis hirta*): T2, cliff foot | `src/plants/species/hototogisu.ts` | queued |
 | W9 | Yamabuki (*Kerria japonica*): T3 shrub | `src/plants/species/yamabuki.ts` | queued |
 | W10 | Taniutsugi (*Weigela hortensis*): T3 shrub | `src/plants/species/taniutsugi.ts` | queued |
