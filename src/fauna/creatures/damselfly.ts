@@ -65,7 +65,7 @@ function colours(sex: DamselflySex): Colours {
       dark: mix(PIGMENTS.sumi, body, 0.45),
       tip: mix(body, PIGMENTS.cerulean, 0.3),
       wing: '#a07a4e',
-      wingTip: mix(PIGMENTS.sumi, PIGMENTS.wood, 0.35),
+      wingTip: mix(PIGMENTS.sumi, PIGMENTS.wood, 0.25),
       eye: mix(PIGMENTS.sumi, body, 0.2),
     };
   }
@@ -120,7 +120,7 @@ function paintWing(p: Painter, c: Colours, sex: DamselflySex): void {
   const s = K;
   const shape = wingShape();
   // smoky amber, deepening wet-in-wet toward the tip, the base losing its edge
-  p.wetInWet(shape, lighten(c.wing, 0.08), c.wingTip, { rng, angle: 0, split: 0.6, softness: 0.45, fingers: 0.45, opacity: 0.58, edge: 0.65, edgeWidth: 0.45, sharpness: 0.55, deform: 0.05, spread: 0.06, granulation: 0.35, flow: 0.5, flowScale: 3, fade: { angle: Math.PI, start: 0.72, amount: 0.55 }, blend: 'source-over' });
+  p.wetInWet(shape, lighten(c.wing, 0.08), c.wingTip, { rng, angle: 0, split: 0.6, softness: 0.45, fingers: 0.45, opacity: sex === 'male' ? 0.68 : 0.55, edge: 0.65, edgeWidth: 0.45, sharpness: 0.55, deform: 0.05, spread: 0.06, granulation: 0.35, flow: 0.5, flowScale: 3, blooms: 1, bloomSize: 0.22, fade: { angle: Math.PI, start: 0.72, amount: 0.55 }, blend: 'source-over' });
   // darker smoke pooled where the wing broadens, a paler lift along the leading edge
   const L = p.layer({ x: -1 * s, y: -3.5 * s, w: 22 * s, h: 7 * s });
   L.clip(shape);
@@ -132,7 +132,6 @@ function paintWing(p: Painter, c: Colours, sex: DamselflySex): void {
     const y1 = (-2.1 + i * 1.05) * s;
     p.inkLine([{ x: 0.8 * s, y: y0 }, { x: 9 * s, y: lerp(y0, y1, 0.75) }, { x: 18.2 * s, y: y1 * 0.92 }], { rng, width: 0.11 * s, opacity: 0.2, breaks: 0.45, wobble: 0.2, pigment: c.wingTip });
   }
-  p.inkLine([{ x: 0.4 * s, y: -0.35 * s }, { x: 7 * s, y: -2.0 * s }, { x: 16 * s, y: -2.3 * s }], { rng, width: 0.16 * s, opacity: 0.3, breaks: 0.25, pigment: c.wingTip });
   if (sex === 'female') {
     // the female's white false pterostigma near the tip of the leading edge
     p.dab({ x: 17.0 * s, y: -1.85 * s }, PIGMENTS.petalWhite, { rng, variant: 'round', angle: 0.12, length: 1.7 * s, width: 0.75 * s, opacity: 0.9, blend: 'source-over', layers: 5 });
@@ -156,47 +155,50 @@ function paintBody(p: Painter, c: Colours, sex: DamselflySex, legs: 'grip' | 'tu
   const rng = p.rng;
   const s = K;
   const line = abdomenLine(rng);
-  // the abdomen: a wet green needle, cooler and a touch broader toward the tip
-  p.stroke(line, { rng, pigment: c.body, width: 1.3 * s, taper: [0.02, 0.04], pressure: [1.25, 0.95, 0.8, 0.8, 0.9, 1.05, 0.9], wobble: 0.04, wetness: 0.45, opacity: 0.95, edge: 0.6, edgeWidth: 0.25 });
-  p.stroke(line.slice(3), { rng, pigment: c.tip, width: 1.05 * s, taper: [0.3, 0.1], wobble: 0.04, wetness: 0.5, opacity: 0.55, edge: 0.4, edgeWidth: 0.2 });
-  // the metallic shine: broken lifts along the back, one per segment or two
+  // the abdomen: a wet green needle, cooler toward the tip, its belly in shadow
+  p.stroke(line, { rng, pigment: c.body, width: 1.15 * s, taper: [0.02, 0.04], pressure: [1.25, 0.95, 0.8, 0.8, 0.9, 1.05, 0.9], wobble: 0.05, wetness: 0.55, opacity: 0.92, edge: 0.35, edgeWidth: 0.2, flow: 0.5, flowScale: 2 });
+  p.stroke(line.slice(2), { rng, pigment: c.tip, width: 0.95 * s, taper: [0.4, 0.1], wobble: 0.05, wetness: 0.6, opacity: 0.5, edge: 0.3, edgeWidth: 0.2 });
+  p.stroke(line.map((q) => ({ x: q.x, y: q.y + 0.3 * s })), { rng, pigment: c.dark, width: 0.5 * s, taper: [0.05, 0.2], wobble: 0.1, wetness: 0.7, opacity: 0.4, edge: 0.1, edgeWidth: 0.2 });
+  // the metallic shine: broken lifts along the back, a new glint every segment or two
   for (let k = 0; k < 9; k++) {
-    const u = 0.04 + k * 0.105;
+    const u = 0.03 + k * 0.105 + rng.range(-0.015, 0.015);
     const a = along(line, u);
-    const b = along(line, u + 0.07);
-    p.stroke([{ x: a.x, y: a.y - 0.32 * s }, { x: b.x, y: b.y - 0.3 * s }], { rng, pigment: c.lift, width: 0.42 * s, taper: [0.3, 0.3], wobble: 0, wetness: 0.25, opacity: rng.range(0.45, 0.75), edge: 0.2, edgeWidth: 0.15 });
+    const b = along(line, u + rng.range(0.04, 0.075));
+    p.stroke([{ x: a.x, y: a.y - 0.28 * s }, { x: b.x, y: b.y - 0.26 * s }], { rng, pigment: k > 5 ? mix(c.lift, PIGMENTS.cerulean, 0.25) : c.lift, width: 0.36 * s, taper: [0.35, 0.35], wobble: 0, wetness: 0.3, opacity: rng.range(0.4, 0.8), edge: 0.1, edgeWidth: 0.15 });
   }
-  // segment joints and a shadowed belly, faint and broken (no outline)
+  // dark rings at the segment joints
   for (let k = 1; k < 10; k++) {
-    const q = along(line, k * 0.1);
-    p.inkLine([{ x: q.x, y: q.y - 0.5 * s }, { x: q.x - 0.1 * s, y: q.y + 0.55 * s }], { rng, width: 0.12 * s, opacity: 0.3, breaks: 0, pigment: c.dark });
+    const q = along(line, k * 0.1 + rng.range(-0.006, 0.006));
+    p.dab({ x: q.x, y: q.y - 0.05 * s }, c.dark, { rng, variant: 'round', angle: Math.PI / 2 + rng.range(-0.2, 0.2), length: 0.75 * s, width: 0.22 * s, opacity: rng.range(0.15, 0.3) });
   }
-  p.inkLine(line.map((q) => ({ x: q.x, y: q.y + 0.48 * s })), { rng, width: 0.22 * s, opacity: 0.32, breaks: 0.5, taper: [0.05, 0.3], pigment: c.dark });
   // the male's claspers, the female's short ovipositor
   const tip = line[line.length - 1]!;
   p.dab({ x: tip.x + 0.2 * s, y: tip.y }, c.dark, { rng, variant: 'leaf', angle: Math.PI + (sex === 'male' ? -0.25 : 0.3), length: 1.3 * s, width: 0.55 * s, opacity: 0.85 });
 
-  // the thorax: stout and slanted, sheen on the back bleeding into a dark side
+  // the thorax: stout and slanted, deep metallic green going near-black underneath
   const thorax = smoothPolygon(
     [
-      { x: 2.7 * s, y: 0.4 * s },
-      { x: 1.4 * s, y: -0.4 * s },
-      { x: -0.6 * s, y: -0.2 * s },
-      { x: -1.8 * s, y: 0.9 * s },
-      { x: -1.6 * s, y: 2.2 * s },
-      { x: -0.2 * s, y: 3.0 * s },
-      { x: 1.8 * s, y: 3.1 * s },
-      { x: 2.9 * s, y: 2.0 * s },
+      { x: 3.0 * s, y: 0.7 * s },
+      { x: 1.6 * s, y: -0.35 * s },
+      { x: -0.4 * s, y: -0.2 * s },
+      { x: -1.6 * s, y: 0.8 * s },
+      { x: -1.5 * s, y: 1.9 * s },
+      { x: -0.4 * s, y: 2.6 * s },
+      { x: 1.4 * s, y: 3.0 * s },
+      { x: 2.8 * s, y: 2.3 * s },
     ],
     2,
   );
-  p.wetInWet(thorax, mix(c.body, c.lift, 0.35), c.dark, { rng, angle: Math.PI / 2 + 0.4, split: 0.5, softness: 0.5, fingers: 0.4, opacity: 0.97, edge: 0.55, edgeWidth: 0.3, deform: 0.05, spread: 0.06, blend: 'source-over' });
-  p.dab({ x: 0.9 * s, y: 0.1 * s }, lighten(c.lift, 0.2), { rng, variant: 'leaf', angle: -0.35, length: 2.2 * s, width: 0.55 * s, opacity: 0.55, blend: 'source-over', edge: 0.2 });
+  p.wash(thorax, c.body, { rng, opacity: 0.95, edge: 0.45, edgeWidth: 0.3, centreLift: 0.05, deform: 0.05, spread: 0.06, flow: 0.4, flowScale: 2, blend: 'source-over' });
+  p.glaze(thorax, c.dark, { rng, opacity: 0.75, edge: 0.2, edgeWidth: 0.3, deform: 0.06, fade: { angle: -Math.PI / 2 - 0.3, start: 0.35 } });
+  // a sheen along the shoulder, and a second, fainter, lower down: the metallic glint
+  p.dab({ x: 0.8 * s, y: 0.15 * s }, c.lift, { rng, variant: 'leaf', angle: -0.3, length: 2.4 * s, width: 0.5 * s, opacity: 0.7, blend: 'source-over', edge: 0.1 });
+  p.dab({ x: 0.3 * s, y: 1.5 * s }, mix(c.lift, PIGMENTS.gold, 0.2), { rng, variant: 'leaf', angle: -0.9, length: 1.6 * s, width: 0.35 * s, opacity: 0.35, blend: 'source-over', edge: 0.1 });
 
-  // the head: wide dark compound eyes, a small green face
-  p.dab({ x: 3.9 * s, y: 1.6 * s }, c.body, { rng, variant: 'round', angle: Math.PI / 2, length: 1.6 * s, width: 1.1 * s, opacity: 0.9 });
-  p.dab({ x: 3.6 * s, y: 0.75 * s }, c.eye, { rng, variant: 'round', angle: 0, length: 1.9 * s, width: 1.8 * s, opacity: 0.95, pool: 0.3 });
-  p.dab({ x: 3.9 * s, y: 0.45 * s }, PIGMENTS.petalWhite, { rng, variant: 'round', angle: 0, length: 0.45 * s, width: 0.35 * s, opacity: 0.55, blend: 'source-over' });
+  // the head: wide dark compound eyes over a small dark face
+  p.dab({ x: 3.6 * s, y: 2.0 * s }, c.dark, { rng, variant: 'round', angle: Math.PI / 2, length: 1.2 * s, width: 0.8 * s, opacity: 0.9 });
+  p.dab({ x: 3.35 * s, y: 1.15 * s }, c.eye, { rng, variant: 'round', angle: 0.4, length: 1.8 * s, width: 1.6 * s, opacity: 0.95, pool: 0.4 });
+  p.dab({ x: 3.6 * s, y: 0.8 * s }, PIGMENTS.petalWhite, { rng, variant: 'round', angle: 0, length: 0.4 * s, width: 0.3 * s, opacity: 0.5, blend: 'source-over' });
 
   // long spiny legs: gripping the perch below, or folded under the thorax in flight
   const hips = [
@@ -231,7 +233,7 @@ function along(line: readonly Pt[], u: number): Pt {
 
 export function paintDamselfly(res: number, seed: number, sex: DamselflySex): DamselflyParts {
   const c = colours(sex);
-  const box = { w: 34 * K, h: 10 * K, ox: 29.5 * K, oy: 3.5 * K };
+  const box = { w: 36 * K, h: 10 * K, ox: 29.5 * K, oy: 3.5 * K };
   return {
     perched: paintSprite(res, box, seed, (p) => paintBody(p, c, sex, 'grip')),
     flying: paintSprite(res, box, seed + 1, (p) => paintBody(p, c, sex, 'tuck')),
