@@ -226,6 +226,10 @@ function paintHead(p: Painter, c: Colours): void {
   p.dab(P(4.2, -6.8), c.white, { rng, variant: 'round', angle: 0, length: 0.35 * U, width: 0.35 * U, opacity: 0.5, blend: 'source-over', layers: 2 });
 }
 
+/** Seconds the splash stands, and its rings spread. */
+const SPLASH_LIFE = 1.1;
+const RING_LIFE = 3.2;
+
 /** Head anchor → crest root (back of the crown). */
 const CREST_ROOT = P(-1.4, -10.2);
 
@@ -305,8 +309,9 @@ function paintFish(p: Painter): void {
 }
 
 /** The plunge's splash: a broken column of white water thrown up, edged on one side with the pool's green. */
-function paintSplash(p: Painter, c: Colours): void {
+function paintSplash(p: Painter, c0: Colours): void {
   const rng = p.rng;
+  const c = { ...c0, white: mix(PIGMENTS.petalWhite, PIGMENTS.celadon, 0.12) };
   const edge = PIGMENTS.celadonDeep;
   p.wash(blob(0, 0, 8 * U, 2.2 * U, rng), c.white, { rng, opacity: 0.95, edge: 0, darken: 0, deform: 0.3, layers: 5, blend: 'source-over' });
   const jets = [0, 0.1, ...Array.from({ length: 12 }, () => rng.range(-1, 1))];
@@ -336,6 +341,7 @@ export interface YamasemiParts {
   wing: Sprite; // one raised wing, anchored at the shoulder
   fish: Sprite;
   splash: Sprite; // anchored at the water
+  rings: Sprite; // the plunge's rings, anchored at their centre
 }
 
 export function paintYamasemi(res: number, seed: number): YamasemiParts {
@@ -348,6 +354,9 @@ export function paintYamasemi(res: number, seed: number): YamasemiParts {
     wing: paintSprite(res, { w: 21 * U, h: 20 * U, ox: 14 * U, oy: 18.8 * U }, seed + 4, (p) => paintWing(p, c)),
     fish: paintSprite(res, { w: 9 * U, h: 3 * U, ox: 4.2 * U, oy: 1.5 * U }, seed + 5, (p) => paintFish(p)),
     splash: paintSprite(res, { w: 24 * U, h: 19 * U, ox: 12 * U, oy: 16 * U }, seed + 6, (p) => paintSplash(p, c)),
+    rings: paintSprite(res, { w: 64 * U, h: 18 * U, ox: 32 * U, oy: 9 * U }, seed + 7, (p, rng) =>
+      p.ripple({ x: 0, y: 0 }, { rng, width: 60 * U, count: 3, squash: 0.24, opacity: 0.9, light: 1, lineWidth: 1.1 * U, pigment: mix(PIGMENTS.celadonDeep, PIGMENTS.sumi, 0.45) }),
+    ),
   };
 }
 
@@ -543,6 +552,7 @@ export class Yamasemi extends BaseCreature {
   private echo = -1;
   private first = true;
   private scaleAtSpot = 1;
+  private ringScale = 1;
 
   constructor(
     w: FaunaWorld,
@@ -627,6 +637,7 @@ export class Yamasemi extends BaseCreature {
           this.plunges++;
           this.splashAt = { ...s };
           this.splashT = 0;
+          this.ringScale = this.scale;
           this.echo = 0.28;
           w.ripple(s.x, s.y, 66 * this.scale, 1);
           this.underFor = rangeOf(rng, [...YAMASEMI_TUNING.under]) / sf;
@@ -810,6 +821,10 @@ export class Yamasemi extends BaseCreature {
 
   draw(layer: LayerId, ctx: Ctx, w: FaunaWorld): void {
     const parts = w.art.get('yamasemi', (res) => paintYamasemi(res, 2300));
+    if (layer === 'waterSurface') {
+      this.drawRings(ctx, parts);
+      return;
+    }
     const onWater = this.state === 'hover' || this.state === 'plunge' || this.state === 'under' || this.state === 'emerge';
     if (this.state === 'perch') {
       if (layer === 'entities') this.drawPerched(ctx, parts);
@@ -915,13 +930,27 @@ export class Yamasemi extends BaseCreature {
     ctx.restore();
   }
 
+  /** The plunge's big ring spreading on the pool, after the bird has gone too. */
+  private drawRings(ctx: Ctx, parts: YamasemiParts): void {
+    if (this.splashT < 0 || this.splashT > RING_LIFE) return;
+    const k = this.splashT / RING_LIFE;
+    const r = parts.rings;
+    const s = this.ringScale * lerp(0.45, 1.9, 1 - (1 - k) ** 2.2);
+    ctx.save();
+    ctx.translate(this.splashAt.x, this.splashAt.y);
+    ctx.scale(s, s);
+    ctx.globalAlpha *= (1 - k) ** 1.3;
+    ctx.drawImage(r.img as CanvasImageSource, -r.ox, -r.oy, r.w, r.h);
+    ctx.restore();
+  }
+
   private drawSplash(ctx: Ctx, parts: YamasemiParts): void {
-    if (this.splashT < 0 || this.splashT > 1.1) return;
-    const k = this.splashT / 1.1;
+    if (this.splashT < 0 || this.splashT > SPLASH_LIFE) return;
+    const k = this.splashT / SPLASH_LIFE;
     const sp = parts.splash;
     // thrown up at once, then settling back and spreading as it falls
     const up = Math.sin(Math.min(1, k * 2.2) * Math.PI * 0.5);
-    const s = this.scale * lerp(1.0, 1.7, Math.sqrt(k));
+    const s = this.ringScale * lerp(1.4, 2.2, Math.sqrt(k));
     ctx.save();
     ctx.translate(this.splashAt.x, this.splashAt.y);
     ctx.scale(s, s * lerp(0.55, 1.25, up) * (1 - 0.35 * Math.max(0, k - 0.45)));
@@ -961,7 +990,7 @@ const yamasemi: CreatureDef = {
     h: 170,
     make(res, seed) {
       const a = paintYamasemi(res, seed);
-      return [a.body, a.head, a.crest, a.flyBody, a.wing, a.fish, a.splash];
+      return [a.body, a.head, a.crest, a.flyBody, a.wing, a.fish, a.splash, a.rings];
     },
   },
   show: { stage: 'falls', spec: { w: 420, h: 265 }, w: 640, h: 404, order: 26 },
