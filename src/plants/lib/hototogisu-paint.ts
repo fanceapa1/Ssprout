@@ -49,7 +49,7 @@ export interface StarStyle {
   area: Rect;
 }
 
-const SHADOW = mix(PIGMENTS.shadow, PIGMENTS.petalShade, 0.2);
+const SHADOW = mix(PIGMENTS.shadow, PIGMENTS.olive, 0.2);
 
 interface Pose {
   angle: number;
@@ -61,6 +61,8 @@ interface Pose {
 }
 
 function poses(f: StarFlower): Pose[] {
+  // the tepals swell from nothing as the bud splits, so no mark appears large
+  const born = Math.min(1, f.open / 0.1);
   return f.tepals
     .map((t, j) => ({ t, j, pose: petalPose(t.a, f.view, f.open, 0.42) }))
     .sort((a, b) => a.pose.depth - b.pose.depth)
@@ -68,8 +70,8 @@ function poses(f: StarFlower): Pose[] {
       t,
       j,
       angle: pose.angle,
-      length: f.size * t.len * pose.len * lerp(0.3, 1, easeOut(f.open)),
-      width: f.size * t.wid * lerp(0.45, 1, smooth(f.open)),
+      length: f.size * t.len * pose.len * lerp(0.3, 1, easeOut(f.open)) * born,
+      width: f.size * t.wid * lerp(0.45, 1, smooth(f.open)) * born,
       curve: t.curve,
     }));
 }
@@ -147,7 +149,7 @@ function column(p: Painter, rng: Rng, f: StarFlower, s: StarStyle): void {
   const top = { x: f.c.x + Math.cos(UP + lean) * h, y: f.c.y + Math.sin(UP + lean) * h };
   const pale = { rng: rng.fork('stalk'), pigment: s.column, width: Math.max(0.35, f.size * 0.13), opacity: 0.7 * k, taper: [0.05, 0.25] as [number, number], wobble: 0.1, wetness: 0.3, edge: 0.4 };
   p.stroke([f.c, { x: (f.c.x + top.x) / 2, y: (f.c.y + top.y) / 2 }, top], pale);
-  const dots: Pt[] = [{ x: lerp(f.c.x, top.x, 0.55), y: lerp(f.c.y, top.y, 0.55) }];
+  const dots: Pt[] = [];
   f.arms.forEach((a, i) => {
     const L = f.size * 0.42 * k;
     const mid = { x: top.x + Math.cos(a) * L * 0.55, y: top.y + Math.sin(a) * L * 0.55 - L * 0.1 };
@@ -156,7 +158,7 @@ function column(p: Painter, rng: Rng, f: StarFlower, s: StarStyle): void {
     dots.push(mid);
   });
   dots.forEach((d, i) => {
-    p.dab(d, s.freckle, { rng: rng.fork(`dot-${i}`), variant: 'round', angle: UP, length: f.size * 0.08 * k, width: f.size * 0.065 * k, opacity: 0.7 * k, edge: 0.5, layers: 2 });
+    p.dab(d, s.freckle, { rng: rng.fork(`dot-${i}`), variant: 'round', angle: UP, length: f.size * 0.065 * k, width: f.size * 0.055 * k, opacity: 0.6 * k, edge: 0.5, layers: 2 });
   });
 }
 

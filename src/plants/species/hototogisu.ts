@@ -15,7 +15,7 @@ import type { SpeciesDef } from '../types';
 const LEAF = '#8b9c5a';
 const STEM = mix('#8b9c5a', '#7a5468', 0.32);
 const FRECKLE = '#6b4a8c';
-const COLUMN = mix('#b9a2c9', PIGMENTS.petalWhite, 0.3);
+const COLUMN = mix('#b9a2c9', PIGMENTS.petalWhite, 0.55);
 const THROAT = mix(PIGMENTS.gold, PIGMENTS.petalWhite, 0.45);
 const BUD_GREEN = mix(PIGMENTS.sap, PIGMENTS.sageLight, 0.4);
 
