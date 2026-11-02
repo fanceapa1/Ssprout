@@ -349,7 +349,7 @@ export function waterPoint(w: Waters, rng: Rng, near: Pt | null = null, reach: r
   const moving = w.water.moving.filter((p) => p.length >= 3);
   const still = w.pond.world.length >= 3 ? w.pond.world : null;
   const ok = (q: Pt) => {
-    if (!inView(q, w, 14)) return false;
+    if (!inView(q, w, 40)) return false;
     if (moving.some((m) => insideWithMargin(q, m, 4))) return true;
     return !!still && insideWithMargin(q, still, 5) && closestOnPolygon(q, still).d < 70;
   };
@@ -369,8 +369,8 @@ export function waterPoint(w: Waters, rng: Rng, near: Pt | null = null, reach: r
   return null;
 }
 
-/** Wet rocks (never cliff ledges) and the heads of plants within 140 units of the water. */
-export function perchSpots(w: Pick<FaunaWorld, 'pond' | 'water' | 'perches' | 'flowers'>): Spot[] {
+/** Wet rocks (never cliff ledges) and the heads of plants within 140 units of the water, clear of the view's faded margin. */
+export function perchSpots(w: Pick<FaunaWorld, 'pond' | 'water' | 'perches' | 'flowers' | 'view'>): Spot[] {
   const waters = damselWaters(w);
   const near = (q: Pt) => waters.some((poly) => insideWithMargin(q, poly, 0) || closestOnPolygon(q, poly).d < 140);
   const out: Spot[] = [];
@@ -380,7 +380,7 @@ export function perchSpots(w: Pick<FaunaWorld, 'pond' | 'water' | 'perches' | 'f
     out.push({ id: p.id, kind: 'rock', x: p.x, y: perchY(p, p.x) + p.dome * 0.3, g: p.depth, spread: p.spread * 0.6 });
   }
   for (const f of w.flowers) {
-    if (!near({ x: f.x, y: f.baseY })) continue;
+    if (!near({ x: f.x, y: f.baseY }) || !inView({ x: f.x, y: f.baseY }, w, 40)) continue;
     // the target is high in the plant's box; the flower sprays it can cling to are lower
     out.push({ id: f.plantId, kind: 'plant', x: f.x, y: lerp(f.y, f.baseY, 0.65), g: f.baseY, spread: Math.min(3, f.r * 0.3) });
   }
