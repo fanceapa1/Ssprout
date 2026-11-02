@@ -95,4 +95,5 @@ never used.
 | 84 | [W9: yamabuki (Japanese kerria)](84-yamabuki.md) | A fountain of arching green canes with single gold flowers spaced along them, the first waterfall shrub |
 | 85 | [C4: sawagani river crab](85-sawagani.md) | A red-brown crab with milky claws that sidles out from under its wet stone at dusk and hides from birds |
 | 86 | [W10: taniutsugi (valley weigela)](86-taniutsugi.md) | An open vase of leaning wands with pink trumpets in pairs at the leaf joints, pale inside and rose outside |
+| 87 | [C5: kajika frog](87-kajika.md) | A flat grey frog camouflaged on the stream stones, singing at nightfall with a pale throat bubble |
 | 88 | [W11: katsura](88-katsura.md) | A ring of grey stems under a rounded crown of small round hearts, wine-red young and apricot-gold with pink when mature |
