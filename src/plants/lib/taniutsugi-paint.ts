@@ -108,10 +108,10 @@ export function paintOvalLeaves(p: Painter, leaves: readonly OvalLeaf[], dry: Dr
   const L = p.layer(padRect(bounds(blades.flatMap((b) => b.blade.outline)), 4));
   let len = 0;
   for (const { l, rng, blade } of blades) {
-    const a = 0.62 * l.alpha;
+    const a = 0.7 * l.alpha;
     L.fill(blade.outline, jitter(l.pigment, rng, 0.03), a);
     L.fill(deformPolygon(blade.outline, rng, { depth: 1, variance: 0.05 }), jitter(l.pigment, rng, 0.03), a * 0.65);
-    L.fill(deformPolygon(blade.shadow, rng, { depth: 1, variance: 0.05 }), shade(l.under, 0.22), a * 0.5);
+    L.fill(deformPolygon(blade.shadow, rng, { depth: 1, variance: 0.05 }), shade(l.under, 0.28), a * 0.55);
     if (l.length > 6) {
       const vw = Math.max(0.12, l.width * 0.03);
       L.lift(ribbon(blade.axis.slice(0, 8), (t) => vw * (1 - t * 0.7)), 0.34 * l.alpha);

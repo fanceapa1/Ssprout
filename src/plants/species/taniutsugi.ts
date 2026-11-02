@@ -13,7 +13,7 @@ import type { SpeciesDef } from '../types';
 
 const LEAF = '#9cb46a';
 const UNDER = '#a9b49a';
-const BARK = '#9a8a74';
+const BARK = '#87735f';
 const PINK = '#e992ab';
 const OUTER = '#d9708f';
 const INNER = '#f4bccb';
@@ -156,16 +156,19 @@ export function buildTaniutsugi(rng: Rng): Taniutsugi {
     const s = clamp01(Math.abs(lerp(-1, 1, i / (n - 1)) + rng.range(-0.16, 0.16))) * Math.sign(i - (n - 1) / 2 || rng.range(-1, 1));
     const outer = Math.abs(s);
     const length = lerp(205, 150, outer ** 1.3) * rng.range(0.8, 1.04);
-    const angle = UP + lean + s * 0.38 + rng.range(-0.05, 0.05);
+    // the vase's belly: wands leave the crown splayed and curve back up before arching out
+    const belly = Math.sign(s) * outer * rng.range(0.2, 0.32);
+    const angle = UP + lean + s * 0.36 + belly + rng.range(-0.05, 0.05);
     // every wand arches outward at the top, the outer ones most
     const bend = Math.sign(s || 1) * lerp(0.3, 1.15, outer ** 1.1) * rng.range(0.85, 1.15) + rng.range(-0.1, 0.1);
     let plan = makeStem(rng, { base: { x: s * 9 + rng.range(-3, 3), y: 0 }, length, angle, bend, segments: 16, tipBias: 0.8, wobble: 0.025 });
+    plan = { ...plan, bends: plan.bends.map((b, j) => (j >= 1 && j <= 6 ? b - belly / 6 : b)) };
     for (let k = 0; k < 24 && !fits(stemPoints(plan, 1, 1)); k++) plan = { ...plan, length: plan.length * 0.95 };
     const start = 0.1 + 0.14 * rng.next();
     const band = bandOf();
     const tone = toneOf(band);
-    const nodes = nodesOf(rng, plan.length, tone, flowers, { from: 0.3, bloom: [0.42, 0.9], chance: 0.5 });
-    const main: Wand = { plan, parent: -1, at: 0, offset: 0, window: [start, start + rng.range(0.3, 0.36)], width: rng.range(2.4, 3), band, tone, nodes, seed: seedOf(rng) };
+    const nodes = nodesOf(rng, plan.length, tone, flowers, { from: 0.22, bloom: [0.42, 0.9], chance: 0.5 });
+    const main: Wand = { plan, parent: -1, at: 0, offset: 0, window: [start, start + rng.range(0.3, 0.36)], width: rng.range(2.7, 3.3), band, tone, nodes, seed: seedOf(rng) };
     wands.push(main);
     // a side wand from the middle of a tall one, leaning outward
     if (plan.length > 140 && rng.chance(0.6)) {
@@ -246,7 +249,7 @@ export function poseTaniutsugi(plant: Taniutsugi, g: number): TaniutsugiPose {
     grown.push(gs);
     if (!gs) return;
     const thick = 0.4 + 0.6 * ramp(g, w.window[0], Math.min(1, w.window[1] + 0.25));
-    const bark = mix(BARK, w.tone, w.parent < 0 ? 0.22 : 0.5);
+    const bark = mix(BARK, w.tone, w.parent < 0 ? 0.12 : 0.4);
     pose.wands.push({ id: `wand-${i}`, band: w.band, pts: gs.pts, width: w.width * thick * smooth(gs.ext * 5), pigment: bark, seed: w.seed });
     w.nodes.forEach((nd, j) => {
       const k = smooth(clamp01((gs.ext - nd.t * 0.7) / 0.3));
