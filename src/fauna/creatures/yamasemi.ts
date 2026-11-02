@@ -316,7 +316,7 @@ function paintSplash(p: Painter, c: Colours): void {
     const at = { x: k * 3.5 * U + rng.range(-0.8, 0.8) * U, y: rng.range(-0.5, 0.3) * U };
     const wd = (Math.abs(k) < 0.15 ? 2.0 : rng.range(0.6, 1.3)) * U;
     p.dab(at, c.white, { rng, variant: 'blade', angle: a, length: len, width: wd, curve: rng.range(-0.15, 0.15), opacity: 0.95, blend: 'source-over', layers: 3, edge: 0 });
-    if (rng.chance(0.5)) p.dab({ x: at.x + 0.3 * U * Math.sign(k || 1), y: at.y }, edge, { rng, variant: 'blade', angle: a + 0.05, length: len * 0.75, width: wd * 0.3, opacity: 0.18, layers: 2, edge: 0.4 });
+    if (rng.chance(0.3)) p.dab({ x: at.x + 0.3 * U * Math.sign(k || 1), y: at.y }, edge, { rng, variant: 'blade', angle: a + 0.05, length: len * 0.6, width: wd * 0.25, opacity: 0.12, layers: 2, edge: 0.3 });
   }
   for (let i = 0; i < 22; i++) {
     const a = -Math.PI / 2 + rng.range(-1.2, 1.2);
@@ -324,7 +324,6 @@ function paintSplash(p: Painter, c: Colours): void {
     const s = rng.range(0.3, 1.0) * U;
     const q = { x: Math.cos(a) * d * 0.9, y: Math.sin(a) * d };
     p.dab(q, c.white, { rng, variant: 'round', angle: 0, length: s, width: s, opacity: 0.95, blend: 'source-over', layers: 2 });
-    p.dab({ x: q.x + 0.2 * s, y: q.y + 0.2 * s }, edge, { rng, variant: 'round', angle: 0, length: s * 0.6, width: s * 0.45, opacity: 0.25, layers: 1 });
   }
   p.inkLine([P(-8, 0.8), P(-3, 1.8), P(3, 1.7), P(8, 0.6)], { rng, width: 0.32 * U, opacity: 0.32, breaks: 0.55, pigment: edge });
 }
@@ -361,6 +360,9 @@ function dropToWater(p: Perch, pond: readonly Pt[]): number | null {
   return null;
 }
 
+/** Shelves nearer the falls' sheet than this (world units) are in the falls, not over the pool. */
+export const FALLS_CLEAR = 120;
+
 /**
  * Its perches: rocks by the still water, and shelves that overhang it (still water within 90 units
  * straight below). High ones likelier; the ones at the falls' foot, in the spray, much less.
@@ -375,7 +377,9 @@ export function yamasemiPerches(w: Pick<FaunaWorld, 'perches' | 'pond' | 'scene'
     const drop = dropToWater(p, pond);
     let height: number;
     if (p.kind === 'ledge') {
-      if (drop === null) continue;
+      // a shelf overhanging the pool, never one in the falls' face
+      const sheet = w.scene.falls?.outline;
+      if (drop === null || (sheet && (pointInPolygon(p, sheet) || closestOnPolygon(p, sheet).d < FALLS_CLEAR))) continue;
       height = drop;
     } else {
       const base = { x: p.x, y: p.depth };
@@ -383,7 +387,7 @@ export function yamasemiPerches(w: Pick<FaunaWorld, 'perches' | 'pond' | 'scene'
       if (near > 30) continue;
       height = p.depth - p.y;
     }
-    const spray = foot ? clamp(dist(p, foot) / 140, 0.2, 1) ** 2 : 1;
+    const spray = foot ? clamp(dist(p, foot) / 160, 0.2, 1) ** 2 : 1;
     out.push({ perch: p, weight: (0.5 + clamp(height, 0, 80) / 30) * spray });
   }
   return out;
@@ -409,11 +413,13 @@ export function standOn(p: Perch, x: number): Pt {
 export function plungeSpot(w: Pick<FaunaWorld, 'pond' | 'view'>, from: Pt, rng: Rng, facing = 0): Pt | null {
   const pond = w.pond.world;
   const [r0, r1] = YAMASEMI_TUNING.reach;
-  for (let i = 0; i < 48; i++) {
-    const side = facing !== 0 && i < 32 ? facing : rng.chance(0.5) ? 1 : -1;
-    const a = rng.range(0.05, 1.2);
+  // the side it faces first (by default the pool's), then anywhere; distances in the pool's plane
+  const prefer = facing || Math.sign(w.pond.centre.x - from.x) || 1;
+  for (let i = 0; i < 64; i++) {
+    const side = i < 40 ? prefer : rng.chance(0.5) ? 1 : -1;
+    const a = rng.range(-1.3, 1.3);
     const d = rng.range(r0, r1);
-    const q = { x: from.x + side * Math.cos(a) * d, y: from.y + Math.sin(a) * d * 0.7 };
+    const q = { x: from.x + side * Math.cos(a) * d, y: from.y + Math.sin(a) * d * w.pond.squash };
     if (!insideWithMargin(q, pond, YAMASEMI_TUNING.margin)) continue;
     if (q.y - 90 < w.view.y || q.x < w.view.x + 20 || q.x > w.view.x + w.view.w - 20) continue;
     return q;
@@ -474,9 +480,11 @@ export function streamWay(w: Pick<FaunaWorld, 'pond' | 'water' | 'view'>, rng: R
   }
   const byNear = [...stream].sort((a, b) => dist(a, c) - dist(b, c));
   const mid = (pts: Pt[]) => ({ x: pts.reduce((s, q) => s + q.x, 0) / pts.length, y: pts.reduce((s, q) => s + q.y, 0) / pts.length });
-  const near = mid(byNear.slice(0, 2));
-  const far = mid(byNear.slice(-2));
   const centre = polygonCentroid(stream);
+  // the ends' middles lie on the stream's end edges: step them in a little
+  const inset = (q: Pt, k: number) => ({ x: lerp(q.x, centre.x, k), y: lerp(q.y, centre.y, k) });
+  const near = inset(mid(byNear.slice(0, 2)), 0.12);
+  const far = inset(mid(byNear.slice(-2)), 0.08);
   const along = [far, ...(pointInPolygon(centre, stream) ? [centre] : []), near];
   // carry on past the far end until off the view
   const dx = far.x - (along[1] ?? near).x;
@@ -871,17 +879,22 @@ export class Yamasemi extends BaseCreature {
     const ph = Math.cos(this.flap * TAU);
     const wy = pose === 'glide' ? 0.55 : pose === 'dive' ? 0.3 : pose === 'hover' ? 0.15 + 0.85 * ph : 0.2 + 0.8 * ph;
     const wr = pose === 'dive' ? -1.25 : pose === 'hover' ? -0.15 : 0;
-    const wing = (alpha: number, dx: number) => {
+    const wing = (alpha: number, dx: number, sy = wy) => {
       const g = parts.wing;
       ctx.save();
       ctx.translate(SHOULDER.x + dx, SHOULDER.y);
       ctx.rotate(wr);
-      ctx.scale(1, wy);
+      ctx.scale(1, sy);
       ctx.globalAlpha *= alpha;
       ctx.drawImage(g.img as CanvasImageSource, -g.ox, -g.oy, g.w, g.h);
       ctx.restore();
     };
     wing(0.75, 1.2 * U);
+    if (pose === 'hover') {
+      // a beat too quick to see: the wing's whole sweep as a haze
+      wing(0.3, 0, 1);
+      wing(0.3, 0, -0.7);
+    }
     const b = parts.flyBody;
     ctx.drawImage(b.img as CanvasImageSource, -b.ox, -b.oy, b.w, b.h);
     ctx.save();
@@ -899,11 +912,13 @@ export class Yamasemi extends BaseCreature {
     if (this.splashT < 0 || this.splashT > 1.1) return;
     const k = this.splashT / 1.1;
     const sp = parts.splash;
-    const s = this.scale * lerp(0.45, 1.15, Math.sqrt(k));
+    // thrown up at once, then settling back and spreading as it falls
+    const up = Math.sin(Math.min(1, k * 2.2) * Math.PI * 0.5);
+    const s = this.scale * lerp(1.0, 1.7, Math.sqrt(k));
     ctx.save();
     ctx.translate(this.splashAt.x, this.splashAt.y);
-    ctx.scale(s, s * lerp(0.6, 1.1, Math.sqrt(k)));
-    ctx.globalAlpha *= k < 0.35 ? 1 : 1 - (k - 0.35) / 0.65;
+    ctx.scale(s, s * lerp(0.55, 1.25, up) * (1 - 0.35 * Math.max(0, k - 0.45)));
+    ctx.globalAlpha *= k < 0.4 ? 1 : 1 - (k - 0.4) / 0.6;
     ctx.drawImage(sp.img as CanvasImageSource, -sp.ox, -sp.oy, sp.w, sp.h);
     ctx.restore();
   }
