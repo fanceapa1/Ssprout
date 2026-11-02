@@ -230,7 +230,7 @@ export function trumpetShape(t: Trumpet): TrumpetShape {
   const mc = c(1);
   const rEnd = R * tubeWidth(1, t.open) * (1 + 0.2 * t.open);
   // five rounded lobes with notches between them
-  const lobe = (th: number) => 1 + (0.84 + 0.22 * Math.abs(Math.cos(2.5 * (th + t.roll))) ** 0.7 - 1) * t.open;
+  const lobe = (th: number) => 1 + (0.76 + 0.3 * Math.abs(Math.cos(2.5 * (th + t.roll))) ** 0.6 - 1) * t.open;
   const rim = (th: number): Pt => {
     const r = rEnd * lobe(th);
     return { x: mc.x + nx * r * Math.cos(th) + ux * r * Math.sin(th) * sin, y: mc.y + ny * r * Math.cos(th) + uy * r * Math.sin(th) * sin };
@@ -246,7 +246,7 @@ export function trumpetShape(t: Trumpet): TrumpetShape {
   const axis = Array.from({ length: N + 1 }, (_, i) => c(i / N));
   const shadow = t.shade > 0 ? [...right, mc, ...[...axis].reverse()] : [...left, mc, ...[...axis].reverse()];
   const mouth = Array.from({ length: M * 2 }, (_, i) => rim((i / (M * 2)) * Math.PI * 2));
-  const tr = rEnd * 0.42;
+  const tr = rEnd * 0.34;
   const tc = { x: mc.x - ux * rEnd * sin * 0.3, y: mc.y - uy * rEnd * sin * 0.3 };
   const throat = Array.from({ length: 14 }, (_, i) => {
     const a = (i / 14) * Math.PI * 2;
@@ -304,9 +304,9 @@ export function paintTrumpets(p: Painter, items: readonly Trumpet[], o: TrumpetS
       const k = smooth01((t.open - 0.15) / 0.6) * t.alpha;
       M.fill(deformPolygon(s.mouth, r, { depth: 1, variance: 0.03 }), jitter(o.inner, r, 0.02), 0.95 * k);
       M.fill(s.throat, mix(o.inner, o.deep, 0.5), 0.6 * k);
-      if (s.radius > 2.2) for (const ln of s.lines) M.fill(ribbon(ln, (u) => Math.max(0.12, s.radius * 0.05) * (1 - u * 0.8)), mix(o.inner, o.deep, 0.5), 0.35 * k);
+      if (s.radius > 2.2) for (const ln of s.lines) M.fill(ribbon(ln, (u) => Math.max(0.12, s.radius * 0.05) * (1 - u * 0.8)), mix(o.inner, o.deep, 0.55), 0.45 * k);
     }
-    M.dry({ opacity: 0.95 * alpha, blend: 'source-over', edge: 0.3, edgeWidth: 0.35, darken: 0.12, sharpness: 0.7, centreLift: 0.12, granulation: 0.03, flow: 0.2, flowScale: 5 });
+    M.dry({ opacity: 0.95 * alpha, blend: 'source-over', edge: 0.6, edgeWidth: 0.4, darken: 0.26, sharpness: 0.75, centreLift: 0.16, granulation: 0.03, flow: 0.2, flowScale: 5 });
   }
   // the calyx: a few narrow green sepals clasping the tube's base
   const C = p.layer(padRect(bounds(shapes.map((x) => x.t.at)), 8));
