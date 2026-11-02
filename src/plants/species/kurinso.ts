@@ -29,6 +29,8 @@ const ROSE: Colourway = { pigment: mix('#c9568a', '#e08aae', 0.5), light: mix('#
 const WHITE: Colourway = { pigment: '#f6eef0', light: PIGMENTS.petalWhite, eye: '#d98aa6', throat: mix(PIGMENTS.gold, PIGMENTS.petalWhite, 0.3), white: true };
 
 interface SpoonPlan {
+  /** where its winged base leaves the crown */
+  base: Pt;
   angle: number;
   length: number;
   width: number;
@@ -100,6 +102,7 @@ export function planKurinso(rng: Rng): KurinsoPlan {
     if (down > 0.05) length = Math.min(length, Math.max(4, (7.5 - flank) / down));
     length = Math.min(length, 54 / Math.max(0.05, Math.abs(Math.cos(angle))));
     leaves.push({
+      base: { x: Math.cos(phi) * rng.range(1, 2.6), y: -0.5 + Math.sin(phi) * rng.range(0.3, 0.9) },
       angle,
       length,
       width: width * lerp(0.6, 1, Math.min(1, length / 20)),
@@ -159,7 +162,7 @@ function drawLeaf(p: Painter, rng: Rng, l: SpoonPlan, g: number) {
   spoonLeaf(
     p,
     rng,
-    { x: 0, y: -0.5 },
+    { x: l.base.x * smooth(k * 2), y: l.base.y },
     // a young leaf comes up rolled and upright, then lies out
     { angle: lerp(UP, l.angle, smooth(k * 1.3)), length: l.length, width: l.width, curve: l.curve, k },
     { pigment: l.tone, deep: mix(LEAF_DEEP, l.tone, 0.35), veins: l.veins, asym: l.asym, opacity: 0.92 },
