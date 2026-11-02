@@ -316,7 +316,7 @@ const katsura: SpeciesDef = {
       const shade: Blot[] = live
         .filter(({ pad }) => pad.lit < 0.3)
         .map(({ pad, k, at, c }) => ({ x: at.x + pad.r * view.scale * k * 0.08, y: at.y + pad.r * view.scale * k * 0.28, r: pad.r * view.scale * k * 0.72, alpha: Math.min(1, k * 2.5) * ramp(0.3 - pad.lit, 0, 0.9), pigment: c.shadow, id: pad.id + 500 }));
-      paintBlots(p, shade, pr.fork('shade'), holes, { opacity: 0.5, edge: 0.3, edgeWidth: 1.2, sharpness: 0.45, centreLift: 0.15, granulation: 0.2, flow: 0.5, flowScale: 18 }, softRes(p), 0.62);
+      paintBlots(p, shade, pr.fork('shade'), holes, { opacity: 0.55, edge: 0.15, edgeWidth: 2.4, sharpness: 0.3, centreLift: 0.1, granulation: 0.22, flow: 0.55, flowScale: 18 }, softRes(p), 0.62, 0.9, 3);
       const tone = (c: FoliagePigments, t: number): Pigment => mix(c.light, c.mid, t * 0.7);
       const heartSize = arrive.heart;
       const inFront = (h: Heart) => (depth.get(h.group) ?? 0) > FRONT;
