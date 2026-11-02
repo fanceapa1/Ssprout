@@ -35,7 +35,7 @@ export const FIREFLY_TUNING = {
   /** share of the swarm that starts on the bank */
   restStart: 0.5,
   /** the first lights come on over this many seconds after the swarm arrives */
-  arrive: [0, 50] as const,
+  arrive: [0, 25] as const,
   /** they go dark one by one over this long when leaving */
   leave: [0, 35] as const,
   /** the foam at the falls' foot, kept clear by this ellipse around `scene.falls.foot` */
@@ -236,13 +236,15 @@ export function restSpots(w: Pick<FaunaWorld, 'pond' | 'water' | 'view' | 'scene
   for (const f of w.flowers) {
     const base = { x: f.x, y: f.baseY };
     if (!near(base) || !inView(base, w, 36) || nearFoam(base, w, 1.5)) continue;
-    out.push({ id: `plant-${f.plantId}`, kind: 'plant', x: f.x, y: lerp(f.y, f.baseY, 0.55), g: f.baseY });
+    // low in the plant, on a leaf, not on its top
+    out.push({ id: `plant-${f.plantId}`, kind: 'plant', x: f.x, y: Math.max(lerp(f.y, f.baseY, 0.55), f.baseY - 20), g: f.baseY });
   }
   for (const p of w.perches) {
     if (p.kind === 'ledge') continue;
     const at = { x: p.x, y: perchY(p, p.x) + p.dome * 0.3 };
     if (!inView(at, w, 36) || nearFoam(at, w, 1.2)) continue;
-    out.push({ id: `rock-${p.id}`, kind: 'rock', x: at.x, y: at.y, g: p.depth });
+    // on the wet moss low on its face, not on the dry top
+    out.push({ id: `rock-${p.id}`, kind: 'rock', x: at.x + p.spread * 0.4, y: Math.max(at.y, p.depth - 16), g: p.depth });
   }
   return out;
 }
@@ -441,7 +443,9 @@ export class Firefly extends BaseCreature {
     L.vel.y += (Math.sin(a) * sp * 0.6 - L.vel.y) * k;
     const next = { x: L.g.x + L.vel.x * dt, y: L.g.y + L.vel.y * dt };
     // never out over the foam; out of its water it turns back (landing may cross the bank)
-    if (nearFoam(next, w) || (L.state === 'fly' && !overFlightWater(next, w, 14))) {
+    // from the bank it may cross back to the water; over the water it never leaves it
+    const strays = L.state === 'fly' && overFlightWater(L.g, w, 14) && !overFlightWater(next, w, 14);
+    if (nearFoam(next, w) || strays) {
       L.vel.x *= -0.4;
       L.vel.y *= -0.4;
       L.target = flightPoint(w, rng) ?? L.target;
@@ -484,22 +488,33 @@ export class Firefly extends BaseCreature {
     }
   }
 
+  private parts(w: FaunaWorld): FireflyParts {
+    return w.art.get(`firefly:${this.id % 2}`, (res) => paintFirefly(res, 2500 + (this.id % 2) * 11));
+  }
+
+  /** The body: a dark speck, only drawn once the view is close enough to see it. */
   draw(layer: LayerId, ctx: Ctx, w: FaunaWorld): void {
     if (layer !== 'air') return;
-    const parts = w.art.get(`firefly:${this.id % 2}`, (res) => paintFirefly(res, 2500 + (this.id % 2) * 11));
-    // the body is a speck until the view comes close
-    const bodyA = clamp((w.art.res - 2.6) / 1.6, 0, 1);
+    const a = clamp((w.art.res - 4.5) / 1.5, 0, 1);
+    if (a <= 0.01) return;
+    const parts = this.parts(w);
+    for (const L of this.lights) {
+      if (L.state === 'wait' || L.state === 'out' || L.on <= 0.01) continue;
+      const p = this.where(L, w);
+      const ang = L.state === 'rest' ? L.rot : Math.atan2(L.vel.y, L.vel.x);
+      this.blit(ctx, parts.body, p.x, p.y, ang, w.perspective(L.g.y, L.g.x) * 0.9, a * L.on * 0.9);
+    }
+  }
+
+  /** The light, after the light plate (ADR 0280): a pale reserved spot in a wet yellow-green bloom. */
+  drawLights(ctx: Ctx, w: FaunaWorld): void {
+    const parts = this.parts(w);
     for (let i = 0; i < this.lights.length; i++) {
       const L = this.lights[i]!;
       const b = this.brightness(i, w);
-      if (L.state === 'wait' || L.state === 'out') continue;
+      if (b < 0.01) continue;
       const p = this.where(L, w);
       const ps = w.perspective(L.g.y, L.g.x);
-      if (bodyA > 0.01 && L.on > 0.01) {
-        const ang = L.state === 'rest' ? L.rot : Math.atan2(L.vel.y, L.vel.x);
-        this.blit(ctx, parts.body, p.x, p.y, ang, ps * 0.9, bodyA * L.on * 0.9);
-      }
-      if (b < 0.01) continue;
       // the halo spreads a little as the light swells, like a wet bloom
       this.blit(ctx, parts.halos[L.v]!, p.x, p.y, L.rot, ps * (0.72 + 0.32 * b), b * 0.9);
       this.blit(ctx, parts.core, p.x, p.y, -L.rot, ps * (0.8 + 0.25 * b), Math.min(1, b * 1.25));
