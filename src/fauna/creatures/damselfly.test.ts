@@ -166,6 +166,23 @@ describe('the damselfly at the waterfall', () => {
     expect(returns).toBeGreaterThan(2);
   });
 
+  it('keeps off the dipper’s stone, and flies off when the dipper lands beside it', () => {
+    const problems: string[] = [];
+    for (const seed of [1, 4, 8, 12]) {
+      const sim = waterfallSim(seed);
+      sim.spawn('damselfly', { count: 2 });
+      for (let s = 0; s < 3 * 60 * 10; s++) {
+        sim.update(0.1, 0);
+        const birds = sim.creatures.filter((c) => c.kind === 'dipper').map((c) => (c as unknown as { spot(): { x: number; y: number } | null }).spot());
+        for (const d of damsels(sim)) {
+          if (d.state !== 'perch' || d.timer < 1.5) continue;
+          for (const b of birds) if (b && Math.hypot(b.x - d.x, b.y - d.y) < 18) problems.push(`seed ${seed}: on the dipper’s perch at ${s / 10}s`);
+        }
+      }
+    }
+    expect(problems.slice(0, 3)).toEqual([]);
+  });
+
   it('opens its wings slowly now and then on a perch', () => {
     const sim = waterfallSim(6);
     const [d] = sim.spawn('damselfly') as Damselfly[];

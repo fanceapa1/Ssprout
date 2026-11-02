@@ -134,7 +134,7 @@ function paintWing(p: Painter, c: Colours, sex: DamselflySex): void {
   }
   if (sex === 'female') {
     // the female's white false pterostigma near the tip of the leading edge
-    p.dab({ x: 17.0 * s, y: -1.85 * s }, PIGMENTS.petalWhite, { rng, variant: 'round', angle: 0.12, length: 1.7 * s, width: 0.75 * s, opacity: 0.9, blend: 'source-over', layers: 5 });
+    p.dab({ x: 17.0 * s, y: -1.85 * s }, PIGMENTS.petalWhite, { rng, variant: 'round', angle: 0.12, length: 1.15 * s, width: 0.5 * s, opacity: 0.85, blend: 'source-over', layers: 5 });
   }
 }
 
@@ -420,6 +420,7 @@ export class Damselfly extends BaseCreature {
   private perchFor = 0;
   private home: Spot | null = null;
   private visitT = 0;
+  private check = 0;
   private readonly stay: number;
 
   constructor(w: FaunaWorld, stay: number, variants: readonly string[] = [], sex?: DamselflySex) {
@@ -468,6 +469,13 @@ export class Damselfly extends BaseCreature {
     return out;
   }
 
+  /** Someone else is on (or flying to) the perch it is on or making for. */
+  private crowded(w: FaunaWorld): boolean {
+    const at = this.route.length > 0 ? this.route[this.route.length - 1]!.perch : this.state === 'perch' ? this.perch : null;
+    if (!at) return false;
+    return this.taken(w).some((t) => dist(t, at) < 22);
+  }
+
   /** Append a landing on a perch (`to`, or a new one), or nothing when none is free. */
   private toPerch(w: FaunaWorld, to: Spot | null): void {
     const spot = to ?? chooseSpot(perchSpots(w), this.route[this.route.length - 1] ?? this.pos, w.rng, this.perch, this.taken(w));
@@ -513,8 +521,10 @@ export class Damselfly extends BaseCreature {
       this.clapGap -= dt;
       if (this.clapGap <= 0) this.clap = { t: 0, for: w.rng.range(DAMSELFLY_TUNING.clap[0], DAMSELFLY_TUNING.clap[1]) / sf, amp: w.rng.range(0.45, 1) };
     }
-    if (this.timer < this.perchFor && !(this.leaving && this.timer > 1)) return;
-    if (this.clap) return; // closes its wings before it lifts off
+    // a bird landing beside it flushes it at once
+    const flushed = this.crowded(w);
+    if (!flushed && this.timer < this.perchFor && !(this.leaving && this.timer > 1)) return;
+    if (this.clap && !flushed) return; // closes its wings before it lifts off
     this.open = 0;
     if (this.leaving) {
       this.depart(w);
@@ -573,7 +583,23 @@ export class Damselfly extends BaseCreature {
       else this.plan(w);
       return;
     }
-    const d = dist(this.pos, wp);
+    // the perch it makes for was taken meanwhile: another one
+    this.check -= dt;
+    if (this.check <= 0) {
+      this.check = 0.5;
+      const end = this.route[this.route.length - 1]!;
+      if (end.perch && this.state !== 'leave' && this.crowded(w)) {
+        this.route.pop();
+        this.toPerch(w, null);
+        if (this.route.length === 0) {
+          this.depart(w);
+          return;
+        }
+        this.startLeg();
+      }
+    }
+    const d = dist(this.pos, this.route[0]!);
+    if (wp !== this.route[0]) return;
     if (wp.perch && d < 6) {
       // settling: a gentle spring onto the exact spot
       springStep(this.pos, this.vel, wp, 5 * sf, dt);
