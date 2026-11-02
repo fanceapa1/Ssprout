@@ -110,6 +110,7 @@ Birds on a rock use the rock's base y (+1) rather than their feet y, so they dra
 rock entity they stand on (feet are on its top, which is above its base). On a ledge the depth is
 the edge's y (+1).
 - `dipper` (waterfall) on a perch or in the water → `entities` (depth: the perch's, or `max(rock depth, y)` in the water; clipped above the waterline), the part below the waterline and the whole bird when under → `underwater`, in flight → `air` (devlog 77).
+- `damselfly` (waterfall) flying and perched → `air`, like the butterflies (devlog 79).
 
 ## Creatures and behaviour
 | Kind (Japanese unlock id) | Behaviour |
@@ -125,6 +126,7 @@ the edge's y (+1).
 | `swallow` (swallows) | visitor group of 1–3 sweeping one swooping cubic across the sky band, flap bursts and swept glides. Not in reduced motion. |
 | `heron` | rare visitor. Slow wingbeats in (the wing foreshortens through edge-on as it beats), glides down to a wading spot (the scenery's stands, or the far edge of the pond clear of boulders, pads and far-bank plants: `heronStands`, cached), stands 1.5–4 min: slow neck drift, craning forward, a rare step; crouches and leaves with slow beats. Faint reflection. |
 | `dipper` (waterfall: dipper) | resident ×1 by day (`resident` 0 at night: it flies off down the stream, back by day; on its perch from the start). Bobs in bursts of dips (legs bend, tail flicks), blinks a white eyelid; every 10–30 s it dives (walks down its rock to the water's edge, wades, sinks, 5–12 s under to 24–70 units on, emerges, floats, flies off), flies low and straight to another perch (rocks 4×, ledges 1×), or (rarely, after 90 s) goes away down the stream for 25–70 s. Only in `w.pond.world` and `w.water.moving`, never in the foam. |
+| `damselfly` (waterfall: damselfly) | visitor, 1–2 (a pair: male green, female bronze), diurnal, gap 80–200 s, stay 60–130 s. Flutters slowly and low (6–20 units) over the stream and the pool's margin (`waterPoint`: never the foam, 40 units inside the view), on visible wingbeats with a downstroke bob. Perches on wet rocks and plant heads near the water (`perchSpots`, never ledges) with its wings closed over its back, opening them slowly now and then; after 4–14 s it sallies out over the water and back to the same perch (50 %), moves to another, or patrols. Keeps off perches a bird holds and flies off when one lands beside it. Side view; four wings from one sprite through `wingAxes`. |
 
 **Targets.** Flowers: finished plants whose species has `pollinators`, a seeded point in the top
 third of the sprite box (slot position + `size` × `scale` + `anchor`). Pads: water species in water
