@@ -86,3 +86,4 @@ never used.
 | 76 | [W4: wasabi](76-wasabi.md) | A fountain of glossy heart leaves on long stalks at the stream edge, rhizome in the current, airy white crucifer sprays; veins draw out with the blade |
 | 75 | [W3: iwakagami (rock mirror)](75-iwakagami.md) | A tuft of round glossy bronze-rimmed leaves with nodding fringed rose bells on the ledges |
 | 77 | [C1: brown dipper](77-dipper.md) | The waterfall's resident bird: bobs and blinks on wet rocks, dives and walks under water, flies low down the stream; leaves at night |
+| 78 | [W5: kurinsō (Japanese primrose)](78-kurinso.md) | A crinkled spoon-leaf rosette with 3–5 stacked whorls of magenta primroses opening bottom-up by the stream |

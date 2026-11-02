@@ -35,6 +35,7 @@ npm run shots -- --entry plants-a-review/strip-balloon-flower --seed 3
 | `daimonjiso` | Daimonji Saxifrage · Daimonjisō | 1 | rock, shore | 86×86 · .5/.88 | `#f6f1ea` | yes | rosette of round lobed leaves on red stalks; loose sprays of white 大 flowers, two long lower petals; white / blush / rose tips (waterfall only) |
 | `wasabi` | Wasabi · Wasabi | 1 | shore | 86×86 · .5/.88 | `#f6f2e6` | yes | fountain of long-stalked glossy heart-to-kidney leaves from a knobbly rhizome in a celadon current; airy racemes of small white four-petalled crosses (waterfall only) |
 | `iwakagami` | Rock Mirror · Iwakagami | 1 | rock, path | 86×86 · .5/.82 | `#e88ca8` | yes | tuft of 4–7 round glossy leathery leaves with bronze toothed rims and a lifted shine; reddish scape nodding with 3–6 rose-pink fringed bells (waterfall only) |
+| `kurinso` | Japanese Primrose · Kurinsō | 2 | shore, meadow | 120×160 · .5/.94 | `#c9568a` | yes | low rosette of long crinkled spoon leaves; one stout stem with 3–5 stacked whorls of flat notched magenta primroses with dark eyes, opening from the bottom up; crimson, rose and white forms (waterfall only) |
 
 Medium sprites share the 120×160 box except the water lily, which is wide and flat (it lies on
 the water; anchor = the centre of its pad group on the surface). The five tier-1 flowers use

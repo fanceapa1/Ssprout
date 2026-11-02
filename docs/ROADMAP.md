@@ -153,7 +153,7 @@ Phase 12 art queue: one species or creature per task (atomic), 2–3 at a time, 
 | W2 | Daimonjisō (*Saxifraga fortunei*): T1, spray-zone rock | `src/plants/species/daimonjiso.ts` | done (devlog 74) |
 | W3 | Iwakagami (*Shortia soldanelloides*): T1, mossy banks and ledges | `src/plants/species/iwakagami.ts` | done (devlog 75) |
 | W4 | Wasabi (*Eutrema japonicum*): T1, stream shore | `src/plants/species/wasabi.ts` | done (devlog 76) |
-| W5 | Kurinsō (*Primula japonica*): T2, stream banks | `src/plants/species/kurinso.ts` | in progress |
+| W5 | Kurinsō (*Primula japonica*): T2, stream banks | `src/plants/species/kurinso.ts` | done (devlog 78) |
 | W6 | Baikamo (*Ranunculus nipponicus* var. *submersus*): T2, water, flowing | `src/plants/species/baikamo.ts` | in progress |
 | W7 | Mizubashō (*Lysichiton camtschatcensis*): T2, water and shore | `src/plants/species/mizubasho.ts` | queued |
 | W8 | Hototogisu (toad lily, *Tricyrtis hirta*): T2, cliff foot | `src/plants/species/hototogisu.ts` | queued |
