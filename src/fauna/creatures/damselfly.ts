@@ -377,7 +377,8 @@ export function perchSpots(w: Pick<FaunaWorld, 'pond' | 'water' | 'perches' | 'f
   }
   for (const f of w.flowers) {
     if (!near({ x: f.x, y: f.baseY })) continue;
-    out.push({ id: f.plantId, kind: 'plant', x: f.x, y: f.y, g: f.baseY, spread: Math.min(3, f.r * 0.3) });
+    // the target is high in the plant's box; the flower sprays it can cling to are lower
+    out.push({ id: f.plantId, kind: 'plant', x: f.x, y: lerp(f.y, f.baseY, 0.55), g: f.baseY, spread: Math.min(3, f.r * 0.3) });
   }
   return out;
 }
