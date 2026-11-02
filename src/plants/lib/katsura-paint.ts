@@ -107,7 +107,7 @@ export function paintTipHearts(p: Painter, vis: readonly Visible[], view: TreeVi
  */
 export function paintShaggyBark(p: Painter, vis: readonly Visible[], rng: Rng, bark: Pigment, amount = 1): void {
   const dark = shade(bark, 0.35);
-  const pale = mix(bark, '#ffffff', 0.25);
+  const pale = mix(bark, '#f4efe2', 0.68);
   const stems = vis.filter((v) => v.b.order === 0 && v.hw(0.1) * 2 >= 2.4);
   if (!stems.length || amount <= 0.02) return;
   const pts: Pt[] = [];
@@ -133,9 +133,11 @@ export function paintShaggyBark(p: Painter, vis: readonly Visible[], rng: Rng, b
       for (let i = i0; i <= i1; i++) seg.push({ x: v.path[i]!.x + side * v.hw(i / (n - 1)), y: v.path[i]!.y });
       if (seg.length < 2) continue;
       // a strip tapers at both ends and ripples a little, like a lifted flake
-      const hw = (t: number) => w0 * (isDark ? 0.06 : 0.11) * wk * Math.sin(Math.PI * Math.min(1, Math.max(0, t)));
+      const hw = (t: number) => w0 * (isDark ? 0.06 : 0.14) * wk * Math.sin(Math.PI * Math.min(1, Math.max(0, t)));
       const off = (t: number) => w0 * 0.05 * Math.sin(t * 9 + s);
-      (isDark ? D : P).fill(ribbon(seg, hw, off), isDark ? dark : pale, (isDark ? 0.75 : 0.6) * fade);
+      (isDark ? D : P).fill(ribbon(seg, hw, off), isDark ? dark : pale, (isDark ? 0.75 : 0.95) * fade);
+      // a lifted flake casts a hairline of shadow along its lower edge
+      if (!isDark) D.fill(ribbon(seg, (t) => hw(t) * 0.35, (t) => off(t) + hw(t) * 1.1), dark, 0.6 * fade);
       any = true;
     }
   }
@@ -145,5 +147,5 @@ export function paintShaggyBark(p: Painter, vis: readonly Visible[], rng: Rng, b
     return;
   }
   D.dry({ opacity: 0.7, edge: 0.4, edgeWidth: 0.5, sharpness: 0.8, centreLift: 0.1, granulation: 0.3, flowScale: 8 });
-  P.dry({ opacity: 0.6, edge: 0.25, edgeWidth: 0.5, sharpness: 0.75, centreLift: 0.1, granulation: 0.4, flowScale: 8, blend: 'source-over' });
+  P.dry({ opacity: 0.85, edge: 0.3, edgeWidth: 0.5, sharpness: 0.75, centreLift: 0.1, granulation: 0.4, flowScale: 8, blend: 'source-over' });
 }
