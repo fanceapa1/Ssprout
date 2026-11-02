@@ -1,9 +1,9 @@
 import type { Rng } from '../../core/rng';
 import { PIGMENTS, jitter, lighten, mix, type Pigment, type Pt } from '../../paint';
 import { clamp01, lerp, ramp, smooth, stagger } from '../lib/shrub-growth';
-import { bloomState, groundShadow, inPlantSpace, paintBlooms, seedAndShoot, type Bloom, type BloomState } from '../lib/shrub-paint';
+import { bloomState, groundShadow, inPlantSpace, seedAndShoot, type Bloom, type BloomState } from '../lib/shrub-paint';
 import { UP, lerpAngle, makeStem, pointAt, stemPoints, type StemPlan } from '../lib/small-structure';
-import { paintCanes, paintSerratedLeaves, type CaneMark, type SerratedLeaf } from '../lib/yamabuki-paint';
+import { goldenFlowers, paintCanes, paintSerratedLeaves, type CaneMark, type SerratedLeaf } from '../lib/yamabuki-paint';
 import type { SpeciesDef } from '../types';
 
 /**
@@ -16,7 +16,7 @@ const LEAF = '#9bb25a';
 const GOLD = '#e5b02f';
 const GOLD_SHADE = '#c78f24';
 const BUD = mix('#b9c46a', GOLD, 0.15);
-const PETAL = mix(GOLD, '#f3d35a', 0.3);
+const PETAL = mix(GOLD, '#f4cf4a', 0.4);
 const PETAL_TIP = mix(GOLD, '#f6dc78', 0.5);
 
 const BOX = { w: 200, h: 220, ax: 0.5, ay: 0.93 };
@@ -100,8 +100,6 @@ function flowerBloom(rng: Rng): Bloom {
     roll: rng.range(-0.7, 0.7),
     rot: rng.range(0, Math.PI * 2),
     rings: [{ count: 5, length: size, width: 0.82, open: 1.45, pigment: PETAL, tip: PETAL_TIP, curve: 0.08, lengthVar: 0.1, angleVar: 0.14, basePool: 0.45, variant: 'petal' }],
-    centre: { kind: 'stamens', pigment: mix(GOLD_SHADE, GOLD, 0.55), size: size * 0.38, count: 9 },
-    throat: { pigment: GOLD_SHADE, size: size * 0.34, alpha: 0.4 },
     opaque: true,
     bud: BUD,
     sepals: 3,
@@ -271,8 +269,13 @@ const yamabuki: SpeciesDef = {
     const g = opts.growth;
     inPlantSpace(p, opts, yamabuki, () => {
       groundShadow(p, plant.seeds.ground, g, plant.foot, 26, 5, 0.18);
-      seedAndShoot(p, plant.seeds.sprout, g, { soil: 12, green: lighten(CANE, 0.1), handover: 0.24 });
+      // the seed lies where the crown will root
+      p.ctx.save();
+      p.ctx.translate(plant.foot, 0);
+      seedAndShoot(p, plant.seeds.sprout, g, { soil: 10, green: lighten(CANE, 0.1), handover: 0.24 });
+      p.ctx.restore();
       const pose = poseYamabuki(plant, g);
+      const style = { shade: GOLD_SHADE, sepal: mix(CANE, PIGMENTS.olive, 0.3) };
       for (const band of [0, 1, 2]) {
         paintCanes(
           p,
@@ -280,9 +283,9 @@ const yamabuki: SpeciesDef = {
           { opacity: band === 0 ? 0.7 : 0.82, accent: mix(CANE, PIGMENTS.olive, 0.5), accentOpacity: 0.3 },
         );
         for (const group of [0, 1]) paintSerratedLeaves(p, pose.leaves.filter((l) => l.band === band && l.group === group), { opacity: band === 0 ? 0.72 : 0.88 });
-        if (band === 0) paintBlooms(p, pose.flowers.filter((f) => f.band === 0), { alpha: 0.92 });
+        if (band === 0) goldenFlowers(p, pose.flowers.filter((f) => f.band === 0), { ...style, alpha: 0.9 });
       }
-      paintBlooms(p, pose.flowers.filter((f) => f.band > 0));
+      goldenFlowers(p, pose.flowers.filter((f) => f.band > 0), style);
     });
   },
 };

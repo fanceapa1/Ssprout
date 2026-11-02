@@ -4,8 +4,10 @@
  * seed, so it looks the same at every growth and only its size, angle and opacity change.
  */
 import { createRng, type Rng } from '../../core/rng';
-import { bounds, deformPolygon, jitter, padRect, ribbon, shade, smoothPath, type DryOptions, type Painter, type Pigment, type Pt } from '../../paint';
-import { ribbonInto } from './shrub-paint';
+import { bounds, dabDry, deformPolygon, jitter, mix, padRect, paintDab, ribbon, shade, smoothPath, type DabOptions, type DryOptions, type Painter, type Pigment, type Pt } from '../../paint';
+import { dabShape } from '../../paint/primitives';
+import { bloomMarks, ribbonInto, type Bloom, type BloomState } from './shrub-paint';
+import { petalVector } from './shrub-structure';
 
 export interface BladePose {
   at: Pt;
@@ -167,4 +169,119 @@ export function paintCanes(p: Painter, canes: readonly CaneMark[], o: { opacity?
   }
   if (any) A.dry({ opacity: o.accentOpacity ?? 0.5, edge: 0.3, edgeWidth: 0.4, sharpness: 0.8, flowScale: 8 });
   else A.discard();
+}
+
+// ---------------------------------------------------------------------------------------------
+// flowers
+
+export interface GoldenFlower {
+  bloom: Bloom;
+  state: BloomState;
+}
+
+export interface GoldenStyle {
+  /** deeper gold for the shaded petals and the stamens */
+  shade: Pigment;
+  /** sepal green */
+  sepal: Pigment;
+  alpha?: number;
+}
+
+const smooth01 = (x: number) => {
+  const t = x < 0 ? 0 : x > 1 ? 1 : x;
+  return t * t * (3 - 2 * t);
+};
+
+/**
+ * Single flowers, bud to open (geometry from `bloomMarks`): clear gold petals painted over the
+ * leaves with only a light rim, the back petals a little deeper, a small boss of stamens, and
+ * green sepals that hold the bud and fall back as it opens.
+ */
+export function goldenFlowers(p: Painter, items: readonly GoldenFlower[], o: GoldenStyle): void {
+  const live = items.filter((it) => it.state.size >= 0.02);
+  if (!live.length) return;
+  const alpha = o.alpha ?? 1;
+  type Mark = ReturnType<typeof bloomMarks>[number];
+  const petals: { m: Mark; shape: ReturnType<typeof dabShape>; r: Rng }[] = [];
+  for (const it of live) {
+    for (const m of bloomMarks(it.bloom, it.state)) {
+      const pigment = m.front < -0.2 ? mix(m.pigment, mix(o.shade, m.pigment, 0.5), 0.35 * it.state.colour) : m.pigment;
+      const r = createRng(m.seed);
+      petals.push({ m: { ...m, pigment }, shape: dabShape(m.at, m.opts, r), r });
+    }
+  }
+  sepals(p, live, o, alpha);
+  // neighbouring petals dry apart, so their overlaps keep an edge
+  for (const gi of [0, 1]) {
+    const set = petals.filter((_, i) => i % 2 === gi);
+    if (!set.length) continue;
+    const L = p.layer(padRect(bounds(set.flatMap((x) => x.shape.outline)), 3));
+    let len = 0;
+    let wid = 0;
+    for (const { m, shape, r } of set) {
+      paintDab(L, m.at, m.pigment, m.opts, r, p.env, shape);
+      if (m.tip) {
+        const at = { x: m.at.x + Math.cos(shape.angle) * shape.length * 0.35, y: m.at.y + Math.sin(shape.angle) * shape.length * 0.35 };
+        paintDab(L, at, m.tip, { ...m.opts, length: shape.length * 0.66, width: shape.width * 0.8, basePool: 0, pool: 0.3, layers: 2 }, r, p.env);
+      }
+      len += shape.length;
+      wid += shape.width;
+    }
+    L.dry({ opacity: 0.96 * alpha, blend: 'source-over', edge: 0.42, darken: 0.16, sharpness: 0.7, centreLift: 0.18 }, dabDry(len / set.length, wid / set.length));
+  }
+  bosses(p, live, o, alpha);
+}
+
+function sepals(p: Painter, items: readonly GoldenFlower[], o: GoldenStyle, alpha: number): void {
+  const marks: { at: Pt; opts: DabOptions; r: Rng; shape: ReturnType<typeof dabShape> }[] = [];
+  for (const it of items) {
+    const k = 1 - smooth01((it.state.open - 0.4) / 0.5);
+    if (k < 0.03) continue;
+    const r = createRng(it.bloom.seed + 7);
+    const L = it.bloom.rings[0]!.length * it.state.size;
+    for (let j = 0; j < 3; j++) {
+      const around = Math.PI / 2 + (j - 1) * 0.85 + r.range(-0.2, 0.2);
+      const v = petalVector(around, 0.5 + 1.2 * it.state.open, it.bloom.view, it.bloom.roll);
+      const at = { x: it.bloom.x, y: it.bloom.y + L * 0.05 };
+      const opts: DabOptions = { angle: v.angle, length: L * 0.5 * Math.max(0.35, v.scale) * k, width: L * 0.22 * k, layers: 2 };
+      const rr = createRng(r.int(1, 0x7fffffff));
+      marks.push({ at, opts, r: rr, shape: dabShape(at, opts, rr) });
+    }
+  }
+  if (!marks.length) return;
+  const L = p.layer(padRect(bounds(marks.flatMap((m) => m.shape.outline)), 3));
+  for (const m of marks) paintDab(L, m.at, o.sepal, m.opts, m.r, p.env, m.shape);
+  L.dry({ opacity: 0.8 * alpha, edge: 0.5 }, dabDry(5, 2.5));
+}
+
+/** A ring of small deeper-gold stamen heads at each open flower's heart. */
+function bosses(p: Painter, items: readonly GoldenFlower[], o: GoldenStyle, alpha: number): void {
+  const open = items.filter((it) => it.state.open > 0.4);
+  if (!open.length) return;
+  const L = p.layer(padRect(bounds(open.map((it) => ({ x: it.bloom.x, y: it.bloom.y }))), 6));
+  for (const it of open) {
+    const k = smooth01((it.state.open - 0.4) / 0.45);
+    const r = createRng(it.bloom.seed + 3);
+    const s = it.bloom.rings[0]!.length * it.state.size * 0.36;
+    const squash = 0.55 + 0.45 * Math.sin(it.bloom.view);
+    const heart = Array.from({ length: 10 }, (_, j) => {
+      const a = (j / 10) * Math.PI * 2;
+      return { x: it.bloom.x + Math.cos(a) * s * 0.95, y: it.bloom.y + Math.sin(a) * s * 0.95 * squash };
+    });
+    L.fill(deformPolygon(heart, r, { depth: 2, variance: 0.15 }), mix(o.shade, '#f0c23c', 0.55), 0.7 * k);
+    for (let j = 0; j < 9; j++) {
+      const a = (j / 9) * Math.PI * 2 + r.range(-0.25, 0.25);
+      const d = s * r.range(0.45, 0.95);
+      const at = { x: it.bloom.x + Math.cos(a) * d, y: it.bloom.y + Math.sin(a) * d * squash };
+      const dot = s * r.range(0.22, 0.34) * (0.5 + 0.5 * k);
+      const quad = [
+        { x: at.x - dot, y: at.y },
+        { x: at.x, y: at.y - dot * 0.8 },
+        { x: at.x + dot, y: at.y },
+        { x: at.x, y: at.y + dot * 0.8 },
+      ];
+      L.fill(deformPolygon(quad, r, { depth: 2, variance: 0.2 }), mix(o.shade, '#b9781c', r.range(0, 0.35)), 0.75 * k);
+    }
+  }
+  L.dry({ opacity: 0.85 * alpha, blend: 'source-over', edge: 0.4, edgeWidth: 0.4, granulation: 0.3, flowScale: 4 });
 }
