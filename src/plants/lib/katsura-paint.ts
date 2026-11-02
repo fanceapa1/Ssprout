@@ -3,9 +3,9 @@
  * pairs, painted as single fills in shared wet layers, and the grey shaggy bark of its stems.
  * docs/devlog/88-katsura.md.
  */
-import type { Rng } from '../../core/rng';
+import { createRng, type Rng } from '../../core/rng';
 import type { Painter } from '../../paint';
-import { bounds, padRect, ribbon, type Pt } from '../../paint/geometry';
+import { blob, bounds, deformPolygon, padRect, ribbon, type Pt } from '../../paint/geometry';
 import { lighten, mix, shade, type Pigment } from '../../paint/pigments';
 import type { DryOptions } from '../../paint/wet';
 import { stableLayer, type visibleBranches } from './tree-paint';
@@ -148,4 +148,35 @@ export function paintShaggyBark(p: Painter, vis: readonly Visible[], rng: Rng, b
   }
   D.dry({ opacity: 0.7, edge: 0.4, edgeWidth: 0.5, sharpness: 0.8, centreLift: 0.1, granulation: 0.3, flowScale: 8 });
   P.dry({ opacity: 0.85, edge: 0.3, edgeWidth: 0.5, sharpness: 0.75, centreLift: 0.1, granulation: 0.4, flowScale: 8, blend: 'source-over' });
+}
+
+export interface Blot {
+  x: number;
+  y: number;
+  r: number;
+  alpha: number;
+  pigment: Pigment;
+  id: number;
+}
+
+/**
+ * Soft scalloped blots in one wet layer (view units), with `holes` lifted out: the crown's body
+ * wash and its lobe shade. Each blot keeps its own seed, so only its size and opacity change.
+ */
+export function paintBlots(p: Painter, blots: readonly Blot[], rng: Rng, holes: readonly { x: number; y: number; r: number }[], dry: DryOptions, res?: number, squash = 0.82): void {
+  const live = blots.filter((b) => b.alpha > 0.02 && b.r > 0.8);
+  if (!live.length) return;
+  const maxR = live.reduce((m, b) => Math.max(m, b.r), 1);
+  const L = stableLayer(p, padRect(bounds(live), maxR * 1.2 + 4), rng.fork('blots-dry'), res);
+  for (const b of live) {
+    const r = createRng(b.id * 131 + 17);
+    const poly = blob(b.x, b.y, b.r, b.r * squash * r.range(0.9, 1.05), r, { points: 16, irregularity: 0.22, scallop: 0.5, scallops: r.int(5, 8), rotation: r.range(-0.4, 0.4) });
+    L.fill(poly, b.pigment, b.alpha * 0.6);
+    L.fill(deformPolygon(poly, r, { depth: 1, variance: 0.08, cap: b.r * 0.1 }), b.pigment, b.alpha * 0.45);
+  }
+  holes.forEach((h, i) => {
+    const r = createRng(i * 59 + 3);
+    if (h.r > 0.8) L.lift(blob(h.x, h.y, h.r * 1.25, h.r * 0.6, r, { points: 12, irregularity: 0.45, rotation: r.range(-0.6, 0.6) }), 1);
+  });
+  L.dry(dry);
 }
