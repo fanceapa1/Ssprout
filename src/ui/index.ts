@@ -308,14 +308,17 @@ export function createUI(deps: UIDeps): UI {
           { rootMargin: '0px 0px -12% 0px' },
         )
       : null;
-  /** The observer's answer for the page scrolled to `y`, at once (the observer agrees once it gets there). */
-  function settleAside(y: number): void {
+  /** The observer's answer for the page scrolled to `y`, at once (null without an observer). */
+  function asideAt(y: number): boolean | null {
     const body = dock.get('session')?.body;
-    if (!body || !asideObserver) return;
+    if (!body || !asideObserver) return null;
     const r = body.getBoundingClientRect();
     const shift = window.scrollY - y;
-    const on = r.top + shift < window.innerHeight * 0.88 && r.bottom + shift > 0;
-    if (on === pillAside) return;
+    return r.top + shift < window.innerHeight * 0.88 && r.bottom + shift > 0;
+  }
+  /** Apply that answer now; the observer agrees once the page gets there. */
+  function settleAside(on: boolean | null): void {
+    if (on === null || on === pillAside) return;
     pillAside = on;
     root.classList.toggle('pill-aside', on);
     syncPillInert();
@@ -423,6 +426,8 @@ export function createUI(deps: UIDeps): UI {
 
   function begin(): void {
     if (!draft.speciesId || !draft.slotId || !draft.planId) return;
+    // read before the writes below: after them the read forced a full style and layout pass (devlog 99)
+    const aside = asideAt(scroller.target());
     beforeStart();
     const ok = controller.start({
       taskName: draft.taskName.trim() || 'Study session',
@@ -450,7 +455,7 @@ export function createUI(deps: UIDeps): UI {
     pill.render();
     // the observer learns of the glide to the garden only frames later: a quick Begin found the
     // pill still aside (inert, hidden) and focus fell to <body>; settle it for where the page goes
-    settleAside(scroller.state().target);
+    settleAside(aside);
     pill.pause.focus({ preventScroll: true });
   }
 

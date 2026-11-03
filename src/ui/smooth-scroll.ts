@@ -39,6 +39,8 @@ export interface ScrollOptions {
 
 export interface SmoothScroll {
   state(): ScrollState;
+  /** `state().target` without reading layout (no `scrollHeight`) */
+  target(): number;
   /** glide to `y`; resolves when it arrives (or is interrupted by other scrolling) */
   scrollTo(y: number, opts?: ScrollOptions): Promise<void>;
   /** glide so `el` sits `offset` px below the top of the viewport */
@@ -266,6 +268,7 @@ export function createSmoothScroll(deps: SmoothScrollDeps = {}): SmoothScroll {
 
   return {
     state,
+    target: () => (mode === 'idle' ? win.scrollY : target),
     scrollTo: (y, opts = {}) => go(y, 'glide', opts.instant),
     scrollToElement,
     onChange(fn) {
