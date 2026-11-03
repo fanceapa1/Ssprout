@@ -66,7 +66,9 @@ describe('v3 → v4 migration', () => {
     expect(state.schedules).toEqual(v3Sound.schedules);
     expect(state.stats).toEqual(v3Sound.stats);
     expect(state.tips).toEqual(v3Sound.tips);
-    expect(state.settings).toEqual(v3Sound.settings);
+    // every stored value kept; a layer added since (the falls, ADR 0283) reads as 0
+    expect(state.settings).toMatchObject(v3Sound.settings);
+    expect(state.settings.soundscape!.standard.falls).toBe(0);
     expect(state.faunaSeen).toEqual(['dragonfly', 'koi-1']); // Japanese ids are not namespaced
     expect(state.session).toEqual(jp(v3Sound.session));
     expect(state.waiting).toEqual(v3Sound.waiting.map(jp));
