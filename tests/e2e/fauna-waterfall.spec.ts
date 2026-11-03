@@ -25,7 +25,7 @@ async function plantWaterfall(page: Page, n: number) {
 }
 
 async function openWaterfall(page: Page) {
-  await openDev(page, 'scenery=waterfall');
+  await openDev(page);
   await page.evaluate(() => window.sprout!.showScenery('waterfall'));
   expect(await page.evaluate(() => window.sprout!.scenery().viewed)).toBe('waterfall');
 }

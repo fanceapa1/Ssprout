@@ -140,7 +140,7 @@ test.describe('sound mixer', () => {
   });
 
   test('viewing the waterfall garden brings its sounds: the falls in the palette, its presets, and back at the pond (ADR 0283)', async ({ page }) => {
-    await openUi(page, 'scenery=waterfall');
+    await openUi(page);
     const sheet = await openMixer(page);
     expect(await page.evaluate(() => window.sprout!.audio.getScenery())).toBe('pond');
     await page.evaluate(() => window.sprout!.showScenery('waterfall'));

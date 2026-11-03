@@ -3,10 +3,9 @@ import { expect, openDev, test } from './fixtures';
 import { storedOf } from './paint-store';
 
 /**
- * Switching the garden on view at runtime (ADR 0243): the waterfall is behind its dev flag, so
- * every test opens `?dev&scenery=waterfall`. docs/systems/scenery.md › Switching.
+ * Switching the garden on view at runtime (ADR 0243). Both gardens are offered to everyone since
+ * S17. docs/systems/scenery.md › Switching.
  */
-const FLAG = 'scenery=waterfall';
 
 const show = (page: Page, id: string) => page.evaluate((id) => window.sprout!.showScenery(id as never), id);
 const viewed = (page: Page) => page.evaluate(() => window.sprout!.scenery().viewed);
@@ -45,16 +44,14 @@ async function frameHash(page: Page): Promise<string> {
 test.describe('sceneries · switching the garden on view (ADR 0243)', () => {
   test.beforeEach(({ page }) => page.setViewportSize({ width: 1440, height: 900 }));
 
-  test('the dev flag offers the waterfall; without it only the Japanese garden', async ({ page }) => {
+  test('both gardens are offered without a flag; a new garden opens on the Japanese garden', async ({ page }) => {
     await openDev(page);
-    expect(await page.evaluate(() => window.sprout!.scenery())).toMatchObject({ viewed: 'japanese-garden', available: ['japanese-garden'] });
-    await expect(show(page, 'waterfall')).rejects.toThrow(/not available/);
-    await openDev(page, FLAG);
-    expect(await page.evaluate(() => window.sprout!.scenery().available)).toEqual(['japanese-garden', 'waterfall']);
+    expect(await page.evaluate(() => window.sprout!.scenery())).toMatchObject({ viewed: 'japanese-garden', available: ['japanese-garden', 'waterfall'] });
+    await expect(show(page, 'coast')).rejects.toThrow(/not available/);
   });
 
   test('switches to the waterfall and back, cross-fading, without a reload', async ({ page }) => {
-    await openDev(page, FLAG);
+    await openDev(page);
     await page.evaluate(() => ((window as unknown as { marker: number }).marker = 1));
     const garden = await frameHash(page);
     await show(page, 'waterfall');
@@ -72,7 +69,7 @@ test.describe('sceneries · switching the garden on view (ADR 0243)', () => {
   });
 
   test('the second switch to the same garden comes from the paint cache', async ({ page }) => {
-    await openDev(page, FLAG);
+    await openDev(page);
     await show(page, 'waterfall');
     const first = await sceneStats(page);
     expect(first.cacheMisses).toBeGreaterThanOrEqual(1);
@@ -88,7 +85,7 @@ test.describe('sceneries · switching the garden on view (ADR 0243)', () => {
   });
 
   test('each garden shows only its own plants', async ({ page }) => {
-    await openDev(page, FLAG);
+    await openDev(page);
     await page.evaluate(() => {
       window.sprout!.addPlants(3, undefined, 'japanese-garden');
       window.sprout!.addPlants(2, undefined, 'waterfall');
@@ -103,7 +100,7 @@ test.describe('sceneries · switching the garden on view (ADR 0243)', () => {
   });
 
   test('a session keeps counting while another garden is on view; switching to it brings its garden back', async ({ page }) => {
-    await openDev(page, FLAG);
+    await openDev(page);
     const pond = await page.evaluate(() => window.sprout!.start(25, { taskName: 'Pond' })!.id);
     expect((await shownPlants(page)).seedlings).toEqual([pond]);
     await show(page, 'waterfall');
@@ -129,7 +126,7 @@ test.describe('sceneries · reduced motion', () => {
 
   test('the switch is a cut', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
-    await openDev(page, FLAG);
+    await openDev(page);
     await show(page, 'waterfall');
     expect(await page.evaluate(() => window.sprout!.scenery())).toMatchObject({ viewed: 'waterfall', fade: 0 });
   });
@@ -137,7 +134,7 @@ test.describe('sceneries · reduced motion', () => {
   test('the waterfall has its own daylight: night is darker and bluer than noon, and its plates come from the cache', async ({ page }) => {
     test.slow();
     await page.setViewportSize({ width: 1440, height: 900 });
-    await openDev(page, FLAG);
+    await openDev(page);
     await show(page, 'waterfall');
     /** The frame's mean colour at a pinned time, the ambience settled. */
     const mean = (time: 'noon' | 'night') =>
@@ -161,7 +158,7 @@ test.describe('sceneries · reduced motion', () => {
     expect(night[2] / (night[0] + 1)).toBeGreaterThan(noon[2] / (noon[0] + 1));
     // its plates are stored under its own keys (ADR 0242); a second load takes them from the cache
     await expect.poll(async () => (await storedOf(page, 'sky-plate')).filter((e) => e.key.startsWith('waterfall|')).length, { timeout: 40_000 }).toBeGreaterThanOrEqual(2);
-    await openDev(page, FLAG);
+    await openDev(page);
     await show(page, 'waterfall');
     await mean('night');
     expect((await page.evaluate(() => window.sprout!.skyStats()!)).cacheHits).toBeGreaterThanOrEqual(1);

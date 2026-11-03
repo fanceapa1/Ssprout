@@ -4,9 +4,8 @@ import { openUi, plantSession } from './ui-helpers';
 
 /**
  * The dock's Gardens section (ADR 0244): choosing a garden switches the one on view, and the
- * planting flow offers that garden's spots. The waterfall is behind its dev flag.
+ * planting flow offers that garden's spots. Both gardens are offered to everyone since S17.
  */
-const FLAG = 'scenery=waterfall';
 
 const viewed = (page: Page) => page.evaluate(() => window.sprout!.scenery().viewed);
 const ready = (page: Page) => page.evaluate(() => window.sprout!.showScenery(window.sprout!.scenery().viewed));
@@ -23,13 +22,24 @@ async function shownSeedlings(page: Page): Promise<string[]> {
 test.describe('gardens · choosing the garden on view (ADR 0244)', () => {
   test.beforeEach(({ page }) => page.setViewportSize({ width: 1440, height: 900 }));
 
-  test('only one garden: no Gardens section', async ({ page }) => {
-    await openUi(page);
-    await expect(section(page)).toHaveCount(0);
+  test('released: without ?dev the Gardens section offers both, a new garden opens on the Japanese garden, and the choice is kept', async ({ page }) => {
+    // no `?dev`: no debug API, only what a visitor sees
+    await page.goto('./');
+    await expect(section(page).locator('button.garden-card')).toHaveCount(2, { timeout: 30_000 });
+    expect(await page.evaluate(() => 'sprout' in window)).toBe(false);
+    await expect(card(page, 'japanese-garden')).toHaveAttribute('aria-pressed', 'true');
+    await expect(card(page, 'waterfall')).toContainText('Rocky waterfall');
+    await card(page, 'waterfall').click();
+    await expect(card(page, 'waterfall')).toHaveAttribute('aria-pressed', 'true');
+    // saved with the garden: a reload opens on the waterfall
+    await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('studysprout:v1') ?? '{}').scenery)).toBe('waterfall');
+    await page.reload();
+    await expect(card(page, 'waterfall')).toHaveAttribute('aria-pressed', 'true', { timeout: 30_000 });
+    await expect(card(page, 'japanese-garden')).toHaveAttribute('aria-pressed', 'false');
   });
 
   test('lists both gardens, the one on view marked; choosing the waterfall switches', async ({ page }) => {
-    await openUi(page, FLAG);
+    await openUi(page);
     await expect(section(page).getByRole('heading', { name: 'Gardens' })).toBeVisible();
     await expect(section(page).locator('button.garden-card')).toHaveCount(2);
     await expect(card(page, 'japanese-garden')).toHaveAttribute('aria-pressed', 'true');
@@ -46,7 +56,7 @@ test.describe('gardens · choosing the garden on view (ADR 0244)', () => {
   });
 
   test('plants in the waterfall through the real flow, and switching back hides its seedling', async ({ page }) => {
-    await openUi(page, FLAG);
+    await openUi(page);
     await card(page, 'waterfall').click();
     await ready(page);
     const waterfallSlots = await page.evaluate(() => window.sprout!.slots().map((s) => s.id));
@@ -84,7 +94,7 @@ test.describe('gardens · choosing the garden on view (ADR 0244)', () => {
   });
 
   test('keyboard operable: Tab to a card, Enter chooses it', async ({ page }) => {
-    await openUi(page, FLAG);
+    await openUi(page);
     await card(page, 'japanese-garden').focus();
     await page.keyboard.press('Tab');
     await expect(card(page, 'waterfall')).toBeFocused();
@@ -100,7 +110,7 @@ test.describe('gardens · choosing the garden on view (ADR 0244)', () => {
 
   test('phone width: the cards stack, inside the page', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
-    await openUi(page, FLAG);
+    await openUi(page);
     await page.evaluate(() => window.sprout!.ui.dockReady());
     const boxes = await section(page).locator('button.garden-card').evaluateAll((els) => els.map((e) => e.getBoundingClientRect().toJSON() as DOMRect));
     expect(boxes).toHaveLength(2);
@@ -131,7 +141,7 @@ test.describe('gardens · each garden’s flora (ADR 0250)', () => {
   const flora = (page: Page, id: 'japanese-garden' | 'waterfall') => page.evaluate((s) => window.sprout!.flora(s).sort(), id);
 
   test('the waterfall’s planting sheet lists its own flora and the fixtures; the garden keeps its own', async ({ page }) => {
-    await openUi(page, FLAG);
+    await openUi(page);
     const garden = await listed(page);
     expect(garden).toEqual(await flora(page, 'japanese-garden'));
     expect(garden).toContain('lotus');
@@ -150,7 +160,7 @@ test.describe('gardens · each garden’s flora (ADR 0250)', () => {
   });
 
   test('the herbarium is one book; with two gardens in it, each specimen names its garden', async ({ page }) => {
-    await openUi(page, FLAG);
+    await openUi(page);
     const book = page.locator('dialog[data-dialog="herbarium"]');
     const press = (gardens: Array<[string, 'japanese-garden' | 'waterfall']>) =>
       page.evaluate((list) => {
