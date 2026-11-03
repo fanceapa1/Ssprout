@@ -118,8 +118,10 @@ export function planBaikamo(rng: Rng): BaikamoPlan {
   const nb = rng.int(8, 12);
   const blossoms: Blossom[] = [];
   for (let b = 0; b < nb; b++) {
-    const { t, i } = lifted[b % Math.min(lifted.length, 6)]!;
-    const s = t.length * rng.range(0.35, 0.9);
+    const m = Math.min(lifted.length, 6);
+    const { t, i } = lifted[b % m]!;
+    // a tress's second flower stands further downstream than its first: dots, not clumps
+    const s = t.length * Math.min(0.92, 0.46 + 0.22 * Math.floor(b / m) + rng.range(-0.06, 0.14));
     blossoms.push({
       tress: i,
       s,
