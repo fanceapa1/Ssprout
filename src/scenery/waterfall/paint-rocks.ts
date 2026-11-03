@@ -5,12 +5,14 @@
  */
 import type { Rng } from '../../core/rng';
 import {
+  PAPER_WHITE,
   PIGMENTS,
   bounds,
+  closedResample,
   createSimplex2D,
-  insetPolygon,
   lighten,
   mix,
+  rgba,
   shade,
   smoothPath,
   type Painter,
@@ -68,6 +70,37 @@ export function buttressShape(): Pt[] {
   return [{ x: 690, y: 258 }, ...top, ...foot, { x: 690, y: 600 }, { x: 676, y: 420 }];
 }
 
+/**
+ * A hand-cut outline: resampled every 4 units and nudged by noise. Washes smooth their outline at
+ * a spacing set by its size, so the rock is reserved and clipped to this instead (keeps its steps).
+ */
+function roughOutline(poly: readonly Pt[], rng: Rng, amp = 1.6): Pt[] {
+  const noise = createSimplex2D(rng.fork('rough'));
+  return closedResample(poly, 4).map((q) => ({ x: q.x + noise(q.x / 16, q.y / 16) * amp, y: q.y + noise(q.y / 16 + 40, q.x / 16) * amp }));
+}
+
+/** A rectangle a little larger than `b`, for washes whose edge a clip decides. */
+function around(b: { x: number; y: number; w: number; h: number }, pad = 24): Pt[] {
+  return [
+    { x: b.x - pad, y: b.y - pad },
+    { x: b.x + b.w + pad, y: b.y - pad },
+    { x: b.x + b.w + pad, y: b.y + b.h + pad },
+    { x: b.x - pad, y: b.y + b.h + pad },
+  ];
+}
+
+/** Paper over `shape`: a full reserve, so nothing painted earlier shows through it. */
+function fillPaper(p: Painter, shape: readonly Pt[]): void {
+  const { ctx } = p;
+  ctx.save();
+  ctx.beginPath();
+  shape.forEach((q, i) => (i ? ctx.lineTo(q.x, q.y) : ctx.moveTo(q.x, q.y)));
+  ctx.closePath();
+  ctx.fillStyle = rgba(PAPER_WHITE);
+  ctx.fill();
+  ctx.restore();
+}
+
 function clipTo(p: Painter, shape: readonly Pt[]): void {
   const { ctx } = p;
   ctx.save();
@@ -110,12 +143,13 @@ function crack(rng: Rng, x: number, y: number, len: number): Pt[] {
 
 /** The cliff: the mass, its strata and cracks, the recess behind the falls, the lit faces and the wet streaks. */
 export function* paintCliff(p: Painter, rng: Rng): Strokes {
-  const body = cliffBody();
+  const body = roughOutline(cliffBody(), rng);
   const b = bounds(body);
-  // reserve the cliff's paper so it stands opaque over whatever lies behind it
-  yield* p.parts.lift(insetPolygon(body, 3), { rng, amount: 1, deform: 0.02, spread: 0.02, layers: 4, sharpness: 0.8, edge: 0 });
+  // reserve the cliff's paper so it stands opaque over whatever lies behind it, to its exact edge
+  fillPaper(p, body);
   yield;
-  yield* p.parts.wetInWet(body, CLIFF_LIT, CLIFF_SHADOW, {
+  clipTo(p, body);
+  yield* p.parts.wetInWet(around(b), CLIFF_LIT, CLIFF_SHADOW, {
     rng,
     angle: Math.PI / 2 + 0.25,
     split: 0.42,
@@ -137,7 +171,6 @@ export function* paintCliff(p: Painter, rng: Rng): Strokes {
 
   // strata: broken blocks dipping gently left, a lit top (paper lifted) over a crisp shadow that dies downward
   const noise = createSimplex2D(rng.fork('strata'));
-  clipTo(p, body);
   for (let y0 = 256; y0 < 620; y0 += rng.range(30, 58)) {
     const dip = rng.range(0.02, 0.07);
     for (let x0 = b.x + rng.range(-60, 80); x0 < b.x + b.w; ) {
@@ -258,8 +291,9 @@ export function buttressSteps(): Pt[] {
 
 /** The buttress: the tallest rock beside the falls, jointed blocks stepping down a lit right flank. */
 export function* paintButtress(p: Painter, rng: Rng): Strokes {
-  const shape = buttressShape();
-  yield* p.parts.wetInWet(shape, lighten(CLIFF_LIT, 0.02), RECESS, {
+  const shape = roughOutline(buttressShape(), rng);
+  clipTo(p, shape);
+  yield* p.parts.wetInWet(around(bounds(shape)), lighten(CLIFF_LIT, 0.02), RECESS, {
     rng,
     angle: Math.PI + 0.2,
     split: 0.55,
@@ -278,7 +312,6 @@ export function* paintButtress(p: Painter, rng: Rng): Strokes {
     fade: { angle: Math.PI / 2, start: 0.85, amount: 0.35, ragged: 0.7 },
   });
   yield;
-  clipTo(p, shape);
   // the blocks between the joints: alternate cool and warm planes, each dying downward
   const steps = buttressSteps();
   const xs = [700, ...steps.map((q) => q.x), 1040];
@@ -364,55 +397,107 @@ function ledgeY(l: Ledge, x: number): number {
   return a.y + ((b.y - a.y) * (x - a.x)) / (b.x - a.x);
 }
 
-/** The ledges: a lit shelf, the undercut's shadow and moss cushions along the lip. */
+/** A ledge's lip, left → right: its edge, nudged a little up and down so it reads as broken rock. */
+function lipLine(rng: Rng, l: Ledge, x0: number, x1: number): Pt[] {
+  const pts: Pt[] = [];
+  for (let x = x0; x <= x1 + 0.1; x += (x1 - x0) / 9) pts.push({ x, y: ledgeY(l, x) + (x > x0 && x < x1 ? rng.range(-2, 2.5) : 0) });
+  return pts;
+}
+
+/**
+ * The ledges: each the outcrop of a bed. A lit top, a front face in a few blocks, an undercut
+ * that dies into the face, the bed running on into the cliff either side, and moss in clusters.
+ */
 export function* paintLedges(p: Painter, rng: Rng): Strokes {
+  const ink = mix(PIGMENTS.sumi, RECESS, 0.4);
   for (const l of LEDGES) {
     const [a, b] = l.edge;
     const s = l.scale;
-    const shelf: Pt[] = [
-      { x: a.x + 8, y: a.y - 12 * s },
-      { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 - 14 * s },
-      { x: b.x - 6, y: b.y - 10 * s },
-      { x: b.x + 2, y: b.y + 1 },
-      { x: a.x, y: a.y + 1 },
+    const w = b.x - a.x;
+    const lip = lipLine(rng, l, a.x - 4, b.x + 4);
+    // the bed carries on into the face either side, thinning out
+    for (const side of [-1, 1] as const) {
+      const from = side < 0 ? a : b;
+      const len = rng.range(50, 110);
+      const bed: Pt[] = [];
+      for (let t = 0; t <= 1.001; t += 0.25) bed.push({ x: from.x + side * len * t, y: from.y + 4 * s + side * len * t * 0.03 + rng.range(-1.5, 1.5) });
+      p.stroke(bed, { rng, pigment: mix(CLIFF_SHADOW, RECESS, 0.3), width: 9 * s, taper: side < 0 ? [0.8, 0.05] : [0.05, 0.8], wetness: 0.75, wobble: 0.3, opacity: 0.2 });
+      yield;
+    }
+    // the top: lit paper, thickest in the middle, ragged toward the face behind
+    const top: Pt[] = [
+      ...lip.map((q) => ({ x: q.x, y: q.y + 1 })),
+      ...lip
+        .slice()
+        .reverse()
+        .map((q, i, all) => ({ x: q.x, y: q.y - (8 + 10 * Math.sin((Math.PI * i) / (all.length - 1))) * s - rng.range(0, 3) })),
     ];
-    yield* p.parts.lift(shelf, { rng, amount: 0.45, deform: 0.2, layers: 6, sharpness: 0.5 });
+    yield* p.parts.lift(top, { rng, amount: 0.75, deform: 0.15, layers: 6, sharpness: 0.6 });
     yield;
-    const under: Pt[] = [a, b, { x: b.x - 10, y: b.y + 34 * s }, { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 + 48 * s }, { x: a.x + 12, y: a.y + 30 * s }];
-    yield* p.parts.glaze(under, RECESS, {
-      rng,
-      deform: 0.2,
-      spread: 0.3,
-      opacity: 0.5,
-      granules: 0.3,
-      fade: { angle: Math.PI / 2, start: 0.1, amount: 1, ragged: 0.8 },
-    });
+    yield* p.parts.wash(top, WARM_LIGHT, { rng, deform: 0.12, layers: 6, opacity: 0.16, edge: 0.2, fade: { angle: Math.PI, start: 0.4, amount: 0.8 } });
     yield;
-    const lip = [0, 0.2, 0.45, 0.7, 0.85, 1].map((t) => ({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t + (t > 0 && t < 1 ? rng.range(-3, 4) : 0) }));
-    p.inkLine(lip, {
-      rng,
-      width: 1.3,
-      pigment: mix(PIGMENTS.sumi, RECESS, 0.4),
-      breaks: 0.5,
-      opacity: 0.4,
-    });
+    // the front face: a band of shaded rock under the lip, broken into blocks by short joints
+    const thick = rng.range(9, 13) * s;
+    const face = [...lip, ...lip.slice().reverse().map((q) => ({ x: q.x, y: q.y + thick * rng.range(0.7, 1.2) }))];
+    yield* p.parts.wash(face, CLIFF_SHADOW, { rng, deform: 0.1, spread: 0.1, layers: 8, opacity: 0.3, edge: 0.45, sharpness: 0.6, granules: 0.4, fade: { angle: 0, start: 0.55, amount: 0.6, ragged: 0.6 } });
     yield;
-    // moss cushions along the lip, spilling a little over it
-    const n = Math.max(3, Math.round((b.x - a.x) / 34));
+    for (let x = a.x + rng.range(20, 40); x < b.x - 14; x += rng.range(34, 70)) {
+      const y = ledgeY(l, x);
+      p.inkLine([{ x, y: y + 1 }, { x: x + rng.range(-2, 2), y: y + thick * rng.range(0.7, 1) }], { rng, width: 1, pigment: ink, opacity: 0.3, breaks: 0, taper: [0.1, 0.5] });
+    }
+    yield;
+    // the undercut: dark right under the face, dying into the cliff below in two or three soft pools
+    const pools = rng.int(2, 3);
+    for (let i = 0; i < pools; i++) {
+      const u0 = a.x + (w * i) / pools + rng.range(-6, 10);
+      const u1 = a.x + (w * (i + 1)) / pools + rng.range(-10, 6);
+      const deep = rng.range(26, 44) * s;
+      const y0 = (x: number) => ledgeY(l, x) + thick * 0.8;
+      const under: Pt[] = [
+        { x: u0, y: y0(u0) },
+        { x: u1, y: y0(u1) },
+        { x: u1 - rng.range(4, 14), y: y0(u1) + deep * 0.5 },
+        { x: (u0 + u1) / 2, y: y0((u0 + u1) / 2) + deep },
+        { x: u0 + rng.range(4, 14), y: y0(u0) + deep * 0.6 },
+      ];
+      yield* p.parts.wash(under, RECESS, {
+        rng,
+        deform: 0.3,
+        spread: 0.35,
+        layers: 10,
+        opacity: 0.34,
+        edge: 0,
+        sharpness: 0.1,
+        granules: 0.3,
+        fade: { angle: Math.PI / 2, start: 0, amount: 1, ragged: 0.9 },
+      });
+      yield;
+    }
+    // the lip's ink: broken, heavier on the shaded left, lost toward the lit end
+    p.inkLine(lip, { rng, width: 1.2, pigment: ink, breaks: 0.6, opacity: 0.36, pressure: [1, 0.9, 0.6, 0.3] });
+    yield;
+    // moss in clusters along the lip, a few strands spilling over the face
+    const n = Math.max(3, Math.round(w / 30));
     for (let i = 0; i < n; i++) {
-      const x = a.x + ((i + rng.range(0.2, 0.8)) / n) * (b.x - a.x);
-      const r = rng.range(14, 26) * s;
+      if (rng.chance(0.25)) continue;
+      const x = a.x + ((i + rng.range(0.1, 0.9)) / n) * w;
+      const r = rng.range(10, 28) * s;
       yield* p.parts.foliageClump({ x, y: ledgeY(l, x) - r * 0.15 }, r, MOSS, {
         rng,
         light: ROCK_LIGHT,
         flatness: 0.42,
         density: 0.8,
         dabSize: 0.3,
-        gaps: 0.15,
+        gaps: 0.2,
         shadow: 0.5,
         opacity: 0.72,
       });
       yield;
+      if (rng.chance(0.4)) {
+        const y = ledgeY(l, x) + 2;
+        p.stroke([{ x, y }, { x: x + rng.range(-3, 3), y: y + rng.range(10, 22) * s }], { rng, pigment: MOSS.shadow, width: rng.range(3, 5) * s, taper: [0.1, 0.9], wetness: 0.6, opacity: 0.45 });
+        yield;
+      }
     }
   }
 }

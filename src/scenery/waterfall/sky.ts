@@ -120,7 +120,8 @@ const RIDGE: Record<DayPhase, [Pigment, number]> = {
 };
 
 function paintPhaseSky(p: Painter, rng: Rng, phase: DayPhase): void {
-  const sky = plateSky();
+  // deeper than the plate: a wash smooths its outline, so it would leave paper over the stepped rock
+  const sky = openSky(48);
   const { sunriseX, sunsetX, horizonY } = WATERFALL_SUN_SKY;
   switch (phase) {
     case 'midday': {

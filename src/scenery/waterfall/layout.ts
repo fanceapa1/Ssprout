@@ -42,14 +42,18 @@ export const SKYLINE: readonly Pt[] = [
   { x: 804, y: 216 },
   { x: 816, y: 226 },
   { x: 846, y: 230 },
-  // its right flank steps down to the far ridge in jointed blocks
-  { x: 852, y: 260 },
-  { x: 890, y: 264 },
-  { x: 898, y: 298 },
-  { x: 938, y: 304 },
-  { x: 946, y: 336 },
-  { x: 986, y: 342 },
-  { x: 994, y: 356 },
+  // its right flank steps down to the far ridge in jointed blocks of uneven size
+  { x: 854, y: 254 },
+  { x: 868, y: 256 },
+  { x: 882, y: 264 },
+  { x: 889, y: 290 },
+  { x: 912, y: 292 },
+  { x: 926, y: 300 },
+  { x: 931, y: 318 },
+  { x: 958, y: 326 },
+  { x: 966, y: 346 },
+  { x: 990, y: 350 },
+  { x: 1002, y: 356 },
   { x: 1010, y: 360 },
   { x: 1080, y: 372 },
   { x: 1180, y: 360 },
@@ -82,11 +86,11 @@ export function openSky(below = 0): Pt[] {
 
 /** The buttress's right edge under the skyline, top to bottom, where the far ridge meets it. */
 export const BUTTRESS_END: readonly Pt[] = [
-  { x: 1030, y: 366 },
-  { x: 1036, y: 394 },
-  { x: 1048, y: 400 },
-  { x: 1050, y: 440 },
-  { x: 1040, y: 452 },
+  { x: 1028, y: 368 },
+  { x: 1034, y: 392 },
+  { x: 1046, y: 398 },
+  { x: 1050, y: 436 },
+  { x: 1041, y: 452 },
 ];
 
 /** Where the cliff stands on the ground: its right flank, then the plunge pool's back edge, then its left foot. */
