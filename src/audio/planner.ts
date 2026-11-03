@@ -29,6 +29,9 @@ export const EVENT_DURATION_S: Readonly<Record<EventKind, number>> = {
   swallow: 1.3,
   cricket: 1.6,
   gust: 7,
+  splash: 0.45,
+  dipper: 2.2,
+  kajika: 4.6,
 };
 
 /** Minimum seconds between two events of the same kind. */
@@ -40,9 +43,12 @@ export const MIN_GAP_S: Readonly<Record<EventKind, number>> = {
   swallow: 6,
   cricket: 0.9,
   gust: 9,
+  splash: 4,
+  dipper: 30,
+  kajika: 25,
 };
 
-/** Stereo spread per kind: the pond sits centre, birds and insects all around. */
+/** Stereo spread per kind: the pond and the plunge pool sit centre, birds and insects all around. */
 export const PAN_SPREAD: Readonly<Record<EventKind, number>> = {
   plip: 0.3,
   drip: 0.7,
@@ -51,6 +57,9 @@ export const PAN_SPREAD: Readonly<Record<EventKind, number>> = {
   swallow: 0.9,
   cricket: 0.9,
   gust: 0,
+  splash: 0.35,
+  dipper: 0.6,
+  kajika: 0.7,
 };
 
 /** Voices (excluding gusts, which only move the wind bed) that may sound at once. */

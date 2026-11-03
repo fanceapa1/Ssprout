@@ -3,6 +3,8 @@ import { defaultSoundscape, levelsWith, silentLevels } from '../core/soundscape'
 import {
   BIRD_CURVE,
   CRICKET_CURVE,
+  EVENT_KINDS,
+  PLACE_EVENTS,
   localHour,
   mixParams,
   sameMix,
@@ -160,5 +162,66 @@ describe('personal mixes', () => {
     const automatic = at({ scenery: 'coast' });
     expect(automatic.extra.waves).toBeGreaterThan(0);
     expect(automatic.rates.plip).toBe(0);
+  });
+});
+
+describe('the waterfall (ADR 0283)', () => {
+  const falls = (patch: Partial<MixInput> = {}) => at({ scenery: 'waterfall', ...patch });
+
+  it('the falls bed replaces the pond water; no plips, a soft splash now and then', () => {
+    const m = falls();
+    expect(m.water).toBe(0);
+    expect(m.extra.falls).toBe(70);
+    expect(m.rates.plip).toBe(0);
+    expect(m.rates.splash).toBeGreaterThan(0);
+    expect(m.wind).toBeLessThan(at({}).wind);
+    const pond = at({});
+    expect(pond.extra.falls).toBe(0);
+    expect(pond.rates.splash + pond.rates.dipper + pond.rates.kajika).toBe(0);
+  });
+
+  it('the dipper sings by day, the kajika after dusk and only once it has been seen there', () => {
+    expect(falls({ hour: 7 }).rates.dipper).toBeGreaterThan(falls({ hour: 13 }).rates.dipper);
+    expect(falls({ hour: 23 }).rates.dipper).toBe(0);
+    expect(falls({ hour: 20 }).rates.kajika).toBe(0);
+    const seen = new Set(['waterfall:kajika']);
+    expect(falls({ hour: 20, fauna: seen }).rates.kajika).toBeGreaterThan(falls({ hour: 12, fauna: seen }).rates.kajika * 5);
+    // a kajika seen in the garden is not one seen at the falls
+    expect(falls({ hour: 20, fauna: new Set(['kajika']) }).rates.kajika).toBe(0);
+  });
+
+  it('the roar hides distant birds; a wagtail there adds some back, martins bring their twitter', () => {
+    expect(falls({ hour: 7 }).rates.chirp).toBeLessThan(at({ hour: 7 }).rates.chirp);
+    expect(falls({ hour: 7, fauna: new Set(['waterfall:wagtail']) }).rates.chirp).toBeGreaterThan(falls({ hour: 7 }).rates.chirp);
+    expect(falls({ hour: 12 }).rates.swallow).toBe(0);
+    expect(falls({ hour: 12, fauna: new Set(['waterfall:iwatsubame']) }).rates.swallow).toBeGreaterThan(0);
+  });
+
+  it('rain quietens the splashes and wakes the frogs', () => {
+    const seen = new Set(['waterfall:kajika']);
+    expect(falls({ weather: 'rain' }).rates.splash).toBeLessThan(falls().rates.splash);
+    expect(falls({ hour: 20, weather: 'rain', fauna: seen }).rates.kajika).toBeGreaterThan(falls({ hour: 20, fauna: seen }).rates.kajika);
+  });
+
+  it('a custom mix there plays the falls and never brings another place’s voices', () => {
+    const s = defaultSoundscape();
+    s.sceneries.waterfall = { mode: 'custom', levels: levelsWith({ falls: 80, water: 90, birds: 50, crickets: 40, waves: 60 }) };
+    const m = falls({ soundscape: s });
+    expect(m.extra.falls).toBe(80);
+    expect(m.water).toBe(0);
+    expect(m.extra.waves).toBe(0);
+    expect(m.rates.plip).toBe(0);
+    expect(m.rates.dipper).toBeGreaterThan(0);
+    expect(m.rates.kajika).toBeGreaterThan(0);
+    // the pond's custom mix keeps its own events: no dipper, no splash
+    s.sceneries.pond = { mode: 'custom', levels: levelsWith({ water: 60, birds: 50, crickets: 40, falls: 80 }) };
+    const pond = at({ soundscape: s });
+    expect(pond.extra.falls).toBe(0);
+    expect(pond.rates.dipper + pond.rates.splash + pond.rates.kajika).toBe(0);
+  });
+
+  it('every event belongs to some place, and each place lists only known kinds', () => {
+    const listed = new Set(Object.values(PLACE_EVENTS).flat());
+    for (const kind of EVENT_KINDS) expect(listed.has(kind)).toBe(true);
   });
 });

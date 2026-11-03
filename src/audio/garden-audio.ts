@@ -81,6 +81,9 @@ const RECIPE_FOR: Record<Exclude<PlannedEvent['kind'], 'gust'>, RecipeName> = {
   warbler: 'warbler',
   swallow: 'swallow',
   cricket: 'cricket',
+  splash: 'splash',
+  dipper: 'dipper',
+  kajika: 'kajika',
 };
 
 /** The weather bed belongs to the active session only; none active → a clear garden. */

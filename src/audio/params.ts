@@ -7,9 +7,17 @@ import { SCENERIES, selectedMix, levelsWith, SOUND_LAYERS, STANDARD_LAYERS, type
  */
 
 /** Kinds of scheduled one-shot events in the soundscape. `gust` is a wind swell, not a voice. */
-export type EventKind = 'plip' | 'chirp' | 'warbler' | 'swallow' | 'cricket' | 'drip' | 'gust';
+export type EventKind = 'plip' | 'chirp' | 'warbler' | 'swallow' | 'cricket' | 'drip' | 'gust' | 'splash' | 'dipper' | 'kajika';
 
-export const EVENT_KINDS: readonly EventKind[] = ['plip', 'chirp', 'warbler', 'swallow', 'cricket', 'drip', 'gust'];
+export const EVENT_KINDS: readonly EventKind[] = ['plip', 'chirp', 'warbler', 'swallow', 'cricket', 'drip', 'gust', 'splash', 'dipper', 'kajika'];
+
+/** The events that belong to each place; a custom mix never brings another place's voices. */
+export const PLACE_EVENTS: Readonly<Record<SoundSceneryId | 'standard', readonly EventKind[]>> = {
+  pond: ['plip', 'chirp', 'warbler', 'swallow', 'cricket', 'drip', 'gust'],
+  coast: ['chirp', 'warbler', 'swallow', 'drip', 'gust'],
+  waterfall: ['splash', 'chirp', 'warbler', 'swallow', 'dipper', 'kajika', 'cricket', 'drip', 'gust'],
+  standard: ['chirp', 'warbler', 'drip', 'gust'],
+};
 
 export interface AudioActivity {
   sessionActive: boolean;
@@ -49,6 +57,7 @@ export interface MixParams {
 
 export const EVENT_LAYER: Record<EventKind, SoundLayer> = {
   plip: 'water', gust: 'wind', chirp: 'birds', warbler: 'birds', swallow: 'birds', cricket: 'crickets', drip: 'rain',
+  splash: 'falls', dipper: 'birds', kajika: 'crickets',
 };
 
 /** Overall loudness of the finished mix (master gain into a gentle limiter). Keep it low. */
@@ -67,6 +76,9 @@ export const BASE_RATES: Readonly<Record<EventKind, number>> = {
   cricket: 7,
   drip: 10,
   gust: 0.5,
+  splash: 1.4,
+  dipper: 0.3,
+  kajika: 0.45,
 };
 
 type Curve = readonly (readonly [hour: number, value: number])[];
@@ -87,6 +99,14 @@ export const SWALLOW_CURVE: Curve = [
 /** Crickets: soft trills from dusk until just before dawn. */
 export const CRICKET_CURVE: Curve = [
   [0, 1], [4.5, 0.8], [5.5, 0.1], [6.5, 0], [18.5, 0], [19.5, 0.3], [21, 0.9], [24, 1],
+];
+/** The dipper sings by day, most at dawn and again in the late afternoon (winter too). */
+export const DIPPER_CURVE: Curve = [
+  [0, 0], [4.5, 0], [5.5, 0.5], [7, 1], [11, 0.6], [15, 0.5], [17, 0.8], [18.5, 0.3], [19.5, 0], [24, 0],
+];
+/** The kajika's chorus: after dusk most, on through the night, rarely by day. */
+export const KAJIKA_CURVE: Curve = [
+  [0, 0.5], [4, 0.35], [5.5, 0.1], [8, 0.05], [16, 0.08], [18, 0.4], [19.5, 1], [21.5, 0.8], [24, 0.5],
 ];
 /** Wind is a little livelier by day. */
 export const WIND_CURVE: Curve = [
@@ -143,6 +163,9 @@ export function mixParams({ hour, weather, activity, fauna, soundscape, scenery 
     cricket: BASE_RATES.cricket * night * (rain ? 0.4 : 1) * eventActivity,
     drip: rain ? BASE_RATES.drip * eventActivity : 0,
     gust: BASE_RATES.gust * windDay * (mist ? 0.5 : 1) * (paused ? 0.3 : 1),
+    splash: 0,
+    dipper: 0,
+    kajika: 0,
   };
 
   const mix: MixParams = {
@@ -158,9 +181,14 @@ export function mixParams({ hour, weather, activity, fauna, soundscape, scenery 
     extra: levelsWith(scenery === 'coast' ? { waves: 75 } : {}),
   };
   const selected = soundscape ? selectedMix(soundscape, scenery) : null;
-  if (selected?.mode !== 'custom') return scenery === 'coast' ? { ...mix, water: 0, rates: { ...rates, plip: 0, cricket: 0 } } : mix;
+  if (selected?.mode !== 'custom') {
+    if (scenery === 'waterfall') return waterfallMix(mix, { hour, rain, birdWeather, eventActivity, fauna });
+    return scenery === 'coast' ? { ...mix, water: 0, rates: { ...rates, plip: 0, cricket: 0 } } : mix;
+  }
   // Chosen sounds are independent of visual weather, wildlife unlocks and the local hour.
-  const allowed = new Set<string>(soundscape!.collection === 'standard' ? STANDARD_LAYERS : SCENERIES[scenery].layers);
+  const standard = soundscape!.collection === 'standard';
+  const allowed = new Set<string>(standard ? STANDARD_LAYERS : SCENERIES[scenery].layers);
+  const native = new Set<EventKind>(PLACE_EVENTS[standard ? 'standard' : scenery]);
   const levels = Object.fromEntries(SOUND_LAYERS.map((id) => [id, allowed.has(id) ? selected.levels[id] : 0])) as SoundLevels;
   return {
     ...mix,
@@ -172,8 +200,41 @@ export function mixParams({ hour, weather, activity, fauna, soundscape, scenery 
     eventLevels: { ...levels },
     extra: { ...levels },
     rates: Object.fromEntries(EVENT_KINDS.map((kind) => [kind,
-      levels[EVENT_LAYER[kind]] === 0 ? 0 : BASE_RATES[kind] * eventActivity * (kind === 'swallow' ? 0 : 1),
+      levels[EVENT_LAYER[kind]] === 0 || !native.has(kind) ? 0 : BASE_RATES[kind] * eventActivity * (kind === 'swallow' ? 0 : 1),
     ])) as Record<EventKind, number>,
+  };
+}
+
+/** `waterfall:<id>` creatures seen there (`faunaSeenKey`, ADR 0240). */
+const seenAtFalls = (fauna: ReadonlySet<string>, id: string) => fauna.has(`waterfall:${id}`);
+
+/**
+ * The waterfall following the garden (ADR 0283): the falls bed instead of the pond's water, the
+ * gorge's wind lower under it, a soft splash now and then, the dipper by day, the kajika after dusk.
+ */
+function waterfallMix(mix: MixParams, o: { hour: number; rain: boolean; birdWeather: number; eventActivity: number; fauna: ReadonlySet<string> }): MixParams {
+  const { hour, rain, birdWeather, eventActivity, fauna } = o;
+  const r = mix.rates;
+  return {
+    ...mix,
+    water: 0,
+    wind: mix.wind * 0.6,
+    extra: levelsWith({ falls: SCENERIES.waterfall.levels.falls }),
+    eventLevels: { ...mix.eventLevels, falls: 100 },
+    rates: {
+      ...r,
+      plip: 0,
+      // the garden's small birds stay there; the roar hides distant birds, a wagtail adds some back
+      chirp: BASE_RATES.chirp * sampleCurve(BIRD_CURVE, hour) * birdWeather * eventActivity * (seenAtFalls(fauna, 'wagtail') ? 1.4 : 0.6),
+      warbler: BASE_RATES.warbler * sampleCurve(WARBLER_CURVE, hour) * birdWeather * eventActivity * 0.8,
+      swallow: seenAtFalls(fauna, 'iwatsubame') ? BASE_RATES.swallow * sampleCurve(SWALLOW_CURVE, hour) * (rain ? 0.2 : 1) * eventActivity : 0,
+      cricket: r.cricket * 0.5,
+      gust: r.gust * 0.6,
+      splash: BASE_RATES.splash * (rain ? 0.6 : 1) * eventActivity,
+      dipper: BASE_RATES.dipper * sampleCurve(DIPPER_CURVE, hour) * birdWeather * eventActivity,
+      // frogs call more in the rain
+      kajika: seenAtFalls(fauna, 'kajika') ? BASE_RATES.kajika * sampleCurve(KAJIKA_CURVE, hour) * (rain ? 1.3 : 1) * eventActivity : 0,
+    },
   };
 }
 
