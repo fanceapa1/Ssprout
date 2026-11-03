@@ -58,7 +58,7 @@ function drawWaterfall(canvas: HTMLCanvasElement, seed: number, state: DaylightS
   ctx.setTransform(k, 0, 0, k, 0, 0);
   s.drawSky(ctx);
   s.drawWater(ctx);
-  const rim = rimLight(state);
+  const rim = rimLight(state, WATERFALL.sky.layout);
   for (const sp of [...res.sprites].sort((a, b) => a.depth - b.depth)) {
     ctx.drawImage(sp.canvas as CanvasImageSource, sp.box.x, sp.box.y, sp.box.w, sp.box.h);
     if (sp.id.startsWith('rock')) drawRim(ctx, rims, sp.canvas, sp.box, rim, 0.7);

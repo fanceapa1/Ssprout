@@ -112,6 +112,17 @@ describe("the scenery's sun side (ADR 0284)", () => {
     }
   });
 
+  it('gives the garden the shadow and rim it had before sun sides, to the bit', () => {
+    // the pre-0284 formulas, kept as the reference
+    const len = (alt: number) => Math.min(2.6, 0.55 / Math.tan((Math.max(6, alt) * Math.PI) / 180));
+    for (const s of [...PHASES.map(state), ...BLENDS.map((w) => pinnedState(w)), ...[-4, 0, 3, 9, 20].map((a) => ({ ...state('sunset'), sunAltitude: a }))]) {
+      const w = s.weights;
+      const low = len(Math.max(0, s.sunAltitude));
+      expect(castShadow(s, GARDEN_SKY_LAYOUT).dx).toBe(w.sunrise * -low + w.sunset * low + w.midday * 0.07 + w.night * -0.2);
+      expect(rimLight(s, GARDEN_SKY_LAYOUT).side).toBe(w.sunset >= w.sunrise ? -1 : 1);
+    }
+  });
+
   it('at the waterfall both low suns stand right: shadows fall left and rims face right', () => {
     const sky = WATERFALL.sky.layout;
     expect(sunSide(sky)).toEqual({ sunrise: 1, sunset: 1 });
