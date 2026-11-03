@@ -215,7 +215,7 @@ export function paintDipper(res: number, seed: number): DipperParts {
   const S = DIPPER_SIZE;
   const r = S / 20;
   const c = colours();
-  const box = { w: S * 0.95, h: S * 0.72, ox: S * 0.38, oy: S * 0.65 };
+  const box = { w: S * 0.98, h: S * 0.78, ox: S * 0.38, oy: S * 0.71 };
   const body = paintSprite(res, box, seed, (p) => paintBody(p, r, c, 'fold'));
   const legs = paintSprite(res, { w: S * 0.5, h: S * 0.34, ox: S * 0.24, oy: S * 0.3 }, seed + 1, (p, rng) => {
     // stout pale legs rooted up in the belly feathers, the far one a little greyer
@@ -238,7 +238,7 @@ export function paintDipper(res: number, seed: number): DipperParts {
       }
     }
   });
-  const legsDeep = deepCopy(legs, res, PIGMENTS.celadonDeep, 0.35, 2);
+  const legsDeep = deepCopy(legs, res, '#4e5560', 0.6, 2);
   const tail = paintSprite(res, { w: S * 0.34, h: S * 0.2, ox: S * 0.27, oy: S * 0.1 }, seed + 2, (p) => paintTail(p, r, c));
   const lid = paintSprite(res, { w: S * 0.12, h: S * 0.1, ox: S * 0.06, oy: S * 0.05 }, seed + 3, (p, rng) =>
     p.dab({ x: -0.75 * r, y: 0 }, PIGMENTS.petalWhite, { rng, variant: 'leaf', angle: 0, length: 1.6 * r, width: 1.15 * r, opacity: 1, blend: 'source-over', layers: 6 }),
@@ -247,7 +247,8 @@ export function paintDipper(res: number, seed: number): DipperParts {
   const fly = (wing: 'up' | 'mid' | 'down' | 'swim', k: number) =>
     paintSprite(res, flyBox, seed + 4 + k, (p) => {
       p.ctx.save();
-      p.ctx.rotate(0.08);
+      // level in flight, head forward; floating it sits as it stands
+      p.ctx.rotate(wing === 'swim' ? 0.08 : 0.26);
       p.ctx.translate(-1 * r, 6 * r);
       if (wing !== 'swim') {
         // the feet tucked up under the belly
@@ -264,7 +265,7 @@ export function paintDipper(res: number, seed: number): DipperParts {
   // the whirr: a pale haze over the wing's sweep, drawn under every frame so the beat never pops
   const haze = paintSprite(res, flyBox, seed + 8, (p, rng) => {
     p.ctx.save();
-    p.ctx.rotate(0.08);
+    p.ctx.rotate(0.26);
     p.ctx.translate(0.8 * r, -3.2 * r);
     const fan = smoothPolygon(
       Array.from({ length: 13 }, (_, i) => {
@@ -775,8 +776,11 @@ export class Dipper extends BaseCreature {
       this.drawStanding(ctx, parts, 'dry');
       ctx.restore();
       const wk = parts.wake;
+      ctx.save();
       ctx.globalAlpha *= 0.55 + 0.45 * Math.min(1, this.sink * 2);
       ctx.drawImage(wk.img as CanvasImageSource, -wk.ox, -wk.oy, wk.w, wk.h);
+      ctx.restore();
+      if (this.sink < 0.6) this.drawWadingLegs(ctx, parts);
     } else this.drawStanding(ctx, parts, 'dry');
     ctx.restore();
   }
@@ -789,12 +793,10 @@ export class Dipper extends BaseCreature {
     const legH = LEG * r;
     const bend = 0.42 * d;
     ctx.translate(0, this.sink * 15 * r);
-    if ((this.sink < 0.2 && lid) || (!lid && this.sink < 0.6)) {
-      // dry legs on the stone; under the waterline a refracted, cooler pair (shifted, a little short)
-      const legs = lid ? parts.legs : parts.legsDeep;
+    if (this.sink < 0.2 && lid) {
+      const legs = parts.legs;
       ctx.save();
-      if (!lid) ctx.translate(0.5 * r, -0.6 * r);
-      ctx.scale(1, (1 - bend) * (lid ? 1 : 0.85));
+      ctx.scale(1, 1 - bend);
       ctx.drawImage(legs.img as CanvasImageSource, -legs.ox, -legs.oy, legs.w, legs.h);
       ctx.restore();
     }
@@ -813,6 +815,22 @@ export class Dipper extends BaseCreature {
       const l = parts.lid;
       ctx.drawImage(l.img as CanvasImageSource, EYE.x * r - l.ox + 0.15 * r, EYE.y * r - l.oy, l.w, l.h);
     }
+  }
+
+  /** The legs seen through the water while it wades: refracted (shifted, a little short), over the wake. */
+  private drawWadingLegs(ctx: Ctx, parts: DipperParts): void {
+    const r = parts.size / 20;
+    const d = dipCurve(this.dipT < 0 ? 0 : this.dipT / 0.32) * (this.state === 'wade' ? 1 : 0);
+    const legs = parts.legsDeep;
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(-40, 0.6, 80, 40);
+    ctx.clip();
+    ctx.globalAlpha *= 0.6;
+    ctx.translate(0.5 * r, this.sink * 15 * r - 0.6 * r);
+    ctx.scale(1, (1 - 0.42 * d) * 0.85);
+    ctx.drawImage(legs.img as CanvasImageSource, -legs.ox, -legs.oy, legs.w, legs.h);
+    ctx.restore();
   }
 
   private drawFlight(ctx: Ctx, parts: DipperParts, ps: number): void {
