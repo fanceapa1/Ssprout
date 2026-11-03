@@ -2,7 +2,8 @@
 
 `src/audio/` — a fully procedural Web Audio soundscape (no audio files): pond water, wind in
 leaves, distant birds, night crickets, rain during rain sessions, a bloom chime and a short
-completion phrase. **Muted by default**; nothing is created or played until the user has
+completion phrase. The waterfall garden has its own bed instead of the pond's: the falls, the
+gorge's wind, stream birds and the kajika frog at dusk (› Waterfall). **Muted by default**; nothing is created or played until the user has
 unmuted *and* a user gesture has unlocked audio. Master fades in/out over 2 s, never abruptly.
 
 ## Modules
@@ -13,9 +14,12 @@ unmuted *and* a user gesture has unlocked audio. Master fades in/out over 2 s, n
 | `planner.ts` | yes | seeded Poisson scheduler: which events start in the last `dt`, voice cap, per-kind gaps |
 | `gate.ts` | yes | mute/unlock/dispose state machine → engine commands |
 | `noise.ts` | yes | seeded white/pink/brown noise loops (click-free) and the reverb impulse |
+| `falls.ts` | yes | the waterfall's bed as seeded PCM: plunge (rumble and roar) and stereo spray (ADR 0283) |
+| `standard-loops.ts` | yes | the fireplace, café and lo-fi PCM loops (ADR 0213) |
 | `backend.ts` | no | the only Web Audio code: graph, beds, generic `SoundSpec` renderer (`AudioBackend` facade) |
 | `garden-audio.ts` | — | controller: bus listeners, gate, planner tick, chimes (`createGardenAudio`) |
 | `audio.studio.ts` | — | studio section "Audio": ink sketch of every sound, click to play |
+| `debug.ts` | — | `?dev` `sprout.audio`: the controller plus offline renders (`measure`, `scene`) |
 
 Everything above `backend.ts` is unit-tested against a fake backend and fake timers
 (`*.test.ts`); no AudioContext is needed in tests.
@@ -58,6 +62,10 @@ Everything above `backend.ts` is unit-tested against a fake backend and fake tim
 | session paused | | bed ×0.55, events ×0.5, wind ×0.7 (the garden holds its breath) |
 | bloom chime | `plant:placed`, `playBloom()` | rin bowl: inharmonic partials 1 / 2.74 / 5.1 / 8.2, detuned twin → slow beat |
 | completion | `session:complete`, `playComplete()` | 2–3 kalimba notes from the yo pentatonic (D E G A B) |
+| falls bed | the waterfall (the falls layer) | seeded plunge and spray loops, › Waterfall |
+| splash | the waterfall, ~1.4/min (×0.6 in rain) | a rounded slap of water noise, a little spatter, 1–3 low bubbles; on the `falls` layer |
+| brown dipper | the waterfall, by day, most at dawn and late afternoon (≥30 s apart) | 9–15 quick rippling notes around 3.2 kHz, now and then a trill; on `birds` |
+| kajika frog | the waterfall after dusk, once a kajika has been seen there (≥25 s apart) | 7–10 rising whistled slides, the gaps closing; ×1.3 in rain; on `crickets` |
 | watering pour | every `session:water` (automatic in focus, tapped in a break), `playPour()` | ~2 s trickle: band-passed water noise swelling in over ≥ 0.25 s, an airy top, 10–15 rising bubbles under the stream; one at a time (ADR 0182) |
 
 ## API
@@ -96,8 +104,9 @@ write wins until the next session event re-reads the state. A `state/replace` (i
 emits no session event, so the bed changes with the next one.
 
 ## Integration (as wired)
-- `src/main.ts` builds `createGardenAudio({ bus, getState: store.get, clock })` and passes it to
-  `createUI({ audio })`.
+- `src/main.ts` builds `createGardenAudio({ bus, getState: store.get, clock, scenery })` on the
+  viewed garden's `Scenery.sound` and passes it to `createUI({ audio })`. A store subscription calls
+  `audio.setScenery(sound)` whenever `state.scenery` changes (ADR 0283); the same id is a no-op.
 - Gesture unlock (`src/ui/index.ts`): with sound on (persisted), the first `pointerdown` / `keydown`
   calls `audio.unlock()`; starting a session (`beforeStart`) unlocks too.
 - Mute toggle (`src/ui/tools.ts`): the "Garden sounds" tool calls `controller.updateSettings({ muted })`
@@ -106,21 +115,27 @@ emits no session event, so the bed changes with the next one.
   unlock-then-unmute both fade in.
 - Fauna: nothing calls `audio.setFauna`; creatures are added by `fauna:arrived` on the bus (emitted
   by the fauna system on first sight and re-emitted by `controller.announceFauna`) and by the
-  initial `getState()`.
-- Not implemented: there is no `sprout.audio` dev hook, and the ambience's `sprout.setTime` /
+  initial `getState()`. Both use the `state.faunaSeen` keys: the bare id in the Japanese garden,
+  `waterfall:<id>` at the falls (`faunaSeenKey`, ADR 0240).
+- `?dev` has `sprout.audio` (› Personal sound mixer, › Waterfall). The ambience's `sprout.setTime` /
   `sprout.setWeather` do not reach audio (use `audio.setTimeOfDay` / `audio.setWeather` in code or
   the studio's "Live soundscape").
 
 ## Tuning
 - **Rates and levels**: `params.ts` — `BASE_RATES` (events/min), `BED` levels, `MASTER_LEVEL`,
   `FADE_S`, and the hour curves (`BIRD_CURVE`, `WARBLER_CURVE`, `SWALLOW_CURVE`,
-  `CRICKET_CURVE`, `WIND_CURVE`). The studio entry `audio/soundscape` plots the curves.
+  `CRICKET_CURVE`, `DIPPER_CURVE`, `KAJIKA_CURVE`, `WIND_CURVE`). The studio entry
+  `audio/soundscape` plots the curves. The waterfall's factors are in `waterfallMix`.
 - **Sounds**: `recipes.ts` — every number of a sound lives in its recipe; the studio sketch
   redraws from the same data, so tweak → reload studio → look and click.
 - **Spacing / density limits**: `planner.ts` — `MIN_GAP_S`, `PAN_SPREAD`, `MAX_VOICES`.
+- **The falls**: `falls.ts` — `FALLS_GAIN` (the level), `FALLS_BLEND` (spray under plunge),
+  `PLUNGE_S` / `SPRAY_S`, and the filters and swells in `plungeLoop` / `sprayLoop`.
 - **Levels** (measured with an `OfflineAudioContext` render, `createWebAudioBackend(seed,
   { context })`): 30 s scenes sit at about **−38 dBFS RMS** (rain −36, night −40) with peaks
   around −17 dBFS; the bloom chime peaks near −20 dBFS. Keep any change within a few dB.
+  The garden beds alone (no events, noon, idle) render at −41.5 dBFS for the pond and −39.1 for
+  the waterfall (`sprout.audio.scene`, › Waterfall).
 - Listen in the studio (`/Ssprout/studio.html#audio`): click a card to play it; click
   "Live soundscape" to cycle off → sun → rain → mist → night through the real controller.
 
@@ -136,13 +151,22 @@ pentatonic phrase), `noise.test.ts` (spectral tilt, seamless loops, decaying IR)
 `garden-audio.test.ts` (controller with a fake backend and manual timers; the parallel-session
 cases run the real session controller and store so events arrive in the app's order).
 
+The waterfall (ADR 0283): `falls.test.ts` (determinism, lengths and RMS, the plunge low and the
+spray bright, the blend's octave tilt against white noise, click-free seams, slow breathing),
+`params.test.ts › the waterfall` (the falls instead of the water, the dipper and kajika by hour
+and by sighting, birds under the roar, rain, custom mixes keep to their place), `recipes.test.ts`
+(splash, dipper, kajika), `garden-audio.test.ts › a creature arriving at the falls…`,
+`scenery/registry.test.ts` (each scenery's `sound`), and `tests/e2e/sound-mixer.spec.ts › viewing
+the waterfall garden…` and `› real audio graph: the waterfall sits as quietly…`.
+
 ## Personal sound mixer (ADR 0213)
 `core/soundscape.ts` is the shared, pure catalogue and preference model. **Standard** has nine
 layers: rain, ocean waves, wind, birds, fireplace, café, lo-fi, white and brown noise. **Scenery**
-uses a registered palette: pond water/leaves/birds/crickets/rain, and a coastal waves/leaves/
-birds/rain profile reserved for future navigation. `createGardenAudio({ scenery: 'pond' })`
-defaults to the pond; navigation calls `setScenery('coast')` / `setScenery('pond')`. That changes
-the mix with a 2 s glide and notifies `onSceneryChange`; it does not select or unlock visual art.
+uses a registered palette: pond water/leaves/birds/crickets/rain, the waterfall's falls/leaves/
+birds/crickets/rain, and a coastal waves/leaves/birds/rain profile reserved for future navigation.
+`createGardenAudio({ scenery: 'pond' })` defaults to the pond; `main.ts` calls `setScenery(id)`
+with the viewed garden's `Scenery.sound`. That changes the mix with a 2 s glide and notifies
+`onSceneryChange`; it does not select or unlock visual art.
 
 `settings.soundscape` stores the selected collection, overall volume, one Standard mix and
 per-scenery mixes in schema v3. The v2 → v3 migration preserves all old fields and the mute
@@ -174,3 +198,58 @@ The studio has `audio/standard-waves`, `standard-fire`, `standard-cafe`, `standa
 `sprout.audio` (controller plus `measure`). E2E verifies each Standard layer has RMS > 0.0001,
 peak < 0.2, all-nine peak < 0.3, and zero layer gains silence a scheduled bird. These are
 headroom/isolation checks, not a substitute for subjective listening.
+
+## Waterfall (ADR 0283)
+The waterfall garden (`Scenery.sound: 'waterfall'`) plays its own profile: the `falls` layer in
+place of the pond water, the gorge's wind, birds, crickets (the kajika's layer) and rain. Presets
+"By the falls" and "Dusk in the gorge".
+
+**The bed** (`falls.ts`) is seeded PCM, built once per context the first time the falls are
+audible and looped:
+```
+  plunge (mono, 13 s, at a third of the context rate, ≥ 8 kHz)
+    rumble  noise → HP 28 → LP 170 ×2           × surge  (1, 3, 7 cycles a loop)
+    roar    noise → BP 420 (Q 0.4) → LP 1.6 k   × breathe (2, 5 cycles), at 0.6 of the rumble
+  spray (stereo, 9 s; the right channel is the left half a loop on)
+    hiss    noise → HP 2.4 k ×2 → LP 7 k        × fizz (7 Hz flutter ±22 %) × shimmer (1, 4 cycles)
+    mist    noise → BP 1.3 k → LP 3 k           × (2 − shimmer), at 0.35 of the hiss
+  backend: plunge ─┐
+           spray × 0.28 ─┴→ falls gain (FALLS_GAIN 0.065 at 100 %) → bed
+```
+Each loop is normalised to RMS 0.16 and its seam is cross-faded over 0.4 s. The pair repeats every
+117 s. The swells have whole cycles per loop (seamless) and are sampled 4096 times a loop. The
+plunge carries nothing above ~3 kHz, so its lower rate loses nothing; the buffer source resamples it.
+
+**The mix there** (`waterfallMix`, garden mode): falls 70 %, no water or plips, wind ×0.6, gusts
+×0.6. Distant chirps ×0.6 under the roar (×1.4 once a wagtail has been seen at the falls), the
+warbler ×0.8, house-martin twitter only once the iwatsubame have been seen there, crickets ×0.5.
+Splashes ~1.4/min (×0.6 in rain), the dipper on `DIPPER_CURVE`, the kajika on `KAJIKA_CURVE` once
+seen there (×1.3 in rain). A custom mix plays only the events of its place (`PLACE_EVENTS`): the
+pond never gets a dipper, the waterfall never a plip.
+
+**Switching gardens** glides every gain over 2 s (time constant 0.67 s) while the picture
+cross-fades in 0.9 s. The first switch to the waterfall builds the falls PCM on the main thread
+at that moment.
+
+**Measured** with `sprout.audio.scene({ scenery, to?, switchAt?, seconds?, hour? })`, an offline
+render (22.05 kHz) of a profile's garden beds, with dB per 250 ms. At noon, idle, no events:
+| | RMS | peak |
+|---|---|---|
+| pond | −41.5 dBFS | 0.039 |
+| waterfall | −39.1 dBFS | 0.052 |
+| waterfall at 23 h | −39.2 dBFS | — |
+
+Pond → waterfall at 4 s: the largest step between neighbouring windows is 1.7 dB (the plunge's
+own breathing is about as large), the lowest window −42.8 dBFS (1.3 dB under the pond), and it
+sits at the waterfall's level 6 s on. Waterfall → pond: 1.8 dB, −43.4 dBFS (1.9 dB under the
+pond). The e2e test allows 2.5 dB a step, 3 dB under the quieter garden, and 1.5 dB from the new
+garden's level at the same moment.
+
+**Studio**: `audio/falls` (the two loops as level traces, click to play the waterfall's garden
+mix), `audio/splash`, `audio/dipper`, `audio/kajika`, and the dipper and kajika curves on
+`audio/soundscape`.
+
+**Not done**: the yamasemi's rattle, the heron's croak, the house martins' own call (they use the
+garden swallows' twitter), a dipper "zit" call on landing, and spray that follows the falls'
+animated flow. The bed is checked by unit spectra and offline renders only: it still needs a
+listen by ear in the studio and over a long session.
