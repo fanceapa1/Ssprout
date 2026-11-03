@@ -367,6 +367,18 @@ export class Bird extends BaseCreature {
   }
 }
 
+/** Where any creature stands or is making for (its `perchPoint()` or `spot()`), as the waterfall creatures read it. */
+export function heldSpots(w: Pick<FaunaWorld, 'creatures'>): Pt[] {
+  const out: Pt[] = [];
+  for (const c of w.creatures) {
+    if (c.done) continue;
+    const o = c as { spot?: () => Pt | null; perchPoint?: () => Pt | null };
+    const s = o.perchPoint?.() ?? o.spot?.();
+    if (s) out.push(s);
+  }
+  return out;
+}
+
 const bird: CreatureDef = {
   kind: 'bird',
   title: 'small birds',
@@ -375,8 +387,7 @@ const bird: CreatureDef = {
   variants: BIRD_VARIANTS,
   needs: (w) => w.perches.length > 0,
   spawn(w, s) {
-    const taken: Pt[] = [];
-    for (const c of w.creatures) if (c instanceof Bird && !c.done) taken.push(...(c.spot() ? [c.spot()!] : []));
+    const taken = heldSpots(w);
     const out: Bird[] = [];
     for (let i = 0; i < s.count; i++) {
       const b = new Bird(w, (s.stay || 30) * w.rng.range(0.8, 1.2), taken, s.variants);
