@@ -193,7 +193,7 @@ with).
 y    0 ┌───────────────────────────────────────────────────────────────────────────┐
        │ · stars (y 26–186) · · ·                    ·   · moon arc (990→1150→1300)│
   200  │ crown woods ▲(60,200)            buttress ▲(780,214)        · open sky ·  │
-       │ ╲___ cliff-3 L      notch 270  ╱╲ cliff-5     ╲ sunset ○980    ○1270 sun- │
+       │ ╲___ cliff-3 L      notch 250  ╱╲ cliff-5     ╲ sunset ○980    ○1270 sun- │
   296  │     ╲___ ledge hi ═  ┃lip┃  ═ ledge hi          ╲_______________ rise ____│
   336  │ cliff    ledge mid ═ ┃   ┃  ═ ledge mid          far ridge 344–372 (pale)  │
   448  │ face     ledge lo  ═ ┃fal┃  ═ ledge lo           far plain (bank-17/18)    │
@@ -207,8 +207,12 @@ y    0 ┌───────────────────────�
 ```
 - **The falls are the subject, so they sit off centre** (x 542–688, about a third of the way in),
   between a broad cliff on the left and a narrower buttress on the right. They drop one sheet
-  (296 → 606) from a notch in the cliff top. The lip is about 24 units under the notch's skyline,
-  so a sliver of the upper gorge shows behind it and the water does not pour out of the sky.
+  (296 → 606) from a notch in the cliff top. The lip is about 37 units under the notch's skyline,
+  so the upper gorge shows behind it and the water does not pour out of the sky.
+- **The skyline is broken rock** (S6b): the crown steps down toward the falls in blocks, the
+  notch's skyline is the far gorge's top, the buttress's crest steps up, and its flank steps down to
+  the ridge in jointed blocks of uneven size. `BUTTRESS_END` is the buttress's right edge under the
+  skyline, where the far ridge meets it; `FAR_RIDGE` and the sky plate follow it.
 - **The skyline decides the light.** The crown woods are highest at the left edge (y 200), and the
   buttress beside the falls is the tallest rock there (y 214). Its flank falls away to a low far
   ridge (y 344–372). The right 40 % of the frame is open sky for the daylight phases: the sun sets
@@ -271,21 +275,36 @@ Steps, back to front (`only` filters by element):
 
 **The rock (S6, `paint-rocks.ts`).** Painted on white like the garden (ADR 0021), lit from the
 upper right (`ROCK_LIGHT`, −0.95: the sun sets and rises right of the buttress), in parts.
+- *The exact edge* (S6b): a wash smooths its outline at a spacing set by its size (perimeter / 24),
+  so a wash over the whole cliff turned its steps into a rounded blob and left a margin of
+  unreserved paper at the flank, where the ridge showed through. The rock is therefore reserved
+  with a full paper fill of a hand-cut outline (`roughOutline`: resampled every 4 units, nudged by
+  noise) and its body washes cover a rectangle clipped to that outline.
 - *Gorge*: the notch is cut out of the cliff's body down to the lip (`cliffBody`), so the gorge
-  shows through: a pale cool far end, a lit left wall, a shadowed right wall.
-- *Cliff*: its paper is reserved first (a full lift of the body), so it stands opaque over
-  whatever S8 paints behind it. One wet-in-wet mass, warm grey lit at the top to cool blue-grey
-  at the foot, dissolving toward the right flank. Strata are broken blocks dipping gently left,
-  clipped to the body: a thin lift on top (the lit bed) over a shadow wash with a crisp top that
-  dies downward. Dry-brush scumbles follow the bedding, a few short cracks cross it. A cool
+  shows through. Seen from below, the river above the lip is hidden: the gorge is three spurs
+  overlapping from either side (deep distance), the farthest a cool haze whose top is the notch's
+  skyline, then a shaded right spur and a lit left one, each clipped to its own hand-cut outline,
+  with mist at each spur's foot, a crease and a few beds on the near ones, and far trees.
+- *Cliff*: paper reserved to the exact edge, so it stands opaque over whatever S8 paints behind
+  it. One wet-in-wet mass, warm grey lit at the top to cool blue-grey at the foot. Strata are
+  broken blocks dipping gently left: a thin lift on top (the lit bed) over a shadow wash with a
+  crisp top that dies downward, and joints dropping under each bed, some with the block's shaded
+  side turning away from the light. Dry-brush scumbles follow the bedding, a few short cracks cross it. A cool
   glaze darkens the alcove behind the falls and the cliff's foot, warm glazes light the faces
   turned to the sun. Wet streaks run down from the lip either side of the falls (soft, wet
   strokes in `WET_ROCK`), and dark-green seeps run under some ledges.
-- *Buttress*: its own wet-in-wet over the cliff, lit warm on the right, cool toward the falls, so
-  the two glazes leave an edge between them. A fissure splits the crest from the flank, columnar
-  joints with a vertical scumble make it stand rather than lie in beds.
-- *Ledges*: a lifted shelf on top, an undercut shadow glaze below the lip, a broken ink line
-  along the lip and moss cushions (small flat `foliageClump`s, scaled by the ledge's depth).
+- *Buttress*: its own wet-in-wet over the cliff, clipped to its hand-cut outline, lit warm on the
+  right, cool toward the falls. Its blocks (between the risers of the stepped skyline,
+  `buttressSteps`) alternate cool and warm planes dying downward; a dark rim under each tread
+  gives the lit tops a thickness; a broken sumi contour finds the flank's edge on the sky and is
+  lost at its foot; a joint drops from each riser's foot, cut by axe strokes on its shade side. A
+  fissure splits the crest from the flank.
+- *Ledges*: each the outcrop of a bed. The bed runs on into the face either side, thinning out; a
+  lit top (lift and a warm glaze), thickest in the middle; a shaded front face under a slightly
+  broken lip, cut into blocks by short joints; an undercut in two or three soft pools with no
+  edge, dark under the face and dying into the cliff; a broken lip line, heavier on the shaded
+  left; moss in clusters with gaps, a few strands spilling over the face. The lip stays on
+  `Ledge.edge`, so the slots and perches are unchanged.
 
 **Boulders (`sprites.ts`).** `SceneArt.rockSprites` replaces the garden's boulder for this
 scenery (same `rockBox`, so the atlas layout is unchanged in shape). A boulder within 24 units of
@@ -294,7 +313,7 @@ little moss, a darker splashed lower half, a lifted sheen on the lit shoulder an
 the waterline. The others are *mossy*: a cast shadow, a warmer stone with a lot of moss, a moss
 cushion on top and grass at the foot.
 
-Studio: `waterfall-rocks/cliff`, `/ledges`, `/boulders` and `/scene` (the whole painting so far).
+Studio: `waterfall-rocks/cliff`, `/ledges`, `/gorge`, `/buttress`, `/boulders` and `/scene` (the whole painting so far).
 
 **The water (S7, `paint-water.ts`).** On white, in parts, in a cooler, bluer celadon than the
 garden's still pond (`WATER`: light, mid, deep, a warm `shallow` and the sheet's grey-blue).
@@ -359,8 +378,9 @@ Studio: `waterfall-veg/veg-banks`, `/veg-woods`, `/veg-ferns` and `/veg-scene`.
 ### Daylight (S10, ADR 0247)
 The painting is on white with no sky step; the sky is the daylight's plates (docs/systems/daylight.md
 › Waterfall). `sky.ts` paints the four skies in the garden's language, the glows and cloud banks
-over the far ridge on the right, clipped to `plateSky()` (14 units under the crown, the notch and the
-buttress, 40 over the flank and the ridge), then the far ridge's distance glaze unclipped. The pool
+over the far ridge on the right, clipped to `plateSky()` (4 units under the cliff, down the buttress's
+right edge, 40 over the ridge; a longer hang tinted the flank, so it read see-through; each base
+wash covers `openSky(48)`, so its smoothed edge falls under the clip, not over the stepped rock), then the far ridge's distance glaze unclipped. The pool
 plate darkens toward the cliff's back edge. `light.ts` adds the rock's shadows (always to the left:
 both low suns are right of the buttress), warm light on the sun-facing rock and moonlight on the falls
 and their spray. Grades stay global. Studio `waterfall-daylight`.
@@ -412,8 +432,6 @@ motion the scene never creates it (`still: true` also draws nothing). `freeze()`
 Studio: `waterfall-falls-motion/falls-sheet`, `/falls-foot`, `/falls-sprites`.
 
 ### Left for later tasks
-- S6b: the rock forms (a rounder buttress than it should be, ledges like trays, a nearly level
-  cliff top; the buttress's right flank reads see-through against the ridge).
 - S10b: the shared shadows and rim light still follow the garden's sun side (boulder shadows fall
   right, rim light comes from the left, while the waterfall's low sun is on the right).
 - S5b: the Gardens thumbnails are camera stills, not painted from each scenery's cached overview.
