@@ -49,6 +49,8 @@ wildlife progress belong to a scenery; the timeline, the weather and the dayligh
 | `waterfall/rocks.studio.ts` | studio `waterfall-rocks` (104): `cliff`, `ledges`, `boulders`, `scene` |
 | `waterfall/rocks.test.ts` | the rock's steps, wet and mossy boulders, hash pins, slice bounds |
 | `waterfall/map.studio.ts` | studio `waterfall-map` (103): the composition map and the placeholder painting |
+| `thumbnail.ts` | the Gardens cards' thumbnails (ADR 0285): `createThumbnails` (sources live › stored › painted › waiting, `THUMB_RANK`, `replaces`), `cacheStore` (`scenery-thumb`, `thumbKey`), `paintThumbnail`/`thumbnailView`/`composeThumbnail` (a garden's painting small) |
+| `thumbnail.test.ts`, `thumbnail.studio.ts` | the sources and the cache key; studio `garden-thumbnails` (110) |
 | `registry.test.ts` | ids, registry, each scenery consistent with itself, the garden's numbers, `PAINT_ROOTS` |
 | `waterfall/waterfall.test.ts` | the waterfall's composition, slot, spacing and sky invariants |
 
@@ -76,7 +78,8 @@ interface Scenery {
 A scenery is consistent with itself: `art.scenery === id`, `art.scene === geometry`,
 `light.sky === sky.layout` (`registry.test.ts` checks every registered one).
 
-**Left out for now**: `thumbnail` (S5b: the Gardens cards use camera stills until then). The
+**Thumbnails** are not part of the contract: `thumbnail.ts` makes them from the renderer's overview,
+the paint cache or the scenery's `art` painted small (S5b, ADR 0285). The
 sound profile became `sound` (S15, ADR 0283; `coast` is a profile without a scenery yet), and the
 per-frame water animator became `motion?` (S9, ADR 0282).
 

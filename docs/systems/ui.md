@@ -196,10 +196,25 @@ Both gardens are offered to everyone since S17, so every visitor has the section
 - a card per garden (`button.garden-card[data-scenery]`, a toggle: `aria-pressed` marks the
   garden on view) with a thumbnail, the scenery's name and blurb, and "On view" / "Go here";
 - choosing a card calls `controller.showScenery(id)`; the scenery host cross-fades the stage;
-- the thumbnail is a still of the stage canvas, cover-cropped to 192×120 and faded at its edge
-  by an elliptical mask: the garden on view is copied after the first paint, and a garden again
-  just before you leave it (never while the cross-fade covers the stage, `deps.sceneryFade?()`). A
-  garden not seen yet shows a pale waiting wash.
+- the thumbnail is a small overview of the garden (ADR 0285, `src/scenery/thumbnail.ts`): always
+  the whole world at the same framing, never the camera's view. The canvas holds 224×140 CSS px
+  at up to 2×, faded at its edge by an elliptical mask. Its `data-still` names where it came from,
+  best first:
+  - `live`: the garden on view, drawn by `deps.drawOverview` (`renderer.drawOverview`): painting,
+    sky of the hour, water, boulders, plants, creatures, paper. It is taken 1.5 s after the garden
+    is ready and after its plants change (idle time), and again just before a card switches
+    gardens. `main.ts` refuses a take until the scene's painting covers the whole world (a phone
+    paints its strip first). A garden you leave keeps its live thumbnail. One left before its first
+    live take is painted small instead;
+  - `stored`: the paint cache's `scenery-thumb` entry (every live or painted one is put there),
+    so a reload shows each garden as last seen;
+  - `painted`: a garden with neither, painted small by `deps.paintOverview` (`paintThumbnail`: its
+    painting in `draft`, 10 ms slices with idle callbacks between them, no sky plate). It starts
+    once the cards come within 400 px of the window;
+  - `waiting`: the pale wash.
+
+  Dev: `sprout.ui.gardenThumbs()` → `[{ id, source }]`; `sprout.ui.gardenThumbsReady()` resolves
+  once the garden on view has its live thumbnail and the others have one too (it starts the fill).
 
 When the active seedling grows in the other garden, the timer pill adds
 `button.pill-away` "Growing in the rocky waterfall · Go" ("Waterfall · Go" at ≤ 600 px),
@@ -208,7 +223,8 @@ which brings that garden into view.
 The rest of the UI reads the garden on view: `deps.slots()` (placement markers' positions, the
 camera's seedling framing, plant labels, `slotScreen`) and `deps.habitatWords?.()` (the planting
 sheet's habitat line, the markers' names and the placement prompt: "will grow in the plunge
-pool"). The camera frames a seedling only in the garden on view. Studio: `ui/garden-thumbs`.
+pool"). The camera frames a seedling only in the garden on view. Studio: `ui/garden-thumbs`,
+`garden-thumbnails/thumb-*` (the painted ones).
 
 **Each garden's flora** (ADR 0250). The planting sheet lists `controller.selectableSpecies(min)`,
 which is the garden on view's flora: the waterfall's sheet shows only what grows wild in a
