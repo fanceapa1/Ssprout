@@ -167,5 +167,31 @@ Devlog index (`docs/devlog/README.md`):
   mirrored, not the white underwing (the female's rufous underwing coverts are not painted).
 - **The hover**: the head bends 1.2 rad from a nose-up body; at close view the neck join is abrupt.
 - **The breast band** is the male's (a rusty touch). No female variant.
-- **The iwana do not flee it** and **wagtails may land on its rock** (see Other creatures; not my files).
+- ~~**The iwana do not flee it** and **wagtails may land on its rock**~~: fixed in C8b below.
 - **Sound**: no call (its loud rattling "kyara-kyara"); S15.
+
+## C8b
+
+Two fixes around the yamasemi.
+
+- **The wagtail keeps off its rock.** `bird.ts` used to count a perch as taken only when another
+  bird held it. Its spawn now reads every creature's `perchPoint()` / `spot()` (new `heldSpots`),
+  the way the kajika, damselfly, dipper and yamasemi already do. The perch choice and its rng draws
+  are the same, so the garden is unchanged: no garden creature has a `spot()` except the birds.
+  The check runs only when the wagtail picks a perch. If a yamasemi takes a rock a wagtail is
+  making for, the yamasemi gives way, as it already did.
+- **The iwana go down under a hunting bird.** A yamasemi hovering over, plunging into or coming up
+  from a spot within 95 plane units of a fish, or a heron standing within 80, sends it into a new
+  `startle` state (`IWANA_STARTLE`, `startler`). The fish darts up to 0.9 lengths away from the bird,
+  staying within 1.1 lengths of its station and with its whole body in the still water and clear of
+  the rocks. It sinks to depth 0.97 and lies there while the bird stays. It stays down 3 to 5 s more
+  after the bird has gone (fixed per fish from its `wob`), then drops back to station and holds.
+  The startle draws nothing from the rng, so the iwana's stream and every other creature's stream
+  get no new draws. Its timing does move the fish's later dart draws, as any behaviour change would.
+
+TESTING matrix:
+
+| C8b.1 | A wagtail never picks a perch the yamasemi holds (and picks that rock when the yamasemi is gone). The iwana darts away from and lies deeper under a hovering or plunging yamasemi, then returns to station a few seconds after the bird has gone. It ignores a perched yamasemi, reacts the same way for a seed, and is put down by a heron wading close. On real visits every fish near a plunge is down, the far ones carry on, and no fish leaves the still water | fauna/creatures/bird › the wagtail at the waterfall; fauna/creatures/iwana › when a bird hunts the pool | n/a | ✔ |
+
+Left open: the fish keep no memory of a bird (they go down again on its next hover, but they don't
+stay shy for the rest of the visit). The dipper and the wagtail don't startle them.
