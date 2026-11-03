@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { exportState, importState, validateState } from './persistence';
-import { copySoundscape, defaultSoundscape, isSoundscape, levelsWith, readSoundscape, sceneryMix, selectedMix, SOUND_LAYERS } from './soundscape';
+import { copySoundscape, defaultSoundscape, isSoundscape, levelsWith, readSoundscape, SCENERIES, sceneryMix, selectedMix, SOUND_LAYERS, SOUND_PRESETS, STANDARD_LAYERS } from './soundscape';
 import { createDefaultState, mergeSettings, STATE_VERSION } from './state';
 
 describe('sound collections', () => {
@@ -25,6 +25,19 @@ describe('sound collections', () => {
     const copy = copySoundscape(s);
     copy.standard.rain = 1;
     expect(s.standard.rain).toBe(55);
+  });
+
+  it('the waterfall has its own palette with the falls, and a saved mix from before it reads the falls as off', () => {
+    const s = defaultSoundscape();
+    expect(sceneryMix(s, 'waterfall')).toEqual({ mode: 'garden', levels: levelsWith({ falls: 70, wind: 30, birds: 40 }) });
+    expect(SCENERIES.waterfall.layers).toContain('falls');
+    expect(SCENERIES.waterfall.layers).not.toContain('water');
+    expect(SCENERIES.pond.layers).not.toContain('falls');
+    expect(STANDARD_LAYERS).not.toContain('falls');
+    const { falls: _f, ...before } = levelsWith({ water: 60 });
+    const read = readSoundscape({ ...s, sceneries: { pond: { mode: 'custom', levels: before } } })!;
+    expect(read.sceneries.pond!.levels.falls).toBe(0);
+    expect(SOUND_PRESETS.filter((p) => p.scenery === 'waterfall').every((p) => p.levels.falls > 0)).toBe(true);
   });
 
   it('rejects invalid levels, collections, incomplete mixes and unknown scenery keys', () => {
@@ -72,7 +85,8 @@ describe('sound collections', () => {
     expect(read.standard).not.toBe(s.standard);
     expect(Object.keys(read.sceneries.pond!.levels)).toEqual([...SOUND_LAYERS]);
     expect(readSoundscape({ ...s, standard: { ...partial, brown: 101 } })).toBeNull();
-    expect(readSoundscape({ ...s, sceneries: { waterfall: s.sceneries.pond } })).toBeNull(); // not an audio scenery yet
+    expect(readSoundscape({ ...s, sceneries: { gorge: s.sceneries.pond } })).toBeNull(); // not an audio scenery
+    expect(readSoundscape({ ...s, sceneries: { waterfall: s.sceneries.pond } })!.sceneries.waterfall).toEqual(s.sceneries.pond);
     expect(readSoundscape([])).toBeNull();
     // a patch missing a layer merges as the complete mix
     const merged = mergeSettings(createDefaultState(0).settings, { soundscape: { ...s, standard: partial } as never });

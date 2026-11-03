@@ -17,6 +17,7 @@ import {
   type StorageLike,
 } from './persistence';
 import { getSpecies } from '../plants/registry';
+import { SOUND_LAYERS } from './soundscape';
 import { createDefaultState, STATE_VERSION, type GardenState } from './state';
 import { makePlant, makePressed, makeSession, MIN, plan } from './testing';
 
@@ -570,7 +571,7 @@ describe('per-scenery gardens (schema v4, ADR 0240)', () => {
     if (!r.ok) return;
     const s = r.value.state.settings.soundscape!;
     expect(s.standard).toMatchObject({ rain: 55, waves: 0, brown: 0 });
-    expect(Object.keys(s.standard)).toHaveLength(11);
+    expect(Object.keys(s.standard)).toHaveLength(SOUND_LAYERS.length);
     expect(s.sceneries.pond!.levels).toMatchObject({ water: 70, crickets: 0, rain: 0 });
     const invalid = { ...soundscape, standard: { rain: 55, brown: 120 } };
     expect(validateState({ version: STATE_VERSION, settings: { soundscape: invalid } })).toMatchObject({

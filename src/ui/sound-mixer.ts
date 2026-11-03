@@ -16,6 +16,7 @@ const SOUNDS: Record<SoundLayer, { name: string; note: string; icon: IconName }>
   lofi: { name: 'Lo-fi', note: 'Warm keys and a slow, soft beat.', icon: 'music' },
   white: { name: 'White noise', note: 'An even veil of sound.', icon: 'noise' },
   brown: { name: 'Brown noise', note: 'A deeper, softer hush.', icon: 'noise' },
+  falls: { name: 'The falls', note: 'Water pouring into the pool, a mist of spray.', icon: 'waves' },
 };
 
 /** Two collections share playback, but never overwrite each other's remembered mix. */
