@@ -44,6 +44,8 @@ export interface SpeciesDef {
   pollinators: boolean;
   /** default true when habitats include shore/water */
   reflect?: boolean;
+  /** false: no sunrise/sunset rim light (a plant under the water, ADR 0281); default true */
+  rimLight?: boolean;
   /** paint the plant into p's canvas (w×h px); base at anchor; growth 0..1 */
   draw(p: Painter, rng: Rng, opts: SpeciesDrawOptions): void;
 }

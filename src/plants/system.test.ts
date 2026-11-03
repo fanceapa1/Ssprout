@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { EVERYWHERE } from './biomes';
+import { pinnedSource } from '../ambience/daylight-source';
 import { createManualClock } from '../core/clock';
 import { createEventBus } from '../core/events';
 import type { StudyPlan } from '../core/plans';
@@ -46,7 +47,7 @@ const placeholderScene: SceneGeometry = {
 const species = (id: string, sizeClass: SpeciesDef['sizeClass'], w: number, h: number): SpeciesDef =>
   ({ id, name: id, range: EVERYWHERE, tier: 1, habitats: ['meadow', 'shore', 'water', 'back', 'path', 'rock'], sizeClass, size: { w, h }, anchor: { x: 0.5, y: 0.95 }, description: '', bloomColor: '#fff', pollinators: false, draw() {} }) as SpeciesDef;
 
-const DEFS = new Map([species('small', 'small', 70, 70), species('tree', 'tree', 380, 460)].map((d) => [d.id, d]));
+const DEFS = new Map([species('small', 'small', 70, 70), species('tree', 'tree', 380, 460), { ...species('submerged', 'small', 70, 70), rimLight: false }].map((d) => [d.id, d]));
 const getSpecies = (id: string) => DEFS.get(id);
 
 /** Every sprite is "painted" instantly; requests are recorded. */
@@ -118,14 +119,14 @@ const plant = (id: string, slotId: string, speciesId = 'small'): PlantInstance =
   completedAt: 1,
 });
 
-function setup(opts: { plants?: PlantInstance[]; scene?: SceneGeometry; reducedMotion?: boolean; cache?: ReturnType<typeof instantCache>; camera?: boolean } = {}) {
+function setup(opts: { plants?: PlantInstance[]; scene?: SceneGeometry; reducedMotion?: boolean; cache?: ReturnType<typeof instantCache>; camera?: boolean; daylight?: ReturnType<typeof pinnedSource> } = {}) {
   const clock = createManualClock(1_000_000);
   const state: GardenState = { ...createDefaultState(clock.now()), plants: opts.plants ?? [] };
   const store = createStore(state, reducer);
   const bus = createEventBus();
   const scene = opts.scene ?? placeholderScene;
   const cache = opts.cache ?? instantCache();
-  const system = createPlantSystem({ getSpecies, cache, wind: (t) => ({ sway: Math.sin(t), gust: 0 }) });
+  const system = createPlantSystem({ getSpecies, cache, daylight: opts.daylight, wind: (t) => ({ sway: Math.sin(t), gust: 0 }) });
   const viewport = createViewport(1600, 1000, 1);
   const camera = opts.camera ? createCamera({ base: viewport }) : undefined;
   const ctx: SystemContext = { viewport, camera, store, bus, clock, scene, reducedMotion: !!opts.reducedMotion };
@@ -295,6 +296,32 @@ describe('plant system', () => {
     const env = setup({ plants: [plant('w', 'water-1'), plant('m', 'meadow-1')] });
     const sys = await ready(env);
     expect(sys.debugState().reflections).toEqual(['w']);
+  });
+
+  it('draws the sunset rim light on plants, but not on a species that opts out (rimLight: false, ADR 0281)', async () => {
+    const restore = installFakeOffscreenCanvas();
+    try {
+      const env = setup({ plants: [plant('lit', 'meadow-1'), plant('sub', 'path-2', 'submerged')], daylight: pinnedSource('sunset') });
+      const sys = await ready(env);
+      const f = env.frame();
+      const screens = new Map<number, number>();
+      for (const d of sys.entities!(f)) {
+        const c = new FakeCanvas(1600, 1000);
+        const ctx = c.ctx as unknown as CanvasRenderingContext2D;
+        let n = 0;
+        const orig = ctx.drawImage.bind(ctx) as (...a: unknown[]) => void;
+        (ctx as unknown as Record<string, unknown>).drawImage = (...a: unknown[]) => {
+          if (ctx.globalCompositeOperation === 'screen') n++;
+          orig(...a);
+        };
+        d.draw(ctx, f);
+        screens.set(d.depth, n);
+      }
+      expect(screens.get(slot('meadow-1').y)).toBeGreaterThan(0);
+      expect(screens.get(slot('path-2').y)).toBe(0);
+    } finally {
+      restore();
+    }
   });
 
   it('draws the placement highlight and a ghost of the chosen species at the focused slot', async () => {

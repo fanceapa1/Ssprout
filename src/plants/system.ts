@@ -659,7 +659,7 @@ export function createPlantSystem(opts: PlantSystemOptions): PlantSystem {
       drawPlantShadow(ctx, { x: inst.slot.x, y: inst.slot.y, w, h }, shadow, pose.alpha * SHADOW_PLANT);
     }
     drawPlant(ctx, image, inst.box, inst.slot.x, inst.slot.y, pose, painted && inkCrop(inst.box, painted.ink, painted.w, painted.h));
-    if (lit && rim.strength > 0.02) {
+    if (lit && inst.def.rimLight !== false && rim.strength > 0.02) {
       const mask = rims.get(lit.image, rim.side, rim.rgb, spriteRes(lit, inst.box.w) / RIM_REF_RES);
       if (!mask) return;
       ctx.save();

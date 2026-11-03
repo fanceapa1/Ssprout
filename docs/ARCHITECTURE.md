@@ -226,6 +226,7 @@ export interface SpeciesDef {
   bloomColor: string;         // hex, for UI swatch, petals, bee targeting
   pollinators: boolean;       // attracts bees/butterflies
   reflect?: boolean;          // default true when habitat includes shore/water
+  rimLight?: boolean;         // false: no sunrise/sunset rim light (under water, ADR 0281); default true
   /** paint the plant into p's canvas (w×h px); base at anchor; growth 0..1 (0 = seedling, 1 = full bloom) */
   draw(p: Painter, rng: Rng, opts: { w: number; h: number; growth: number }): void;
 }
