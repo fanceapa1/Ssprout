@@ -131,7 +131,7 @@ session discards its draft, so it cannot rename another session.
                      ├ absolute (document coordinates): .tips (ADR 0181)
                      └ fixed: .scrollbar · live region · dialogs (top layer)
 ```
-- One reading spine at every width (ADR 0200): Study → Your plant → Calendar → Garden tools, one
+- One reading spine at every width (ADR 0200): Study → Your plant → Gardens → Calendar → Garden tools, one
   under the other on one left edge, with the path's lane to its left (84 px wide, 64 px under 860 px,
   a 38 px gutter on phones). Wide screens set two tracks inside Study (controls | sessions in
   progress, `.session-list[data-rows='true']`) and Your plant (window | caption). Phones (≤ 600 px):
@@ -190,7 +190,8 @@ session discards its draft, so it cannot rename another session.
 
 ## Gardens (ADR 0244)
 With two or more available sceneries (`UIDeps.sceneries`) the dock shows **Gardens** (`gardens`,
-order 25, full span, helper "Each garden keeps its own plants."), from `ui/gardens-section.ts`:
+order 25, full span, helper "Each garden keeps its own plants."), from `ui/gardens-section.ts`.
+Both gardens are offered to everyone since S17, so every visitor has the section:
 - a card per garden (`button.garden-card[data-scenery]`, a toggle: `aria-pressed` marks the
   garden on view) with a thumbnail, the scenery's name and blurb, and "On view" / "Go here";
 - choosing a card calls `controller.showScenery(id)`; the scenery host cross-fades the stage;
@@ -406,7 +407,7 @@ jumps it forward to the next local time of day (pins the hour for tests).
 Unit: `near-view.test.ts`, `backdrop-sheet.test.ts`, `backdrop.test.ts`, `dock-guide.test.ts`, `wayfinding-path.test.ts`, `session-list.test.ts`, `format.test.ts`, `plan-line.test.ts`, `plant-labels.test.ts`, `previews.test.ts`, `planting-sheet.test.ts`,
 `ambient-light.test.ts`, `scroll-math.test.ts`, `smooth-scroll.test.ts`, `dock.test.ts`, `stage-edge.test.ts`, `ink.test.ts`,
 `tip-place.test.ts`, `plant-card.test.ts`, `pickers.test.ts`, `prefill.test.ts` (calendar: `calendar-model.test.ts`).
-E2E: `tests/e2e/gardens.spec.ts` (the Gardens section: both gardens listed, choosing switches, planting in the waterfall through the real flow, keyboard, phone width), `tests/e2e/deferred-dock.spec.ts` (nothing drawn in the dock before the garden's first paint,
+E2E: `tests/e2e/gardens.spec.ts` (the Gardens section: offered without `?dev` and the choice kept on reload, both gardens listed, choosing switches, planting in the waterfall through the real flow, keyboard, phone width), `tests/e2e/deferred-dock.spec.ts` (nothing drawn in the dock before the garden's first paint,
 every section drawn once scrolled to with no section moving, Begin's click under 100 ms with "Your
 plant" current once scrolled to), `tests/e2e/backdrops.spec.ts` (a sheet per section holding its content, the calendar's the
 strongest, re-layout on growth / resize / view and not on a tick or scroll, the lane outside the

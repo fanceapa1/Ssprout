@@ -257,7 +257,7 @@ row for new rules.
 **Studio and shots.** Its `show` puts it on the `falls` stage (or the pond). Look at
 `/Ssprout/studio.html?entry=fauna-<kind>/alive` and `/parts`, and at **Fauna · the falls**:
 - `npm run shots -- --entry fauna-<kind>/alive --t 20`, with several `--seed`s side by side;
-- in the garden, with `--query scenery=waterfall` and an `--eval` that runs
+- in the garden, with an `--eval` that runs
   `await sprout.showScenery('waterfall'); await sprout.camera.settle(); sprout.setTime('noon');`
   then `sprout.fauna.setHour(12); sprout.fauna.clear(); sprout.fauna.spawn('<kind>');
   sprout.fauna.step(20); sprout.fauna.settleArt()`;
@@ -278,7 +278,6 @@ in the devlog.
   (0.64–0.72), not the ground's at that y (0.55).
 - Call `sprout.fauna.settleArt()` before shots (sharper parts are painted in idle time), and
   `sprout.camera.settle()` after switching gardens.
-- The waterfall shows only with `?dev&scenery=waterfall`.
 
 ## Tests
 `math.test.ts`, `schedule.test.ts` (delays, caps, night and night-only, reduced, retries, roster from

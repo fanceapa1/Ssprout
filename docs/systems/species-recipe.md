@@ -69,8 +69,8 @@ npm run shots -- --entry species-<id>/growth-1                    # one stage (a
 npm run shots -- --studio species-<id>                             # every stage and the grow loop
 npm run shots -- --entry species-<id>/growth-1 --seed 2            # … seeds 1 to 6: six variants
 npm run shots -- --entry flora/waterfall                           # beside its neighbours, by tier
-npm run shots -- --name <id>-wf --query "dev&scenery=waterfall" \
-  --eval "sprout.addPlants(30, undefined, 'waterfall'); await sprout.plantsReady()"
+npm run shots -- --name <id>-wf \
+  --eval "sprout.addPlants(30, undefined, 'waterfall'); await sprout.showScenery('waterfall'); await sprout.plantsReady()"
 ```
 - **Close view** in the garden: start, finish and frame one plant, light pinned:
   `--eval "sprout.camera.autoFocus(false); sprout.start(25, { speciesId: '<id>', sceneryId: 'waterfall', slotId: 'ledge-3' }); sprout.completeSession(); sprout.setTime('noon'); await sprout.plantsReady(); sprout.camera.focusSlot('ledge-3', { animate: false }); await sprout.camera.settle()"`

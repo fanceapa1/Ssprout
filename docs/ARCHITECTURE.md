@@ -119,9 +119,9 @@ that keep resolution-dependent caches watch `detailVersion` and repaint for the 
 ## Rendering pipeline (back → front)
 | # | Layer | Contents | Redraw |
 |---|---|---|---|
-| 0 | `background` | sky, hills, far trees, pavilion, banks, pond base, path; then the daylight sky plate multiplied over it, sun and moon left as paper (ADR 0145); zoomed in and at rest, the scene's detail painting and the sky's detail plate (ADR 0163) | cached twice (ADR 0161): at the overview (blitted as a sub-rect while the camera moves) and at the resting view; rebuilt per resize, when the sky moves, when detail fades in |
-| 1 | `underwater` | koi — clipped to pond shape | per frame |
-| 2 | `waterSurface` | the mirrored daylight sky, water shimmer and glints, reflections (trees, rocks, plants near shore), rain rings, eave drips, water striders, floating leaves | per frame (reflections cached) |
+| 0 | `background` | the scenery's painting (the garden: sky, hills, far trees, pavilion, banks, pond base, path; the waterfall: far ridge, banks, cliff, ledges, woods, pool, stream, falls, trail); then the daylight sky plate multiplied over it, sun and moon left as paper (ADR 0145); zoomed in and at rest, the scene's detail painting and the sky's detail plate (ADR 0163) | cached twice (ADR 0161): at the overview (blitted as a sub-rect while the camera moves) and at the resting view; rebuilt per resize, when the sky moves, when detail fades in |
+| 1 | `underwater` | koi, the waterfall's iwana and yamame, a dipper under water — clipped to the still water | per frame |
+| 2 | `waterSurface` | the mirrored daylight sky, water shimmer and glints, reflections (trees, rocks, plants near shore), rain rings, eave drips, water striders, floating leaves; the scenery's motion over its painting (the waterfall's falls, foam and spray, ADR 0282) | per frame (reflections cached; motion sprites sealed once) |
 | 3 | `entities` | depth-sorted (by base y): foreground rocks/tufts from scene (+ rim light), plants (cast shadow, plant, rim light — ADR 0146), ground fauna (birds on rocks, frog, heron) | per frame (sprites cached) |
 | 4 | `air` | bees, butterflies, dragonflies, flying birds, swallows, falling leaves, the watering can | per frame |
 | 5 | `ambience` | the sun's lifted glaze and leaf glints, rain strokes, mist, light motes | per frame |
@@ -314,14 +314,14 @@ stays the ground's perspective. Creatures read `w.perspective(y, x)`: a scenery 
 (`Scenery.fauna.perspective`, the waterfall's knows the cliff); otherwise a line fitted through the
 slots' scales.
 
-### Sceneries (`src/scenery/`, ADRs 0241, 0242, 0248, 0283; docs/systems/scenery.md)
+### Sceneries (`src/scenery/`, ADRs 0240–0245, 0247, 0248, 0250, 0282, 0283; docs/systems/scenery.md)
 ```ts
 export const SCENERY_IDS = ['japanese-garden', 'waterfall'] as const;  // core/sceneries.ts (ADR 0240); ids.ts re-exports
 export type SceneryId = (typeof SCENERY_IDS)[number];
 export const DEFAULT_SCENERY: SceneryId = 'japanese-garden';
 export interface Scenery {                    // types.ts
   id: SceneryId; name: string; blurb: string; order: number;
-  available(flags: URLSearchParams): boolean;
+  available(flags: URLSearchParams): boolean;  // both registered sceneries: always (S17); a scenery in progress hides behind a dev flag
   geometry: SceneGeometry;
   art: SceneArt;                              // seed, painting layout, steps(art, only?) (art.scene = geometry), rockSprites?
   sky: ScenerySky;                            // layout (SkyLayout), rect, shape(below?), paint, paintWater
@@ -341,8 +341,10 @@ frames like a painting (the first `ready()` waits for it) and draws it on `water
 water, under the light plate. A scenery switch drops it. Only the waterfall has one (its falls,
 foam and spray, S9).
 `JAPANESE_GARDEN` (`japanese-garden/index.ts`) and `WATERFALL` (`waterfall/index.ts`, ADR 0245)
-are registered. The waterfall is available only under `?dev&scenery=waterfall`; its rock is
-painted, its water, vegetation and sky are flat placeholders until their painters land.
+are registered, in that order, and both are offered to everyone (S17): `sceneries()` lists both
+without any flag, and a new garden opens on `DEFAULT_SCENERY`. The waterfall is complete: its land,
+rock, vegetation and water steps, its daylight plates (ADR 0247), its own boulders and its falls in
+motion.
 `SceneArt.rockSprites?: RockSprites` (`{ box(rock): Rect; paint(rock, seed, scale, quality) }`, a
 generator returning the `Sprite`) lets a scenery paint its own boulders for `geometry.rocks`. The
 sprite pass and the sprite atlas layout use it, and default to the garden's `GARDEN_ROCKS`
@@ -371,7 +373,8 @@ garden that becomes active (start or switch) dispatches `scenery/view` to its ga
 the same store dispatch, so the camera's glide to its seedling (ADR 0168) runs after the cut.
 The scene takes `art` and `sky`, the ambience its `light` and `ambience` (weather stays global),
 plants show `gardenOnView(state, id)`, fauna takes the scenery's `fauna`, resets its residents
-and follows that garden's unlocked rows.
+and follows that garden's unlocked rows. `main.ts` calls `audio.setScenery(scenery.sound)` when
+`state.scenery` changes (ADR 0283), so the sound and the mixer's palette follow the garden on view.
 
 ### State (`src/core/state.ts`, ADR 0003, ADR 0036, ADRs 0150–0154, 0170, 0240)
 Each session is one plant, chosen at start, growing live in its slot. Up to three sessions are in
@@ -721,7 +724,7 @@ painting, fade, its `longest` part, extension, `cacheHits`, `cacheMisses`). `?de
 
 Sceneries (`src/dev/scenery-debug.ts`, ADR 0243): `scenery()` → `{ viewed, available, fade }`,
 `showScenery(id)` (dispatches `scenery/view`; resolves once the garden is ready, rejects an
-unavailable id). `?dev&scenery=waterfall` offers the waterfall.
+unavailable id). Both gardens are offered without a flag.
 
 Paint cache (`src/paint/debug.ts`): `window.sprout.paintCache` is the app's `PaintCache` (ADR 0227),
 plus `open({ version?, maxBytes? })` for another cache on the same IndexedDB store.
