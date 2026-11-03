@@ -24,6 +24,7 @@ function fakeCanvas(name: string): FakeCanvas {
     save: () => {},
     restore: () => {},
     clearRect: () => log.push('clear'),
+    fillRect: () => log.push('fill'),
     drawImage(src: FakeCanvas, ...args: number[]) {
       log.push(`drawImage:${src.name}:${(this as { globalCompositeOperation: string }).globalCompositeOperation}${args.length > 2 ? ':sub' : ''}`);
     },
@@ -515,3 +516,67 @@ describe('renderer › switching the scenery (ADR 0243)', () => {
     expect(renderer.sceneryFade()).toBe(0);
   });
 });
+
+describe('renderer · drawOverview, the Gardens thumbnail (ADR 0285)', () => {
+  const garden = getScenery('japanese-garden');
+  const falls = getScenery('waterfall');
+
+  it('draws the painting, water and entities at the whole world fitted to the target, then the paper; not the camera, air or light', async () => {
+    const out: string[] = [];
+    const views: Array<{ w: number; vis: { x: number; y: number; w: number; h: number } }> = [];
+    const { renderer, tick } = setup({ scenery: garden });
+    await renderer.add({
+      id: 's',
+      draw: (layer, _ctx, f) => {
+        out.push(layer);
+        if (layer === 'background' && f.view) views.push({ w: f.view.pixelW, vis: f.view.visible });
+      },
+      entities: () => [{ depth: 1, draw: () => void out.push('entity') }],
+    });
+    await renderer.add(createPaperStandIn());
+    renderer.start();
+    await renderer.whenReady();
+    tick(1000);
+    renderer.camera.zoomTo(2.5, undefined, { animate: false });
+    out.length = 0;
+    views.length = 0;
+    const target = fakeCanvas('thumb');
+    target.width = 448;
+    target.height = 280;
+    expect(renderer.drawOverview(target as unknown as HTMLCanvasElement)).toBe(true);
+    expect(out).toEqual(['background', 'underwater', 'waterSurface', 'entities', 'entity']);
+    expect(views).toHaveLength(1);
+    expect(views[0]!.w).toBe(448);
+    expect(views[0]!.vis.x).toBeCloseTo(0);
+    expect(views[0]!.vis.w).toBeCloseTo(1600);
+    expect(views[0]!.vis.h).toBeCloseTo(1000);
+    expect(target.log).toContain('fill');
+    expect(target.log.some((l) => /^drawImage:cache\d+:multiply:sub$/.test(l))).toBe(true);
+  });
+
+  it('refuses before the renderer is sized and while a switch covers the stage', async () => {
+    let release!: () => void;
+    let gated = false;
+    const target = fakeCanvas('thumb');
+    target.width = 448;
+    target.height = 280;
+    const { renderer, tick } = setup({ scenery: garden });
+    expect(renderer.drawOverview(target as unknown as HTMLCanvasElement)).toBe(false);
+    await renderer.add({ id: 'slow', init: () => (gated ? new Promise<void>((r) => (release = r)) : undefined) });
+    renderer.start();
+    await renderer.whenReady();
+    tick(1000);
+    gated = true;
+    const ready = renderer.setScenery(falls);
+    expect(renderer.drawOverview(target as unknown as HTMLCanvasElement)).toBe(false);
+    release();
+    await ready;
+    renderer.freeze();
+    expect(renderer.drawOverview(target as unknown as HTMLCanvasElement)).toBe(true);
+  });
+});
+
+/** a system drawing into the paper layer, so the renderer keeps a paper cache */
+function createPaperStandIn(): System {
+  return { id: 'paper', draw: () => {} };
+}

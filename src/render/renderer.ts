@@ -84,6 +84,12 @@ export interface Renderer {
   setScenery(scenery: Scenery): Promise<void>;
   /** 0..1 how much of the previous garden's last frame still shows (0: no switch under way) */
   sceneryFade(): number;
+  /**
+   * Draw the garden on view at the overview framing of `target` (the world fitted, cover) for a
+   * thumbnail (ADR 0285): its painting, water, entities and the paper, not the camera's view, the
+   * air or the light plate. False while not sized, switching or a system is not ready.
+   */
+  drawOverview(target: HTMLCanvasElement): boolean;
   /** Re-measure and re-initialise immediately (resize events call this debounced). */
   resize(): Promise<void>;
   /** Rebuild a cached layer before the next frame (e.g. when the scene changes). */
@@ -265,8 +271,7 @@ export function createRenderer(opts: RendererOptions): Renderer {
     }
   };
 
-  const drawEntities = (cx: CanvasRenderingContext2D, f: FrameInfo) => {
-    const view = camera.view();
+  const drawEntities = (cx: CanvasRenderingContext2D, f: FrameInfo, view: Viewport = camera.view()) => {
     drawLayer(cx, 'entities', f, view);
     const items: { d: Drawable; id: string; i: number }[] = [];
     for (const e of entries) {
@@ -556,6 +561,35 @@ export function createRenderer(opts: RendererOptions): Renderer {
       return scenery;
     },
     sceneryFade: () => snapshotAlpha,
+    drawOverview(target) {
+      if (!sized || disposed || snapshot || entries.some((e) => !e.ready)) return false;
+      const g = target.getContext('2d');
+      if (!g || target.width < 1 || target.height < 1) return false;
+      const vp = createViewport(target.width, target.height, 1, focus);
+      const f: FrameInfo = { t, dt: 0, now: opts.clock.now(), view: vp };
+      g.setTransform(1, 0, 0, 1, 0, 0);
+      g.globalAlpha = 1;
+      g.globalCompositeOperation = 'source-over';
+      g.fillStyle = '#ffffff';
+      g.fillRect(0, 0, target.width, target.height);
+      for (const layer of ['background', 'underwater', 'waterSurface'] as const) drawLayer(g, layer, f, vp);
+      drawEntities(g, f, vp);
+      const paper = caches.get('paper');
+      g.setTransform(1, 0, 0, 1, 0, 0);
+      g.globalAlpha = 1;
+      if (paper) {
+        g.globalCompositeOperation = 'multiply';
+        g.imageSmoothingEnabled = true;
+        // the stage's paper, cover-cropped (a phone's is portrait)
+        const p = paper.canvas;
+        const k = Math.min(p.width / target.width, p.height / target.height);
+        const sw = target.width * k;
+        const sh = target.height * k;
+        g.drawImage(p, (p.width - sw) / 2, (p.height - sh) / 2, sw, sh, 0, 0, target.width, target.height);
+      }
+      g.globalCompositeOperation = 'source-over';
+      return true;
+    },
     setScenery(next) {
       if (disposed || next === scenery || (scenery && next.id === scenery.id)) return readyPromise;
       // keep what is on screen: it covers the new garden until that is ready
