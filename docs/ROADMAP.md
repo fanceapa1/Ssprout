@@ -164,8 +164,8 @@ Phase 12 art queue: one species or creature per task (atomic), 2–3 at a time, 
 | W11 | Katsura (*Cercidiphyllum japonicum*): T4 tree | `src/plants/species/katsura.ts` | done (devlog 88) |
 | W11b | Katsura polish (orchestrator review): the crown is sparse and twiggy at overview size, not yet the brief's broad round cloud; fill it, hide more twigs, cut paint cost (80 ms, twice the ginkgo) | `src/plants/species/katsura.ts` | done (devlog 88 › W11b; crown dabs a little stamped) |
 | W12 | Tochinoki (*Aesculus turbinata*): T4 tree | `src/plants/species/tochinoki.ts` | done (devlog 89) |
-| C1 | Brown dipper (kawagarasu): bobs on wet rocks, walks under water (was S13) | `src/fauna/creatures/dipper.ts` | done (devlog 77; polish in C1b) |
-| C1b | Dipper polish (orchestrator review): the body reads as a smooth flat blob with a dot eye, more cartoon than watercolour; add plumage texture and edge variation, visible legs while wading, smoother flight frames | `src/fauna/creatures/dipper.ts` | in progress |
+| C1 | Brown dipper (kawagarasu): bobs on wet rocks, walks under water (was S13) | `src/fauna/creatures/dipper.ts` | done (devlog 77) |
+| C1b | Dipper polish (orchestrator review): the body reads as a smooth flat blob with a dot eye, more cartoon than watercolour; add plumage texture and edge variation, visible legs while wading, smoother flight frames | `src/fauna/creatures/dipper.ts` | done (devlog 77 › C1b) |
 | C2 | Miyama-kawatombo damselfly | `src/fauna/creatures/damselfly.ts` | done (devlog 79; phone read weak) |
 | C3 | Iwana char in the plunge pool (was S12) | `src/fauna/creatures/iwana.ts` | done (devlog 83) |
 | C4 | Sawagani river crab | `src/fauna/creatures/sawagani.ts` | done (devlog 85; no dusk/rain signal yet) |
@@ -173,3 +173,4 @@ Phase 12 art queue: one species or creature per task (atomic), 2–3 at a time, 
 | C6 | Iwatsubame (Asian house martin) along the cliff | `src/fauna/creatures/iwatsubame.ts` | done (devlog 90) |
 | C7 | Genji firefly (night only) | `src/fauna/creatures/firefly.ts` | done (devlog 91) |
 | C8 | Yamasemi (crested kingfisher, rare) | `src/fauna/creatures/yamasemi.ts` | done (devlog 92) |
+| C8b | Predator reactions (C8 devlog): the wagtail (`bird.ts`) treats only other wagtails' perches as taken, so it can land on the yamasemi's rock; the iwana ignores all birds and could sink or scatter when the yamasemi hovers | `src/fauna/creatures/{bird,iwana}.ts` | queued |
