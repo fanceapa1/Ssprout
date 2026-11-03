@@ -66,7 +66,17 @@ test.describe('garden import · sceneries (S17)', () => {
     await page.keyboard.press('Escape');
     await expect(page.locator('.dock-section[data-section="gardens"] button.garden-card[data-scenery="japanese-garden"]')).toHaveAttribute('aria-pressed', 'true');
     await show(page, 'japanese-garden');
-    expect(await shownFinished(page)).toEqual(plantIds.sort());
+    // the file's sessions can end during the test and add a plant, so compare with the state at that moment
+    await expect
+      .poll(() =>
+        page.evaluate(async (fromFile) => {
+          await window.sprout!.plantsReady();
+          const shown = window.sprout!.plants.state().finished.map((p) => p.id).sort();
+          const held = window.sprout!.state().plants.filter((p) => p.sceneryId === 'japanese-garden').map((p) => p.id).sort();
+          return shown.join() === held.join() && fromFile.every((id) => shown.includes(id));
+        }, plantIds),
+      )
+      .toBe(true);
     await show(page, 'waterfall');
     expect(await shownFinished(page)).toEqual([]);
   });
