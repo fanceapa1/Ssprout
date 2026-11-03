@@ -140,3 +140,80 @@ TESTING matrix:
 - The `fauna-dipper/alive` stage is the shared falls stage at 380×240, where the rocks are small
   for the bird. It shows the behaviour, but the scale is only right in the garden.
 - No e2e of its own: the waterfall spec picks it up from the roster (spawn, in bounds, cost).
+
+## C1b polish
+An art pass on the dipper, which had become the weakest painted waterfall creature: a smooth flat
+blob with a dot eye. The behaviour is unchanged (bobbing, dives, perches, timings, layers). Only
+`dipper.ts` changed; the behaviour tests pin no drawing details, so they needed no edits.
+
+**What changed in the painting**
+- **Palette**: the research hexes (chocolate `#5a4536`, sheen toward `#7a6350`, tracts `#33271f`,
+  a warm light `#a08670`) instead of sumi plus vermilion, which read red-brown at garden size.
+- **Silhouette**: a nape and a throat notch, so the head reads apart from the body, and the rump
+  and the tail root set higher, so the tail cocks off the back instead of the middle.
+- **Plumage**: wet-in-wet from the lit crown into chocolate, with darker drops bleeding into the
+  belly and vent. In one wet layer: the folded wing as ragged dark masses, nine scalloped flank and
+  breast marks and the shade under the belly. Over that, a chocolate glaze lost toward the top,
+  light granulation, a soft source-over light wash on the crown and mantle, and a broken dry-brush
+  sheen. The top edge is lost (fade) and the belly edge stays found.
+- **Eye**: moved into the head (`EYE` 5.9, −10.3), a soft dark socket, a smaller eye and a paper
+  speck. The white eyelid blink is kept and sits on it. The bill is a slender tapered wash.
+- **Legs**: `LEG` 3.6 → 3.0, so the hip sits lower. Stout pale grey tarsi rooted inside the belly,
+  so there is no gap under the body. Three long toes forward and one back, the far leg greyer.
+- **Wading**: a refracted, darker leg copy (`legsDeep`), drawn after the wake on `entities`,
+  clipped below the waterline, shifted and a little short. The wake's pale ring had hidden the
+  `underwater` copy.
+- **Flight**: real wing shapes (`wingShape`: a found leading edge, a notched trailing edge lost by
+  a fade, three pale primary shafts), painted source-over so the root does not pool dark on the
+  body. Frames are up, mid (the far wing a ghost, the near one level) and down, cycled up, mid,
+  down, mid at the same ~15 beats a second. A steady whirr haze (`haze`) is drawn under every
+  frame, and the body lifts a hair on the downstroke. The flight body is levelled (rotated 0.26) and
+  the feet are tucked.
+- The body sprite box grew (0.98 × 0.78 S) so the taller crown is not clipped.
+
+**Looked at** (Playwright probe against my own dev server on 5420, under `nice -n 15`; copies in
+`artifacts/shots/dipper-c1b-*.png`):
+- r0 before: `r0-parts.png`, `r0-close.png` (zoom 3 on its rock: a smooth egg, a glued oval wing,
+  a dot eye on the top edge, stick legs hanging below the belly with a gap), `r0-garden.png` and
+  `r0-garden-z.png` (garden size: a reddish little bird).
+- r1 parts (scratch): the granulation was far too strong, like a mottled toad, and the bird was
+  milky and pale → `r2-a.png`: calmer granules and a chocolate glaze. `r3-fly.png`: the wing's
+  trailing edge sat on the wrong side for up, mid and swim, and the root pooled dark → side flag,
+  primaries, source-over.
+- r4–r5 close (`r5-close-z.png`, zoom 4): a ball with no head and stilts → nape and throat
+  notches, shorter stout legs, a crown and mantle light wash, a darker tail.
+- r6–r7 wading (`r7-wade-z.png`): legs seen in the water under the ring. Flight
+  (`r7-fly-z.png`): it flew upright → levelled.
+- r9–r10 contexts: garden size (`r9-garden.png`, `r9-garden-z.png`), sunset on a ledge
+  (`r9-sunset-z.png`), phone 390×844 on the falls rock (`r9-phone-z.png`), under water
+  (`r10-under-z.png`), the studio alive stage at t 4, 16 and 28 (`r10-alive.png`), and the final
+  parts sheet (`r11-parts.png`, `r11-parts-a.png`).
+
+What reads well: close up, a plump chocolate bird with a lit crown, a darker granulating wing and
+belly, the eye in the head, and pale stout legs gripping the stone. Wading, its legs show through
+the water. At garden size it is still the dark round stub with a cocked tail, now chocolate rather
+than red-brown.
+
+**Bench** (`sprout.fauna.bench(300)` ×3 at the waterfall, 1440×900, DPR 2, 25 plants, the whole
+roster spawned, art settled, one untimed `bench(60)` first, load about 3.5):
+- Before (start of task): 0.97–1.02 ms a frame (27 creatures).
+- After: 1.04–1.16 ms (26–29 creatures).
+- A/B back to back: old art 1.24–1.40 ms (30 creatures), new art 1.11–1.19 ms (26 creatures).
+
+The spread comes from the roster count and the machine, not the dipper. It adds one `drawImage`
+in flight (the haze) and one while wading (the legs). Under the 1.5 ms budget.
+
+**Status**: `npm run typecheck` clean. `VITEST_WORKERS=1 npx vitest run src/fauna
+src/scenery/waterfall`: 21 files, 211 tests pass. No local e2e (as briefed).
+
+**Left open**
+- Flight frames at 15 Hz alias at 30 fps (only up and down show). A phase taken from the
+  beat's sine would need a call on the beat rate.
+- The folded wing is soft dark masses with two faint tertial lines. A close view at zoom 4 still
+  shows little feather structure on it.
+- The mid frame's near wing is a level dark tongue over the body. It is fine at 1/60 s but weak as a
+  still.
+- At sunset and in shade the flank tracts read a little blotchy.
+- No pixel test of the art: creature unit tests have no canvas. The studio parts sheet is the
+  check.
+- The wake's upper ring still crosses the belly while wading (unchanged).
