@@ -54,7 +54,7 @@ export function sheetAt(u: number, y: number): Pt {
 }
 
 /** A vertical strip of the sheet between `u0` and `u1`, from `y0` down to `y1`, a little wavy. */
-function strip(rng: Rng, u0: number, u1: number, y0: number, y1: number): Pt[] {
+export function strip(rng: Rng, u0: number, u1: number, y0: number, y1: number): Pt[] {
   const left: Pt[] = [];
   const right: Pt[] = [];
   const n = Math.max(3, Math.round((y1 - y0) / 24));

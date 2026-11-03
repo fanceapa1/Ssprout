@@ -1,6 +1,6 @@
 /**
  * The rocky waterfall as a scenery (phase 10): its rock (S6), water (S7), vegetation (S8) and
- * daylight (S10: sky and light plates).
+ * daylight (S10: sky and light plates) and moving falls (S9).
  * Hidden behind `?dev&scenery=waterfall`. docs/systems/scenery.md › Waterfall.
  */
 import { createRng } from '../../core/rng';
@@ -9,6 +9,7 @@ import { paintMargins, paintStones } from '../../scene/paint-land';
 import type { Scenery, SceneryView } from '../types';
 import { WATERFALL_FLORA } from './flora';
 import { WATERFALL_WILDLIFE } from './fauna';
+import { createFallsMotion } from './falls';
 import { TRAIL, waterfallScene } from './geometry';
 import { FOCUS, WATERFALL_AMBIENCE, WATERFALL_HABITAT_WORDS } from './layout';
 import { WATERFALL_LIGHT_ART } from './light';
@@ -95,4 +96,6 @@ export const WATERFALL: Scenery = {
   habitatWords: WATERFALL_HABITAT_WORDS,
   fauna: WATERFALL_WILDLIFE,
   sound: 'waterfall',
+  // the falls, foam and spray in motion (S9, ADR 0282)
+  motion: () => createFallsMotion({ seed: WATERFALL_ART.seed }),
 };
