@@ -11,6 +11,20 @@ export const PAGE_PAPER_TILE = 512;
 
 let installed = false;
 
+/**
+ * A short `blob:` URL for the tile's PNG data URL (the data URL itself where blobs are missing).
+ * Every restyle of an element using `var(--page-paper)` re-parses the value: ~550 KB inline cost
+ * Begin's click tens of ms (devlog 99).
+ */
+export function paperUrl(dataUrl: string): string {
+  const comma = dataUrl.indexOf(',');
+  if (typeof Blob !== 'function' || typeof URL.createObjectURL !== 'function' || comma < 0) return dataUrl;
+  const bin = atob(dataUrl.slice(comma + 1));
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return URL.createObjectURL(new Blob([bytes], { type: 'image/png' }));
+}
+
 /** Generate the tile and set `--page-paper` on :root. Runs once; harmless without a canvas. */
 export function installPagePaper(doc: Document = document, seed = 1): boolean {
   if (installed) return true;
@@ -22,7 +36,7 @@ export function installPagePaper(doc: Document = document, seed = 1): boolean {
     const ctx = out.getContext('2d');
     if (!ctx) return false;
     ctx.drawImage(tile as CanvasImageSource, 0, 0);
-    const url = out.toDataURL('image/png');
+    const url = paperUrl(out.toDataURL('image/png'));
     doc.documentElement.style.setProperty('--page-paper', `url("${url}")`);
     installed = true;
     return true;
