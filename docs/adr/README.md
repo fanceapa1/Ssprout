@@ -1,2 +1,3 @@
 
+| [0282](0282-scenery-motion.md) | A scenery's moving water is an optional motion over its painting | accepted | `Scenery.motion?: () => SceneryMotion` (`prepare()` in parts, `draw(ctx, t)` pure in t); the scene creates it unless reduced motion is on, draws it on `waterSurface` under the light plate; it goes over the painting, never covers it; sprites sealed as ImageBitmaps; one paint version change |
 | [0283](0283-waterfall-sound-bed.md) | The waterfall's sound bed, and a scenery names its sound profile | accepted | a `falls` layer and `waterfall` sound profile: seeded PCM plunge (rumble and roar, at a third of the rate) and stereo spray; splash, dipper and kajika events; `PLACE_EVENTS`; `Scenery.sound` drives `audio.setScenery`; arrivals keyed per garden |
