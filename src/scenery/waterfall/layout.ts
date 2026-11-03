@@ -28,11 +28,12 @@ export const SKYLINE: readonly Pt[] = [
   { x: 474, y: 254 },
   { x: 512, y: 258 },
   { x: 530, y: 264 },
-  // the notch: the gorge's far end, the lip ~34 units below it
-  { x: 556, y: 262 },
-  { x: 600, y: 258 },
-  { x: 632, y: 259 },
-  { x: 664, y: 262 },
+  // the notch: the gorge's far end, the lip ~37 units below it
+  { x: 556, y: 258 },
+  { x: 586, y: 255 },
+  { x: 604, y: 250 },
+  { x: 632, y: 254 },
+  { x: 664, y: 258 },
   // the buttress right of the falls, the tallest rock beside them, its crest broken into blocks
   { x: 684, y: 256 },
   { x: 700, y: 242 },

@@ -110,23 +110,55 @@ function clipTo(p: Painter, shape: readonly Pt[]): void {
   ctx.clip();
 }
 
-/** The upper gorge behind the lip: a pale, misty far end between a lit left wall and a shadowed right one. */
+/**
+ * The upper gorge behind the lip, seen from below: spurs of rock overlapping from either side,
+ * each farther one paler and cooler, with mist between them (deep distance), and a few far trees.
+ */
 export function* paintGorge(p: Painter, rng: Rng): Strokes {
-  const far: Pt[] = [{ x: 532, y: 258 }, { x: 700, y: 250 }, { x: 684, y: 302 }, { x: 548, y: 302 }];
-  yield* p.parts.wash(far, lighten(mix(CLIFF_SHADOW, PIGMENTS.bellflower, 0.25), 0.3), {
-    rng,
-    deform: 0.05,
-    opacity: 0.32,
-    edge: 0.2,
-    granules: 0.3,
-    fade: { angle: -Math.PI / 2, start: 0.5, amount: 0.6 },
-  });
+  const haze = lighten(mix(CLIFF_SHADOW, PIGMENTS.bellflower, 0.4), 0.2);
+  const far: Pt[] = [{ x: 532, y: 248 }, { x: 700, y: 240 }, { x: 684, y: 302 }, { x: 548, y: 302 }];
+  yield* p.parts.wash(far, haze, { rng, deform: 0.05, opacity: 0.3, edge: 0.1, granules: 0.2, fade: { angle: Math.PI / 2, start: 0.4, amount: 0.7 } });
   yield;
-  const left: Pt[] = [{ x: 524, y: 262 }, { x: 548, y: 266 }, { x: 574, y: 280 }, { x: 596, y: 294 }, { x: 572, y: 300 }, { x: 538, y: 292 }];
-  yield* p.parts.wash(left, CLIFF_LIT, { rng, deform: 0.12, opacity: 0.5, edge: 0.5, granules: 0.4, fade: { angle: Math.PI, start: 0.5, amount: 0.5 } });
+  // far → near: the outline, its pigment and strength
+  const spurs: [Pt[], Pigment, number][] = [
+    [[{ x: 548, y: 262 }, { x: 572, y: 255 }, { x: 590, y: 253 }, { x: 604, y: 249 }, { x: 618, y: 252 }, { x: 636, y: 255 }, { x: 650, y: 262 }, { x: 652, y: 302 }, { x: 548, y: 302 }], haze, 0.42],
+    [[{ x: 706, y: 240 }, { x: 680, y: 248 }, { x: 672, y: 256 }, { x: 648, y: 262 }, { x: 640, y: 270 }, { x: 624, y: 274 }, { x: 620, y: 302 }, { x: 706, y: 302 }], mix(RECESS, haze, 0.45), 0.5],
+    [[{ x: 524, y: 250 }, { x: 552, y: 255 }, { x: 560, y: 262 }, { x: 580, y: 266 }, { x: 588, y: 276 }, { x: 600, y: 282 }, { x: 600, y: 302 }, { x: 524, y: 302 }], mix(CLIFF_LIT, haze, 0.2), 0.52],
+  ];
+  for (const [shape, pig, opacity] of spurs) {
+    const cut = roughOutline(shape, rng, 0.8);
+    clipTo(p, cut);
+    yield* p.parts.wash(around(bounds(cut), 8), pig, { rng, deform: 0.06, spread: 0.08, opacity, edge: 0.5, edgeWidth: 2, sharpness: 0.65, granules: 0.45, fade: { angle: Math.PI / 2, start: 0.3, amount: 0.8, ragged: 0.7 } });
+    p.ctx.restore();
+    // its found top edge, a little darker where the wash pools
+    p.stroke(shape.slice(0, -2), { rng, pigment: pig, width: 2, taper: [0.2, 0.2], wetness: 0.5, wobble: 0.1, opacity: opacity * 0.6 });
+    yield;
+    // mist pooling at the spur's foot, parting it from the one behind
+    const b = bounds(shape);
+    const top = shape[shape.length - 3]!;
+    yield* p.parts.lift({ cx: top.x, cy: Math.min(296, top.y + 14), rx: b.w * 0.35, ry: 5 }, { rng, amount: 0.4, deform: 0.4, spread: 0.5, layers: 5, sharpness: 0.05 });
+    yield;
+  }
+  // a crease down each near spur and its bedding, in the spur's own light
+  const ink = mix(PIGMENTS.sumi, RECESS, 0.5);
+  p.inkLine([{ x: 556, y: 257 }, { x: 562, y: 274 }, { x: 566, y: 290 }], { rng, width: 0.9, pigment: ink, breaks: 0.3, opacity: 0.26 });
+  p.inkLine([{ x: 676, y: 251 }, { x: 668, y: 270 }, { x: 664, y: 290 }], { rng, width: 1, pigment: ink, breaks: 0.3, opacity: 0.34 });
+  for (const [x0, y0, x1, y1] of [
+    [530, 266, 568, 270],
+    [536, 280, 580, 284],
+    [700, 256, 664, 266],
+    [698, 272, 646, 280],
+  ] as const) {
+    p.dryBrush([{ x: x0, y: y0 }, { x: x1, y: y1 + rng.range(-1, 1) }], { rng, pigment: CLIFF_SHADOW, width: 3, opacity: 0.28 });
+  }
   yield;
-  const right: Pt[] = [{ x: 702, y: 244 }, { x: 694, y: 262 }, { x: 672, y: 276 }, { x: 640, y: 290 }, { x: 650, y: 300 }, { x: 704, y: 298 }];
-  yield* p.parts.wash(right, RECESS, { rng, deform: 0.12, opacity: 0.55, edge: 0.55, granules: 0.5 });
+  // far trees along the farthest spur's rim, lost in the haze
+  const palette = { light: mix(MOSS.light, haze, 0.6), mid: mix(MOSS.mid, haze, 0.6), shadow: mix(MOSS.shadow, haze, 0.55), dark: mix(MOSS.dark, haze, 0.55) };
+  for (const x of [584, 604, 622, 640]) {
+    const y = 258 + (x - 584) * 0.08;
+    yield* p.parts.foliageClump({ x: x + rng.range(-3, 3), y }, rng.range(5, 8), palette, { rng, light: ROCK_LIGHT, flatness: 0.8, density: 0.7, dabSize: 0.35, gaps: 0.3, shadow: 0.4, opacity: 0.5 });
+    yield;
+  }
 }
 
 /** One crack line down the face: a few broken, tapered sumi segments. */
