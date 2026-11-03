@@ -150,7 +150,7 @@ Each plant is drawn in the garden's daylight (the shared `DaylightSource`, docs/
    per sprite image, side and colour) drawn with `screen` in the same pose, `RIM_PLANT` 0.85; its
    width follows the sprite's resolution by √k (`RIM_REF_RES` 1.7 px per unit), so a close sprite
    keeps the rim it has at 1×.
-   The growing plant uses the nearer growth step's sprite for the shadow extent and the rim.
+   The growing plant uses the nearer growth step's sprite for the shadow extent and the rim. A species with `rimLight: false` (baikamo, under the water; ADR 0281) gets no rim.
 Reflections are drawn over the mirrored sky the scene lays on the pond.
 
 ## Watering (ADR 0114)
