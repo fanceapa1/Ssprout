@@ -300,6 +300,8 @@ const baikamo: SpeciesDef = {
   description: 'Baikamo — plum blossom in the current, in the middle of summer.',
   bloomColor: '#f8f4ea',
   pollinators: true,
+  // under the water: the low sun leaves no warm rim on the tresses
+  rimLight: false,
   draw(p, rng, opts) {
     const plan = planBaikamo(rng.fork('plan'));
     const g = opts.growth;
