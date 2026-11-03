@@ -368,7 +368,11 @@ sceneries `sceneries(flags)` offers; others read as the first) and calls
 sets the focus and the camera's base, cuts the camera to the overview and re-inits every system
 with `SystemContext.scenery` (the resize path). Once `whenReady()` resolves the old frame fades
 out over `SCENERY_FADE_S` (0.9 s); a cut under reduced motion, frozen, stopped or hidden.
-`renderer.scenery` and `renderer.sceneryFade()` (0..1) report it. A session from another
+`renderer.scenery` and `renderer.sceneryFade()` (0..1) report it.
+`renderer.drawOverview(target): boolean` draws the garden on view at the whole world fitted to
+`target` (cover), whatever the camera shows: background, underwater, water surface, entities, the
+paper multiplied last. It skips the air, the ambience and the light plate, and returns false
+before sizing, while switching or while a system is not ready. The Gardens thumbnails use it (ADR 0285). A session from another
 garden that becomes active (start or switch) dispatches `scenery/view` to its garden first, in
 the same store dispatch, so the camera's glide to its seedling (ADR 0168) runs after the cut.
 The scene takes `art` and `sky`, the ambience its `light` and `ambience` (weather stays global),
@@ -692,6 +696,8 @@ pixels depend on (seed, view rect, scale, quality…), and **every key starts wi
 (`japanese-garden|s7|normal|0,0,1600,1000@1.5|2400x1500`; ADR 0242). Store paintings before the paper (ADR 0021).
 `createPaintCache({ adapter: PaintStoreAdapter, … })` takes any store (unit tests use a Map).
 The scene looks every painting up here before painting it (`scene`, `scene-detail`, `scene-sprites`; ADR 0228, docs/systems/scene.md).
+The Gardens section keeps each garden's thumbnail under `scenery-thumb` (`<scenery>|<w>x<h>`). It is the one
+kind that is not a pure function of code and seed: the last live overview, with plants, replaced on each take (ADR 0285).
 
 ### Shared helpers
 `Pt` lives in `src/render/viewport.ts` (re-exported from `scene/geometry.ts`).
@@ -797,12 +803,14 @@ Query flags: `?fixtures` (dev `fx-*` species, ADR 0055), `?uitime=0.05` (UI dela
 `?widget=fake`.
 
 ## UI (`src/ui/`, ADRs 0050–0055, 0121, 0124, 0130–0136, 0156, 0164–0168, 0175–0177, 0180–0181, 0190–0194, 0200–0205)
-`createUI({ root, stage?, controller, store, bus, clock, getSpecies, slots, habitatWords?, sceneries?, sceneryFade?, viewport, audio?, widget?,
+`createUI({ root, stage?, controller, store, bus, clock, getSpecies, slots, habitatWords?, sceneries?, sceneryFade?, drawOverview?, paintOverview?, viewport, audio?, widget?,
 notifications?, isKnownSpecies?, reducedMotion?, timeScale?, schedules?, camera?, whenGardenReady? })` → `{ dock, gardens, stage, scroll, plantView, wayfinding,
 calendar, camera, placement: { current(), subscribe(fn) }, state(), refresh(), previewsReady(), dockReady(), setTimeScale(), showPlantLabel(),
 dispose() }`. `slots()` and `habitatWords?()` are getters for the garden on view (main: the viewed
 scenery's `geometry.slots` and habitat words), re-read at each use so a switch needs no rebuild;
 `sceneries?` (id, name, blurb) adds the Gardens section when it lists two or more (ADR 0244).
+Its thumbnails come from `drawOverview?(target)` (main: `renderer.drawOverview`) for the garden on view,
+the paint cache, or `paintOverview?(id, w, h, yieldTo)` (main: `paintThumbnail`) for a garden never seen (ADR 0285).
 `whenGardenReady` (main: `renderer.whenReady()`) starts the planting sheet's preview
 prewarm on the next idle moment; `previewsReady()` resolves once every card on the sheet shows its
 preview (the sheet opens at once and fills in, ADR 0222). The dock's sheets, its guiding path and

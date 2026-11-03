@@ -251,10 +251,11 @@ export function createUI(deps: UIDeps): UI {
   // filled below when the app has a scheduler (ADR 0175); hidden until then (ADR 0130)
   dock.addSection({ id: 'calendar', title: 'Calendar', order: 30, span: 'full', backdrop: 'firm' });
   // more than one garden to grow in: the Gardens section (ADR 0244)
-  const gardens = deps.sceneries && deps.sceneries.length > 1 ? createGardensSection(ctx, deps.sceneries, stage.canvas) : null;
+  const gardens = deps.sceneries && deps.sceneries.length > 1 ? createGardensSection(ctx, deps.sceneries) : null;
   if (gardens) {
     dock.addSection({ id: 'gardens', title: 'Gardens', helper: 'Each garden keeps its own plants.', order: 25, span: 'full', mount: (body) => void body.append(gardens.el) });
-    void gardenReady?.then(() => !disposed && gardens.takeStill());
+    if (gardenReady) void gardenReady.then(() => !disposed && gardens.start());
+    else gardens.start();
   }
   dock.addSection({ id: 'tools', title: 'Garden tools', order: 90, span: 'full', mount: (body) => void body.append(tools.dock) });
 
@@ -566,7 +567,7 @@ export function createUI(deps: UIDeps): UI {
 
   return {
     dock,
-    gardens: gardens ? { stills: () => gardens.stills() } : null,
+    gardens: gardens ? { thumbs: () => gardens.thumbs(), settle: () => gardens.settle() } : null,
     stage: { el: stage.el, onZoomGesture: (fn) => stage.onZoomGesture(fn) },
     scroll: {
       state: () => scroller.state(),
@@ -634,6 +635,7 @@ export function createUI(deps: UIDeps): UI {
       for (const off of offSchedules) off();
       stageCamera?.dispose();
       plantCard?.dispose();
+      gardens?.dispose();
       root.replaceChildren();
     },
   };

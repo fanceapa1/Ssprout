@@ -17,8 +17,10 @@ declare module './debug' {
       setTimeScale(scale: number): void;
       /** placement markers as the renderer would see them */
       placement(): ReturnType<UI['placement']['current']>;
-      /** gardens whose Gardens-section card holds a still (ADR 0244) */
-      gardenStills(): string[];
+      /** where each Gardens card's thumbnail comes from: live, stored, painted or waiting (ADR 0285) */
+      gardenThumbs(): Array<{ id: string; source: string }>;
+      /** resolves once the garden on view has its live thumbnail and every other garden one too */
+      gardenThumbsReady(): Promise<void>;
       /** show the finished-plant label for the plant at a world point; returns its text */
       showPlantLabel(world: Pt): string | null;
       /**
@@ -115,7 +117,8 @@ export function installUiDebug({ ui, clock, widget, viewport, slots }: UiDebugDe
       refresh: () => ui.refresh(),
       setTimeScale: (s: number) => ui.setTimeScale(s),
       placement: () => ui.placement.current(),
-      gardenStills: () => ui.gardens?.stills() ?? [],
+      gardenThumbs: () => ui.gardens?.thumbs() ?? [],
+      gardenThumbsReady: () => ui.gardens?.settle() ?? Promise.resolve(),
       showPlantLabel: (p: Pt) => ui.showPlantLabel(p),
       slotScreen(id: string) {
         const s = slots().find((x) => x.id === id);

@@ -51,8 +51,12 @@ test.describe('gardens · choosing the garden on view (ADR 0244)', () => {
     expect(await viewed(page)).toBe('waterfall');
     await expect(card(page, 'waterfall')).toHaveAttribute('aria-pressed', 'true');
     await expect(card(page, 'japanese-garden')).toHaveAttribute('aria-pressed', 'false');
-    // the garden left behind keeps a still of how it looked
-    expect(await page.evaluate(() => window.sprout!.ui.gardenStills())).toContain('japanese-garden');
+    // the garden left behind keeps its live overview (ADR 0285)
+    await page.evaluate(() => window.sprout!.ui.gardenThumbsReady());
+    expect(await page.evaluate(() => window.sprout!.ui.gardenThumbs())).toEqual([
+      { id: 'japanese-garden', source: 'live' },
+      { id: 'waterfall', source: 'live' },
+    ]);
   });
 
   test('plants in the waterfall through the real flow, and switching back hides its seedling', async ({ page }) => {

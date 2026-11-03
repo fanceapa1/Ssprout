@@ -11,6 +11,8 @@ import type { DueCardsState } from './schedule-card';
 import type { Store } from '../core/state';
 import type { Habitat, SpeciesDef } from '../plants/types';
 import type { SceneryId } from '../scenery/ids';
+import type { ThumbSource } from '../scenery/thumbnail';
+import type { AnyCanvas } from '../paint';
 import type { Camera } from '../render/camera';
 import type { Pt, Rect, Viewport } from '../render/viewport';
 import type { Slot } from '../scene/geometry';
@@ -107,6 +109,10 @@ export interface UIDeps {
   sceneries?: readonly GardenChoice[];
   /** how much of the last garden still covers the stage while switching, 0–1 (stills skip it) */
   sceneryFade?(): number;
+  /** draw the garden on view at the overview framing for a Gardens thumbnail (`renderer.drawOverview`, ADR 0285) */
+  drawOverview?(target: HTMLCanvasElement): boolean;
+  /** paint a garden's overview small, in slices that await `yieldTo` (`paintThumbnail`, ADR 0285) */
+  paintOverview?(id: SceneryId, w: number, h: number, yieldTo: () => Promise<void>): Promise<AnyCanvas | null>;
   /** the renderer's current viewport (`() => renderer.viewport`); re-read on every reposition */
   viewport(): Viewport;
   audio?: AudioIntegration;
@@ -215,8 +221,8 @@ export interface UIStage {
 export interface UI {
   /** sections below the garden: `ui.dock.addSection({ id, title, order, span, mount })` */
   readonly dock: Dock;
-  /** the Gardens section (null with one garden): which gardens have a thumbnail still */
-  readonly gardens: { stills(): SceneryId[] } | null;
+  /** the Gardens section (null with one garden): where each thumbnail comes from, and its readiness */
+  readonly gardens: { thumbs(): Array<{ id: SceneryId; source: ThumbSource }>; settle(): Promise<void> } | null;
   readonly stage: UIStage;
   readonly scroll: UIScroll;
   /** the dock's live plant view: `water()` plays the watering animation (automatic watering hook) */
