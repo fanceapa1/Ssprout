@@ -19,7 +19,7 @@ import {
 import type { Pt } from '../../render/viewport';
 import type { Strokes } from '../../scene/paint-land';
 import { FALLS } from './geometry';
-import { CLIFF, LEDGES, type Ledge } from './layout';
+import { CLIFF, LEDGES, SKYLINE, skylineAt, type Ledge } from './layout';
 
 /** Where the light comes from on the rock: the upper right, where the sun sets and rises. */
 export const ROCK_LIGHT = -0.95;
@@ -62,8 +62,9 @@ export function cliffBody(): Pt[] {
 
 /** The buttress right of the falls, skyline to foot. */
 export function buttressShape(): Pt[] {
-  const top = CLIFF.filter((q, i) => q.x >= 700 && i < CLIFF.findIndex((c) => c.x === 1040));
-  const foot = CLIFF.slice(CLIFF.findIndex((c) => c.x === 1040)).filter((q) => q.x >= 690);
+  const end = CLIFF.findIndex((c) => c.x === 1010) + 1;
+  const top = CLIFF.slice(0, end).filter((q) => q.x >= 700);
+  const foot = CLIFF.slice(end).filter((q) => q.x >= 690);
   return [{ x: 690, y: 258 }, ...top, ...foot, { x: 690, y: 600 }, { x: 676, y: 420 }];
 }
 
@@ -245,29 +246,102 @@ function* paintWetStreaks(p: Painter, rng: Rng): Strokes {
   }
 }
 
-/** The buttress: the tallest rock beside the falls, lit on its right flank and cool toward the falls. */
+/** The corners at the foot of each riser on the buttress's stepped skyline, where a joint runs down. */
+export function buttressSteps(): Pt[] {
+  const out: Pt[] = [];
+  for (let i = 1; i < SKYLINE.length; i++) {
+    const [a, b] = [SKYLINE[i - 1]!, SKYLINE[i]!];
+    if (b.x >= 700 && b.x <= 1010 && b.x - a.x <= 16 && Math.abs(b.y - a.y) >= 10) out.push(a.y > b.y ? a : b);
+  }
+  return out;
+}
+
+/** The buttress: the tallest rock beside the falls, jointed blocks stepping down a lit right flank. */
 export function* paintButtress(p: Painter, rng: Rng): Strokes {
   const shape = buttressShape();
-  yield* p.parts.wetInWet(shape, lighten(CLIFF_LIT, 0.04), RECESS, {
+  yield* p.parts.wetInWet(shape, lighten(CLIFF_LIT, 0.02), RECESS, {
     rng,
     angle: Math.PI + 0.2,
-    split: 0.5,
+    split: 0.55,
     softness: 0.45,
     fingers: 0.6,
-    deform: 0.1,
-    spread: 0.06,
-    opacity: 0.3,
-    edge: 0.55,
+    deform: 0.06,
+    spread: 0.05,
+    opacity: 0.34,
+    edge: 0.5,
     edgeWidth: 3,
-    centreLift: 0.2,
-    granulation: 0.35,
-    granules: 0.35,
+    centreLift: 0.15,
+    granulation: 0.4,
+    granules: 0.4,
     flow: 0.55,
     flowScale: 110,
-    fade: { angle: 0.2, start: 0.6, amount: 0.9, ragged: 0.7 },
+    fade: { angle: Math.PI / 2, start: 0.85, amount: 0.35, ragged: 0.7 },
   });
   yield;
-  // planes: a crisp fissure splitting the crest from the flank, a lit face right of it
+  clipTo(p, shape);
+  // the blocks between the joints: alternate cool and warm planes, each dying downward
+  const steps = buttressSteps();
+  const xs = [700, ...steps.map((q) => q.x), 1040];
+  for (let i = 0; i + 1 < xs.length; i++) {
+    const [x0, x1] = [xs[i]!, xs[i + 1]!];
+    if (x1 - x0 < 14) continue;
+    const top = skylineAt((x0 + x1) / 2);
+    const depth = rng.range(150, 260);
+    const block: Pt[] = [
+      { x: x0 + 2, y: top - 10 },
+      { x: x1, y: top - 10 },
+      { x: x1 + rng.range(-6, 6), y: top + depth * rng.range(0.6, 0.9) },
+      { x: x0 + rng.range(-4, 8), y: top + depth },
+    ];
+    const cool = i % 2 === 0;
+    yield* p.parts.wash(block, cool ? mix(CLIFF_SHADOW, PIGMENTS.bellflower, 0.15) : WARM_LIGHT, {
+      rng,
+      deform: 0.06,
+      spread: 0.08,
+      layers: 8,
+      opacity: cool ? 0.22 : 0.2,
+      edge: 0.45,
+      sharpness: 0.6,
+      granules: 0.45,
+      fade: { angle: Math.PI / 2, start: 0.25, amount: 1, ragged: 0.8 },
+    });
+    yield;
+  }
+  // a dark rim under each tread, so the lit top has a thickness
+  for (let x = 846; x < 1010; x += 5) {
+    const y = skylineAt(x);
+    if (rng.chance(0.3)) continue;
+    p.stroke([{ x, y: y + 6 }, { x: x + 6, y: y + 6 + rng.range(-1, 1) }], { rng, pigment: CLIFF_SHADOW, width: rng.range(4, 7), taper: [0.2, 0.4], wetness: 0.7, opacity: 0.16 });
+  }
+  yield;
+  p.ctx.restore();
+  // the found edge against the sky: a broken sumi contour down the stepped flank, lost at its foot
+  const end = CLIFF.findIndex((c) => c.x === 1010);
+  const rim = CLIFF.slice(0, end + 6).filter((q) => q.x >= 846);
+  p.inkLine(rim, {
+    rng,
+    width: 1.4,
+    pigment: mix(PIGMENTS.sumi, RECESS, 0.4),
+    breaks: 0.5,
+    wobble: 0.2,
+    opacity: 0.32,
+    pressure: [0.4, 1, 1.1, 0.9, 0.3],
+  });
+  yield;
+  // joints: a crack down from each riser's foot on the flank, cut by axe strokes on its shade side
+  for (const q of steps.filter((s) => s.x > 840)) {
+    const len = rng.range(40, 110);
+    p.inkLine(crack(rng, q.x, q.y + 2, len), { rng, width: 1.3, pigment: mix(PIGMENTS.sumi, RECESS, 0.4), breaks: 0.45, wobble: 0.15, opacity: 0.4, taper: [0.05, 0.6] });
+    yield;
+    for (let k = 0; k < 4; k++) {
+      const y = q.y + rng.range(8, len * 0.8);
+      const x = q.x - rng.range(2, 10);
+      const l = rng.range(14, 26);
+      p.dryBrush([{ x, y }, { x: x - l * 0.45, y: y + l }], { rng, pigment: mix(CLIFF_SHADOW, PIGMENTS.sumi, 0.25), width: rng.range(4, 7), opacity: 0.26 });
+    }
+    yield;
+  }
+  // a crisp fissure splitting the crest from the flank
   p.inkLine(
     [
       { x: 786, y: 222 },
@@ -279,20 +353,8 @@ export function* paintButtress(p: Painter, rng: Rng): Strokes {
     { rng, width: 1.6, pigment: mix(PIGMENTS.sumi, RECESS, 0.3), breaks: 0.35, opacity: 0.5, pressure: [1.2, 1, 0.6] },
   );
   yield;
-  // columnar joints and a vertical scumble: the buttress stands, the cliff lies in beds
-  for (const [x, y, len] of [
-    [736, 250, 70],
-    [758, 380, 90],
-    [880, 300, 60],
-    [930, 400, 80],
-  ] as const) {
-    p.inkLine(crack(rng, x, y, len), { rng, width: 1.1, pigment: mix(PIGMENTS.sumi, RECESS, 0.5), breaks: 0.6, wobble: 0.15, opacity: 0.28 });
-    yield;
-    p.dryBrush([{ x: x + 8, y: y + 10 }, { x: x + 10, y: y + len * 0.6 }], { rng, pigment: CLIFF_SHADOW, width: 10, opacity: 0.2 });
-    yield;
-  }
-  const flank: Pt[] = [{ x: 812, y: 230 }, { x: 900, y: 300 }, { x: 1000, y: 380 }, { x: 1010, y: 500 }, { x: 940, y: 590 }, { x: 830, y: 560 }, { x: 812, y: 400 }];
-  yield* p.parts.glaze(flank, WARM_LIGHT, { rng, opacity: 0.25, deform: 0.1, fade: { angle: Math.PI, start: 0.4, amount: 0.9 } });
+  const flank: Pt[] = [{ x: 812, y: 236 }, { x: 900, y: 290 }, { x: 1000, y: 380 }, { x: 1010, y: 500 }, { x: 940, y: 590 }, { x: 830, y: 560 }, { x: 812, y: 400 }];
+  yield* p.parts.glaze(flank, WARM_LIGHT, { rng, opacity: 0.22, deform: 0.1, fade: { angle: Math.PI, start: 0.4, amount: 0.9 } });
   yield;
   yield* p.parts.glaze({ cx: 724, cy: 430, rx: 46, ry: 170 }, RECESS, { rng, opacity: 0.4, fade: { angle: 0, start: 0.3, amount: 1 } });
 }

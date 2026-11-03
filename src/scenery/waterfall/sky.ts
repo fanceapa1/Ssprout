@@ -9,7 +9,7 @@ import type { Rng } from '../../core/rng';
 import { PIGMENTS, blob, lighten, mix, type Painter, type Pigment } from '../../paint';
 import { WORLD_W, type Pt, type Rect } from '../../render/viewport';
 import type { ScenerySky } from '../types';
-import { FAR_RIDGE, openSky, SKY_TOP, SKYLINE, skylineAt, WATERFALL_SKY_LAYOUT } from './layout';
+import { BUTTRESS_END, FAR_RIDGE, openSky, SKY_TOP, SKYLINE, skylineAt, WATERFALL_SKY_LAYOUT } from './layout';
 
 /** The setting sun's x at the horizon, left of the layout's 1040 so its disc stays inside a phone's crop. */
 export const WATERFALL_SUNSET_X = 980;
@@ -87,11 +87,11 @@ function ridge(p: Painter, rng: Rng, pigment: Pigment, opacity: number): void {
 }
 
 /**
- * The washes' outline: a short hang under the crown and the buttress (the pale cliff would show a
- * longer one), a deeper one over the flank and the far ridge, where the distance takes the sky.
+ * The washes' outline: a short hang under the cliff (a longer one tinted the buttress's flank, so
+ * it read see-through), a deeper one over the far ridge, where the distance takes the sky.
  */
 export function plateSky(): Pt[] {
-  const line = SKYLINE.map((q) => ({ x: q.x, y: q.y + (q.x >= 870 ? 40 : 14) }));
+  const line = [...SKYLINE.filter((q) => q.x <= 1010).map((q) => ({ x: q.x, y: q.y + 4 })), ...BUTTRESS_END.filter((q) => q.y < 440), ...SKYLINE.filter((q) => q.x > 1010).map((q) => ({ x: q.x, y: q.y + 40 }))];
   return [{ x: -80, y: SKY_TOP - 40 }, { x: 1680, y: SKY_TOP - 40 }, ...line.reverse()];
 }
 

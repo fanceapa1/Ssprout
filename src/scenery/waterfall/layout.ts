@@ -10,29 +10,46 @@ import type { SceneryAmbience } from '../types';
 
 /** The open sky's lower edge, left → right: crown woods, the notch the falls pour from, the buttress, the far ridge. */
 export const SKYLINE: readonly Pt[] = [
-  // crown woods, highest at the left edge, stepping down toward the falls
+  // crown woods, highest at the left edge, stepping down toward the falls in broken blocks
   { x: -80, y: 214 },
   { x: 0, y: 208 },
   { x: 60, y: 200 },
-  { x: 150, y: 214 },
-  { x: 240, y: 236 },
-  { x: 320, y: 248 },
-  { x: 400, y: 232 },
-  { x: 450, y: 236 },
-  { x: 500, y: 254 },
+  { x: 92, y: 202 },
+  { x: 102, y: 216 },
+  { x: 150, y: 220 },
+  { x: 164, y: 234 },
+  { x: 226, y: 240 },
+  { x: 238, y: 252 },
+  { x: 322, y: 254 },
+  { x: 336, y: 240 },
+  { x: 402, y: 230 },
+  { x: 416, y: 238 },
+  { x: 462, y: 240 },
+  { x: 474, y: 254 },
+  { x: 512, y: 258 },
   { x: 530, y: 264 },
-  // the notch: the river comes over the cliff here (the lip is ~24 units below: the upper gorge)
-  { x: 556, y: 270 },
-  { x: 664, y: 270 },
-  // the buttress right of the falls, the tallest rock beside them
-  { x: 700, y: 246 },
-  { x: 740, y: 222 },
-  { x: 780, y: 214 },
-  { x: 830, y: 226 },
-  // its right flank falls away to the far ridge
-  { x: 870, y: 256 },
-  { x: 910, y: 300 },
-  { x: 960, y: 338 },
+  // the notch: the gorge's far end, the lip ~34 units below it
+  { x: 556, y: 262 },
+  { x: 600, y: 258 },
+  { x: 632, y: 259 },
+  { x: 664, y: 262 },
+  // the buttress right of the falls, the tallest rock beside them, its crest broken into blocks
+  { x: 684, y: 256 },
+  { x: 700, y: 242 },
+  { x: 722, y: 238 },
+  { x: 732, y: 224 },
+  { x: 762, y: 214 },
+  { x: 804, y: 216 },
+  { x: 816, y: 226 },
+  { x: 846, y: 230 },
+  // its right flank steps down to the far ridge in jointed blocks
+  { x: 852, y: 260 },
+  { x: 890, y: 264 },
+  { x: 898, y: 298 },
+  { x: 938, y: 304 },
+  { x: 946, y: 336 },
+  { x: 986, y: 342 },
+  { x: 994, y: 356 },
   { x: 1010, y: 360 },
   { x: 1080, y: 372 },
   { x: 1180, y: 360 },
@@ -63,10 +80,22 @@ export function openSky(below = 0): Pt[] {
   return [{ x: -80, y: SKY_TOP - 40 }, { x: 1680, y: SKY_TOP - 40 }, ...line.reverse()];
 }
 
+/** The buttress's right edge under the skyline, top to bottom, where the far ridge meets it. */
+export const BUTTRESS_END: readonly Pt[] = [
+  { x: 1030, y: 366 },
+  { x: 1036, y: 394 },
+  { x: 1048, y: 400 },
+  { x: 1050, y: 440 },
+  { x: 1040, y: 452 },
+];
+
 /** Where the cliff stands on the ground: its right flank, then the plunge pool's back edge, then its left foot. */
 const CLIFF_FOOT: readonly Pt[] = [
-  { x: 1040, y: 420 },
-  { x: 1030, y: 500 },
+  // the buttress's last blocks, standing in front of the far ridge
+  ...BUTTRESS_END,
+  { x: 1042, y: 488 },
+  { x: 1026, y: 506 },
+  { x: 1016, y: 540 },
   { x: 990, y: 570 },
   { x: 930, y: 616 },
   { x: 910, y: 624 },
@@ -86,7 +115,12 @@ const CLIFF_FOOT: readonly Pt[] = [
 export const CLIFF: readonly Pt[] = [...SKYLINE.filter((q) => q.x <= 1010), ...CLIFF_FOOT];
 
 /** The far ridge and the plain under it, right of the cliff: pale and far. */
-export const FAR_RIDGE: readonly Pt[] = [...SKYLINE.filter((q) => q.x >= 1010), { x: 1680, y: 470 }, { x: 1040, y: 470 }];
+export const FAR_RIDGE: readonly Pt[] = [
+  ...SKYLINE.filter((q) => q.x >= 1010),
+  { x: 1680, y: 470 },
+  { x: 1044, y: 470 },
+  ...BUTTRESS_END.slice().reverse(),
+];
 
 /**
  * A shelf on the cliff face: its top edge, left → right, and the perspective scale of what grows on

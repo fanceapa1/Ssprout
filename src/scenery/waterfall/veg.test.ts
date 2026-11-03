@@ -65,7 +65,7 @@ describe('waterfall vegetation painting (S8)', () => {
 
   // quantised (paint-record's default rounding), so the pins hold on every platform (docs/TESTING.md)
   it('paints the same marks (recording hash pins)', () => {
-    expect({ overview: runs.overview!.hash, detail: runs.detail!.hash }).toEqual({ overview: 'b9da7a69', detail: '91d5da40' });
+    expect({ overview: runs.overview!.hash, detail: runs.detail!.hash }).toEqual({ overview: '90f518f8', detail: '83b0350d' });
   });
 
   it.each(['overview', 'detail'])('no part of a step does more than one big mark’s work (%s)', (view) => {
