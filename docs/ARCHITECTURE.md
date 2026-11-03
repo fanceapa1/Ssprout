@@ -314,7 +314,7 @@ stays the ground's perspective. Creatures read `w.perspective(y, x)`: a scenery 
 (`Scenery.fauna.perspective`, the waterfall's knows the cliff); otherwise a line fitted through the
 slots' scales.
 
-### Sceneries (`src/scenery/`, ADRs 0241, 0242, 0248; docs/systems/scenery.md)
+### Sceneries (`src/scenery/`, ADRs 0241, 0242, 0248, 0283; docs/systems/scenery.md)
 ```ts
 export const SCENERY_IDS = ['japanese-garden', 'waterfall'] as const;  // core/sceneries.ts (ADR 0240); ids.ts re-exports
 export type SceneryId = (typeof SCENERY_IDS)[number];
@@ -331,6 +331,7 @@ export interface Scenery {                    // types.ts
   flora: SceneryBiome;                        // its place in the world: the species it offers (ADR 0250)
   habitatWords: Record<Habitat, string>;      // how the planting sheet and placement name each habitat
   fauna: SceneryFauna;                        // fauna/habitat.ts: unlocks (FaunaTable); water? { still, moving, avoid? }, perches?, stands?, perspective?(x, y)
+  sound: SoundSceneryId;                      // the sound profile it plays (core/soundscape.ts SCENERIES; ADR 0283)
 }
 getScenery(id): Scenery /* the default when not registered */; hasScenery(id); sceneries(flags?)  // registry.ts
 ```
@@ -622,7 +623,7 @@ pinned midday, or the ambience to its own source, without it). Where the light f
 moon discs, stars, cast shadow, rim light — comes from `sky-layout.ts`, so every painted thing
 agrees. Time enters only as the frame's `now`. Details: `docs/systems/daylight.md`.
 
-### Audio (`src/audio/`, ADRs 0100–0103, 0213)
+### Audio (`src/audio/`, ADRs 0100–0103, 0213, 0283)
 `createGardenAudio({ bus, getState, clock, scenery? /* default pond */ })` → `{ unlock(), setMuted(), isMuted(), setWeather(),
 setActivity(), setFauna(), setTimeOfDay(), getScenery(), setScenery(id), onSceneryChange(fn),
 playBloom(), playComplete(), playPour(), dispose() }`. Muted by
@@ -630,7 +631,7 @@ default; it follows `settings:changed` and the session/plant/fauna events on the
 `unlock()` inside a user gesture. Details: `docs/systems/audio.md`.
 
 `core/soundscape.ts` owns `SoundLayer`, `SoundLevels` (0–100), `SoundSceneryId` (the audio sceneries
-`pond`/`coast`, not a garden's `SceneryId`; ADR 0240), `SCENERIES` and
+`pond`/`coast`/`waterfall`, not a garden's `SceneryId`; ADR 0240), `SCENERIES` and
 `SoundscapeSettings = { collection: 'standard'|'scenery', volume: number, standard: SoundLevels,
 sceneries: Partial<Record<SoundSceneryId, { mode: 'garden'|'custom', levels: SoundLevels }>> }`.
 `readSoundscape(v)` reads a stored or patched mix as a complete copy, a missing layer as 0.
@@ -640,16 +641,20 @@ The reducer validates
 and copies them, persistence validates imports, and mixer edits use `controller.updateSettings`.
 The controller also emits `settings:changed` when a whole garden is restored or reset, so the
 running audio gate and levels follow imported settings immediately.
-The viewed scenery is runtime context, not a preference: future scene navigation calls
-`audio.setScenery(id)` on selection, and the mixer subscribes with `onSceneryChange`. The coast
-profile is an integration fixture for a future scene; no new scenery is exposed in the app.
+The viewed scenery is runtime context, not a preference: `main.ts` starts the audio on the viewed
+garden's `Scenery.sound` and calls `audio.setScenery(sound)` whenever `state.scenery` changes
+(a 2 s glide, ADR 0283); the mixer subscribes with `onSceneryChange`. The coast profile is an
+integration fixture for a future scene. `fauna:arrived` adds `faunaSeenKey(sceneryId, id)`, so
+a creature counts in the garden it was seen in.
 
 `MixParams` also carries `eventLevels: SoundLevels` and `extra: SoundLevels` for Standard beds.
 `AudioBackend.play(spec, when, bus, layer?)` optionally routes a sound through the matching dry
 and reverb channel gains. Existing events/chime callers stay compatible. Overall volume scales
 the existing master fade; per-layer levels glide without restarting the graph.
 `?dev`: `sprout.audio` exposes the controller plus `measure(levels, eventLevel?)`, an offline
-render of the real graph returning RMS, peak and tail RMS for audio verification.
+render of the real graph returning RMS, peak and tail RMS for audio verification, and
+`scene({ scenery, to?, switchAt?, seconds?, hour? })`, an offline render of a profile's garden
+beds (optionally gliding to another) returning RMS, peak and dB per 250 ms (ADR 0283).
 
 ### Persistent paint cache (`src/paint/persist.ts`, ADR 0227; docs/systems/paint.md › Persistence)
 `paintCache()` returns the app's `PaintCache`, created on first use, with this API:

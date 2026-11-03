@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { SCENERIES } from '../core/soundscape';
 import { bounds } from '../paint/geometry';
 import { PAINT_ROOTS } from '../paint/paint-version';
 import { DEFAULT_FOCUS, WORLD_H, WORLD_W } from '../render/viewport';
@@ -42,8 +43,14 @@ describe('the registry', () => {
       expect(s.art.scene, s.id).toBe(s.geometry);
       expect(s.light.sky, s.id).toBe(s.sky.layout);
       expect(s.available(dev), s.id).toBe(true);
+      expect(Object.keys(SCENERIES), s.id).toContain(s.sound);
     }
     expect(JAPANESE_GARDEN.available(new URLSearchParams())).toBe(true);
+  });
+
+  it('plays its own sound profile: the pond garden, the falls (ADR 0283)', () => {
+    expect(JAPANESE_GARDEN.sound).toBe('pond');
+    expect(WATERFALL.sound).toBe('waterfall');
   });
 });
 

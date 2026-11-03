@@ -8,6 +8,7 @@ import type { DayPhase } from '../ambience/daylight';
 import type { SceneryFauna } from '../fauna/habitat';
 import type { SkyLayout } from '../ambience/sky-layout';
 import type { Rng } from '../core/rng';
+import type { SoundSceneryId } from '../core/soundscape';
 import type { Painter } from '../paint';
 import type { SceneryBiome } from '../plants/flora';
 import type { Habitat } from '../plants/types';
@@ -69,4 +70,6 @@ export interface Scenery {
   habitatWords: Readonly<Record<Habitat, string>>;
   /** its wildlife: unlock table, water, perches, heron stands, perspective (ADR 0248) */
   fauna: SceneryFauna;
+  /** the sound profile it plays: its palette, garden mix and events (ADR 0283) */
+  sound: SoundSceneryId;
 }

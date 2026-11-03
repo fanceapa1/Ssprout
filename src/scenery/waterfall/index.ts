@@ -94,4 +94,5 @@ export const WATERFALL: Scenery = {
   flora: WATERFALL_FLORA,
   habitatWords: WATERFALL_HABITAT_WORDS,
   fauna: WATERFALL_WILDLIFE,
+  sound: 'waterfall',
 };

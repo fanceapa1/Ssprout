@@ -27,4 +27,5 @@ export const JAPANESE_GARDEN: Scenery = {
   flora: GARDEN_FLORA,
   habitatWords: GARDEN_HABITAT_WORDS,
   fauna: { unlocks: JAPANESE_FAUNA },
+  sound: 'pond',
 };

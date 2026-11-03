@@ -148,7 +148,8 @@ async function boot(): Promise<void> {
   const scheduler = createScheduler({ store, clock, bus, ticker: surfaces.internals.ticker });
 
   // UI over the canvas (docs/systems/ui.md).
-  const audio = createGardenAudio({ bus, getState: store.get, clock });
+  const audio = createGardenAudio({ bus, getState: store.get, clock, scenery: initialScenery.sound });
+  store.subscribe((next) => audio.setScenery(pickScenery(next.scenery).sound));
   const fakeWidget = dev && params.get('widget') === 'fake' ? createFakeWidget() : null;
   const uiTime = Number(params.get('uitime'));
   const uiRoot = document.querySelector<HTMLElement>('#ui')!;
