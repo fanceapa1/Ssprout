@@ -106,8 +106,8 @@ describe('each garden’s flora', () => {
     ]);
   });
 
-  it('the waterfall shares exactly the five that grow wild in a mountain gorge', () => {
-    // the art tasks add the waterfall's own species: extend this list with each one
+  it('the waterfall offers exactly its 12 own species and the five shared by biology (a regression pin)', () => {
+    // shared with the garden: japanese-maple, maidenhair-fern, susuki-grass, violet, wild-strawberry
     expect(ids(offered(getScenery('waterfall')))).toEqual([
       'baikamo',
       'daimonjiso',
