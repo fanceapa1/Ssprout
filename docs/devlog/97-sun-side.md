@@ -87,4 +87,7 @@ TESTING row for the orchestrator:
 Not touched.
 
 ## Status
-S10b done. `npm run typecheck` passes. Unit results are in the report. e2e was not run locally.
+S10b done. `npm run typecheck` passes. `VITEST_WORKERS=1 npx vitest run src/ambience src/plants
+src/scenery src/paint src/fauna`: 933 of 936 passed in 933 s. The 3 failures were
+`grows continuously` for baikamo, mizubasho and wasabi, which took 66–152 s each on the loaded
+laptop. All three pass when run alone (they don't touch the light code). e2e was not run locally.
