@@ -100,3 +100,4 @@ never used.
 | 89 | [W12: tochinoki (Japanese horse chestnut)](89-tochinoki.md) | One massive trunk under a dome of big palmate hands, with cream candles standing on the top hands |
 | 90 | [C6: iwatsubame house martins](90-iwatsubame.md) | A loose flock of small blue-black martins with white rumps swirling along the cliff, darting up to mud cups under the ledges |
 | 91 | [C7: Genji fireflies](91-firefly.md) | Soft paper-white lights in yellow-green blooms drifting over the stream at night, breathing nearly in step; adds the `lights` layer (ADR 0280) |
+| 92 | [C8: yamasemi crested kingfisher](92-yamasemi.md) | The rare crested kingfisher in sumi bars on reserved white: in low along the stream, watches from a high rock raising its crest, hovers and plunges with a splash and big rings, leaves down the stream |
