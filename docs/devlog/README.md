@@ -99,3 +99,4 @@ never used.
 | 88 | [W11: katsura](88-katsura.md) | A ring of grey stems under a rounded crown of small round hearts, wine-red young and apricot-gold with pink when mature |
 | 89 | [W12: tochinoki (Japanese horse chestnut)](89-tochinoki.md) | One massive trunk under a dome of big palmate hands, with cream candles standing on the top hands |
 | 90 | [C6: iwatsubame house martins](90-iwatsubame.md) | A loose flock of small blue-black martins with white rumps swirling along the cliff, darting up to mud cups under the ledges |
+| 91 | [C7: Genji fireflies](91-firefly.md) | Soft paper-white lights in yellow-green blooms drifting over the stream at night, breathing nearly in step; adds the `lights` layer (ADR 0280) |

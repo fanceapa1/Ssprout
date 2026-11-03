@@ -171,5 +171,5 @@ Phase 12 art queue: one species or creature per task (atomic), 2–3 at a time, 
 | C4 | Sawagani river crab | `src/fauna/creatures/sawagani.ts` | done (devlog 85; no dusk/rain signal yet) |
 | C5 | Kajika frog on the stream stones | `src/fauna/creatures/kajika.ts` | done (devlog 87) |
 | C6 | Iwatsubame (Asian house martin) along the cliff | `src/fauna/creatures/iwatsubame.ts` | done (devlog 90) |
-| C7 | Genji firefly (night only) | `src/fauna/creatures/firefly.ts` | queued |
+| C7 | Genji firefly (night only) | `src/fauna/creatures/firefly.ts` | done (devlog 91) |
 | C8 | Yamasemi (crested kingfisher, rare) | `src/fauna/creatures/yamasemi.ts` | in progress |

@@ -126,7 +126,8 @@ that keep resolution-dependent caches watch `detailVersion` and repaint for the 
 | 4 | `air` | bees, butterflies, dragonflies, flying birds, swallows, falling leaves, the watering can | per frame |
 | 5 | `ambience` | the sun's lifted glaze and leaf glints, rain strokes, mist, light motes | per frame |
 | 6 | `lighting` | the daylight light plate: the blended phase plates (grade wash, shadows, crown lights, lamp light) with the moving lights lifted out, a night desaturation glaze (ADRs 0082, 0147); zoomed in, a detail plate with the marks repainted for the view (ADR 0163); the `?dev&slots` overlay | composite rebuilt when the light moves; one blit per frame |
-| 7 | `paper` | static washi grain + vignette over everything (multiply); **screen-fixed**, it does not follow the camera | once per resize |
+| 7 | `lights` | living lights left as paper over the night (the fireflies' `Creature.drawLights`); nothing large, no glow fills | per frame |
+| 8 | `paper` | static washi grain + vignette over everything (multiply); **screen-fixed**, it does not follow the camera | once per resize |
 
 The renderer (`createRenderer` in `src/render/renderer.ts`) owns the frame loop, the cached
 `background`/`paper` canvases (paper is composited with `multiply`) and the depth sort; its API

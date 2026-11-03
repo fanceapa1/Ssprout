@@ -1,6 +1,6 @@
 # ADR 0280: Living lights draw after the light plate
 
-- Status: proposed (task C7, for the orchestrator to accept or drop)
+- Status: accepted
 - Date: 2026-11-03
 - Builds on: ADRs 0021 (paper multiplied last), 0147 (light plates), 0206 (night backing), 0248 (creature contract)
 
