@@ -17,7 +17,7 @@ import { entryPoint } from './lib/flight';
 
 /** Bill to tail tip at perspective 1 (world units): a little longer than the wagtail, twice its bulk. */
 export const DIPPER_SIZE = 23;
-const LEG = 3.6; // hip height above the feet, in body units (r)
+const LEG = 3.0; // hip height above the feet, in body units (r)
 
 export const DIPPER_TUNING = {
   /** seconds on a perch before the next big move (dive, flight, away) */
@@ -36,11 +36,13 @@ export const DIPPER_TUNING = {
 export interface DipperParts {
   body: Sprite; // standing body and head, anchored at the hip
   legs: Sprite; // anchored at the feet
+  legsDeep: Sprite; // the legs seen through the water while it wades
   tail: Sprite; // anchored at its root, pointing back and up
   lid: Sprite; // the white eyelid, anchored at the eye
   flyUp: Sprite; // flight frames, anchored at the body centre
-  flyBlur: Sprite;
+  flyMid: Sprite;
   flyDown: Sprite;
+  haze: Sprite; // the whirr, under every flight frame
   swim: Sprite; // wings half open, level: under water as a deep copy
   deep: Sprite; // the body seen through the water
   wake: Sprite; // rings at the waterline
@@ -51,71 +53,162 @@ interface Colours {
   sheen: Pigment;
   brown: Pigment;
   dark: Pigment;
+  light: Pigment;
   legs: Pigment;
 }
 
 function colours(): Colours {
-  const brown = mix(PIGMENTS.sumi, PIGMENTS.vermilion, 0.16);
+  // research palette: chocolate #5a4536, the back's wet sheen #6b5646
   return {
-    brown,
-    sheen: mix(brown, PIGMENTS.wood, 0.4),
-    dark: mix(PIGMENTS.sumi, brown, 0.5),
-    legs: mix(PIGMENTS.stone, PIGMENTS.shadow, 0.35),
+    brown: '#5a4536',
+    sheen: '#7a6350',
+    dark: '#33271f',
+    light: '#a08670',
+    legs: '#aaa0a3',
   };
 }
 
-const EYE = { x: 6.4, y: -10.6 };
+const EYE = { x: 5.9, y: -10.3 };
+const P0 = (r: number, x: number, y: number): Pt => ({ x: x * r, y: y * r });
+type Wing = 'fold' | 'up' | 'mid' | 'down' | 'swim';
 
-/** Body and head in body units (r = S / 20): hip at the origin, bill toward +x. */
-function paintBody(p: Painter, r: number, c: Colours, wing: 'fold' | 'up' | 'down' | 'blur' | 'swim'): void {
-  const rng = p.rng;
-  const P = (x: number, y: number) => ({ x: x * r, y: y * r });
-  // round as a wren: a big head with a steep brow, the back sloping to a cocked rump
-  const sil = smoothPolygon(
-    [P(8.1, -10.5), P(7.5, -12.0), P(5.6, -13.0), P(3.4, -12.6), P(1.8, -11.6), P(-1.2, -10.8), P(-4.0, -9.2), P(-6.0, -7.6), P(-6.0, -6.0), P(-4.6, -3.4), P(-1.6, -1.0), P(2.2, -0.9), P(5.6, -2.8), P(7.6, -5.4), P(7.5, -7.8), P(7.9, -9.4)],
+/** A short, round dipper wing from the shoulder (0, 0) along +x, turned by `a`; `side` puts the trailing edge on ±v. */
+function wingShape(r: number, a: number, len: number, wide: number, side: number): Pt[] {
+  const pts = [
+    [0, -0.7],
+    [0.4, -0.95],
+    [0.75, -0.8],
+    [1.0, -0.35],
+    [1.05, 0.05],
+    [0.92, 0.3],
+    [0.8, 0.2],
+    [0.7, 0.45],
+    [0.55, 0.38],
+    [0.42, 0.6],
+    [0.2, 0.55],
+    [0, 0.7],
+  ];
+  const ca = Math.cos(a);
+  const sa = Math.sin(a);
+  return smoothPolygon(
+    pts.map(([u, v]) => {
+      const x = u! * len * r;
+      const y = v! * wide * r * side;
+      return { x: x * ca - y * sa, y: x * sa + y * ca };
+    }),
     2,
   );
-  p.wetInWet(sil, c.sheen, c.brown, { rng, angle: Math.PI / 2 + 0.35, split: 0.32, softness: 0.4, fingers: 0.35, opacity: 0.97, edge: 0.6, edgeWidth: 0.6, deform: 0.06, blend: 'source-over' });
-  p.glaze(sil, c.brown, { rng, opacity: 0.55, deform: 0.05, spread: 0.12, edge: 0.5, fade: { angle: -Math.PI / 2 - 0.5, start: 0.55 }, blend: 'source-over' });
-  const M = p.layer({ x: -8 * r, y: -14 * r, w: 18 * r, h: 14 * r });
+}
+
+/** Body and head in body units (r = S / 20): hip at the origin, bill toward +x. */
+function paintBody(p: Painter, r: number, c: Colours, wing: Wing): void {
+  const rng = p.rng;
+  const P = (x: number, y: number) => ({ x: x * r, y: y * r });
+  // round as a wren: a big head with a steep brow, a full breast, the back sloping to a cocked rump
+  const sil = smoothPolygon(
+    [P(8.3, -10.2), P(8.0, -11.7), P(6.7, -13.0), P(4.8, -13.5), P(2.9, -13.1), P(1.5, -12.2), P(0.4, -11.4), P(-1.9, -11.0), P(-4.5, -10.0), P(-6.4, -8.6), P(-6.7, -7.2), P(-5.5, -5.0), P(-3.1, -2.4), P(0.4, -0.9), P(3.8, -1.3), P(6.4, -3.1), P(7.7, -5.7), P(7.5, -8.0), P(8.0, -9.3)],
+    2,
+  );
+  // wet-in-wet: the lit crown and back into chocolate below, darker drops bleeding in the belly
+  p.wetInWet(sil, c.sheen, c.brown, {
+    rng,
+    angle: Math.PI / 2 + 0.3,
+    split: 0.42,
+    softness: 0.55,
+    fingers: 0.6,
+    opacity: 0.96,
+    edge: 0.28,
+    edgeWidth: 0.5 * r,
+    sharpness: 0.4,
+    centreLift: 0.06,
+    granulation: 0.25,
+    flow: 0.45,
+    flowScale: 3 * r,
+    deform: 0.07,
+    spread: 0.08,
+    blend: 'source-over',
+    fade: { angle: -Math.PI / 2 - 0.6, start: 0.7, amount: 0.4, ragged: 0.8 },
+    drops: [
+      { pigment: c.dark, at: P(0.5, -2.6), size: 4.5 * r, alpha: 0.5 },
+      { pigment: c.dark, at: P(-4.2, -5.2), size: 2.6 * r, alpha: 0.45 },
+      { pigment: c.light, at: P(3.8, -11.9), size: 2.4 * r, alpha: 0.35 },
+    ],
+  });
+  // feather tracts in one wet layer, so they bleed and dry together
+  const M = p.layer({ x: -8 * r, y: -15 * r, w: 18 * r, h: 15 * r });
   M.clip(sil);
-  // a deeper belly gives the ball its weight; a wet sheen stays on the crown and back
-  M.fill(blob(-0.4 * r, -1.8 * r, 7.5 * r, 3.0 * r, rng, { rotation: -0.15 }), c.dark, 0.35);
-  M.fill(blob(3.4 * r, -12.2 * r, 3.0 * r, 0.8 * r, rng, { rotation: 0.25 }), mix(c.sheen, PIGMENTS.petalWhite, 0.3), 0.3);
   if (wing === 'fold') {
-    // the folded wing bled into the wet flank, no outline of its own
-    const wingShape = smoothPolygon([P(3.2, -9.6), P(0.4, -10.0), P(-3.4, -8.8), P(-5.6, -7.0), P(-3.0, -5.6), P(0.6, -5.8), P(2.8, -7.4)], 2);
-    M.fill(wingShape, c.dark, 0.42);
+    // the folded wing: ragged dark masses, coverts to primaries, no outline of its own
+    M.fill(blob(-0.8 * r, -8.0 * r, 4.4 * r, 1.9 * r, rng, { rotation: 0.3, irregularity: 0.3 }), c.dark, 0.26);
+    M.fill(blob(-3.6 * r, -7.2 * r, 2.6 * r, 1.3 * r, rng, { rotation: 0.45, irregularity: 0.35 }), c.dark, 0.34);
+    M.fill(blob(1.6 * r, -8.9 * r, 2.0 * r, 1.0 * r, rng, { rotation: 0.15, irregularity: 0.3 }), c.dark, 0.22);
   }
-  M.dry({ opacity: 0.85, edge: 0.3, edgeWidth: 0.6, flow: 0.4, flowScale: 4 });
-  // a short, fine bill, a dark eye with a speck of light
-  p.dab(P(8.0, -9.9), PIGMENTS.sumi, { rng, variant: 'leaf', angle: 0.06, length: 2.4 * r, width: 0.85 * r, opacity: 0.9 });
-  p.dab(P(EYE.x, EYE.y), PIGMENTS.sumi, { rng, variant: 'round', angle: 0, length: 1.05 * r, width: 1.05 * r, opacity: 0.95 });
-  p.dab(P(EYE.x + 0.2, EYE.y - 0.25), PIGMENTS.petalWhite, { rng, variant: 'round', angle: 0, length: 0.32 * r, width: 0.32 * r, opacity: 0.8, blend: 'source-over' });
-  const shoulder = P(2.6, -9.0);
+  // scalloped flank and breast feathering, and the shade under the belly
+  for (let i = 0; i < 9; i++) {
+    const q = P(rng.range(-3.5, 6.0), rng.range(-6.0, -2.0));
+    M.fill(blob(q.x, q.y, rng.range(0.7, 1.3) * r, rng.range(0.3, 0.55) * r, rng, { rotation: rng.range(-0.4, 0.2), irregularity: 0.35, points: 12 }), c.dark, rng.range(0.14, 0.26));
+  }
+  M.fill(blob(0.8 * r, -1.0 * r, 6.0 * r, 1.6 * r, rng, { rotation: -0.08, irregularity: 0.25 }), c.dark, 0.3);
+  M.fill(blob(7.2 * r, -8.6 * r, 1.4 * r, 2.6 * r, rng, { irregularity: 0.25 }), c.dark, 0.14);
+  M.dry({ opacity: 0.85, edge: 0.15, edgeWidth: 0.35 * r, sharpness: 0.3, centreLift: 0, granulation: 0.35, granules: 0.12, flow: 0.4, flowScale: 2.5 * r });
+  // a chocolate glaze deepens all but the lit top; fine granules settle in it
+  p.glaze(sil, c.brown, { rng, opacity: 0.5, edge: 0.12, edgeWidth: 0.3 * r, sharpness: 0.35, granulation: 0.3, deform: 0.05, spread: 0.08, fade: { angle: -Math.PI / 2 - 0.3, start: 0.45, amount: 0.95, ragged: 0.7 } });
+  p.granulate(sil, c.dark, { rng, strength: 0.2 });
+  // where the light hits: a soft paler wash over the crown and mantle, lost downward
+  const Lt = p.layer({ x: -8 * r, y: -15 * r, w: 18 * r, h: 9 * r });
+  Lt.clip(sil);
+  Lt.fill(blob(1.6 * r, -12.4 * r, 6.2 * r, 1.9 * r, rng, { rotation: 0.18, irregularity: 0.3 }), c.light, 0.55);
+  Lt.fill(blob(5.0 * r, -12.6 * r, 2.4 * r, 1.0 * r, rng, { irregularity: 0.25 }), c.light, 0.35);
+  Lt.dry({ opacity: 0.4, edge: 0, sharpness: 0.12, centreLift: 0, granulation: 0.25, flow: 0.5, flowScale: 2 * r, blend: 'source-over' });
+  // and a dry, broken lift of warm sheen along it
+  p.dryBrush([P(-3.8, -9.6), P(-0.6, -11.3), P(2.6, -12.4), P(5.4, -12.4)], { rng, pigment: c.light, width: 0.9 * r, opacity: 0.35, dryness: 0.6 });
+  // a slender dark bill, the eye set in the head with a soft dark socket
+  const bill = smoothPolygon([P(8.0, -10.6), P(9.4, -10.25), P(10.5, -9.95), P(9.4, -9.75), P(8.0, -9.4)], 1);
+  p.wash(bill, '#2a221d', { rng, opacity: 0.9, edge: 0.3, edgeWidth: 0.2 * r, sharpness: 0.5, deform: 0.03, spread: 0.03 });
+  p.dab(P(EYE.x - 0.1, EYE.y + 0.1), c.dark, { rng, variant: 'round', angle: 0, length: 1.9 * r, width: 1.6 * r, opacity: 0.35, edge: 0.05, sharpness: 0.15 });
+  p.dab(P(EYE.x, EYE.y), '#1d1714', { rng, variant: 'round', angle: 0, length: 0.95 * r, width: 0.9 * r, opacity: 0.92, edge: 0.3 });
+  p.dab(P(EYE.x + 0.2, EYE.y - 0.22), '#fbf7ef', { rng, variant: 'round', angle: 0, length: 0.26 * r, width: 0.24 * r, opacity: 0.85, blend: 'source-over' });
   if (wing === 'fold') {
-    for (let k = 0; k < 3; k++) {
-      const y = shoulder.y + (1.2 + k * 0.9) * r;
-      p.inkLine([{ x: shoulder.x - 1.6 * r, y }, { x: shoulder.x - 7.0 * r, y: y + 2.2 * r }], { rng, width: 0.22 * r, opacity: 0.35, breaks: 0.35, pigment: mix(c.sheen, PIGMENTS.petalWhite, 0.25) });
+    // two broken tertial edges, the only lines on the bird
+    for (let k = 0; k < 2; k++) {
+      const y = -7.4 + k * 0.9;
+      p.inkLine([P(0.4 - k * 0.6, y), P(-2.6 - k * 0.8, y + 0.9), P(-4.6 - k * 0.6, y + 1.3)], { rng, width: 0.2 * r, opacity: 0.3, breaks: 0.45, pigment: c.light, taper: [0.3, 0.6] });
     }
     return;
   }
-  // short, rounded wings: broad petal dabs, a pale haze when they whirr
-  const wingDab = (a: number, len: number, op: number) => p.dab(shoulder, mix(c.dark, c.brown, 0.5), { rng, variant: 'petal', angle: a, length: len * r, width: len * 0.55 * r, curve: 0.1, pool: 0.2, edge: 0.3, opacity: op });
-  if (wing === 'up') wingDab(-Math.PI / 2 - 0.55, 9, 0.8);
-  else if (wing === 'down') wingDab(Math.PI / 2 + 0.45, 8.4, 0.8);
-  else if (wing === 'swim') wingDab(Math.PI - 0.55, 9, 0.75);
+  // open wings: short and round, dark coverts bled into paler flight feathers, a lost trailing edge
+  const shoulder = P(1.8, -9.2);
+  const wingAt = (a: number, len: number, wide: number, op: number, side: number) => {
+    p.ctx.save();
+    p.ctx.translate(shoulder.x, shoulder.y);
+    const shape = wingShape(r, a, len, wide, side);
+    // the leading edge stays found; the notched trailing edge (toward +v·side) is lost
+    const trail = a + (side * Math.PI) / 2;
+    p.wetInWet(shape, c.dark, c.brown, { rng, angle: trail, split: 0.4, softness: 0.55, opacity: op, edge: 0.22, edgeWidth: 0.35 * r, sharpness: 0.4, granulation: 0.35, flow: 0.5, flowScale: 2 * r, deform: 0.05, spread: 0.06, blend: 'source-over', fade: { angle: trail, start: 0.65, amount: 0.55 } });
+    // primary shafts fanning to the tip
+    const ca = Math.cos(a);
+    const sa = Math.sin(a);
+    for (const v of [-0.1, 0.25, 0.55]) {
+      const at = (u: number, w: number) => ({ x: u * len * r * ca - w * wide * r * side * sa, y: u * len * r * sa + w * wide * r * side * ca });
+      p.inkLine([at(0.45, v * 0.6), at(0.97, v)], { rng, width: 0.16 * r, opacity: 0.28 * op, breaks: 0.4, pigment: c.light, taper: [0.4, 0.5] });
+    }
+    p.ctx.restore();
+  };
+  if (wing === 'up') wingAt(-Math.PI / 2 - 0.45, 8.8, 3.3, 0.92, -1);
+  else if (wing === 'down') wingAt(Math.PI / 2 + 0.5, 8.0, 3.1, 0.9, 1);
+  else if (wing === 'swim') wingAt(Math.PI - 0.35, 8.4, 3.0, 0.85, -1);
   else {
-    wingDab(-Math.PI / 2 - 0.5, 9, 0.3);
-    wingDab(Math.PI / 2 + 0.5, 8.4, 0.3);
-    wingDab(Math.PI - 0.1, 6, 0.45);
+    // mid-beat: the far wing a pale blur behind, the near one level and foreshortened
+    wingAt(-Math.PI / 2 - 0.25, 7.0, 3.0, 0.28, -1);
+    wingAt(Math.PI - 0.15, 7.0, 2.2, 0.85, -1);
   }
 }
 
 function paintTail(p: Painter, r: number, c: Colours): void {
-  // a short square stub, broad where it leaves the rump
-  const tail = smoothPolygon([{ x: 1.2 * r, y: -1.5 * r }, { x: -4.4 * r, y: -1.1 * r }, { x: -4.8 * r, y: 0 }, { x: -4.3 * r, y: 1.0 * r }, { x: 1.2 * r, y: 1.6 * r }], 1);
-  p.wetInWet(tail, c.brown, c.dark, { rng: p.rng, angle: Math.PI, split: 0.4, opacity: 0.95, edge: 0.55, edgeWidth: 0.6, deform: 0.05, blend: 'source-over' });
+  // a short square stub, broad where it leaves the rump, lost into it at the root
+  const tail = smoothPolygon([{ x: 1.4 * r, y: -1.6 * r }, { x: -3.0 * r, y: -1.5 * r }, { x: -4.6 * r, y: -1.0 * r }, { x: -4.9 * r, y: 0.1 * r }, { x: -4.4 * r, y: 1.1 * r }, { x: -2.8 * r, y: 1.2 * r }, { x: 1.4 * r, y: 1.7 * r }], 1);
+  p.wetInWet(tail, c.brown, c.dark, { rng: p.rng, angle: Math.PI, split: 0.3, softness: 0.5, opacity: 0.95, edge: 0.3, edgeWidth: 0.4 * r, sharpness: 0.4, granulation: 0.45, flow: 0.5, flowScale: 2 * r, deform: 0.05, blend: 'source-over', fade: { angle: 0, start: 0.8, amount: 0.5 } });
+  p.inkLine([{ x: 0.6 * r, y: 0.1 * r }, { x: -4.2 * r, y: 0.1 * r }], { rng: p.rng, width: 0.16 * r, opacity: 0.15, breaks: 0.5, pigment: c.light });
 }
 
 export function paintDipper(res: number, seed: number): DipperParts {
@@ -124,34 +217,66 @@ export function paintDipper(res: number, seed: number): DipperParts {
   const c = colours();
   const box = { w: S * 0.95, h: S * 0.72, ox: S * 0.38, oy: S * 0.65 };
   const body = paintSprite(res, box, seed, (p) => paintBody(p, r, c, 'fold'));
-  const legs = paintSprite(res, { w: S * 0.42, h: S * 0.25, ox: S * 0.2, oy: S * 0.22 }, seed + 1, (p, rng) => {
-    // sturdy pale legs, a little apart
-    for (const [hx, fx] of [
-      [-0.8, -0.5],
-      [0.9, 1.5],
+  const legs = paintSprite(res, { w: S * 0.5, h: S * 0.34, ox: S * 0.24, oy: S * 0.3 }, seed + 1, (p, rng) => {
+    // stout pale legs rooted up in the belly feathers, the far one a little greyer
+    for (const [hx, fx, far] of [
+      [-0.9, -0.7, true],
+      [0.8, 1.3, false],
     ] as const) {
-      p.inkLine([{ x: hx * r, y: -LEG * r }, { x: (hx + fx) * 0.5 * r, y: -LEG * 0.45 * r }, { x: fx * r, y: 0 }], { rng, width: 0.55 * r, opacity: 0.85, pigment: c.legs, breaks: 0, taper: [0.05, 0.1] });
-      p.inkLine([{ x: fx * r - 1.4 * r, y: 0.1 * r }, { x: fx * r + 1.6 * r, y: 0 }], { rng, width: 0.34 * r, opacity: 0.7, pigment: c.legs, breaks: 0 });
+      const pig = far ? mix(c.legs, PIGMENTS.shadow, 0.3) : c.legs;
+      // a stout tarsus from under the belly feathers, slanting back to the foot
+      const ankle = { x: (hx + 0.5) * r, y: -LEG * 0.6 * r };
+      p.stroke([{ x: hx * r, y: -(LEG + 1.4) * r }, ankle, { x: fx * r, y: -0.1 * r }], { rng, pigment: pig, width: 0.85 * r, opacity: far ? 0.7 : 0.88, wetness: 0.55, wobble: 0.08, taper: [0.0, 0.25] });
+      // three long toes forward, one back, gripping the stone
+      const f = { x: fx * r, y: 0 };
+      for (const [tx, ty] of [
+        [2.4, 0.12],
+        [1.8, 0.4],
+        [-1.4, 0.08],
+      ] as const) {
+        p.stroke([f, { x: f.x + tx * r, y: f.y + ty * r }], { rng, pigment: pig, width: 0.26 * r, opacity: far ? 0.6 : 0.75, wetness: 0.4, wobble: 0.15, taper: [0.1, 0.6] });
+      }
     }
   });
+  const legsDeep = deepCopy(legs, res, PIGMENTS.celadonDeep, 0.35, 2);
   const tail = paintSprite(res, { w: S * 0.34, h: S * 0.2, ox: S * 0.27, oy: S * 0.1 }, seed + 2, (p) => paintTail(p, r, c));
   const lid = paintSprite(res, { w: S * 0.12, h: S * 0.1, ox: S * 0.06, oy: S * 0.05 }, seed + 3, (p, rng) =>
     p.dab({ x: -0.75 * r, y: 0 }, PIGMENTS.petalWhite, { rng, variant: 'leaf', angle: 0, length: 1.6 * r, width: 1.15 * r, opacity: 1, blend: 'source-over', layers: 6 }),
   );
   const flyBox = { w: S * 1.25, h: S * 1.15, ox: S * 0.6, oy: S * 0.65 };
-  const fly = (wing: 'up' | 'down' | 'blur' | 'swim', k: number) =>
+  const fly = (wing: 'up' | 'mid' | 'down' | 'swim', k: number) =>
     paintSprite(res, flyBox, seed + 4 + k, (p) => {
       p.ctx.save();
       p.ctx.rotate(0.08);
       p.ctx.translate(-1 * r, 6 * r);
+      if (wing !== 'swim') {
+        // the feet tucked up under the belly
+        p.stroke([P0(r, 0.6, -1.6), P0(r, -1.2, -0.4), P0(r, -2.4, -0.2)], { rng: p.rng, pigment: c.legs, width: 0.55 * r, opacity: 0.6, wetness: 0.5, taper: [0.1, 0.5] });
+      }
       p.ctx.save();
-      p.ctx.translate(-5.8 * r, -7.0 * r);
+      p.ctx.translate(-6.1 * r, -7.8 * r);
       p.ctx.rotate(wing === 'swim' ? 0.1 : -0.12);
       paintTail(p, r, c);
       p.ctx.restore();
       paintBody(p, r, c, wing);
       p.ctx.restore();
     });
+  // the whirr: a pale haze over the wing's sweep, drawn under every frame so the beat never pops
+  const haze = paintSprite(res, flyBox, seed + 8, (p, rng) => {
+    p.ctx.save();
+    p.ctx.rotate(0.08);
+    p.ctx.translate(0.8 * r, -3.2 * r);
+    const fan = smoothPolygon(
+      Array.from({ length: 13 }, (_, i) => {
+        const a = -Math.PI / 2 - 0.5 + (i / 12) * (Math.PI + 1.0);
+        const d = (7.6 + Math.sin(i * 1.7) * 0.4) * r;
+        return { x: Math.cos(a) * d * 0.8, y: Math.sin(a) * d };
+      }).concat([{ x: 0.6 * r, y: 0.8 * r }, { x: 0.6 * r, y: -0.8 * r }]),
+      2,
+    );
+    p.wash(fan, mix(c.brown, c.sheen, 0.5), { rng, opacity: 0.22, edge: 0, sharpness: 0.1, centreLift: 0, granulation: 0.2, deform: 0.08, spread: 0.2, fade: { angle: Math.PI, start: 0.3, amount: 0.8 } });
+    p.ctx.restore();
+  });
   const swim = fly('swim', 3);
   const wake = paintSprite(res, { w: S * 1.5, h: S * 0.4, ox: S * 0.75, oy: S * 0.16 }, seed + 9, (p, rng) => {
     p.ripple({ x: 0, y: 0 }, { rng, width: S * 1.3, count: 2, squash: 0.2, opacity: 0.55, light: 0.8, lineWidth: 0.7 * r, pigment: PIGMENTS.celadonDeep });
@@ -159,11 +284,13 @@ export function paintDipper(res: number, seed: number): DipperParts {
   return {
     body,
     legs,
+    legsDeep,
     tail,
     lid,
     flyUp: fly('up', 0),
-    flyBlur: fly('blur', 1),
+    flyMid: fly('mid', 1),
     flyDown: fly('down', 2),
+    haze,
     swim: deepCopy(swim, res, PIGMENTS.celadonDeep, 0.22, 4),
     deep: deepCopy(body, res, PIGMENTS.celadonDeep, 0.25, 3),
     wake,
@@ -662,10 +789,12 @@ export class Dipper extends BaseCreature {
     const legH = LEG * r;
     const bend = 0.42 * d;
     ctx.translate(0, this.sink * 15 * r);
-    if (this.sink < 0.2 && lid) {
-      const legs = parts.legs;
+    if ((this.sink < 0.2 && lid) || (!lid && this.sink < 0.6)) {
+      // dry legs on the stone; under the waterline a refracted, cooler pair (shifted, a little short)
+      const legs = lid ? parts.legs : parts.legsDeep;
       ctx.save();
-      ctx.scale(1, 1 - bend);
+      if (!lid) ctx.translate(0.5 * r, -0.6 * r);
+      ctx.scale(1, (1 - bend) * (lid ? 1 : 0.85));
       ctx.drawImage(legs.img as CanvasImageSource, -legs.ox, -legs.oy, legs.w, legs.h);
       ctx.restore();
     }
@@ -674,7 +803,7 @@ export class Dipper extends BaseCreature {
     ctx.rotate(pitch);
     const tail = parts.tail;
     ctx.save();
-    ctx.translate(-5.6 * r, -7.0 * r);
+    ctx.translate(-5.9 * r, -7.8 * r);
     ctx.rotate(0.5 + d * 0.35 - pitch * 0.6); // cocked up, flicked higher with each dip
     ctx.drawImage(tail.img as CanvasImageSource, -tail.ox, -tail.oy, tail.w, tail.h);
     ctx.restore();
@@ -692,10 +821,16 @@ export class Dipper extends BaseCreature {
     ctx.translate(this.x, this.y);
     ctx.scale(ps * this.facing, ps);
     if (f) ctx.rotate(clamp(Math.atan2(f.to.y - f.from.y, Math.abs(f.to.x - f.from.x) || 1) * 0.5, -0.35, 0.35));
-    // whirring: up, blur, down, blur at ~15 beats a second
+    // whirring: up, mid, down, mid at ~15 beats a second, over a steady haze; the body lifts on the downstroke
     const ph = Math.floor(this.flap * 60) % 4;
-    const s = ph === 0 ? parts.flyUp : ph === 2 ? parts.flyDown : parts.flyBlur;
-    ctx.drawImage(s.img as CanvasImageSource, -s.ox, -s.oy, s.w, s.h);
+    const s = ph === 0 ? parts.flyUp : ph === 2 ? parts.flyDown : parts.flyMid;
+    const hz = parts.haze;
+    const a = ctx.globalAlpha;
+    ctx.globalAlpha = a * 0.7;
+    ctx.drawImage(hz.img as CanvasImageSource, -hz.ox, -hz.oy, hz.w, hz.h);
+    ctx.globalAlpha = a;
+    const lift = ph === 2 ? -0.25 : ph === 0 ? 0.2 : 0;
+    ctx.drawImage(s.img as CanvasImageSource, -s.ox, -s.oy + lift, s.w, s.h);
     ctx.restore();
   }
 
@@ -744,7 +879,7 @@ const dipper: CreatureDef = {
     h: 150,
     make(res, seed) {
       const a = paintDipper(res, seed);
-      return [a.body, a.tail, a.legs, a.lid, a.flyUp, a.flyBlur, a.flyDown, a.swim, a.wake];
+      return [a.body, a.tail, a.legs, a.lid, a.flyUp, a.flyMid, a.flyDown, a.swim, a.wake];
     },
   },
   show: { stage: 'falls', spec: { w: 380, h: 240 }, w: 570, h: 361, order: 20 },
