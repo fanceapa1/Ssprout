@@ -115,17 +115,17 @@ export function planBaikamo(rng: Rng): BaikamoPlan {
   });
   // the flowers stand on the tresses nearest the surface, mostly downstream
   const lifted = tresses.map((t, i) => ({ t, i })).sort((a, b) => b.t.depth - a.t.depth);
-  const nb = rng.int(6, 10);
+  const nb = rng.int(8, 12);
   const blossoms: Blossom[] = [];
   for (let b = 0; b < nb; b++) {
-    const { t, i } = lifted[b % Math.min(lifted.length, 5)]!;
+    const { t, i } = lifted[b % Math.min(lifted.length, 6)]!;
     const s = t.length * rng.range(0.35, 0.9);
     blossoms.push({
       tress: i,
       s,
       stalk: rng.range(1.6, 3.4),
       lean: rng.gaussian(0, 0.25),
-      size: rng.range(2.1, 2.7),
+      size: rng.range(2.3, 2.9),
       tilt: rng.range(0.42, 0.6),
       petals: petalRing(rng, 5, { angJit: 0.08, lenJit: 0.07, widJit: 0.06, curve: 0.05 }),
       bud: [0, 0],
@@ -262,7 +262,7 @@ function lens(gl: BaikamoPlan['glints'][number]): Pt[] {
   return pts;
 }
 
-function drawBlossoms(p: Painter, rng: Rng, plan: BaikamoPlan, g: number) {
+function drawBlossoms(p: Painter, rng: Rng, plan: BaikamoPlan, g: number, res: number) {
   const open: PlumFlower[] = [];
   plan.blossoms.forEach((b, i) => {
     const budK = ease(g, b.bud[0], b.bud[1]);
@@ -283,7 +283,7 @@ function drawBlossoms(p: Painter, rng: Rng, plan: BaikamoPlan, g: number) {
     }
     if (visible(ok)) open.push({ id: i, c: top, petals: b.petals, view: { tilt: b.tilt, roll: UP + b.lean * 0.3 }, size: b.size, open: ok });
   });
-  plumFlowers(p, rng.fork('flowers'), open, { eye: mix(PIGMENTS.gold, '#f2d36b', 0.45) });
+  plumFlowers(p, rng.fork('flowers'), open, { eye: mix(PIGMENTS.gold, '#f2d36b', 0.45), res });
 }
 
 const baikamo: SpeciesDef = {
@@ -311,7 +311,7 @@ const baikamo: SpeciesDef = {
       // the first stir where it takes root, widening and settling
       p.ripple({ x: -10, y: 1 }, { rng: r.fork('ring'), width: lerp(10, 34, ease(g, 0, 0.4)), count: 2, squash: 0.22, opacity: 0.26 * (0.4 + 0.6 * ease(g, 0, 0.06)) * (1 - 0.5 * ease(g, 0.4, 0.8)), light: 0.3 });
       drawTresses(p, plan, g);
-      drawBlossoms(p, r.fork('blossoms'), plan, g);
+      drawBlossoms(p, r.fork('blossoms'), plan, g, opts.w / BOX.w);
     } finally {
       end();
     }

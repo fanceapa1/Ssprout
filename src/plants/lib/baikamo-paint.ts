@@ -50,15 +50,22 @@ export interface PlumFlower {
 }
 
 const SHADOW = mix(PIGMENTS.celadonDeep, PIGMENTS.shadow, 0.35);
-const SHADE = mix(PIGMENTS.petalShade, PIGMENTS.celadon, 0.35);
+const SHADE = mix(mix(PIGMENTS.petalShade, PIGMENTS.celadon, 0.25), '#ffffff', 0.35);
+/** Petals left as paper: whiter than petal white, so the paper multiplied last gives washi. */
+const RESERVED = mix(PIGMENTS.petalWhite, '#ffffff', 0.7);
+const HEART = mix(PIGMENTS.sageLight, '#e8e0a0', 0.5);
 
 /**
- * Small white five-petalled flowers in three shared layers: a cool shadow on the water just
- * below, white petals source-over with a grey-celadon heart, then gold centres.
+ * Small white five-petalled flowers in three shared layers: a faint cool shadow on the water
+ * just below, petals of reserved paper (a soft grey-celadon heart only seen close), then gold
+ * eyes. `res` is sprite px per unit: small sprites get a smaller eye, close ones stamens.
  */
-export function plumFlowers(p: Painter, rng: Rng, flowers: readonly PlumFlower[], o: { eye: Pigment; white?: Pigment }): void {
+export function plumFlowers(p: Painter, rng: Rng, flowers: readonly PlumFlower[], o: { eye: Pigment; white?: Pigment; res?: number }): void {
   const open = flowers.filter((f) => visible(f.open) && f.size > 0.2);
   if (!open.length) return;
+  const res = o.res ?? 2;
+  // 0 at overview size … 1 seen close
+  const near = smooth((res - 1.5) / 3);
   let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
   for (const f of open) {
     x0 = Math.min(x0, f.c.x - f.size * 1.6); y0 = Math.min(y0, f.c.y - f.size * 1.4);
@@ -69,30 +76,46 @@ export function plumFlowers(p: Painter, rng: Rng, flowers: readonly PlumFlower[]
     f.petals
       .map((pl) => ({ pl, pose: petalPose(pl.a, f.view, f.open, 0.5) }))
       .sort((a, b) => a.pose.depth - b.pose.depth)
-      .map(({ pl, pose }) => ({ angle: pose.angle, length: f.size * pl.len * pose.len * lerp(0.35, 1, easeOut(f.open)), width: f.size * 0.74 * pl.wid * lerp(0.5, 1, f.open), curve: pl.curve }));
+      .map(({ pl, pose }) => ({ angle: pose.angle, length: f.size * pl.len * pose.len * lerp(0.35, 1, easeOut(f.open)), width: f.size * 0.78 * pl.wid * lerp(0.5, 1, f.open), curve: pl.curve }));
   const S = p.layer(area);
   open.forEach((f) => {
     const i = f.id;
-    const off = { x: f.c.x + f.size * 0.2, y: f.c.y + f.size * 0.75 };
+    const off = { x: f.c.x + f.size * 0.1, y: f.c.y + f.size * 0.4 };
     poses(f).forEach((pl, j) => {
-      p.dabInto(S, off, SHADOW, { rng: rng.fork(`sh-${i}-${j}`), variant: 'petal', angle: pl.angle, length: pl.length * 1.1, width: pl.width * 1.05, pool: 0.1, basePool: 0.2, layers: 2, asym: 0, jitter: 0 });
+      p.dabInto(S, off, SHADOW, { rng: rng.fork(`sh-${i}-${j}`), variant: 'petal', angle: pl.angle, length: pl.length * 1.05, width: pl.width, pool: 0.1, basePool: 0.2, layers: 2, asym: 0, jitter: 0 });
     });
   });
-  S.dry({ opacity: 0.3, edge: 0.15, edgeWidth: 0.25, sharpness: 0.3, centreLift: 0.05, granulation: 0.05 });
-  const W = p.layer(area);
-  open.forEach((f) => {
-    const i = f.id;
-    poses(f).forEach((pl, j) => {
-      p.dabInto(W, f.c, o.white ?? PIGMENTS.petalWhite, { rng: rng.fork(`p-${i}-${j}`), variant: 'petal', angle: pl.angle, length: pl.length, width: pl.width, curve: pl.curve, pool: 0.3, poolSide: shadowSide(pl.angle), basePool: 0.15, layers: 3, asym: 0 });
-      p.dabInto(W, f.c, SHADE, { rng: rng.fork(`s-${i}-${j}`), variant: 'petal', angle: pl.angle, length: pl.length * 0.5, width: pl.width * 0.4, pool: 0, basePool: 0.55, layers: 2, asym: 0 });
+  S.dry({ opacity: 0.14, edge: 0.1, edgeWidth: 0.25, sharpness: 0.25, centreLift: 0.05, granulation: 0.05 });
+  // alternate petals in two wet layers, so each keeps a faint edge where it overlaps the next
+  for (const odd of [0, 1]) {
+    const W = p.layer(area);
+    open.forEach((f) => {
+      const i = f.id;
+      poses(f).forEach((pl, j) => {
+        if (j % 2 !== odd) return;
+        p.dabInto(W, f.c, o.white ?? RESERVED, { rng: rng.fork(`p-${i}-${j}`), variant: 'petal', angle: pl.angle, length: pl.length, width: pl.width, curve: pl.curve, pool: 0.08, poolSide: shadowSide(pl.angle), basePool: 0.05, layers: 3, asym: 0, jitter: 0.006 });
+        if (near > 0.02) p.dabInto(W, f.c, SHADE, { rng: rng.fork(`s-${i}-${j}`), variant: 'petal', angle: pl.angle, length: pl.length * 0.4, width: pl.width * 0.35, pool: 0, basePool: 0.3 * near, layers: 2, asym: 0 });
+      });
     });
-  });
-  W.dry({ opacity: 0.96, edge: 0.5, edgeWidth: 0.18, sharpness: 0.75, centreLift: 0.12, granulation: 0.03, flow: 0.2, flowScale: 2, darken: 0.32, blend: 'source-over' });
+    W.dry({ opacity: 1, edge: lerp(0.08, 0.4, near), edgeWidth: 0.14, sharpness: 0.8, centreLift: 0, granulation: 0, flow: 0.12, flowScale: 2, darken: lerp(0.08, 0.3, near), blend: 'source-over' });
+  }
+  const eye = lerp(0.5, 0.78, near);
   open.forEach((f) => {
     const i = f.id;
     const k = clamp01((f.open - 0.35) / 0.5);
     if (!visible(k)) return;
     const s = f.size * easeOut(k);
-    p.dab({ x: f.c.x, y: f.c.y - f.size * 0.05 }, o.eye, { rng: rng.fork(`eye-${i}`), variant: 'round', angle: 0, length: s * 0.5, width: s * 0.36, opacity: 0.95 * smooth(k), blend: 'source-over', edge: 0.2, pool: 0.15, basePool: 0, darken: 0.12 });
+    const c = { x: f.c.x, y: f.c.y - f.size * 0.05 };
+    if (near > 0.02) p.dab(c, HEART, { rng: rng.fork(`heart-${i}`), variant: 'round', angle: 0, length: s * 0.42, width: s * 0.3, opacity: 0.7 * near * smooth(k), blend: 'source-over', edge: 0.1, pool: 0, basePool: 0 });
+    p.dab(c, o.eye, { rng: rng.fork(`eye-${i}`), variant: 'round', angle: 0, length: s * 0.5 * eye * lerp(1, 0.55, near), width: s * 0.36 * eye * lerp(1, 0.55, near), opacity: 0.95 * smooth(k), blend: 'source-over', edge: 0.2, pool: 0.15, basePool: 0, darken: 0.12 });
+    // close: a ring of stamen dots round the heart, as on plum blossom
+    if (near > 0.02) {
+      const n = 7;
+      for (let j = 0; j < n; j++) {
+        const a = (j / n) * Math.PI * 2 + i;
+        const r = s * 0.26 * smooth(k);
+        p.dab({ x: c.x + Math.cos(a) * r, y: c.y + Math.sin(a) * r * f.view.tilt }, o.eye, { rng: rng.fork(`st-${i}-${j}`), variant: 'round', angle: 0, length: s * 0.11, width: s * 0.1, opacity: 0.9 * near * smooth(k), blend: 'source-over', edge: 0.3, pool: 0, basePool: 0, darken: 0.2 });
+      }
+    }
   });
 }
