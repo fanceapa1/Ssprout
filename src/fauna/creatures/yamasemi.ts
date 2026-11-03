@@ -402,8 +402,12 @@ export function yamasemiPerches(w: Pick<FaunaWorld, 'perches' | 'pond' | 'scene'
   return out;
 }
 
-export function choosePerch(w: Pick<FaunaWorld, 'perches' | 'pond' | 'scene'>, rng: Rng, taken: readonly Pt[], not: Perch | null = null): Perch | null {
-  const all = yamasemiPerches(w).filter((c) => c.perch !== not && taken.every((t) => dist(t, c.perch) >= 30));
+export function choosePerch(w: Pick<FaunaWorld, 'perches' | 'pond' | 'scene' | 'view'>, rng: Rng, taken: readonly Pt[], not: Perch | null = null): Perch | null {
+  const free = yamasemiPerches(w).filter((c) => c.perch !== not && taken.every((t) => dist(t, c.perch) >= 30));
+  // where it can be seen (a phone shows only part of the gorge), when any such perch is free
+  const v = w.view;
+  const seen = free.filter(({ perch: p }) => p.x > v.x + 40 && p.x < v.x + v.w - 40 && p.y > v.y + 40 && p.depth < v.y + v.h - 10);
+  const all = seen.length > 0 ? seen : free;
   if (all.length === 0) return null;
   let x = rng.next() * all.reduce((a, b) => a + b.weight, 0);
   for (const c of all) {

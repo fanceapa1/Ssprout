@@ -41,6 +41,16 @@ describe('where the yamasemi perches and fishes', () => {
     expect(weight('rock-pool-left')).toBeGreaterThan(weight('rock-foot'));
   });
 
+  it('picks a perch in view when the view shows only part of the gorge (a phone)', () => {
+    const narrow = { ...w, view: { x: 560, y: 300, w: 560, h: 700 } };
+    const rng = createRng(4);
+    for (let i = 0; i < 60; i++) {
+      const p = choosePerch(narrow, rng, [])!;
+      expect(p.x).toBeGreaterThan(600);
+      expect(p.x).toBeLessThan(1080);
+    }
+  });
+
   it('keeps off perches others hold', () => {
     const rng = createRng(3);
     const left = w.perches.find((p) => p.id === 'rock-pool-left')!;
