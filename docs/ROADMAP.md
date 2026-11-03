@@ -125,12 +125,12 @@ Phase 10 (owner request 2026-10-27): land phase 9, then a second scenery, a rock
 | S5b | Garden thumbnails painted from each scenery's cached overview instead of camera stills | `src/ui/gardens-section.ts`, `src/scenery/thumbnail.ts` | queued |
 | S7 | Waterfall painters: falls, plunge pool, stream | `src/scenery/waterfall/paint-water.ts` | done (streaked falls on reserved paper, deep cool pool with ripples from the foot, pale stream with riffles; devlog 65) |
 | S8 | Waterfall painters: vegetation and moss | `src/scenery/waterfall/paint-veg.ts` | done (far ridge, banks, meadow, crown woods, overhanging trees, ferns, foreground; devlog 67) |
-| S9 | Animated falls, foam and spray (still under reduced motion, ≤ 1 ms a frame) | `src/scenery/waterfall/falls.ts` | queued (after S7; ADR 0246) |
+| S9 | Animated falls, foam and spray (still under reduced motion, ≤ 1 ms a frame) | `src/scenery/waterfall/falls.ts` | in progress |
 | S10 | Waterfall daylight: 4 sky plates, pool plate, light plates, grades | `src/scenery/waterfall/{sky,light}.ts` | done (4 sky plates cut to the skyline, pool plate, cliff shadows and crown light, moonlit falls at night; ADR 0247) |
 | S11 (old) | superseded by the phase 12 S11 row below | — | moved |
 | S12 | Iwana char in the plunge pool (renamed from trout: introduced trout are invasive in Japanese headwaters, B0) | `src/fauna/creatures/iwana.ts` | moved to C3 |
 | S13 | Dipper on the wet rocks | `src/fauna/creatures/dipper.ts` | moved to C1 |
-| S15 | Waterfall sound bed (`falls` layer, roar, rumble, spray hiss, splash events, dipper song) | `src/audio/**`, `src/core/soundscape.ts`, `src/ui/sound-mixer.ts` | queued (after S1, S3; ADR 0249) |
+| S15 | Waterfall sound bed (`falls` layer, roar, rumble, spray hiss, splash events, dipper song) | `src/audio/**`, `src/core/soundscape.ts`, `src/ui/sound-mixer.ts` | in progress |
 | S17 | Acceptance and docs: SPEC, ARCHITECTURE, `docs/systems/scenery.md`, TESTING matrix, a v3 export imports, switch-time numbers, shots of both gardens | `docs/**`, `tests/**` | queued (last) |
 
 Phase 11 (deferred by the owner on 2026-10-28 to a later session; owner request 2026-10-27, branch `feat/accounts`, not merged to main): simple user/password accounts, with progress stored in a database. Local setup only: a Node (Fastify) server, Postgres in Docker. Owner decision: guest mode stays local, and signing up offers to import the local garden.
