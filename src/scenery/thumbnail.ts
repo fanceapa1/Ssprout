@@ -10,7 +10,7 @@
  * - `painted`: a garden never seen here: its painting painted small in idle slices (no plants);
  * - `waiting`: nothing yet; the card shows a pale wash.
  */
-import { paintScene, type SceneArt } from '../scene/background';
+import { paintScene, type PaintResult, type PaintView, type SceneArt } from '../scene/background';
 import { makeCanvas, paperTexture, type AnyCanvas } from '../paint';
 import type { PaintCache } from '../paint/persist';
 import { WORLD_H, WORLD_W } from '../render/viewport';
@@ -113,15 +113,15 @@ export function cacheStore(cache: PaintCache, w: number, h: number) {
 
 type Ctx = CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
 
-/**
- * A garden's painting painted small (`w`×`h` px, the whole world), its boulders and tufts on it
- * and the paper multiplied last. Painted cooperatively: `yieldTo` between slices of `sliceMs`.
- * No sky plate (painting one is a single long task), so a sky that is all plate stays paper.
- */
-export async function paintThumbnail(art: SceneArt, w: number, h: number, yieldTo: () => Promise<void>, sliceMs = 10): Promise<AnyCanvas> {
+/** The world fitted (cover) to a `w`×`h` thumbnail: the paint view `paintThumbnail` paints. */
+export function thumbnailView(w: number, h: number): PaintView {
   const scale = Math.max(w / WORLD_W, h / WORLD_H);
-  const rect = { x: (WORLD_W - w / scale) / 2, y: (WORLD_H - h / scale) / 2, w: w / scale, h: h / scale };
-  const res = await paintScene(art, { rect, scale }, { quality: 'draft', yieldTo, sliceMs });
+  return { rect: { x: (WORLD_W - w / scale) / 2, y: (WORLD_H - h / scale) / 2, w: w / scale, h: h / scale }, scale };
+}
+
+/** A small painting made a thumbnail: on white, its boulders and tufts on it, the paper multiplied last. */
+export function composeThumbnail(res: PaintResult, w: number, h: number): AnyCanvas {
+  const { rect, scale } = res.view;
   const out = makeCanvas(w, h);
   const g = out.getContext('2d') as Ctx;
   g.fillStyle = '#ffffff';
@@ -130,9 +130,19 @@ export async function paintThumbnail(art: SceneArt, w: number, h: number, yieldT
   g.setTransform(scale, 0, 0, scale, -rect.x * scale, -rect.y * scale);
   for (const s of [...res.sprites].sort((a, b) => a.depth - b.depth)) g.drawImage(s.canvas as CanvasImageSource, s.box.x, s.box.y, s.box.w, s.box.h);
   g.setTransform(1, 0, 0, 1, 0, 0);
-  await yieldTo();
   g.globalCompositeOperation = 'multiply';
   g.drawImage(paperTexture(w, h, 1) as CanvasImageSource, 0, 0);
   g.globalCompositeOperation = 'source-over';
   return out;
+}
+
+/**
+ * A garden's painting painted small (`w`×`h` px, the whole world) for a garden never seen here.
+ * Cooperative: `yieldTo` between slices of `sliceMs`. No sky plate (painting one is a single long
+ * task), so a sky that is all plate (the waterfall's) stays paper.
+ */
+export async function paintThumbnail(art: SceneArt, w: number, h: number, yieldTo: () => Promise<void>, sliceMs = 10): Promise<AnyCanvas> {
+  const res = await paintScene(art, thumbnailView(w, h), { quality: 'draft', yieldTo, sliceMs });
+  await yieldTo();
+  return composeThumbnail(res, w, h);
 }

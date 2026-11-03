@@ -75,7 +75,7 @@ const section: StudioSection = {
     },
     {
       id: 'garden-thumbs',
-      label: 'Gardens card: waiting wash, then a still with its washed edge (ADR 0244)',
+      label: 'Gardens card: waiting wash, then a thumbnail with its washed edge (ADR 0244; painted: garden-thumbnails)',
       w: 400,
       h: 120,
       render(canvas, { seed, pixelRatio }) {
