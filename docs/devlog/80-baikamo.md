@@ -118,3 +118,83 @@ run.
   background do most of that work.
 - The worker paint time was measured on the main thread in a probe under load, not in the
   worker.
+
+## W6b polish
+
+### What
+- **No rim light under the water** (ADR 0281). New optional `SpeciesDef.rimLight?: boolean`
+  (default true). `drawLit` in `plants/system.ts` skips the `screen` rim blit when it is `false`.
+  The cast shadow and reflection do not change. Baikamo sets `rimLight: false`. The contract line
+  is in `docs/ARCHITECTURE.md` › Species. The test is in `plants/system.test.ts`: at a pinned
+  sunset, a plain species gets a `screen` blit and a `rimLight: false` one gets none. It failed
+  before the fix.
+- **Blossoms that read white at overview size** (`plumFlowers` in `lib/baikamo-paint.ts`):
+  - The petals are reserved paper: `petalWhite` mixed 70 % toward white, laid source-over with
+    almost no pooling, edge or darkening. The washi multiplied last turns them paper-white, not
+    cream.
+  - The petals alternate between two wet layers, so neighbouring petals keep a faint edge where
+    they overlap. Seen close they read as five rounded plum petals instead of one white blot.
+  - The draw now passes `res` (sprite px per unit, `opts.w / 140`). Detail scales with it
+    (`near` = 0 at overview, 1 seen close):
+    - At overview the eye is half its old size, and the grey-celadon heart and petal edges are
+      dropped.
+    - Seen close, a pale yellow-green heart gets a ring of seven tiny gold stamen dots, as on
+      plum blossom.
+    - The water shadow under each flower is fainter and closer (0.2 → 0.14 opacity), so it no
+      longer makes a small teal disc.
+  - A few more and slightly larger flowers: 8–12 (was 6–10), size 2.3–2.9 (was 2.1–2.7), spread
+    over the 6 tresses nearest the surface (was 5). Each tress's next flower stands further
+    downstream than the one before (0.46 + 0.22 per round, capped at 0.92 of the tress), so
+    they read as dots rather than clumps.
+  - The box (140×56), the range and the growth windows are unchanged. The stamens and heart
+    grow in with the eye (`k`), so nothing pops. The family suite's continuity test passes.
+- **Paint version**: `src/plants/types.ts` and `src/plants/system.ts` are paint sources (the
+  `src/plants` root), so the paint version changes once. The baikamo files are in
+  `UNCACHED_DIRS` and do not change it.
+
+### Looked at (waterfall, `?dev&scenery=waterfall`, baikamo on `pool-1` and `pool-3`)
+`addPlants` places the other plants differently on each run, so the neighbours change between
+shots. Before/after crops are in `artifacts/shots/`:
+- Overview, noon, DPR 2: `baikamo-b-before-overview-pool.png` (cream specks with gold eyes) →
+  `baikamo-b-after-overview-pool.png` (white plum-blossom dots on the water). At DPR 1:
+  `baikamo-b-before-overview-dpr1-pool.png` → `baikamo-b-after-overview-dpr1-pool.png`.
+- Sunset, close on `pool-1`: `baikamo-b-before-sunset-close.png` (yellow rim strokes along the
+  top of every tress, so the weed seemed to lie on the water) → `baikamo-b-after-sunset-close.png`
+  (no rim; the weed stays under the surface).
+- Sunset overview: `baikamo-b-before-sunset-pool.png` → `baikamo-b-after-sunset-pool.png`. The
+  mizubasho beside it keeps its warm rim, which shows the opt-out is per species.
+- Close, noon: `baikamo-b-after-close.png`. Night: `baikamo-b-after-night.png` (the flowers stay
+  pale specks). Phone 390×844: `baikamo-b-after-phone.png`.
+- Growth (growth 0/0.1/0.3/0.55/0.8/1 × seeds 1–6, 3×): `baikamo-b-before-growth.png` →
+  `baikamo-b-after-growth.png`. Buds opening, 6×: `baikamo-b-after-buds.png`. Petals, 24×:
+  `baikamo-b-after-flowers-zoom.png`.
+- Rounds:
+  - r1: white petals, but the five petals merged into one white blot seen close → two
+    alternating petal layers.
+  - r2: in the game the flowers were white dots, but they clumped in pairs on one tress → spread
+    them down each tress, then shifted the spread downstream (r3).
+
+### Tests
+- `npm run typecheck` passes.
+- `VITEST_WORKERS=1 npx vitest run src/plants src/scenery`: 63 files, 477 tests pass.
+- No local e2e, as briefed.
+
+### Still open
+- Flowers on neighbouring tresses can still overlap in the middle of a colony (the tresses cross
+  there). A minimum spacing in plane space would fix it.
+- Seen very close, the gold stamen ring is a little blobby: dots rather than fine filaments.
+- At sunset the weed's green is quite saturated against the grey-rose pool (from W6, not
+  changed).
+- The faint white reflection ghost under each flower (default `reflect` on water) is still there.
+- The flora line-up and studio card were not re-shot.
+
+### For the orchestrator to place
+- **docs/adr/README.md**:
+  `| [0281](0281-species-rim-light-opt-out.md) | A species can opt out of the rim light | accepted | \`SpeciesDef.rimLight?: boolean\` (default true); \`false\` skips the sunrise/sunset \`screen\` rim in the plant system's lit draw (shadow and reflection unchanged); baikamo sets it (under the water); one paint version change |`
+- **docs/systems/plants.md**, item 3 of the daylight list, append:
+  `A species with \`rimLight: false\` (baikamo, under the water; ADR 0281) gets no rim.`
+- **docs/systems/plants-species-a.md** › Species, baikamo row, the description becomes:
+  `long tresses of thread-fine forked leaves combed downstream under clear water (celadon mixed into the green, blurred, surface light lifted out; no rim light); 8–12 small five-petalled plum blossoms of reserved white on short stalks at the surface, with gold eyes that shrink at overview size and gain stamens close; no pads (waterfall only)`
+  and the helper line for `plumFlowers`: `small five-petalled flowers: a faint water shadow, reserved-white petals in two alternating layers, gold eyes scaled by sprite resolution (\`res\`)`.
+- **docs/TESTING.md** matrix, a row:
+  `| W6b.1 | A species with \`rimLight: false\` gets no sunset rim light | plants/system | — | ✔ |`
