@@ -10,7 +10,7 @@ part belongs with what it paints:
 | `src/ambience/zones.ts` | pure: IANA zone → lat/lon table, `locationForZone(zone, offset)`, `browserLocation()` |
 | `src/ambience/daylight.ts` | pure: phase boundaries, weights, `DaylightState`, `daylightAt`, `pinnedState`, `parseTimeOverride`, `nextPhase`, `whenIdle` |
 | `src/ambience/daylight-source.ts` | `createDaylightSource()` — the one shared daylight (location, override, cache); `pinnedSource(p)` |
-| `src/ambience/sky-layout.ts` | pure: `SkyLayout`; `sunDisc`, `moonDisc`, `stars` (from a scenery's layout, default the Japanese garden's `GARDEN_SKY_LAYOUT`), `castShadow`, `rimLight` (world positions) |
+| `src/ambience/sky-layout.ts` | pure: `SkyLayout` (with its `sunSide`); `sunDisc`, `moonDisc`, `stars`, `castShadow`, `rimLight`, `sunSide` (from a scenery's layout, default the Japanese garden's `GARDEN_SKY_LAYOUT`) |
 | `src/ambience/timeofday.ts` | `PHASE_GRADES` (the light grade of each phase), `gradeFor(weights)`, the hour-based `TYPICAL_DAY` |
 | `src/ambience/lighting.ts` | the per-pixel grade wash (`paintGradeWash`, `gradePlate`, lantern reserve) |
 | `src/ambience/cast.ts` | the light plates: painted per phase, blended, moving lights lifted out (`createCastLight`) |
@@ -55,6 +55,20 @@ pure phases with the blends between them: night until 03:36 · sunrise 04:16–0
 | plants (`createPlantSystem`) | each plant's cast shadow and rim light |
 | fauna (`createFauna`) | diurnal creatures rest while `night ≥ 0.5` |
 
+## The sun side (ADR 0284)
+Each scenery's `SkyLayout.sunSide` says which side its low sun lights the scene from:
+`{ sunrise: -1 | 1, sunset: -1 | 1 }` (−1 left, +1 right). The Japanese garden is `{ sunrise: 1,
+sunset: -1 }` (it rises over the right-hand hills and sets over the left); the waterfall is
+`{ sunrise: 1, sunset: 1 }` (both low suns stand right of the falls). A sky without one gets the
+garden's. Everything that is lit from the side reads it from the viewed scenery's sky:
+- `castShadow(s, sky)`: the low-sun terms of `dx` point away from the sun. Length, `dy`, alpha,
+  midday's short pool and the moon's faint night shadow (`dx` −0.2) are the same everywhere.
+- `rimLight(s, sky)`: the rim faces the sun; strength and colours are the same everywhere.
+- Readers: the plant system (`SystemContext.scenery.sky.layout`: shadows and rims), the scene
+  system (boulder rims), the light plates (`LightArt.sky`: boulder, shrub and tree shadows, crown
+  lights on the sun side), the studio's daylight sections and `sprout.daylight()`.
+- Not sided: the weather sun's lifted bands and leaf glints (ADR 0193) keep their upper-left light.
+
 ## The painting
 - **Sky plates** (scene, ADR 0145): one per phase, 0.7 px/unit over world y −240 … 500, multiplied
   over the landscape in the cached background. Midday: wet-in-wet cerulean graded to warm paper, a
@@ -79,7 +93,8 @@ pure phases with the blends between them: night until 03:36 · sunrise 04:16–0
   to `plateSky()` (14 units under the cliff, 40 over the flank and ridge) so no bleed lands on the
   pale cliff top; the far ridge glazed per phase after the clip; 30 stars from its own band. The
   pool plate darkens toward the cliff. Light hooks: shade under the ledges and along the cliff foot,
-  at a low sun the notch under the buttress and the left cliff, always to the left; feathered warm
+  at a low sun the notch under the buttress and the left cliff, to the left (as the shared shadows,
+  its sun side being right at both low suns, ADR 0284); feathered warm
   paper on the buttress, the crown's edge, the ledges and the ridge under the sun at sunrise and
   sunset; at night pale cool paper down the falls and over the spray (no lantern). Global grades.
   Studio `waterfall-daylight`.
@@ -89,8 +104,9 @@ pure phases with the blends between them: night until 03:36 · sunrise 04:16–0
   upscaled grade wash (kept per phase before the marks), one phase per idle callback; the moving
   lights are lifted in the detail composite. Each is used only when it covers the whole view.
   `sprout.lightDetail()`, `skyStats().detail`.
-- **Sprites** (ADR 0146): rim light (screen, sunrise peach from the right, sunset gold from the
-  left) on plants (0.85) and boulders (0.7); plants' shadow blots (`SHADOW_PLANT` 0.6).
+- **Sprites** (ADR 0146): rim light (screen, sunrise peach, sunset gold, from the scenery's sun
+  side: in the garden from the right at sunrise and the left at sunset, at the waterfall from the
+  right at both, ADR 0284) on plants (0.85) and boulders (0.7); plants' shadow blots (`SHADOW_PLANT` 0.6).
 - **The night edge** (ADR 0184, `ambience/night-edge.ts`): in dark light (night + 0.35 · sunset +
   0.15 · sunrise) the lighting layer lifts the painting back to paper in a band just inside the
   stage's CSS dissolve: the wash stops at a ragged line with a pooled rim and thins into paper on the
@@ -124,8 +140,9 @@ pure phases with the blends between them: night until 03:36 · sunrise 04:16–0
 - `sprout.setTime('sunrise' | 'midday' | 'sunset' | 'night')`, a blend
   `sprout.setTime({ from: 'sunset', to: 'night', t: 0.5 })`, a v1 alias (`'morning'`, `'noon'`,
   `'evening'`, `'dusk'`, `'dawn'`), an hour of today (`sprout.setTime(6.5)`) or `null` (the clock).
-- `sprout.daylight()` → phase, weights, blend, sun/moon discs, shadow, rim, location, sun times,
-  override. `sprout.skyStats()` → `plates` (held), `painted`, `composes`, `paintMs`, `cacheHits`,
+- `sprout.daylight()` → phase, weights, blend, sun/moon discs, shadow, rim (all from the viewed
+  scenery's sky), location, sun times, override. `sprout.plants.state().sun` → the plants' shadow
+  `dx`, rim side and strength. `sprout.skyStats()` → `plates` (held), `painted`, `composes`, `paintMs`, `cacheHits`,
   `cacheMisses`, `detail`. `sprout.lightPlates()` → the light plates' `painted`, `cacheHits`,
   `cacheMisses`.
 - Screenshots: `npm run shots -- --eval "sprout.setTime('sunset'); sprout.addPlants(25); await sprout.plantsReady(); sprout.settleAmbience()"`.
@@ -134,7 +151,8 @@ pure phases with the blends between them: night until 03:36 · sunrise 04:16–0
 Unit: `solar.test.ts` (London, New York, Tokyo, Sydney ±3 min; polar day, polar twilight, deep polar
 night, the exact poles; moon phase), `zones.test.ts`, `daylight.test.ts` (windows, blends, sums,
 continuity minute by minute, short days, white nights, polar cases, setTime parsing),
-`daylight-source.test.ts`, `sky-layout.test.ts`, `timeofday.test.ts`, `scene/sky-light.test.ts`,
+`daylight-source.test.ts`, `sky-layout.test.ts` (with the sun side of both gardens, and the
+garden's shadow and rim pinned to the pre-0284 formulas), `timeofday.test.ts`, `scene/sky-light.test.ts`,
 `paint/rim.test.ts`, `plants/shadow.test.ts`, `ambience/plate-cache.test.ts` (the plates' lookups,
 stores and keys). E2E: `tests/e2e/daylight.spec.ts` (each phase's
 pixels, the moon and the setting sun as lights, blends, the clock-driven location, fauna's night,

@@ -18,7 +18,7 @@ wildlife progress belong to a scenery; the timeline, the weather and the dayligh
 | `host.test.ts` | the host follows the store; a session from another garden brings its garden into view first |
 | `japanese-garden/fauna.test.ts` | the garden's table is SPEC §4's plus the silent leaf |
 | `japanese-garden/index.ts` | `JAPANESE_GARDEN`: gathers the garden's geometry, painting, sky, light art, ambience numbers and view |
-| `japanese-garden/sky.ts` | `GARDEN_SKY_LAYOUT`: horizon y 368, sun x 966 rising / 556 setting, the moon's arc, where stars may be |
+| `japanese-garden/sky.ts` | `GARDEN_SKY_LAYOUT`: horizon y 368, sun x 966 rising / 556 setting, its sun side (rising right, setting left; ADR 0284), the moon's arc, where stars may be |
 | `japanese-garden/light.ts` | `GARDEN_LIGHT_ART` (trees, shrubs, sky) and `ENGAWA_LIGHT`, the engawa's own light marks (its cast shadow, the lamp-lit shoji) |
 | `japanese-garden/ambience.ts` | `GARDEN_AMBIENCE`: dew boxes on the near banks, dawn mist bands 1–3, the veil to y 592 |
 | `japanese-garden/view.ts` | `GARDEN_VIEW`: focus (800, 560), the stepping stones' near edges for the guiding path |
@@ -31,7 +31,7 @@ wildlife progress belong to a scenery; the timeline, the weather and the dayligh
 | `waterfall/fauna.ts` | the waterfall's wildlife (ADR 0248): `WATERFALL_FAUNA` (its unlock table), `FOAM`, `waterfallPerspective(x, y)`, `WATERFALL_WILDLIFE` (`Scenery.fauna`: still pool minus the foam, the stream, ledge and wet-rock perches, heron stands) |
 | `waterfall/fauna.test.ts` | the table: ids, lines, shared kinds in their gorge variants, thresholds, rows without a module skipped |
 | `waterfall/index.ts` | `WATERFALL` (offered to everyone), `waterfallSteps` (the land, the rock, the vegetation and the water; the sky is the daylight's plates), re-exports `WATERFALL_SKY` and `WATERFALL_LIGHT_ART`, `WATERFALL_VIEW` |
-| `waterfall/sky.ts` | the daylight's sky (S10, ADR 0247): `WATERFALL_SKY` (`paintWaterfallSky`, `paintWaterfallWaterSky`), `plateSky` (the washes' clip), `WATERFALL_SKY_RECT` |
+| `waterfall/sky.ts` | the daylight's sky (S10, ADR 0247): `WATERFALL_SKY` (`paintWaterfallSky`, `paintWaterfallWaterSky`), `plateSky` (the washes' clip), `WATERFALL_SKY_RECT`, `WATERFALL_SUN_SKY` (the layout with its sun side, right at both low suns; ADR 0284) |
 | `waterfall/light.ts` | `WATERFALL_LIGHT_ART`: no trees or shrubs; `shadows` (ledges, cliff foot, notch, left cliff) and `lights` (warm rock at sunrise and sunset, moonlit falls at night) hooks |
 | `waterfall/daylight.studio.ts` | studio `waterfall-daylight` (109): the four phases, dusk, and each phase's sky, water and light plates |
 | `waterfall/daylight.test.ts` | the lights in open sky per phase, the plate's lower edge, plate keys carry `waterfall` |
@@ -364,6 +364,9 @@ buttress, 40 over the flank and the ridge), then the far ridge's distance glaze 
 plate darkens toward the cliff's back edge. `light.ts` adds the rock's shadows (always to the left:
 both low suns are right of the buttress), warm light on the sun-facing rock and moonlight on the falls
 and their spray. Grades stay global. Studio `waterfall-daylight`.
+`WATERFALL_SUN_SKY` (`sky.ts`) is the layout with its sun side, `{ sunrise: 1, sunset: 1 }`, used as
+both `sky.layout` and `light.sky`: the shared plant and boulder shadows fall left and the rims face
+right at both low suns (ADR 0284).
 
 ### Wildlife (S11, ADR 0248)
 `fauna.ts` holds the waterfall's whole unlock table: the striders (`margin`: they keep to the

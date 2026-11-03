@@ -137,20 +137,23 @@ store (plants, session) ──sync──▶ records ──requests──▶ spri
   dissolves it from the top (`destination-out` gradient) and fades it out; then it is dropped.
 
 ## Light and shadow (ADR 0146)
-Each plant is drawn in the garden's daylight (the shared `DaylightSource`, docs/systems/daylight.md):
+Each plant is drawn in the garden's daylight (the shared `DaylightSource`, docs/systems/daylight.md),
+lit from the viewed scenery's sun side (`SystemContext.scenery.sky.layout.sunSide`, ADR 0284):
 1. its **cast shadow** (`shadow.ts`): one pre-painted watercolour blot stretched from the base away
-   from the sun — long and sideways at sunrise (to the left) and sunset (to the right), a pool
+   from the sun — long and sideways at sunrise and sunset (in the Japanese garden to the left, then
+   to the right; at the waterfall to the left at both, its sun standing right), a pool
    centred under the plant at midday, a whisper at night; ≤ 1.3× the plant's visible height,
    about half its width thick, multiplied, `SHADOW_PLANT` 0.6; none for plants on open water;
 2. the plant itself (pose, sway, fades as before). Its sprite's **body is laid twice** when it is
    painted (`layBodyTwice` in `paintSprite`, ADR 0187): a single pass of the transparent sprite let a
    third of the landscape through, so the hill line and the banks crossed plants seen close; doubled
    it reads as solid paint at every zoom, at no per-frame cost;
-3. its **rim light** at sunrise/sunset: the sprite's sun-facing edge (`src/paint/rim.ts`, cached
+3. its **rim light** at sunrise/sunset: the sprite's sun-facing edge (the same sun side; `src/paint/rim.ts`, cached
    per sprite image, side and colour) drawn with `screen` in the same pose, `RIM_PLANT` 0.85; its
    width follows the sprite's resolution by √k (`RIM_REF_RES` 1.7 px per unit), so a close sprite
    keeps the rim it has at 1×.
    The growing plant uses the nearer growth step's sprite for the shadow extent and the rim. A species with `rimLight: false` (baikamo, under the water; ADR 0281) gets no rim.
+   `sprout.plants.state().sun` reads the shadow's `dx`, the rim's side and its strength now.
 Reflections are drawn over the mirrored sky the scene lays on the pond.
 
 ## Watering (ADR 0114)
@@ -324,7 +327,7 @@ bounds, LRU budget/epoch/best, scheduling, workers incl. fallback and death), `d
 `watering.test.ts`, `wither.test.ts`, `reflection.test.ts`, `system.test.ts` (drawables, sizing,
 growth + look-ahead, easing, displacement, wither, watering, bloom, bounds, reflections,
 highlight, 50-plant budget, plantsReady waits for the store change, sprites and fade-in, "finished plants sway with the wind, and hold still under reduced
-motion"), `shadow.test.ts` (cast shadow length, side, pool), `view.test.ts`, `hit-test.test.ts`,
+motion", the shadow and rim follow the viewed scenery's sun side), `shadow.test.ts` (cast shadow length, side, pool, a right-hand sun), `view.test.ts`, `hit-test.test.ts`,
 `notes.test.ts`, `species/<id>.test.ts` (each species' family suite from `lib/suites.ts`: 115 tests,
 726,075 assertions, as many as the family files they replaced), `registry.test.ts` (discovery, well-formed species, tiers, id/file
 match), `src/scenery/flora.test.ts` (each scenery's flora, every offered species has a slot there; the lotus's two
