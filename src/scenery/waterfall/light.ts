@@ -10,7 +10,7 @@ import type { Rng } from '../../core/rng';
 import type { Painter } from '../../paint';
 import type { SceneGeometry } from '../../scene/geometry';
 import { FALLS } from './geometry';
-import { LEDGES, skylineAt, WATERFALL_SKY_LAYOUT } from './layout';
+import { LEDGES, skylineAt } from './layout';
 import { WATERFALL_SUN_SKY } from './sky';
 
 /**
@@ -70,7 +70,7 @@ function rockLights(p: Painter, rng: Rng, _scene: SceneGeometry, phase: DayPhase
   if (phase === 'sunrise' || phase === 'sunset') {
     const k = phase === 'sunset' ? 0.5 : 0.4;
     const warm = phase === 'sunset' ? [255, 228, 186] : [255, 236, 220];
-    const sunX = phase === 'sunset' ? WATERFALL_SKY_LAYOUT.sunsetX : WATERFALL_SKY_LAYOUT.sunriseX;
+    const sunX = phase === 'sunset' ? WATERFALL_SUN_SKY.sunsetX : WATERFALL_SUN_SKY.sunriseX;
     // the buttress's crown and right flank, turned to the sun, then the crown woods' top edge
     for (let x = 720; x <= 1000; x += 28) dab(p, x + rng.range(-6, 6), skylineAt(x) + 22, 46, 26, k * (0.55 + (x - 720) / 600), warm);
     for (let x = -40; x <= 520; x += 36) dab(p, x + rng.range(-6, 6), skylineAt(x) + 12, 50, 18, k * 0.6 * (0.4 + x / 900), warm);

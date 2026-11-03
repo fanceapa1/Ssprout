@@ -11,11 +11,14 @@ import { WORLD_W, type Pt, type Rect } from '../../render/viewport';
 import type { ScenerySky } from '../types';
 import { FAR_RIDGE, openSky, SKY_TOP, SKYLINE, skylineAt, WATERFALL_SKY_LAYOUT } from './layout';
 
+/** The setting sun's x at the horizon, left of the layout's 1040 so its disc stays inside a phone's crop. */
+export const WATERFALL_SUNSET_X = 980;
+
 /**
  * The waterfall's sky numbers with its sun side (ADR 0284): both low suns stand right of the
  * falls, so shadows fall left and rims face right at sunrise and at sunset.
  */
-export const WATERFALL_SUN_SKY: SkyLayout = { ...WATERFALL_SKY_LAYOUT, sunSide: { sunrise: 1, sunset: 1 } };
+export const WATERFALL_SUN_SKY: SkyLayout = { ...WATERFALL_SKY_LAYOUT, sunsetX: WATERFALL_SUNSET_X, sunSide: { sunrise: 1, sunset: 1 } };
 
 /** The band the sky plates cover: from above the world down past the far ridge's plain (y 470). */
 export const WATERFALL_SKY_RECT: Rect = { x: 0, y: SKY_TOP, w: WORLD_W, h: 740 };
@@ -118,7 +121,7 @@ const RIDGE: Record<DayPhase, [Pigment, number]> = {
 
 function paintPhaseSky(p: Painter, rng: Rng, phase: DayPhase): void {
   const sky = plateSky();
-  const { sunriseX, sunsetX, horizonY } = WATERFALL_SKY_LAYOUT;
+  const { sunriseX, sunsetX, horizonY } = WATERFALL_SUN_SKY;
   switch (phase) {
     case 'midday': {
       // deep cerulean at the zenith, paling over the far ridge on the right

@@ -11,6 +11,7 @@ import { FAR_SCALE, NEAR_SCALE, PLANT_SIZES, perspectiveScale, plantScale } from
 import { WATERFALL } from '.';
 import { FALLS, POOL, ROCKS, STREAM, TRAIL, waterfallScene } from './geometry';
 import { CLIFF, CROWN_SCALE, LEDGES, openSky, skylineAt, WATERFALL_HABITAT_WORDS, WATERFALL_SKY_LAYOUT } from './layout';
+import { WATERFALL_SUN_SKY } from './sky';
 
 const { slots } = waterfallScene;
 const byHabitat = (h: string) => slots.filter((s) => s.habitat === h);
@@ -114,7 +115,7 @@ describe('waterfall composition', () => {
     expect(f.x).toBeGreaterThanOrEqual(crop.x0);
     expect(f.x + f.w).toBeLessThanOrEqual(crop.x1);
     expect(pointInPolygon(focus, POOL) || focus.y < bounds(POOL).y).toBe(true);
-    expect(WATERFALL_SKY_LAYOUT.sunsetX).toBeLessThan(crop.x1);
+    expect(WATERFALL_SUN_SKY.sunsetX).toBeLessThan(crop.x1);
   });
 
   it('keeps boulders off the falls with unique ids, some of them perches', () => {
@@ -306,10 +307,10 @@ describe('the waterfall sky', () => {
   it('raises and sets the sun in open sky, from behind the far ridge', () => {
     for (const rising of [true, false]) {
       for (let alt = 8; alt <= 16; alt++) {
-        const d = sunDisc(sky(alt, rising), WATERFALL_SKY_LAYOUT);
+        const d = sunDisc(sky(alt, rising), WATERFALL_SUN_SKY);
         expect(inSky(d, d.r), `${rising ? 'rising' : 'setting'} at ${alt}°`).toBe(true);
       }
-      const low = sunDisc(sky(-3, rising), WATERFALL_SKY_LAYOUT);
+      const low = sunDisc(sky(-3, rising), WATERFALL_SUN_SKY);
       expect(pointInPolygon(low, open), 'hidden below the ridge when it first shows').toBe(false);
     }
   });
@@ -318,7 +319,7 @@ describe('the waterfall sky', () => {
     const crowns = slots.filter((s) => s.maxSize === 'tree').map(box);
     for (const rising of [true, false]) {
       for (let alt = 0; alt <= 16; alt += 2) {
-        const d = sunDisc(sky(alt, rising), WATERFALL_SKY_LAYOUT);
+        const d = sunDisc(sky(alt, rising), WATERFALL_SUN_SKY);
         for (const c of crowns) expect(d.x + d.r < c.x || d.x - d.r > c.x + c.w, `sun at ${alt}°`).toBe(true);
       }
     }
