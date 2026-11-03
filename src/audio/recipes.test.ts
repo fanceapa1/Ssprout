@@ -1,8 +1,23 @@
 import { describe, expect, it } from 'vitest';
 import { createRng } from '../core/rng';
-import { completionPhrase, RECIPES, YO_SCALE, type RecipeName, type SoundSpec } from './recipes';
+import { completionPhrase, EPS, RECIPES, YO_SCALE, type Point, type RecipeName, type SoundSpec, type ToneVoice } from './recipes';
 
 const names = Object.keys(RECIPES) as RecipeName[];
+
+/** The notes of a one-voice song: [onset, attack seconds, peak] of each rise out of silence. */
+function notes(env: readonly Point[]): [number, number, number][] {
+  const out: [number, number, number][] = [];
+  for (let i = 1; i < env.length; i++) {
+    if (env[i - 1]![1] <= EPS && env[i]![1] > EPS) out.push([env[i - 1]![0], env[i]![0] - env[i - 1]![0], env[i]![1]]);
+  }
+  return out;
+}
+const only = (spec: SoundSpec): ToneVoice => {
+  expect(spec.voices).toHaveLength(1);
+  const v = spec.voices[0]!;
+  if (v.kind !== 'tone') throw new Error('expected a tone');
+  return v;
+};
 
 function checkSpec(spec: SoundSpec) {
   expect(spec.voices.length).toBeGreaterThan(0);
@@ -99,5 +114,55 @@ describe('sound recipes', () => {
       for (const f of notes) expect(YO_SCALE).toContain(f);
     }
     expect(YO_SCALE[0]).toBeCloseTo(587.33);
+  });
+
+  it('a splash is short and soft: rounded attack, low bubbles under the slap', () => {
+    for (let seed = 1; seed <= 30; seed++) {
+      const spec = RECIPES.splash(createRng(seed));
+      expect(spec.duration).toBeLessThan(0.45);
+      expect(spec.gain).toBeLessThanOrEqual(0.05);
+      for (const v of spec.voices) expect(v.env[1]![0]).toBeGreaterThanOrEqual(0.008);
+      for (const v of spec.voices) if (v.kind === 'tone') expect(Math.max(...v.freq.map((p) => p[1]))).toBeLessThan(1200);
+    }
+  });
+
+  it('the dipper warbles: 9–15 quick eased notes rippling around 3 kHz, swelling then fading', () => {
+    for (let seed = 1; seed <= 30; seed++) {
+      const spec = RECIPES.dipper(createRng(seed));
+      const v = only(spec);
+      const song = notes(v.env);
+      expect(spec.duration).toBeGreaterThan(0.8);
+      expect(spec.duration).toBeLessThan(2.2);
+      expect(song.length).toBeGreaterThanOrEqual(9);
+      for (const [, attack] of song) expect(attack).toBeGreaterThanOrEqual(0.0079);
+      const pitches = v.freq.map((p) => p[1]);
+      expect(Math.min(...pitches)).toBeGreaterThan(1900);
+      expect(Math.max(...pitches)).toBeLessThan(4800);
+      // rippling: the pitch turns up and down many times, not one sweep
+      let turns = 0;
+      for (let i = 2; i < pitches.length; i++) if ((pitches[i]! - pitches[i - 1]!) * (pitches[i - 1]! - pitches[i - 2]!) < 0) turns++;
+      expect(turns).toBeGreaterThanOrEqual(6);
+      const peaks = song.map((n) => n[2]);
+      expect(Math.max(...peaks)).toBeGreaterThan(peaks[0]!);
+      expect(Math.max(...peaks)).toBeGreaterThan(peaks[peaks.length - 1]!);
+    }
+  });
+
+  it('the kajika trills: notes come faster and climb, softly, then thin away', () => {
+    for (let seed = 1; seed <= 30; seed++) {
+      const spec = RECIPES.kajika(createRng(seed));
+      const v = only(spec);
+      const song = notes(v.env);
+      expect(song.length).toBeGreaterThanOrEqual(7);
+      expect(song.length).toBeLessThanOrEqual(10);
+      expect(spec.duration).toBeLessThan(4.6);
+      const gaps = song.slice(1).map((n, i) => n[0] - song[i]![0]);
+      for (let i = 1; i < gaps.length; i++) expect(gaps[i]!).toBeLessThan(gaps[i - 1]!);
+      expect(gaps[0]! / gaps[gaps.length - 1]!).toBeGreaterThan(2);
+      for (const [, attack] of song) expect(attack).toBeGreaterThanOrEqual(0.02);
+      const onsetPitch = (t: number) => v.freq.find((p) => p[0] >= t - 1e-9)![1];
+      expect(onsetPitch(song[song.length - 1]![0])).toBeGreaterThan(onsetPitch(song[0]![0]) * 1.04);
+      expect(song[song.length - 1]![2]).toBeLessThan(Math.max(...song.map((n) => n[2])));
+    }
   });
 });

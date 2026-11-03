@@ -297,6 +297,110 @@ export function cricket(rng: Rng, pan = 0): SoundSpec {
 }
 
 // ---------------------------------------------------------------------------------------------
+// The waterfall (ADR 0283): a soft splash, the dipper's song, the kajika frog's evening trill
+// ---------------------------------------------------------------------------------------------
+
+/** A soft splash in the pool: a rounded slap of water noise, a little spatter, 1–3 low bubbles. */
+export function splash(rng: Rng, pan = 0): SoundSpec {
+  const len = rng.range(0.22, 0.38);
+  const voices: Voice[] = [
+    {
+      kind: 'noise',
+      filter: { type: 'bandpass', freq: rng.range(650, 1050), q: 0.8 },
+      env: [[0, EPS], [0.012, 1], [0.06, 0.4], [len, EPS]],
+    },
+    { kind: 'noise', filter: { type: 'highpass', freq: rng.range(2200, 3000), q: 0.7 }, env: [[0, EPS], [0.008, 0.3], [len * 0.55, EPS]] },
+  ];
+  const bubbles = rng.int(1, 3);
+  for (let i = 0; i < bubbles; i++) {
+    const f0 = rng.range(380, 760);
+    const dur = rng.range(0.05, 0.09);
+    voices.push(delay({
+      kind: 'tone',
+      wave: 'sine',
+      freq: [[0, f0], [dur, f0 * rng.range(1.25, 1.5)]],
+      env: [[0, EPS], [0.008, rng.range(0.25, 0.4)], [dur, EPS]],
+    }, rng.range(0.03, len * 0.7)));
+  }
+  return finish({ name: 'splash', gain: 0.05, pan, reverb: 0.3, lowpass: 4500, voices });
+}
+
+/**
+ * Brown dipper (kawagarasu): a sweet, rippling warble over the falls. One whistled voice: 9–15
+ * quick notes rippling up and down around ~3.2 kHz, now and then a short trill; the phrase swells
+ * and fades. Every note eases in (≥ 12 ms), so nothing is sharp.
+ */
+export function dipper(rng: Rng, pan = 0): SoundSpec {
+  const base = rng.range(2900, 3500);
+  const n = rng.int(9, 15);
+  const phase = rng.range(0, Math.PI * 2);
+  const freq: Point[] = [];
+  const env: Point[] = [[0, EPS]];
+  let t = 0;
+  for (let i = 0; i < n; i++) {
+    const amp = 0.55 + 0.45 * Math.sin((Math.PI * (i + 0.5)) / n);
+    const f0 = base * (1 + 0.11 * Math.sin(i * 0.95 + phase)) * rng.range(0.96, 1.04);
+    if (rng.chance(0.22)) {
+      // a trill: 3–4 tiny pulses on one held pitch
+      const pulses = rng.int(3, 4);
+      freq.push([t, f0], [t + pulses * 0.028, f0 * 1.03]);
+      for (let p = 0; p < pulses; p++) {
+        const s = t + p * 0.028;
+        if (s > 0) env.push([s, EPS]);
+        env.push([s + 0.008, amp * 0.8], [s + 0.022, EPS]);
+      }
+      t += pulses * 0.028;
+    } else {
+      const dur = rng.range(0.05, 0.085);
+      freq.push([t, f0], [t + dur, f0 * (i % 2 === 0 ? rng.range(1.12, 1.22) : rng.range(0.82, 0.9))]);
+      if (t > 0) env.push([t, EPS]);
+      env.push([t + Math.max(0.012, dur * 0.3), amp], [t + dur * 0.75, amp * 0.5], [t + dur, EPS]);
+      t += dur;
+    }
+    t += rng.range(0.025, 0.06);
+  }
+  return finish({
+    name: 'dipper',
+    gain: 0.032,
+    pan,
+    reverb: 0.3,
+    lowpass: 7000,
+    voices: [{ kind: 'tone', wave: 'sine', freq, env, fm: { ratio: 0.5, depth: base * 0.012 } }],
+  });
+}
+
+/**
+ * Kajika frog (カジカガエル) at dusk: a soft, rising, accelerating trill of 7–10 whistled notes, each
+ * a small upward slide, the gaps closing from ~0.5 s to ~0.15 s; it swells, then thins away.
+ */
+export function kajika(rng: Rng, pan = 0): SoundSpec {
+  const base = rng.range(1900, 2300);
+  const n = rng.int(7, 10);
+  const gap0 = rng.range(0.42, 0.55), gap1 = rng.range(0.13, 0.17);
+  const freq: Point[] = [];
+  const env: Point[] = [[0, EPS]];
+  let t = 0;
+  for (let i = 0; i < n; i++) {
+    const k = i / (n - 1);
+    const dur = 0.13 - 0.06 * k;
+    const f0 = base * (1 + 0.08 * Math.min(1, k * 1.6));
+    const amp = Math.min(1, 0.45 + k * 1.1) * (k > 0.7 ? 1 - (k - 0.7) * 1.3 : 1);
+    freq.push([t, f0], [t + dur * 0.8, f0 * 1.14], [t + dur, f0 * 1.11]);
+    if (t > 0) env.push([t, EPS]);
+    env.push([t + dur * 0.35, amp], [t + dur, EPS]);
+    t += dur + gap0 + (gap1 - gap0) * k;
+  }
+  return finish({
+    name: 'kajika',
+    gain: 0.03,
+    pan,
+    reverb: 0.45,
+    lowpass: 6000,
+    voices: [{ kind: 'tone', wave: 'sine', freq, env, fm: { ratio: 0.25, depth: base * 0.008 } }],
+  });
+}
+
+// ---------------------------------------------------------------------------------------------
 // Chimes (never loud; long reverb tail)
 // ---------------------------------------------------------------------------------------------
 
@@ -362,7 +466,7 @@ export function completion(rng: Rng, pan = 0): SoundSpec {
   return finish({ name: 'completion', gain: 0.07, pan, reverb: 0.5, voices });
 }
 
-export type RecipeName = 'plip' | 'drip' | 'pour' | 'chirp' | 'warbler' | 'swallow' | 'cricket' | 'rin' | 'completion';
+export type RecipeName = 'plip' | 'drip' | 'pour' | 'chirp' | 'warbler' | 'swallow' | 'cricket' | 'splash' | 'dipper' | 'kajika' | 'rin' | 'completion';
 
 export const RECIPES: Readonly<Record<RecipeName, (rng: Rng, pan?: number) => SoundSpec>> = {
   plip,
@@ -372,6 +476,9 @@ export const RECIPES: Readonly<Record<RecipeName, (rng: Rng, pan?: number) => So
   warbler,
   swallow,
   cricket,
+  splash,
+  dipper,
+  kajika,
   rin: rinBowl,
   completion,
 };
