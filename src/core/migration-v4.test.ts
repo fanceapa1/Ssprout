@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import v1Paused from './fixtures/garden-v1-paused.json';
 import v1Session from './fixtures/garden-v1-session.json';
 import v2Parallel from './fixtures/garden-v2-parallel.json';
+import v3Export from './fixtures/garden-v3-export.json';
 import v3Sound from './fixtures/garden-v3-sound.json';
 import {
   EXPORT_FORMAT,
@@ -156,5 +157,49 @@ describe('v4 round trips', () => {
     const r = loadState(storage, T0);
     expect(r.status).toBe('loaded');
     expect(r.state).toEqual(twoGardens());
+  });
+});
+
+describe('a real v3 export (S17)', () => {
+  // exported with the app's own Export button from the last schema-v3 build (fcad95e):
+  // history, a swap's pressed flower, a schedule, a waiting and an active session, a sound mix
+  const file = JSON.stringify(v3Export);
+  const v3 = v3Export.state;
+
+  it('is a schema-v3 garden file from before sceneries', () => {
+    expect(v3Export).toMatchObject({ format: EXPORT_FORMAT, schemaVersion: 3 });
+    expect(v3.version).toBe(3);
+    expect(file).not.toContain('sceneryId');
+  });
+
+  it('imports into the Japanese garden with everything intact', () => {
+    const r = importState(file);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.warnings.unknownSpecies).toEqual([]);
+    const s = r.state;
+    expect(s.version).toBe(STATE_VERSION);
+    expect(s.scenery).toBe('japanese-garden');
+    expect(s.plants).toEqual(v3.plants.map(jp));
+    expect(s.pressed).toEqual(v3.pressed.map(jp));
+    expect(s.session).toEqual(jp(v3.session));
+    expect(s.waiting).toEqual(v3.waiting.map(jp));
+    expect(s.log).toEqual(v3.log.map(jp));
+    expect(s.schedules).toEqual(v3.schedules);
+    expect(s.stats).toEqual(v3.stats);
+    expect(s.tips).toEqual(v3.tips);
+    expect(s.faunaSeen).toEqual(v3.faunaSeen);
+    expect(s.createdAt).toBe(v3.createdAt);
+    // the sound mix as made in the mixer; the falls (added since) read as 0
+    expect(s.settings).toMatchObject(v3.settings);
+    expect(s.settings.soundscape!.standard.falls).toBe(0);
+    expect(s.settings.soundscape!.sceneries.pond!.levels!.falls).toBe(0);
+  });
+
+  it('exports again as v4 and comes back the same', () => {
+    const r = importState(file);
+    if (!r.ok) throw new Error(r.error.message);
+    const again = importState(exportState(r.state, T0));
+    expect(again.ok && again.state).toEqual(r.state);
   });
 });

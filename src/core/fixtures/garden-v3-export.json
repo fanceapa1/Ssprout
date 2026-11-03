@@ -1,0 +1,461 @@
+{
+  "format": "study-sprout-garden",
+  "formatVersion": 1,
+  "schemaVersion": 3,
+  "exportedAt": "2026-11-03T18:17:05.541Z",
+  "summary": {
+    "plants": 4,
+    "pressed": 1,
+    "totalMinutes": 420,
+    "completed": 9
+  },
+  "state": {
+    "version": 3,
+    "createdAt": 1793728860174,
+    "plants": [
+      {
+        "id": "dev-6s291",
+        "speciesId": "water-lily",
+        "slotId": "water-5",
+        "seed": 1508804470,
+        "plantedAt": 1793727360186,
+        "sessionMinutes": 25,
+        "taskName": "Linear algebra",
+        "completedAt": 1793728860186
+      },
+      {
+        "id": "dev-9fj2y",
+        "speciesId": "dandelion",
+        "slotId": "path-5",
+        "seed": 3143740416,
+        "plantedAt": 1793728260186,
+        "sessionMinutes": 10,
+        "taskName": "Biology ch. 4",
+        "completedAt": 1793728860186
+      },
+      {
+        "id": "dev-6qgp0",
+        "speciesId": "white-clover",
+        "slotId": "path-6",
+        "seed": 3466098384,
+        "plantedAt": 1793728260186,
+        "sessionMinutes": 10,
+        "taskName": "Organic chemistry",
+        "completedAt": 1793728860186
+      },
+      {
+        "id": "session-mw0zumfv-6m8cv",
+        "speciesId": "dandelion",
+        "slotId": "meadow-9",
+        "seed": 1925168088,
+        "plantedAt": 1793728860187,
+        "sessionMinutes": 10,
+        "taskName": "Vocabulary",
+        "completedAt": 1793729460187
+      }
+    ],
+    "pressed": [
+      {
+        "speciesId": "balloon-flower",
+        "seed": 1128519269,
+        "plantedAt": 1793727360186,
+        "removedAt": 1793729460187,
+        "taskName": "Piano theory"
+      }
+    ],
+    "session": {
+      "id": "session-mw10cmm3-2eels",
+      "taskName": "Problem set",
+      "goalMs": 3000000,
+      "plan": {
+        "id": "unbroken",
+        "name": "Unbroken",
+        "blocks": [
+          {
+            "kind": "focus",
+            "minutes": 50
+          }
+        ]
+      },
+      "speciesId": "azalea",
+      "slotId": "meadow-2",
+      "seed": 872711432,
+      "displacedPlantId": null,
+      "startedAt": 1793729700219,
+      "pausedAt": null,
+      "pausedTotalMs": 0,
+      "skippedMs": 0,
+      "weather": "rain",
+      "waterings": [],
+      "focusWaterings": 0
+    },
+    "waiting": [
+      {
+        "id": "session-mw107hev-5ou9s",
+        "taskName": "Essay draft",
+        "goalMs": 1500000,
+        "plan": {
+          "id": "unbroken",
+          "name": "Unbroken",
+          "blocks": [
+            {
+              "kind": "focus",
+              "minutes": 25
+            }
+          ]
+        },
+        "speciesId": "anemone",
+        "slotId": "meadow-1",
+        "seed": 3344749033,
+        "displacedPlantId": null,
+        "startedAt": 1793729460199,
+        "pausedAt": 1793729700219,
+        "pausedTotalMs": 0,
+        "skippedMs": 0,
+        "weather": "sun",
+        "waterings": [],
+        "focusWaterings": 0
+      }
+    ],
+    "log": [
+      {
+        "id": "history-5-11-0",
+        "outcome": "completed",
+        "taskName": "Organic chemistry",
+        "speciesId": "cosmos",
+        "slotId": "meadow-1",
+        "seed": 15264563,
+        "plan": {
+          "id": "pomodoro",
+          "name": "Pomodoro",
+          "blocks": [
+            {
+              "kind": "focus",
+              "minutes": 30
+            },
+            {
+              "kind": "break",
+              "minutes": 5
+            },
+            {
+              "kind": "focus",
+              "minutes": 25
+            },
+            {
+              "kind": "break",
+              "minutes": 5
+            },
+            {
+              "kind": "focus",
+              "minutes": 25
+            }
+          ]
+        },
+        "goalMinutes": 90,
+        "focusedMinutes": 80,
+        "startedAt": 1792755300000,
+        "endedAt": 1792760760000
+      },
+      {
+        "id": "history-5-10-0",
+        "outcome": "completed",
+        "taskName": "History reading",
+        "speciesId": "wild-strawberry",
+        "slotId": "meadow-1",
+        "seed": 10957687,
+        "plan": {
+          "id": "unbroken",
+          "name": "Unbroken",
+          "blocks": [
+            {
+              "kind": "focus",
+              "minutes": 90
+            }
+          ]
+        },
+        "goalMinutes": 90,
+        "focusedMinutes": 90,
+        "startedAt": 1792866000000,
+        "endedAt": 1792871520000
+      },
+      {
+        "id": "history-5-8-0",
+        "outcome": "completed",
+        "taskName": "Thesis outline",
+        "speciesId": "wild-strawberry",
+        "slotId": "meadow-1",
+        "seed": 10015578,
+        "plan": {
+          "id": "pomodoro",
+          "name": "Pomodoro",
+          "blocks": [
+            {
+              "kind": "focus",
+              "minutes": 25
+            },
+            {
+              "kind": "break",
+              "minutes": 5
+            },
+            {
+              "kind": "focus",
+              "minutes": 20
+            }
+          ]
+        },
+        "goalMinutes": 50,
+        "focusedMinutes": 45,
+        "startedAt": 1793022600000,
+        "endedAt": 1793025960000
+      },
+      {
+        "id": "history-5-5-0",
+        "outcome": "completed",
+        "taskName": "Poetry notes",
+        "speciesId": "anemone",
+        "slotId": "meadow-1",
+        "seed": 3765961,
+        "plan": {
+          "id": "unbroken",
+          "name": "Unbroken",
+          "blocks": [
+            {
+              "kind": "focus",
+              "minutes": 30
+            }
+          ]
+        },
+        "goalMinutes": 30,
+        "focusedMinutes": 30,
+        "startedAt": 1793253600000,
+        "endedAt": 1793255400000
+      },
+      {
+        "id": "history-5-3-0",
+        "outcome": "completed",
+        "taskName": "Statistics problem set",
+        "speciesId": "hydrangea",
+        "slotId": "meadow-1",
+        "seed": 1180189,
+        "plan": {
+          "id": "pomodoro",
+          "name": "Pomodoro",
+          "blocks": [
+            {
+              "kind": "focus",
+              "minutes": 25
+            },
+            {
+              "kind": "break",
+              "minutes": 5
+            },
+            {
+              "kind": "focus",
+              "minutes": 20
+            }
+          ]
+        },
+        "goalMinutes": 50,
+        "focusedMinutes": 45,
+        "startedAt": 1793455500000,
+        "endedAt": 1793458620000
+      },
+      {
+        "id": "history-5-3-1",
+        "outcome": "completed",
+        "taskName": "Organic chemistry",
+        "speciesId": "tree-peony",
+        "slotId": "meadow-1",
+        "seed": 13231359,
+        "plan": {
+          "id": "unbroken",
+          "name": "Unbroken",
+          "blocks": [
+            {
+              "kind": "focus",
+              "minutes": 50
+            }
+          ]
+        },
+        "goalMinutes": 50,
+        "focusedMinutes": 50,
+        "startedAt": 1793472300000,
+        "endedAt": 1793475480000
+      },
+      {
+        "id": "history-5-3-2",
+        "outcome": "completed",
+        "taskName": "Piano theory",
+        "speciesId": "japanese-iris",
+        "slotId": "meadow-1",
+        "seed": 2104981,
+        "plan": {
+          "id": "pomodoro",
+          "name": "Pomodoro",
+          "blocks": [
+            {
+              "kind": "focus",
+              "minutes": 25
+            },
+            {
+              "kind": "break",
+              "minutes": 5
+            },
+            {
+              "kind": "focus",
+              "minutes": 20
+            }
+          ]
+        },
+        "goalMinutes": 50,
+        "focusedMinutes": 45,
+        "startedAt": 1793478900000,
+        "endedAt": 1793482140000
+      },
+      {
+        "id": "history-5-1-0",
+        "outcome": "completed",
+        "taskName": "Biology ch. 4",
+        "speciesId": "susuki-grass",
+        "slotId": "meadow-1",
+        "seed": 5725867,
+        "plan": {
+          "id": "pomodoro",
+          "name": "Pomodoro",
+          "blocks": [
+            {
+              "kind": "focus",
+              "minutes": 15
+            },
+            {
+              "kind": "break",
+              "minutes": 5
+            },
+            {
+              "kind": "focus",
+              "minutes": 10
+            }
+          ]
+        },
+        "goalMinutes": 30,
+        "focusedMinutes": 25,
+        "startedAt": 1793600700000,
+        "endedAt": 1793602860000
+      },
+      {
+        "id": "history-5-0-0",
+        "outcome": "cancelled",
+        "taskName": "Physics lab report",
+        "speciesId": "white-clover",
+        "slotId": "meadow-1",
+        "seed": 8146407,
+        "plan": {
+          "id": "unbroken",
+          "name": "Unbroken",
+          "blocks": [
+            {
+              "kind": "focus",
+              "minutes": 30
+            }
+          ]
+        },
+        "goalMinutes": 30,
+        "focusedMinutes": 8,
+        "startedAt": 1793693700000,
+        "endedAt": 1793694300000
+      },
+      {
+        "id": "session-mw0zumfv-6m8cv",
+        "outcome": "completed",
+        "taskName": "Vocabulary",
+        "speciesId": "dandelion",
+        "slotId": "meadow-9",
+        "seed": 1925168088,
+        "plan": {
+          "id": "unbroken",
+          "name": "Unbroken",
+          "blocks": [
+            {
+              "kind": "focus",
+              "minutes": 10
+            }
+          ]
+        },
+        "goalMinutes": 10,
+        "focusedMinutes": 10,
+        "startedAt": 1793728860187,
+        "endedAt": 1793729460187
+      }
+    ],
+    "schedules": [
+      {
+        "id": "schedule-mw107hek-0m3nm",
+        "name": "Morning reading",
+        "date": "2026-11-03",
+        "time": "20:12",
+        "lengthMinutes": 25,
+        "planId": null,
+        "repeat": "weekdays",
+        "until": null,
+        "notes": {},
+        "createdAt": 1793729460188
+      }
+    ],
+    "stats": {
+      "totalMinutes": 420,
+      "completed": 9,
+      "cancelled": 1
+    },
+    "faunaSeen": [],
+    "tips": {
+      "task": "seen",
+      "duration": "seen",
+      "placement": "seen",
+      "swap": "seen",
+      "notifications": "seen",
+      "schedule": "seen",
+      "sound": "seen",
+      "widget": "seen"
+    },
+    "settings": {
+      "muted": false,
+      "lastGoalMinutes": 50,
+      "notifications": "denied",
+      "soundscape": {
+        "collection": "standard",
+        "volume": 65,
+        "standard": {
+          "water": 0,
+          "wind": 0,
+          "birds": 0,
+          "crickets": 0,
+          "rain": 55,
+          "waves": 0,
+          "fire": 0,
+          "cafe": 42,
+          "lofi": 0,
+          "white": 0,
+          "brown": 0
+        },
+        "sceneries": {
+          "pond": {
+            "mode": "custom",
+            "levels": {
+              "water": 35,
+              "wind": 20,
+              "birds": 0,
+              "crickets": 0,
+              "rain": 80,
+              "waves": 0,
+              "fire": 0,
+              "cafe": 0,
+              "lofi": 0,
+              "white": 0,
+              "brown": 0
+            }
+          }
+        }
+      }
+    }
+  }
+}
