@@ -1,6 +1,6 @@
 # ADR 0245: The waterfall's geometry, slots and per-slot scale
 
-- Status: accepted
+- Status: accepted; the dev flag was lifted in S17 (2026-11-03, devlog 95)
 - Date: 2026-10-28
 - Amends: ADR 0043 (slot perspective scale)
 
@@ -44,7 +44,8 @@ shaped it:
 - **Placeholder painting**: flat fills in the composition's places (sky, far ridge, banks, cliff,
   ledges, pool, stream, falls, trail) and a flat sky wash per phase. S6–S8 and S10 replace them.
 - **Behind a dev flag**: registered, `available` only with `?dev&scenery=waterfall`. Nothing
-  switches to it yet (S3).
+  switches to it yet (S3). *Lifted in S17*: `available` returns true, both gardens are offered to
+  everyone and a new garden still opens on the Japanese garden.
 - **Habitat words** are not in the contract (ADR 0241 left them to S5). The waterfall records
   them as `WATERFALL_HABITAT_WORDS` in its `layout.ts`.
 
