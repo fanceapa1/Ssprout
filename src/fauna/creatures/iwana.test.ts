@@ -3,10 +3,11 @@ import { createRng } from '../../core/rng';
 import type { PlantInstance } from '../../core/state';
 import { FOAM, WATERFALL_FAUNA, WATERFALL_WILDLIFE } from '../../scenery/waterfall/fauna';
 import { FALLS, waterfallScene } from '../../scenery/waterfall/geometry';
-import { dist, pointInPolygon, toWorld } from '../math';
+import { dist, pointInPolygon, toPlane, toWorld } from '../math';
+import { Yamasemi } from './yamasemi';
 import { FaunaSim } from '../sim';
 import { Stage } from '../stage';
-import { activity, chooseStation, clearOfRocks, Iwana, IWANA_LEN, iwanaProfile, nextVariant, poolAxis, sidePoint } from './iwana';
+import { activity, chooseStation, clearOfRocks, Iwana, IWANA_LEN, IWANA_STARTLE, iwanaProfile, nextVariant, poolAxis, sidePoint } from './iwana';
 
 const inFoam = (p: { x: number; y: number }) => ((p.x - FOAM.x) / FOAM.rx) ** 2 + ((p.y - FOAM.y) / FOAM.ry) ** 2 < 0.97;
 const plants: PlantInstance[] = [];
@@ -168,5 +169,102 @@ describe('on the studio’s falls stage', () => {
     const [a, b] = fish(stage.sim);
     expect(fish(stage.sim)).toHaveLength(2);
     expect(dist(a!.station.p, b!.station.p)).toBeGreaterThan(a!.len * 0.9);
+  });
+});
+
+/** A stand-in bird the fish can see: only its kind, state and point on the water matter. */
+function fakeBird(kind: 'yamasemi' | 'heron', at: { x: number; y: number }, state: string) {
+  return { id: 9001, kind, x: at.x, y: at.y, target: kind === 'yamasemi' ? at : undefined, layer: 'air', state, done: false, visitor: true, forced: true, update() {}, draw() {}, depth: () => null, leave() {} };
+}
+
+function settled(seed = 7) {
+  const sim = waterfallSim(seed);
+  for (let s = 0; s < 20; s++) sim.update(0.1, 0);
+  const f = fish(sim)[0]!;
+  for (let s = 0; s < 400 && f.state !== 'hold'; s++) sim.update(0.1, 0);
+  return { sim, f, world: (p: { x: number; y: number }) => toWorld(p, sim.world.pond.cy, sim.world.pond.squash) };
+}
+
+describe('when a bird hunts the pool', () => {
+  it('darts away and lies deeper under a plunging yamasemi, then drifts back to its station', () => {
+    const { sim, f, world } = settled();
+    const spot = { x: f.p.x + 12, y: f.p.y };
+    const bird = fakeBird('yamasemi', world(spot), 'hover');
+    sim.creatures.push(bird as never);
+    const before = dist(f.p, spot);
+    sim.update(0.1, 0);
+    expect(f.state).toBe('startle');
+    bird.state = 'plunge';
+    let deepest = 0;
+    for (let s = 0; s < 30; s++) {
+      sim.update(0.1, 0);
+      deepest = Math.max(deepest, f.deep);
+    }
+    expect(dist(f.p, spot)).toBeGreaterThan(before + f.len * 0.3);
+    expect(deepest).toBeGreaterThan(0.85);
+    expect(f.state).toBe('startle');
+    // the bird is gone: a few seconds down, then back to station
+    bird.done = true;
+    let back = -1;
+    for (let s = 0; s < 300 && back < 0; s++) {
+      sim.update(0.1, 0);
+      if (f.state === 'hold') back = s * 0.1;
+    }
+    expect(back).toBeGreaterThan(2.5);
+    expect(back).toBeLessThan(20);
+    expect(dist(f.p, f.station.p)).toBeLessThan(f.len * 0.3);
+    expect(f.startles).toBe(1);
+  });
+
+  it('ignores a yamasemi on its perch, and reacts the same way for a seed', () => {
+    const run = () => {
+      const { sim, f, world } = settled();
+      const bird = fakeBird('yamasemi', world(f.p), 'perch');
+      sim.creatures.push(bird as never);
+      for (let s = 0; s < 50; s++) sim.update(0.1, 0);
+      const calm = f.startles;
+      bird.state = 'hover';
+      for (let s = 0; s < 200; s++) sim.update(0.1, 0);
+      return { calm, out: fish(sim).map((g) => `${g.state}:${g.startles}:${g.x.toFixed(2)},${g.y.toFixed(2)}`) };
+    };
+    const a = run();
+    expect(a.calm).toBe(0);
+    expect(a.out).toEqual(run().out);
+  });
+
+  it('a heron wading close puts it down too', () => {
+    const { sim, f, world } = settled();
+    const at = world({ x: f.p.x + 20, y: f.p.y });
+    sim.creatures.push(fakeBird('heron', at, 'stand') as never);
+    sim.update(0.1, 0);
+    expect(f.state).toBe('startle');
+  });
+
+  it('on real yamasemi visits: every fish near a plunge is down, the far ones carry on', () => {
+    let near = 0;
+    let far = 0;
+    for (const seed of [1, 2, 3, 4, 5, 6, 8, 9]) {
+      const sim = waterfallSim(seed);
+      for (let s = 0; s < 20; s++) sim.update(0.1, 0);
+      const [k] = sim.spawn('yamasemi') as Yamasemi[];
+      const { cy, squash } = sim.world.pond;
+      let was = '';
+      for (let s = 0; s < 6000 && k!.plunges < 3 && !k!.done; s++) {
+        sim.update(0.1, 0);
+        for (const g of fish(sim)) for (const q of body(sim, g)) expect(pointInPolygon(q, sim.world.pond.world) && !inFoam(q), `seed ${seed}, ${g.state} at ${s}`).toBe(true);
+        if (k!.state === 'plunge' && was !== 'plunge') {
+          for (const g of fish(sim)) {
+            const d = dist(g.p, toPlane(k!.target!, cy, squash));
+            if (d < IWANA_STARTLE.yamasemi.reach * 0.9) {
+              near++;
+              expect(g.state).toBe('startle');
+            } else if (d > IWANA_STARTLE.yamasemi.reach * 1.1) far += g.state === 'startle' ? 0 : 1;
+          }
+        }
+        was = k!.state;
+      }
+    }
+    expect(near).toBeGreaterThan(0);
+    expect(far).toBeGreaterThan(0);
   });
 });

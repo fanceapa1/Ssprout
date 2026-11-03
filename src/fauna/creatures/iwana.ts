@@ -370,6 +370,35 @@ export function activity(night: boolean, duskLeft: number): number {
 
 const DEEP = 0.7;
 
+/** Birds that put the fish down: in plane units, and in which of their states. */
+export const IWANA_STARTLE = {
+  yamasemi: { reach: 95, states: ['hover', 'plunge', 'under', 'emerge'] },
+  heron: { reach: 80, states: ['stand', 'crouch'] },
+  /** seconds it stays down after the bird has gone */
+  shy: [3, 5] as const,
+  deep: 0.97,
+} as const;
+
+/** The nearest startling bird's point on the water (plane units), or null. */
+export function startler(w: FaunaWorld, p: Pt): Pt | null {
+  let best: Pt | null = null;
+  let bd = Infinity;
+  for (const c of w.creatures) {
+    if (c.done || (c.kind !== 'yamasemi' && c.kind !== 'heron')) continue;
+    const th = IWANA_STARTLE[c.kind];
+    if (!(th.states as readonly string[]).includes(c.state)) continue;
+    // the yamasemi hunts a spot on the water; the heron stands in it
+    const at = c.kind === 'yamasemi' ? ((c as { target?: Pt | null }).target ?? c) : c;
+    const q = toPlane(at, w.pond.cy, w.pond.squash);
+    const d = dist(q, p);
+    if (d < th.reach && d < bd) {
+      bd = d;
+      best = q;
+    }
+  }
+  return best;
+}
+
 export class Iwana extends BaseCreature {
   readonly kind = 'iwana' as const;
   readonly visitor = false;
@@ -397,6 +426,9 @@ export class Iwana extends BaseCreature {
   /** rises to the surface so far (tests) */
   rises = 0;
   darts = 0;
+  /** times a bird put it down (tests) */
+  startles = 0;
+  private shy = 0;
   private readonly wob: number;
 
   constructor(w: FaunaWorld, opts: { seed: number; variant: IwanaVariant; others?: readonly Pt[] }) {
@@ -450,6 +482,9 @@ export class Iwana extends BaseCreature {
     const h0 = this.heading;
     let turn = 1.4;
     let want = up + 0.09 * w.noise(this.wob, w.t * 0.12);
+    const threat = this.leaving ? null : startler(w, this.p);
+    if (threat && this.state !== 'startle') this.startle(w, threat);
+    else if (threat) this.timer = 0;
 
     switch (this.state) {
       case 'hold': {
@@ -506,6 +541,22 @@ export class Iwana extends BaseCreature {
         if (this.timer > this.hold / sf) this.go('back');
         break;
       }
+      case 'startle': {
+        // a dart away and down, then lying low until the bird has been gone a few seconds
+        const q = this.target ?? this.p;
+        const fast = this.timer < 1.2 / sf && dist(this.p, q) > 1.2 * k;
+        arrive(this.p, this.v, q, (fast ? 85 : 2) * k * sf, (fast ? 460 : 200) * k * sf, 10 * k, dt);
+        if (fast) {
+          want = up + clamp(angleDiff(up, Math.atan2(q.y - this.p.y, q.x - this.p.x)), -1.1, 1.1);
+          turn = 9;
+        }
+        if (this.timer > this.shy / sf) {
+          this.deepTarget = DEEP;
+          this.gap = Math.max(this.gap, 4);
+          this.go('back');
+        }
+        break;
+      }
       case 'back': {
         // drops back to its station still facing the current
         arrive(this.p, this.v, st, 9 * k * sf, 14 * k * sf, 10 * k, dt);
@@ -520,7 +571,7 @@ export class Iwana extends BaseCreature {
     this.p = containPoint(this.p, w.pond.plane, this.len * 0.3);
 
     // depth: rising fast to sip, sinking back slowly
-    this.deep = approach(this.deep, this.deepTarget, (this.state === 'rise' ? 0.9 : 0.5) * sf, dt);
+    this.deep = approach(this.deep, this.deepTarget, (this.state === 'rise' || this.state === 'startle' ? 0.9 : 0.5) * sf, dt);
 
     // the body bends with the turn; the tail sculls slowly holding, fast darting
     const omega = angleDiff(h0, this.heading) / dt;
@@ -536,6 +587,29 @@ export class Iwana extends BaseCreature {
       this.alpha = Math.min(1, this.alpha + dt * 0.2);
     }
     this.syncWorld(w);
+  }
+
+  /** Darts away from `from` (plane units) and sinks, with no rng draw: the shared stream is untouched. */
+  private startle(w: FaunaWorld, from: Pt): void {
+    const a0 = Math.atan2(this.p.y - from.y, this.p.x - from.x);
+    this.target = null;
+    const up = this.station.heading;
+    const tailIn = (q: Pt, h: number) => insideWithMargin({ x: q.x - Math.cos(h) * this.len, y: q.y - Math.sin(h) * this.len }, w.pond.plane, this.len * 0.2);
+    search: for (const r of [0.9, 0.6, 0.35]) {
+      for (const da of [0, 0.6, -0.6, 1.2, -1.2]) {
+        const q = { x: this.p.x + Math.cos(a0 + da) * this.len * r, y: this.p.y + Math.sin(a0 + da) * this.len * r };
+        const h = up + clamp(angleDiff(up, a0 + da), -1.1, 1.1);
+        if (dist(q, this.station.p) > this.len * 1.1 || !insideWithMargin(q, w.pond.plane, this.len * 0.6) || !clearOfRocks(w, q, up, this.len)) continue;
+        if (!tailIn(q, h) || !tailIn(q, up)) continue;
+        this.target = q;
+        break search;
+      }
+    }
+    const [a, b] = IWANA_STARTLE.shy;
+    this.shy = a + (b - a) * ((this.wob * 7.31) % 1);
+    this.deepTarget = IWANA_STARTLE.deep;
+    this.startles++;
+    this.go('startle');
   }
 
   private syncWorld(w: FaunaWorld): void {
