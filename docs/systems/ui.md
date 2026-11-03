@@ -43,7 +43,7 @@ session discards its draft, so it cannot rename another session.
 | `index.ts` | `createUI` — composition (stage overlay, dock sections, fixed layers), modes (`garden` / `planting` / `placement`), dialog management, flows, store/tick/bus wiring |
 | `stage.ts` | the garden stage: `.stage-ui` overlay, the edge mask, the zoom-gesture hook (ADR 0130, 0132) |
 | `stage-edge.ts` | pure alpha mask for the dissolving edge (`stageEdgeAlpha`, `fadeHeight`, `featherWidth`) |
-| `page-paper.ts` | the page's paper tile from `paperTexture` (same washi as the garden, ADR 0132) |
+| `page-paper.ts` | the page's paper tile from `paperTexture` (same washi as the garden, ADR 0132), set as `--page-paper` with a short `blob:` URL: a 551 KB data URL was re-parsed on every restyle of an element using it (devlog 99) |
 | `dock.ts` | the dock section registry (`createDock`, `orderSections`; contract in ARCHITECTURE › Dock) |
 | `backdrop.ts` · `backdrop-sheet.ts` | the sheet behind each dock section (ADR 0208): `createBackdrop(host, { seed, strength })` lays `div.backdrop` (wash + leaf) and draws its SVG mask and wash for the section's size, again only when it changes; pure geometry `createTear`, `sheetOutline`, `sheetFibres`, `shadowLayers`, `sheetMaskSvg`, `sheetShadowSvg`, `SHEET` (`leaf`, `firm`) |
 | `backdrop.studio.ts` | studio section `ui-backdrop`: a leaf, the calendar's firm sheet, the edge ×4, one seed at two heights |
@@ -174,7 +174,8 @@ session discards its draft, so it cannot rename another session.
 - The pill (ADR 0203): top-left on wide screens, bottom centre on phones and narrow screens; `pill-aside` (fade, inert,
   with the planned slip) while the Study body is on screen. An `IntersectionObserver` keeps it; Begin settles it at
   once for where the page is gliding (the garden), so keyboard focus lands on the pill's Pause even before the
-  glide has moved a frame (devlog 41).
+  glide has moved a frame (devlog 41). It measures before Begin's DOM writes (`scroller.target()` reads no
+  layout), so the click forces no layout; focusing Pause still forces one style pass (devlog 99).
 - Session controls exist in the dock; the pill keeps time, pause/resume and the way down. While
   focusing, the pill and the corner tools rest; the dock never fades. Resting is a small step back
   (`--rest-tools: 0.88` for the corner tools and the zoom chips, `--rest-pill: 0.72`; ADR 0180): the
