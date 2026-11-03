@@ -115,13 +115,13 @@ function clipTo(p: Painter, shape: readonly Pt[]): void {
  * each farther one paler and cooler, with mist between them (deep distance), and a few far trees.
  */
 export function* paintGorge(p: Painter, rng: Rng): Strokes {
-  const haze = lighten(mix(CLIFF_SHADOW, PIGMENTS.bellflower, 0.4), 0.2);
+  const haze = lighten(mix(CLIFF_SHADOW, PIGMENTS.bellflower, 0.4), 0.1);
   const far: Pt[] = [{ x: 532, y: 248 }, { x: 700, y: 240 }, { x: 684, y: 302 }, { x: 548, y: 302 }];
   yield* p.parts.wash(far, haze, { rng, deform: 0.05, opacity: 0.3, edge: 0.1, granules: 0.2, fade: { angle: Math.PI / 2, start: 0.4, amount: 0.7 } });
   yield;
   // far → near: the outline, its pigment and strength
   const spurs: [Pt[], Pigment, number][] = [
-    [[{ x: 548, y: 262 }, { x: 572, y: 255 }, { x: 590, y: 253 }, { x: 604, y: 249 }, { x: 618, y: 252 }, { x: 636, y: 255 }, { x: 650, y: 262 }, { x: 652, y: 302 }, { x: 548, y: 302 }], haze, 0.42],
+    [[{ x: 548, y: 262 }, { x: 572, y: 255 }, { x: 590, y: 253 }, { x: 604, y: 249 }, { x: 618, y: 252 }, { x: 636, y: 255 }, { x: 650, y: 262 }, { x: 652, y: 302 }, { x: 548, y: 302 }], haze, 0.52],
     [[{ x: 706, y: 240 }, { x: 680, y: 248 }, { x: 672, y: 256 }, { x: 648, y: 262 }, { x: 640, y: 270 }, { x: 624, y: 274 }, { x: 620, y: 302 }, { x: 706, y: 302 }], mix(RECESS, haze, 0.45), 0.5],
     [[{ x: 524, y: 250 }, { x: 552, y: 255 }, { x: 560, y: 262 }, { x: 580, y: 266 }, { x: 588, y: 276 }, { x: 600, y: 282 }, { x: 600, y: 302 }, { x: 524, y: 302 }], mix(CLIFF_LIT, haze, 0.2), 0.52],
   ];
@@ -136,7 +136,7 @@ export function* paintGorge(p: Painter, rng: Rng): Strokes {
     // mist pooling at the spur's foot, parting it from the one behind
     const b = bounds(shape);
     const top = shape[shape.length - 3]!;
-    yield* p.parts.lift({ cx: top.x, cy: Math.min(296, top.y + 14), rx: b.w * 0.35, ry: 5 }, { rng, amount: 0.4, deform: 0.4, spread: 0.5, layers: 5, sharpness: 0.05 });
+    yield* p.parts.lift({ cx: top.x, cy: Math.min(296, top.y + 14), rx: b.w * 0.35, ry: 5 }, { rng, amount: 0.25, deform: 0.4, spread: 0.5, layers: 5, sharpness: 0.05 });
     yield;
   }
   // a crease down each near spur and its bedding, in the spur's own light
@@ -231,6 +231,24 @@ export function* paintCliff(p: Painter, rng: Rng): Strokes {
         fade: { angle: Math.PI / 2, start: 0.15, amount: 1, ragged: 0.7 },
       });
       yield;
+      // joints under the bed, each with the block's shaded side turning away from the light
+      for (let xj = x0 + rng.range(30, 90); xj < x0 + len - 20; xj += rng.range(60, 140)) {
+        const yj = y0 + (600 - xj) * dip + thick * 0.7;
+        const h = rng.range(22, 46);
+        const lean = rng.range(-4, 4);
+        const w = rng.range(6, 22);
+        if (rng.chance(0.55)) yield* p.parts.wash([{ x: xj - w, y: yj }, { x: xj, y: yj }, { x: xj + lean, y: yj + h }, { x: xj + lean - w * rng.range(0.1, 0.5), y: yj + h * rng.range(0.5, 0.9) }], CLIFF_SHADOW, {
+          rng,
+          deform: 0.2,
+          layers: 6,
+          opacity: 0.16,
+          edge: 0.4,
+          sharpness: 0.6,
+          fade: { angle: Math.PI, start: 0.3, amount: 1, ragged: 0.7 },
+        });
+        p.inkLine([{ x: xj, y: yj }, { x: xj + lean * 0.5, y: yj + h * 0.5 }, { x: xj + lean, y: yj + h }], { rng, width: 1, pigment: mix(PIGMENTS.sumi, CLIFF_SHADOW, 0.5), breaks: 0.5, opacity: 0.3, taper: [0.1, 0.6] });
+        yield;
+      }
       x0 += len + rng.range(30, 160);
     }
   }
