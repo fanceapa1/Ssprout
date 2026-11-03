@@ -2,11 +2,12 @@ import { realClock } from '../core/clock';
 import { createEventBus } from '../core/events';
 import { createRng, type Rng } from '../core/rng';
 import { createDefaultState, type Weather } from '../core/state';
-import { defaultSoundscape, levelsWith, type SoundLayer } from '../core/soundscape';
+import { defaultSoundscape, levelsWith } from '../core/soundscape';
 import type { StudioEntry, StudioRenderContext, StudioSection } from '../studio/types';
 import { createWebAudioBackend, type AudioBackend, type SoundBus } from './backend';
 import { createGardenAudio, type GardenAudio } from './garden-audio';
-import { BIRD_CURVE, CRICKET_CURVE, MASTER_LEVEL, mixParams, sampleCurve, SWALLOW_CURVE, WARBLER_CURVE } from './params';
+import { fallsLoops } from './falls';
+import { BIRD_CURVE, CRICKET_CURVE, DIPPER_CURVE, KAJIKA_CURVE, MASTER_LEVEL, mixParams, sampleCurve, SWALLOW_CURVE, WARBLER_CURVE, type MixParams } from './params';
 import { standardLoop } from './standard-loops';
 import { brownNoise, pinkNoise, whiteNoise } from './noise';
 import { EPS, RECIPES, type Point, type RecipeName, type SoundSpec, type Voice } from './recipes';
@@ -232,6 +233,8 @@ function drawCurves(canvas: HTMLCanvasElement, { pixelRatio }: StudioRenderConte
     { name: 'uguisu', curve: WARBLER_CURVE, w: 1.2, a: 0.6, dash: [], at: 9.6 },
     { name: 'swallows', curve: SWALLOW_CURVE, w: 1, a: 0.5, dash: [2, 3], at: 13 },
     { name: 'crickets', curve: CRICKET_CURVE, w: 1.8, a: 0.4, dash: [], at: 1 },
+    { name: 'dipper (falls)', curve: DIPPER_CURVE, w: 1, a: 0.45, dash: [4, 2], at: 6 },
+    { name: 'kajika (falls)', curve: KAJIKA_CURVE, w: 1, a: 0.45, dash: [1, 2], at: 20.5 },
   ];
   ctx.font = '10px "Cormorant Garamond", serif';
   ctx.textBaseline = 'bottom';
@@ -295,14 +298,49 @@ const section: StudioSection = {
     soundEntry('warbler', 'Bush warbler hō-hokekyo', 'events'),
     soundEntry('swallow', 'Swallows twitter', 'events'),
     soundEntry('cricket', 'Night cricket trill', 'events'),
+    soundEntry('splash', 'Waterfall: splash in the plunge pool', 'events'),
+    soundEntry('dipper', 'Waterfall: brown dipper warble', 'events'),
+    soundEntry('kajika', 'Waterfall: kajika frog trill at dusk', 'events'),
     soundscape,
+    fallsEntry(),
     ...(['waves', 'fire', 'cafe', 'lofi', 'white', 'brown'] as const).map(standardEntry),
   ],
 };
 
 let bedPlayer: AudioBackend | null = null;
-let bedPlaying: SoundLayer | null = null;
+let bedPlaying: string | null = null;
 let bedSuspend: ReturnType<typeof setTimeout> | null = null;
+const idle = { sessionActive: false, paused: false };
+
+/** Click to play a bed through the real backend, click again (or another bed) to stop. */
+function toggleBed(key: string, mix: () => MixParams) {
+  if (!bedPlayer) bedPlayer = createWebAudioBackend('standard-studio');
+  if (!bedPlayer) return;
+  if (bedSuspend) clearTimeout(bedSuspend);
+  if (bedPlaying === key) {
+    bedPlaying = null; bedPlayer.setMaster(0, 0.3);
+    bedSuspend = setTimeout(() => { void bedPlayer?.suspend(); }, 400);
+    return;
+  }
+  bedPlaying = key;
+  void bedPlayer.resume(); bedPlayer.startBeds();
+  bedPlayer.applyMix(mix(), 0.5);
+  bedPlayer.setMaster(MASTER_LEVEL, 0.5);
+}
+
+/** A level trace: RMS of 64 samples at each pixel column, mirrored about `mid`. */
+function trace(ctx: CanvasRenderingContext2D, samples: Float32Array, mid: number, scale: number) {
+  ctx.beginPath();
+  for (let x = 12; x < W - 12; x++) {
+    const start = Math.floor((x - 12) / (W - 24) * samples.length);
+    let power = 0;
+    for (let k = 0; k < 64; k++) power += samples[(start + k) % samples.length]! ** 2;
+    const height = Math.sqrt(power / 64) * scale;
+    ctx.moveTo(x, mid - height); ctx.lineTo(x, mid + height);
+  }
+  ctx.stroke();
+}
+
 function standardEntry(id: 'waves' | 'fire' | 'cafe' | 'lofi' | 'white' | 'brown'): StudioEntry {
   return {
     id: `standard-${id}`, label: `Standard: ${id} — click to play / stop`, w: W, h: H,
@@ -313,31 +351,36 @@ function standardEntry(id: 'waves' | 'fire' | 'cafe' | 'lofi' | 'white' | 'brown
       const ctx = canvas.getContext('2d')!;
       ctx.scale(rc.pixelRatio, rc.pixelRatio);
       ctx.strokeStyle = ink(0.7); ctx.lineWidth = 1;
-      ctx.beginPath();
-      for (let x = 12; x < W - 12; x++) {
-        const start = Math.floor((x - 12) / (W - 24) * samples.length);
-        let power = 0;
-        for (let k = 0; k < 64; k++) power += samples[(start + k) % samples.length]! ** 2;
-        const height = Math.sqrt(power / 64) * 95;
-        ctx.moveTo(x, H / 2 - height); ctx.lineTo(x, H / 2 + height);
-      }
-      ctx.stroke(); ctx.fillStyle = ink(0.65);
+      trace(ctx, samples, H / 2, 95);
+      ctx.fillStyle = ink(0.65);
       ctx.font = 'italic 15px "Cormorant Garamond", serif'; ctx.fillText(id, 12, H - 14);
-      clickable(canvas, () => {
-        if (!bedPlayer) bedPlayer = createWebAudioBackend('standard-studio');
-        if (!bedPlayer) return;
-        if (bedSuspend) clearTimeout(bedSuspend);
-        if (bedPlaying === id) {
-          bedPlaying = null; bedPlayer.setMaster(0, 0.3);
-          bedSuspend = setTimeout(() => { void bedPlayer?.suspend(); }, 400);
-          return;
-        }
-        bedPlaying = id;
-        void bedPlayer.resume(); bedPlayer.startBeds();
+      clickable(canvas, () => toggleBed(id, () => {
         const s = defaultSoundscape(); s.collection = 'standard'; s.standard = levelsWith({ [id]: 80 });
-        bedPlayer.applyMix(mixParams({ hour: 12, weather: null, activity: { sessionActive: false, paused: false }, fauna: new Set(), soundscape: s }), 0.5);
-        bedPlayer.setMaster(MASTER_LEVEL, 0.5);
-      });
+        return mixParams({ hour: 12, weather: null, activity: idle, fauna: new Set(), soundscape: s });
+      }));
+    },
+  };
+}
+
+/** The waterfall's bed (ADR 0283): the whole plunge loop over the spray loop; plays the garden mix there. */
+function fallsEntry(): StudioEntry {
+  return {
+    id: 'falls', label: 'Waterfall bed: plunge (rumble and roar) over spray — click to play / stop', w: W, h: H,
+    render(canvas, rc) {
+      const loops = fallsLoops(createRng(rc.seed).fork('falls'), 16000);
+      const ctx = canvas.getContext('2d')!;
+      ctx.scale(rc.pixelRatio, rc.pixelRatio);
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = ink(0.75);
+      trace(ctx, loops.plunge, H * 0.3, 80);
+      ctx.strokeStyle = ink(0.4);
+      trace(ctx, loops.spray[0], H * 0.76, 80 * 0.28);
+      ctx.fillStyle = ink(0.65);
+      ctx.font = 'italic 13px "Cormorant Garamond", serif';
+      ctx.fillText('plunge, 13 s loop', 12, H * 0.6);
+      ctx.fillText('spray, 9 s loop (× 0.28)', 12, H - 6);
+      clickable(canvas, () => toggleBed('falls', () =>
+        mixParams({ hour: 12, weather: null, activity: idle, fauna: new Set(), scenery: 'waterfall' })));
     },
   };
 }
