@@ -155,7 +155,7 @@ Phase 12 art queue: one species or creature per task (atomic), 2–3 at a time, 
 | W4 | Wasabi (*Eutrema japonicum*): T1, stream shore | `src/plants/species/wasabi.ts` | done (devlog 76) |
 | W5 | Kurinsō (*Primula japonica*): T2, stream banks | `src/plants/species/kurinso.ts` | done (devlog 78) |
 | W6 | Baikamo (*Ranunculus nipponicus* var. *submersus*): T2, water, flowing | `src/plants/species/baikamo.ts` | done (devlog 80) |
-| W6b | Baikamo polish: the sunset rim light lands on the underwater weed (needs a species opt-out on the shared type); bolder blossoms at overview size | `src/plants/species/baikamo.ts`, plants rim light | queued |
+| W6b | Baikamo polish: the sunset rim light lands on the underwater weed (needs a species opt-out on the shared type); bolder blossoms at overview size | `src/plants/species/baikamo.ts`, plants rim light | in progress |
 | W7 | Mizubashō (*Lysichiton camtschatcensis*): T2, water and shore | `src/plants/species/mizubasho.ts` | done (devlog 81) |
 | W8 | Hototogisu (toad lily, *Tricyrtis hirta*): T2, cliff foot | `src/plants/species/hototogisu.ts` | done (devlog 82) |
 | W8b | Hototogisu polish (orchestrator review): too small and faint on its ledge, even in close view; bigger, whiter stars and a fuller clump so it holds its own beside the violet | `src/plants/species/hototogisu.ts` | done (devlog 82 › W8b) |
