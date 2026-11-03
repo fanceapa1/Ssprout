@@ -42,7 +42,7 @@ import { covers, createSkyLight, intersect, type SkyLight } from './sky-light';
 import type { CameraView } from '../render/camera';
 import { createRimCache, drawRim, type RimCache } from '../paint/rim';
 import { rimLight } from '../ambience/sky-layout';
-import type { Scenery, ScenerySky } from '../scenery/types';
+import type { Scenery, SceneryMotion, ScenerySky } from '../scenery/types';
 
 export interface SceneSystemOptions {
   art?: SceneArt;
@@ -196,6 +196,10 @@ export function createSceneSystem(opts: SceneSystemOptions = {}): SceneSystem {
   let job: Promise<void> | null = null;
   let jobId = 0;
   let water: WaterSurface | null = null;
+  // the scenery's moving water (ADR 0282): drawn once its sprites are painted, never under reduced motion
+  let motion: SceneryMotion | null = null;
+  let motionReady = false;
+  let motionJob: Promise<void> | null = null;
   let reducedMotion = false;
   const daylight = opts.daylight ?? pinnedSource('midday');
   let sky: SkyLight | null = null;
@@ -457,7 +461,29 @@ export function createSceneSystem(opts: SceneSystemOptions = {}): SceneSystem {
     detailWanted = null;
     sky = null;
     water = null;
+    motion = null;
+    motionReady = false;
+    motionJob = null;
     switchedIn = true;
+  };
+
+  /** paint the motion's sprites between frames, like a painting; a switch away drops them */
+  const startMotion = (m: SceneryMotion): void => {
+    motion = m;
+    const parts = m.prepare();
+    motionJob = (async () => {
+      let start = now();
+      while (motion === m) {
+        if (parts.next().done) {
+          motionReady = true;
+          return;
+        }
+        if (now() - start > 12) {
+          await yieldTo();
+          start = now();
+        }
+      }
+    })();
   };
 
   return {
@@ -469,6 +495,7 @@ export function createSceneSystem(opts: SceneSystemOptions = {}): SceneSystem {
       if (ctx.scenery && ctx.scenery.id !== art.scenery) switchTo(ctx.scenery);
       else if (ctx.scenery && !skySpec) skySpec = ctx.scenery.sky;
       water ??= createWaterSurface(ctx.scene, { seed: art.seed, still: ctx.reducedMotion });
+      if (!motion && !reducedMotion && ctx.scenery?.motion) startMotion(ctx.scenery.motion());
       if (!sky) {
         sky = createSkyLight({ pond: art.scene.pond, seed: art.seed, sky: skySpec, scenery: art.scenery });
         light = daylight.at(ctx.clock.now());
@@ -490,7 +517,7 @@ export function createSceneSystem(opts: SceneSystemOptions = {}): SceneSystem {
       const p = startPaint(view);
       // first paint: block init so ready() means painted; afterwards repaint in the background
       if (first) {
-        await p;
+        await Promise.all([p, motionJob]);
         extendSoon();
       }
     },
@@ -554,6 +581,7 @@ export function createSceneSystem(opts: SceneSystemOptions = {}): SceneSystem {
           ctx.globalAlpha = easeInOut(fade);
           sky?.drawWater(ctx);
           water.draw(ctx, f.t, light);
+          if (motionReady) motion?.draw(ctx, f.t);
           ctx.globalAlpha = 1;
         }
       } else if (layer === 'lighting' && opts.showSlots) {
@@ -586,10 +614,11 @@ export function createSceneSystem(opts: SceneSystemOptions = {}): SceneSystem {
       current = null;
       previous = null;
       detail = null;
+      motion = null;
     },
     whenPainted: async () => {
       // a camera that just came to rest starts its detail painting on the next frame: let it
-      await (job ?? Promise.resolve());
+      await Promise.all([job, motionJob]);
       if (camera && camera.detailVersion !== seenDetail && !camera.moving()) followCamera();
       await (detailJob ?? Promise.resolve());
     },

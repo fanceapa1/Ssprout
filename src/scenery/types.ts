@@ -40,6 +40,14 @@ export interface SceneryAmbience {
   veilTo: number;
 }
 
+/** Water moving over the still painting, drawn each frame on `waterSurface` (ADR 0282). */
+export interface SceneryMotion {
+  /** paint its sprites once, in parts (the scene runs them between frames) */
+  prepare(): Generator<void, void, undefined>;
+  /** draw at animation time `t` (seconds) in world units: a pure function of `t` */
+  draw(ctx: CanvasRenderingContext2D, t: number): void;
+}
+
 /** How the stage frames the scenery. */
 export interface SceneryView {
   /** what stays in view when a portrait screen crops the sides */
@@ -72,4 +80,6 @@ export interface Scenery {
   fauna: SceneryFauna;
   /** the sound profile it plays: its palette, garden mix and events (ADR 0283) */
   sound: SoundSceneryId;
+  /** moving water over the painting (none under reduced motion: the painting stays still) */
+  motion?: () => SceneryMotion;
 }

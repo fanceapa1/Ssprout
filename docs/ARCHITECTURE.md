@@ -332,9 +332,14 @@ export interface Scenery {                    // types.ts
   habitatWords: Record<Habitat, string>;      // how the planting sheet and placement name each habitat
   fauna: SceneryFauna;                        // fauna/habitat.ts: unlocks (FaunaTable); water? { still, moving, avoid? }, perches?, stands?, perspective?(x, y)
   sound: SoundSceneryId;                      // the sound profile it plays (core/soundscape.ts SCENERIES; ADR 0283)
+  motion?: () => SceneryMotion;               // moving water over the painting (ADR 0282): { prepare(): Generator (sprites, in parts); draw(ctx, t) (world units, pure in t) }
 }
 getScenery(id): Scenery /* the default when not registered */; hasScenery(id); sceneries(flags?)  // registry.ts
 ```
+The scene system creates `motion()` in `init` unless reduced motion is on, runs `prepare` between
+frames like a painting (the first `ready()` waits for it) and draws it on `waterSurface` after the
+water, under the light plate. A scenery switch drops it. Only the waterfall has one (its falls,
+foam and spray, S9).
 `JAPANESE_GARDEN` (`japanese-garden/index.ts`) and `WATERFALL` (`waterfall/index.ts`, ADR 0245)
 are registered. The waterfall is available only under `?dev&scenery=waterfall`; its rock is
 painted, its water, vegetation and sky are flat placeholders until their painters land.
