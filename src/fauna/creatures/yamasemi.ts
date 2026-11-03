@@ -1,10 +1,5 @@
-/**
- * Yamasemi (crested kingfisher, Megaceryle lugubris): the waterfall's rare last visitor. A big
- * black-and-white barred kingfisher with a shaggy crest and a dagger bill, painted as sumi dabs on
- * reserved white. Comes in fast and low along the stream, watches the pool from a high rock or a
- * shelf overhanging it, raising its crest and bobbing, hovers and plunges, leaves down the stream.
- * Side view, facing right. docs/systems/fauna.md › Creatures and behaviour.
- */
+/** Yamasemi (crested kingfisher): the waterfall's rare visitor, sumi bars on reserved white. Side view, facing right.
+ * docs/devlog/92-yamasemi.md; docs/systems/fauna.md › Creatures and behaviour. */
 import type { Rng } from '../../core/rng';
 import { blob, lighten, mix, PIGMENTS, ribbon, smoothPolygon, type Painter, type Pigment } from '../../paint';
 import type { LayerId } from '../../render/types';
@@ -372,10 +367,8 @@ function dropToWater(p: Perch, pond: readonly Pt[]): number | null {
 /** Shelves nearer the falls' sheet than this (world units) are in the falls, not over the pool. */
 export const FALLS_CLEAR = 120;
 
-/**
- * Its perches: rocks by the still water, and shelves that overhang it (still water within 90 units
- * straight below). High ones likelier; the ones at the falls' foot, in the spray, much less.
- */
+/** Its perches: rocks by the still water, shelves overhanging it (water within 90 units below).
+ * High ones likelier; the ones at the falls' foot, in the spray, much less. */
 export function yamasemiPerches(w: Pick<FaunaWorld, 'perches' | 'pond' | 'scene'>): { perch: Perch; weight: number }[] {
   const pond = w.pond.world;
   if (pond.length < 3) return [];
