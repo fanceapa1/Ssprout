@@ -9,7 +9,7 @@ weather and the daylight are shared (owner decisions, phase 10).
 | File | What |
 |---|---|
 | `ids.ts` | re-exports `SCENERY_IDS` (`japanese-garden`, `waterfall`), `SceneryId`, `DEFAULT_SCENERY`, `isSceneryId` from `src/core/sceneries.ts`, where core keys plants, sessions and slots by them (ADR 0240; docs/systems/core.md › Gardens) |
-| `types.ts` | the `Scenery` contract and its parts: `ScenerySky`, `SceneryAmbience`, `SceneryView` (and `SceneryFauna` from `src/fauna/habitat.ts`) |
+| `types.ts` | the `Scenery` contract and its parts: `ScenerySky`, `SceneryAmbience`, `SceneryView`, `SceneryMotion` (and `SceneryFauna` from `src/fauna/habitat.ts`) |
 | `fauna.ts` | `faunaTable(id)`: every scenery's unlock table without loading its painting (the quiet line's arrival lines) |
 | `japanese-garden/fauna.ts` | `JAPANESE_FAUNA`: the garden's unlock table (SPEC §4, ADR 0248) |
 | `registry.ts` | `getScenery(id)` (the default for an id not registered yet), `hasScenery(id)`, `sceneries(flags?)` (available ones, in `order`) |
@@ -38,6 +38,9 @@ weather and the daylight are shared (owner decisions, phase 10).
 | `waterfall/veg.test.ts` | the vegetation's steps, ferns off the slots, hash pins, slice bounds, parts |
 | `waterfall/water.studio.ts` | studio `waterfall-water` (106): `water-falls`, `water-pool`, `water-stream`, `water-scene` |
 | `waterfall/water.test.ts` | the water's steps, the sheet's edges, hash pins, slice bounds, parts |
+| `waterfall/falls.ts` | the falls in motion (S9, ADR 0282): `createFallsMotion` (`WATERFALL.motion`), `dropAt`, `FALL_TOP`, `FALL_FOOT`, `FALL_S`, `MOTION_BOUNDS` |
+| `waterfall/falls.studio.ts` | studio `waterfall-falls-motion` (107): `falls-sheet` and `falls-foot` (animated), `falls-sprites` |
+| `waterfall/falls.test.ts` | the motion: pure in `t`, frozen, nothing under reduced motion, skipped off screen, always falling, the fall's speed |
 | `waterfall/sprites.ts` | `WATERFALL_ROCKS` (`art.rockSprites`): `paintWaterfallRock`, `isWetRock` |
 | `waterfall/rocks.studio.ts` | studio `waterfall-rocks` (104): `cliff`, `ledges`, `boulders`, `scene` |
 | `waterfall/rocks.test.ts` | the rock's steps, wet and mossy boulders, hash pins, slice bounds |
@@ -62,14 +65,15 @@ interface Scenery {
   flora: SceneryBiome;                          // realm, biomes, climate, cultivated, also?, except? (ADR 0250)
   habitatWords: Record<Habitat, string>;        // how the planting sheet and placement name each habitat
   fauna: SceneryFauna;                          // unlocks: FaunaTable; water?, perches?, stands?, perspective?(x, y) (ADR 0248)
+  motion?: () => SceneryMotion;                 // moving water over the painting: prepare() in parts, draw(ctx, t) pure in t (ADR 0282)
 }
 ```
 A scenery is consistent with itself: `art.scenery === id`, `art.scene === geometry`,
 `light.sky === sky.layout` (`registry.test.ts` checks every registered one).
 
 **Left out for now**, with the task whose consumer sets its shape: `sound` (S15; `core/soundscape.ts`
-names its audio sceneries `SoundSceneryId`, `pond` and `coast`), `thumbnail` (S5b), `surface` (the
-per-frame water animator; S9).
+names its audio sceneries `SoundSceneryId`, `pond` and `coast`), `thumbnail` (S5b). The per-frame
+water animator became `motion?` (S9, ADR 0282).
 
 ## Flora (ADR 0250)
 Each scenery offers its own species, from where they really grow. Its `flora` is its place in the
@@ -349,6 +353,35 @@ stands on the pool's back edge right of the falls. `waterfallPerspective(x, y)` 
 `perspectiveScale(y)` outside `CLIFF`; inside it runs from `CROWN_SCALE` under the skyline through
 the shelves' mean heights and scales to the cliff foot, within 0.02 of every slot.
 
+### Motion (S9, ADR 0282)
+`falls.ts` animates the falls over the still painting, never over a cover of its own. The
+painting's streaks stay as the sheet's structure, and three kinds of marks fall down it:
+- *Surges*: wide, pale, greyed shades (`SURGE`, the sheet's colour moved toward stone and off the
+  cyan), 8–15 % of the sheet's width, overlapping, two per lane, out of phase.
+- *Lights*: lifted white spindles between them, which veil the painting's streaks as they pass.
+- *Threads*: eight thin bright lines, falling a little faster.
+
+Each mark is a spindle sprite with a long tail that dissolves (faded toward the top) and a short
+rounded head with a watercolour edge. A pointed head reads as an icicle. A mark is drawn between
+its tail's and its head's heights on `dropAt`. Water leaves the lip at 40 units/s and reaches the
+foam at 120 (constant gravity, `FALL_S` ≈ 3.9 s). The sprite stretches as the water speeds up, and
+it is born out of the lip and swallowed by the foam by length and alpha, never cut flat. Lanes
+fall at 0.8–1.2× speed, fastest in the middle. Each pass draws its sprite, length, lane jitter and
+strength from a 96-entry table (a weak draw skips the pass), so a lane repeats only after 32
+passes (about 4 minutes), and the lanes' cycles do not share a period.
+
+At the foot, five cool shades (`FOAM_SHADE`) roll round small loops and breathe in the foam, so it
+has body and not just a white band. Twelve white puffs, two out of phase at each of six places,
+swell, rise and spread outward, then sink. The spray is three faint wisps (alpha ≤ 0.24, painted
+at 1.5 px/unit) rising 50–90 units off the plunge over 11–16 s, drifting right on the draught.
+
+The sprites (20, at 3 px/unit, threads at 5) are painted in about 500 parts (≈ 90 ms in all,
+2–3 ms the longest) and sealed into `ImageBitmap`s. A frame only blits them, a few dozen
+times. The motion draws on `waterSurface`, under the light plate, so noon, sunset and night tint
+it like the painting. It skips its draw when the view misses `MOTION_BOUNDS`. Under reduced
+motion the scene never creates it (`still: true` also draws nothing). `freeze()` holds `t`.
+Studio: `waterfall-falls-motion/falls-sheet`, `/falls-foot`, `/falls-sprites`.
+
 ### Left for later tasks
 - S11: a fauna perspective per scenery. `perspectiveFit(slots)` fits a line through (y, scale),
   which the ledges bend.
@@ -363,6 +396,11 @@ the shelves' mean heights and scales to the cliff foot, within 0.02 of every slo
   stones and boulders; the lotus-sized pool slots; spacing at 1.25×
   (distance, footprint overlap, cliff plants, tree crowns); the sun at 8–16°, the moon's arc and
   the stars in open sky; the sun clear of the tree crowns; the sky plates' band.
+- `src/scenery/waterfall/falls.test.ts` (S9): the motion is the waterfall's, painted in parts,
+  a pure function of `t` (two motions alike, one moment twice alike), held while frozen and moving
+  0.15 s later, always more than 8 falling marks and 8 foam puffs, wisps over a minute, two
+  passes of a cycle drawn unlike, nothing under reduced motion, nothing when the view misses the
+  falls, the fall from the lip to the foam gathering speed.
 - `src/scenery/waterfall/daylight.test.ts`: the sky and light wiring, the sun's centre and the
   moon's disc in open sky in every phase (and the moon along its arc), the stars in open sky, the
   washes' outline clear of the plate's lower edge, `waterfall` in both plate keys.
