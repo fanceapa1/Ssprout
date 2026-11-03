@@ -2,6 +2,7 @@ import { createRng } from '../core/rng';
 import { SOUND_LAYERS, type SoundLayer } from '../core/soundscape';
 import { brownNoise, impulseResponse, makeLoopable, pinkNoise, whiteNoise } from './noise';
 import type { MixParams } from './params';
+import { FALLS_BLEND, FALLS_GAIN, fallsLoops } from './falls';
 import { EPS, type Point, type SoundSpec, type Voice } from './recipes';
 import { standardLoop, type CraftedLoop } from './standard-loops';
 
@@ -11,8 +12,9 @@ import { standardLoop, type CraftedLoop } from './standard-loops';
  *
  *   water  (brown → HP 80 → LP 520, slow lapping LFO) ─┐
  *   wind   (pink → BP, LFO-swept; gust swell)          ├─ bed (gain) → warmth (low-shelf) ─┐
- *   rain   (pink → HP 900 → LP 7k)                     ─┘                                  │
- *   events (plip/chirp/warbler/swallow/cricket/drip) → panner → eventsBus ────────────────┤
+ *   rain   (pink → HP 900 → LP 7k)                     ─┤                                  │
+ *   extras (waves, fire, café, lo-fi, noise, falls)    ─┘                                  │
+ *   events (plip/chirp/…/splash/dipper/kajika) → panner → layer bus → eventsBus ───────────┤
  *                                       └─ send ─→ convolver (procedural IR) → return ─────┤
  *                                                                                          ▼
  *                                                                          air (LP; mist muffles)
@@ -42,6 +44,10 @@ export interface AudioBackend {
 }
 
 export type BackendFactory = () => AudioBackend | null;
+
+/** Looping beds built on first use, each with its gain at 100 %. */
+const EXTRA_GAIN = { waves: 0.035, fire: 0.035, cafe: 0.035, lofi: 0.045, white: 0.012, brown: 0.035, falls: FALLS_GAIN } as const;
+const EXTRA_BEDS = Object.keys(EXTRA_GAIN) as (keyof typeof EXTRA_GAIN)[];
 
 /** Hard safety cap on simultaneously scheduled sounds (the planner normally stays far below). */
 const MAX_LIVE_SOUNDS = 12;
@@ -182,6 +188,15 @@ export function createWebAudioBackend(
       loop(pink, 2.4).connect(filter('lowpass', 2200)).connect(surf).connect(gain);
       lfo(0.085, 0.35, surf.gain);
       lfo(0.037, 0.12, surf.gain);
+    } else if (id === 'falls') {
+      // the plunge at its own lower rate (resampled on playback), the spray stereo and under it
+      const f = fallsLoops(rng.fork('falls'), sr);
+      const plunge = ctx.createBuffer(1, f.plunge.length, f.plungeRate);
+      plunge.getChannelData(0).set(f.plunge);
+      const spray = ctx.createGain();
+      spray.gain.value = FALLS_BLEND.spray;
+      loop(plunge, 0).connect(gain);
+      loop(buffer(f.spray), 0).connect(spray).connect(gain);
     } else {
       const buf = id === 'white' ? whiteBed : id === 'brown' ? brown :
         buffer([standardLoop(id as CraftedLoop, rng.fork(id), sr)]);
@@ -313,11 +328,11 @@ export function createWebAudioBackend(
     applyMix(mix, seconds) {
       const t = ctx.currentTime;
       const tc = Math.max(0.01, seconds / 3);
-      for (const id of ['waves', 'fire', 'cafe', 'lofi', 'white', 'brown'] as const) {
+      for (const id of EXTRA_BEDS) {
         const level = mix.extra[id] / 100;
         const gain = level > 0 ? extraBed(id) : extras.get(id);
         // Full-scale layers stay within the original garden's quiet loudness range.
-        gain?.gain.setTargetAtTime(level * (id === 'lofi' ? 0.045 : id === 'white' ? 0.012 : 0.035), t, tc);
+        gain?.gain.setTargetAtTime(level * EXTRA_GAIN[id], t, tc);
       }
       for (const id of SOUND_LAYERS) {
         layerBuses[id].dry.gain.setTargetAtTime(mix.eventLevels[id] / 100, t, tc);

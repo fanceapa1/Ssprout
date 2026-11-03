@@ -15,6 +15,8 @@ export const SPRAY_S = 9;
 export const FALLS_RMS = 0.16;
 /** How the backend blends the two loops (linear gain on each). */
 export const FALLS_BLEND = { plunge: 1, spray: 0.28 } as const;
+/** The backend's gain for the falls layer at 100 % (tuned by offline render, docs/systems/audio.md › Waterfall). */
+export const FALLS_GAIN = 0.065;
 
 export interface FallsLoops {
   plunge: Float32Array;
