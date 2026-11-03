@@ -1,6 +1,6 @@
 /**
- * Studio: the waterfall's rock (S6): the cliff with the gorge and the buttress, a close view of the
- * ledges, the boulder set, and the whole painting under the sky placeholder.
+ * Studio: the waterfall's rock (S6, S6b): the cliff with the gorge and the buttress, close views of
+ * the ledges, the gorge and the buttress, the boulder set, and the whole painting under the sky placeholder.
  */
 import { paperTexture } from '../../paint';
 import { WORLD_H, WORLD_W, type Rect } from '../../render/viewport';
@@ -39,7 +39,9 @@ const section: StudioSection = {
   order: 104,
   entries: [
     region('cliff', 'cliff, upper gorge and buttress (strata, wet streaks, recesses, lit faces)', { x: -40, y: 180, w: 1120, h: 480 }, ROCK, false, 800),
-    region('ledges', 'ledges close up: lit shelf, undercut shadow, moss cushions', { x: 280, y: 300, w: 640, h: 300 }, ROCK, false, 800),
+    region('ledges', 'ledges close up: lit top, jointed front face, undercut dying into the face, clustered moss', { x: 280, y: 300, w: 640, h: 300 }, ROCK, false, 800),
+    region('gorge', 'the upper gorge behind the lip: spurs receding into mist, far trees', { x: 510, y: 230, w: 220, h: 80 }, ROCK, false, 800),
+    region('buttress', 'the buttress: stepped flank in jointed blocks, its found edge on the sky', { x: 680, y: 200, w: 400, h: 300 }, ROCK, false, 800),
     region('boulders', 'boulder set: wet stones by the pool and the stream, mossy ones on the banks', { x: 220, y: 520, w: 1340, h: 480 }, [], true, 800),
     region('scene', 'the painting so far: rock and boulders with the water and vegetation, under the sky placeholder', { x: 0, y: 0, w: WORLD_W, h: WORLD_H }, undefined, true, 800),
   ],
