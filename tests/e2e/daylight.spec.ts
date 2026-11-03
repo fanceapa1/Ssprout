@@ -119,6 +119,19 @@ test.describe('daylight phases', () => {
     expect(s.rim.side).toBe(-1);
   });
 
+  test("at the waterfall the sun sets on the right: shadows fall left, rims face right (ADR 0284)", async ({ page }) => {
+    await openDev(page);
+    await page.evaluate(() => window.sprout!.showScenery('waterfall'));
+    await show(page, 'sunset');
+    const s = await page.evaluate(() => window.sprout!.daylight());
+    expect(s.sun.x).toBeGreaterThan(800);
+    expect(s.shadow.dx).toBeLessThan(-1);
+    expect(s.rim.side).toBe(1);
+    const plants = await page.evaluate(() => window.sprout!.plants.state().sun);
+    expect(plants.shadowDx).toBeLessThan(-1);
+    expect(plants.rimSide).toBe(1);
+  });
+
   test('blends sit between their phases and the sky follows setTime at once', async ({ page }) => {
     await openDev(page);
     await show(page, 'sunset');
