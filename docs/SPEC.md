@@ -47,7 +47,7 @@ Rules:
 - **A new user starts in the Japanese garden.** A garden saved before there were sceneries is the
   Japanese garden. The garden on view is saved, so a returning user comes back to it.
 - **Switching** is from the dock's **Gardens** section (§12): a card per garden, with its name, a
-  line about it and a still of how it last looked; the one on view is marked. Choosing a card
+  line about it and a small painting of the whole garden; the one on view is marked. Choosing a card
   shows that garden without a reload: the old picture fades into the new one (0.9 s; a cut under
   reduced motion), at the overview. Cards work with the keyboard and stack on phones.
 - **Each garden keeps its own planting**: its plants, its spots, its seedlings and its wildlife
@@ -75,10 +75,10 @@ Rules:
 - The waterfall has 49 spots: water in the pool, its rim and the stream's banks, the grassy banks,
   beside the trail, the cliff's foot and crown, and the ledges.
 
-*Status:* done (phases 10 and 12; offered to everyone since S17, devlog 95). Thumbnails are camera
-stills of each garden as last seen, so a garden not yet visited shows a pale wash (S5b would paint
-them from the cached overview). Shared shadows and rim light still follow the Japanese garden's
-sun side at the waterfall (S10b), and the rock forms have an open review (S6b). A first visit to
+*Status:* done (phases 10 and 12; offered to everyone since S17, devlog 95). Thumbnails show
+each garden's whole overview at a fixed framing; a garden not yet seen here is painted small in
+idle time (S5b, devlog 100). Shadows and rim light follow each garden's own sun side (S10b), and
+the waterfall's rock forms were reworked (S6b). A first visit to
 a garden paints it for a few seconds; later switches take it from the paint cache (devlog 95).
 
 ## 2. Study sessions — "every task is a plant"
