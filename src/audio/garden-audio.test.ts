@@ -383,6 +383,18 @@ describe('createGardenAudio soundscape', () => {
     expect(s.fake.mixes.at(-1)!.rates.swallow).toBeGreaterThan(0);
   });
 
+  it('a creature arriving at the falls sounds there, not in the garden', () => {
+    const s = setup({}, { muted: false });
+    s.audio.unlock();
+    s.audio.setTimeOfDay(20);
+    s.bus.emit('fauna:arrived', { id: 'kajika', sceneryId: 'waterfall' });
+    expect(s.fake.mixes.at(-1)!.rates.kajika).toBe(0); // the pond has no kajika
+    s.audio.setScenery('waterfall');
+    expect(s.fake.mixes.at(-1)!.rates.kajika).toBeGreaterThan(0);
+    expect(s.fake.mixes.at(-1)!.extra.falls).toBeGreaterThan(0);
+    expect(s.fake.mixes.at(-1)!.water).toBe(0);
+  });
+
   it('caps the step after a long stall instead of bursting', () => {
     const s = setup({}, { muted: false });
     s.audio.unlock();

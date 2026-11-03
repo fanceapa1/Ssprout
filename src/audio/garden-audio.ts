@@ -1,5 +1,6 @@
 import type { Clock } from '../core/clock';
 import type { EventBus } from '../core/events';
+import { faunaSeenKey } from '../core/fauna-unlocks';
 import { createRng } from '../core/rng';
 import { copySoundscape, defaultSoundscape, SCENERIES, type SoundSceneryId } from '../core/soundscape';
 import type { GardenState, Weather } from '../core/state';
@@ -278,8 +279,9 @@ export function createGardenAudio(options: GardenAudioOptions): GardenAudio {
     bus.on('plant:placed', () => chime('rin')),
     // every watering pours, the automatic one during focus and the can tapped in a break
     bus.on('session:water', () => playPour()),
-    bus.on('fauna:arrived', ({ id }) => {
-      fauna.add(id);
+    // keyed as in `state.faunaSeen`: a creature seen at the falls is `waterfall:<id>` (ADR 0240)
+    bus.on('fauna:arrived', ({ id, sceneryId }) => {
+      fauna.add(faunaSeenKey(sceneryId, id));
       pushMix(1.5);
     }),
   ];
