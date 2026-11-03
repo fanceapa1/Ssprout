@@ -1,14 +1,15 @@
 # Study Sprout — Product Specification
 
 Study Sprout is a browser study timer wrapped in a living Japanese watercolour garden.
-The garden starts serene but sparse. Every completed study session blooms a new plant.
+There are two gardens to grow, a Japanese garden and a rocky waterfall (§1a). Each starts serene but sparse. Every completed study session blooms a new plant.
 Over many sessions the garden fills, and wildlife slowly moves in.
 
 **Guiding principle: subtlety.** Nothing shouts. No confetti, no badges, no streak guilt.
 Rewards are quiet and beautiful, like a real garden changing over time.
 
 > **Status notes.** Where the implementation differs from or does not yet meet a rule, the rule
-> carries a *Status* note (audited 2026-10-23, after v2 and the Q tasks). `docs/TESTING.md` maps every rule here to the tests
+> carries a *Status* note (audited 2026-10-23, after v2 and the Q tasks; the sceneries §1a, §3, §8
+> and §9 again on 2026-11-03, when the waterfall was released). `docs/TESTING.md` maps every rule here to the tests
 > that cover it.
 
 Reference mood: hand-painted Japanese watercolour / sumi-e on warm washi paper — soft
@@ -19,6 +20,8 @@ outside the repo at `/Users/tudor/Downloads/image (1).png`; do not copy it, use 
 ---
 
 ## 1. The garden (initial state)
+
+This is the Japanese garden, where every new garden starts. The other gardens are in §1a.
 
 - One fixed scene (not scrolling): sky wash, distant hills, two groups of thin-trunked trees
   (left, right), a wooden pavilion/engawa corner at the right, grassy banks, a central pond
@@ -31,6 +34,52 @@ outside the repo at `/Users/tudor/Downloads/image (1).png`; do not copy it, use 
   16:10; other landscape aspects crop a little top/bottom or at the sides. Tall phones show at
   least 600 world units of width with paper above and below (ADR 0123). The sky above the hills
   is painted per daylight phase (§5). Plants are drawn 1.25× their v1 size in the garden (§3).
+
+## 1a. Gardens (sceneries; phase 10 and 12, ADRs 0240–0248, 0250, 0282, 0283)
+There is more than one place to grow a garden. Each is a whole painted scene, in the same
+watercolour language:
+- **The Japanese garden** (§1): the pond, the pavilion's engawa, stepping stones.
+- **The rocky waterfall**: falls dropping one sheet from a notch in a cliff into a plunge pool,
+  mossy ledges either side, crown woods along the cliff top, a stream winding down toward the
+  viewer, a trail of stepping stones, open sky to the right where the sun sets and rises.
+
+Rules:
+- **A new user starts in the Japanese garden.** A garden saved before there were sceneries is the
+  Japanese garden. The garden on view is saved, so a returning user comes back to it.
+- **Switching** is from the dock's **Gardens** section (§12): a card per garden, with its name, a
+  line about it and a still of how it last looked; the one on view is marked. Choosing a card
+  shows that garden without a reload: the old picture fades into the new one (0.9 s; a cut under
+  reduced motion), at the overview. Cards work with the keyboard and stack on phones.
+- **Each garden keeps its own planting**: its plants, its spots, its seedlings and its wildlife
+  progress. A plant never moves between gardens. Pressed flowers go into one shared herbarium; once
+  it holds specimens from two gardens, each names its garden.
+- **The timeline is shared**: sessions, the calendar, history, stats, tips and settings. A session
+  keeps growing in its own garden while another is on view, and the pill offers the way back
+  ("Growing in the rocky waterfall"). Starting or switching to a session from another garden
+  brings its garden into view first. The weather follows the active session in any garden.
+- **Each garden has its own flora, fauna, light and sound**:
+  - *Flora*: species are offered where they really grow (ADR 0250). The Japanese garden offers its
+    25 cultivated species (§3). The waterfall, a cool mountain gorge in Japan, offers 17: twelve of
+    its own (iwatabako, daimonjisō, iwakagami, wasabi, kurinsō, baikamo, mizubashō, hototogisu,
+    yamabuki, taniutsugi, katsura, tochinoki) and five it shares with the garden by biology
+    (maidenhair fern, Japanese maple, violet, wild strawberry, silver grass).
+  - *Fauna*: each garden has its own unlock table (§4). At the waterfall: a brown dipper on the
+    wet rocks, a damselfly, iwana and yamame char in the pool, sawagani crabs, a kajika frog,
+    house martins on the cliff, Genji fireflies at night, a rare crested kingfisher, and the shared
+    striders, dragonfly, swallowtails, bees, wagtail and heron in their gorge forms.
+  - *Light*: the four daylight phases (§5) are painted for each garden's own skyline.
+  - *Sound*: each garden plays its own soundscape (§8): the pond's water at the Japanese garden,
+    the roar and spray of the falls, splashes, the dipper and the kajika at the waterfall.
+  - *Motion*: the waterfall's falls move (pale surges and threads falling, churning foam, faint
+    spray), drawn over the still painting; under reduced motion they stay still.
+- The waterfall has 49 spots: water in the pool, its rim and the stream's banks, the grassy banks,
+  beside the trail, the cliff's foot and crown, and the ledges.
+
+*Status:* done (phases 10 and 12; offered to everyone since S17, devlog 95). Thumbnails are camera
+stills of each garden as last seen, so a garden not yet visited shows a pale wash (S5b would paint
+them from the cached overview). Shared shadows and rim light still follow the Japanese garden's
+sun side at the waterfall (S10b), and the rock forms have an open review (S6b). A first visit to
+a garden paints it for a few seconds; later switches take it from the paint cache (devlog 95).
 
 ## 2. Study sessions — "every task is a plant"
 
@@ -118,11 +167,11 @@ Tier by **total session length** (chosen at start; gates which species can be pl
 | 3 | 50–89 | Flowering shrubs, showy flowers | peony, hydrangea, azalea, camellia, chrysanthemum, lotus (water) |
 | 4 | 90–180 | Spectacular centrepieces | weeping cherry, Japanese maple, wisteria (on a trellis), pine bonsai-like, ginkgo |
 
-*Status:* the species that exist (`src/plants/species/`, 25): tier 1 violet, white clover,
+*Status:* the Japanese garden's species (`src/plants/species/`, 25): tier 1 violet, white clover,
 forget-me-not, wild strawberry, dandelion, maidenhair fern · tier 2 Japanese iris, anemone, balloon
 flower, cosmos, red spider lily, silver grass, water lily · tier 3 tree peony, hydrangea, azalea,
 camellia, chrysanthemum, lotus · tier 4 weeping cherry, Japanese maple, wisteria, black pine, ginkgo,
-plum blossom. Not yet: moss and dianthus. Every species has a compatible slot in each garden that
+plum blossom. Not yet: moss and dianthus. The waterfall adds twelve of its own (§1a).  Every species has a compatible slot in each garden that
 offers it (`src/scenery/flora.test.ts`; which garden offers which species: ADR 0250); the lotus (size class `large`) fits the two large open-water slots
 `water-1` and `water-3`.
 
@@ -276,13 +325,19 @@ The **Sound mixer** (corner and Garden tools, ADR 0213) has two collections:
 - Individual 0–100 levels, layer toggles, overall volume, starting mixes and Clear this mix.
   Editing never unmutes. Listen and the existing speaker shortcut share mute state. Changes save
   immediately through the settings controller and are included in garden exports.
-- Current shipped scenery: the pond. A coastal audio profile is ready for the future scenery
-  selector; the mixer does not unlock or create another garden. Scenery switching must call
-  `audio.setScenery(id)` when the viewed garden changes.
+- Each garden names its sound profile, and the audio and the mixer follow the garden on view
+  (ADR 0283). The Japanese garden plays the pond (water, leaves, birds, crickets, rain). The
+  waterfall plays the falls (a low plunge and a bright spray), wind, birds, crickets and rain,
+  with splashes, the dipper by day and the kajika after dusk once one has been seen there; its
+  starting mixes are "By the falls" and "Dusk in the gorge". A coastal profile is ready for a
+  future scenery. *Status:* done; the levels and the glide between gardens are measured, nobody
+  has listened by ear yet (devlog 94).
 
 ## 9. Persistence
 - `localStorage` only (key `studysprout:v1`), versioned schema with migrations: schema v3 adds
-  sound preferences (ADR 0213). The v2 → v3 step preserves every plant, session, schedule and
+  sound preferences (ADR 0213); schema v4 gives every plant, pressed flower, session and log
+  entry its garden and stores the garden on view (ADR 0240). A v3 garden or export lands whole in
+  the Japanese garden. The v2 → v3 step preserves every plant, session, schedule and
   setting; an absent sound mix keeps the original automatic ambience. A v1 garden chains the
   v1 → v2 step too, with history back-filled from its plants (ADR 0154).
 - Export garden → downloads `study-sprout-garden-YYYY-MM-DD.json`; Import restores (validated).
@@ -308,7 +363,7 @@ The page is no longer only a canvas. It scrolls as a normal document:
   Its edges dissolve into the page's paper like a wash thinning out — broadly at the bottom, where
   the UI begins, and softly at the top and sides. The page is the same washi as the painting.
 - **Dock.** Below the garden, sections registered by features, read in one order at every width
-  (ADR 0200): **Study → Your plant → Calendar → Garden tools**, one under the other on one left
+  (ADR 0200): **Study → Your plant → Gardens → Calendar → Garden tools**, one under the other on one left
   edge. On wide screens a section may set two tracks inside it (the Study controls beside the
   sessions in progress; the plant's window beside its caption):
   - **Study** — the session controls: Start studying; task, block and total time, plan line,
@@ -320,6 +375,8 @@ The page is no longer only a canvas. It scrolls as a normal document:
   - **Your plant** — a large painted view of the session's plant, growing live, with the watering
     animation whenever it is watered; idle, the most recent bloom with its task, or an empty bed
     waiting for a first session. No guilt copy.
+  - **Gardens** — a card per garden to choose the one on view, each garden keeping its own plants
+    (§1a, ADR 0244). Shown whenever more than one garden is offered, so for everyone since S17.
   - **Calendar** — what was studied, what is growing and what is planned, by day, week or month (§13).
   - **Garden tools** — sound mixer, sound toggle, floating timer, pressed flowers, garden data, hints, with icons and
     visible names; the same tools stay as icons in the garden's corner and share their state.

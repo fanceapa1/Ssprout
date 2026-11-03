@@ -39,13 +39,18 @@ There are no image assets. Nothing shouts: no confetti, no streaks, no badges.
 
 - **The page.** The garden fills most of the window and dissolves into the paper below it. Under
   it, a dock reads in one order: **Study** (the session controls and the sessions in progress),
-  **Your plant** (a large live painting of the plant you are growing), **Calendar** and **Garden
-  tools**. A faint inked path continues the garden's stepping stones down past each section. On
+  **Your plant** (a large live painting of the plant you are growing), **Gardens**, **Calendar** and
+  **Garden tools**. A faint inked path continues the garden's stepping stones down past each section. On
   the garden itself only a small timer pill and the corner tools remain.
 - **A living garden with real daylight.** Four painted phases follow today's sun where you are
   (guessed from the time zone, no permission asked): sunrise, midday, sunset and a moonlit night
   with a lit lantern. Each has its own sky, light, long or short shadows and rim light. Each
   session brings its own weather (sun, soft rain or mist), light motes and wind.
+- **Two gardens.** The Japanese garden, where everyone starts, and a rocky waterfall: falls over
+  mossy ledges into a plunge pool, a stream winding down to you. Switch between them in the dock's
+  Gardens section. Each keeps its own plants and has its own flora (twelve wild gorge plants at the
+  waterfall), wildlife (a dipper, char, river crabs, a kajika frog, fireflies at night…), light and
+  sound. Your sessions, calendar and history are shared.
 - **Parallel sessions.** Up to three sessions can grow at once, each with its own plant and spot.
   One is active; switching pauses the others, and paused time never counts.
 - **Calendar and planning.** A daily, weekly or monthly view of what you studied, what is growing
