@@ -8,7 +8,7 @@ import { HABITATS, SIZE_CLASSES } from '../../plants/types';
 import { MIN_VISIBLE_W, WORLD_H, WORLD_W, type Pt } from '../../render/viewport';
 import type { Slot } from '../../scene/geometry';
 import { FAR_SCALE, NEAR_SCALE, PLANT_SIZES, perspectiveScale, plantScale } from '../../scene/slots';
-import { WATERFALL, waterfallAvailable } from '.';
+import { WATERFALL } from '.';
 import { FALLS, POOL, ROCKS, STREAM, TRAIL, waterfallScene } from './geometry';
 import { CLIFF, CROWN_SCALE, LEDGES, openSky, skylineAt, WATERFALL_HABITAT_WORDS, WATERFALL_SKY_LAYOUT } from './layout';
 
@@ -51,11 +51,8 @@ const sky = (alt: number, rising: boolean, moon = 0) =>
   ({ sunAltitude: alt, sunRising: rising, moonProgress: moon, weights: { sunrise: 1, sunset: 1, midday: 0, night: 1 } }) as unknown as DaylightState;
 
 describe('the waterfall scenery', () => {
-  it('is hidden unless asked for with ?dev&scenery=waterfall', () => {
-    expect(waterfallAvailable(new URLSearchParams())).toBe(false);
-    expect(waterfallAvailable(new URLSearchParams('scenery=waterfall'))).toBe(false);
-    expect(waterfallAvailable(new URLSearchParams('dev&scenery=japanese-garden'))).toBe(false);
-    expect(waterfallAvailable(new URLSearchParams('dev&scenery=waterfall'))).toBe(true);
+  it('is offered to everyone, with or without flags (released in S17)', () => {
+    for (const q of ['', 'dev', 'scenery=japanese-garden', 'dev&scenery=waterfall']) expect(WATERFALL.available(new URLSearchParams(q)), q).toBe(true);
   });
 
   it('is consistent with itself and has no building, lantern or eave', () => {

@@ -1,7 +1,7 @@
 /**
  * The rocky waterfall as a scenery (phase 10): its rock (S6), water (S7), vegetation (S8) and
- * daylight (S10: sky and light plates) and moving falls (S9).
- * Hidden behind `?dev&scenery=waterfall`. docs/systems/scenery.md › Waterfall.
+ * daylight (S10: sky and light plates) and moving falls (S9). Offered to everyone since S17.
+ * docs/systems/scenery.md › Waterfall.
  */
 import { createRng } from '../../core/rng';
 import type { PaintStep, SceneArt } from '../../scene/background';
@@ -20,11 +20,6 @@ import { WATERFALL_SKY } from './sky';
 import { WATERFALL_ROCKS } from './sprites';
 
 export { WATERFALL_LIGHT_ART, WATERFALL_SKY };
-
-/** Is the waterfall offered under these URL flags? Only to developers until it is painted. */
-export function waterfallAvailable(flags: URLSearchParams): boolean {
-  return flags.has('dev') && flags.get('scenery') === 'waterfall';
-}
 
 /** The painting's elements, a filter for studio views (the sky is the daylight's plates). */
 type Element = 'ridge' | 'banks' | 'gorge' | 'cliff' | 'ledges' | 'woods' | 'ferns' | 'water' | 'falls' | 'near' | 'path';
@@ -85,7 +80,7 @@ export const WATERFALL: Scenery = {
   name: 'Rocky waterfall',
   blurb: 'Falls over mossy ledges into a plunge pool, and a stream winding down to you.',
   order: 1,
-  available: waterfallAvailable,
+  available: () => true,
   geometry: waterfallScene,
   art: WATERFALL_ART,
   sky: WATERFALL_SKY,

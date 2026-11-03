@@ -22,11 +22,12 @@ describe('scenery ids', () => {
 });
 
 describe('the registry', () => {
-  const dev = new URLSearchParams('dev&scenery=waterfall');
+  const none = new URLSearchParams();
 
-  it('holds the Japanese garden, and the waterfall behind a dev flag', () => {
-    expect(sceneries().map((s) => s.id)).toEqual(['japanese-garden']);
-    expect(sceneries(dev).map((s) => s.id)).toEqual(['japanese-garden', 'waterfall']);
+  it('offers the Japanese garden first and the waterfall, without any flag', () => {
+    expect(sceneries().map((s) => s.id)).toEqual(['japanese-garden', 'waterfall']);
+    expect(sceneries(new URLSearchParams('dev')).map((s) => s.id)).toEqual(['japanese-garden', 'waterfall']);
+    expect(sceneries()[0]!.id).toBe(DEFAULT_SCENERY);
     expect(getScenery('japanese-garden')).toBe(JAPANESE_GARDEN);
     expect(getScenery('waterfall')).toBe(WATERFALL);
     expect(hasScenery('waterfall')).toBe(true);
@@ -38,14 +39,13 @@ describe('the registry', () => {
   });
 
   it('keeps each scenery consistent with itself', () => {
-    for (const s of sceneries(dev)) {
+    for (const s of sceneries(none)) {
       expect(s.art.scenery, s.id).toBe(s.id);
       expect(s.art.scene, s.id).toBe(s.geometry);
       expect(s.light.sky, s.id).toBe(s.sky.layout);
-      expect(s.available(dev), s.id).toBe(true);
+      expect(s.available(none), s.id).toBe(true);
       expect(Object.keys(SCENERIES), s.id).toContain(s.sound);
     }
-    expect(JAPANESE_GARDEN.available(new URLSearchParams())).toBe(true);
   });
 
   it('plays its own sound profile: the pond garden, the falls (ADR 0283)', () => {

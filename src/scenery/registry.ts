@@ -1,6 +1,6 @@
 /**
- * The registered sceneries: the Japanese garden, and the waterfall behind a dev flag until it is
- * painted (`?dev&scenery=waterfall`). docs/systems/scenery.md.
+ * The registered sceneries: the Japanese garden (the default) and the rocky waterfall, both
+ * offered to everyone. docs/systems/scenery.md.
  */
 import { DEFAULT_SCENERY, type SceneryId } from './ids';
 import { JAPANESE_GARDEN } from './japanese-garden';

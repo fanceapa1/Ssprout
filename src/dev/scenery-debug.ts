@@ -6,7 +6,7 @@ import { extendDebug } from './debug';
 
 declare module './debug' {
   interface SproutDebug {
-    /** The garden on view and the sceneries these URL flags offer (`?dev&scenery=waterfall`). */
+    /** The garden on view and the sceneries these URL flags offer (both, since S17). */
     scenery(): { viewed: SceneryId; available: SceneryId[]; fade: number };
     /** Show another garden (as `scenery/view`); resolves once it is ready. Rejects an unavailable id. */
     showScenery(id: SceneryId): Promise<void>;
