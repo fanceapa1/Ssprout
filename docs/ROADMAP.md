@@ -173,4 +173,4 @@ Phase 12 art queue: one species or creature per task (atomic), 2–3 at a time, 
 | C6 | Iwatsubame (Asian house martin) along the cliff | `src/fauna/creatures/iwatsubame.ts` | done (devlog 90) |
 | C7 | Genji firefly (night only) | `src/fauna/creatures/firefly.ts` | done (devlog 91) |
 | C8 | Yamasemi (crested kingfisher, rare) | `src/fauna/creatures/yamasemi.ts` | done (devlog 92) |
-| C8b | Predator reactions (C8 devlog): the wagtail (`bird.ts`) treats only other wagtails' perches as taken, so it can land on the yamasemi's rock; the iwana ignores all birds and could sink or scatter when the yamasemi hovers | `src/fauna/creatures/{bird,iwana}.ts` | queued |
+| C8b | Predator reactions (C8 devlog): the wagtail (`bird.ts`) treats only other wagtails' perches as taken, so it can land on the yamasemi's rock; the iwana ignores all birds and could sink or scatter when the yamasemi hovers | `src/fauna/creatures/{bird,iwana}.ts` | done (devlog 92 › C8b) |
