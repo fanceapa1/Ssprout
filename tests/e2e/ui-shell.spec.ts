@@ -185,16 +185,16 @@ test.describe('app shell · reduced motion', () => {
 });
 
 test.describe('app shell · dock', () => {
-  test('sections in order on one reading spine: Study, Your plant, the calendar, the tools (ADR 0200)', async ({ page }) => {
+  test('sections in order on one reading spine: Study, Your plant, Gardens, the calendar, the tools (ADR 0200)', async ({ page }) => {
     await openUi(page, '');
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.evaluate(() => window.sprout!.ui.dockReady());
     const sections = await page.evaluate(() => window.sprout!.ui.dock());
-    expect(sections.map((s) => s.id)).toEqual(['session', 'plant', 'calendar', 'tools']);
+    expect(sections.map((s) => s.id)).toEqual(['session', 'plant', 'gardens', 'calendar', 'tools']);
     // filled by the calendar (phase 8, ADR 0175)
     expect(sections.find((s) => s.id === 'calendar')).toMatchObject({ title: 'Calendar', span: 'full', filled: true, visible: true });
     const boxes = [];
-    for (const id of ['session', 'plant', 'calendar', 'tools']) boxes.push((await page.locator(`[data-section="${id}"]`).boundingBox())!);
+    for (const id of ['session', 'plant', 'gardens', 'calendar', 'tools']) boxes.push((await page.locator(`[data-section="${id}"]`).boundingBox())!);
     // one column: each below the last, on one left edge, all as wide as each other
     for (let i = 1; i < boxes.length; i++) {
       expect(boxes[i]!.y).toBeGreaterThan(boxes[i - 1]!.y + boxes[i - 1]!.height - 1);

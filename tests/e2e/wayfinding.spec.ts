@@ -80,13 +80,13 @@ test.describe('wayfinding · desktop', () => {
     await openUi(page);
     await page.evaluate(() => window.sprout!.ui.dockReady());
     const heads = await headings(page);
-    expect(heads.map((h) => h.id)).toEqual(['session', 'plant', 'calendar', 'tools']);
+    expect(heads.map((h) => h.id)).toEqual(['session', 'plant', 'gardens', 'calendar', 'tools']);
     for (const h of heads) expect(Math.abs(h.left - heads[0]!.left)).toBeLessThan(1);
     for (let i = 1; i < heads.length; i++) expect(heads[i]!.top).toBeGreaterThan(heads[i - 1]!.bottom);
     // the same treatment for every heading: size, weight, family; each with its helper line
     const looks = await page.locator('.dock-title').evaluateAll((els) => els.map((e) => { const c = getComputedStyle(e); return `${c.fontFamily}|${c.fontSize}|${c.fontWeight}|${c.color}`; }));
     expect(new Set(looks).size).toBe(1);
-    for (const id of ['session', 'plant', 'calendar', 'tools']) await expect(page.locator(`[data-section="${id}"] .dock-helper`)).toBeVisible();
+    for (const id of ['session', 'plant', 'gardens', 'calendar', 'tools']) await expect(page.locator(`[data-section="${id}"] .dock-helper`)).toBeVisible();
   });
 
   test('the path leaves the stepping stones and passes every heading in order, beside it', async ({ page }) => {
@@ -142,10 +142,10 @@ test.describe('wayfinding · desktop', () => {
 
     // a section goes: its stop goes with it, and comes back with it
     await page.evaluate(() => window.sprout!.ui.setSectionHidden('calendar', true));
-    await expect.poll(async () => (await wayfinding(page, false)).stops.map((s) => s.id)).toEqual(['session', 'plant', 'tools']);
+    await expect.poll(async () => (await wayfinding(page, false)).stops.map((s) => s.id)).toEqual(['session', 'plant', 'gardens', 'tools']);
     await expect.poll(async () => Math.abs((await stopY('tools'))! - (await centre('tools')))).toBeLessThan(1.5);
     await page.evaluate(() => window.sprout!.ui.setSectionHidden('calendar', false));
-    await expect.poll(async () => (await wayfinding(page, false)).stops.map((s) => s.id)).toEqual(['session', 'plant', 'calendar', 'tools']);
+    await expect.poll(async () => (await wayfinding(page, false)).stops.map((s) => s.id)).toEqual(['session', 'plant', 'gardens', 'calendar', 'tools']);
 
     // a resize: the column narrows, the stops follow their headings
     await page.setViewportSize({ width: 820, height: 1000 });
@@ -322,7 +322,7 @@ test.describe('wayfinding · motion', () => {
     await openDev(page, 'fixtures');
     const w = await wayfinding(page);
     expect(w.drawn).toBe('instant');
-    expect(w.stops.length).toBe(4);
+    expect(w.stops.length).toBe(5);
     expect(await page.evaluate(() => document.getAnimations().filter((a) => (a.effect as KeyframeEffect | null)?.target?.closest?.('.wayfinding') != null).length)).toBe(0);
     await page.evaluate(() => window.sprout!.ui.scrollTo('session', { instant: true }));
     const start = page.locator('.panel button.plant-session');

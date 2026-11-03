@@ -216,7 +216,7 @@ test.describe('section backdrops · desktop', () => {
     await busy(page);
     await sheetsSettled(page);
     const list = await sheets(page);
-    expect(list.map((s) => s.id)).toEqual(['session', 'plant', 'calendar', 'tools']);
+    expect(list.map((s) => s.id)).toEqual(['session', 'plant', 'gardens', 'calendar', 'tools']);
     for (const s of list) {
       // the sheet is the section's own box: the heading block and the body lie on it, inside its margin
       expect(Math.abs(s.sheet.left - s.section.left)).toBeLessThan(1);
@@ -226,8 +226,8 @@ test.describe('section backdrops · desktop', () => {
       for (const c of s.controls) expect(inside(c, s.sheet, 2), `${s.id}: ${c.what}`).toBe(true);
       expect(s.mask).toContain('data:image/svg+xml');
     }
-    // seeded per section: four different torn edges
-    expect(new Set(list.map((s) => s.mask)).size).toBe(4);
+    // seeded per section: five different torn edges
+    expect(new Set(list.map((s) => s.mask)).size).toBe(5);
     // the waiting card lies on the Study sheet
     expect(list[0]!.controls.some((c) => c.what.startsWith('li.due-card'))).toBe(true);
   });
@@ -237,7 +237,7 @@ test.describe('section backdrops · desktop', () => {
     await busy(page);
     await page.evaluate(() => window.sprout!.setTime('midday'));
     await sheetsSettled(page);
-    const ids = ['session', 'plant', 'calendar', 'tools'];
+    const ids = ['session', 'plant', 'gardens', 'calendar', 'tools'];
     const lift: Record<string, number> = {};
     for (const id of ids) {
       await page.evaluate((id) => window.sprout!.ui.scrollTo(id, { instant: true }), id);
@@ -253,7 +253,7 @@ test.describe('section backdrops · desktop', () => {
       expect(s!.strength).toBe(id === 'calendar' ? 'firm' : 'leaf');
     }
     for (const id of ids) expect(lift[id]!, id).toBeGreaterThan(0.01); // lighter than the page
-    for (const id of ['session', 'plant', 'tools']) expect(lift.calendar!).toBeGreaterThan(lift[id]! * 1.4);
+    for (const id of ['session', 'plant', 'gardens', 'tools']) expect(lift.calendar!).toBeGreaterThan(lift[id]! * 1.4);
   });
 
   test('sheets lay out again when a section grows or the window resizes, never on a tick or a scroll', async ({ page }) => {
