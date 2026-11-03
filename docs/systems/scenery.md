@@ -193,7 +193,7 @@ with).
 y    0 ┌───────────────────────────────────────────────────────────────────────────┐
        │ · stars (y 26–186) · · ·                    ·   · moon arc (990→1150→1300)│
   200  │ crown woods ▲(60,200)            buttress ▲(780,214)        · open sky ·  │
-       │ ╲___ cliff-3 L      notch 270  ╱╲ cliff-5     ╲  sunset ○1040  ○1270 sun- │
+       │ ╲___ cliff-3 L      notch 270  ╱╲ cliff-5     ╲ sunset ○980    ○1270 sun- │
   296  │     ╲___ ledge hi ═  ┃lip┃  ═ ledge hi          ╲_______________ rise ____│
   336  │ cliff    ledge mid ═ ┃   ┃  ═ ledge mid          far ridge 344–372 (pale)  │
   448  │ face     ledge lo  ═ ┃fal┃  ═ ledge lo           far plain (bank-17/18)    │
@@ -212,7 +212,7 @@ y    0 ┌───────────────────────�
 - **The skyline decides the light.** The crown woods are highest at the left edge (y 200), and the
   buttress beside the falls is the tallest rock there (y 214). Its flank falls away to a low far
   ridge (y 344–372). The right 40 % of the frame is open sky for the daylight phases: the sun sets
-  at x 1040, just right of the buttress, and rises at x 1270 over the far ridge (horizon y 384,
+  at x 980, on the buttress's right shoulder (`WATERFALL_SUN_SKY`; the layout still says 1040), and rises at x 1270 over the far ridge (horizon y 384,
   under the ridge, so the sun climbs out from behind it). The moon arcs between them. The stars
   stay above the crown (y 26–186), with a gap round the moon's arc. `WATERFALL_SKY_LAYOUT`.
 - **The plunge pool** (x 452–1010, y 597–748) lies against the cliff's foot: its back edge is the
@@ -366,7 +366,8 @@ both low suns are right of the buttress), warm light on the sun-facing rock and 
 and their spray. Grades stay global. Studio `waterfall-daylight`.
 `WATERFALL_SUN_SKY` (`sky.ts`) is the layout with its sun side, `{ sunrise: 1, sunset: 1 }`, used as
 both `sky.layout` and `light.sky`: the shared plant and boulder shadows fall left and the rims face
-right at both low suns (ADR 0284).
+right at both low suns (ADR 0284). It also moves the setting sun to x 980 so its whole disc stays
+inside a phone's 600-unit crop (x 460–1060) at every altitude it shows (devlog 98).
 
 ### Wildlife (S11, ADR 0248)
 `fauna.ts` holds the waterfall's whole unlock table: the striders (`margin`: they keep to the

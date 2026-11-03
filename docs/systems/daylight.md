@@ -89,7 +89,7 @@ garden's. Everything that is lit from the side reads it from the viewed scenery'
   sky, × 1.2 toward the near ground: the meadow and the path are thin paint and need the weight,
   devlog 29), lantern 1, colour taken out first (`LOOK.nightDesaturate` 0.38; the frame is backed with white first, so the glaze only desaturates and draws no line where the sky plate stops at y 500, ADR 0206).
 - **Waterfall** (S10, ADR 0247, `scenery/waterfall/{sky,light}.ts`): the same four skies with the
-  glows and banks over the far ridge right of the buttress (sun 1270 rising, 1040 setting), clipped
+  glows and banks over the far ridge right of the buttress (sun 1270 rising, 980 setting: `WATERFALL_SUN_SKY`; the layout's 1040 put half the disc past a phone's crop, devlog 98), clipped
   to `plateSky()` (14 units under the cliff, 40 over the flank and ridge) so no bleed lands on the
   pale cliff top; the far ridge glazed per phase after the clip; 30 stars from its own band. The
   pool plate darkens toward the cliff. Light hooks: shade under the ledges and along the cliff foot,
