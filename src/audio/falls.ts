@@ -5,7 +5,8 @@ import { makeLoopable } from './noise';
  * The waterfall's bed as pure, seeded PCM (ADR 0283): a mono **plunge** (the low rumble of
  * water landing in the pool and the broad roar above it) and a stereo **spray** (a soft bright
  * hiss with a little fizz). Both are built once per context and loop; their lengths differ, so
- * the pair only repeats after minutes. docs/systems/audio.md › Waterfall.
+ * the pair only repeats after minutes. The plunge has nothing above ~3 kHz, so it is rendered at
+ * a third of the rate (the AudioBuffer resamples it). docs/systems/audio.md › Waterfall.
  */
 
 export const PLUNGE_S = 13;
@@ -17,8 +18,14 @@ export const FALLS_BLEND = { plunge: 1, spray: 0.28 } as const;
 
 export interface FallsLoops {
   plunge: Float32Array;
+  /** the plunge's own sample rate */
+  plungeRate: number;
+  /** left and right: one loop, the right half a loop on (uncorrelated noise, a wide image) */
   spray: [Float32Array, Float32Array];
 }
+
+/** The plunge's sample rate for a context rate: a third, at least 8 kHz (Web Audio's floor). */
+export const plungeRate = (sampleRate: number) => Math.max(8000, Math.round(sampleRate / 3));
 
 type Filter = (x: number) => number;
 
@@ -42,7 +49,9 @@ export function biquad(type: 'lowpass' | 'highpass' | 'bandpass', hz: number, q:
   };
 }
 
-const chain = (...fs: Filter[]): Filter => (x) => fs.reduce((v, f) => f(v), x);
+function chain(a: Filter, b: Filter, c?: Filter): Filter {
+  return c ? (x) => c(b(a(x))) : (x) => b(a(x));
+}
 
 /** Scale so the RMS equals `target`. */
 export function normaliseRms(data: Float32Array, target: number): Float32Array {
@@ -53,10 +62,20 @@ export function normaliseRms(data: Float32Array, target: number): Float32Array {
   return data;
 }
 
-/** A slow swell with whole cycles over the loop, so it is seamless: 1 + Σ depth·sin. */
+/**
+ * A slow swell with whole cycles over the loop, so it is seamless: 1 + Σ depth·sin. Evaluated
+ * at 4096 steps per loop (a few ms apart), far finer than any audible change.
+ */
 function swell(rng: Rng, parts: readonly (readonly [cycles: number, depth: number])[]) {
   const phases = parts.map(() => rng.range(0, Math.PI * 2));
-  return (u: number) => parts.reduce((m, [c, d], i) => m + d * Math.sin(2 * Math.PI * c * u + phases[i]!), 1);
+  let step = -1, value = 1;
+  return (u: number) => {
+    const q = Math.floor(u * 4096);
+    if (q === step) return value;
+    step = q;
+    value = parts.reduce((m, [c, d], i) => m + d * Math.sin((2 * Math.PI * c * q) / 4096 + phases[i]!), 1);
+    return value;
+  };
 }
 
 /** Random flutter around 1 (±depth), new targets `hz` times a second with cosine easing. */
@@ -98,7 +117,7 @@ function plungeLoop(rng: Rng, sr: number): Float32Array {
   return normaliseRms(low, FALLS_RMS);
 }
 
-function sprayChannel(rng: Rng, sr: number): Float32Array {
+function sprayLoop(rng: Rng, sr: number): Float32Array {
   const hiss = chain(biquad('highpass', 2400, 0.7, sr), biquad('highpass', 2400, 0.7, sr), biquad('lowpass', 7000, 0.7, sr));
   const mist = chain(biquad('bandpass', 1300, 0.7, sr), biquad('lowpass', 3000, 0.7, sr));
   const fizz = flutter(rng.fork('fizz'), 7, 0.22, sr);
@@ -112,10 +131,13 @@ function sprayChannel(rng: Rng, sr: number): Float32Array {
   return normaliseRms(top, FALLS_RMS);
 }
 
-/** Both loops for a sample rate; deterministic for a given Rng. */
+/** Both loops for a context sample rate; deterministic for a given Rng. */
 export function fallsLoops(rng: Rng, sampleRate: number): FallsLoops {
-  return {
-    plunge: plungeLoop(rng.fork('plunge'), sampleRate),
-    spray: [sprayChannel(rng.fork('spray-l'), sampleRate), sprayChannel(rng.fork('spray-r'), sampleRate)],
-  };
+  const rate = plungeRate(sampleRate);
+  const left = sprayLoop(rng.fork('spray'), sampleRate);
+  const right = new Float32Array(left.length);
+  const half = left.length >> 1;
+  right.set(left.subarray(half));
+  right.set(left.subarray(0, half), left.length - half);
+  return { plunge: plungeLoop(rng.fork('plunge'), rate), plungeRate: rate, spray: [left, right] };
 }

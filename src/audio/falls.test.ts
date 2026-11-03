@@ -55,22 +55,32 @@ const octaves = (p: Float64Array) => {
   for (let f = 31.25; f < SR / 2; f *= 2) out.push(db(band(p, f, 2 * f)));
   return out;
 };
-/** What the backend sounds for one channel: plunge plus spray, at their blend, spray wrapping. */
+/** The plunge at the context rate, linearly interpolated as a browser's buffer source plays it. */
+function plungeAt(i: number): number {
+  const d = loops.plunge, x = (i * loops.plungeRate) / SR, k = Math.floor(x);
+  const a = d[k % d.length]!, b = d[(k + 1) % d.length]!;
+  return a + (b - a) * (x - k);
+}
+/** What the backend sounds for one channel: plunge plus spray, at their blend, both wrapping. */
 function blend(seconds: number, ch: 0 | 1 = 0): Float32Array {
   const out = new Float32Array(Math.round(seconds * SR));
   const spray = loops.spray[ch];
-  for (let i = 0; i < out.length; i++) {
-    out[i] = loops.plunge[i % loops.plunge.length]! * FALLS_BLEND.plunge + spray[i % spray.length]! * FALLS_BLEND.spray;
-  }
+  for (let i = 0; i < out.length; i++) out[i] = plungeAt(i) * FALLS_BLEND.plunge + spray[i % spray.length]! * FALLS_BLEND.spray;
   return out;
 }
+const plungeAtSr = () => {
+  const out = new Float32Array(Math.round((loops.plunge.length * SR) / loops.plungeRate));
+  for (let i = 0; i < out.length; i++) out[i] = plungeAt(i);
+  return out;
+};
 
 describe('waterfall bed (falls.ts)', () => {
   it('is deterministic, the right length, at its RMS and bounded', () => {
     const again = fallsLoops(createRng('falls-test'), SR);
     expect(again.plunge).toEqual(loops.plunge);
     expect(again.spray[1]).toEqual(loops.spray[1]);
-    expect(loops.plunge.length).toBe(PLUNGE_S * SR);
+    expect(loops.plungeRate).toBe(8000);
+    expect(loops.plunge.length).toBe(PLUNGE_S * 8000);
     expect(loops.spray[0].length).toBe(SPRAY_S * SR);
     for (const d of [loops.plunge, ...loops.spray]) {
       expect(rms(d)).toBeCloseTo(FALLS_RMS, 3);
@@ -84,7 +94,7 @@ describe('waterfall bed (falls.ts)', () => {
   });
 
   it('the plunge is a low rumble and roar, the spray a bright hiss', () => {
-    const p = spectrum(loops.plunge), s = spectrum(loops.spray[0]);
+    const p = spectrum(plungeAtSr()), s = spectrum(loops.spray[0]);
     expect(db(band(p, 30, 250) / band(p, 3000, 9000))).toBeGreaterThan(25);
     expect(db(band(p, 250, 1500) / band(p, 3000, 9000))).toBeGreaterThan(15);
     expect(db(band(s, 3000, 9000) / band(s, 30, 250))).toBeGreaterThan(25);
