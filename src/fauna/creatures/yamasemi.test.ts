@@ -51,6 +51,20 @@ describe('where the yamasemi perches and fishes', () => {
     }
   });
 
+  it('with every perch held it shares a wide boulder, standing away from the smaller bird', () => {
+    const sim = waterfallSim(6, { auto: false });
+    const held = yamasemiPerches(sim.world).map(({ perch: p }) => ({ x: p.x, y: p.y }));
+    for (const [i, h] of held.entries()) {
+      const spot = { ...h };
+      sim.creatures.push({ id: 9000 + i, kind: 'bird', x: h.x, y: h.y, layer: 'entities', state: 'perch', done: false, visitor: false, forced: true, update() {}, draw() {}, depth: () => null, leave() {}, spot: () => spot } as never);
+    }
+    const [b] = sim.spawn('yamasemi') as Yamasemi[];
+    expect(b).toBeDefined();
+    for (let i = 0; i < 400 && b!.state !== 'perch'; i++) sim.update(0.05, 0);
+    expect(b!.state).toBe('perch');
+    expect(Math.min(...held.map((h) => Math.abs(h.x - b!.x)))).toBeGreaterThan(10);
+  });
+
   it('keeps off perches others hold', () => {
     const rng = createRng(3);
     const left = w.perches.find((p) => p.id === 'rock-pool-left')!;

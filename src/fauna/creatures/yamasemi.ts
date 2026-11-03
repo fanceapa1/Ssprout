@@ -417,6 +417,37 @@ export function choosePerch(w: Pick<FaunaWorld, 'perches' | 'pond' | 'scene' | '
   return all[all.length - 1]!.perch;
 }
 
+/** Every perch held: the one with the most room, to share a wide boulder with a smaller bird. */
+export function sharePerch(w: Pick<FaunaWorld, 'perches' | 'pond' | 'scene' | 'view'>, taken: readonly Pt[]): Perch | null {
+  let best: Perch | null = null;
+  let room = -1;
+  for (const { perch } of yamasemiPerches(w)) {
+    const r = Math.max(...[-1, 1].map((k) => Math.min(...taken.map((t) => dist(t, { x: perch.x + k * perch.spread, y: perch.y })), 999)));
+    if (r > room) {
+      room = r;
+      best = perch;
+    }
+  }
+  return best;
+}
+
+/** Where to stand along a perch: as far as it can from whoever else is on it. */
+export function roomOn(p: Perch, taken: readonly Pt[], rng: Rng): number {
+  const near = taken.filter((t) => Math.abs(t.x - p.x) < p.spread + 30 && Math.abs(t.y - p.y) < 40);
+  if (near.length === 0) return p.x + rng.range(-0.4, 0.4) * p.spread;
+  let bx = p.x;
+  let bd = -1;
+  for (let k = -1; k <= 1; k += 0.25) {
+    const x = p.x + k * p.spread;
+    const d = Math.min(...near.map((t) => Math.abs(t.x - x)));
+    if (d > bd) {
+      bd = d;
+      bx = x;
+    }
+  }
+  return bx;
+}
+
 /** Where its feet rest on a perch: a rock's painted top sits a little below the perch line. */
 export function standOn(p: Perch, x: number): Pt {
   return { x, y: perchY(p, x) + (p.kind === 'rock' ? p.dome * 0.35 : 0) };
@@ -564,14 +595,15 @@ export class Yamasemi extends BaseCreature {
     readonly stay: number,
   ) {
     super();
-    this.perch = choosePerch(w, rng, takenSpots(w, this));
+    const taken = takenSpots(w, this);
+    this.perch = choosePerch(w, rng, taken) ?? sharePerch(w, taken);
     if (!this.perch) {
       this.done = true;
       return;
     }
     this.crestGap = rng.range(1, 3);
     this.bobGap = rng.range(1, 3);
-    const stand = standOn(this.perch, this.perch.x + rng.range(-0.4, 0.4) * this.perch.spread);
+    const stand = standOn(this.perch, roomOn(this.perch, taken, rng));
     const way = streamWay(w, rng, YAMASEMI_TUNING.low);
     const under = { x: stand.x + (way[way.length - 1]!.x > stand.x ? 36 : -36), y: this.perch.depth - YAMASEMI_TUNING.low * 2, g: this.perch.depth };
     this.pos = { x: way[0]!.x, y: way[0]!.y };
@@ -754,13 +786,14 @@ export class Yamasemi extends BaseCreature {
   /** Back to the perch from the water (or another perch if someone took it). */
   private back(w: FaunaWorld): void {
     let p = this.perch;
-    if (!p || takenSpots(w, this).some((t) => dist(t, p!) < 30)) p = choosePerch(w, this.rng, takenSpots(w, this));
+    const taken = takenSpots(w, this);
+    if (!p || taken.some((t) => dist(t, p!) < 30)) p = choosePerch(w, this.rng, taken) ?? p ?? sharePerch(w, taken);
     if (!p || this.leaving) {
       this.depart(w);
       return;
     }
     this.perch = p;
-    const stand = standOn(p, p.x + this.rng.range(-0.3, 0.3) * p.spread);
+    const stand = standOn(p, roomOn(p, taken, this.rng));
     const mid = { x: lerp(this.pos.x, stand.x, 0.55), y: Math.max(this.pos.y, stand.y) + 4, g: lerp(this.target?.y ?? p.depth, p.depth, 0.55) };
     this.fly([mid, { ...stand, g: p.depth }], 'perch', 'return');
   }
