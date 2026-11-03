@@ -131,7 +131,7 @@ Phase 10 (owner request 2026-10-27): land phase 9, then a second scenery, a rock
 | S12 | Iwana char in the plunge pool (renamed from trout: introduced trout are invasive in Japanese headwaters, B0) | `src/fauna/creatures/iwana.ts` | moved to C3 |
 | S13 | Dipper on the wet rocks | `src/fauna/creatures/dipper.ts` | moved to C1 |
 | S15 | Waterfall sound bed (`falls` layer, roar, rumble, spray hiss, splash events, dipper song) | `src/audio/**`, `src/core/soundscape.ts`, `src/ui/sound-mixer.ts` | done (devlog 94; ADR 0283; needs a human ear) |
-| S17 | Acceptance and docs: SPEC, ARCHITECTURE, `docs/systems/scenery.md`, TESTING matrix, a v3 export imports, switch-time numbers, shots of both gardens | `docs/**`, `tests/**` | queued (last) |
+| S17 | Acceptance and docs: SPEC, ARCHITECTURE, `docs/systems/scenery.md`, TESTING matrix, a v3 export imports, switch-time numbers, shots of both gardens | `docs/**`, `tests/**` | in progress |
 
 Phase 11 (deferred by the owner on 2026-10-28 to a later session; owner request 2026-10-27, branch `feat/accounts`, not merged to main): simple user/password accounts, with progress stored in a database. Local setup only: a Node (Fastify) server, Postgres in Docker. Owner decision: guest mode stays local, and signing up offers to import the local garden.
 
