@@ -107,3 +107,4 @@ never used.
 | 96 | [S6b: the waterfall's rock forms](96-waterfall-rocks.md) | A stepped skyline and a jointed, opaque buttress flank; the rock reserved and clipped to its exact outline; ledges as rock shelves; the upper gorge as spurs receding into mist; a jointed cliff face | — |
 | 97 | [S10b: the sun side](97-sun-side.md) | Each scenery's sky says which side its low sun lights from; shared shadows, crown lights and rims follow it (the waterfall's fall left and face right at sunset); the garden is pixel-identical | 0284 |
 | 98 | [S19: the waterfall's sun on a phone](98-phone-sun.md) | The setting sun moves to x 980 so its whole disc stays inside a phone's crop; desktop sun about 55 px left; the garden unchanged | |
+| 99 | [S18: Begin's forced layout](99-begin-layout.md) | Begin measures the pill's aside before its DOM writes, and the page paper reaches CSS as a blob URL instead of a 551 KB data URL; Begin's click 27–108 ms → 31–36 ms on the loaded laptop | — |
