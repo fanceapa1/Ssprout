@@ -139,6 +139,25 @@ test.describe('sound mixer', () => {
     expect(await sheet.locator('.sound-layer:visible input').evaluateAll((els) => els.every((el) => (el as HTMLInputElement).value === '0'))).toBe(true);
   });
 
+  test('viewing the waterfall garden brings its sounds: the falls in the palette, its presets, and back at the pond (ADR 0283)', async ({ page }) => {
+    await openUi(page, 'scenery=waterfall');
+    const sheet = await openMixer(page);
+    expect(await page.evaluate(() => window.sprout!.audio.getScenery())).toBe('pond');
+    await page.evaluate(() => window.sprout!.showScenery('waterfall'));
+    expect(await page.evaluate(() => window.sprout!.audio.getScenery())).toBe('waterfall');
+    await expect(sheet.locator('.sound-place')).toHaveText('The rocky waterfall');
+    await expect(sheet.getByRole('slider', { name: 'The falls volume' })).toBeVisible();
+    await expect(sheet.getByRole('slider', { name: 'Pond water volume' })).toBeHidden();
+    await expect(sheet.getByRole('button', { name: 'By the falls', exact: true })).toBeVisible();
+    await level(sheet, 'The falls volume', 64);
+    await page.evaluate(() => window.sprout!.showScenery('japanese-garden'));
+    expect(await page.evaluate(() => window.sprout!.audio.getScenery())).toBe('pond');
+    await expect(sheet.getByRole('slider', { name: 'Pond water volume' })).toBeVisible();
+    await expect(sheet.getByRole('slider', { name: 'The falls volume' })).toBeHidden();
+    await page.evaluate(() => window.sprout!.showScenery('waterfall'));
+    await expect(sheet.getByRole('slider', { name: 'The falls volume' })).toHaveValue('64');
+  });
+
   test('real audio graph: every Standard layer is audible, quiet, and zero channels silence scheduled birds', async ({ page }) => {
     await openUi(page);
     await page.evaluate(() => window.sprout!.freeze());
@@ -157,6 +176,37 @@ test.describe('sound mixer', () => {
     expect(measured.silent.peak).toBe(0);
     expect(measured.birdsOff.peak).toBeLessThan(0.00001);
     expect(measured.all.peak).toBeLessThan(0.3);
+  });
+
+  test('real audio graph: the waterfall sits as quietly as the pond and the switch glides without a dip or a jump (ADR 0283)', async ({ page }) => {
+    await openUi(page);
+    await page.evaluate(() => window.sprout!.freeze());
+    const r = await page.evaluate(async () => {
+      const api = window.sprout!.audio;
+      return {
+        pond: await api.scene({ scenery: 'pond', seconds: 12 }),
+        falls: await api.scene({ scenery: 'waterfall', seconds: 12 }),
+        there: await api.scene({ scenery: 'pond', to: 'waterfall', switchAt: 4, seconds: 12 }),
+        back: await api.scene({ scenery: 'waterfall', to: 'pond', switchAt: 4, seconds: 12 }),
+      };
+    });
+    const mean = (w: number[]) => 10 * Math.log10(w.reduce((s, v) => s + 10 ** (v / 10), 0) / w.length);
+    // windows are 250 ms; the first second is the beds settling
+    const pond = mean(r.pond.windowsDb.slice(4)), falls = mean(r.falls.windowsDb.slice(4));
+    expect(falls).toBeGreaterThan(-44);
+    expect(falls).toBeLessThan(-34);
+    // a waterfall is a little fuller than a still pond, never much louder
+    expect(falls - pond).toBeGreaterThan(0);
+    expect(falls - pond).toBeLessThan(4);
+    expect(r.falls.peak).toBeLessThan(0.08);
+    for (const [m, from, to] of [[r.there, r.pond, r.falls], [r.back, r.falls, r.pond]] as const) {
+      const w = m.windowsDb.slice(4);
+      // neighbouring quarter-seconds never jump, and the level never dips through the switch
+      for (let i = 1; i < w.length; i++) expect(Math.abs(w[i]! - w[i - 1]!)).toBeLessThan(2.5);
+      expect(Math.min(...w)).toBeGreaterThan(Math.min(mean(from.windowsDb.slice(4)), mean(to.windowsDb.slice(4))) - 3);
+      // 6 s on, it sounds as the new garden does at that moment
+      expect(Math.abs(mean(m.windowsDb.slice(-8)) - mean(to.windowsDb.slice(-8)))).toBeLessThan(1.5);
+    }
   });
 });
 
