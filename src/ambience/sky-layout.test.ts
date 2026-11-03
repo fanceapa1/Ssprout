@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { gardenScene } from '../scene/geometry';
 import { blendWeights, only, pinnedState } from './daylight';
 import { GARDEN_SKY_LAYOUT } from '../scenery/japanese-garden/sky';
-import { castShadow, moonDisc, rimLight, stars, sunDisc } from './sky-layout';
+import { castShadow, moonDisc, rimLight, stars, sunDisc, sunSide } from './sky-layout';
+import { WATERFALL } from '../scenery/waterfall';
+import { WORLD_W } from '../render/viewport';
 
 const HORIZON_Y = GARDEN_SKY_LAYOUT.horizonY;
 
@@ -93,6 +95,47 @@ describe('shadows and rims', () => {
     expect(rimLight(state('night')).strength).toBe(0);
     const [r, , b] = rimLight(state('sunset')).rgb;
     expect(r).toBeGreaterThan(b);
+  });
+});
+
+describe("the scenery's sun side (ADR 0284)", () => {
+  const PHASES = ['sunrise', 'midday', 'sunset', 'night'] as const;
+  const BLENDS = [blendWeights('night', 'sunrise', 0.4), blendWeights('sunrise', 'midday', 0.5), blendWeights('midday', 'sunset', 0.3), blendWeights('sunset', 'night', 0.6)];
+
+  it("the garden's states its side, and an unsided sky gets the garden's: the same light to the bit", () => {
+    expect(sunSide(GARDEN_SKY_LAYOUT)).toEqual({ sunrise: 1, sunset: -1 });
+    const { sunSide: _, ...unsided } = GARDEN_SKY_LAYOUT;
+    expect(sunSide(unsided)).toEqual(sunSide(GARDEN_SKY_LAYOUT));
+    for (const s of [...PHASES.map(state), ...BLENDS.map((w) => pinnedState(w))]) {
+      expect(castShadow(s, GARDEN_SKY_LAYOUT)).toEqual(castShadow(s));
+      expect(rimLight(s, GARDEN_SKY_LAYOUT)).toEqual(rimLight(s));
+    }
+  });
+
+  it('at the waterfall both low suns stand right: shadows fall left and rims face right', () => {
+    const sky = WATERFALL.sky.layout;
+    expect(sunSide(sky)).toEqual({ sunrise: 1, sunset: 1 });
+    for (const p of ['sunrise', 'sunset'] as const) {
+      const sun = sunDisc(state(p), sky);
+      expect(sun.x).toBeGreaterThan(WORLD_W / 2);
+      expect(castShadow(state(p), sky).dx).toBeLessThan(-1);
+      expect(rimLight(state(p), sky).side).toBe(1);
+    }
+    // only the side changes: length, darkness, strength and colour are the garden's
+    for (const s of [...PHASES.map(state), ...BLENDS.map((w) => pinnedState(w))]) {
+      const g = castShadow(s);
+      const w = castShadow(s, sky);
+      expect(Math.abs(w.dx - (s.weights.midday * 0.07 + s.weights.night * -0.2))).toBeCloseTo(Math.abs(g.dx - (s.weights.midday * 0.07 + s.weights.night * -0.2)), 9);
+      expect([w.dy, w.alpha]).toEqual([g.dy, g.alpha]);
+      expect({ ...rimLight(s, sky), side: 0 }).toEqual({ ...rimLight(s), side: 0 });
+    }
+  });
+
+  it('the blend from sunset into night keeps the shadow on the far side from the sun', () => {
+    const sky = WATERFALL.sky.layout;
+    const dusk = pinnedState(blendWeights('sunset', 'night', 0.5));
+    expect(castShadow(dusk, sky).dx).toBeLessThan(0);
+    expect(castShadow(dusk).dx).toBeGreaterThan(0);
   });
 });
 

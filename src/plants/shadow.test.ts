@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { only, pinnedState } from '../ambience/daylight';
 import { castShadow } from '../ambience/sky-layout';
+import { GARDEN_SKY_LAYOUT } from '../scenery/japanese-garden/sky';
 import { drawPlantShadow, shadowBox } from './shadow';
 
 const plant = { x: 500, y: 700, w: 60, h: 120 };
@@ -14,6 +15,15 @@ describe('plant cast shadows', () => {
     expect(Math.cos(set.angle)).toBeGreaterThan(0.9);
     expect(rise.len).toBeGreaterThan(plant.h);
     expect(set.len).toBeGreaterThan(plant.h);
+  });
+
+  it('lie to the left at both low suns where the scenery puts the sun on the right (the waterfall, ADR 0284)', () => {
+    const sky = { ...GARDEN_SKY_LAYOUT, sunSide: { sunrise: 1, sunset: 1 } as const };
+    for (const p of ['sunrise', 'sunset'] as const) {
+      const box = shadowBox(plant, castShadow(pinnedState(only(p)), sky));
+      expect(Math.cos(box.angle)).toBeLessThan(-0.9);
+      expect(box.len).toBe(shadowBox(plant, shadow(p)).len);
+    }
   });
 
   it('are a short pool under the plant at midday', () => {

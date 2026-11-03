@@ -11,10 +11,11 @@ import type { Painter } from '../../paint';
 import type { SceneGeometry } from '../../scene/geometry';
 import { FALLS } from './geometry';
 import { LEDGES, skylineAt, WATERFALL_SKY_LAYOUT } from './layout';
+import { WATERFALL_SUN_SKY } from './sky';
 
 /**
- * Shadows. Both low suns stand right of the buttress here, so the long shadows always fall left,
- * whatever the global `dx` sign says; midday leaves short pools under the ledges and the overhang.
+ * Shadows. Both low suns stand right of the buttress here, so the long shadows always fall left
+ * (as the shared `dx` does, ADR 0284); midday leaves short pools under the ledges and the overhang.
  */
 function rockShadows(p: Painter, rng: Rng, _scene: SceneGeometry, sh: CastShadow, pig: string): void {
   const low = Math.abs(sh.dx) > 0.6;
@@ -93,4 +94,4 @@ function rockLights(p: Painter, rng: Rng, _scene: SceneGeometry, phase: DayPhase
   dab(p, FALLS.foot.x + 40, FALLS.foot.y + 40, 220, 24, 0.3, cool);
 }
 
-export const WATERFALL_LIGHT_ART: LightArt = { trees: [], shrubs: [], sky: WATERFALL_SKY_LAYOUT, shadows: rockShadows, lights: rockLights };
+export const WATERFALL_LIGHT_ART: LightArt = { trees: [], shrubs: [], sky: WATERFALL_SUN_SKY, shadows: rockShadows, lights: rockLights };

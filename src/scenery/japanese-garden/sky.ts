@@ -16,4 +16,6 @@ export const GARDEN_SKY_LAYOUT: SkyLayout = {
     { x: 708, y: 252 },
   ],
   stars: { top: 30, depth: 270, gap: { x: 806, halfW: 130, y0: 140, y1: 300 } },
+  // shadows fall left at sunrise and right at sunset; rims face the other way (ADR 0284)
+  sunSide: { sunrise: 1, sunset: -1 },
 };

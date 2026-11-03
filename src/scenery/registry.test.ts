@@ -43,6 +43,8 @@ describe('the registry', () => {
       expect(s.art.scenery, s.id).toBe(s.id);
       expect(s.art.scene, s.id).toBe(s.geometry);
       expect(s.light.sky, s.id).toBe(s.sky.layout);
+      // every scenery says where its low sun stands (ADR 0284)
+      expect(s.sky.layout.sunSide, s.id).toBeDefined();
       expect(s.available(none), s.id).toBe(true);
       expect(Object.keys(SCENERIES), s.id).toContain(s.sound);
     }

@@ -17,6 +17,9 @@ import { FakeCanvas, installFakeOffscreenCanvas } from './test-canvas';
 import type { SpeciesDef } from './types';
 import { GARDEN_PLANT_SCALE } from '../scene/slots';
 import { WATERING_SECONDS, WET_LINGER_SECONDS } from './watering';
+import type { SunSide } from '../ambience/sky-layout';
+import { GARDEN_SKY_LAYOUT } from '../scenery/japanese-garden/sky';
+import type { Scenery } from '../scenery/types';
 
 const MIN = 60_000;
 
@@ -119,7 +122,7 @@ const plant = (id: string, slotId: string, speciesId = 'small'): PlantInstance =
   completedAt: 1,
 });
 
-function setup(opts: { plants?: PlantInstance[]; scene?: SceneGeometry; reducedMotion?: boolean; cache?: ReturnType<typeof instantCache>; camera?: boolean; daylight?: ReturnType<typeof pinnedSource> } = {}) {
+function setup(opts: { plants?: PlantInstance[]; scene?: SceneGeometry; reducedMotion?: boolean; cache?: ReturnType<typeof instantCache>; camera?: boolean; daylight?: ReturnType<typeof pinnedSource>; scenery?: Scenery } = {}) {
   const clock = createManualClock(1_000_000);
   const state: GardenState = { ...createDefaultState(clock.now()), plants: opts.plants ?? [] };
   const store = createStore(state, reducer);
@@ -129,7 +132,7 @@ function setup(opts: { plants?: PlantInstance[]; scene?: SceneGeometry; reducedM
   const system = createPlantSystem({ getSpecies, cache, daylight: opts.daylight, wind: (t) => ({ sway: Math.sin(t), gust: 0 }) });
   const viewport = createViewport(1600, 1000, 1);
   const camera = opts.camera ? createCamera({ base: viewport }) : undefined;
-  const ctx: SystemContext = { viewport, camera, store, bus, clock, scene, reducedMotion: !!opts.reducedMotion };
+  const ctx: SystemContext = { viewport, camera, store, bus, clock, scene, reducedMotion: !!opts.reducedMotion, scenery: opts.scenery };
   let t = 0;
   const frame = (dt = 1 / 60): FrameInfo => {
     t += dt;
@@ -319,6 +322,40 @@ describe('plant system', () => {
       }
       expect(screens.get(slot('meadow-1').y)).toBeGreaterThan(0);
       expect(screens.get(slot('path-2').y)).toBe(0);
+    } finally {
+      restore();
+    }
+  });
+
+  it("casts the shadow away from the viewed scenery's sun and turns the rim toward it (ADR 0284)", async () => {
+    const restore = installFakeOffscreenCanvas();
+    try {
+      // the plants are in the Japanese garden; only the sky's sun side changes
+      const lightAt = async (sunSide?: SunSide) => {
+        const scenery = sunSide ? ({ id: 'japanese-garden', sky: { layout: { ...GARDEN_SKY_LAYOUT, sunSide } } } as unknown as Scenery) : undefined;
+        const env = setup({ plants: [plant('lit', 'meadow-1')], daylight: pinnedSource('sunset'), scenery });
+        const sys = await ready(env);
+        const f = env.frame();
+        const angles: number[] = [];
+        for (const d of sys.entities!(f)) {
+          const ctx = new FakeCanvas(1600, 1000).ctx as unknown as CanvasRenderingContext2D;
+          const rotate = ctx.rotate.bind(ctx);
+          ctx.rotate = (a: number) => (angles.push(a), rotate(a));
+          d.draw(ctx, f);
+        }
+        return { sun: sys.debugState().sun, angles };
+      };
+      const garden = await lightAt();
+      expect(garden.sun.shadowDx).toBeGreaterThan(1);
+      expect(garden.sun.rimSide).toBe(-1);
+      expect(garden.angles.some((a) => Math.cos(a) > 0.9)).toBe(true);
+      // the waterfall's sun sets on the right
+      const right = await lightAt({ sunrise: 1, sunset: 1 });
+      expect(right.sun.shadowDx).toBeLessThan(-1);
+      expect(right.sun.rimSide).toBe(1);
+      expect(right.sun.rimStrength).toBe(garden.sun.rimStrength);
+      expect(right.angles.some((a) => Math.cos(a) < -0.9)).toBe(true);
+      expect(right.angles.some((a) => Math.cos(a) > 0.9)).toBe(false);
     } finally {
       restore();
     }

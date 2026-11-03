@@ -1,9 +1,10 @@
 /**
- * Where the light comes from in the painted garden — pure. Maps a `DaylightState` to world
- * positions (the sun low over the right-hand hills at sunrise, over the left-hand hills at
- * sunset; the moon arcing through the gap between the two tree groups), and to the cast shadow
- * and rim light every painted thing shares, so the sky, the cast plates, the plants and the
- * boulders all agree on one sun. docs/systems/daylight.md › Sky layout, ADR 0142.
+ * Where the light comes from in the painted garden — pure. Maps a `DaylightState` and a scenery's
+ * `SkyLayout` to world positions (in the garden the sun low over the right-hand hills at sunrise,
+ * over the left-hand hills at sunset; the moon arcing through the gap between the two tree
+ * groups), and to the cast shadow and rim light every painted thing shares, so the sky, the cast
+ * plates, the plants and the boulders all agree on one sun. docs/systems/daylight.md › Sky
+ * layout, ADRs 0142, 0284.
  */
 import { createRng } from '../core/rng';
 import type { Pt } from '../render/viewport';
@@ -22,6 +23,22 @@ export interface SkyLayout {
   moonArc: readonly [Pt, Pt, Pt];
   /** stars from `top` down `depth` units, none inside `gap` (round the moon's arc) */
   stars: { top: number; depth: number; gap: { x: number; halfW: number; y0: number; y1: number } | null };
+  /** the side the low sun lights the scene from (ADR 0284); without it, the garden's */
+  sunSide?: SunSide;
+}
+
+/** Which side the low sun lights the garden from at sunrise and at sunset: −1 left, +1 right. */
+export interface SunSide {
+  sunrise: -1 | 1;
+  sunset: -1 | 1;
+}
+
+/** The Japanese garden's: the sun rises on the right and sets on the left. */
+const GARDEN_SUN_SIDE: SunSide = { sunrise: 1, sunset: -1 };
+
+/** A scenery's sun side (the garden's when its sky does not say). */
+export function sunSide(sky: SkyLayout = GARDEN_SKY_LAYOUT): SunSide {
+  return sky.sunSide ?? GARDEN_SUN_SIDE;
 }
 
 /** World units of rise per degree of sun altitude (the sky band is short: keep it low). */
@@ -102,15 +119,16 @@ export interface CastShadow {
 }
 
 /**
- * Shadows fall away from the sun: long and to the left at sunrise (the sun is on the right),
- * long and to the right at sunset, short and a little toward the viewer at midday, faint at
- * night (moonlight). Weighted over the phases so blends move the shadow continuously.
+ * Shadows fall away from the sun (`sky`'s sun side): in the garden long and to the left at
+ * sunrise, long and to the right at sunset; short and a little toward the viewer at midday, faint
+ * at night (moonlight). Weighted over the phases so blends move the shadow continuously.
  */
-export function castShadow(s: DaylightState): CastShadow {
+export function castShadow(s: DaylightState, sky: SkyLayout = GARDEN_SKY_LAYOUT): CastShadow {
   const w = s.weights;
+  const side = sunSide(sky);
   const len = (alt: number) => Math.min(2.6, 0.55 / Math.tan((Math.max(6, alt) * Math.PI) / 180));
   const low = len(Math.max(0, s.sunAltitude));
-  const dx = w.sunrise * -low + w.sunset * low + w.midday * 0.07 + w.night * -0.2;
+  const dx = w.sunrise * (-side.sunrise * low) + w.sunset * (-side.sunset * low) + w.midday * 0.07 + w.night * -0.2;
   const dy = w.sunrise * 0.12 + w.sunset * 0.12 + w.midday * 0.1 + w.night * 0.06;
   const alpha = w.sunrise * 0.5 + w.midday * 0.55 + w.sunset * 0.55 + w.night * 0.12;
   return { dx, dy, alpha };
@@ -125,15 +143,16 @@ export interface RimLight {
 }
 
 /**
- * Warm light on the sun-facing edges: peach from the right at sunrise, deep gold from the left at
- * sunset (the stronger). Midday light is overhead and the moon too faint: no rim.
+ * Warm light on the sun-facing edges (`sky`'s sun side): peach at sunrise, deep gold at sunset
+ * (the stronger). Midday light is overhead and the moon too faint: no rim.
  */
-export function rimLight(s: DaylightState): RimLight {
+export function rimLight(s: DaylightState, sky: SkyLayout = GARDEN_SKY_LAYOUT): RimLight {
   const rise = s.weights.sunrise;
   const set = s.weights.sunset;
   const evening = set >= rise;
+  const side = sunSide(sky);
   return {
-    side: evening ? -1 : 1,
+    side: evening ? side.sunset : side.sunrise,
     strength: clamp01(evening ? set : rise * 0.75),
     rgb: evening ? [255, 196, 128] : [255, 214, 180],
   };

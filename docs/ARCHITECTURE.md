@@ -324,7 +324,7 @@ export interface Scenery {                    // types.ts
   available(flags: URLSearchParams): boolean;  // both registered sceneries: always (S17); a scenery in progress hides behind a dev flag
   geometry: SceneGeometry;
   art: SceneArt;                              // seed, painting layout, steps(art, only?) (art.scene = geometry), rockSprites?
-  sky: ScenerySky;                            // layout (SkyLayout), rect, shape(below?), paint, paintWater
+  sky: ScenerySky;                            // layout (SkyLayout, with its sunSide: ADR 0284), rect, shape(below?), paint, paintWater
   light: LightArt;                            // trees, shrubs, sky, shadows?(…), lights?(…)
   ambience: SceneryAmbience;                  // dew: Rect[], mistBands, veilTo
   view: SceneryView;                          // focus (portrait crop), pathOut (guiding path origin)
@@ -606,7 +606,7 @@ for their skew; fauna could use both (not wired). Ambience/lighting dev hooks an
 `addAmbience(renderer, { dev, daylight, scenery? /* default: the Japanese garden */ })` registers the system and returns it;
 the scenery gives the light art, the dew, mist and veil numbers and the light plates' cache keys. Besides the
 `System` hooks it has `setTime(v)` (sets the shared daylight's override), `setWeather(w)`,
-`settle()`, `debug()` (with `sprites`, the sprite groups built so far: each is painted on first use, ADR 0232), `daylight` (the source it paints with), `now()` (last frame's clock time),
+`settle()`, `debug()` (with `sprites`, the sprite groups built so far: each is painted on first use, ADR 0232), `daylight` (the source it paints with), `now()` (last frame's clock time), `sky()` (the viewed scenery's `SkyLayout`, ADR 0284),
 `onLight(fn)` (the blended phase grade, each time the light recomposes) and
 `revealLightAfter(promise)` (the lighting is drawn at alpha 0 until the promise resolves, then eases
 in over 1.4 s, at once under reduced motion or on a frozen frame). `main.ts` passes
@@ -630,6 +630,15 @@ export type TimeOverride = DayPhase | 'morning' | 'noon' | 'evening' | 'dusk' | 
 pinned midday, or the ambience to its own source, without it). Where the light falls — sun and
 moon discs, stars, cast shadow, rim light — comes from `sky-layout.ts`, so every painted thing
 agrees. Time enters only as the frame's `now`. Details: `docs/systems/daylight.md`.
+```ts
+export interface SkyLayout { horizonY: number; sunriseX: number; sunsetX: number; moonArc: readonly [Pt, Pt, Pt];
+  stars: { top; depth; gap }; sunSide?: SunSide /* without it, the garden's (ADR 0284) */ }
+export interface SunSide { sunrise: -1 | 1; sunset: -1 | 1 }  // the side the low sun lights from: −1 left, +1 right
+sunDisc(s, sky?) · moonDisc(s, sky?) · castShadow(s, sky?) · rimLight(s, sky?) · sunSide(sky?)  // sky default: the garden's
+```
+Each scenery's `sky.layout` (= its `light.sky`) states its sun side: the garden `{ sunrise: 1, sunset: -1 }`,
+the waterfall `{ sunrise: 1, sunset: 1 }`. The shadows (plants, the light plates' boulders, shrubs and
+trees), the crown lights and the rims (plants, boulders) all read the viewed scenery's sky (ADR 0284).
 
 ### Audio (`src/audio/`, ADRs 0100–0103, 0213, 0283)
 `createGardenAudio({ bus, getState, clock, scenery? /* default pond */ })` → `{ unlock(), setMuted(), isMuted(), setWeather(),
@@ -733,7 +742,7 @@ Plants (`src/plants/debug.ts`): `plantsReady()` (resolves once the plant system 
 latest store change, every sprite the garden needs is
 painted and new plants have faded in, without snapping growth or blooms — use before screenshots,
 ADR 0149) and `window.sprout.plants` —
-`state()` (each finished plant with `shown` 0…1), `settle()` (snap growth/fades and resolve once their sprites are painted), `whenIdle()`,
+`state()` (each finished plant with `shown` 0…1; `sun`: the viewed scenery's shadow `dx`, rim side and strength, ADR 0284), `settle()` (snap growth/fades and resolve once their sprites are painted), `whenIdle()`,
 `bounds(plantId)`, `boundsFor(speciesId, slotId)`, `toDevice(rect)` (the camera's view), `hitTest(world,
 tolerance?)` (front-most painted plant), `perf()`, `resetPerf()`, `ambienceWind()`.
 

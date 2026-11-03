@@ -59,17 +59,18 @@ export function installAmbienceDebug(system: AmbienceSystem): void {
       const t = system.now();
       const s = system.daylight.at(t);
       const loc = system.daylight.location(t);
+      const sky = system.sky();
       const iso = (v: number | null | undefined) => (v == null ? null : new Date(v).toISOString());
       return {
         phase: s.phase,
         weights: { ...s.weights },
         blend: s.blend,
         sunAltitude: s.sunAltitude,
-        sun: sunDisc(s),
-        moon: moonDisc(s),
+        sun: sunDisc(s, sky),
+        moon: moonDisc(s, sky),
         moonPhase: s.moonPhase,
-        shadow: castShadow(s),
-        rim: rimLight(s),
+        shadow: castShadow(s, sky),
+        rim: rimLight(s, sky),
         location: { lat: loc.lat, lon: loc.lon, source: loc.source, zone: loc.zone },
         sunTimes: s.times ? { dawn: iso(s.times.dawn), sunrise: iso(s.times.sunrise), noon: iso(s.times.noon), sunset: iso(s.times.sunset), dusk: iso(s.times.dusk) } : null,
         override: system.daylight.override()?.label ?? null,

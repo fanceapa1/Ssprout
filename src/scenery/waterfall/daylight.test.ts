@@ -10,13 +10,14 @@ import { skyPlateKey } from '../../scene/sky-light';
 import { WATERFALL } from '.';
 import { skylineAt, WATERFALL_SKY_LAYOUT } from './layout';
 import { WATERFALL_LIGHT_ART } from './light';
-import { plateSky, WATERFALL_SKY, WATERFALL_SKY_RECT } from './sky';
+import { plateSky, WATERFALL_SKY, WATERFALL_SKY_RECT, WATERFALL_SUN_SKY } from './sky';
 
 describe('the waterfall daylight', () => {
   it('is wired as the scenery’s sky and light, on one sky layout', () => {
     expect(WATERFALL.sky).toBe(WATERFALL_SKY);
     expect(WATERFALL.light).toBe(WATERFALL_LIGHT_ART);
-    expect(WATERFALL.light.sky).toBe(WATERFALL_SKY_LAYOUT);
+    expect(WATERFALL.light.sky).toBe(WATERFALL_SUN_SKY);
+    expect(WATERFALL_SUN_SKY).toEqual({ ...WATERFALL_SKY_LAYOUT, sunSide: { sunrise: 1, sunset: 1 } });
     expect(WATERFALL.light.shadows).toBeTypeOf('function');
     expect(WATERFALL.light.lights).toBeTypeOf('function');
   });

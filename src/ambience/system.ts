@@ -15,6 +15,8 @@ import type { Grade } from './timeofday';
 import type { TimeOverride } from './daylight';
 import { createDaylightSource, type DaylightSource } from './daylight-source';
 import { lightPlatesPending, type LightArt } from './cast';
+import type { SkyLayout } from './sky-layout';
+import { GARDEN_SKY_LAYOUT } from '../scenery/japanese-garden/sky';
 
 export const WEATHER_PREVIEWS: readonly (Weather | null)[] = ['sun', 'rain', 'mist', null];
 
@@ -30,6 +32,8 @@ export interface AmbienceSystem extends System {
   readonly daylight: DaylightSource;
   /** the clock time (epoch ms) of the last frame */
   now(): number;
+  /** the viewed scenery's sky: where its sun and moon are, the side its low sun lights from */
+  sky(): SkyLayout;
   /** the sharp light plate for the camera's resting view: wanted rect, scale, painted yet (null: none) */
   lightDetail(): ReturnType<Ambience['lightDetail']>;
   /** called with the time-of-day grade whenever the lighting repaints (e.g. to tint the DOM UI) */
@@ -93,6 +97,7 @@ export function createAmbienceSystem(opts: AmbienceSystemOptions = {}): Ambience
     id: 'ambience',
     daylight,
     now: () => lastNow,
+    sky: () => scenery?.light.sky ?? GARDEN_SKY_LAYOUT,
     lightDetail: () => engine?.lightDetail() ?? null,
     init(ctx) {
       store = ctx.store;

@@ -593,7 +593,7 @@ export function createSceneSystem(opts: SceneSystemOptions = {}): SceneSystem {
       const res = detail && f && f.view && current && f.view.pixelScale > current.view.scale * 1.15 ? detail : current;
       if (!res) return [];
       const alpha = res === detail ? 1 : previous ? 1 : easeInOut(fade);
-      const rim = light ? rimLight(light) : null;
+      const rim = light ? rimLight(light, skySpec?.layout) : null;
       // a detail painting's boulders are sharper bitmaps: their rim keeps its width on the stone
       const rimK = res.view.scale / RIM_REF_SCALE;
       return res.sprites.map((s) => ({

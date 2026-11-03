@@ -22,7 +22,7 @@ import { GARDEN_SKY_LAYOUT } from '../scenery/japanese-garden/sky';
 import { PHASES, only, pinnedState, whenIdle, type DayPhase, type DaylightState, type PhaseWeights } from './daylight';
 import { gradePlate, washField, type WashField } from './lighting';
 import { createPlateCache, cutImage, defaultPlateCache, fingerprint } from './plate-cache';
-import { castShadow, moonDisc, reserveStar, stars, sunDisc, type CastShadow, type Disc, type SkyLayout } from './sky-layout';
+import { castShadow, moonDisc, reserveStar, stars, sunDisc, sunSide, type CastShadow, type Disc, type SkyLayout } from './sky-layout';
 import { PHASE_GRADES } from './timeofday';
 
 type Ctx = CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
@@ -115,13 +115,14 @@ const SHADOW = mix(PIGMENTS.shadow, PIGMENTS.ultramarine, 0.38);
 /** Paint one phase's plate (grade wash + shadows + reserved lights) into `p` (world transform set). */
 export function paintCastPlate(p: Painter, rng: Rng, phase: DayPhase, scene: SceneGeometry, art: LightArt): void {
   const state = pinnedState(only(phase));
-  const sh = castShadow(state);
+  const sky = art.sky ?? GARDEN_SKY_LAYOUT;
+  const sh = castShadow(state, sky);
   const shadowPig = phase === 'sunset' ? mix(SHADOW, PIGMENTS.violet, 0.3) : phase === 'sunrise' ? mix(SHADOW, PIGMENTS.bellflower, 0.25) : SHADOW;
   if (phase !== 'night') paintShadows(p, rng, scene, art, sh, shadowPig);
-  if (phase === 'sunrise' || phase === 'sunset') paintCrownLights(p, rng, art, phase === 'sunrise' ? 1 : -1, phase === 'sunset' ? 0.42 : 0.32);
+  if (phase === 'sunrise' || phase === 'sunset') paintCrownLights(p, rng, art, phase, sunSide(sky)[phase]);
   art.lights?.(p, rng, scene, phase);
   // (never on the plate's top rows: tall phones stretch row 0 over the paper above the world)
-  if (phase === 'night') for (const s of stars(30, 'stars', art.sky ?? GARDEN_SKY_LAYOUT)) if (s.y > 14) reserveStar(p.ctx, s, 0.9);
+  if (phase === 'night') for (const s of stars(30, 'stars', sky)) if (s.y > 14) reserveStar(p.ctx, s, 0.9);
 }
 
 /** Cast shadows: a cool glaze from each thing's foot, away from the sun, fading toward its tip. */
@@ -204,11 +205,12 @@ function paintShadows(p: Painter, rng: Rng, scene: SceneGeometry, art: LightArt,
 }
 
 /** Paper reserved on the sun side of each crown: light caught by the leaves (`side` +1 = right). */
-function paintCrownLights(p: Painter, rng: Rng, art: LightArt, side: 1 | -1, amount: number): void {
+function paintCrownLights(p: Painter, rng: Rng, art: LightArt, phase: 'sunrise' | 'sunset', side: 1 | -1): void {
+  const amount = phase === 'sunset' ? 0.42 : 0.32;
   // soft-edged: at plate resolution a lifted wash would leave a pooled ring, so the light is
   // taken out with a feathered brush (a radial fade of warm paper)
   const ctx = p.ctx;
-  const warm = side > 0 ? [255, 246, 232] : [255, 240, 214];
+  const warm = phase === 'sunrise' ? [255, 246, 232] : [255, 240, 214];
   const dab = (x: number, y: number, rx: number, ry: number, a: number) => {
     ctx.save();
     ctx.translate(x, y);

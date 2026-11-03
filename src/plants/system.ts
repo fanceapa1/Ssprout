@@ -38,7 +38,7 @@ import { gardenWind, windBoost, type WindFn } from './wind-adapter';
 import { plantScale } from '../scene/slots';
 import { pinnedSource, type DaylightSource } from '../ambience/daylight-source';
 import type { DaylightState } from '../ambience/daylight';
-import { castShadow, rimLight, type CastShadow, type RimLight } from '../ambience/sky-layout';
+import { castShadow, rimLight, type CastShadow, type RimLight, type SkyLayout } from '../ambience/sky-layout';
 import { createRimCache } from '../paint/rim';
 import { drawPlantShadow } from './shadow';
 import { drawWithering, WITHER_SECONDS } from './wither';
@@ -154,6 +154,8 @@ export interface PlantDebugState {
   displaced: { id: string; alpha: number } | null;
   reflections: string[];
   highlight: { active: boolean; slots: number; ghost: string | null };
+  /** the viewed scenery's light now (ADR 0284): the cast shadow's reach (+ right) and the rim's side */
+  sun: { shadowDx: number; rimSide: -1 | 1; rimStrength: number };
   cache: ReturnType<SpriteCache['stats']>;
 }
 
@@ -249,6 +251,8 @@ export function createPlantSystem(opts: PlantSystemOptions): PlantSystem {
   const drawnThisFrame = new Set<string>();
   const daylight = opts.daylight ?? pinnedSource('midday');
   let light: DaylightState = daylight.at(0);
+  /** the viewed scenery's sky: which side its low sun lights from (ADR 0284); default the garden's */
+  let sky: SkyLayout | undefined;
   let shadow: CastShadow = castShadow(light);
   let rim: RimLight = rimLight(light);
   const rims = createRimCache();
@@ -759,6 +763,7 @@ export function createPlantSystem(opts: PlantSystemOptions): PlantSystem {
       slotById = new Map(c.scene.slots.map((s) => [s.id, s]));
       const switched = !!c.scenery && viewedId !== null && c.scenery.id !== viewedId;
       if (c.scenery) viewedId = c.scenery.id;
+      if (c.scenery) sky = c.scenery.sky.layout;
       if (switched) {
         // another garden: its plants appear as they are, the other garden's stay in state
         growing.clear();
@@ -801,8 +806,8 @@ export function createPlantSystem(opts: PlantSystemOptions): PlantSystem {
         drawnThisFrame.clear();
         lastT = f.t;
         light = daylight.at(f.now);
-        shadow = castShadow(light);
-        rim = rimLight(light);
+        shadow = castShadow(light, sky);
+        rim = rimLight(light, sky);
         if (!sys) return;
         const cam = sys.camera;
         if (cam && cam.detailVersion !== seenDetail) {
@@ -1032,6 +1037,7 @@ export function createPlantSystem(opts: PlantSystemOptions): PlantSystem {
         displaced: displacedRec ? { id: displacedRec.plant.id, alpha: fadeValue(displacedRec.presence, t) } : null,
         reflections,
         highlight: { active: highlight.active, slots: highlight.slots.length, ghost: highlight.active ? highlight.speciesId : null },
+        sun: { shadowDx: shadow.dx, rimSide: rim.side, rimStrength: rim.strength },
         cache: cache.stats(),
       };
     },
