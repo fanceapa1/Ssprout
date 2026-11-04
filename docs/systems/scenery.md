@@ -453,11 +453,11 @@ Studio: `waterfall-falls-motion/falls-sheet`, `/falls-foot`, `/falls-sprites`.
 A tended palm grove in the Draa valley, from draft A ("Ksar & palmeraie", devlog 102): the red
 bluff with its ksar on the left, terraces stepping down to a stone basin fed by a seguia, big
 palms on the right and the oued bending past the viewer's right foot. O1 (devlog 105) made it a
-scenery behind `?dev&scenery=oasis`. O2 (devlog 107) reframed it and paints its rock. The rest
-still paints with the draft's steps (reading the live `layout.ts`), under a placeholder sky and
+scenery behind `?dev&scenery=oasis`. O2 (devlog 107) reframed it and paints its rock; O3 (devlog 110)
+paints its water. The rest still paints with the draft's steps (reading the live `layout.ts`), under a placeholder sky and
 light. O3–O4 replace the other `OASIS_ELEMENTS` draft steps in `index.ts`, O5 replaces `sky.ts` and
 `light.ts`, O6 adds `motion`, and O7 adds its own `sound` (it borrows `pond` for now).
-Composition map: studio `oasis-map/map`. Rock: studio `oasis-rock`.
+Composition map: studio `oasis-map/map`. Rock: studio `oasis-rock`. Water: studio `oasis-water`.
 
 - **Composition** (O2, `layout.ts`, `ksar.ts`): the ksar spans x 430–898 on the bluff's seat at
   y 318. The tallest horn tip is at y 152, so a 16:9 screen (which shows y 70–970 round the focus)
@@ -477,7 +477,7 @@ Composition map: studio `oasis-map/map`. Rock: studio `oasis-rock`.
 
 - **Water**: the basin's water inside its coping is the still pond (`BASIN_WATER`, the reflections'
   waterline at its far edge, y 488). The seguia's three runs, the sluice and the oued are
-  `streams`. The sand bar inside the oued is land. There are no boulders or stepping stones yet.
+  `streams`. The sand bars inside the oued are land (`OUED_BARS`, the big one the layout's `BAR`). There are no boulders or stepping stones yet.
 - **Terraces** (ADR 0300): ground and copings on a raised terrace take `perspectiveScale(y + lift)`.
   The lifts are high 70, middle 36 and grove 24, the wall drops in front of each.
 - **Sun** (ADR 0300): both low suns stand in the notch between the bluff's shoulder and the grove,
@@ -530,7 +530,38 @@ earth (`EARTH`), so the building grows out of the rock. The sun is on the right 
 - **Seams for O5**: `ROCK_SHAPES` (`bluff`, `ksar` with each block's `front`, `flank` and `top`),
   `bluffTopAt` and `EARTH`.
 
+### Water (O3, `paint-water.ts`)
+Three steps, `basin`, `seguia` then `oued`, painted in parts (ADR 0226, 0238), after the walls.
+The shapes are the layout's (`geometry.ts`); the big sand bar is the layout's `BAR`.
+- **Basin**: a lime-washed coping of dressed stone (joints square to each wall), the near outer
+  face warmer and darker, the inner faces under the coping (left lit, right turned away) with a
+  wet, algae-tinged stain at the waterline. The water runs turquoise under the far wall into
+  deep teal, green-brown in the depths. The bluff and the ksar are reflected about the far
+  waterline, squeezed to 0.36 so the towers fit: the teal is lifted there first so the red reads
+  warm, then broken by slow horizontal lifts and a few dark ripple strokes. The grove's palms
+  reflect dark olive on the right. Slow rings spread from the inlet notch in the left coping.
+  `BASIN_STEPS`: five steps down the right wall from its far corner, two dry, the rest paler
+  shapes under the water. `SLUICE_GATE`: a cut through the right coping near the overflow
+  corner, an upright post either side and a board in their slots with a thin spill over it.
+- **Seguia**: each run is a clay-lined cut: damp clay either side, the far bank's inner face in
+  shade, the water light-to-teal with broken dark wet edges and a broken sky glint. The last run
+  widens toward the viewer. Each fall (`fallSheet`) is a lifted spill the channel's width at
+  the lip, splaying at the foot, with thin broken teal threads, wet pisé either side, a pale
+  churn and a haze of spray. The sluice's channel runs from the gate to the oued.
+- **Oued**: banks of damp, darker sand lost into the dry, then gold sand under milky blue-green
+  water, deeper threads braiding round the bars (`OUED_BARS`: the big bar on the inside of the
+  bend, a sliver upstream, one by the viewer's feet), riffles at each bar's head, flow marks,
+  crisp wet edges along stretches of each bank (lost elsewhere) and pebbles on the bars and
+  banks. `ouedAt(s, u)` maps along (0 upstream … 1 at the bottom edge) and across (0 left bank).
+  No reeds: plants come from species.
+- **Seams for O5 and O6**: `WATER_BOXES` (`basin`, each fall, `oued`, `gate`), `WATER_SHAPES`
+  (`basin`, `rim`, `steps`, `gate`, `falls`, `seguia`, `sluice`, `oued`, `bars`) and `WATER`.
+
 ## Tests
+- `src/scenery/oasis/water.test.ts` (O3): three steps, pinned recording hashes, no part over one
+  big mark's work (overview and the basin's corner close up), many parts per step, the steps in
+  the water and the gate across the coping, each fall off a wall's coping inside its box, the
+  bars in the oued, the big one the layout's bar and none on the shallows' slots, the exported boxes.
 - `src/scenery/oasis/oasis.test.ts` (O1): hidden unless `?dev&scenery=oasis`; self-consistency
   with no building, lantern, eave, falls or motion; every draft step but its sky, in order, by
   element; habitat words; the portrait crop and `pathOut`; the basin inside its stone and the
