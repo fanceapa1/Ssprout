@@ -95,7 +95,7 @@ invisible in a soft violet glaze and kept, so the moon's left-falling night shad
   boulders, shrubs, trees and the engawa away from the sun (pools at midday) + light caught on the
   crowns at sunrise/sunset + lamp light in the shoji (sunset, night) + stars. Composite lifts the
   sun's glow, the moon and its halo, the broken light path on the pond and the lantern's pool.
-- **Grades** (`PHASE_GRADES`): midday 0.03 (bare paper); sunrise lavender 0.2 warmed toward the
+- **Grades** (`PHASE_GRADES`; a scenery may give its own through `LightArt.grades`, ADR 0301): midday 0.03 (bare paper); sunrise lavender 0.2 warmed toward the
   right; sunset amber 0.34 glowing toward the left, lantern 0.45; night indigo 0.54 (+0.22 toward the
   sky, × 1.2 toward the near ground: the meadow and the path are thin paint and need the weight,
   devlog 29), lantern 1, colour taken out first (`LOOK.nightDesaturate` 0.38; the frame is backed with white first, so the glaze only desaturates and draws no line where the sky plate stops at y 500, ADR 0206).
@@ -109,6 +109,22 @@ invisible in a soft violet glaze and kept, so the moon's left-falling night shad
   paper on the buttress, the crown's edge, the ledges and the ridge under the sun at sunrise and
   sunset; at night pale cool paper down the falls and over the spray (no lantern). Global grades.
   Studio `waterfall-daylight`.
+- **Oasis** (O5, ADR 0301, `scenery/oasis/{sky,light}.ts`): desert skies over the notch where
+  both low suns stand (ADR 0300). Midday a high dusty blue bleached to almost white over the
+  horizon; sunrise pale rose-gold with a low haze along the far range; sunset violet, coral and
+  ember; night a granulating indigo with a lifted Milky Way and 240 extra small stars
+  (`OASIS_NIGHT_STARS`, reserved on the sky and the night light plate). Clipped to `plateSky()`:
+  4 units under the bluff and the ksar, up to 44 over the far range, never onto the shoulder.
+  The basin plate stays turquoise in every phase (`OASIS_WATER_SKY`), the sky's colour laid on as
+  broken streaks. Light hooks: shadows always to the left (the bluff's left ridge, the towers
+  onto their neighbours, the terrace walls' faces and the strip below them, the basin's coping on
+  the water, the big palms' trunks and crowns thrown diagonally toward the viewer, short pools at
+  midday); warm paper on the ksar, its flanks and parapets, the shoulder, the left crown and the
+  palms at sunrise and sunset, the far range glazed in the sky's colour; pale paper over the
+  basin's water by day so the warm grade does not grey it; at night a cool sheen on the basin, the
+  coping and the pisé, the Milky Way's glow and the stars. **Its own grades** (`OASIS_GRADES`,
+  through `LightArt.grades`): midday a thin gold, sunset a deeper amber, both glows over the
+  notch, night a little lighter than the garden's, no lantern. Studio `oasis-daylight`.
 - **Close views** (ADR 0163): when the camera rests zoomed in, the sky composes a detail plate for
   the view (plates upscaled; sun, moon with its phase and stars punched at up to 3 px/unit) and
   the light plate repaints its marks for the view at up to 2 px/unit (`CAST_DETAIL_MAX`) over its
