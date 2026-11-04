@@ -145,8 +145,14 @@ export interface SpikePaint {
   flecks: { t: number; dx: number; dy: number; size: number }[];
 }
 
+/** Radius profile of a spike along it (−1..1): a cylinder with rounded caps. */
+const spikeR = (u: number) => {
+  const a = Math.abs(u);
+  return a < 0.72 ? 1 : Math.sqrt(Math.max(0.03, 1 - ((a - 0.72) / 0.28) ** 2));
+};
+
 /** A capsule round the stalk between two lengths along it, its radius rounding off at both ends. */
-function capsule(stalk: Pt[], s0: number, s1: number, r: number, n = 10): { poly: Pt[]; axis: { x: number; y: number; angle: number }[] } {
+function capsule(stalk: Pt[], s0: number, s1: number, r: number, n = 22): { poly: Pt[]; axis: { x: number; y: number; angle: number }[] } {
   const total = pathLen(stalk);
   const axis: { x: number; y: number; angle: number }[] = [];
   for (let i = 0; i <= n; i++) axis.push(pointAt(stalk, clamp01(lerp(s0, s1, i / n) / total)));
@@ -154,13 +160,32 @@ function capsule(stalk: Pt[], s0: number, s1: number, r: number, n = 10): { poly
   const right: Pt[] = [];
   axis.forEach((q, i) => {
     const u = (i / n) * 2 - 1;
-    const rr = r * Math.sqrt(Math.max(0.04, 1 - u ** 6));
+    const rr = r * spikeR(u);
     const nx = -Math.sin(q.angle);
     const ny = Math.cos(q.angle);
     left.push({ x: q.x + nx * rr, y: q.y + ny * rr });
     right.push({ x: q.x - nx * rr, y: q.y - ny * rr });
   });
   return { poly: [...left, ...right.reverse()], axis };
+}
+
+/** Where the spikes sit along the stalk now (lengths from its base). */
+export function spikeLayout(s: Pick<SpikePaint, 'stalk' | 'k' | 'female' | 'gap' | 'male' | 'tip'>): { f0: number; f1: number; m0: number; m1: number } {
+  const total = pathLen(s.stalk);
+  const m1 = total - s.tip * s.k;
+  const m0 = Math.max(0, m1 - s.male.length * s.k);
+  const f1 = Math.max(0, m0 - s.gap * s.k);
+  return { f0: Math.max(0, f1 - s.female.length * s.k), f1, m0, m1 };
+}
+
+/** The part of a path between two lengths along it. */
+export function slicePath(pts: readonly Pt[], s0: number, s1: number): Pt[] {
+  const total = pathLen(pts) || 1;
+  const n = Math.max(2, Math.ceil(((s1 - s0) / total) * (pts.length - 1)) + 1);
+  return Array.from({ length: n + 1 }, (_, i) => {
+    const q = pointAt(pts, clamp01(lerp(s0, s1, i / n) / total));
+    return { x: q.x, y: q.y };
+  });
 }
 
 /**
@@ -170,13 +195,7 @@ function capsule(stalk: Pt[], s0: number, s1: number, r: number, n = 10): { poly
 export function cattailSpikes(p: Painter, rng: Rng, s: SpikePaint, c: { green: Pigment; brown: Pigment; shade: Pigment; male: Pigment; maleGreen: Pigment; fluff: Pigment; light: number }): void {
   if (!visible(s.k)) return;
   const total = pathLen(s.stalk);
-  const fl = s.female.length * s.k;
-  const ml = s.male.length * s.k;
-  const top = total - s.tip * s.k;
-  const m1 = top;
-  const m0 = Math.max(0, m1 - ml);
-  const f1 = Math.max(0, m0 - s.gap * s.k);
-  const f0 = Math.max(0, f1 - fl);
+  const { f0, f1, m0, m1 } = spikeLayout(s);
   if (f1 - f0 < 0.4) return;
   const fr = s.female.radius * lerp(0.35, 1, smooth(s.k));
   const mr = s.male.radius * lerp(0.5, 1, smooth(s.k));
@@ -193,7 +212,7 @@ export function cattailSpikes(p: Painter, rng: Rng, s: SpikePaint, c: { green: P
       const len = f.len * mr * s.fray;
       if (len < 0.2) return;
       const o = { x: q.x - Math.sin(q.angle) * mr * f.side * 0.7, y: q.y + Math.cos(q.angle) * mr * f.side * 0.7 };
-      p.dabInto(L, o, maleTone, { rng: rng.fork(`fray-${i}`), variant: 'needle', angle: a, length: len, width: Math.max(0.25, mr * 0.35), pool: 0, basePool: 0.2, layers: 1 });
+      p.dabInto(L, o, mix(maleTone, c.fluff, 0.35), { rng: rng.fork(`fray-${i}`), variant: 'needle', angle: a, length: len, width: Math.max(0.2, mr * 0.28), pool: 0, basePool: 0, layers: 1 });
     });
   }
   // the female cigar: colour turning, a shaded flank on the side away from the light
@@ -206,7 +225,7 @@ export function cattailSpikes(p: Painter, rng: Rng, s: SpikePaint, c: { green: P
     for (let i = 0; i <= n; i++) {
       const q = fem.axis[i]!;
       const u = (i / n) * 2 - 1;
-      const rr = fr * Math.sqrt(Math.max(0.04, 1 - u ** 6));
+      const rr = fr * spikeR(u);
       const nx = -Math.sin(q.angle) * side;
       const ny = Math.cos(q.angle) * side;
       pts.push({ x: q.x + nx * rr * from, y: q.y + ny * rr * from });
@@ -214,7 +233,7 @@ export function cattailSpikes(p: Painter, rng: Rng, s: SpikePaint, c: { green: P
     for (let i = n; i >= 0; i--) {
       const q = fem.axis[i]!;
       const u = (i / n) * 2 - 1;
-      const rr = fr * Math.sqrt(Math.max(0.04, 1 - u ** 6));
+      const rr = fr * spikeR(u);
       const nx = -Math.sin(q.angle) * side;
       const ny = Math.cos(q.angle) * side;
       pts.push({ x: q.x + nx * rr * to, y: q.y + ny * rr * to });
@@ -223,8 +242,8 @@ export function cattailSpikes(p: Painter, rng: Rng, s: SpikePaint, c: { green: P
   };
   const shadeSide = -c.light;
   L.fill(flank(0.05, 1.02, shadeSide), deep, 0.75);
-  L.lift(flank(0.25, 0.62, -shadeSide), 0.32 * s.k);
-  L.dry({ opacity: 0.94, edge: 0.5, edgeWidth: 0.3, sharpness: 0.55, centreLift: 0.1, granulation: 0.4, granules: 0.4, flow: 0.35, flowScale: 1.5, darken: 0.35 });
+  L.lift(flank(0.3, 0.55, -shadeSide), 0.22 * s.k);
+  L.dry({ opacity: 0.94, edge: 0.5, edgeWidth: 0.3, sharpness: 0.55, centreLift: 0.1, granulation: 0.25, granules: 0.15, flow: 0.3, flowScale: 1.5, darken: 0.35, blend: 'source-over' });
   // shed pollen drifting down beside the male spike
   s.flecks.forEach((f, i) => {
     const q = pointAt(s.stalk, clamp01(lerp(m0, m1, f.t) / total));

@@ -1,9 +1,9 @@
 import type { Rng } from '../../core/rng';
 import { PIGMENTS, jitter, mix, type Painter, type Pigment, type Pt } from '../../paint';
-import { cattailSpikes, strapEdge, strapLeaves, type StrapLeaf } from '../lib/cattail-paint';
+import { cattailSpikes, slicePath, spikeLayout, strapEdge, strapLeaves, type StrapLeaf } from '../lib/cattail-paint';
 import { ease, easeOut, lerp, smooth, stagger, visible } from '../lib/small-growth';
 import { INK_GREEN, groundShadow, paintStem, plantFrame } from '../lib/small-paint';
-import { UP, bendProfile, makeStem, stemPoints, type StemPlan } from '../lib/small-structure';
+import { UP, bendProfile, makeStem, pathLen, stemPoints, type StemPlan } from '../lib/small-structure';
 import type { SpeciesDef } from '../types';
 
 /**
@@ -131,12 +131,12 @@ export function planCattail(rng: Rng): CattailPlan {
       window: [...stagger(i, ns, [0.3, 0.7], 0.6)] as [number, number],
       spike: [...stagger(i, ns, [0.42, 0.82], 0.6)] as [number, number],
       brown: [...stagger(i, ns, [0.72, 0.98], 0.7)] as [number, number],
-      female: { length: rng.range(20, 27), radius: rng.range(3.1, 3.7) },
+      female: { length: rng.range(26, 33), radius: rng.range(2.8, 3.2) },
       gap: rng.chance(0.15) ? rng.range(0.6, 1.2) : rng.range(2.4, 5),
       male: { length: rng.range(15, 21), radius: rng.range(1.15, 1.45) },
       tip: rng.range(2, 4.5),
       fluff: rng.chance(0.35),
-      frays: Array.from({ length: 9 }, () => ({ t: rng.range(0.05, 0.95), side: rng.chance(0.5) ? 1 : -1, len: rng.range(1.2, 2.6), a: rng.range(0.5, 1.3) })),
+      frays: Array.from({ length: 14 }, () => ({ t: rng.range(0.05, 0.95), side: rng.chance(0.5) ? 1 : -1, len: rng.range(0.8, 2), a: rng.range(0.3, 0.9) })),
       flecks: Array.from({ length: rng.int(2, 4) }, () => ({ t: rng.range(0.2, 0.9), dx: rng.range(-5, 5), dy: rng.range(3, 14), size: rng.range(0.5, 0.9) })),
     });
   }
@@ -173,19 +173,18 @@ function drawStalk(p: Painter, rng: Rng, s: Stalk, g: number) {
   const e = ease(g, s.window[0], s.window[1]);
   if (!visible(e)) return;
   const pts = stemPoints(s.stem, easeOut(e), 1);
-  paintStem(p, rng.fork('stalk'), pts, { width: 1.5, pigment: STALK, opacity: 0.85, ink: 0.22, inkReach: 0.7 });
-  const brown = ease(g, s.brown[0], s.brown[1]);
+  const spike = { stalk: pts, k: ease(g, s.spike[0], s.spike[1]), female: s.female, gap: s.gap, male: s.male, tip: s.tip };
+  // the stalk below the cigar and through the gap; the cigar hides the rest
+  const at = spikeLayout(spike);
+  const hidden = at.f1 - at.f0 > 1.5;
+  paintStem(p, rng.fork('stalk'), hidden ? slicePath(pts, 0, at.f0 + 0.6) : pts, { width: 1.5, pigment: STALK, opacity: 0.85 * smooth(e / 0.2), ink: 0.22, inkReach: 0.7 });
+  if (hidden) paintStem(p, rng.fork('neck'), slicePath(pts, at.f1 - 0.6, pathLen(pts)), { width: 1.1, pigment: STALK, opacity: 0.8 });
   cattailSpikes(
     p,
     rng.fork('spikes'),
     {
-      stalk: pts,
-      k: ease(g, s.spike[0], s.spike[1]),
-      female: s.female,
-      gap: s.gap,
-      male: s.male,
-      tip: s.tip,
-      brown,
+      ...spike,
+      brown: ease(g, s.brown[0], s.brown[1]),
       fray: ease(g, 0.84, 1),
       fluff: s.fluff ? ease(g, 0.9, 1) : 0,
       frays: s.frays,
