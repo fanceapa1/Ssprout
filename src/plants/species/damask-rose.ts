@@ -99,7 +99,7 @@ function leafPlan(rng: Rng, t: number, side: 1 | -1, size: number, green: Pigmen
     length: rng.range(13, 16) * size,
     pairs: rng.chance(0.55) ? 3 : 2,
     leaflet: rng.range(7, 8.4) * size,
-    tone: jitter(mix(green, rng.chance(0.5) ? '#9aa38a' : lighten(green, 0.08), rng.range(0, 0.3)), rng, 0.025),
+    tone: jitter(mix(green, rng.chance(0.5) ? '#9aa38a' : lighten(green, 0.08), rng.range(0.15, 0.45)), rng, 0.025),
     seed: seedOf(rng),
   };
 }
@@ -117,11 +117,11 @@ function clusterOf(rng: Rng, flowers: FlowerPlan[], dir: number): FlowerPlan[] {
       id: flowers.length,
       dx: Math.cos(a) * d,
       dy: Math.sin(a) * d,
-      radius: rng.range(7.6, 9.2) * (bud ? 0.75 : 1),
+      radius: rng.range(8.4, 10) * (bud ? 0.72 : 1),
       facing: rng.range(-0.35, 0.35),
       squash: rng.range(0.55, 0.85),
       rot: rng.range(0, Math.PI * 2),
-      eye: rng.chance(0.4),
+      eye: rng.chance(0.3),
       budAngle: lerpAngle(a, UP, 0.5) + rng.range(-0.25, 0.25),
       petal: jitter(mix(PINK, rng.chance(0.5) ? PALE : DEEP, rng.range(0, 0.3)), rng, 0.02),
       bud,
@@ -159,9 +159,9 @@ export function buildDamaskRose(rng: Rng): DamaskRose {
     const start = 0.08 + 0.16 * (i / Math.max(1, n - 1)) + rng.range(-0.02, 0.02);
     const z = rng.next();
     const band = (z < 0.34 ? 0 : z < 0.67 ? 1 : 2) as 0 | 1 | 2;
-    const tone = band === 0 ? mix(green, PIGMENTS.shadow, 0.22) : band === 2 ? lighten(green, 0.05) : green;
+    const tone = band === 0 ? mix(green, PIGMENTS.shadow, 0.12) : band === 2 ? lighten(green, 0.05) : green;
     // alternate compound leaves, smaller toward the tip
-    const nLeaves = Math.round(plan.length / rng.range(10.5, 12.5));
+    const nLeaves = Math.round(plan.length / rng.range(9, 10.5));
     const leaves: LeafPlan[] = [];
     let alt: 1 | -1 = rng.chance(0.5) ? 1 : -1;
     for (let j = 0; j < nLeaves; j++) {
@@ -174,8 +174,8 @@ export function buildDamaskRose(rng: Rng): DamaskRose {
     const full = stemPoints(plan, 1, 1);
     const laterals: Lateral[] = [];
     for (const [t, chance] of [
-      [rng.range(0.82, 0.92), 0.75],
-      [rng.range(0.5, 0.68), 0.35],
+      [rng.range(0.82, 0.92), 0.9],
+      [rng.range(0.48, 0.68), 0.55],
     ] as const) {
       const node = pointAt(full, t);
       const upSide: 1 | -1 = Math.cos(node.angle) >= 0 ? -1 : 1;
@@ -186,7 +186,7 @@ export function buildDamaskRose(rng: Rng): DamaskRose {
       const leaf = leafPlan(rng, 0.5, upSide, 0.62, tone);
       const cluster = clusterOf(rng, [], dir);
       // clusters keep apart, so the mound reads as green dotted with cups
-      if (!rng.chance(chance) || placed.some((q) => Math.hypot(q.x - tip.x, q.y - tip.y) < 30)) continue;
+      if (!rng.chance(chance) || placed.some((q) => Math.hypot(q.x - tip.x, q.y - tip.y) < 27)) continue;
       placed.push(tip);
       for (const f of cluster) f.id = flowers.push(f) - 1;
       laterals.push({ t, turn, length: len, leaves: [leaf], flowers: cluster });
@@ -275,7 +275,7 @@ export function poseDamaskRose(plant: DamaskRose, g: number): DamaskRosePose {
     if (!gs) return;
     const kc = ramp(g, c.window[0], Math.min(1, c.window[1] + 0.2));
     const thick = 0.45 + 0.55 * kc;
-    pose.canes.push({ id: `cane-${i}`, band: c.band, pts: gs.pts, width: c.width * thick * smooth(gs.ext * 4), pigment: mix(CANE, c.tone, 0.2), seed: c.seed, flush: 1 - 0.6 * kc });
+    pose.canes.push({ id: `cane-${i}`, band: c.band, pts: gs.pts, width: c.width * thick * smooth(gs.ext * 4), pigment: mix(CANE, c.tone, 0.35), seed: c.seed, flush: 1 - 0.6 * kc });
     c.prickles.forEach((pr, j) => {
       const k = smooth(clamp01((gs.ext - pr.t) / 0.2)) * kc;
       if (k < 0.02) return;

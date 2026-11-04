@@ -96,10 +96,10 @@ export function paintLeaflets(p: Painter, leaves: readonly Leaflet[], dry: DryOp
   const L = p.layer(padRect(bounds(blades.flatMap((b) => b.blade.outline)), 4));
   let len = 0;
   for (const { l, rng, blade } of blades) {
-    const a = 0.7 * l.alpha;
+    const a = 0.62 * l.alpha;
     L.fill(blade.outline, jitter(l.pigment, rng, 0.035), a);
     L.fill(deformPolygon(blade.outline, rng, { depth: 1, variance: 0.05 }), jitter(l.pigment, rng, 0.03), a * 0.6);
-    L.fill(blade.shadow, shade(l.under, 0.25), a * 0.45);
+    L.fill(blade.shadow, shade(l.under, 0.2), a * 0.32);
     if (l.length > 6) L.lift(ribbon(blade.axis.slice(0, 6), (t) => Math.max(0.14, l.width * 0.05) * (1 - t * 0.7)), 0.3 * l.alpha);
     len += l.length;
   }
@@ -384,8 +384,8 @@ export function paintRoses(p: Painter, items: readonly Rose[], o: RoseStyle): vo
         const k = kOf(f);
         const tone = mix(ringTone[ring]!, f.petal, 0.5);
         for (const pt of s.rings[ring]!) {
-          L.fill(deformPolygon(pt, r, { depth: 1, variance: 0.035 }), jitter(tone, r, 0.03), 0.55 * k);
-          L.fill(pt, tone, 0.3 * k);
+          L.fill(deformPolygon(pt, r, { depth: 1, variance: 0.035 }), jitter(tone, r, 0.03), 0.72 * k);
+          L.fill(pt, tone, 0.42 * k);
         }
       }
       const mean = set.reduce((a, x) => a + x.f.radius, 0) / set.length;
@@ -412,8 +412,8 @@ export function paintRoses(p: Painter, items: readonly Rose[], o: RoseStyle): vo
   for (const { f, s, r } of open) {
     const k = kOf(f) * smooth01((f.open - 0.2) / 0.5);
     for (const pt of s.lip) {
-      LP.fill(deformPolygon(pt, r, { depth: 1, variance: 0.035 }), jitter(mix(o.pale, f.petal, 0.35), r, 0.03), 0.6 * k);
-      LP.fill(pt, mix(o.pale, f.petal, 0.2), 0.3 * k);
+      LP.fill(deformPolygon(pt, r, { depth: 1, variance: 0.035 }), jitter(mix(o.pale, f.petal, 0.35), r, 0.03), 0.72 * k);
+      LP.fill(pt, mix(o.pale, f.petal, 0.2), 0.4 * k);
     }
   }
   LP.dry({ opacity: 0.95 * alpha, blend: 'source-over', edge: 0.6, edgeWidth: 0.4, darken: 0.2, sharpness: 0.75, centreLift: 0.2, granulation: 0.04, flowScale: 6 });
