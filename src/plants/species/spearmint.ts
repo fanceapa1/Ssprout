@@ -17,7 +17,7 @@ const LEAF = '#86a75a';
 const LEAF_DEEP = '#5f7d45';
 const BLOOM = '#b9a0c8';
 const PALE = '#d6c6dc';
-const STEM = mix('#7d9650', '#8a6878', 0.22);
+const STEM = mix('#8aa45a', '#8a6878', 0.15);
 const CALYX = mix('#8fa065', '#9a86a8', 0.35);
 // the design box round the base (anchor 0.5, 0.88): x ±35, y −61.6 … 8.4
 const BOX = { x: 33, top: -58 };
@@ -55,50 +55,52 @@ export interface SpearmintPlan {
 }
 
 function makeWhorls(rng: Rng): Whorl[] {
-  const n = rng.int(6, 9);
+  const n = rng.int(8, 11);
   const whorls: Whorl[] = [];
   for (let i = 0; i < n; i++) {
     // the lower whorls stand apart, the upper ones crowd into the tip
     const t = 0.04 + 0.92 * (1 - (1 - i / (n - 1)) ** 1.6);
     const m = rng.int(4, 6);
     const florets = [];
-    for (let j = 0; j < m; j++) florets.push({ u: lerp(-1, 1, (j + rng.range(0.2, 0.8)) / m), v: rng.range(-1, 1), size: rng.range(0.5, 0.8) });
+    for (let j = 0; j < m; j++) florets.push({ u: lerp(-1, 1, (j + rng.range(0.2, 0.8)) / m), v: rng.range(-1, 1), size: rng.range(0.45, 0.7) });
     whorls.push({ t, florets });
   }
   return whorls;
 }
 
 export function planSpearmint(rng: Rng): SpearmintPlan {
-  const n = rng.int(6, 9);
+  const n = rng.int(8, 11);
   const green = jitter(LEAF, rng, 0.03);
   const shoots: Shoot[] = [];
   const order = rng.shuffle([...Array(n).keys()]);
+  // stems rise from the runners at uneven spacing, not as a row
+  const xs = Array.from({ length: n }, (_, i) => lerp(-1, 1, (i + rng.range(0.1, 0.9)) / n)).sort((a, b) => a - b);
   for (let i = 0; i < n; i++) {
-    const u = n === 1 ? 0 : lerp(-1, 1, i / (n - 1));
-    const x = u * rng.range(14, 18) + rng.gaussian(0, 1.5);
-    const depth = i % 2 ? rng.range(0, 0.5) : rng.range(0.5, 1);
-    const centre = 1 - Math.abs(u) * 0.45;
-    const length = rng.range(30, 42) * centre;
-    const angle = UP + u * rng.range(0.12, 0.3) + rng.gaussian(0, 0.06);
-    const stem = makeStem(rng, { base: { x, y: lerp(-1.6, 0.8, depth) }, length, angle, bend: u * rng.range(0.05, 0.2) + rng.gaussian(0, 0.06), segments: 8, tipBias: 0.2 });
-    const np = rng.int(4, 6);
+    const u = xs[i]!;
+    const x = u * rng.range(15, 18);
+    const depth = rng.next();
+    const centre = 1 - Math.abs(u) * 0.4;
+    const length = rng.range(20, 37) * centre * lerp(0.9, 1.05, depth);
+    const angle = UP + u * rng.range(0.1, 0.32) + rng.gaussian(0, 0.13);
+    const stem = makeStem(rng, { base: { x, y: lerp(-1.6, 0.8, depth) }, length, angle, bend: u * rng.range(0.05, 0.2) + rng.gaussian(0, 0.08), segments: 8, tipBias: 0.2 });
+    const np = rng.int(5, 7);
     const pairs: Pair[] = [];
     const scale = rng.range(0.9, 1.08);
     for (let j = 0; j < np; j++) {
-      const t = lerp(0.14, 0.8, j / (np - 1)) + rng.gaussian(0, 0.02);
+      const t = lerp(0.12, 0.92, j / (np - 1)) + rng.gaussian(0, 0.015);
       const facing = j % 2 === 1;
       // mid-stem leaves are the largest
-      const size = (lerp(7.2, 8.6, Math.sin(Math.PI * Math.min(1, t * 1.6))) - t * 4.5) * scale * rng.range(0.9, 1.08);
+      const size = (lerp(7, 8.4, Math.sin(Math.PI * Math.min(1, t * 1.6))) - t * 4.2) * scale * rng.range(0.9, 1.08);
       pairs.push({
         t,
         facing,
         length: size,
-        width: size * rng.range(0.4, 0.48),
+        width: size * rng.range(0.34, 0.4),
         spread: rng.range(0.85, 1.15),
         curve: rng.range(0.06, 0.16),
-        tone: jitter(mix(green, LEAF_DEEP, rng.range(0, 0.18) + (1 - depth) * 0.12), rng, 0.025),
-        teeth: size > 5 ? 5 : 3,
-        veins: size > 5 ? 3 : 2,
+        tone: jitter(mix(mix(green, PIGMENTS.sageLight, rng.range(0.05, 0.2)), LEAF_DEEP, rng.range(0, 0.1) + (1 - depth) * 0.08), rng, 0.025),
+        teeth: size > 5 ? 7 : 4,
+        veins: size > 5 ? 4 : 2,
       });
     }
     shoots.push({ stem, pairs, depth, window: [...stagger(order.indexOf(i), n, [0.06, 0.6], 0.5)] as [number, number] });
@@ -106,11 +108,11 @@ export function planSpearmint(rng: Rng): SpearmintPlan {
   // most stems end in a spike; the tallest always do
   const bySize = [...shoots].sort((a, b) => b.stem.length - a.stem.length);
   bySize.forEach((sh, k) => {
-    if (k > 2 && !rng.chance(0.55)) return;
+    if (k > 3 && !rng.chance(0.35)) return;
     const end = sh.window[1];
     sh.spike = {
-      length: rng.range(9, 14),
-      width: rng.range(1.8, 2.3),
+      length: rng.range(9, 13),
+      width: rng.range(1.5, 1.8),
       whorls: makeWhorls(rng),
       grow: [Math.max(0.5, end - 0.04), Math.min(0.86, end + 0.24)] as [number, number],
       open: [...stagger(k, bySize.length, [0.72, 1], 0.55)] as [number, number],
@@ -150,7 +152,7 @@ function drawRunner(p: Painter, rng: Rng, rn: Runner, i: number, g: number): voi
   if (!visible(k)) return;
   const full = stemPoints(rn.stem, 1, 1);
   const pts = subPath(full, lerp(0.05, 1, k));
-  paintStem(p, rng.fork('stem'), pts, { width: 0.75, pigment: STEM, opacity: 0.7 });
+  paintStem(p, rng.fork('stem'), pts, { width: 0.55, pigment: mix(STEM, PIGMENTS.sageLight, 0.35), opacity: 0.45 });
   const tip = pointAt(full, lerp(0.05, 1, k));
   const lk = smooth((k - 0.4) / 0.6);
   const leaves: MintLeaf[] = [];
@@ -167,7 +169,7 @@ function drawShoot(p: Painter, rng: Rng, sh: Shoot, g: number): void {
   const full = stemPoints(sh.stem, 1, lerp(0.4, 1, ext));
   const pts = subPath(full, lerp(0.03, 1, ext));
   const back = 1 - sh.depth;
-  paintStem(p, rng.fork('stem'), pts, { width: 1.05, pigment: mix(STEM, PIGMENTS.sageLight, back * 0.2), opacity: 0.85, ink: 0.16 * ext, inkReach: 0.7, inkPigment: mix(LEAF_DEEP, PIGMENTS.sumi, 0.3) });
+  paintStem(p, rng.fork('stem'), pts, { width: 0.7, pigment: mix(STEM, PIGMENTS.sageLight, 0.15 + back * 0.2), opacity: 0.75, ink: 0.05 * ext, inkReach: 0.7, inkPigment: mix(LEAF_DEEP, PIGMENTS.sumi, 0.3) });
   const leaves: MintLeaf[] = [];
   const head = lerp(0.03, 1, ext);
   sh.pairs.forEach((pr, j) => {
@@ -232,7 +234,7 @@ const spearmint: SpeciesDef = {
     try {
       const r = rng.fork('paint');
       dampSoil(p, r.fork('soil'), { rx: 20, k: ease(g, 0.05, 0.5) });
-      groundShadow(p, r, { rx: 19, ry: 4, k: ease(g, 0.2, 0.7), opacity: 0.12, pigment: PIGMENTS.shadow });
+      groundShadow(p, r, { rx: 19, ry: 4, k: ease(g, 0.2, 0.7), opacity: 0.1, pigment: PIGMENTS.shadow });
       plan.runners.forEach((rn, i) => drawRunner(p, r.fork(`runner-${i}`), rn, i, g));
       const order = plan.shoots.map((sh, i) => [sh, i] as const).sort((a, b) => a[0].depth - b[0].depth);
       for (const [sh, i] of order) drawShoot(p, r.fork(`shoot-${i}`), sh, g);

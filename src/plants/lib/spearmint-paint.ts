@@ -47,7 +47,7 @@ export function mintLeaves(p: Painter, rng: Rng, leaves: readonly MintLeaf[], o:
   for (const l of live) {
     const r = rng.fork(l.key);
     const side = shadowSide(l.angle);
-    p.dabInto(L, l.at, l.tone, { rng: r.fork('blade'), variant: 'leaf', angle: l.angle, length: l.length, width: l.width, curve: l.curve, asym: 0, pool: 0.55, poolSide: side, basePool: 0.2, layers: 3 });
+    p.dabInto(L, l.at, l.tone, { rng: r.fork('blade'), variant: 'leaf', angle: l.angle, length: l.length, width: l.width, curve: l.curve, asym: 0, pool: 0.7, poolSide: side, basePool: 0.2, layers: 3 });
     const axis = dabAxis(l.at, l.angle, l.length, l.curve, 16);
     const tk = smooth((l.length - 1.2) / 3);
     for (let i = 0; i < l.teeth; i++) {
@@ -56,17 +56,17 @@ export function mintLeaves(p: Painter, rng: Rng, leaves: readonly MintLeaf[], o:
       const q2 = axis[Math.min(16, Math.round(t * 16) + 1)]!;
       const ta = Math.atan2(q2.y - q.y, q2.x - q.x);
       const hw = l.width * 0.5 * Math.sin(Math.PI * t ** 0.8) ** 0.9;
-      const tl = Math.min(l.length * 0.12, l.width * 0.34) * (1 - t * 0.35) * tk;
+      const tl = Math.min(l.length * 0.1, l.width * 0.3) * (1 - t * 0.35) * tk;
       if (tl < 0.08) continue;
       for (const sgn of [-1, 1]) {
         const nx = -Math.sin(ta) * sgn;
         const ny = Math.cos(ta) * sgn;
-        p.dabInto(L, { x: q.x + nx * hw * 0.68, y: q.y + ny * hw * 0.68 }, l.tone, { rng: r.fork(`t-${i}-${sgn}`), variant: 'leaf', angle: ta + sgn * 0.9, length: tl, width: tl * 0.7, pool: 0, basePool: 0, layers: 1 });
+        p.dabInto(L, { x: q.x + nx * hw * 0.66, y: q.y + ny * hw * 0.66 }, l.tone, { rng: r.fork(`t-${i}-${sgn}`), variant: 'leaf', angle: ta + sgn * 0.5, length: tl, width: tl * 0.6, pool: 0, basePool: 0, layers: 1 });
       }
     }
     const vk = smooth((l.length - 2.5) / 4);
     if (!visible(vk)) continue;
-    p.dabInto(L, l.at, o.deep, { rng: r.fork('mid'), variant: 'blade', angle: l.angle, length: l.length * 0.85 * vk, width: Math.max(0.2, l.width * 0.07), curve: l.curve, pool: 0, basePool: 0.3, layers: 1 });
+    p.dabInto(L, l.at, o.deep, { rng: r.fork('mid'), variant: 'blade', angle: l.angle, length: l.length * 0.85 * vk, width: Math.max(0.2, l.width * 0.07), curve: l.curve, pool: 0, basePool: 0.3, layers: 2 });
     for (let i = 0; i < l.veins; i++) {
       const t = 0.22 + (0.56 * (i + 0.5)) / l.veins;
       const q = axis[Math.round(t * 16)]!;
@@ -74,11 +74,11 @@ export function mintLeaves(p: Painter, rng: Rng, leaves: readonly MintLeaf[], o:
       const ta = Math.atan2(q2.y - q.y, q2.x - q.x);
       const hw = l.width * 0.5 * Math.sin(Math.PI * t ** 0.8) ** 0.9;
       for (const sgn of [-1, 1]) {
-        p.dabInto(L, q, mix(o.deep, l.tone, 0.2), { rng: r.fork(`v-${i}-${sgn}`), variant: 'needle', angle: ta + sgn * 0.62, length: hw * 0.85 * vk, width: Math.max(0.18, l.width * 0.05), curve: -sgn * 0.3, pool: 0, basePool: 0.2, layers: 1 });
+        p.dabInto(L, q, o.deep, { rng: r.fork(`v-${i}-${sgn}`), variant: 'needle', angle: ta + sgn * 0.62, length: hw * 0.85 * vk, width: Math.max(0.18, l.width * 0.06), curve: -sgn * 0.3, pool: 0, basePool: 0.2, layers: 2 });
       }
     }
   }
-  L.dry({ opacity: o.opacity, edge: 0.5, edgeWidth: 0.3, sharpness: 0.75, centreLift: 0.35, granulation: 0.12, flow: 0.7, flowScale: 2.2, darken: 0.32, blend: 'source-over' });
+  L.dry({ opacity: o.opacity, edge: 0.6, edgeWidth: 0.3, sharpness: 0.75, centreLift: 0.2, granulation: 0.12, flow: 0.7, flowScale: 2.2, darken: 0.32, blend: 'source-over' });
 }
 
 export interface Whorl {
@@ -121,7 +121,7 @@ export function mintSpike(p: Painter, rng: Rng, s: MintSpike, o: { calyx: Pigmen
       const at = { x: c.x + nx * f.u * half + ca * f.v * half * 0.45, y: c.y + ny * f.u * half + sa * f.v * half * 0.45 };
       const size = half * f.size * lerp(0.7, 1.05, ok);
       if (size < 0.08) return;
-      const pig = ok < 0.5 ? mix(o.calyx, o.bloom, ok * 1.3) : mix(o.bloom, o.pale, (ok - 0.5) * (f.u * f.u < 0.3 ? 0.7 : 0.25));
+      const pig = ok < 0.5 ? mix(o.calyx, o.bloom, ok * 1.3) : mix(o.bloom, o.pale, (ok - 0.5) * (f.u * f.u < 0.3 ? 1.1 : 0.6));
       p.dabInto(L, at, pig, { rng: rng.fork(`f-${i}-${j}`), variant: 'round', angle: s.angle + f.u * 1.2, length: size * 1.15, width: size * 0.95, pool: 0.3, poolSide: shadowSide(s.angle), basePool: 0, layers: 1 });
     });
   }
@@ -132,7 +132,7 @@ export function mintSpike(p: Painter, rng: Rng, s: MintSpike, o: { calyx: Pigmen
 export function dampSoil(p: Painter, rng: Rng, o: { rx: number; k: number }): void {
   p.wash({ cx: 0, cy: 0.4, rx: o.rx, ry: o.rx * 0.16 }, mix(PIGMENTS.stoneWarm, PIGMENTS.shadow, 0.45), {
     rng: rng.fork('soil'),
-    opacity: 0.22 * lerp(0.6, 1, o.k),
+    opacity: 0.14 * lerp(0.6, 1, o.k),
     edge: 0.25,
     centreLift: 0.3,
     granulation: 0.45,
