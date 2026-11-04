@@ -158,6 +158,8 @@ export interface Pinwheel {
   open: number;
   /** the direction a bud points */
   budAngle: number;
+  /** this flower's petal colour (default: the style's) */
+  petal?: Pigment;
   alpha: number;
   seed: number;
 }
@@ -270,8 +272,8 @@ export function paintPinwheels(p: Painter, items: readonly Pinwheel[], o: Pinwhe
     for (const { f, s, r } of set) {
       const k = f.alpha * smooth01((f.open - 0.05) / 0.45);
       s.petals.forEach((pt, i) => {
-        L.fill(deformPolygon(pt, r, { depth: 1, variance: 0.04 }), jitter(o.petal, r, 0.035), 0.6 * k);
-        L.fill(pt, o.petal, 0.3 * k);
+        L.fill(deformPolygon(pt, r, { depth: 1, variance: 0.04 }), jitter(f.petal ?? o.petal, r, 0.035), 0.6 * k);
+        L.fill(pt, f.petal ?? o.petal, 0.3 * k);
         L.lift(s.curls[i]!, 0.25 * k);
         L.fill(s.curls[i]!, o.reverse, 0.4 * k);
       });

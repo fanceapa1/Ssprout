@@ -1,5 +1,5 @@
 import type { Rng } from '../../core/rng';
-import { PIGMENTS, jitter, lighten, mix, type Pigment, type Pt } from '../../paint';
+import { PIGMENTS, jitter, lighten, mix, shade, type Pigment, type Pt } from '../../paint';
 import { clamp01, lerp, ramp, smooth, stagger } from '../lib/shrub-growth';
 import { groundShadow, inPlantSpace, seedAndShoot } from '../lib/shrub-paint';
 import { UP, lerpAngle, makeStem, pointAt, stemPoints, type StemPlan } from '../lib/small-structure';
@@ -11,8 +11,8 @@ import type { SpeciesDef } from '../types';
  * whorls of three, and clusters of rose-pink pinwheels at the tips, paler on the reverse.
  */
 
-const LEAF = '#66774c';
-const UNDER = '#93a088';
+const LEAF = '#56683f';
+const UNDER = '#7f8d72';
 const BARK = '#857c62';
 const PINK = '#d9708f';
 const PALE = '#efb2c2';
@@ -47,6 +47,7 @@ interface FlowerPlan {
   squash: number;
   roll: number;
   budAngle: number;
+  petal: Pigment;
   /** stays a bud at full growth */
   bud: boolean;
   grow: [number, number];
@@ -101,7 +102,7 @@ function nodesOf(rng: Rng, length: number, tone: Pigment, from: number): NodePla
   for (let j = 0; j < count; j++) {
     const t = lerp(from, 0.96, j / (count - 1)) + rng.range(-0.015, 0.015);
     const size = lerp(0.85, 1, Math.sin(Math.PI * Math.min(1, t * 1.1))) * lerp(1, 0.62, smooth((t - 0.8) / 0.2));
-    const spread = lerp(0.8, 0.3, t) * rng.range(0.75, 1.25);
+    const spread = lerp(1.05, 0.3, t ** 0.8) * rng.range(0.75, 1.2);
     const lean = rng.range(-0.22, 0.22);
     nodes.push({
       t,
@@ -133,6 +134,7 @@ function clusterOf(rng: Rng, flowers: FlowerPlan[], scale: number, lean: number)
       squash: rng.chance(0.3) ? rng.range(0.85, 1) : rng.range(0.55, 0.85),
       roll: rng.range(0, Math.PI * 2),
       budAngle: a + rng.range(-0.3, 0.3),
+      petal: jitter(rng.chance(0.5) ? mix(PINK, PALE, rng.range(0, 0.35)) : mix(PINK, DEEP, rng.range(0, 0.3)), rng, 0.02),
       bud,
       grow: [0, 0],
       open: [0, 0],
@@ -150,7 +152,7 @@ export function buildOleander(rng: Rng): Oleander {
   const lean = rng.range(-0.06, 0.06);
   const stems: Stem[] = [];
   const flowers: FlowerPlan[] = [];
-  const toneOf = (band: number) => (band === 0 ? mix(green, PIGMENTS.shadow, 0.22) : band === 2 ? lighten(green, 0.04) : green);
+  const toneOf = (band: number) => (band === 0 ? shade(mix(green, PIGMENTS.shadow, 0.3), 0.22) : band === 2 ? mix(green, '#8d977c', 0.2) : shade(green, 0.08));
   const bandOf = () => {
     const z = rng.next();
     return (z < 0.34 ? 0 : z < 0.67 ? 1 : 2) as 0 | 1 | 2;
@@ -177,7 +179,7 @@ export function buildOleander(rng: Rng): Oleander {
       width: rng.range(2.4, 3),
       band,
       tone,
-      nodes: nodesOf(rng, plan.length, tone, rng.range(0.24, 0.34)),
+      nodes: nodesOf(rng, plan.length, tone, rng.range(0.16, 0.26)),
       flowers: clusterOf(rng, flowers, 1, tipAngle - UP),
       seed: seedOf(rng),
     };
@@ -308,6 +310,7 @@ export function poseOleander(plant: Oleander, g: number): OleanderPose {
         roll: f.roll + open * 0.5,
         open,
         budAngle: f.budAngle,
+        petal: f.petal,
         alpha: smooth(kk * 4),
         seed: f.seed,
       });
@@ -342,7 +345,7 @@ const oleander: SpeciesDef = {
       for (const band of [0, 1, 2]) {
         const op = band === 0 ? 0.74 : 0.88;
         paintStems(p, pose.stems.filter((c) => c.band === band), { opacity: op, accent: mix(BARK, PIGMENTS.sumi, 0.35), accentOpacity: 0.3 });
-        for (const group of [0, 1]) paintKnifeLeaves(p, pose.leaves.filter((l) => l.band === band && l.group === group), { opacity: op });
+        for (const group of [0, 1]) paintKnifeLeaves(p, pose.leaves.filter((l) => l.band === band && l.group === group), { opacity: op * 0.95, blend: 'source-over' });
         paintPinwheels(p, pose.flowers.filter((f) => f.band === band), { ...style, alpha: band === 0 ? 0.9 : 1 });
       }
     });
