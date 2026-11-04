@@ -15,7 +15,7 @@ import type { SpeciesDef } from '../types';
 
 const LEAF = '#8ea47a';
 const LEAF_DEEP = '#5f7458';
-const BLOOM = '#dfe7e2';
+const BLOOM = '#d8e3e6';
 const STEM = '#9a8a5c';
 const BUD = '#8a9a52';
 const FLUSH = '#e8c4cc';
@@ -101,20 +101,20 @@ export function planCaper(rng: Rng): CaperPlan {
     const u = ns === 1 ? 0.5 : i / (ns - 1);
     const side = (i % 2 ? -1 : 1) * (u < 0.5 ? lean : -lean) as 1 | -1;
     const hang = hangs.has(i);
-    const angle = hang ? DOWN - side * rng.range(0.25, 0.7) : UP + side * rng.range(0.55, 1.35);
-    const droop = hang ? side * rng.range(-0.2, 0.3) : side * rng.range(1.5, 2.3);
+    const angle = hang ? DOWN - side * rng.range(0.25, 0.7) : UP + side * rng.range(0.25, 1.15);
+    const droop = hang ? side * rng.range(-0.2, 0.3) : side * rng.range(1.9, 2.8);
     const length = hang ? rng.range(26, 36) : rng.range(30, 44);
     const n = rng.int(9, 13);
     const stem = zigzagStem(rng, angle, length, droop, n);
     const nodes: Node[] = [];
     for (let j = 0; j < n; j++) {
       const t = (j + 1) / (n + 0.6);
-      const size = lerp(6.2, 2.6, t) * rng.range(0.85, 1.12);
+      const size = lerp(6.8, 3, t) * rng.range(0.85, 1.12);
       nodes.push({
         t,
         side: j % 2 ? 1 : -1,
         leaf: { length: size, width: size * rng.range(0.82, 0.95), spread: rng.range(0.85, 1.25), curve: rng.gaussian(0, 0.08), tone: jitter(mix(green, LEAF_DEEP, rng.range(0, 0.3)), rng, 0.025) },
-        bud: t > 0.4 && rng.chance(0.38) ? { stalk: rng.range(1.8, 3.4), r: rng.range(0.9, 1.3), window: [0, 0] } : undefined,
+        bud: t > 0.35 && rng.chance(0.5) ? { stalk: rng.range(1.8, 3.4), r: rng.range(1.2, 1.7), window: [0, 0] } : undefined,
       });
     }
     shoots.push({ stem, nodes, window: [...stagger(i, ns, [0.05, 0.56], 0.62)] as [number, number], width: rng.range(0.85, 1.1), short: false });
@@ -130,7 +130,7 @@ export function planCaper(rng: Rng): CaperPlan {
     for (let j = 0; j < n; j++) {
       const t = (j + 1) / (n + 0.6);
       const size = lerp(6.4, 4, t) * rng.range(0.85, 1.1);
-      nodes.push({ t, side: j % 2 ? 1 : -1, leaf: { length: size, width: size * rng.range(0.82, 0.95), spread: rng.range(0.85, 1.3), curve: rng.gaussian(0, 0.08), tone: jitter(mix(green, LEAF_DEEP, rng.range(0.1, 0.4)), rng, 0.025) } });
+      nodes.push({ t, side: j % 2 ? 1 : -1, leaf: { length: size, width: size * rng.range(0.82, 0.95), spread: rng.range(0.85, 1.3), curve: rng.gaussian(0, 0.08), tone: jitter(mix(green, BLOOM, rng.range(0.1, 0.3)), rng, 0.025) } });
     }
     shoots.unshift({ stem, nodes, window: [...stagger(i, nc, [0.12, 0.5], 0.6)] as [number, number], width: 0.9, short: true });
   }
@@ -158,14 +158,14 @@ export function planCaper(rng: Rng): CaperPlan {
     const stamens: Stamen[] = [];
     const nst = rng.int(22, 32);
     for (let i = 0; i < nst; i++) {
-      stamens.push({ spread: rng.gaussian(0, 0.75), len: rng.range(1.0, 1.55), bow: rng.range(0.05, 0.16) });
+      stamens.push({ spread: rng.gaussian(0, 0.75), len: rng.range(0.9, 1.4), bow: rng.range(0.1, 0.24) });
     }
     flowers.push({
       shoot: si,
       node: ni,
       stalk: rng.range(4, 6.5),
       turn: rng.range(0.5, 0.9),
-      size: rng.range(7, 8.2),
+      size: rng.range(7.6, 8.8),
       tilt: rng.range(0.6, 0.85),
       petals,
       stamens,
@@ -201,7 +201,7 @@ function drawShoot(p: Painter, rng: Rng, sh: Shoot, si: number, plan: CaperPlan,
   const ext = k;
   const full = stemPoints(sh.stem, 1, bendAt(g));
   const pts = subPath(full, lerp(0.03, 1, ext));
-  paintStem(p, rng.fork('stem'), pts, { width: 0.95 * sh.width, pigment: STEM, opacity: 0.85, ink: 0.3 * k, inkReach: 0.7, inkPigment: mix(STEM, PIGMENTS.sumi, 0.45) });
+  paintStem(p, rng.fork('stem'), pts, { width: 0.95 * sh.width, pigment: STEM, opacity: 0.8, ink: 0.18 * k, inkReach: 0.5, inkPigment: mix(STEM, PIGMENTS.sumi, 0.45) });
   const leaves: FleshyLeaf[] = [];
   const spines: { key: string; at: Pt; angle: number; length: number }[] = [];
   sh.nodes.forEach((n, j) => {
@@ -223,7 +223,7 @@ function drawShoot(p: Painter, rng: Rng, sh: Shoot, si: number, plan: CaperPlan,
       }
     }
   });
-  fleshyLeaves(p, rng.fork('leaves'), leaves, { deep: LEAF_DEEP, bloom: BLOOM, bloomK: ease(g, 0.25, 0.6), opacity: 0.9 });
+  fleshyLeaves(p, rng.fork('leaves'), leaves, { deep: LEAF_DEEP, bloom: BLOOM, bloomK: ease(g, 0.25, 0.6), opacity: sh.short ? 0.72 : 0.86 });
   stipuleSpines(p, rng.fork('spines'), spines, SPINE);
   for (const f of plan.flowers) {
     if (plan.shoots[f.shoot] !== sh) continue;
@@ -279,7 +279,7 @@ const caper: SpeciesDef = {
     const end = plantFrame(p, this, opts, SMALL_DESIGN);
     try {
       const r = rng.fork('paint');
-      groundShadow(p, r, { rx: 16, ry: 9, x: 2, k: ease(g, 0.15, 0.7), opacity: 0.1, pigment: PIGMENTS.shadow });
+      groundShadow(p, r, { rx: 14, ry: 7, x: 1, k: ease(g, 0.15, 0.7), opacity: 0.05, pigment: PIGMENTS.shadow });
       wallCrack(p, r.fork('crack'), plan.seam, { seed: 1 - ease(g, 0.04, 0.14), crown: ease(g, 0.08, 0.5) });
       const buds: CaperBud[] = [];
       plan.shoots.forEach((sh, i) => drawShoot(p, r.fork(`shoot-${i}`), sh, i, plan, g, buds));

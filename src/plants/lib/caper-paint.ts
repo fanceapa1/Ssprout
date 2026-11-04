@@ -77,7 +77,7 @@ export function fleshyLeaves(p: Painter, rng: Rng, leaves: readonly FleshyLeaf[]
     const at = { x: l.at.x + Math.cos(l.angle) * l.length * 0.22 + nx * l.width * 0.12, y: l.at.y + Math.sin(l.angle) * l.length * 0.22 + ny * l.width * 0.12 };
     p.dabInto(B, at, o.bloom, { rng: rng.fork(`b-${l.key}`), variant: 'round', angle: l.angle, length: l.length * 0.55 * bk, width: l.width * 0.3 * bk, pool: 0, basePool: 0, layers: 2 });
   }
-  B.dry({ opacity: 0.3 * o.bloomK, edge: 0.1, edgeWidth: 0.3, sharpness: 0.4, centreLift: 0, granulation: 0.2, flow: 0.4, flowScale: 3, darken: 0.03, blend: 'source-over' });
+  B.dry({ opacity: 0.4 * o.bloomK, edge: 0.1, edgeWidth: 0.3, sharpness: 0.4, centreLift: 0, granulation: 0.2, flow: 0.4, flowScale: 3, darken: 0.03, blend: 'source-over' });
 }
 
 /** The pair of small hooked stipule spines at each node, batched into one layer. */
@@ -175,7 +175,7 @@ export function caperFlower(
   if (!visible(sk)) return;
   const F = p.layer({ x: c.x - reach, y: c.y - reach, w: reach * 2, h: reach * 2 });
   const ends: Pt[] = [];
-  const pale = mix(PIGMENTS.petalWhite, o.violet, 0.3);
+  const pale = mix(PIGMENTS.petalWhite, o.violet, 0.18);
   const ctx = F.ctx;
   ctx.lineCap = 'round';
   o.stamens.forEach((s) => {
@@ -185,17 +185,21 @@ export function caperFlower(
     // the filaments arch outward from the flower's axis, like a fountain
     const n = { x: -Math.sin(a) * Math.sign(s.spread || 1), y: Math.cos(a) * Math.sign(s.spread || 1) };
     const mid = { x: (c.x + end.x) / 2 + n.x * len * s.bow, y: (c.y + end.y) / 2 + n.y * len * s.bow };
-    const half = { x: (mid.x * 2 + c.x + end.x) / 4, y: (mid.y * 2 + c.y + end.y) / 4 };
-    ctx.lineWidth = Math.max(0.18, o.size * 0.05);
-    ctx.strokeStyle = rgba(pale, 0.75);
+    // one quadratic through `mid`: pale filament, then its outer part violet
+    const k = { x: mid.x * 2 - (c.x + end.x) / 2, y: mid.y * 2 - (c.y + end.y) / 2 };
+    const t0 = 0.5;
+    const from = { x: (1 - t0) ** 2 * c.x + 2 * (1 - t0) * t0 * k.x + t0 * t0 * end.x, y: (1 - t0) ** 2 * c.y + 2 * (1 - t0) * t0 * k.y + t0 * t0 * end.y };
+    ctx.lineWidth = Math.max(0.16, o.size * 0.04);
+    ctx.strokeStyle = rgba(pale, 0.7);
     ctx.beginPath();
     ctx.moveTo(c.x, c.y);
-    ctx.quadraticCurveTo((c.x + mid.x) / 2, (c.y + mid.y) / 2, half.x, half.y);
+    ctx.quadraticCurveTo(k.x, k.y, end.x, end.y);
     ctx.stroke();
+    ctx.lineWidth = Math.max(0.18, o.size * 0.048);
     ctx.strokeStyle = rgba(o.violet, 0.92);
     ctx.beginPath();
-    ctx.moveTo(half.x, half.y);
-    ctx.quadraticCurveTo((mid.x + end.x) / 2, (mid.y + end.y) / 2, end.x, end.y);
+    ctx.moveTo(from.x, from.y);
+    ctx.quadraticCurveTo(lerp(k.x, end.x, t0), lerp(k.y, end.y, t0), end.x, end.y);
     ctx.stroke();
     ends.push(end);
   });
