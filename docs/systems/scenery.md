@@ -456,6 +456,7 @@ palms on the right and the oued bending past the viewer's right foot. O1 (devlog
 scenery behind `?dev&scenery=oasis`. O2 (devlog 107) reframed it and paints its rock; O3 (devlog 110)
 paints its water, O4 (devlog 112) its land and vegetation; no draft step runs any more (`drafts/a` is a record). O5 (devlog 114, ADR 0301)
 paints its daylight. O6 (devlog 117) adds `motion`, and O7 adds its own `sound` (it borrows `pond` for now).
+O1b (devlog 119) adds medium sand and river slots, lowers the moon, deepens the far range and stills the basin.
 Composition map: studio `oasis-map/map`. Rock: studio `oasis-rock`. Water: studio `oasis-water`.
 
 - **Composition** (O2, `layout.ts`, `ksar.ts`): the ksar spans x 430–898 on the bluff's seat at
@@ -482,6 +483,9 @@ Composition map: studio `oasis-map/map`. Rock: studio `oasis-rock`. Water: studi
 - **Sun** (ADR 0300): both low suns stand in the notch between the bluff's shoulder and the grove,
   as the painting is lit from the right. Sunset is at x 920 (sinking behind the shoulder right of
   the east tower) and sunrise at x 990, both over horizon y 340.
+- **Moon**: its arc runs (1040, 232) → (960, 150) → (926, 200), so its top is at about y 149 (O1b;
+  it was 110). On a 16:9 screen (y 70–970) the whole disc stays at least 60 under the top edge,
+  clear of the corner controls and the paper's edge.
 - **View**: the focus is (730, 520). The phone crop (x 430–1030) holds every tower and house, about
   90% of the basin's water, and both suns. `pathOut` is the `FOOTPATH` from the bottom edge to the basin's near rim. O4 paints it.
 - **Flora**: `{ realm: 'n-africa-arabia', biomes: ['desert', 'wetland'], climate: 'arid',
@@ -498,13 +502,13 @@ Composition map: studio `oasis-map/map`. Rock: studio `oasis-rock`. Water: studi
   basin, and its own golden grades (`OASIS_GRADES`, `LightArt.grades`, ADR 0301). Plants take
   the sky's sun side (right at both low suns). Studio `oasis-daylight`.
 
-### Slots (47)
+### Slots (48)
 | Habitat ("words") | Count | Where | Sizes |
 |---|---|---|---|
-| water ("in the shallows") | 7 | `basin-1…5` (with `basin-5` in the overflow corner by the sluice, for the cattail), `shallows-1/2` in the oued | 2 large, 3 medium, 2 small |
+| water ("in the shallows") | 8 | `basin-1…5` (with `basin-5` in the overflow corner by the sluice, for the cattail), `shallows-1/2` in the oued, `shallows-3` (medium) mid-river above the big bar's head, clear of every bar (O1b) | 2 large, 4 medium, 2 small |
 | shore ("by the water") | 13 | `rim-1…5` before the basin's near face and by the sluice, `seguia-1…3`, `oued-1…4` (`oued-1` and `oued-3` large, for the oleander on the oued bank), `bar-1` | 2 large, 4 medium, 7 small |
 | meadow ("in the plots") | 9 | `plot-1…7` on the basin terrace, `plot-8/9` on the middle terrace | 3 large, 3 medium, 3 small |
-| path ("on the sand") | 6 | `walk-1…6` either side of the footpath | 6 small |
+| path ("on the sand") | 6 | `walk-1…6` either side of the footpath; `walk-3` and `walk-4` (medium, one each side, for the desert hyacinth) stand off the line of `walk-5/6` behind them (O1b) | 2 medium, 4 small |
 | back ("under the palms") | 5 | `high-1` (tree, the left edge under the bluff), `high-2`, `grove-1` behind the grove's wall, `palm-1` (tree, among the big palms), `palm-2` | 2 trees, 2 medium, 1 small |
 | rock ("on the walls") | 7 | `wall-1…5` on the copings, `talus-1/2` at the bluff's foot | 7 small |
 
@@ -567,6 +571,9 @@ The shapes are the layout's (`geometry.ts`); the big sand bar is the layout's `B
 Steps `ranges`, `dunes` (soft), `ground`, `terraces`, `plots`, `footpath`, `walls` and
 `foreground`, in parts (ADR 0226, 0238); `margins` is the garden's. Palette `LAND`, lit from the right.
 - **Far**: lilac-to-rose flat-topped ranges lost into haze; gold dunes, their west lee flanks rose.
+  O1b deepened the range (wash 0.42 → 0.64, from lilac with a third of the deep lilac into deep
+  lilac and rose, a fade that keeps 40% at its foot instead of 10%) and started the dunes from plain
+  sand, so on wide screens the band holds against the sunset sky instead of reading as a pale strip.
 - **Ground**: gold sand with warm and cool passages, the pale basin terrace, damp sand along the
   seguia's last run and along both oued banks (a dark band, a cut-bank shade, a lit lip), wind
   ripples on open sand. **Terraces**: worked soil along the walls' curves, contour furrows,
@@ -608,8 +615,9 @@ waterfall's pace. Each element is clipped to its own water.
   spill drops. Clip: the gate's cut, the spill and the sluice's channel.
 - **Basin**: three rings from `INLET` (the notch in the left coping), 11 s each, spreading ever
   slower to 150 units and fading. Three ring sprites (30, 70, 140 wide) keep the line's width as
-  a ring grows. Clip: `BASIN_WATER`. The rest of the basin gets nothing from this layer (the
-  scene's generic `waterSurface` still runs over the pond: Left open, devlog 117).
+  a ring grows. Clip: `BASIN_WATER`. The rest of the basin gets nothing: the oasis sets
+  `pondSurface: 0`, so the scene's generic shimmer, rings and glints stay off it and the basin
+  is a still mirror (O1b, ADR 0302).
 - **Oued**: 56 drifters (glints: a white dash over a teal trough, so it reads on the milky water;
   riffle lines: a teal crescent with a light under it) start each pass at a table-drawn `(s, u)`
   and drift down `ouedAt` at 10–15 units/s, faster and larger toward the viewer. `liveliness`
