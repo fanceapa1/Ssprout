@@ -125,23 +125,33 @@ export function paintCastPlate(p: Painter, rng: Rng, phase: DayPhase, scene: Sce
   if (phase === 'night') for (const s of stars(30, 'stars', sky)) if (s.y > 14) reserveStar(p.ctx, s, 0.9);
 }
 
+/**
+ * A boulder's shadow ellipse and the direction it fades toward (null: no fade). Mirror-symmetric in
+ * the sun's side: the tilt comes from |dx| and turns with the side (ADR 0284).
+ */
+export function rockShadow(r: { x: number; y: number; w: number; h: number }, sh: CastShadow): { cx: number; cy: number; rx: number; ry: number; rotation: number; fade: number | null } {
+  const long = Math.abs(sh.dx) > 0.6;
+  const reach = Math.min(240, r.h * Math.abs(sh.dx) * 1.1);
+  const side = Math.sign(sh.dx) || 1;
+  return {
+    cx: r.x + side * (r.w * 0.28 + reach * 0.5),
+    cy: r.y + r.h * 0.04 + sh.dy * r.h * 0.5,
+    rx: Math.max(r.w * 0.42, reach * 0.55 + r.w * 0.2),
+    ry: r.h * (long ? 0.16 : 0.2),
+    rotation: long ? side * Math.atan2(sh.dy, Math.abs(sh.dx)) * 0.15 : 0,
+    fade: long ? (side > 0 ? 0 : Math.PI) : null,
+  };
+}
+
 /** Cast shadows: a cool glaze from each thing's foot, away from the sun, fading toward its tip. */
 function paintShadows(p: Painter, rng: Rng, scene: SceneGeometry, art: LightArt, sh: CastShadow, pig: string): void {
-  const angle = Math.atan2(sh.dy, sh.dx);
   const long = Math.abs(sh.dx) > 0.6;
   const onWater = (q: Pt) => pointInPolygon(q, scene.pond);
   // boulders
   for (const r of scene.rocks) {
-    const reach = Math.min(240, r.h * Math.abs(sh.dx) * 1.1);
-    const side = Math.sign(sh.dx) || 1;
-    const cx = r.x + side * (r.w * 0.28 + reach * 0.5);
-    const cy = r.y + r.h * 0.04 + sh.dy * r.h * 0.5;
-    if (onWater({ x: cx, y: cy })) continue;
-    p.glaze(
-      { cx, cy, rx: Math.max(r.w * 0.42, reach * 0.55 + r.w * 0.2), ry: r.h * (long ? 0.16 : 0.2), rotation: long ? angle * 0.15 : 0 },
-      pig,
-      { rng, opacity: sh.alpha * 0.55, deform: 0.3, fade: long ? { angle: side > 0 ? 0 : Math.PI, start: 0.35, amount: 0.9, ragged: 0.5 } : undefined },
-    );
+    const { fade, ...shape } = rockShadow(r, sh);
+    if (onWater({ x: shape.cx, y: shape.cy })) continue;
+    p.glaze(shape, pig, { rng, opacity: sh.alpha * 0.55, deform: 0.3, fade: fade === null ? undefined : { angle: fade, start: 0.35, amount: 0.9, ragged: 0.5 } });
   }
   // shrubs
   for (const s of art.shrubs) {
