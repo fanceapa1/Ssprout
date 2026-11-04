@@ -65,25 +65,25 @@ export function planDesertHyacinth(rng: Rng): HyacinthPlan {
     const rise: [number, number] = i === 0 ? [0.08, 0.6] : [...stagger(i - 1, Math.max(1, n - 1), [0.18, 0.74], 0.75)] as [number, number];
     const open: [number, number] = [rise[1] - 0.12, Math.min(0.99, rise[1] + 0.34)];
     const spikeLen = length * (1 - split);
-    const nf = Math.round(spikeLen * 0.62);
     const golden = Math.PI * (3 - Math.sqrt(5));
     const az0 = rng.range(0, Math.PI * 2);
+    const nf = Math.round(spikeLen * 0.85);
     const flowers = Array.from({ length: nf }, (_, j) => ({
       u: Math.min(0.97, (j + 0.5) / nf + rng.gaussian(0, 0.008)),
       az: az0 + j * golden + rng.gaussian(0, 0.15),
-      size: spikeR * rng.range(0.24, 0.3) * lerp(1, 0.7, ((j + 0.5) / nf) ** 2),
+      size: spikeR * rng.range(0.27, 0.32) * lerp(1, 0.7, ((j + 0.5) / nf) ** 2),
     }));
-    const ns = Math.round(length * split * 0.16) + 3;
+    const ns = Math.round(length * split * 0.22) + 4;
     const scales = Array.from({ length: ns }, (_, j) => ({
-      t: (j + 0.6) / ns + rng.gaussian(0, 0.02),
-      side: j % 2 === 0 ? -1 : 1,
-      len: spikeR * rng.range(0.9, 1.2),
-      wid: spikeR * rng.range(0.5, 0.7),
+      t: (j + 0.5) / ns + rng.gaussian(0, 0.015),
+      side: Math.sin(az0 + j * golden) * 0.95,
+      len: spikeR * rng.range(1.1, 1.35),
+      wid: spikeR * rng.range(0.6, 0.75),
     }));
     const nc = rng.int(4, 6);
     const cracks = Array.from({ length: nc }, (_, j) => ({
       a: (j / nc) * Math.PI * 2 + rng.gaussian(0, 0.3),
-      len: rng.range(5, 11) * (i === 0 ? 1 : 0.75),
+      len: rng.range(8, 15) * (i === 0 ? 1 : 0.75),
       bend: rng.gaussian(0, 0.35),
     }));
     spikes.push({
@@ -91,7 +91,7 @@ export function planDesertHyacinth(rng: Rng): HyacinthPlan {
       rise,
       open,
       split,
-      stemR: spikeR * rng.range(0.52, 0.6),
+      stemR: spikeR * rng.range(0.6, 0.68),
       spikeR,
       violet: rng.chance(0.7) ? rng.range(0.35, 0.85) : rng.range(0, 0.2),
       scales,
@@ -161,7 +161,8 @@ const desertHyacinth: SpeciesDef = {
         scaledStem(p, sr.fork('stem'), { axis: ps.axis, split: ps.split, radius: s.stemR * ps.rk, violet: s.violet * smooth(ps.e * 1.5), scales: ps.scales }, C);
         flowerSpike(p, sr.fork('flowers'), { axis: ps.axis, t0: ps.split, radius: s.spikeR * ps.rk, front: ps.front, flowers: ps.flowers }, C);
         // the sand lies over its foot
-        p.dab({ x: s.stem.base.x, y: 1.2 }, C.sand, { rng: sr.fork('foot'), variant: 'round', angle: 0, length: s.stemR * 2.9 * ps.rk, width: s.stemR * 0.75 * ps.rk, opacity: 0.75 * smooth(ps.e * 4), pool: 0.3, poolSide: 1 });
+        const fk = smooth(ps.e * 4) * ps.rk;
+        if (fk > 0.02) p.glaze({ cx: s.stem.base.x + 0.5, cy: 1.2, rx: s.stemR * 1.7 * fk, ry: s.stemR * 0.5 * fk }, mix(C.sand, '#f4dfb0', 0.4), { rng: sr.fork('foot'), opacity: 0.8, edge: 0.1, sharpness: 0.2 });
       }
     } finally {
       end();

@@ -81,9 +81,9 @@ export function crackedMound(
     granulation: 0.5,
     fade: { angle: UP, start: 0.5, amount: 0.7 },
   });
-  p.glaze({ cx: cx + o.rx * 0.18, cy: 0.6, rx: o.rx * 0.8 * mk, ry: o.rx * 0.09 * mk }, c.sandShade, {
+  p.glaze({ cx: cx + o.rx * 0.1, cy: 0.8, rx: o.rx * 0.95 * mk, ry: o.rx * 0.07 * mk }, c.sandShade, {
     rng: rng.fork('lip'),
-    opacity: 0.32,
+    opacity: 0.16,
     edge: 0.2,
     sharpness: 0.3,
     fade: { angle: UP, start: 0.3, amount: 0.9 },
@@ -93,7 +93,7 @@ export function crackedMound(
     f.cracks.forEach((cr, j) => {
       const len = cr.len * f.k;
       if (len < 0.4) return;
-      const r0 = f.r * 0.9;
+      const r0 = f.r * 1.5;
       const a = cr.a;
       const pts: Pt[] = [];
       for (let s = 0; s <= 3; s++) {
@@ -101,18 +101,7 @@ export function crackedMound(
         const aa = a + cr.bend * (s / 3);
         pts.push({ x: f.x + Math.cos(aa) * d, y: Math.sin(aa) * d * 0.28 - 0.4 });
       }
-      p.inkLine(pts, { rng: rng.fork(`crack-${i}-${j}`), width: 0.55, pigment: c.crack, opacity: 0.55 * smooth(f.k * 1.5), breaks: 0.3, wobble: 0.35, taper: [0.2, 0.7] });
-    });
-    // the ring of lifted sand round the foot
-    p.dab({ x: f.x, y: -0.5 }, c.sandShade, {
-      rng: rng.fork(`ring-${i}`),
-      variant: 'round',
-      angle: 0,
-      length: f.r * 3 * f.k,
-      width: f.r * 0.9 * f.k,
-      opacity: 0.38 * f.k,
-      pool: 0.6,
-      poolSide: 1,
+      p.inkLine(pts, { rng: rng.fork(`crack-${i}-${j}`), width: 0.45, pigment: c.crack, opacity: 0.6 * smooth(f.k * 1.5), breaks: 0.3, wobble: 0.35, taper: [0.2, 0.7] });
     });
   });
 }
@@ -129,31 +118,41 @@ export interface StemNow {
 /** The fleshy stem: a cream column, a buff shaded flank, a violet-brown flush at the foot and overlapping pale scales. */
 export function scaledStem(p: Painter, rng: Rng, s: StemNow, c: HyacinthColours): void {
   if (s.split * pathLen(s.axis) < 0.5) return;
-  const r = (u: number) => s.radius * lerp(1.12, 0.92, u);
+  const r = (u: number) => s.radius * (0.92 + 0.32 * (1 - smooth(u * 2.2)));
   const poly = column(s.axis, 0, s.split, r);
   const L = p.layer(box(poly, 6));
   L.fill(poly, c.cream, 0.9);
-  L.fill(column(s.axis, 0, s.split, r, 0.15 * SHADE_SIDE, 1.02 * SHADE_SIDE), c.creamShade, 0.75);
-  if (s.violet > 0.02) L.fill(column(s.axis, 0, s.split * 0.42, (u) => r(u * 0.42) * 1.02), c.violet, 0.55 * s.violet);
+  L.fill(column(s.axis, 0, s.split, r, 0.35 * SHADE_SIDE, 1.02 * SHADE_SIDE), c.creamShade, 0.35);
+  L.fill(column(s.axis, 0, s.split, r, 0.65 * SHADE_SIDE, 1.02 * SHADE_SIDE), c.creamShade, 0.45);
   L.lift(column(s.axis, 0.02, s.split * 0.95, r, -0.75 * SHADE_SIDE, -0.35 * SHADE_SIDE), 0.25);
-  L.dry({ opacity: 0.94, edge: 0.55, edgeWidth: 0.35, sharpness: 0.55, centreLift: 0.1, granulation: 0.25, granules: 0.15, flow: 0.3, flowScale: 1.5, darken: 0.5, blend: 'source-over' });
+  L.dry({ opacity: 0.94, edge: 0.45, edgeWidth: 0.35, sharpness: 0.45, centreLift: 0.1, granulation: 0.25, granules: 0.15, flow: 0.3, flowScale: 1.5, darken: 0.4, blend: 'source-over' });
+  // the violet-brown flush at the foot, lost upward
+  if (s.violet > 0.02) {
+    p.glaze(column(s.axis, 0, s.split * 0.55, (u) => r(u * 0.55) * 0.98), c.violet, {
+      rng: rng.fork('violet'),
+      opacity: 0.5 * s.violet,
+      edge: 0.15,
+      sharpness: 0.3,
+      fade: { angle: UP, start: 0.1, amount: 0.95 },
+    });
+  }
   s.scales.forEach((sc, i) => {
     if (!visible(sc.k)) return;
     const t = sc.t * s.split;
-    const q = across(s.axis, t, sc.side * s.radius * 0.55);
-    const tone = mix(c.scale, c.violet, s.violet * clamp01(1 - sc.t * 2.2) * 0.6);
+    const q = across(s.axis, t, sc.side * r(sc.t) * 0.55);
+    const tone = mix(mix(c.cream, c.scale, 0.18), c.violet, s.violet * clamp01(1 - sc.t * 2.2) * 0.3);
     p.dab({ x: q.x, y: q.y }, tone, {
       rng: rng.fork(`scale-${i}`),
       variant: 'leaf',
-      angle: q.angle + sc.side * 0.22,
+      angle: q.angle + sc.side * 0.3,
       length: sc.len * sc.k,
-      width: sc.wid * sc.k,
-      curve: -sc.side * 0.12,
-      opacity: 0.62 * sc.k,
-      pool: 0.8,
-      poolSide: -sc.side,
-      basePool: 0.1,
-      layers: 2,
+      width: sc.wid * sc.k * lerp(1, 0.6, Math.abs(sc.side)),
+      curve: -sc.side * 0.1,
+      opacity: 0.4 * sc.k,
+      pool: 0.95,
+      poolSide: sc.side >= 0 ? 1 : -1,
+      basePool: 0,
+      layers: 1,
     });
   });
 }
@@ -185,13 +184,13 @@ function flowerPose(s: SpikeNow, f: FlowerNow, r: (u: number) => number) {
   const facing = Math.max(0, Math.cos(f.az));
   const back = Math.max(0, -Math.cos(f.az));
   const q = across(s.axis, lerp(s.t0, 1, f.u), sin * r(f.u) * lerp(0.55, 0.8, f.open));
-  const dir = q.angle + sin * lerp(0.12, 1.05, f.open) * lerp(1, 0.75, back);
-  const tubeLen = f.size * f.k * lerp(2.4, 4.3, f.open) * lerp(1, 0.5, facing * f.open);
+  const dir = q.angle + sin * lerp(0.1, 0.78, f.open) * lerp(1, 0.75, back);
+  const tubeLen = f.size * f.k * lerp(2.4, 3.6, f.open) * lerp(1, 0.4, facing * f.open);
   return { q, sin, facing, back, dir, tubeLen };
 }
 
 /** The radius profile of the spike: full in the lower half, a blunt cone at the top. */
-export const spikeR = (u: number): number => (u < 0.55 ? lerp(0.86, 1, smooth(u / 0.55)) : lerp(1, 0.32, smooth((u - 0.55) / 0.45)));
+export const spikeR = (u: number): number => (u < 0.55 ? lerp(0.72, 1, smooth(u / 0.55)) : lerp(1, 0.32, smooth((u - 0.55) / 0.45)));
 
 /**
  * The flower spike: a column the colour of the buds turning gold below the opening front,
@@ -207,7 +206,7 @@ export function flowerSpike(p: Painter, rng: Rng, s: SpikeNow, c: HyacinthColour
     const top = Math.min(1, s.front + 0.05);
     L.fill(column(s.axis, s.t0, lerp(s.t0, 1, top), (u) => r(u * top), -0.85, 0.85), c.goldDeep, 0.8 * smooth(s.front * 3));
   }
-  L.fill(column(s.axis, s.t0, 1, r, 0.2 * SHADE_SIDE, 0.95 * SHADE_SIDE), mix(c.goldDeep, c.throat, 0.35), 0.4);
+  L.fill(column(s.axis, s.t0, 1, r, 0.2 * SHADE_SIDE, 0.95 * SHADE_SIDE), mix(c.goldDeep, c.throat, 0.3), 0.45 * smooth(s.front * 3));
   const order = s.flowers.map((_, i) => i).sort((a, b) => Math.cos(s.flowers[a]!.az) - Math.cos(s.flowers[b]!.az));
   for (const i of order) {
     const f = s.flowers[i]!;
@@ -216,7 +215,7 @@ export function flowerSpike(p: Painter, rng: Rng, s: SpikeNow, c: HyacinthColour
     const fr = rng.fork(`fl-${i}`);
     const sz = f.size * f.k;
     // the bract: a pale scale under every flower, the buds' cover at the top
-    p.dabInto(L, { x: q.x, y: q.y + sz * 1.2 }, mix(c.bud, c.scale, 0.45), {
+    p.dabInto(L, { x: q.x, y: q.y + sz * 1.2 }, mix(mix(c.bud, c.scale, 0.4), c.goldDeep, f.open * 0.8), {
       rng: fr.fork('bract'),
       variant: 'leaf',
       angle: q.angle + sin * 0.35,
@@ -234,7 +233,7 @@ export function flowerSpike(p: Painter, rng: Rng, s: SpikeNow, c: HyacinthColour
       variant: 'petal',
       angle: dir,
       length: tubeLen,
-      width: sz * lerp(1.3, 1.9, f.open),
+      width: sz * lerp(1.3, 1.5, f.open),
       pool: 0.9,
       poolSide: sin >= 0 ? 1 : -1,
       basePool: 0.2,
@@ -242,17 +241,18 @@ export function flowerSpike(p: Painter, rng: Rng, s: SpikeNow, c: HyacinthColour
     });
     if (f.open < 0.04) continue;
     // the flaring lobes: two lips at the mouth, a rosette on the flowers that face out
-    const mouth = { x: q.x + Math.cos(dir) * tubeLen * 0.85, y: q.y + Math.sin(dir) * tubeLen * 0.85 };
-    const spread = lerp(1.05, 2.5, facing);
+    const mouth = { x: q.x + Math.cos(dir) * tubeLen * 0.7, y: q.y + Math.sin(dir) * tubeLen * 0.7 };
+    // two lips seen from the side: the upper pair turned up, the lower three down
+    const spread = lerp(1.25, 2.4, facing);
     for (let j = 0; j < 5; j++) {
-      const a = dir + (j - 2) * spread * 0.5 + (j < 2 ? -0.15 : 0);
-      const lk = f.open * (j === 2 ? 0.85 : 1);
+      const a = dir + (j - 2) * spread * 0.5 + (j < 2 ? -0.25 : 0.1) * (1 - facing);
+      const lk = f.open * (j === 2 ? 0.8 : 1) * 0.72;
       p.dabInto(L, mouth, mix(c.lobe, c.gold, back * 0.6 + (j % 2) * 0.2), {
         rng: fr.fork(`lobe-${j}`),
         variant: 'petal',
         angle: a,
-        length: sz * 1.55 * lk,
-        width: sz * 1.25 * lk,
+        length: sz * 1.95 * lk,
+        width: sz * 1.3 * lk,
         pool: 0.5,
         basePool: 0,
         layers: 1,
@@ -264,16 +264,16 @@ export function flowerSpike(p: Painter, rng: Rng, s: SpikeNow, c: HyacinthColour
   for (const i of order) {
     const f = s.flowers[i]!;
     const facing = Math.max(0, Math.cos(f.az));
-    const k = f.open * f.k * smooth((facing - 0.25) / 0.5);
+    const k = f.open * f.k * smooth((facing - 0.7) / 0.3);
     if (!visible(k)) continue;
     const { q, dir, tubeLen } = flowerPose(s, f, r);
     p.dab({ x: q.x + Math.cos(dir) * tubeLen * 0.85, y: q.y + Math.sin(dir) * tubeLen * 0.85 }, c.throat, {
       rng: rng.fork(`throat-${i}`),
       variant: 'round',
       angle: dir,
-      length: f.size * 0.9 * k,
-      width: f.size * 0.7 * k,
-      opacity: 0.7 * k,
+      length: f.size * 0.7 * k,
+      width: f.size * 0.55 * k,
+      opacity: 0.35 * k,
       layers: 1,
     });
   }
