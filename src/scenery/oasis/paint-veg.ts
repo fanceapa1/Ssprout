@@ -5,7 +5,7 @@
  * in world units, in parts (ADR 0226, 0238). docs/systems/scenery.md › Oasis › Vegetation.
  */
 import { createRng, type Rng } from '../../core/rng';
-import { WetLayer, blob, bounds, lighten, mix, padRect, ribbon, shade, type DryOptions, type FoliagePigments, type Painter, type Pigment } from '../../paint';
+import { PAPER_WHITE, WetLayer, blob, rgba, bounds, lighten, mix, padRect, ribbon, shade, type DryOptions, type FoliagePigments, type Painter, type Pigment } from '../../paint';
 import { along, paintDates, paintLeafBases, pinnaOutline, rachisPath, type DateMark, type LeafBase, type RachisMark } from '../../plants/lib/date-palm-paint';
 import type { Pt, Rect } from '../../render/viewport';
 import type { Strokes } from '../../scene/paint-land';
@@ -112,7 +112,7 @@ export function planPalm(base: Pt, top: Pt, len: number, width: number, rng: Rng
 }
 
 /** The big palms on the right (`BIG_PALMS`), planned from fixed seeds so daylight reads the same shapes. */
-export const BIG_PALM_SHAPES: readonly PalmShape[] = BIG_PALMS.map((b, i) => planPalm(b.base, b.top, 62 * b.size, 10.5 * b.size, createRng(`oasis-big-palm-${i}`)));
+export const BIG_PALM_SHAPES: readonly PalmShape[] = BIG_PALMS.map((b, i) => planPalm(b.base, b.top, 66 * b.size, 14 * b.size, createRng(`oasis-big-palm-${i}`)));
 
 /** The grove's palms, back row first: hazy and small behind, warmer and nearer in front. */
 export const GROVE_PALMS: readonly PalmShape[] = (() => {
@@ -157,6 +157,17 @@ export const GROVE_OUTLINE: readonly Pt[] = (() => {
 
 /** The shapes daylight (O5) shades: each big palm's trunk, crown and width, and the grove. */
 export const VEG_SHAPES = { bigPalms: BIG_PALM_SHAPES, grovePalms: GROVE_PALMS, groveTrees: GROVE_TREES, grove: GROVE_OUTLINE } as const;
+
+/** Paper over `shape`, so nothing painted earlier shows through it. */
+function reserve(p: Painter, shape: readonly Pt[]): void {
+  p.ctx.save();
+  p.ctx.beginPath();
+  shape.forEach((q, i) => (i ? p.ctx.lineTo(q.x, q.y) : p.ctx.moveTo(q.x, q.y)));
+  p.ctx.closePath();
+  p.ctx.fillStyle = rgba(PAPER_WHITE);
+  p.ctx.fill();
+  p.ctx.restore();
+}
 
 function layerOver(p: Painter, area: Rect, rng: Rng, res?: number): WetLayer {
   return new WetLayer(p.ctx, area, { ...p.env, rng }, res);
@@ -206,7 +217,7 @@ function crownMarks(s: PalmShape, rng: Rng, detail: number, out: FrondMarks): vo
 
 /** The trunk as a tapering column, its left flank turned from the sun. */
 function trunkMarks(L: WetLayer, s: PalmShape, k: number): void {
-  const hw = (t: number) => (s.width / 2) * (1.15 - 0.25 * t + 0.25 * Math.max(0, 0.05 - t) * 10);
+  const hw = (t: number) => (s.width / 2) * (1.05 - 0.25 * t + 0.5 * Math.max(0, 0.06 - t) * 16);
   const body = haze(PALM.trunk, s.far);
   const dark = haze(PALM.trunkShade, s.far);
   L.fill(ribbon(s.trunk, hw), body, 0.6 * k);
@@ -312,6 +323,9 @@ export function* paintBigPalms(p: Painter, rng: Rng): Strokes {
     yield* fillAndDry(p, marks.back, r.fork('back'), FROND_DRY);
     const T = layerOver(p, padRect(bounds(s.trunk), s.width + 10), r.fork('trunk'));
     if (!T.empty) {
+      // paper under the trunk first, so the grove behind it does not show through
+      reserve(p, ribbon(s.trunk, (t) => (s.width / 2) * (1.05 - 0.25 * t)));
+      yield* p.parts.glaze(blob(s.base.x, s.base.y - 2, s.width * 1.1, s.width * 0.28, r, { irregularity: 0.3 }), mix(PALM.trunkShade, '#9e7183', 0.3), { rng: r, opacity: 0.45, deform: 0.2, spread: 0.3, edge: 0.05 });
       trunkMarks(T, s, 1);
       yield* T.dryParts(TRUNK_DRY);
       paintLeafBases(p, leafBases(s, s.width / 18), r.fork('bases'), { dark: shade(PALM.trunkShade, 0.15), pale: PALM.trunkPale });

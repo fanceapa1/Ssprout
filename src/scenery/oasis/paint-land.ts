@@ -172,8 +172,8 @@ function* paintRipples(p: Painter, rng: Rng): Strokes {
       const line: Pt[] = [];
       for (let k = 0; k <= 8; k++) line.push({ x: x0 + (w * k) / 8, y: y0 + Math.sin(k * 0.9 + i) * 2.4 * s + (k - 4) * 0.6 * s });
       if (!line.every(openSand)) continue;
-      p.dryBrush(line.map((q) => ({ x: q.x, y: q.y + 1.6 * s })), { rng, pigment: mix(LAND.sandShade, EARTH.shade, 0.2), width: 2.4 * s, opacity: 0.26, dryness: 0.45 });
-      p.dryBrush(line, { rng, pigment: LAND.sandLight, width: 1.8 * s, opacity: 0.5, dryness: 0.5, blend: 'source-over' });
+      p.dryBrush(line.map((q) => ({ x: q.x, y: q.y + 1.6 * s })), { rng, pigment: mix(LAND.sandShade, EARTH.shade, 0.2), width: 3 * s, opacity: 0.36, dryness: 0.4 });
+      p.dryBrush(line, { rng, pigment: LAND.sandLight, width: 2.2 * s, opacity: 0.6, dryness: 0.45, blend: 'source-over' });
     }
     yield;
   }
@@ -211,15 +211,15 @@ export function* paintTerraces(p: Painter, rng: Rng): Strokes {
       for (let x0 = -20; x0 < t.x1; ) {
         const len = rng.range(70, 160);
         const line: Pt[] = [];
-        for (let x = x0; x <= Math.min(t.x1, x0 + len); x += 12) line.push({ x, y: terraceLine(t.upper, t.lower, s, x) + Math.sin(x / 40) * 0.8 });
-        if (line.length > 1) p.dryBrush(line, { rng, pigment: LAND.soilDamp, width: 1.6 + i * 0.4, opacity: 0.32, dryness: 0.55 });
+        for (let x = x0; x <= Math.min(t.x1, x0 + len); x += 12) line.push({ x, y: terraceLine(t.upper, t.lower, s, x) + Math.sin(x / 40 + s * 7) * 1.6 });
+        if (line.length > 1) p.dryBrush(line, { rng, pigment: LAND.soilDamp, width: 1.6 + i * 0.4, opacity: 0.22, dryness: 0.65 });
         x0 += len + rng.range(14, 34);
       }
     }
     for (let x = 40 + rng.range(0, 40); x < t.x1 - 30; x += rng.range(110, 170)) {
       const a = { x, y: terraceLine(t.upper, t.lower, 0.1, x) };
       const b = { x: x - 6, y: terraceLine(t.upper, t.lower, 0.95, x - 6) };
-      p.stroke([a, b], { rng, pigment: mix(LAND.soilDamp, EARTH.shade, 0.3), width: 3, opacity: 0.3, wetness: 0.3, taper: [0.2, 0.2] });
+      p.stroke([a, b], { rng, pigment: mix(LAND.soilDamp, EARTH.shade, 0.3), width: 3, opacity: 0.16, wetness: 0.4, taper: [0.3, 0.3] });
       p.dryBrush([{ x: a.x + 2, y: a.y }, { x: b.x + 2, y: b.y }], { rng, pigment: LAND.piseLit, width: 2, opacity: 0.45, dryness: 0.5, blend: 'source-over' });
     }
     yield;
@@ -230,28 +230,36 @@ export function* paintTerraces(p: Painter, rng: Rng): Strokes {
 export function* paintPlots(p: Painter, rng: Rng): Strokes {
   const vp = { x: 820, y: 360 };
   for (const [i, plot] of NEAR_PLOTS.entries()) {
-    const shape = softOutline(plot, rng.fork(`plot-${i}`), 6);
+    const shape = softOutline(plot, rng.fork(`plot-${i}`), 14);
     const ys = plot.map((q) => q.y);
     const xs = plot.map((q) => q.x);
     const [y0, y1, x0, x1] = [Math.min(...ys), Math.max(...ys), Math.min(...xs), Math.max(...xs)];
-    yield* p.parts.wetInWet(shape, mix(LAND.soil, LAND.sand, 0.35), mix(LAND.soil, LAND.soilDamp, 0.45), { rng, angle: Math.PI / 2, split: 0.45, softness: 0.6, opacity: 0.42, deform: 0.1, spread: 0.12, edge: 0.06, edgeWidth: 4, granulation: 0.55, granules: 0.2, fade: { angle: i === 0 ? Math.PI : 0, start: 0.75, amount: 0.6, ragged: 0.8 } });
+    yield* p.parts.wetInWet(shape, mix(LAND.soil, LAND.sand, 0.45), mix(LAND.soil, LAND.soilDamp, 0.3), { rng, angle: Math.PI / 2, split: 0.45, softness: 0.7, opacity: 0.3, deform: 0.3, spread: 0.3, edge: 0.02, edgeWidth: 6, granulation: 0.55, granules: 0.2, fade: { angle: Math.PI / 2, start: 0.55, amount: 0.7, ragged: 0.9 } });
     // greener where the seguia waters it (the plots beside it)
     const wetSide = i === 2 ? { x: x1 - 60, y: (y0 + y1) / 2 } : i === 0 ? { x: x1 - 70, y: y0 + 90 } : { x: x0 + 90, y: y0 + 80 };
     yield* p.parts.glaze(blob(wetSide.x, wetSide.y, 110, 60, rng, { irregularity: 0.35 }), mix(LAND.sprout, LAND.soil, 0.3), { rng, opacity: 0.26, deform: 0.4, spread: 0.4, edge: 0.04, granulation: 0.35 });
-    p.ctx.save();
-    p.ctx.beginPath();
-    shape.forEach((q, k) => (k ? p.ctx.lineTo(q.x, q.y) : p.ctx.moveTo(q.x, q.y)));
-    p.ctx.closePath();
-    p.ctx.clip();
+    const clip = () => {
+      p.ctx.save();
+      p.ctx.beginPath();
+      shape.forEach((q, k) => (k ? p.ctx.lineTo(q.x, q.y) : p.ctx.moveTo(q.x, q.y)));
+      p.ctx.closePath();
+      p.ctx.clip();
+    };
+    clip();
     // furrows run away from the viewer: lines toward the vanishing point, spaced by perspective
     const seedlings = i !== 1;
-    for (let x = x0 - 120; x < x1 + 120; x += 22) {
+    for (let x = x0 - 120, n = 0; x < x1 + 120; x += 22, n++) {
+      if (n % 5 === 4) {
+        p.ctx.restore();
+        yield;
+        clip();
+      }
       const foot = { x, y: y1 + 20 };
       const dir = { x: vp.x - foot.x, y: vp.y - foot.y };
       const len = (y1 - y0 + 40) / -dir.y;
       const line: Pt[] = [];
       for (let k = 0; k <= 6; k++) line.push({ x: foot.x + dir.x * len * (k / 6) + Math.sin(k + x) * 1.2, y: foot.y + dir.y * len * (k / 6) });
-      p.dryBrush(line, { rng, pigment: LAND.soilDamp, width: 3.2, taper: [0.4, 0], opacity: 0.3, dryness: 0.55 });
+      p.dryBrush(line, { rng, pigment: LAND.soilDamp, width: 3.2, taper: [0.4, 0], opacity: 0.2, dryness: 0.65 });
       p.dryBrush(line.map((q) => ({ x: q.x + 4, y: q.y })), { rng, pigment: LAND.sandLight, width: 2, opacity: 0.35, dryness: 0.6, blend: 'source-over' });
       if (seedlings && rng.chance(0.55)) {
         for (let k = 1; k <= 6; k++) {
@@ -272,8 +280,8 @@ export function* paintFootpath(p: Painter, rng: Rng): Strokes {
   const walk = smoothPath(poly(FOOTPATH).reverse(), 6);
   const half = (t: number) => PATH_HALF_WIDTH.far + (PATH_HALF_WIDTH.near - PATH_HALF_WIDTH.far) * t;
   const band = ribbon(walk, half);
-  yield* p.parts.lift(band, { rng, amount: 0.25, deform: 0.15, spread: 0.2, layers: 5, edge: 0 });
-  yield* p.parts.glaze(band, LAND.sandLight, { rng, opacity: 0.5, deform: 0.12, spread: 0.15, edge: 0.04, granulation: 0.25, blend: 'source-over' });
+  yield* p.parts.lift(band, { rng, amount: 0.2, deform: 0.35, spread: 0.4, layers: 6, edge: 0 });
+  yield* p.parts.glaze(band, LAND.sandLight, { rng, opacity: 0.45, deform: 0.3, spread: 0.35, edge: 0, granulation: 0.25, blend: 'source-over', fade: { angle: -Math.PI / 2, start: 0.6, amount: 0.6, ragged: 0.8 } });
   for (const side of [-1, 1]) {
     const edge = walk.map((q, i) => ({ x: q.x + side * half(i / (walk.length - 1)) * 0.95, y: q.y }));
     p.dryBrush(edge, { rng, pigment: mix(LAND.sandShade, EARTH.shade, 0.25), width: 5, opacity: 0.28, dryness: 0.65 });
@@ -288,12 +296,12 @@ export function* paintFootpath(p: Painter, rng: Rng): Strokes {
       const s = perspectiveScale(q.y);
       foot++;
       const x = q.x + half(t) * lane + (foot % 2 ? -1 : 1) * 4 * s;
-      if (rng.chance(0.85)) {
+      if (rng.chance(0.4)) {
         const print = blob(x, q.y, 3.4 * s, 2 * s, rng, { irregularity: 0.2, points: 10 });
-        p.wash(print, mix(LAND.sandShade, EARTH.shade, 0.3), { rng, opacity: 0.3 * rng.range(0.6, 1), layers: 3, deform: 0.1, edge: 0.4, sharpness: 0.5 });
+        p.wash(print, mix(LAND.sandShade, EARTH.shade, 0.3), { rng, opacity: 0.2 * rng.range(0.5, 1), layers: 3, deform: 0.1, edge: 0.4, sharpness: 0.5 });
         p.dryBrush([{ x: x - 2 * s, y: q.y - 1.6 * s }, { x: x + 2 * s, y: q.y - 1.8 * s }], { rng, pigment: LAND.sandLight, width: 1.2 * s, opacity: 0.6, blend: 'source-over' });
       }
-      t += (13 * s) / 330;
+      t += (rng.range(11, 17) * s) / 330;
     }
     yield;
   }
@@ -362,8 +370,6 @@ export function* paintWalls(p: Painter, rng: Rng): Strokes {
         p.stroke(seg, { rng: r, pigment: LAND.piseLit, width: 3.4, opacity: 0.75, wetness: 0.2, dryness: 0.35, taper: [0.1, 0.1], blend: 'source-over' });
         p.dryBrush(seg.map((q) => ({ x: q.x, y: q.y + 3.5 })), { rng: r, pigment: LAND.piseShade, width: 1.8, opacity: 0.35, dryness: 0.5 });
       }
-      const notch = top[Math.min(top.length - 1, k + len)]!;
-      p.dab({ x: notch.x, y: notch.y + 2.5 }, LAND.piseShade, { rng: r, variant: 'round', length: r.range(4, 7), width: r.range(3, 5), opacity: 0.45, layers: 2 });
       k += len + r.int(1, 3);
     }
     for (let k = 0; k < 5; k++) {
@@ -391,12 +397,12 @@ const TUFTS: readonly [number, number, number][] = [
  */
 export function* paintForeground(p: Painter, rng: Rng): Strokes {
   for (const b of BUNDS) {
-    const line = smoothPath(poly(b), 6);
+    const line = smoothPath(poly(b), 6).map((q, i, all) => ({ x: q.x, y: q.y + Math.sin((Math.PI * i) / (all.length - 1)) * 4 }));
     const s = (q: Pt) => perspectiveScale(q.y);
-    const body = ribbon(line, (_, i) => 7 * s(line[i]!), (_, i) => 2 * s(line[i]!));
-    yield* p.parts.wash(body, mix(LAND.soil, LAND.soilDamp, 0.4), { rng, opacity: 0.4, deform: 0.15, spread: 0.2, edge: 0.15, granulation: 0.5 });
-    p.stroke(line.map((q) => ({ x: q.x, y: q.y + 6 * s(q) })), { rng, pigment: mix(LAND.soilDamp, EARTH.shade, 0.35), width: 5, opacity: 0.35, wetness: 0.4, taper: [0.08, 0.08] });
-    p.dryBrush(line.map((q) => ({ x: q.x, y: q.y - 2 * s(q) })), { rng, pigment: LAND.piseLit, width: 4, opacity: 0.6, dryness: 0.45, blend: 'source-over' });
+    const body = ribbon(line, (_, i) => 9 * s(line[i]!), (_, i) => 1 * s(line[i]!));
+    yield* p.parts.wash(body, mix(LAND.soil, LAND.sand, 0.3), { rng, opacity: 0.32, deform: 0.3, spread: 0.3, edge: 0.06, granulation: 0.5, fade: { angle: 0, start: 0.85, amount: 0.7, ragged: 0.8 } });
+    p.dryBrush(line.map((q) => ({ x: q.x, y: q.y + 7 * s(q) })), { rng, pigment: mix(LAND.soilDamp, EARTH.shade, 0.35), width: 6, opacity: 0.22, dryness: 0.5 });
+    p.dryBrush(line.map((q) => ({ x: q.x, y: q.y - 3 * s(q) })), { rng, pigment: LAND.piseLit, width: 5, opacity: 0.55, dryness: 0.55, blend: 'source-over' });
   }
   yield;
   // the stone channel: a wet clay cut with flat stones either side
@@ -406,6 +412,9 @@ export function* paintForeground(p: Painter, rng: Rng): Strokes {
     const q = { x: CULVERT.from.x + (CULVERT.to.x - CULVERT.from.x) * k, y: CULVERT.from.y + (CULVERT.to.y - CULVERT.from.y) * k + side * 9 + (k === 0.5 ? 6 : 0) };
     yield* p.parts.stone({ x: q.x, y: q.y, w: rng.range(14, 20), h: rng.range(7, 10) }, { rng, pigment: mix('#c9ae8a', '#a79a90', 0.4), warm: 0.5, moss: 0, ink: 0.15, light: LIGHT });
   }
+  // earth fallen from the middle wall's end into the basin's near-left corner
+  yield* p.parts.wash([{ x: 486, y: 612 }, { x: 510, y: 610 }, { x: 518, y: 646 }, { x: 512, y: 666 }, { x: 480, y: 664 }, { x: 474, y: 636 }], mix(LAND.pise, LAND.soil, 0.4), { rng, opacity: 0.6, deform: 0.15, spread: 0.2, edge: 0.15, granulation: 0.5 });
+  for (const [x, y, w] of [[500, 652, 12], [488, 640, 9], [509, 628, 8]] as const) yield* p.parts.stone({ x, y, w, h: w * 0.6 }, { rng, pigment: mix(LAND.pise, '#c9ae8a', 0.5), warm: 0.6, moss: 0, ink: 0.1, light: LIGHT });
   yield* paintJar(p, rng.fork('jar'), { x: 655, y: 900 });
   for (const [x, y, w] of [[40, 1000, 64], [1160, 1004, 46], [470, 680, 22], [1000, 990, 22], [1230, 740, 18]] as const) {
     yield* p.parts.stone({ x, y, w, h: w * 0.52 }, { rng, pigment: mix('#c9ae8a', EARTH.lit, 0.3), warm: 0.6, moss: 0, ink: 0.12, light: LIGHT });
