@@ -194,3 +194,7 @@ Phase 13 (owner request 2026-11-04): a third garden, a desert oasis, with a gold
 | O8 | Acceptance and docs, release | `docs/**`, `tests/**` | last |
 
 Phase 13 art queue (after O0 and O1): one plant (P1–P12) or creature (K1–K8) per task, from the O0 brief.
+
+| # | Task | Area | Status |
+|---|---|---|---|
+| P12 | Date palm (*Phoenix dactylifera*): T4 tree, the signature; the background palms follow it | `src/plants/species/date-palm.ts` | in progress |
