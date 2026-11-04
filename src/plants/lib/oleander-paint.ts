@@ -271,8 +271,8 @@ export function paintPinwheels(p: Painter, items: readonly Pinwheel[], o: Pinwhe
   }
   const open = shapes.filter((x) => x.f.open > 0.05);
   if (!open.length) return;
-  for (const gi of [0, 1, 2]) {
-    const set = open.filter((_, i) => i % 3 === gi);
+  for (const gi of [0, 1]) {
+    const set = open.filter((_, i) => i % 2 === gi);
     if (!set.length) continue;
     const L = p.layer(padRect(bounds(set.flatMap((x) => x.s.petals.flat())), 3));
     for (const { f, s, r } of set) {

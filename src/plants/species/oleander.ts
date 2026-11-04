@@ -20,7 +20,7 @@ const DEEP = mix('#a8405f', PINK, 0.35);
 
 const BOX = { w: 200, h: 220, ax: 0.5, ay: 0.93 };
 /** stems stay this far inside the box, so their leaves and flowers clear the edges */
-const REACH = { side: 74, up: 186 };
+const REACH = { side: 72, up: 178 };
 
 interface LeafPlan {
   side: 1 | -1 | 0;
@@ -97,7 +97,7 @@ function leafPlan(rng: Rng, side: 1 | -1 | 0, size: number, turn: number, green:
 
 /** Whorls of three along a stem: one leaf to each side, one toward us, more upright near the tip. */
 function nodesOf(rng: Rng, length: number, tone: Pigment, from: number): NodePlan[] {
-  const count = Math.max(2, Math.round((length * (0.96 - from)) / rng.range(12, 15)));
+  const count = Math.max(2, Math.round((length * (0.96 - from)) / rng.range(13, 16)));
   const nodes: NodePlan[] = [];
   for (let j = 0; j < count; j++) {
     const t = lerp(from, 0.96, j / (count - 1)) + rng.range(-0.015, 0.015);
