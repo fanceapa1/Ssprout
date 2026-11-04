@@ -1,15 +1,18 @@
 /**
  * Date palm painting helpers (docs/devlog/106-date-palm.md): the arching rachis of a pinnate
  * frond, its stiff V-set leaflets, the trunk's diamond lattice of old leaf bases and the hanging
- * date clusters. Pure geometry plus one wet layer per pass.
+ * date clusters. Shared by the species and the oasis's painted palms, so it lives with the scene
+ * painters (a change bumps the paint version, ADR 0251). One wet layer per pass.
  */
-import { createRng, type Rng } from '../../core/rng';
-import type { Painter } from '../../paint';
-import { bounds, padRect, ribbon, type Pt } from '../../paint/geometry';
-import type { Pigment } from '../../paint/pigments';
-import type { DryOptions } from '../../paint/wet';
-import { stableLayer } from './tree-paint';
-import { clamp01 } from './tree-structure';
+import { createRng, type Rng } from '../core/rng';
+import type { Painter } from '../paint';
+import { bounds, padRect, ribbon, type Pt } from '../paint/geometry';
+import type { Pigment } from '../paint/pigments';
+import { WetLayer, type DryOptions } from '../paint/wet';
+import type { Rect } from '../render/viewport';
+
+const clamp01 = (x: number) => (x < 0 ? 0 : x > 1 ? 1 : x);
+const stableLayer = (p: Painter, area: Rect, rng: Rng, res?: number): WetLayer => new WetLayer(p.ctx, area, { ...p.env, rng }, res);
 
 /** A frond's rachis at one moment: where it leaves the crown, its first heading and how it arches. */
 export interface RachisShape {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createRng } from '../../core/rng';
-import { rachisPath } from '../lib/date-palm-paint';
+import { rachisPath } from '../../scene/palm-paint';
 import { treeSuite } from '../lib/suites';
 import datePalm, { datePalmArrivals, planDatePalm } from './date-palm';
 

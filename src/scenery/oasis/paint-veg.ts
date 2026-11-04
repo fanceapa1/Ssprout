@@ -6,7 +6,7 @@
  */
 import { createRng, type Rng } from '../../core/rng';
 import { PAPER_WHITE, WetLayer, blob, rgba, bounds, lighten, mix, padRect, ribbon, shade, type DryOptions, type FoliagePigments, type Painter, type Pigment } from '../../paint';
-import { along, paintDates, paintLeafBases, pinnaOutline, rachisPath, type DateMark, type LeafBase, type RachisMark } from '../../plants/lib/date-palm-paint';
+import { along, paintDates, paintLeafBases, pinnaOutline, rachisPath, type DateMark, type LeafBase, type RachisMark } from '../../scene/palm-paint';
 import type { Pt, Rect } from '../../render/viewport';
 import type { Strokes } from '../../scene/paint-land';
 import { BIG_PALMS, GROVE_FROM } from './layout';

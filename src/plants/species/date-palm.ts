@@ -15,7 +15,7 @@ import {
   type RachisMark,
   type RachisShape,
   type SoftRibbon,
-} from '../lib/date-palm-paint';
+} from '../../scene/palm-paint';
 import { inUnits, paintGroundShadow, paintSeed, softRes } from '../lib/tree-paint';
 import { clamp01, partialPath, ramp, stagger, type TreeView } from '../lib/tree-structure';
 import type { SpeciesDef } from '../types';
