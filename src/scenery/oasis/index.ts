@@ -12,6 +12,7 @@ import { OASIS_FLORA } from './flora';
 import { oasisScene } from './geometry';
 import { FOCUS, FOOTPATH, OASIS_AMBIENCE, OASIS_HABITAT_WORDS } from './layout';
 import { OASIS_LIGHT_ART } from './light';
+import { createOasisMotion } from './motion';
 import { paintDunes, paintFootpath, paintForeground, paintGround, paintPlots, paintRanges, paintTerraces, paintWalls } from './paint-land';
 import { paintBluff, paintKsar } from './paint-rocks';
 import { paintBasin, paintOued, paintSeguia } from './paint-water';
@@ -105,6 +106,8 @@ export const OASIS: Scenery = {
   flora: OASIS_FLORA,
   habitatWords: OASIS_HABITAT_WORDS,
   fauna: OASIS_WILDLIFE,
+  // the falls, the gate's spill, the inlet's rings and the oued in motion (O6, ADR 0282)
+  motion: () => createOasisMotion({ seed: OASIS_ART.seed }),
   // the pond garden's bed (still water, wind, birds) until O7 makes the oasis's own
   sound: 'pond',
 };
