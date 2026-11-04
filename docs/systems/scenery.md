@@ -496,7 +496,7 @@ Composition map: studio `oasis-map/map`. Rock: studio `oasis-rock`.
 | Habitat ("words") | Count | Where | Sizes |
 |---|---|---|---|
 | water ("in the shallows") | 7 | `basin-1…5` (with `basin-5` in the overflow corner by the sluice, for the cattail), `shallows-1/2` in the oued | 2 large, 3 medium, 2 small |
-| shore ("by the water") | 13 | `rim-1…5` before the basin's near face and by the sluice, `seguia-1…3`, `oued-1…4`, `bar-1` | 6 medium, 7 small |
+| shore ("by the water") | 13 | `rim-1…5` before the basin's near face and by the sluice, `seguia-1…3`, `oued-1…4` (`oued-1` and `oued-3` large, for the oleander on the oued bank), `bar-1` | 2 large, 4 medium, 7 small |
 | meadow ("in the plots") | 9 | `plot-1…7` on the basin terrace, `plot-8/9` on the middle terrace | 3 large, 3 medium, 3 small |
 | path ("on the sand") | 6 | `walk-1…6` either side of the footpath | 6 small |
 | back ("under the palms") | 5 | `high-1` (tree, the left edge under the bluff), `high-2`, `grove-1` behind the grove's wall, `palm-1` (tree, among the big palms), `palm-2` | 2 trees, 2 medium, 1 small |
