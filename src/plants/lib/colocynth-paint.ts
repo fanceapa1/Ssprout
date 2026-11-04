@@ -219,7 +219,7 @@ export function gourd(p: Painter, rng: Rng, g: GourdNow, c: GourdColours): void 
   }
   // the flank away from the light, stepped soft, then the light reserved on the near shoulder
   const shade = mix(mix(c.goldDeep, c.green, (1 - ripe) * 0.6), PIGMENTS.shadow, 0.35);
-  for (let k = 0; k < 3; k++) L.fill(circle({ x: g.c.x + g.r * (0.5 + k * 0.18), y: g.c.y + g.r * (0.45 + k * 0.16) }, g.r * 0.95), shade, 0.16);
+  for (let k = 0; k < 3; k++) L.fill(circle({ x: g.c.x + g.r * (0.5 + k * 0.18), y: g.c.y + g.r * (0.45 + k * 0.16) }, g.r * 0.95), shade, 0.2);
   L.fill(circle({ x: g.c.x - g.r * 0.36, y: g.c.y - g.r * 0.4 }, g.r * 0.3, g.r * 0.22, 14), mix(PIGMENTS.petalWhite, c.pale, 0.25), 0.5);
   L.ctx.restore();
   L.dry({ opacity: 0.96, edge: 0.45, edgeWidth: 0.4, sharpness: 0.82, centreLift: 0.08, granulation: 0.16, flow: 0.4, flowScale: 2.5, darken: 0.32, blend: 'source-over' });
@@ -255,11 +255,11 @@ export function flowers(p: Painter, rng: Rng, fs: readonly FlowerNow[], c: { pet
   L.dry({ opacity: 0.93, edge: 0.5, edgeWidth: 0.25, sharpness: 0.72, centreLift: 0.2, granulation: 0.05, flow: 0.3, flowScale: 2, darken: 0.3, blend: 'source-over' });
 }
 
-/** The sand it lies on: a faint warm bed with a cool shade under the mat; a dimple and seed first. */
+/** The sand it lies in: a small dimple of disturbed sand, the seed in it, then the root crown. */
 export function sandBed(p: Painter, rng: Rng, o: { rx: number; k: number; seed: number; crown: number; sand: Pigment; crownTone: Pigment }): void {
   p.wash({ cx: 0, cy: 0.5, rx: o.rx * lerp(0.4, 1, o.k), ry: o.rx * SIN_E * 0.55 * lerp(0.4, 1, o.k) }, o.sand, {
     rng: rng.fork('sand'),
-    opacity: 0.12,
+    opacity: 0.18,
     edge: 0.2,
     centreLift: 0.35,
     granulation: 0.55,

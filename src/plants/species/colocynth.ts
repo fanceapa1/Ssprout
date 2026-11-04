@@ -18,7 +18,7 @@ const LEAF_DEEP = '#66744a';
 const STEM = '#9fa478';
 const TENDRIL = '#a3ad6e';
 const PETAL = '#e8c75a';
-const COLOURS: GourdColours = { green: '#7f9a52', pale: '#e3d38a', gold: '#e6c766', goldDeep: '#c49a3e' };
+const COLOURS: GourdColours = { green: '#7f9a52', pale: '#e3d38a', gold: '#e9c150', goldDeep: '#c49a3e' };
 const SAND = mix(PIGMENTS.stoneWarm, '#e3cf9c', 0.55);
 // the design box round the crown (anchor 0.5, 0.62): x ±35, y −43.4 … 26.6
 const BOX = { x: 33, top: -38, bottom: 24 };
@@ -172,7 +172,7 @@ export function planColocynth(rng: Rng): ColocynthPlan {
     rn.nodes.forEach((nd, ni) => {
       if (nd.t < 0.3 || nd.t > 0.85) return;
       const q = pointAt(pts, nd.t);
-      const r = rng.range(3.7, 4.5);
+      const r = rng.range(3.9, 4.7);
       // the side whose normal faces us
       const s = Math.cos(q.angle) >= 0 ? 1 : -1;
       const at = { x: q.x - Math.sin(q.angle) * s * (r + 0.6), y: q.y + Math.cos(q.angle) * s * (r + 0.6) };
@@ -335,8 +335,8 @@ const colocynth: SpeciesDef = {
     const end = plantFrame(p, this, opts, SMALL_DESIGN);
     try {
       const r = rng.fork('paint');
-      sandBed(p, r.fork('bed'), { rx: 22, k: ease(g, 0.02, 0.5), seed: 1 - ease(g, 0.04, 0.14), crown: ease(g, 0.06, 0.4), sand: SAND, crownTone: mix(PIGMENTS.wood, PIGMENTS.sumi, 0.2) });
-      groundShadow(p, r, { rx: 22, ry: 6, k: ease(g, 0.15, 0.6), opacity: 0.08, pigment: PIGMENTS.shadow });
+      sandBed(p, r.fork('bed'), { rx: 6, k: ease(g, 0.02, 0.5), seed: 1 - ease(g, 0.04, 0.14), crown: ease(g, 0.06, 0.4), sand: SAND, crownTone: mix(PIGMENTS.wood, PIGMENTS.sumi, 0.2) });
+      groundShadow(p, r, { rx: 22, ry: 6, k: ease(g, 0.15, 0.6), opacity: 0.05, pigment: PIGMENTS.shadow });
       const order = plan.runners.map((rn, i) => [rn, i] as const).sort((a, b) => a[0].depth - b[0].depth);
       for (const [rn, i] of order) drawRunner(p, r.fork(`runner-${i}`), rn, i, g);
       const fls = drawGourds(p, r.fork('gourds'), plan, g);
