@@ -249,7 +249,7 @@ export function* paintPlots(p: Painter, rng: Rng): Strokes {
     // furrows run away from the viewer: lines toward the vanishing point, spaced by perspective
     const seedlings = i !== 1;
     for (let x = x0 - 120, n = 0; x < x1 + 120; x += 22, n++) {
-      if (n % 5 === 4) {
+      if (n > 0) {
         p.ctx.restore();
         yield;
         clip();
@@ -321,7 +321,7 @@ function copingLine(w: Wall, ext: readonly [number, number]): Pt[] {
   const z = e[e.length - 2]!;
   const pre = { x: a.x - ext[0], y: a.y - ((b.y - a.y) / (b.x - a.x)) * ext[0] };
   const post = { x: y.x + ext[1], y: y.y + ((y.y - z.y) / (y.x - z.x)) * ext[1] };
-  return resample(smoothPath([pre, ...e, post], 8), 6);
+  return resample(smoothPath([...(ext[0] > 0 ? [pre] : []), ...e, ...(ext[1] > 0 ? [post] : [])], 8), 6);
 }
 
 /** The pisé walls' faces, for daylight (O5): each a closed outline, coping first. */

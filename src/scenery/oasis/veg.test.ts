@@ -54,7 +54,7 @@ describe('oasis vegetation painting (O4)', () => {
 
   // quantised hashes from a fresh process's first runs (paint caches warm up, so a later run differs)
   it('is deterministic: the same marks every time (recording hash pins)', () => {
-    expect({ overview: runs.overview!.hash, detail: runs.detail!.hash }).toEqual({ overview: 'PIN', detail: 'PIN' });
+    expect({ overview: runs.overview!.hash, detail: runs.detail!.hash }).toEqual({ overview: '1b004c12', detail: 'a882bfe7' });
     expect(runs.again!.chunks.map((c) => c.name)).toEqual(runs.overview!.chunks.map((c) => c.name));
   });
 
