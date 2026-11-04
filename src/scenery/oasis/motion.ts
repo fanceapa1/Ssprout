@@ -175,8 +175,8 @@ function tableOf(rng: Rng): Float32Array {
 const pick = (table: Float32Array, n: number, k = 0) => table[(((n * 3 + k) % TABLE) + TABLE) % TABLE]!;
 const smooth = (x: number) => (x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 2 * x));
 
-/** A greyed turquoise, the falls' painted glaze a shade deeper: the darker surges between the lights. */
-const SURGE = mix(mix(WATER.turquoise, WATER.light, 0.4), '#8a8e88', 0.2);
+/** The falls' turquoise a shade deeper and a little greyed: the darker surges between the lights. */
+const SURGE = mix(mix(WATER.turquoise, WATER.teal, 0.3), '#8a8e88', 0.1);
 const RIFFLE = mix(WATER.teal, WATER.milkMid, 0.35);
 
 export function createOasisMotion(opts: OasisMotionOptions = {}): OasisMotion {
@@ -201,7 +201,7 @@ export function createOasisMotion(opts: OasisMotionOptions = {}): OasisMotion {
       const cycle = f.s + rng.range(0.5, 0.9);
       const phase = rng.range(0, cycle);
       for (let j = 0; j < 2; j++) {
-        fallers.push({ fall: i, kind, u: u + rng.range(-0.08, 0.08), w, cycle, phase: phase + (cycle * j) / 2 + rng.range(-0.1, 0.1), alpha: kind === 'shade' ? rng.range(0.4, 0.6) : rng.range(0.55, 0.8), table: tableOf(rng) });
+        fallers.push({ fall: i, kind, u: u + rng.range(-0.08, 0.08), w, cycle, phase: phase + (cycle * j) / 2 + rng.range(-0.1, 0.1), alpha: kind === 'shade' ? rng.range(0.6, 0.85) : rng.range(0.6, 0.85), table: tableOf(rng) });
       }
     }
     for (let j = 0; j < 3; j++) {
@@ -215,11 +215,11 @@ export function createOasisMotion(opts: OasisMotionOptions = {}): OasisMotion {
   for (const [i, f] of FALLS.entries()) {
     for (let j = 0; j < 3; j++) {
       const cycle = rng.range(1.3, 2);
-      puffs.push({ fall: i, p: { x: f.x + (j - 1) * 6 + rng.range(-1.5, 1.5), y: f.foot + 1 + rng.range(-0.5, 1), size: rng.range(9, 13) - Math.abs(j - 1) * 2, cycle, phase: rng.range(0, cycle), alpha: rng.range(0.45, 0.6), table: tableOf(rng) } });
+      puffs.push({ fall: i, p: { x: f.x + (j - 1) * 6 + rng.range(-1.5, 1.5), y: f.foot + 1 + rng.range(-0.5, 1), size: rng.range(9, 13) - Math.abs(j - 1) * 2, cycle, phase: rng.range(0, cycle), alpha: rng.range(0.35, 0.5), table: tableOf(rng) } });
     }
     for (const side of [-1, 1]) {
       const cycle = rng.range(2.2, 3.2);
-      pools.push({ fall: i, p: { x: f.x + side * 12, y: f.foot + 3.5, size: rng.range(14, 18), cycle, phase: rng.range(0, cycle), alpha: rng.range(0.3, 0.42), table: tableOf(rng) } });
+      pools.push({ fall: i, p: { x: f.x + side * 11, y: f.foot + 3.5, size: rng.range(13, 16), cycle, phase: rng.range(0, cycle), alpha: rng.range(0.5, 0.7), table: tableOf(rng) } });
     }
   }
   // the spill over the gate board: glassy lights slipping outward over it, along its length
@@ -239,7 +239,7 @@ export function createOasisMotion(opts: OasisMotionOptions = {}): OasisMotion {
     const kind = j % 3 === 2 ? 'riffle' : 'glint';
     const life = kind === 'glint' ? rng.range(2.2, 3.6) : rng.range(3, 4.5);
     const cycle = life + rng.range(0.3, 1.5);
-    drifters.push({ kind, cycle, phase: rng.range(0, cycle), life, alpha: kind === 'glint' ? rng.range(0.55, 0.85) : rng.range(0.4, 0.6), table: tableOf(rng) });
+    drifters.push({ kind, cycle, phase: rng.range(0, cycle), life, alpha: kind === 'glint' ? rng.range(0.7, 0.95) : rng.range(0.55, 0.8), table: tableOf(rng) });
   }
   const standing: Standing[] = [];
   for (const head of BAR_HEADS) {
@@ -303,14 +303,17 @@ export function createOasisMotion(opts: OasisMotionOptions = {}): OasisMotion {
     for (let i = 0; i < 2; i++) {
       const r = rng.fork(`shade-${i}`);
       const { s, p } = sprite(6, 30, `shade-${i}`, 8);
-      yield* p.parts.wash(spindle(r, 6, 30, r.range(0.6, 0.7)), SURGE, { rng: r, opacity: 0.35, deform: 0.1, spread: 0.15, layers: 5, edge: 0.3, sharpness: 0.3, fade: { angle: -Math.PI / 2, start: 0.3, amount: 1, ragged: 0.7 } });
+      yield* p.parts.wash(spindle(r, 6, 30, r.range(0.6, 0.7)), SURGE, { rng: r, opacity: 0.55, deform: 0.12, spread: 0.2, layers: 6, edge: 0.08, sharpness: 0.15, fade: { angle: -Math.PI / 2, start: 0.3, amount: 1, ragged: 0.7 } });
       fallSprites.shade.push(seal(s));
       yield;
     }
     for (let i = 0; i < 2; i++) {
       const r = rng.fork(`thread-${i}`);
       const { s, p } = sprite(2, 30, `thread-${i}`, 10);
-      yield* p.parts.lift(spindle(r, 2, 30, 0.8), { rng: r, amount: 0.9, deform: 0.04, spread: 0.05, layers: 4, sharpness: 0.5, fade: { angle: -Math.PI / 2, start: 0.45, amount: 1 } });
+      // a bright thread over the shades, and a teal one over the pale sheet
+      const fade = { angle: -Math.PI / 2, start: 0.45, amount: 1 };
+      if (i === 0) yield* p.parts.lift(spindle(r, 2, 30, 0.8), { rng: r, amount: 0.95, deform: 0.04, spread: 0.05, layers: 4, sharpness: 0.5, fade });
+      else yield* p.parts.wash(spindle(r, 1.4, 30, 0.8), WATER.teal, { rng: r, opacity: 0.6, deform: 0.04, spread: 0.05, layers: 4, edge: 0.2, sharpness: 0.5, fade });
       fallSprites.thread.push(seal(s));
       yield;
     }
@@ -351,7 +354,10 @@ export function createOasisMotion(opts: OasisMotionOptions = {}): OasisMotion {
     for (let i = 0; i < 3; i++) {
       const r = rng.fork(`glint-${i}`);
       const { s, p } = sprite(18, 5, `glint-${i}`, 6);
-      yield* p.parts.lift(dash(9, 2.5, r.range(13, 17), r.range(1.4, 2), r.range(-0.4, 0.4)), { rng: r, amount: r.range(0.8, 0.95), deform: 0.15, spread: 0.25, layers: 4, sharpness: 0.3, edge: 0 });
+      // a sky glint reads on the milky water only against the small trough under it
+      const bow = r.range(-0.4, 0.4);
+      yield* p.parts.glaze(dash(9, 3.4, r.range(12, 15), 0.9, bow), RIFFLE, { rng: r, opacity: 0.45, deform: 0.12, spread: 0.2, layers: 3, edge: 0.2, sharpness: 0.3 });
+      yield* p.parts.lift(dash(9, 2.1, r.range(13, 17), r.range(1.4, 2), bow), { rng: r, amount: 0.95, deform: 0.15, spread: 0.25, layers: 4, sharpness: 0.3, edge: 0 });
       glintSprites.push(seal(s));
       yield;
     }
@@ -359,7 +365,7 @@ export function createOasisMotion(opts: OasisMotionOptions = {}): OasisMotion {
       const r = rng.fork(`riffle-${i}`);
       const { s, p } = sprite(24, 6, `riffle-${i}`, 6);
       const bow = r.range(0.4, 0.9);
-      yield* p.parts.glaze(dash(12, 2.6, r.range(16, 22), 1.1, bow), RIFFLE, { rng: r, opacity: 0.55, deform: 0.1, spread: 0.15, layers: 4, edge: 0.3, sharpness: 0.4 });
+      yield* p.parts.glaze(dash(12, 2.6, r.range(16, 22), 1.2, bow), RIFFLE, { rng: r, opacity: 0.75, deform: 0.1, spread: 0.15, layers: 4, edge: 0.3, sharpness: 0.4 });
       yield* p.parts.lift(dash(12, 4.2, r.range(14, 20), 1.2, bow), { rng: r, amount: 0.75, deform: 0.1, spread: 0.2, layers: 3, sharpness: 0.3, edge: 0 });
       riffleSprites.push(seal(s));
       yield;
@@ -370,7 +376,8 @@ export function createOasisMotion(opts: OasisMotionOptions = {}): OasisMotion {
       const { s, p } = sprite(16, 10, `part-${i}`, 6);
       const pts: Pt[] = [];
       for (let k = 0; k <= 8; k++) pts.push({ x: 1 + k * 1.7, y: 2 + (k / 8) ** 1.6 * 5 });
-      yield* p.parts.lift([...pts, ...pts.slice().reverse().map((q) => ({ x: q.x, y: q.y + 1.6 }))], { rng: r, amount: 0.8, deform: 0.12, spread: 0.2, layers: 4, sharpness: 0.3, edge: 0 });
+      yield* p.parts.glaze([...pts, ...pts.slice().reverse().map((q) => ({ x: q.x, y: q.y + 1.2 }))].map((q) => ({ x: q.x, y: q.y + 1.4 })), RIFFLE, { rng: r, opacity: 0.55, deform: 0.12, spread: 0.2, layers: 3, edge: 0.2 });
+      yield* p.parts.lift([...pts, ...pts.slice().reverse().map((q) => ({ x: q.x, y: q.y + 1.6 }))], { rng: r, amount: 0.9, deform: 0.12, spread: 0.2, layers: 4, sharpness: 0.3, edge: 0 });
       partSprites.push(seal(s));
       yield;
     }
@@ -464,7 +471,7 @@ export function createOasisMotion(opts: OasisMotionOptions = {}): OasisMotion {
       n++;
       const y = p.y - q.u * 2.5;
       marks?.push({ element: 'splash', index: i, x: p.x + q.jx, y });
-      if (ctx) blit(ctx, puffSprites[Math.floor(pick(p.table, q.c, 1) * puffSprites.length)]!, p.x + q.jx, y, q.size * 1.8, q.alpha * outer);
+      if (ctx) blit(ctx, puffSprites[Math.floor(pick(p.table, q.c, 1) * puffSprites.length)]!, p.x + q.jx, y, q.size * 1.35, q.alpha * outer);
     }
     return n;
   };
@@ -533,7 +540,7 @@ export function createOasisMotion(opts: OasisMotionOptions = {}): OasisMotion {
       const speed = (d.kind === 'glint' ? 15 : 10) * near * (inBraid(s0, u) ? 1.25 : 1);
       const s = s0 + (speed * age) / OUED_LENGTH;
       const q = ouedAt(s, u);
-      if (s > 1.02 || inBar(q)) continue;
+      if (s > 1 || inBar(q) || !pointInPolygon(q, WATER_SHAPES.oued)) continue;
       const v = age / d.life;
       const flicker = d.kind === 'glint' ? 0.6 + 0.4 * Math.sin(age * 5.3 + d.phase * 7) : 1;
       const alpha = d.alpha * Math.sin(Math.PI * v) ** 1.5 * flicker * Math.min(1, live);
