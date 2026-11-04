@@ -22,6 +22,8 @@ const FRONT = -0.15;
 export interface PomegranatePad extends Pad {
   /** -1 the shaded underside of its clump … 1 its lit top */
   lit: number;
+  /** 0 the heart of the dome … 1 its rim and beyond */
+  rim: number;
 }
 
 export interface PomegranateFlower {
@@ -168,7 +170,7 @@ export function planPomegranate(rng: Rng): PomegranatePlan {
   const add = (x: number, y: number, rad: number, delay: number, branch: number) => {
     for (const q of pads) if (Math.hypot(q.x - x, (q.y - y) * 1.2) < (q.r + rad) * 0.42) return;
     if (holes.some((h) => Math.hypot(h.x - x, h.y - y) < h.r + 2)) return;
-    pads.push({ x, y, r: rad, delay, id: pads.length, depth: pr.range(-1, 1), branch, lit: 0 });
+    pads.push({ x, y, r: rad, delay, id: pads.length, depth: pr.range(-1, 1), branch, lit: 0, rim: Math.min(1, dome(x, y)) });
   };
   let row = 0;
   for (let y = top + 8; y < cy + ry * 0.95; y += 18, row++)
@@ -340,7 +342,7 @@ const pomegranate: SpeciesDef = {
       // the crown's body: a soft wash over the twigs, then the clumps' shaded undersides
       const live = plan.pads.map((pad) => ({ pad, k: arrive.pad(pad), at: viewPt(view, pad) }));
       const holes = plan.holes.map((h) => ({ ...viewPt(view, h), r: h.r * view.scale * ramp(g, FOLIAGE[0], FOLIAGE[1]) }));
-      const body: Blot[] = live.map(({ pad, k, at }) => ({ x: at.x, y: at.y, r: pad.r * view.scale * k * 0.92, alpha: Math.min(1, k * 2.5) * 0.6, pigment: mix(LEAF.light, LEAF.mid, 0.45 + 0.5 * (1 - pad.lit) / 2), id: pad.id }));
+      const body: Blot[] = live.map(({ pad, k, at }) => ({ x: at.x, y: at.y, r: pad.r * view.scale * k * 0.92, alpha: Math.min(1, k * 2.5) * (0.62 - 0.32 * ramp(pad.rim, 0.6, 1)), pigment: mix(LEAF.light, LEAF.mid, 0.45 + 0.5 * (1 - pad.lit) / 2), id: pad.id }));
       paintBlots(p, body, pr.fork('body'), holes, { opacity: 0.9, edge: 0.22, edgeWidth: 1.2, sharpness: 0.55, centreLift: 0.2, granulation: 0.15, flow: 0.45, flowScale: 12, blend: 'source-over' }, softRes(p), 0.8, 0.95);
       const shadeBlots: Blot[] = live
         .filter(({ pad }) => pad.lit < 0.3)
