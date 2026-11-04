@@ -64,21 +64,21 @@ function softOutline(pts: readonly Pt[], rng: Rng, amp = 4): Pt[] {
 /** The far flat-topped ranges: lilac and rose, low contrast, lost into the haze at their foot. */
 export function* paintRanges(p: Painter, rng: Rng): Strokes {
   const range = smoothPath(poly(FAR_RANGE), 10);
-  yield* p.parts.wetInWet(belowLine(range, 430), lighten(LAND.lilac, 0.06), mix(LAND.lilac, LAND.rose, 0.45), { rng, angle: Math.PI / 2, split: 0.35, softness: 0.7, opacity: 0.42, deform: 0.03, spread: 0.04, edge: 0.22, edgeWidth: 2, sharpness: 0.55, granulation: 0.2, flow: 0.5, flowScale: 140, fade: { angle: Math.PI / 2, start: 0.3, amount: 0.9, ragged: 0.5 } });
+  yield* p.parts.wetInWet(belowLine(range, 430), mix(LAND.lilac, LAND.lilacDeep, 0.35), mix(LAND.lilacDeep, LAND.rose, 0.5), { rng, angle: Math.PI / 2, split: 0.35, softness: 0.7, opacity: 0.64, deform: 0.03, spread: 0.04, edge: 0.22, edgeWidth: 2, sharpness: 0.55, granulation: 0.2, flow: 0.5, flowScale: 140, fade: { angle: Math.PI / 2, start: 0.45, amount: 0.6, ragged: 0.5 } });
   // the mesas' flat caps catch the light; their gullies a shade deeper
   for (let x = 800; x < 1620; x += rng.range(26, 50)) {
     const y = yAt(range, x);
-    p.dryBrush([{ x, y: y + 3 }, { x: x + rng.range(-3, 3), y: y + rng.range(12, 22) }], { rng, pigment: LAND.lilacDeep, width: rng.range(4, 8), opacity: 0.16, dryness: 0.6 });
+    p.dryBrush([{ x, y: y + 3 }, { x: x + rng.range(-3, 3), y: y + rng.range(12, 22) }], { rng, pigment: LAND.lilacDeep, width: rng.range(4, 8), opacity: 0.22, dryness: 0.6 });
   }
   yield;
   const near = range.map((q) => ({ x: q.x, y: q.y + 18 + Math.sin(q.x / 90) * 5 }));
-  yield* p.parts.glaze(belowLine(near, 430), mix(LAND.lilacDeep, LAND.rose, 0.3), { rng, opacity: 0.22, deform: 0.05, spread: 0.08, edge: 0.15, fade: { angle: Math.PI / 2, start: 0.2, amount: 1, ragged: 0.5 } });
+  yield* p.parts.glaze(belowLine(near, 430), mix(LAND.lilacDeep, LAND.rose, 0.3), { rng, opacity: 0.3, deform: 0.05, spread: 0.08, edge: 0.15, fade: { angle: Math.PI / 2, start: 0.3, amount: 0.8, ragged: 0.5 } });
 }
 
 /** The golden dunes behind the grove: soft crests, their lee (west) flanks in rose shade, faint ripples. */
 export function* paintDunes(p: Painter, rng: Rng): Strokes {
   const crest = smoothPath(poly(DUNE_CRESTS), 8);
-  yield* p.parts.wetInWet(belowLine(crest, DUNE_BASE), lighten(LAND.sand, 0.1), LAND.sand, { rng, angle: Math.PI / 2, split: 0.4, softness: 0.7, opacity: 0.6, deform: 0.04, spread: 0.05, edge: 0.2, edgeWidth: 2, sharpness: 0.6, granulation: 0.3, granules: 0.1, flow: 0.4, flowScale: 120 });
+  yield* p.parts.wetInWet(belowLine(crest, DUNE_BASE), LAND.sand, mix(LAND.sand, LAND.sandShade, 0.3), { rng, angle: Math.PI / 2, split: 0.4, softness: 0.7, opacity: 0.6, deform: 0.04, spread: 0.05, edge: 0.2, edgeWidth: 2, sharpness: 0.6, granulation: 0.3, granules: 0.1, flow: 0.4, flowScale: 120 });
   for (let i = 1; i < DUNE_CRESTS.length; i++) {
     const c = DUNE_CRESTS[i]!;
     const w = (c.x - DUNE_CRESTS[i - 1]!.x) * 0.65;
