@@ -9,11 +9,11 @@ wildlife progress belong to a scenery; the timeline, the weather and the dayligh
 ## Files
 | File | What |
 |---|---|
-| `ids.ts` | re-exports `SCENERY_IDS` (`japanese-garden`, `waterfall`), `SceneryId`, `DEFAULT_SCENERY`, `isSceneryId` from `src/core/sceneries.ts`, where core keys plants, sessions and slots by them (ADR 0240; docs/systems/core.md › Gardens) |
+| `ids.ts` | re-exports `SCENERY_IDS` (`japanese-garden`, `waterfall`, `oasis`), `SceneryId`, `DEFAULT_SCENERY`, `isSceneryId` from `src/core/sceneries.ts`, where core keys plants, sessions and slots by them (ADR 0240; docs/systems/core.md › Gardens) |
 | `types.ts` | the `Scenery` contract and its parts: `ScenerySky`, `SceneryAmbience`, `SceneryView`, `SceneryMotion` (and `SceneryFauna` from `src/fauna/habitat.ts`) |
 | `fauna.ts` | `faunaTable(id)`: every scenery's unlock table without loading its painting (the quiet line's arrival lines) |
 | `japanese-garden/fauna.ts` | `JAPANESE_FAUNA`: the garden's unlock table (SPEC §4, ADR 0248) |
-| `registry.ts` | `getScenery(id)` (the default for an id not registered yet), `hasScenery(id)`, `sceneries(flags?)` (available ones, in `order`: both, without any flag) |
+| `registry.ts` | `getScenery(id)` (the default for an id not registered yet), `hasScenery(id)`, `sceneries(flags?)` (available ones, in `order`: the garden and the waterfall without any flag, the oasis only with `?dev&scenery=oasis`) |
 | `host.ts` | `createSceneryHost({ store, renderer, getScenery })`: follows `state.scenery` and calls `renderer.setScenery` (see Switching) |
 | `host.test.ts` | the host follows the store; a session from another garden brings its garden into view first |
 | `japanese-garden/fauna.test.ts` | the garden's table is SPEC §4's plus the silent leaf |
@@ -56,6 +56,14 @@ wildlife progress belong to a scenery; the timeline, the weather and the dayligh
 
 The Japanese garden's painters stay in `src/scene/` (docs/systems/scene.md): its geometry
 (`gardenScene`), its painting (`GARDEN_ART`, `gardenSteps`) and its sky (`GARDEN_SKY`).
+| `oasis/index.ts` | `OASIS` ("Ksar oasis", behind `?dev&scenery=oasis`: `oasisAvailable`), `OASIS_ELEMENTS` (the elements and the draft steps each runs: the seams O2–O4 swap), `oasisSteps`, `OASIS_ART` (seed 13), `OASIS_VIEW` |
+| `oasis/layout.ts` | draft A's shapes re-exported, `SKYLINE`/`skylineAt`/`openSky`, `LIFT` and `terraceScale` (ADR 0300), `copingAt`, `FOOTPATH`, `OASIS_SKY_LAYOUT` (both low suns on the right), `FOCUS`, `OASIS_AMBIENCE`, `OASIS_HABITAT_WORDS` |
+| `oasis/geometry.ts` | `BASIN_WATER` (the pond), `BASIN_STONE`, `WATERLINE`, `SEGUIA`, `SLUICE_WATER`, `OUED_WATER`, `BAR`, `oasisScene` |
+| `oasis/slots.ts` | `OASIS_SLOTS`: 47 slots, terrace lift in scale; `SLOT_TERRACE` |
+| `oasis/flora.ts`, `oasis/fauna.ts` | `OASIS_FLORA` (offers nothing yet); `OASIS_FAUNA` (the creatures shared by biology), `OASIS_WILDLIFE` |
+| `oasis/sky.ts`, `oasis/light.ts` | placeholders until O5: one golden wash per phase cut to the skyline, a plain basin sky; a shade at the bluff's foot and warm light on the ksar |
+| `oasis/map.studio.ts` | studio `oasis-map` (141): the composition map over the painting, and the painting under the midday plate |
+| `oasis/oasis.test.ts` | see Tests |
 
 ## The contract
 ```ts
@@ -441,7 +449,56 @@ Studio: `waterfall-falls-motion/falls-sheet`, `/falls-foot`, `/falls-sprites`.
 - S5b: the Gardens thumbnails are camera stills, not painted from each scenery's cached overview.
 - A cold first visit paints for several seconds on a loaded laptop (Switch times).
 
+## Oasis (phase 13, ADR 0300)
+A tended palm grove in the Draa valley, from draft A ("Ksar & palmeraie", devlog 102): the red
+bluff with its ksar on the left, terraces stepping down to a stone basin fed by a seguia, big
+palms on the right and the oued bending past the viewer's right foot. O1 (devlog 105) made it a
+scenery behind `?dev&scenery=oasis`. It still paints with the draft's steps and has a placeholder
+sky and light. The painters O2–O4 replace `OASIS_ELEMENTS`' draft steps in `index.ts`, O5 replaces
+`sky.ts` and `light.ts`, O6 adds `motion`, and O7 adds its own `sound` (it borrows `pond` for now).
+Composition map: studio `oasis-map/map`.
+
+- **Water**: the basin's water inside its coping is the still pond (`BASIN_WATER`, the reflections'
+  waterline at its far edge, y 488). The seguia's three runs, the sluice and the oued are
+  `streams`. The sand bar inside the oued is land. There are no boulders or stepping stones yet.
+- **Terraces** (ADR 0300): ground and copings on a raised terrace take `perspectiveScale(y + lift)`.
+  The lifts are high 70, middle 36 and grove 24, the wall drops in front of each.
+- **Sun** (ADR 0300): both low suns stand in the notch between the bluff's shoulder and the grove,
+  as the painting is lit from the right. Sunset is at x 872 (behind the shoulder under the east
+  tower) and sunrise at x 980, both over horizon y 340.
+- **View**: the focus is (800, 640). The phone crop holds the basin, the two east towers and both
+  suns. `pathOut` is the `FOOTPATH` from the bottom edge to the basin's near rim. O4 paints it.
+- **Flora**: `{ realm: 'n-africa-arabia', biomes: ['desert', 'wetland'], climate: 'arid',
+  cultivated: true }`. No existing species is shared by biology (docs/research/oasis-biome.md),
+  so it offers none until the phase 13 art queue lands. That is why it stays behind the flag:
+  `flora.test.ts` holds its invariants for released sceneries only.
+- **Wildlife**: the creatures it shares by biology: striders, a gold leaf, the cabbage white,
+  bees, the swallowtail, swallows and a rare heron. There are no perches yet.
+
+### Slots (47)
+| Habitat ("words") | Count | Where | Sizes |
+|---|---|---|---|
+| water ("in the shallows") | 7 | `basin-1…5` (with `basin-5` in the overflow corner by the sluice, for the cattail), `shallows-1/2` in the oued | 2 large, 3 medium, 2 small |
+| shore ("by the water") | 13 | `rim-1…5` before the basin's near face and by the sluice, `seguia-1…3`, `oued-1…4`, `bar-1` | 6 medium, 7 small |
+| meadow ("in the plots") | 9 | `plot-1…7` on the basin terrace, `plot-8/9` on the middle terrace | 3 large, 3 medium, 3 small |
+| path ("on the sand") | 6 | `walk-1…6` either side of the footpath | 6 small |
+| back ("under the palms") | 5 | `high-1` (tree, the left edge under the bluff), `high-2`, `grove-1` behind the grove's wall, `palm-1` (tree, among the big palms), `palm-2` | 2 trees, 2 medium, 1 small |
+| rock ("on the walls") | 7 | `wall-1…5` on the copings, `talus-1/2` at the bluff's foot | 7 small |
+
+No plant stands over the base of a slot on a terrace or wall behind it, and no tree hides a slot
+behind it. The basin's water plants hide the ground behind the far rim, so nothing is planted
+there except `talus-2`, just right of their boxes.
+
 ## Tests
+- `src/scenery/oasis/oasis.test.ts` (O1): hidden unless `?dev&scenery=oasis`; self-consistency
+  with no building, lantern, eave, falls or motion; every draft step but its sky, in order, by
+  element; habitat words; the portrait crop and `pathOut`; the basin inside its stone and the
+  streams to the bottom edge; 40–49 slots with prefixed ids, every habitat (4+) and size (2+); in
+  the world at 1.25×, out of the sky and off the bluff; water, land and shore slots against the
+  water; rock slots on a coping or the talus; terrace scales (ADR 0300); footpath slots; spacing at
+  1.25× (distance, footprints, nothing over a raised slot's base, trees); the sun, moon and stars in
+  open sky, the sun side and the plate band; the flora profile offering nothing; the wildlife
+  table; a v4 garden with oasis plants validates and round-trips through export.
 - `src/scenery/waterfall/waterfall.test.ts`: offered to everyone; self-consistency; no building,
   lantern or eave; the paint steps' order; habitat words; the falls off centre under the notch, into
   the pool; the pool at the cliff foot and the stream out of it to the bottom edge; the trail and
