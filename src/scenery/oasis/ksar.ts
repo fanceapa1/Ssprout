@@ -28,9 +28,9 @@ export const KSAR: readonly Block[] = [
   { id: 'house-west', kind: 'house', x: 440, w: 52, h: 70, base: 318, side: 0 },
   { id: 'house-mid', kind: 'house', x: 528, w: 108, h: 92, base: 318, side: 0 },
   { id: 'house-east', kind: 'house', x: 702, w: 120, h: 96, base: 318, side: 0 },
-  { id: 'tower-west', kind: 'tower', x: 474, w: 62, h: 118, base: 318, side: 16 },
-  { id: 'tower-mid', kind: 'tower', x: 626, w: 76, h: 150, base: 318, side: 18 },
-  { id: 'tower-east', kind: 'tower', x: 818, w: 62, h: 132, base: 318, side: 16 },
+  { id: 'tower-west', kind: 'tower', x: 474, w: 62, h: 118, base: 318, side: 11 },
+  { id: 'tower-mid', kind: 'tower', x: 626, w: 76, h: 150, base: 318, side: 12 },
+  { id: 'tower-east', kind: 'tower', x: 818, w: 62, h: 132, base: 318, side: 11 },
   { id: 'wall-west', kind: 'curtain', x: 430, w: 52, h: 38, base: 330, side: 0 },
   { id: 'wall-mid', kind: 'curtain', x: 536, w: 92, h: 50, base: 330, side: 0 },
   { id: 'wall-east', kind: 'curtain', x: 702, w: 118, h: 44, base: 330, side: 0 },
@@ -51,12 +51,15 @@ export const HORN = 16;
 function towerTop(x0: number, x1: number, top: number): Pt[] {
   const w = x1 - x0;
   const hw = Math.max(9, w * 0.19);
+  // stepped, blunt corner pinnacles: a shoulder, then the horn's own narrower block
   const out: Pt[] = [
-    { x: x0 - 1.5, y: top + 3 },
-    { x: x0 - 2, y: top - HORN * 0.7 },
-    { x: x0 + hw * 0.2, y: top - HORN },
-    { x: x0 + hw * 0.55, y: top - HORN * 0.92 },
-    { x: x0 + hw, y: top - HORN * 0.55 },
+    { x: x0 - 2, y: top + 3 },
+    { x: x0 - 2, y: top - HORN * 0.55 },
+    { x: x0 + hw * 0.12, y: top - HORN * 0.6 },
+    { x: x0 + hw * 0.18, y: top - HORN },
+    { x: x0 + hw * 0.72, y: top - HORN * 0.96 },
+    { x: x0 + hw * 0.78, y: top - HORN * 0.58 },
+    { x: x0 + hw, y: top - HORN * 0.5 },
     { x: x0 + hw, y: top - 2 },
   ];
   // the small stepped merlons between the horns
@@ -64,15 +67,17 @@ function towerTop(x0: number, x1: number, top: number): Pt[] {
   const step = (w - 2 * hw) / n;
   for (let i = 0; i < n; i++) {
     const a = x0 + hw + i * step;
-    out.push({ x: a + step * 0.2, y: top - 2 }, { x: a + step * 0.3, y: top - 7 }, { x: a + step * 0.7, y: top - 7 }, { x: a + step * 0.8, y: top - 2 });
+    out.push({ x: a + step * 0.12, y: top - 2 }, { x: a + step * 0.3, y: top - 10 }, { x: a + step * 0.7, y: top - 10 }, { x: a + step * 0.88, y: top - 2 });
   }
   out.push(
     { x: x1 - hw, y: top - 2 },
-    { x: x1 - hw, y: top - HORN * 0.55 },
-    { x: x1 - hw * 0.55, y: top - HORN * 0.92 },
-    { x: x1 - hw * 0.2, y: top - HORN },
-    { x: x1 + 2, y: top - HORN * 0.7 },
-    { x: x1 + 1.5, y: top + 3 },
+    { x: x1 - hw, y: top - HORN * 0.5 },
+    { x: x1 - hw * 0.78, y: top - HORN * 0.58 },
+    { x: x1 - hw * 0.72, y: top - HORN * 0.96 },
+    { x: x1 - hw * 0.18, y: top - HORN },
+    { x: x1 - hw * 0.12, y: top - HORN * 0.6 },
+    { x: x1 + 2, y: top - HORN * 0.55 },
+    { x: x1 + 2, y: top + 3 },
   );
   return out;
 }
@@ -120,17 +125,15 @@ export function blockShape(b: Block): BlockShape {
   if (b.side > 0) {
     const s = b.side;
     const lift = s * 0.3;
-    // the flank's own far horn, smaller with distance
+    // tucked 6 under the front so no paper shows at the corner; one small far pinnacle
     flank = [
-      { x: x1 + 1.5, y: top + 3 },
-      { x: x1 + 2, y: top - HORN * 0.7 },
-      { x: x1 + s * 0.35, y: top - HORN * 0.85 - lift * 0.4 },
-      { x: x1 + s * 0.6, y: top - 2 - lift * 0.6 },
-      { x: x1 + s - 3, y: top - 2 - lift },
-      { x: x1 + s - 2, y: top - HORN * 0.6 - lift },
-      { x: x1 + s, y: top - HORN * 0.75 - lift },
-      { x: b.x + b.w + s, y: foot - lift },
-      { x: b.x + b.w, y: foot },
+      { x: x1 - 6, y: top + 2 },
+      { x: x1 + 2, y: top - 2 },
+      { x: x1 + s - 4, y: top - 2 + lift },
+      { x: x1 + s - 4, y: top - HORN * 0.5 + lift },
+      { x: x1 + s, y: top - HORN * 0.55 + lift },
+      { x: b.x + b.w + s, y: foot },
+      { x: b.x + b.w - 6, y: foot },
     ];
   }
   return { block: b, front, flank, top: line };
