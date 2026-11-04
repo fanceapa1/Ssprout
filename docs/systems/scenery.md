@@ -453,10 +453,27 @@ Studio: `waterfall-falls-motion/falls-sheet`, `/falls-foot`, `/falls-sprites`.
 A tended palm grove in the Draa valley, from draft A ("Ksar & palmeraie", devlog 102): the red
 bluff with its ksar on the left, terraces stepping down to a stone basin fed by a seguia, big
 palms on the right and the oued bending past the viewer's right foot. O1 (devlog 105) made it a
-scenery behind `?dev&scenery=oasis`. It still paints with the draft's steps and has a placeholder
-sky and light. The painters O2–O4 replace `OASIS_ELEMENTS`' draft steps in `index.ts`, O5 replaces
-`sky.ts` and `light.ts`, O6 adds `motion`, and O7 adds its own `sound` (it borrows `pond` for now).
-Composition map: studio `oasis-map/map`.
+scenery behind `?dev&scenery=oasis`. O2 (devlog 107) reframed it and paints its rock. The rest
+still paints with the draft's steps (reading the live `layout.ts`), under a placeholder sky and
+light. O3–O4 replace the other `OASIS_ELEMENTS` draft steps in `index.ts`, O5 replaces `sky.ts` and
+`light.ts`, O6 adds `motion`, and O7 adds its own `sound` (it borrows `pond` for now).
+Composition map: studio `oasis-map/map`. Rock: studio `oasis-rock`.
+
+- **Composition** (O2, `layout.ts`, `ksar.ts`): the ksar spans x 430–898 on the bluff's seat at
+  y 318. The tallest horn tip is at y 152, so a 16:9 screen (which shows y 70–970 round the focus)
+  keeps about 80 units of sky above it, clear of the corner controls. The bluff is a rounded
+  conglomerate ridge on the left (top y 216), broken down to the ksar's seat, with a rounded,
+  broken shoulder on the right (x 900–1022) falling to its foot by the basin. The basin's far rim
+  runs x 560–1060 and its near rim 506–1114. Grove palms begin at `GROVE_FROM` 1030, right of the notch.
+- **Skyline**: `SKYLINE` is sampled every 2 units from the painted silhouette (`silhouetteAt`:
+  the bluff, every block's front and flank with its horns and crenels, the far range right of
+  x 780). Each sample takes the lowest edge within a step either side, plus 1, so the sky plate
+  runs into every gap between the towers. Palm crowns are not cut out: the sky's light wash
+  multiplies over them, as it does over the waterfall's crown woods.
+- **Near ground** (shaped by O2, painted fully by O4): `NEAR_PLOTS` either side of the footpath,
+  their low `BUNDS` (no change of level, so no lift), wet sand along the seguia's last run
+  (`WET_SAND_HALF_WIDTH`), and the footpath's trodden band (`PATH_HALF_WIDTH`). The draft's
+  `ground` step paints them simply.
 
 - **Water**: the basin's water inside its coping is the still pond (`BASIN_WATER`, the reflections'
   waterline at its far edge, y 488). The seguia's three runs, the sluice and the oued are
@@ -464,10 +481,10 @@ Composition map: studio `oasis-map/map`.
 - **Terraces** (ADR 0300): ground and copings on a raised terrace take `perspectiveScale(y + lift)`.
   The lifts are high 70, middle 36 and grove 24, the wall drops in front of each.
 - **Sun** (ADR 0300): both low suns stand in the notch between the bluff's shoulder and the grove,
-  as the painting is lit from the right. Sunset is at x 872 (behind the shoulder under the east
-  tower) and sunrise at x 980, both over horizon y 340.
-- **View**: the focus is (800, 640). The phone crop holds the basin, the two east towers and both
-  suns. `pathOut` is the `FOOTPATH` from the bottom edge to the basin's near rim. O4 paints it.
+  as the painting is lit from the right. Sunset is at x 920 (sinking behind the shoulder right of
+  the east tower) and sunrise at x 990, both over horizon y 340.
+- **View**: the focus is (730, 520). The phone crop (x 430–1030) holds every tower and house, about
+  90% of the basin's water, and both suns. `pathOut` is the `FOOTPATH` from the bottom edge to the basin's near rim. O4 paints it.
 - **Flora**: `{ realm: 'n-africa-arabia', biomes: ['desert', 'wetland'], climate: 'arid',
   cultivated: true }`. No existing species is shared by biology (docs/research/oasis-biome.md),
   so it offers none until the phase 13 art queue lands. That is why it stays behind the flag:
@@ -487,7 +504,31 @@ Composition map: studio `oasis-map/map`.
 
 No plant stands over the base of a slot on a terrace or wall behind it, and no tree hides a slot
 behind it. The basin's water plants hide the ground behind the far rim, so nothing is planted
-there except `talus-2`, just right of their boxes.
+there. `talus-2` stands at the shoulder's foot, right of the basin, on the basin terrace.
+
+### Rock (O2, `paint-rocks.ts`)
+Two steps, `bluff` then `ksar`, painted in parts (ADR 0226, 0238). Both use the same golden-red
+earth (`EARTH`), so the building grows out of the rock. The sun is on the right (ADR 0300).
+- **Bluff**: a hand-cut outline (noise ≤ 1.8, inside the sky's hang). A body wash runs from
+  violet-rose on the left to golden on the right. The left ridge's crown is lit and its face
+  shaded. The shoulder has a lit band turned to the sun, with a soft core shade further in.
+  Sandstone beds (a lit lip over a dark undercut) dip as they wrap round the shoulder. Two
+  conglomerate beds are drawn as lenses of pebbles close in tone to the matrix. Vertical erosion
+  runnels have their left (east-facing) wall lit. A warm bounce of light from the sand lies along
+  the foot, there is a lit rim where the skyline turns to the sun, and talus fans spill onto the
+  terrace.
+- **Ksar** (`ksar.ts`, deterministic shapes): two courtyard palms, then three houses, three
+  tapering pisé towers and three ruined curtain walls. Towers have stepped, blunt corner
+  pinnacles and a row of small stepped merlons. Lit flanks slope away (eye level is below) and
+  tuck 6 units under the front. Each tower casts its shade left onto the houses, and the fronts
+  turn into shade at their left edge. They have formwork courses with putlog holes, an incised
+  chevron band over a row of diamonds between two fillets, small dark windows (some with a
+  palm-wood lintel), rain streaks and crumbled edges.
+- **Seat**: the blocks run `FOOTING` 14 into the rock. A solid band in the bluff's tone covers
+  their feet and is lost downward and at both ends. Over it go a dark seam at the join, a lit
+  broken edge, fallen pisé under the ruins, and runnels starting again under the walls.
+- **Seams for O5**: `ROCK_SHAPES` (`bluff`, `ksar` with each block's `front`, `flank` and `top`),
+  `bluffTopAt` and `EARTH`.
 
 ## Tests
 - `src/scenery/oasis/oasis.test.ts` (O1): hidden unless `?dev&scenery=oasis`; self-consistency
@@ -498,7 +539,14 @@ there except `talus-2`, just right of their boxes.
   water; rock slots on a coping or the talus; terrace scales (ADR 0300); footpath slots; spacing at
   1.25× (distance, footprints, nothing over a raised slot's base, trees); the sun, moon and stars in
   open sky, the sun side and the plate band; the flora profile offering nothing; the wildlife
-  table; a v4 garden with oasis plants validates and round-trips through export.
+  table; a v4 garden with oasis plants validates and round-trips through export. O2 adds: the
+  whole ksar and most of the basin in the portrait crop; the ksar under y 150 and clear of the
+  corner controls with sky above it at 16:9; the skyline down to the silhouette everywhere and
+  within 5 of it over the ksar.
+- `src/scenery/oasis/rock.test.ts` (O2): the rock's two steps; pinned recording hashes (overview,
+  close view) and the same crumbling per block; the shapes exported for daylight, each foot inside
+  the bluff; no part over one big mark's work; both steps in many parts; flanks tucked under the
+  fronts, and the hand-cut outline within 3 of the bluff.
 - `src/scenery/waterfall/waterfall.test.ts`: offered to everyone; self-consistency; no building,
   lantern or eave; the paint steps' order; habitat words; the falls off centre under the notch, into
   the pool; the pool at the cliff foot and the stream out of it to the bottom edge; the trail and

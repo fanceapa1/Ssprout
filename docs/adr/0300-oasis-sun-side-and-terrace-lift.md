@@ -22,8 +22,8 @@ screen than ground at the same depth, so `perspectiveScale(y)` would draw its pl
 This is the waterfall's cliff problem (ADR 0245), but here the ground is in steps.
 
 ## Decision
-- **Both low suns stand in the notch**: `sunSide: { sunrise: 1, sunset: 1 }`, with `sunsetX` 872
-  and `sunriseX` 980 over `horizonY` 340. The setting sun sinks behind the bluff's shoulder just
+- **Both low suns stand in the notch**: `sunSide: { sunrise: 1, sunset: 1 }`, with `sunsetX` 920
+  and `sunriseX` 990 over `horizonY` 340. The setting sun sinks behind the bluff's shoulder just
   below the ksar's east tower. The rising sun comes up a little further right, through the far
   grove. The moon arcs over the notch. The stars keep a gap over the ksar.
   This matches the painted light, and both discs stay inside the phone crop. The waterfall made
@@ -41,3 +41,9 @@ This is the waterfall's cliff problem (ADR 0245), but here the ground is in step
 - If O2–O4 change the walls' heights, the terrace scales follow through `LIFT`.
 - The oasis has no setting sun behind the ksar. The ksar can still glow at sunset, lit from the
   right, against a deeper sky above it.
+
+## Update (O2, devlog 107)
+The reframing moved the ksar right and down (x 430–898, horns at y ≥ 152) and narrowed the basin.
+The low suns moved with the notch: sunset x 872 → 920, sunrise x 980 → 990, horizon still y 340.
+The setting sun now sinks behind the shoulder right of the east tower. The terrace lifts are
+unchanged.
