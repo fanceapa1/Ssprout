@@ -135,6 +135,7 @@ describe('each garden’s flora', () => {
     expect(offered(getScenery('oasis')).map((sp) => sp.id).sort()).toEqual([
       'caper',
       'cattail',
+      'damask-rose',
       'date-palm',
       'oleander',
       'pomegranate',
