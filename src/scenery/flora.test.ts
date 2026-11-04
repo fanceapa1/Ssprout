@@ -134,6 +134,7 @@ describe('each garden’s flora', () => {
     // one id per line, sorted: each phase 13 species task adds its own
     expect(offered(getScenery('oasis')).map((sp) => sp.id).sort()).toEqual([
       'caper',
+      'cattail',
       'date-palm',
       'oleander',
       'spearmint',
