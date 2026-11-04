@@ -10,7 +10,7 @@ ADR numbering ranges (to avoid collisions in parallel work):
 0100–0109 audio · 0110–0119 plant view/growth/watering · 0120–0129 integration/polish ·
 0130–0139 app shell & dock · 0140–0149 daylight & colour · 0150–0159 parallel sessions & watering ·
 0160–0169 camera & plant descriptions · 0170–0179 calendar & scheduling · 0180–0189 v2 polish 1 & close views ·
-0190–0194 v2 polish 2 · 0200–0204 dock wayfinding · 0205+ queue tasks (Q1 0205, Q2 0206, Q3 0207, Q11 0208–0209, Q13 0210) · 0220–0239 performance (phase 9, one block of numbers per task) · 0240–0259 sceneries (phase 10) · 0260–0279 accounts (phase 11, branch `feat/accounts`) · 0250–0259 per-scenery flora and fauna (phase 12; S11 keeps 0248) · 0280–0299 phase 12 art tasks (only for real decisions).
+0190–0194 v2 polish 2 · 0200–0204 dock wayfinding · 0205+ queue tasks (Q1 0205, Q2 0206, Q3 0207, Q11 0208–0209, Q13 0210) · 0220–0239 performance (phase 9, one block of numbers per task) · 0240–0259 sceneries (phase 10) · 0260–0279 accounts (phase 11, branch `feat/accounts`) · 0250–0259 per-scenery flora and fauna (phase 12; S11 keeps 0248) · 0280–0299 phase 12 art tasks (only for real decisions) · 0300–0329 phase 13 (the oasis).
 
 | Phase | Task | Area (owned paths) | Status |
 |---|---|---|---|
@@ -177,3 +177,22 @@ Phase 12 art queue: one species or creature per task (atomic), 2–3 at a time, 
 | C7 | Genji firefly (night only) | `src/fauna/creatures/firefly.ts` | done (devlog 91) |
 | C8 | Yamasemi (crested kingfisher, rare) | `src/fauna/creatures/yamasemi.ts` | done (devlog 92) |
 | C8b | Predator reactions (C8 devlog): the wagtail (`bird.ts`) treats only other wagtails' perches as taken, so it can land on the yamasemi's rock; the iwana ignores all birds and could sink or scatter when the yamasemi hovers | `src/fauna/creatures/{bird,iwana}.ts` | done (devlog 92 › C8b) |
+
+Phase 13 (owner request 2026-11-04): a third garden, a desert oasis, with a golden, sandy feel in the same watercolour style, and its own plants and creatures, sharing species with the other gardens only where biology fits. Owner decisions: Sahara / Maghreb; a tended palm grove (mud-brick walls, irrigation channels, terraces); three rough drafts with different landforms first, then the chosen one is built in full. Drafts are rough (20 minutes a round). The owner asked for a closer view in round 2: plants are the focus, so the camera stands in the garden like the other two. Chosen: draft A, "Ksar & palmeraie" (Draa valley).
+
+| # | Task | Area | Status |
+|---|---|---|---|
+| D-a | Draft A: ksar on a red bluff, palm terraces, a seguia into a stone basin, the oued bend | `src/scenery/oasis/drafts/a/**` | done, chosen (devlog 102; round 2 is the close view) |
+| D-b | Draft B: dune lake, shaduf, walled beds | branch `worktree-agent-ab2f8494af4f8340b` | done, not chosen (devlog 103) |
+| D-c | Draft C: gorge spring, honey limestone, dry-stone terraces | branch `worktree-agent-af1fe32a7e4343bb6` | done, not chosen (devlog 104) |
+| O0 | Biome research (web, read-only): the Draa valley palmeraie's flora and fauna, about 12 plants and 8 creatures of its own, species shared with the other gardens by biology, cultivated plants of the oasis gardens, pitfalls; illustrator notes | `docs/research/oasis-biome.md` | in progress |
+| O1 | Oasis scenery skeleton from draft A: id, registry, geometry and slots, habitat words, view focus, sky numbers, flora profile, an empty wildlife table, placeholder sky and light; behind `?dev&scenery=oasis` | `src/scenery/oasis/**`, `src/core/sceneries.ts`, `src/scenery/registry.ts` | in progress |
+| O2 | Oasis painters: the bluff and the ksar | `src/scenery/oasis/paint-rocks.ts` | after O1 |
+| O3 | Oasis painters: the basin, the seguia and its falls, the oued | `src/scenery/oasis/paint-water.ts` | after O1 |
+| O4 | Oasis painters: palms, grove, terraces, sand and foreground | `src/scenery/oasis/paint-veg.ts` | after O1 |
+| O5 | Oasis daylight: 4 sky plates, basin plate, light plates, sun side | `src/scenery/oasis/{sky,light}.ts` | after O2–O4 |
+| O6 | Moving water: the seguia's falls and the oued's glints | `src/scenery/oasis/motion.ts` | after O3 |
+| O7 | Oasis sound bed (wind in the palms, trickling water, doves) | `src/audio/**`, `src/core/soundscape.ts` | after O1 |
+| O8 | Acceptance and docs, release | `docs/**`, `tests/**` | last |
+
+Phase 13 art queue (after O0 and O1): one plant (P1–P12) or creature (K1–K8) per task, from the O0 brief.
