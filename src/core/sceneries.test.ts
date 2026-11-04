@@ -35,6 +35,7 @@ const SLOTS: Record<SceneryId, SlotDef[]> = {
     { id: 'pool-1', habitat: 'water', maxSize: 'medium' },
     { id: 'shared-1', habitat: 'rock', maxSize: 'small' },
   ],
+  oasis: [],
 };
 const slots = slotLookup<SlotDef>((id) => SLOTS[id]);
 const world: ReducerWorld = { getSpecies: (id) => SPECIES[id], getSlot: slots.get };
@@ -59,10 +60,11 @@ const start = (over: StartOver = {}): Action => ({
 const at = (min: number) => T0 + min * MIN;
 
 describe('scenery ids and slot lookups', () => {
-  it('lists the Japanese garden (the default) and the waterfall', () => {
-    expect(SCENERY_IDS).toEqual(['japanese-garden', 'waterfall']);
+  it('lists the Japanese garden (the default), the waterfall and the oasis', () => {
+    expect(SCENERY_IDS).toEqual(['japanese-garden', 'waterfall', 'oasis']);
     expect(DEFAULT_SCENERY).toBe('japanese-garden');
     expect(isSceneryId('waterfall')).toBe(true);
+    expect(isSceneryId('oasis')).toBe(true);
     expect(isSceneryId('pond')).toBe(false); // an audio scenery, not a garden
   });
 

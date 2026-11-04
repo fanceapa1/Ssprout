@@ -5,11 +5,13 @@
 import type { FaunaTable } from '../core/fauna-unlocks';
 import type { SceneryId } from './ids';
 import { JAPANESE_FAUNA } from './japanese-garden/fauna';
+import { OASIS_FAUNA } from './oasis/fauna';
 import { WATERFALL_FAUNA } from './waterfall/fauna';
 
 const TABLES: Readonly<Record<SceneryId, FaunaTable>> = {
   'japanese-garden': JAPANESE_FAUNA,
   waterfall: WATERFALL_FAUNA,
+  oasis: OASIS_FAUNA,
 };
 
 export function faunaTable(sceneryId: SceneryId): FaunaTable {

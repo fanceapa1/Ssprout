@@ -8,12 +8,13 @@ import { gardenScene, PATH } from '../scene/geometry';
 import { GARDEN_SKY } from '../scene/paint-sky';
 import { DEFAULT_SCENERY, isSceneryId, SCENERY_IDS, type SceneryId } from './ids';
 import { JAPANESE_GARDEN } from './japanese-garden';
+import { OASIS } from './oasis';
 import { getScenery, hasScenery, sceneries } from './registry';
 import { WATERFALL } from './waterfall';
 
 describe('scenery ids', () => {
-  it('lists the Japanese garden (the default) and the waterfall', () => {
-    expect(SCENERY_IDS).toEqual(['japanese-garden', 'waterfall']);
+  it('lists the Japanese garden (the default), the waterfall and the oasis', () => {
+    expect(SCENERY_IDS).toEqual(['japanese-garden', 'waterfall', 'oasis']);
     expect(DEFAULT_SCENERY).toBe('japanese-garden');
     expect(isSceneryId('waterfall')).toBe(true);
     expect(isSceneryId('coast')).toBe(false);
@@ -33,26 +34,34 @@ describe('the registry', () => {
     expect(hasScenery('waterfall')).toBe(true);
   });
 
+  it('holds the oasis, offered only with ?dev&scenery=oasis while it is painted (phase 13)', () => {
+    expect(getScenery('oasis')).toBe(OASIS);
+    expect(hasScenery('oasis')).toBe(true);
+    expect(sceneries(new URLSearchParams('dev&scenery=oasis')).map((s) => s.id)).toEqual(['japanese-garden', 'waterfall', 'oasis']);
+    for (const q of ['', 'dev', 'scenery=oasis', 'dev&scenery=waterfall']) expect(sceneries(new URLSearchParams(q)).map((s) => s.id), q).not.toContain('oasis');
+  });
+
   it('falls back to the default scenery for one not registered', () => {
     expect(getScenery('coast' as SceneryId)).toBe(JAPANESE_GARDEN);
     expect(hasScenery('coast' as SceneryId)).toBe(false);
   });
 
   it('keeps each scenery consistent with itself', () => {
-    for (const s of sceneries(none)) {
+    for (const s of sceneries(new URLSearchParams('dev&scenery=oasis'))) {
       expect(s.art.scenery, s.id).toBe(s.id);
       expect(s.art.scene, s.id).toBe(s.geometry);
       expect(s.light.sky, s.id).toBe(s.sky.layout);
       // every scenery says where its low sun stands (ADR 0284)
       expect(s.sky.layout.sunSide, s.id).toBeDefined();
-      expect(s.available(none), s.id).toBe(true);
+      expect(s.available(none), s.id).toBe(s.id !== 'oasis');
       expect(Object.keys(SCENERIES), s.id).toContain(s.sound);
     }
   });
 
-  it('plays its own sound profile: the pond garden, the falls (ADR 0283)', () => {
+  it('plays its own sound profile: the pond garden, the falls (ADR 0283); the oasis borrows the pond’s until O7', () => {
     expect(JAPANESE_GARDEN.sound).toBe('pond');
     expect(WATERFALL.sound).toBe('waterfall');
+    expect(OASIS.sound).toBe('pond');
   });
 });
 

@@ -33,10 +33,11 @@ const slot = (id: string, habitat: Habitat, maxSize: SizeClass): Slot => ({ id, 
 const SLOTS: Record<SceneryId, Slot[]> = {
   'japanese-garden': [slot('meadow-1', 'meadow', 'large'), slot('shared-1', 'meadow', 'large')],
   waterfall: [slot('pool-1', 'water', 'medium'), slot('shared-1', 'rock', 'small'), slot('ledge-1', 'rock', 'small')],
+  oasis: [],
 };
 
 /** each garden's flora (ADR 0250): the lily grows only in the Japanese garden */
-const FLORA: Record<SceneryId, string[]> = { 'japanese-garden': ['violet', 'lily'], waterfall: ['violet'] };
+const FLORA: Record<SceneryId, string[]> = { 'japanese-garden': ['violet', 'lily'], waterfall: ['violet'], oasis: [] };
 const speciesIn = (id: SceneryId) => SPECIES.filter((s) => FLORA[id].includes(s.id));
 
 function setup(initial: GardenState = createDefaultState(T0), flora = false) {

@@ -2,7 +2,7 @@
  * Scenery ids (pure): the places a garden can grow in. Core keys plants, sessions and slots by
  * them; `src/scenery` holds the places themselves (ADRs 0240, 0241; docs/systems/scenery.md).
  */
-export const SCENERY_IDS = ['japanese-garden', 'waterfall'] as const;
+export const SCENERY_IDS = ['japanese-garden', 'waterfall', 'oasis'] as const;
 export type SceneryId = (typeof SCENERY_IDS)[number];
 export const DEFAULT_SCENERY: SceneryId = 'japanese-garden';
 

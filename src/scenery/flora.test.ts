@@ -129,6 +129,13 @@ describe('each garden’s flora', () => {
     ]);
   });
 
+  // the invariants below hold for released sceneries; the oasis is not released until they hold for it
+  it('the oasis offers no species yet (none is shared by biology), so it stays behind ?dev&scenery=oasis', () => {
+    expect(offered(getScenery('oasis'))).toEqual([]);
+    expect(RELEASED.map((s) => s.id)).not.toContain('oasis');
+    expect(getScenery('oasis').available(new URLSearchParams('dev&scenery=oasis'))).toBe(true);
+  });
+
   describe.each(RELEASED.map((s) => [s.id, s] as const))('released: %s', (_, s) => {
     const flora = offered(s);
 
