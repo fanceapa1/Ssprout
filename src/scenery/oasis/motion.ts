@@ -354,20 +354,20 @@ export function createOasisMotion(opts: OasisMotionOptions = {}): OasisMotion {
   function* paintOued(): Strokes {
     for (let i = 0; i < 3; i++) {
       const r = rng.fork(`glint-${i}`);
-      const { s, p } = sprite(18, 5, `glint-${i}`, 6);
+      const { s, p } = sprite(18, 7, `glint-${i}`, 6);
       // a sky glint reads on the milky water only against the small trough under it
       const bow = r.range(-0.4, 0.4);
-      yield* p.parts.glaze(dash(9, 3.6, r.range(12, 15), 1.3, bow), RIFFLE, { rng: r, opacity: 0.6, deform: 0.12, spread: 0.2, layers: 3, edge: 0.2, sharpness: 0.3 });
-      yield* p.parts.lift(dash(9, 2, r.range(13, 17), r.range(1.9, 2.4), bow), { rng: r, amount: 0.95, deform: 0.15, spread: 0.25, layers: 4, sharpness: 0.3, edge: 0 });
+      yield* p.parts.glaze(dash(9, 4.6, r.range(12, 15), 2.1, bow), RIFFLE, { rng: r, opacity: 0.75, deform: 0.12, spread: 0.2, layers: 3, edge: 0.2, sharpness: 0.3 });
+      yield* p.parts.lift(dash(9, 2.6, r.range(13, 17), r.range(2.6, 3.2), bow), { rng: r, amount: 0.95, deform: 0.15, spread: 0.25, layers: 4, sharpness: 0.3, edge: 0 });
       glintSprites.push(seal(s));
       yield;
     }
     for (let i = 0; i < 3; i++) {
       const r = rng.fork(`riffle-${i}`);
-      const { s, p } = sprite(24, 6, `riffle-${i}`, 6);
+      const { s, p } = sprite(24, 8, `riffle-${i}`, 6);
       const bow = r.range(0.4, 0.9);
-      yield* p.parts.glaze(dash(12, 2.6, r.range(16, 22), 1.6, bow), RIFFLE, { rng: r, opacity: 0.8, deform: 0.1, spread: 0.15, layers: 4, edge: 0.3, sharpness: 0.4 });
-      yield* p.parts.lift(dash(12, 4.2, r.range(14, 20), 1.2, bow), { rng: r, amount: 0.75, deform: 0.1, spread: 0.2, layers: 3, sharpness: 0.3, edge: 0 });
+      yield* p.parts.glaze(dash(12, 3.2, r.range(16, 22), 2.4, bow), RIFFLE, { rng: r, opacity: 0.85, deform: 0.1, spread: 0.15, layers: 4, edge: 0.3, sharpness: 0.4 });
+      yield* p.parts.lift(dash(12, 5.2, r.range(14, 20), 2, bow), { rng: r, amount: 0.75, deform: 0.1, spread: 0.2, layers: 3, sharpness: 0.3, edge: 0 });
       riffleSprites.push(seal(s));
       yield;
     }

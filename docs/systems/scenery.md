@@ -455,7 +455,7 @@ bluff with its ksar on the left, terraces stepping down to a stone basin fed by 
 palms on the right and the oued bending past the viewer's right foot. O1 (devlog 105) made it a
 scenery behind `?dev&scenery=oasis`. O2 (devlog 107) reframed it and paints its rock; O3 (devlog 110)
 paints its water, O4 (devlog 112) its land and vegetation; no draft step runs any more (`drafts/a` is a record). O5 (devlog 114, ADR 0301)
-paints its daylight. O6 adds `motion`, and O7 adds its own `sound` (it borrows `pond` for now).
+paints its daylight. O6 (devlog 117) adds `motion`, and O7 adds its own `sound` (it borrows `pond` for now).
 Composition map: studio `oasis-map/map`. Rock: studio `oasis-rock`. Water: studio `oasis-water`.
 
 - **Composition** (O2, `layout.ts`, `ksar.ts`): the ksar spans x 430–898 on the bluff's seat at
@@ -590,7 +590,48 @@ V-set leaflets, a wet crown wash, a few gold old fronds, the diamond leaf-base l
 - **Seams for O5**: `VEG_SHAPES` (`bigPalms` with trunk, width and crown outline, `grovePalms`,
   `groveTrees`, `grove`), `PALM` and `haze()`.
 
+### Motion (O6, `motion.ts`, ADR 0282)
+`createOasisMotion` is `OASIS.motion`. Like the waterfall's (Waterfall › Motion), it goes over
+the still painting and never covers it. About 20 sprites are painted once in parts and sealed into
+`ImageBitmap`s. Each frame blits them as a pure function of `t`, played at `TEMPO` 1.25, the
+waterfall's pace. Each element is clipped to its own water.
+- **Seguia falls** (`FALLS`, from `SEGUIA_FALLS` and `fallSheet`): per fall, five lanes with two
+  marks each, out of phase, so the sheen never stops. Three are lifted lights and two are long
+  greyed-turquoise surges (`SURGE`). The surges run 0.85–1.25 of the fall long, so their heads
+  are lost in the splash and never read as drips. There are also three threads, bright or teal.
+  Water leaves the lip at 16 units/s and reaches the foot at 44 (`fallDropAt`, constant gravity,
+  about 1.1 s; 0.9 s on screen). Clip: the sheet. At each foot, three pale puffs swell and sink
+  (1.3–2 s) and a turquoise pool breathes either side. Clip: an ellipse round the foot and the
+  channel below it (fall 0) or the inlet (fall 1).
+- **Sluice spill** (`SLUICE_GATE.spill`): five glassy lights, each a white dash over a small teal
+  trough, slip outward over the board and off its lip (1.1–1.7 s). A small puff pulses where the
+  spill drops. Clip: the gate's cut, the spill and the sluice's channel.
+- **Basin**: three rings from `INLET` (the notch in the left coping), 11 s each, spreading ever
+  slower to 150 units and fading. Three ring sprites (30, 70, 140 wide) keep the line's width as
+  a ring grows. Clip: `BASIN_WATER`. The rest of the basin gets nothing from this layer (the
+  scene's generic `waterSurface` still runs over the pond: Left open, devlog 117).
+- **Oued**: 56 drifters (glints: a white dash over a teal trough, so it reads on the milky water;
+  riffle lines: a teal crescent with a light under it) start each pass at a table-drawn `(s, u)`
+  and drift down `ouedAt` at 10–15 units/s, faster and larger toward the viewer. `liveliness`
+  skips a pass more often over the deep braids (as `paintOued` lays them, weight 0.35) and less
+  near a bar's head (up to 1.6). Four riffles stand at each of the three bar heads, parting either
+  side and slipping a little downstream as they pulse. Clip: the oued with the bars cut out
+  (even-odd).
+- **Cost**: at most 110 blits and 7 clips a frame (tested), with everything in
+  view. `MOTION_BOXES` skip any element the view misses, and `MOTION_BOUNDS` skips the whole draw.
+  Bench numbers are in devlog 117.
+- Under reduced motion the scene never creates it, and `still: true` draws nothing. `freeze()`
+  holds `t`. It draws on `waterSurface`, under the light plates, so noon, the low suns and night
+  tint it like the painting. White lights turn moonlit blue at night and the teal troughs keep
+  them readable. Studio: `oasis-motion/falls`, `/falls-frames`, `/oued`, `/oued-frames`, `/gate`,
+  `/inlet`, `/inlet-frames`, `/oasis-motion-sprites`.
+
 ## Tests
+- `src/scenery/oasis/motion.test.ts` (O6): the scenery's motion; sprites in small parts; pure in
+  `t` and held while frozen; every element always moving and passes differing; every mark inside
+  its water (the oued's off the bars); the rings spreading from the inlet; livelier at the bars'
+  heads than elsewhere; the falls gathering speed; nothing under reduced motion; nothing off
+  screen, only what the view sees; at most 110 small blits and 7 clips a frame.
 - `src/scenery/oasis/daylight.test.ts` (O5): wiring and the sun side; its grades warmer and
   more golden by day, glowing over the notch, no heavier at night, no lantern, read by
   `gradeFor`; sun, moon and the dense stars in open sky; the washes clear of the plate's lower
