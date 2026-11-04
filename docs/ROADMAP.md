@@ -79,22 +79,19 @@ Phase 9: performance (owner request 2026-10-24). The page is laggy. Draw only wh
 |---|---|---|---|
 | P0a | Measure: runtime load profile, Start-studying latency, frame cost overview/zoomed/scrolled away | read-only (scratch report) | done (garden pixels at 1.8 s, ~630 ms of off-screen work before them; Start studying 648 ms; Begin 216 ms + ~600 ms detail repaint; canvas renders while scrolled away) |
 | P0b | Measure: bundle composition, fonts, request waterfall, cache headers, service-worker and painted-cache options | read-only (scratch report) | done (Start studying: a 640 ms main-thread block painting 25 previews; landscape 1.2 s of main-thread paint on every load; Pages max-age=600 revalidation chain) |
-| P1 | Plant-view preview prewarm: worker-backed view cache, `prewarmPlantView`, never paint a queued preview synchronously | `src/plants/view.ts`, `src/plants/sprites.ts` | done (devlog 111; 50–54 ms) |
+| P1 | Plant-view preview prewarm: worker-backed view cache, `prewarmPlantView`, never paint a queued preview synchronously | `src/plants/view.ts`, `src/plants/sprites.ts` | done (worker-painted previews pixel-identical, `prewarmPlantView`, `drawPlantView` pending state; ADRs 0220–0221) |
 | P0c | Perf harness in the repo: port the scratch measurement scripts (load, flow, frames, bundle, Pages-like server) to `scripts/perf/`, record the baseline in `docs/systems/performance.md` | `scripts/perf/`, `docs/systems/performance.md`, `package.json` script | queued |
 | P2 | Planting sheet opens at once; previews fill in as they land (visible first), prewarmed on idle and on hover/focus of Start studying | `src/ui/planting-sheet.ts`, `src/ui/previews.ts` | done (first-open click 688 → 85–102 ms, no main-thread preview paints; ADR 0222) |
 | P3 | Dock backdrop noise: build each tear once per seed, cheap edge noise, identical SVG output | `src/ui/backdrop-sheet.ts` | done (86 → 9 ms first layout, 78 → 4 ms per resize, SVG byte-identical; ADR 0223) |
-| P1 | Spearmint (*Mentha spicata*): T1, shore and path, the freshest green | `src/plants/species/spearmint.ts` | in progress |
 | P4 | Pause the render loop while the garden stage is scrolled out of view | `src/render/renderer.ts`, `src/main.ts` (1–2 lines) | done (0 garden frames while scrolled away; sessions, widget and audio unaffected; ADR 0224) |
 | P5 | Defer below-the-fold dock painting (plant section, backdrops, wayfinding) until after the garden's first pixels and until near the viewport; no synchronous plant-section paint on Begin | `src/ui/plant-section.ts`, `src/ui/backdrop.ts`, `src/ui/index.ts` | done (dock script before the garden ~145 → ~1 ms, FCP 889 → 729 ms, Begin click 133–144 → 30–32 ms processing; ADR 0225) |
 | P6 | Split long scene paint steps so the cooperative painter yields every ~20 ms (load and close-view detail repaint) | `src/scene/background.ts`, `src/scene/paint-*.ts`, `src/scene/sprites.ts` | done, partly (longest part at load 192–233 → 103–128 ms, big-tree detail 305–346 → 34–38 ms, pixel-identical; the rest are single paint-engine calls, see P23; ADR 0226) |
 | P7 | Persistent paint cache module: IndexedDB blob store, versioned keys, LRU byte cap, null adapter | `src/paint/persist.ts` (new), `vite.config.ts` define | done (IndexedDB `studysprout-paint`, 48 MB LRU, build-time paint version over the painters' import closure, bit-exact round trip; ADR 0227) |
 | P8 | Garden background from the persistent cache: a repeat visit shows the landscape without repainting it | `src/scene/system.ts`, `src/scene/background.ts` | done (repeat visit: landscape 1.6 → 0.5 s, 0 scene paint CPU, pixel-identical; close views cached too; ADR 0228) |
 | P9 | Service worker build manifest (precache list and version written into `dist/sw.js`) | `vite.config.ts` plugin, `scripts/` | done (18 URLs, ~619 kB gz, version over the URL list and index.html; ADR 0229) |
-| P3 | Caper (*Capparis spinosa*): T1, trailing from wall cracks, rock and path | `src/plants/species/caper.ts` | in progress |
 | P10 | Service worker caching: precache, cache-first hashed assets, network-first HTML, old-version cleanup; notifications untouched | `public/sw.js` | done (versioned precache, cache-first assets, network-first HTML with offline fallback, keeps the previous version; ADR 0230) |
 | P11 | Service worker registered at boot (idle, after the landscape); e2e blocks service workers by default, `sw.spec.ts` | `src/widget/notifications.ts`, `src/main.ts` (1 line), `playwright.config.ts`, `tests/e2e/sw.spec.ts` | done (registered after the first paint, load and idle; e2e blocks service workers unless opted in; reload once on a stale chunk; ADR 0230 amended) |
 | P12 | Fonts start loading before boot (preload/`document.fonts.load` of the 5 first-view files), one wave | `index.html` or `vite.config.ts`, `src/ui/index.ts` font imports | done (owner kept the preload: no fallback text or reflow; slow 4G first visit +370 ms; ADR 0231) |
-| P9 | Oleander (*Nerium oleander*): T3 shrub, shore and back; distinct from the Damask rose | `src/plants/species/oleander.ts` | in progress |
 | P13 | Font trim (owner: Latin only): own `@font-face` for Latin + Latin-ext woff2, only the weights used, no woff | `src/ui/fonts.css` (new), `src/widget/index.ts` imports | done (54 → 12 font files, 31 → 12 rules, first view 5 → 3 files, 117 → 76 kB; screenshots identical; ADR 0239) |
 | P14 | Boot in stages, garden first: paper and scene start painting before plants, fauna, ambience and the dock; ambience sprites built per phase on first use | `src/main.ts`, `src/ambience/sprites.ts`, `src/ambience/ambience.ts` | done (FCP 430 → 260 ms; landscape first visit 1653 → 1403 ms, repeat 523 → 308 ms; plants and the dock wait for it; ADR 0232) |
 | P15 | The `?dev` API is loaded only with `?dev` (dynamic import, atomic `window.sprout`) | `src/main.ts`, `src/dev/install.ts` (new) | queued (ADR 0233) |
@@ -196,8 +193,11 @@ Phase 13 (owner request 2026-11-04): a third garden, a desert oasis, with a gold
 | O7 | Oasis sound bed (wind in the palms, trickling water, doves) | `src/audio/**`, `src/core/soundscape.ts` | after O1 |
 | O8 | Acceptance and docs, release | `docs/**`, `tests/**` | last |
 
-Phase 13 art queue (after O0 and O1): one plant (P1–P12) or creature (K1–K8) per task, from the O0 brief.
+Phase 13 art queue (after O0 and O1): one plant (OP1–OP12) or creature (OK1–OK8) per task, from the O0 brief.
 
 | # | Task | Area | Status |
 |---|---|---|---|
-| P12 | Date palm (*Phoenix dactylifera*): T4 tree, the signature; the background palms follow it | `src/plants/species/date-palm.ts` | in progress |
+| OP12 | Date palm (*Phoenix dactylifera*): T4 tree, the signature; the background palms follow it | `src/plants/species/date-palm.ts` | in progress |
+| OP9 | Oleander (*Nerium oleander*): T3 shrub, shore and back; distinct from the Damask rose | `src/plants/species/oleander.ts` | in progress |
+| OP3 | Caper (*Capparis spinosa*): T1, trailing from wall cracks, rock and path | `src/plants/species/caper.ts` | in progress |
+| OP1 | Spearmint (*Mentha spicata*): T1, shore and path, the freshest green | `src/plants/species/spearmint.ts` | done (devlog 111; 50–54 ms) |
