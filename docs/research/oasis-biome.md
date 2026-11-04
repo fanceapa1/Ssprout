@@ -33,7 +33,7 @@ Read-only research for phase 13. Sources are listed at the end and cited as [n].
 
 | Valley | Palmeraies | What it adds |
 |---|---|---|
-| **Draa** | From Agdz to M'Hamid: six oases strung along about 200 km of river (Mezguita, Tinzouline, Ternata, Fezouata, Ktaoua, M'Hamid) *(verify the list)*; about 2 million palms [1][2] | The scene itself: ksour on bluffs over the river, terraced plots, henna fields near Zagora [1][16] |
+| **Draa** | From Agdz to M'Hamid: six oases strung along about 200 km of river (Mezguita, Tinzouline, Ternata, Fezouata, Ktaoua, M'Hamid) [47]; about 2 million palms [1][2] | The scene itself: ksour on bluffs over the river, terraced plots, henna fields near Zagora [1][16] |
 | **Dadès** | Skoura (near Ouarzazate), the Dadès and M'Goun valleys | Kasbahs in the palms, the Damask rose hedges of Kelaat M'Gouna [12] |
 | **Ziz / Todgha** | The Tafilalt (Erfoud, Rissani), Tinghir on the Todgha | The origin of the Mejhoul date [13] |
 
@@ -100,7 +100,7 @@ understood name, and the Amazigh name can go in the Note. Transliterations are s
   - **Close view:** the seed pods are coiled like tiny snail shells (`#a8a06a`). They are a good detail.
   - **Small size:** a soft blue-green cushion with violet dots.
   - **Unmistakable:** violet clusters over leaves of three. White clover (round white pompons) is not offered here.
-- **Note:** Alfalfa is the oasis's lowest storey. It is sown under the palms and cut again and again through the year to feed the household's animals, and its roots feed the soil with nitrogen. Its Darija name, fessa, and the English word alfalfa both come from the Arabic al-faṣfaṣa *(verify)*.
+- **Note:** Alfalfa is the oasis's lowest storey. It is sown under the palms and cut again and again through the year to feed the household's animals, and its roots feed the soil with nitrogen. Its Darija name, fessa, and the English word alfalfa, which came through Spanish, both go back to the Arabic al-faṣfaṣa [37].
 - **Line:** "Alfalfa — the lowest storey, cut and cut again, and still in flower."
 
 ### 3. Caper — *Capparis spinosa* — kebbar (كبار)
@@ -114,8 +114,8 @@ understood name, and the Amazigh name can go in the Note. Transliterations are s
   - **Buds:** small green balls (`#8a9a52`). These are the capers.
   - **Small size:** a cascade of round grey-green leaves with one white starburst.
   - **Unmistakable:** the stamen fountain. Nothing else in the set is a pom of threads.
-- **Note:** The capers in a jar are its unopened flower buds. It roots in the cracks of rock and old walls, and each flower opens at dawn and is gone by the afternoon heat *(verify the hours)*.
-- **Line:** "Caper — a flower for one morning, on the crumbling wall."
+- **Note:** The capers in a jar are its unopened flower buds. It roots in the cracks of rock and old walls, and each flower lasts only about a day [38].
+- **Line:** "Caper — a flower for a single day, on the crumbling wall."
 
 ### 4. Colocynth — *Citrullus colocynthis* — lḥdej (الحدج); Arabic ḥanẓal
 - **Range:** wild: `{ realms: ['n-africa-arabia'], biomes: ['desert'], climates: ['arid'] }`.
@@ -138,7 +138,7 @@ understood name, and the Amazigh name can go in the Note. Transliterations are s
 - **Bloom:** brown spike, June–August. bloomColor `#8a5a3a`.
 - **Illustrator:**
   - **Leaves:** tall, flat, slightly twisted straps, grey-green (`#9aa86a`) going straw at the tips (`#d8c38a`). This gives the golden feel even at the water.
-  - **Spike:** a brown velvet cigar (`#8a5a3a`, shade `#6a4430`). Above it, after a small **bare gap**, a thin pale male spike (`#c9b07a`). The gap is the mark of this species *(verify)*.
+  - **Spike:** a brown velvet cigar (`#8a5a3a`, shade `#6a4430`). Above it, after a small **bare gap**, a thin pale male spike (`#c9b07a`). The gap is usually there in this species, though it is sometimes almost closed [39]. Paint it: it makes the cigar read as a cattail, not a sausage on a stick.
   - **Late season:** the cigar breaks into a soft halo of fluff, as a lifted, dry-brushed edge.
   - **Small size:** a sheaf of blades with a brown cigar.
   - **Unmistakable:** the cigar. Barley has whiskered ears and no velvet.
@@ -163,7 +163,7 @@ understood name, and the Amazigh name can go in the Note. Transliterations are s
 - **Range:** wild: `{ realms: ['n-africa-arabia', 'mediterranean'], biomes: ['desert', 'coast'], climates: ['arid'] }`. It occurs from Macaronesia across the western and central Mediterranean to the Sahara, Morocco included [15].
 - **Habitat and slot:** a root parasite, mainly of tamarisk and saltbushes [15]. It grows on sandy, often salty ground: oued banks and sand margins near tamarisk, **not** watered plots. Path (sand bank, sand bar), back.
 - **Tier and size:** 2, medium. Pollinators: yes (bees).
-- **Bloom:** golden yellow, February–April *(verify)*. bloomColor `#e5b63c`.
+- **Bloom:** golden yellow, March–April in Iberia [41]; spring in Morocco too *(verify the months)*. bloomColor `#e5b63c`.
 - **Illustrator:**
   - **No green anywhere.** A stout, fleshy stalk rises straight out of the sand, cream to buff (`#e8d9b0`), with brownish scale leaves (`#b39a6a`).
   - **Flowers:** a dense cylindrical spike of tubular flowers, bright yellow (`#e5b63c`), the lobes paler (`#efd27a`).
@@ -177,7 +177,7 @@ understood name, and the Amazigh name can go in the Note. Transliterations are s
 - **Range:** cultivated: `cultivatedIn: ['n-africa-arabia']`. Its wild origin is uncertain *(verify)*.
 - **Habitat and slot:** irrigated plots in the hottest oases of the south-east: Zagora, Tazzarine, Foum Zguid, Alnif, and the Maïder basin, which has a geographical indication [16][17]. It is cut back two or three times a year, so it stands as low bushes in rows [18]. Meadow (plots), back.
 - **Tier and size:** 2, medium. Pollinators: yes (strongly scented).
-- **Bloom:** cream, June–September *(verify)*. bloomColor `#f1e2bf`.
+- **Bloom:** cream to pinkish, fragrant, in summer [42]. bloomColor `#f1e2bf`.
 - **Illustrator:**
   - **Shape:** a small, many-stemmed, twiggy bush. Reddish-brown stems (`#8a5a44`).
   - **Leaves:** small, opposite, pointed ovals, mid green (`#8fa85a`, olive shade `#7a8a4a`).
@@ -191,7 +191,7 @@ understood name, and the Amazigh name can go in the Note. Transliterations are s
 ### 9. Oleander — *Nerium oleander* — defla (دفلة); Tamazight ilili *(verify)*
 - **Range:** wild: `{ realms: ['n-africa-arabia', 'mediterranean'], biomes: ['desert', 'wetland'], climates: ['arid', 'warm-temperate'] }`.
 - **Habitat and slot:** seasonally dry or flooded riverbeds. With *Tamarix* it forms the riparian scrub of North African wadis [14][19]. Shore (the large oued-bank slot), back.
-- **Tier and size:** 3, large (shrub). Pollinators: no. Its flowers have no nectar and only trick their visitors *(verify)*. Keep bees off it.
+- **Tier and size:** 3, large (shrub). Pollinators: no. Its showy flowers have no nectar: they attract insects from afar and reward them with nothing [40]. Keep bees off it.
 - **Bloom:** pink, May–September. bloomColor `#d9708f`.
 - **Illustrator:**
   - **Shape:** a dense, upright shrub of many stems from the base.
@@ -214,8 +214,8 @@ understood name, and the Amazigh name can go in the Note. Transliterations are s
   - **Flowers:** loose, semi-double cups of many ruffled petals in clusters of 3–5. Warm pink (`#e2899b`) with paler edges (`#f2c0c8`) and a glimpse of gold stamens. Add tight buds.
   - **Small size:** a green mound sprinkled with soft pink cups.
   - **Unmistakable:** ruffled cups and leaves of many leaflets. The oleander has knives and pinwheels and a cooler pink.
-- **Note:** Each May the rose hedges around Kelaat M'Gouna are picked at dawn and the petals sold to distilleries for rose water and oil. The season lasts barely three weeks, and the valley celebrates it with a festival [12].
-- **Line:** "Damask rose — picked at dawn, a valley's scent in a sack."
+- **Note:** Each May the rose hedges around Kelaat M'Gouna are picked in the early morning, before the heat, and the petals sold to distilleries for rose water and oil. The season lasts barely three weeks, and the valley celebrates it with a festival [12][43].
+- **Line:** "Damask rose — picked before the heat, a valley's scent in a sack."
 
 ### 11. Pomegranate — *Punica granatum* — rremman (رمان); Tamazight aremman *(verify)*
 - **Range:** cultivated: `cultivatedIn: ['n-africa-arabia', 'mediterranean']`. Wild only from Iran to the Himalaya *(verify)*.
@@ -301,7 +301,7 @@ Suggested order (counts as in `fauna-unlocks.ts`):
 | 3 | Violet dropwing | a stick or stone tip over the basin and seguia | day, April–October | 3 plants |
 | 4 | Sahara frog | half in the basin, the seguia lip | day and evening, most of the year | 5 plants (the basin, not a water plant) |
 | 5 | Hoopoe | walking the damp plots | day | 8 plants |
-| 6 | Moorish gecko | the warm pisé walls and the basin coping | dusk and night | 10 plants, dusk and night only |
+| 6 | Böhme's gecko | the warm pisé walls and the basin coping | dusk and night | 10 plants, dusk and night only |
 | 7 | Blue-cheeked bee-eater | a frond tip or dead stalk, sallying over the grove | day, April–September | 14 plants |
 | 8 | White stork | a ksar tower top; now and then the plots | day, rare, late winter–summer | 20 plants, rare |
 
@@ -334,7 +334,7 @@ seguia basins)*. Only add it if the basin needs life under water. Never a stocke
 - **Behaviour:**
   - Pairs sit close together on a palm frond or a wall top and bow and coo.
   - It walks the plots with small nodding steps, picking seeds.
-  - It comes down to the basin rim to drink. Doves suck water up without tipping the head back *(verify)*: a lovely, still moment.
+  - It comes down to the basin rim to drink. Doves suck water up like a straw, without tipping the head back [48]: a lovely, still moment.
   - The call is a soft, bubbling five-note laugh.
 - **Illustrator:**
   - **Body:** a small, slim dove about 25 cm. The head and breast are pinkish-buff (`#c99a8a`) and the back is warm rufous-brown (`#a8704e`), with a blue-grey wing panel (`#8a92a8`).
@@ -365,7 +365,7 @@ seguia basins)*. Only add it if the basin needs life under water. Never a stocke
   - **Unlock:** unlike the garden frog it needs no pad: use the basin rule (the B1 lesson from kajika).
 
 **5. Hoopoe — *Upupa epops* — hudhud (هدهد)**
-- **Range:** a breeding bird across Morocco, including the oases, partly resident in the south *(verify)*.
+- **Range:** it breeds in north-west Africa, where it is a partial migrant or resident, in orchards, cultivated country and large gardens [49]. It has been seen at Ouarzazate and Rissani [49]. Breeding in the Draa palmeraies is likely but not confirmed here *(verify)*.
 - **Behaviour:**
   - It walks the damp plots after watering, probing the soil with its long curved bill and tossing up grubs.
   - On landing or alarm it fans its crest into a crown, then lays it flat again.
@@ -378,8 +378,10 @@ seguia basins)*. Only add it if the basin needs life under water. Never a stocke
   - **Read:** a cinnamon bird with zebra wings and a fan on its head. It is the oasis's most recognisable creature.
 - **Fact for the arrival line:** it is the bird that carries messages for Solomon in the Qur'an (sura 27). Use it only as a gentle aside, or not at all (§6).
 
-**6. Moorish gecko — *Tarentola mauritanica*** *(verify that it, and not* T. boehmei*, is the Draa's wall gecko)*
-- **Range:** a wall gecko found all round the western Mediterranean and through Morocco *(verify the south)*.
+**6. Böhme's gecko — *Tarentola boehmei*** [44][45]
+- **Range:** southern Morocco: Tazzarine, the southern Anti-Atlas, **the Draa valley** and the Jebel Bani. It lives on cliffs, walls, ruins, rural gardens and towns [44].
+  - The familiar Moorish gecko (*T. mauritanica*) is the Atlantic-coast and Mediterranean species. Inland in south-west Morocco, *T. boehmei* takes its place. The two may meet around Ouarzazate [45].
+  - The two are hard to tell apart in the field, so the sprite is the same shape. The name and the card must be Böhme's gecko.
 - **Behaviour:**
   - At dusk it comes out of a crack onto the warm pisé, on a terrace wall, the ksar's foot or the basin coping.
   - It holds still for a long time, head down, then makes a quick dash after a moth and freezes again.
@@ -388,6 +390,7 @@ seguia basins)*. Only add it if the basin needs life under water. Never a stocke
   - **Body:** flat and broad-headed, grey-brown (`#8a7a68`) with pale and dark bands (`#b8a88e`, `#5a4e42`).
   - **Skin:** rows of small tubercles. Dab them, do not stipple evenly.
   - **Toes:** broad, padded toes splayed on the wall.
+  - **Size:** small, about 11 cm with the tail [44].
   - **Read:** a small, banded lizard flat on a lit wall.
   - **Rendering:** at night it needs the wall's moonlit or warm-lit side. No glow, no eyeshine effect.
 
@@ -405,7 +408,7 @@ seguia basins)*. Only add it if the basin needs life under water. Never a stocke
 - **Note:** it eats bees. Let it sit near the bee flowers, but never animate it catching one of the oasis's bees on screen.
 
 **8. White stork — *Ciconia ciconia* — bellarej (بلارج)** *(verify the name)* [30][31]
-- **Range:** stork nests on minarets, houses and kasbahs are a classic sight in Morocco [30]. White storks nest on the Kasbah Taourirt in Ouarzazate, at the head of the Draa [31]. Breeding further down the Draa is uncertain *(verify)*.
+- **Range:** stork nests on minarets, houses and kasbahs are a classic sight in Morocco [30]. In popular belief storks are sacred and bring happiness to a house they nest on [46]. White storks nest on the Kasbah Taourirt in Ouarzazate, at the head of the Draa [31]. Breeding further down the Draa is uncertain *(verify)*.
 - **Behaviour:**
   - It comes in on broad, slow wings and lands on the crown of a ksar tower.
   - It stands, preens, and now and then throws its head back to clatter its bill, a silent visual beat. Sound is optional, and it is not a song.
@@ -474,7 +477,8 @@ exclusive species and 60 % of the offer) passes with 12 of 12.
 | Date palm | **only planted** | Planted in groves like Elche. Crete's wild palm is another species, *Phoenix theophrasti*. Offer it only in a planted Mediterranean garden |
 | Colocynth | **no** | A Saharo-Arabian desert plant that rarely reaches the coast [10] |
 | Henna | **no** | Needs desert heat. It is not a Mediterranean crop |
-| White stork, hoopoe, Moorish gecko, violet dropwing | **yes** | All are Mediterranean animals. The gecko is named for the Moors and lives on walls from Spain to Greece |
+| White stork, hoopoe, violet dropwing | **yes** | All are Mediterranean animals |
+| Böhme's gecko | **no, but its look-alike yes** | It is pre-Saharan. The Mediterranean's wall gecko is the Moorish gecko (*T. mauritanica*), a near-identical sprite under another name [45] |
 | Laughing dove | **partly** | Only in the eastern Mediterranean (Turkey, the Levant) and urban Spain *(verify)* |
 | Sahara frog | **partly** | North African Mediterranean coast, yes. In Iberia the look-alike is Perez's frog |
 | House bunting, blue-cheeked bee-eater | **no** | Saharan. Europe has the European bee-eater instead. The house bunting first bred in Spain only in 2023 [20] |
@@ -489,7 +493,7 @@ maximally unique". Updated:
 
 | # | Scenery | Realm · biome · climate | Signature plants | Signature fauna | Shares (biology) |
 |---|---|---|---|---|---|
-| 3 | **Draa palmeraie (oasis)** | n-africa-arabia · desert, wetland · arid, **cultivated** | date palm, pomegranate, henna, Damask rose, barley, desert hyacinth, colocynth, oleander | house bunting, laughing dove, hoopoe, Sahara frog, blue-cheeked bee-eater, white stork, Moorish gecko | no plants; bees (Saharan honeybee), swallowtail, cabbage white, striders, swallows, heron (rare), the falling leaf (gold) |
+| 3 | **Draa palmeraie (oasis)** | n-africa-arabia · desert, wetland · arid, **cultivated** | date palm, pomegranate, henna, Damask rose, barley, desert hyacinth, colocynth, oleander | house bunting, laughing dove, hoopoe, Sahara frog, blue-cheeked bee-eater, white stork, Böhme's gecko | no plants; bees (Saharan honeybee), swallowtail, cabbage white, striders, swallows, heron (rare), the falling leaf (gold) |
 
 Changes and why:
 - **The profile is cultivated.** A palmeraie is a planted garden, like the Japanese garden, so it
@@ -545,8 +549,8 @@ Changes and why:
 - **People and languages.** The Draa is home to Amazigh, Arabic-speaking Drawa and Haratin
   communities. Do not call it "Arab", and do not present one language as the only one. Give native
   names in Darija and, where known, Tamazight, and check spellings with a speaker before shipping.
-- **Respected birds.** The house bunting is traditionally regarded as sacred [20], and storks are
-  protected by custom *(verify)*. Hoopoes are sold in some markets for traditional remedies and
+- **Respected birds.** The house bunting is traditionally regarded as sacred [20]. Storks are
+  protected and, in popular belief, sacred: they bring happiness to the house they nest on [46]. Hoopoes are sold in some markets for traditional remedies and
   charms *(verify)*. Never show a creature caged, caught or sold, and keep the Qur'anic hoopoe
   story (if used at all) factual and brief.
 - **Fennec.** It is caught and shown to tourists. If it ever appears, it is wild, distant and at
@@ -648,3 +652,16 @@ Changes and why:
 34. Papilio saharae — Wikipedia: https://en.wikipedia.org/wiki/Papilio_saharae
 35. Washingtonia in Moroccan cities — Bladi: https://en.bladi.net/morocco-environmentalists-slam-invasive-palm-species-call-native-tree,104730.html ; Morocco World News: https://www.moroccoworldnews.com/2024/07/16590/a-complete-environmental-crime-the-controversy-surrounding-palm-tree-proliferation-in-moroccan-cities/
 36. FAO GIAHS, Oases System in Atlas Mountains (cold oases, for contrast) — https://www.fao.org/giahs/giahs-around-the-world/morocco-cold-oases-system/en
+37. Alfalfa, etymology — Wiktionary: https://www.wiktionary.com/wiki/alfalfa ; Etymonline: https://www.etymonline.com/word/alfalfa
+38. Caper flower lasts a day — Flowers in Israel: https://www.wildflowers.co.il/english/plant.asp?ID=1 ; Guide Me Malta: https://www.guidememalta.com/en/did-you-know-that-the-flowers-from-which-malta-get-its-capers-only-live-for-one-day
+39. Typha spike gap — iNaturalist journal, Cattail morphology: https://inaturalist.ala.org.au/journal/pastabaum ; Florida Plant Atlas: https://florida.plantatlas.usf.edu/Genus/1263
+40. Oleander nectarless flowers — Bugwoman London: https://bugwomanlondon.com/2019/05/15/wednesday-weed-oleander/ ; iNaturalist ALA: https://inaturalist.ala.org.au/posts/53352-july-2021-ecoquest-oleander-occurence
+41. Cistanche phelypaea, March–April (Algarve) — First Nature: https://mail.first-nature.com/flowers/cistanche-phelypaea.php
+42. Henna flowering — Mother Earth Gardener: https://www.motherearthgardener.com/plant-profiles/henna-tree-ze0z2001zbut/
+43. Rose picking in the early morning — Leica (Rena Effendi): https://leica-camera.com/fr-CH/blog/rena-effendi-kelaat-mgouna-rose-festival ; Best Regards From Far: https://bestregardsfromfar.com/2025/06/06/valley-of-the-roses-morocco-trekking-guide/
+44. Böhme's gecko — Wikipedia: https://en.wikipedia.org/wiki/B%C3%B6hme%27s_gecko ; Reptile Database: https://reptile-database.reptarium.cz/Tarentola/boehmei
+45. Tarentola in the Oued Drâa area (T. boehmei replaces T. mauritanica inland) — Acta Herpetologica 2010: https://oaj.fupress.net/index.php/ah/article/download/1578/1578/1568
+46. Storks sacred in popular belief — Yabiladi: https://en.yabiladi.com/articles/details/99706/whatsapp:/send
+47. Draa River (the six oasis stretches) — Wikipedia: https://en.wikipedia.org/wiki/Draa_River
+48. How pigeons and doves drink — PBS Nature: https://www.pbs.org/wnet/nature/group/birds/pigeon ; Montana FWP, mourning dove: https://fwp.mt.gov/binaries/content/assets/fwp/montana-outdoors/outdoor-portraits/2024/mourningdove.pdf
+49. Hoopoe — BirdForum Opus: https://www.birdforum.net/opus/upupa_epops ; Wikipedia: https://en.wikipedia.org/wiki/Eurasian_hoopoe ; EcoRegistros (Morocco records): https://www.ecoregistros.org/sheet/Upupa-epops?idpais=76
