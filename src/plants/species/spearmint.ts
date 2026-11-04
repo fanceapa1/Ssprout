@@ -139,7 +139,7 @@ export function planSpearmint(rng: Rng): SpearmintPlan {
     const side: 1 | -1 = i % 2 ? 1 : -1;
     const x = side * rng.range(4, 12);
     runners.push({
-      stem: makeStem(rng, { base: { x, y: rng.range(0.4, 1.4) }, length: rng.range(9, 15), angle: side > 0 ? rng.range(-0.15, 0.1) : Math.PI + rng.range(-0.1, 0.15), bend: side * rng.range(-0.1, 0.1), segments: 5 }),
+      stem: makeStem(rng, { base: { x, y: rng.range(0.4, 1.4) }, length: rng.range(9, 15), angle: side > 0 ? rng.range(-0.15, 0.1) : Math.PI + rng.range(-0.1, 0.15), bend: side * rng.range(-0.35, 0.35), segments: 5, wobble: 0.08 }),
       window: [...stagger(i, nr, [0.02, 0.32], 0.7)] as [number, number],
       tip: { length: rng.range(2.6, 3.6), tone: jitter(mix(green, PIGMENTS.sageLight, 0.15), rng, 0.02) },
     });
