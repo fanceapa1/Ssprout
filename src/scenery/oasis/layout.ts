@@ -201,14 +201,15 @@ export const PATH_HALF_WIDTH = { far: 16, near: 46 } as const;
  * footpath, the low earth bund along their top edge, and the wet sand along the seguia.
  */
 export const NEAR_PLOTS: readonly (readonly Pt[])[] = [
-  [{ x: 20, y: 700 }, { x: 330, y: 690 }, { x: 250, y: 790 }, { x: 160, y: 960 }, { x: 10, y: 960 }],
-  [{ x: 420, y: 800 }, { x: 740, y: 790 }, { x: 750, y: 980 }, { x: 330, y: 990 }],
-  [{ x: 940, y: 770 }, { x: 1196, y: 766 }, { x: 1190, y: 990 }, { x: 960, y: 990 }],
+  [{ x: -20, y: 772 }, { x: 140, y: 762 }, { x: 296, y: 772 }, { x: 318, y: 804 }, { x: 252, y: 880 }, { x: 196, y: 1000 }, { x: -20, y: 1000 }],
+  [{ x: 438, y: 806 }, { x: 600, y: 792 }, { x: 760, y: 796 }, { x: 772, y: 900 }, { x: 762, y: 1000 }, { x: 330, y: 1000 }, { x: 384, y: 900 }],
+  [{ x: 932, y: 778 }, { x: 1062, y: 768 }, { x: 1200, y: 776 }, { x: 1212, y: 880 }, { x: 1192, y: 1000 }, { x: 952, y: 1000 }, { x: 938, y: 890 }],
 ];
-/** The plots' low earth bunds (no level change: the ground is one terrace), left → right. */
+/** The low earth bund curving across the near ground (no level change), broken by the seguia and the footpath. */
 export const BUNDS: readonly (readonly Pt[])[] = [
-  [{ x: 420, y: 798 }, { x: 600, y: 790 }, { x: 742, y: 788 }],
-  [{ x: 940, y: 768 }, { x: 1080, y: 762 }, { x: 1198, y: 764 }],
+  [{ x: -20, y: 770 }, { x: 140, y: 758 }, { x: 300, y: 768 }, { x: 352, y: 792 }],
+  [{ x: 424, y: 806 }, { x: 600, y: 788 }, { x: 772, y: 792 }],
+  [{ x: 924, y: 776 }, { x: 1080, y: 764 }, { x: 1226, y: 772 }],
 ];
 /** Damp sand darkening each bank of the seguia's last run, wider as it nears the viewer. */
 export const WET_SAND_HALF_WIDTH = { far: 26, near: 70 } as const;

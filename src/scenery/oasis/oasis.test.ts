@@ -12,8 +12,7 @@ import { MIN_VISIBLE_W, WORLD_H, WORLD_W, type Pt } from '../../render/viewport'
 import type { Slot } from '../../scene/geometry';
 import { FAR_SCALE, NEAR_SCALE, PLANT_SIZES, perspectiveScale, plantScale } from '../../scene/slots';
 import { faunaTable } from '../fauna';
-import { OASIS, OASIS_DRAFT_STEPS, OASIS_ELEMENTS, oasisAvailable } from '.';
-import { STEPS as DRAFT_STEPS } from './drafts/a/paint';
+import { OASIS, OASIS_ELEMENTS, oasisAvailable } from '.';
 import { BAR, BASIN_STONE, BASIN_WATER, OUED_WATER, oasisScene, SEGUIA, SLUICE_WATER } from './geometry';
 import { BLUFF, copingAt, FOOTPATH, LIFT, OASIS_HABITAT_WORDS, OASIS_SKY_LAYOUT, openSky, silhouetteAt, skylineAt, terraceScale, WALLS } from './layout';
 import { KSAR_SHAPES } from './ksar';
@@ -80,10 +79,10 @@ describe('the oasis scenery', () => {
     expect(OASIS.blurb.length).toBeLessThanOrEqual(110);
   });
 
-  it("paints every draft step but the draft's own sky, in the draft's order, and only the asked-for elements", () => {
+  it('paints its own steps by element, back to front, and only the asked-for elements', () => {
     const names = OASIS.art.steps(OASIS.art).map((s) => s.name);
-    expect(names).toEqual(DRAFT_STEPS.map((s) => s.name).filter((n) => n !== 'sky'));
-    expect(names).toEqual(OASIS_DRAFT_STEPS);
+    expect(names).toEqual(Object.values(OASIS_ELEMENTS).flat());
+    expect(names).toEqual(['ranges', 'dunes', 'ground', 'terraces', 'plots', 'footpath', 'grove', 'bluff', 'ksar', 'walls', 'basin', 'seguia', 'oued', 'big-palms', 'foreground', 'margins']);
     expect(OASIS.art.steps(OASIS.art, ['water']).map((s) => s.name)).toEqual([...OASIS_ELEMENTS.water]);
     expect(OASIS.art.steps(OASIS.art, ['rock', 'palms']).map((s) => s.name)).toEqual(['bluff', 'ksar', 'big-palms']);
   });
