@@ -221,7 +221,12 @@ export function planColocynth(rng: Rng): ColocynthPlan {
   const used = new Set(gourds.map((g) => `${g.runner}-${g.node}`));
   const male: MaleFlower[] = [];
   const nm = rng.int(2, 4);
-  const spots = rng.shuffle(runners.flatMap((rn, ri) => rn.nodes.map((nd, ni) => ({ ri, ni, t: nd.t })).filter((s) => s.t > 0.2 && s.t < 0.8 && !used.has(`${s.ri}-${s.ni}`))));
+  // male flowers stand clear of the gourds, so none is painted over a ball
+  const clear = (ri: number, t: number) => {
+    const q = pointAt(groundPts(runners[ri]!.stem), t);
+    return gourds.every((g) => Math.hypot(q.x - g.at.x, q.y - g.at.y) > g.r * 2 + 2.5);
+  };
+  const spots = rng.shuffle(runners.flatMap((rn, ri) => rn.nodes.map((nd, ni) => ({ ri, ni, t: nd.t })).filter((s) => s.t > 0.2 && s.t < 0.8 && !used.has(`${s.ri}-${s.ni}`) && clear(s.ri, s.t))));
   for (const s of spots) {
     if (male.length >= nm) break;
     if (male.some((m) => m.runner === s.ri)) continue;
