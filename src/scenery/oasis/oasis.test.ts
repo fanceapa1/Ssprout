@@ -15,7 +15,8 @@ import { faunaTable } from '../fauna';
 import { OASIS, OASIS_DRAFT_STEPS, OASIS_ELEMENTS, oasisAvailable } from '.';
 import { STEPS as DRAFT_STEPS } from './drafts/a/paint';
 import { BAR, BASIN_STONE, BASIN_WATER, OUED_WATER, oasisScene, SEGUIA, SLUICE_WATER } from './geometry';
-import { BLUFF, copingAt, FOOTPATH, LIFT, OASIS_HABITAT_WORDS, OASIS_SKY_LAYOUT, openSky, skylineAt, terraceScale, WALLS } from './layout';
+import { BLUFF, copingAt, FOOTPATH, LIFT, OASIS_HABITAT_WORDS, OASIS_SKY_LAYOUT, openSky, silhouetteAt, skylineAt, terraceScale, WALLS } from './layout';
+import { KSAR_SHAPES } from './ksar';
 import { SLOT_TERRACE } from './slots';
 
 const { slots } = oasisScene;
@@ -92,14 +93,28 @@ describe('the oasis scenery', () => {
     expect(OASIS.habitatWords).toBe(OASIS_HABITAT_WORDS);
   });
 
-  it('keeps the basin, the two east towers and the setting sun in the portrait crop', () => {
+  it('keeps the whole ksar, most of the basin and both low suns in the portrait crop', () => {
     const { focus } = OASIS.view;
     const crop = { x0: focus.x - MIN_VISIBLE_W / 2, x1: focus.x + MIN_VISIBLE_W / 2 };
+    for (const s of KSAR_SHAPES.filter((q) => q.block.kind !== 'curtain')) {
+      const b = bounds([...s.front, ...s.flank]);
+      expect(b.x >= crop.x0 && b.x + b.w <= crop.x1, s.block.id).toBe(true);
+    }
     const b = bounds(BASIN_WATER);
-    expect(b.x + b.w / 2).toBeGreaterThan(crop.x0);
-    expect(b.x + b.w / 2).toBeLessThan(crop.x1);
-    expect(crop.x0).toBeLessThanOrEqual(506);
+    expect(Math.min(b.x + b.w, crop.x1) - Math.max(b.x, crop.x0)).toBeGreaterThanOrEqual(b.w * 0.85);
     for (const x of [OASIS_SKY_LAYOUT.sunsetX, OASIS_SKY_LAYOUT.sunriseX]) expect(x > crop.x0 + 30 && x < crop.x1 - 30, `${x}`).toBe(true);
+  });
+
+  it('keeps the ksar clear of the top edge and the corner controls, with sky above it (1440 and 1920 wide)', () => {
+    for (const s of KSAR_SHAPES) {
+      const b = bounds([...s.front, ...s.flank]);
+      expect(b.y, s.block.id).toBeGreaterThanOrEqual(150);
+      expect(b.x, s.block.id).toBeGreaterThan(290);
+      expect(b.x + b.w, s.block.id).toBeLessThan(1220);
+    }
+    // a 16:9 screen shows 900 of the 1000 units, placed round the focus
+    const top = Math.max(0, Math.min(100, OASIS.view.focus.y - 450));
+    expect(Math.min(...KSAR_SHAPES.map((s) => bounds(s.front).y)) - top).toBeGreaterThanOrEqual(75);
   });
 
   it('leaves the garden by the footpath, nearest first, from the bottom edge', () => {
@@ -309,6 +324,13 @@ describe('the oasis sky (placeholder until O5)', () => {
     for (const seed of ['stars', 'a', 'b', 'c']) {
       for (const s of stars(40, seed, OASIS_SKY_LAYOUT)) expect(inSky(s, 6), `${seed} ${s.x},${s.y}`).toBe(true);
     }
+  });
+
+  it('runs the open sky down to the painted silhouette everywhere, so no paper shows between the towers', () => {
+    for (let x = 0; x <= WORLD_W; x += 0.5) expect(skylineAt(x), `${x}`).toBeGreaterThanOrEqual(silhouetteAt(x) - 0.01);
+    // and it follows the towers' horns and crenels, not a box over them: never more than 5 under them (at most 3 off an upright edge)
+    const low = (x: number) => Math.max(...[-3, -1.5, 0, 1.5, 3].map((d) => silhouetteAt(x + d)));
+    for (let x = 300; x <= 1000; x += 0.5) expect(skylineAt(x) - low(x), `${x}`).toBeLessThanOrEqual(5);
   });
 
   it('keeps the sky plates’ band over the sky: the skyline (+40) is above its lower edge', () => {

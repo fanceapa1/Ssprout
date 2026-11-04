@@ -6,27 +6,9 @@ import { createRng, type Rng } from '../../../../core/rng';
 import { PAPER_WHITE, blob, lighten, mix, resample, rgba, ribbon, shade, smoothPath, type Painter, type Pigment } from '../../../../paint';
 import type { Pt } from '../../../../render/viewport';
 import { paintMargins } from '../../../../scene/paint-land';
-import {
-  BAR,
-  BASIN,
-  BASIN_RIM,
-  BIG_PALMS,
-  BLUFF,
-  BLUFF_FLANK,
-  CLIFF_STEP,
-  DUNE_BASE,
-  DUNE_CRESTS,
-  FAR_RANGE,
-  KSAR,
-  KSAR_DETAIL,
-  OUED,
-  PALMS_BEHIND,
-  SEGUIA_FALLS,
-  SEGUIA_RUNS,
-  SLUICE,
-  WALLS,
-  type Block,
-} from './layout';
+import { BAR, BASIN, BASIN_RIM, BIG_PALMS, BUNDS, DUNE_BASE, DUNE_CRESTS, FAR_RANGE, FOOTPATH, GROVE_FROM, NEAR_PLOTS, OUED, PATH_HALF_WIDTH, SEGUIA_FALLS, SEGUIA_RUNS, SLUICE, WALLS, WET_SAND_HALF_WIDTH } from '../../layout';
+// the draft's own bluff and ksar (the scenery paints O2's: ../../paint-rocks.ts)
+import { BLUFF, BLUFF_FLANK, CLIFF_STEP, KSAR, KSAR_DETAIL, PALMS_BEHIND, type Block } from './layout';
 
 export const C = {
   skyTop: '#a9c6dc',
@@ -306,7 +288,7 @@ export function palm(p: Painter, top: Pt, base: Pt, size: number, rng: Rng, atmo
 }
 
 export function paintGrove(p: Painter, rng: Rng): void {
-  for (let x = 900; x < 1640; x += rng.range(70, 120)) {
+  for (let x = GROVE_FROM - 100; x < 1640; x += rng.range(70, 120)) {
     p.wetInWet(blob(x, rng.range(462, 478), rng.range(70, 110), rng.range(30, 44), rng, { irregularity: 0.3, flatBottom: 0.6 }), C.palmFar, mix(C.palm, C.palmDark, 0.5), { rng, angle: Math.PI / 2, split: 0.45, opacity: 0.5, deform: 0.3, spread: 0.2, edge: 0.2, granulation: 0.3 });
   }
   // a hazy far row, then a nearer one behind the basin
@@ -315,7 +297,7 @@ export function paintGrove(p: Painter, rng: Rng): void {
     { step: [90, 150], y: [250, 300], s: [1.3, 1.6], far: 0.3 },
   ];
   for (const [r, row] of rows.entries()) {
-    for (let x = 900 + rng.range(0, 40); x < 1640; x += rng.range(row.step[0]!, row.step[1]!)) {
+    for (let x = GROVE_FROM + rng.range(0, 40); x < 1640; x += rng.range(row.step[0]!, row.step[1]!)) {
       const y = rng.range(row.y[0]!, row.y[1]!);
       const s = rng.range(row.s[0]!, row.s[1]!);
       palm(p, { x, y }, { x: x + rng.range(-14, 14), y: 466 + r * 10 }, s, rng.fork(`grove-${r}-${Math.round(x)}`), row.far);
@@ -335,18 +317,39 @@ export function paintBigPalms(p: Painter, rng: Rng): void {
 export function paintGround(p: Painter, rng: Rng): void {
   const ground: Pt[] = [{ x: -20, y: 420 }, { x: 1620, y: 440 }, { x: 1620, y: 1020 }, { x: -20, y: 1020 }];
   p.wetInWet(ground, mix(C.soil, C.sand, 0.4), C.sand, { rng, angle: Math.PI / 2, split: 0.4, softness: 0.5, opacity: 0.6, edge: 0.05, granulation: 0.45, granules: 0.15, flow: 0.55, flowScale: 160 });
-  // the terraces' tilled plots on the left, furrowed
-  const plots = [[-20, 446, 300, 500], [-20, 532, 440, 594], [40, 660, 460, 770], [140, 820, 600, 960]] as const;
-  for (const [x0, y0, x1, y1] of plots) {
-    const pl: Pt[] = [{ x: x0, y: y0 }, { x: x1, y: y0 + rng.range(-4, 4) }, { x: x1 + 20, y: y1 }, { x: x0, y: y1 }];
+  // the upper terraces' tilled plots on the left, then the near plots either side of the footpath
+  const upper: Pt[][] = [
+    [{ x: -20, y: 456 }, { x: 300, y: 458 }, { x: 320, y: 500 }, { x: -20, y: 500 }],
+    [{ x: -20, y: 532 }, { x: 440, y: 530 }, { x: 460, y: 594 }, { x: -20, y: 594 }],
+  ];
+  for (const pl of [...upper, ...NEAR_PLOTS.map(poly)]) {
+    const b = { x0: Math.min(...pl.map((q) => q.x)), x1: Math.max(...pl.map((q) => q.x)), y0: Math.min(...pl.map((q) => q.y)), y1: Math.max(...pl.map((q) => q.y)) };
     p.wash(pl, mix(C.soil, C.soilDamp, rng.range(0, 0.5)), { rng, opacity: 0.38, deform: 0.25, spread: 0.2, edge: 0.06, sharpness: 0.2, granulation: 0.55, granules: 0.1, fade: { angle: Math.PI, start: 0.6, amount: 0.7, ragged: 0.8 } });
-    for (let yy = y0 + 12; yy < y1 - 8; yy += rng.range(12, 20) * (0.6 + (yy / 1000) * 0.8)) {
-      p.dryBrush([{ x: x0 + 20, y: yy }, { x: x1 - rng.range(10, 60), y: yy + rng.range(-3, 3) }], { rng, pigment: C.soilDamp, width: 2 + yy / 400, opacity: 0.22, dryness: 0.7 });
+    for (let yy = b.y0 + 12; yy < b.y1 - 8; yy += rng.range(12, 20) * (0.6 + (yy / 1000) * 0.8)) {
+      p.dryBrush([{ x: b.x0 + 24, y: yy }, { x: b.x1 - rng.range(20, 60), y: yy + rng.range(-3, 3) }], { rng, pigment: C.soilDamp, width: 2 + yy / 400, opacity: 0.22, dryness: 0.7 });
     }
   }
+  // the near plots' low bunds: a lit earth ridge with its shade under it
+  for (const b of BUNDS) {
+    const line = smoothPath(poly(b), 6);
+    p.stroke(line.map((q) => ({ x: q.x, y: q.y + 4 })), { rng, pigment: mix(C.soilDamp, '#8c89a1', 0.25), width: 6, opacity: 0.4, wetness: 0.4, taper: [0.05, 0.05] });
+    p.stroke(line, { rng, pigment: C.mudLit, width: 4, opacity: 0.55, wetness: 0.2, dryness: 0.3, taper: [0.05, 0.05] });
+  }
+  // damp sand darkening both banks of the seguia's last run
+  const run = smoothPath(poly(SEGUIA_RUNS[2]!), 8);
+  const wet = ribbon(run, (t) => WET_SAND_HALF_WIDTH.far + (WET_SAND_HALF_WIDTH.near - WET_SAND_HALF_WIDTH.far) * t);
+  p.wash(wet, mix(C.soilDamp, C.sandShadow, 0.5), { rng, opacity: 0.3, deform: 0.3, spread: 0.25, edge: 0.05, granulation: 0.4, fade: { angle: Math.PI / 2, start: 0.6, amount: 0.4, ragged: 0.8 } });
   // the basin terrace: pale trodden sand round the basin, young barley under the palms
-  p.glaze(blob(840, 760, 520, 120, rng, { irregularity: 0.2 }), C.sandLight, { rng, opacity: 0.4, edge: 0, granulation: 0.3 });
+  p.glaze(blob(840, 740, 420, 90, rng, { irregularity: 0.2 }), C.sandLight, { rng, opacity: 0.4, edge: 0, granulation: 0.3 });
   p.glaze(blob(1400, 520, 240, 50, rng, { irregularity: 0.25 }), mix(C.palmLight, C.sand, 0.4), { rng, opacity: 0.35, edge: 0.05 });
+  // the footpath: a pale trodden band, its edges scuffed darker
+  const walk = smoothPath(poly(FOOTPATH).reverse(), 8);
+  const half = (t: number) => PATH_HALF_WIDTH.far + (PATH_HALF_WIDTH.near - PATH_HALF_WIDTH.far) * t;
+  p.glaze(ribbon(walk, half), C.sandLight, { rng, opacity: 0.55, deform: 0.15, edge: 0.05, granulation: 0.3, blend: 'source-over' });
+  for (const side of [-1, 1]) {
+    const edge = walk.map((q, i) => ({ x: q.x + side * half(i / (walk.length - 1)), y: q.y }));
+    p.dryBrush(edge, { rng, pigment: C.sandShadow, width: 4, opacity: 0.35, dryness: 0.6 });
+  }
 }
 
 function wallFace(edge: readonly Pt[], h: number): Pt[] {

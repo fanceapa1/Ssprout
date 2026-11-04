@@ -23,9 +23,9 @@ function ksarLight(p: Painter, rng: Rng, _scene: SceneGeometry, phase: DayPhase)
   const a = phase === 'sunset' ? 0.4 : 0.3;
   const ctx = p.ctx;
   for (const [x, y, rx, ry] of [
-    [560, 90, 70, 60],
-    [780, 140, 60, 70],
-    [860, 400, 50, 90],
+    [664, 220, 70, 80],
+    [850, 240, 50, 70],
+    [980, 400, 50, 90],
   ] as const) {
     ctx.save();
     ctx.translate(x + rng.range(-4, 4), y);

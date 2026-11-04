@@ -4,6 +4,7 @@
  * motion (O6) and sound (O7) replace the seams below. Hidden behind `?dev&scenery=oasis`.
  * docs/systems/scenery.md › Oasis.
  */
+import { createRng } from '../../core/rng';
 import type { PaintStep, SceneArt } from '../../scene/background';
 import type { Scenery, SceneryView } from '../types';
 import { STEPS as DRAFT_STEPS, paintDraftA } from './drafts/a/paint';
@@ -12,6 +13,7 @@ import { OASIS_FLORA } from './flora';
 import { oasisScene } from './geometry';
 import { FOCUS, FOOTPATH, OASIS_AMBIENCE, OASIS_HABITAT_WORDS } from './layout';
 import { OASIS_LIGHT_ART } from './light';
+import { paintBluff, paintKsar } from './paint-rocks';
 import { OASIS_SKY } from './sky';
 
 export { OASIS_LIGHT_ART, OASIS_SKY };
@@ -22,8 +24,8 @@ export function oasisAvailable(flags: URLSearchParams): boolean {
 }
 
 /**
- * The painting's elements and the draft steps each one runs, back to front. O2 (rock), O3 (water)
- * and O4 (veg) swap their element's draft steps for their own painters. The sky is the plates'.
+ * The painting's elements and the steps each one runs, back to front. The rock is O2's own
+ * (`paint-rocks.ts`); O3 (water) and O4 (veg) swap their element's draft steps the same way.
  */
 export const OASIS_ELEMENTS = {
   far: ['ranges', 'dunes'],
@@ -40,11 +42,15 @@ type Element = keyof typeof OASIS_ELEMENTS;
 /** The paint steps, back to front, on white: the sky plates are multiplied over them. */
 export function oasisSteps(art: SceneArt, only?: readonly string[]): PaintStep[] {
   const steps: PaintStep[] = [];
+  const own: Record<string, PaintStep['run']> = {
+    bluff: (p) => paintBluff(p, createRng(art.seed).fork('rock-bluff')),
+    ksar: (p) => paintKsar(p, createRng(art.seed).fork('rock-ksar')),
+  };
   for (const el of Object.keys(OASIS_ELEMENTS) as Element[]) {
     if (only && !only.includes(el)) continue;
     for (const name of OASIS_ELEMENTS[el]) {
       // the draft forks each step's rng from its seed by name, so a step paints the same alone
-      steps.push({ name, soft: el === 'far', run: (p) => paintDraftA(p, art.seed, [name]) });
+      steps.push({ name, soft: el === 'far', run: own[name] ?? ((p) => paintDraftA(p, art.seed, [name])) });
     }
   }
   return steps;
