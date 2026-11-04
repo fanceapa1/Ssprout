@@ -14,6 +14,7 @@ import { oasisScene } from './geometry';
 import { FOCUS, FOOTPATH, OASIS_AMBIENCE, OASIS_HABITAT_WORDS } from './layout';
 import { OASIS_LIGHT_ART } from './light';
 import { paintBluff, paintKsar } from './paint-rocks';
+import { paintBasin, paintOued, paintSeguia } from './paint-water';
 import { OASIS_SKY } from './sky';
 
 export { OASIS_LIGHT_ART, OASIS_SKY };
@@ -25,7 +26,7 @@ export function oasisAvailable(flags: URLSearchParams): boolean {
 
 /**
  * The painting's elements and the steps each one runs, back to front. The rock is O2's own
- * (`paint-rocks.ts`); O3 (water) and O4 (veg) swap their element's draft steps the same way.
+ * (`paint-rocks.ts`), the water O3's (`paint-water.ts`); O4 (veg) swaps its element's draft steps the same way.
  */
 export const OASIS_ELEMENTS = {
   far: ['ranges', 'dunes'],
@@ -45,6 +46,9 @@ export function oasisSteps(art: SceneArt, only?: readonly string[]): PaintStep[]
   const own: Record<string, PaintStep['run']> = {
     bluff: (p) => paintBluff(p, createRng(art.seed).fork('rock-bluff')),
     ksar: (p) => paintKsar(p, createRng(art.seed).fork('rock-ksar')),
+    basin: (p) => paintBasin(p, createRng(art.seed).fork('water-basin')),
+    seguia: (p) => paintSeguia(p, createRng(art.seed).fork('water-seguia')),
+    oued: (p) => paintOued(p, createRng(art.seed).fork('water-oued')),
   };
   for (const el of Object.keys(OASIS_ELEMENTS) as Element[]) {
     if (only && !only.includes(el)) continue;
