@@ -454,7 +454,7 @@ A tended palm grove in the Draa valley, from draft A ("Ksar & palmeraie", devlog
 bluff with its ksar on the left, terraces stepping down to a stone basin fed by a seguia, big
 palms on the right and the oued bending past the viewer's right foot. O1 (devlog 105) made it a
 scenery behind `?dev&scenery=oasis`. O2 (devlog 107) reframed it and paints its rock; O3 (devlog 110)
-paints its water. The rest still paints with the draft's steps (reading the live `layout.ts`), under a placeholder sky and
+paints its water, O4 (devlog 112) its land and vegetation; no draft step runs any more (`drafts/a` is a record). It sits under a placeholder sky and
 light. O3–O4 replace the other `OASIS_ELEMENTS` draft steps in `index.ts`, O5 replaces `sky.ts` and
 `light.ts`, O6 adds `motion`, and O7 adds its own `sound` (it borrows `pond` for now).
 Composition map: studio `oasis-map/map`. Rock: studio `oasis-rock`. Water: studio `oasis-water`.
@@ -470,10 +470,9 @@ Composition map: studio `oasis-map/map`. Rock: studio `oasis-rock`. Water: studi
   x 780). Each sample takes the lowest edge within a step either side, plus 1, so the sky plate
   runs into every gap between the towers. Palm crowns are not cut out: the sky's light wash
   multiplies over them, as it does over the waterfall's crown woods.
-- **Near ground** (shaped by O2, painted fully by O4): `NEAR_PLOTS` either side of the footpath,
-  their low `BUNDS` (no change of level, so no lift), wet sand along the seguia's last run
-  (`WET_SAND_HALF_WIDTH`), and the footpath's trodden band (`PATH_HALF_WIDTH`). The draft's
-  `ground` step paints them simply.
+- **Near ground** (shaped by O2, reshaped and painted by O4): `NEAR_PLOTS` either side of the
+  footpath, the low `BUNDS` curving across (no change of level, so no lift), wet sand along the
+  seguia's last run (`WET_SAND_HALF_WIDTH`), and the footpath's trodden band (`PATH_HALF_WIDTH`).
 
 - **Water**: the basin's water inside its coping is the still pond (`BASIN_WATER`, the reflections'
   waterline at its far edge, y 488). The seguia's three runs, the sluice and the oued are
@@ -557,14 +556,44 @@ The shapes are the layout's (`geometry.ts`); the big sand bar is the layout's `B
 - **Seams for O5 and O6**: `WATER_BOXES` (`basin`, each fall, `oued`, `gate`), `WATER_SHAPES`
   (`basin`, `rim`, `steps`, `gate`, `falls`, `seguia`, `sluice`, `oued`, `bars`) and `WATER`.
 
+### Land (O4, `paint-land.ts`)
+Steps `ranges`, `dunes` (soft), `ground`, `terraces`, `plots`, `footpath`, `walls` and
+`foreground`, in parts (ADR 0226, 0238); `margins` is the garden's. Palette `LAND`, lit from the right.
+- **Far**: lilac-to-rose flat-topped ranges lost into haze; gold dunes, their west lee flanks rose.
+- **Ground**: gold sand with warm and cool passages, the pale basin terrace, damp sand along the
+  seguia's last run and along both oued banks (a dark band, a cut-bank shade, a lit lip), wind
+  ripples on open sand. **Terraces**: worked soil along the walls' curves, contour furrows,
+  faint cross-bunds, greener toward the seguia. **Plots**: soft outlines, furrows toward a
+  vanishing point, seedling rows, a watered side. **Footpath**: lifted and paled, footprints.
+- **Walls**: pisé faces hung from the layout's copings (the grove wall runs 44 further left,
+  under the basin's corner), formwork courses, streaks, a damp foot, a cast shade, a broken lit
+  cap, fallen lumps. `WALL_FACES` exports each face for daylight.
+- **Foreground**: the bund, a stone channel where it meets the seguia, a broken jar, stones, dry
+  halfa tufts, and earth fallen into the basin's near-left corner.
+
+### Vegetation (O4, `paint-veg.ts`)
+Steps `grove` (after the ground) and `big-palms` (after the water), in parts. Every palm is the
+date-palm species' tree (devlog 106), planned by `planPalm` with its helpers: arching rachises,
+V-set leaflets, a wet crown wash, a few gold old fronds, the diamond leaf-base lattice.
+- **Grove**: a shaded floor, a hazy back row and a nearer row of palms (batched wet layers), fig,
+  pomegranate and olive masses lit from the right, crops as soft green bands before the wall.
+- **Big palms**: the four `BIG_PALMS`, planned from fixed seeds: crown wash, back fronds, trunk on
+  reserved paper (flared foot, lattice, sun on the right flank), the crown's heart, front fronds,
+  date bunches on the three near ones, and a shadow cast left.
+- **Seams for O5**: `VEG_SHAPES` (`bigPalms` with trunk, width and crown outline, `grovePalms`,
+  `groveTrees`, `grove`), `PALM` and `haze()`.
+
 ## Tests
+- `src/scenery/oasis/veg.test.ts` and `land.test.ts` (O4): their steps; pinned recording hashes
+  (overview and a close view); no part over one big mark's work; many parts per step; the big
+  palms from the layout, their crowns round their tops; the grove on its floor; each wall face
+  hung from its coping, every wall slot on a face; the near shapes in the world and off the oued.
 - `src/scenery/oasis/water.test.ts` (O3): three steps, pinned recording hashes, no part over one
   big mark's work (overview and the basin's corner close up), many parts per step, the steps in
   the water and the gate across the coping, each fall off a wall's coping inside its box, the
   bars in the oued, the big one the layout's bar and none on the shallows' slots, the exported boxes.
 - `src/scenery/oasis/oasis.test.ts` (O1): hidden unless `?dev&scenery=oasis`; self-consistency
-  with no building, lantern, eave, falls or motion; every draft step but its sky, in order, by
-  element; habitat words; the portrait crop and `pathOut`; the basin inside its stone and the
+  with no building, lantern, eave, falls or motion; its own steps in order, by element; habitat words; the portrait crop and `pathOut`; the basin inside its stone and the
   streams to the bottom edge; 40–49 slots with prefixed ids, every habitat (4+) and size (2+); in
   the world at 1.25×, out of the sky and off the bluff; water, land and shore slots against the
   water; rock slots on a coping or the talus; terrace scales (ADR 0300); footpath slots; spacing at
