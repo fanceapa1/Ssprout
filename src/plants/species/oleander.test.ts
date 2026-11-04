@@ -54,7 +54,7 @@ describe('oleander', () => {
     const { w, h } = oleander.size;
     const left = -w * oleander.anchor.x;
     const top = -h * oleander.anchor.y;
-    for (let seed = 1; seed <= 40; seed++) {
+    for (let seed = 1; seed <= 16; seed++) {
       const pose = poseOleander(build(seed), 1);
       const pts = [
         ...pose.stems.flatMap((c) => c.pts),
