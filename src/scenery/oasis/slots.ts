@@ -41,7 +41,7 @@ const SPECS: Record<Habitat, SlotSpec[]> = {
   meadow: [
     ['plot-1', 170, 740, 'small'],
     ['plot-2', 420, 720, 'small'],
-    ['plot-3', 130, 880, 'large'],
+    ['plot-3', 150, 880, 'large'],
     ['plot-4', 610, 830, 'medium'],
     ['plot-5', 540, 950, 'large'],
     ['plot-6', 1050, 820, 'large'],
@@ -69,10 +69,10 @@ const SPECS: Record<Habitat, SlotSpec[]> = {
   // the terrace walls' copings, and the talus at the bluff's foot
   rock: [
     ['wall-1', 400, 494, 'small', 'high'],
-    ['wall-2', 40, 600, 'small', 'middle'],
+    ['wall-2', 60, 600, 'small', 'middle'],
     ['wall-3', 220, 590, 'small', 'middle'],
     ['wall-4', 420, 578, 'small', 'middle'],
-    ['wall-5', 1592, 471, 'small', 'grove'],
+    ['wall-5', 1560, 472, 'small', 'grove'],
     ['talus-1', 250, 462, 'small', 'high'],
     ['talus-2', 944, 474, 'small', 'grove'],
   ],
