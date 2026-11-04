@@ -5,8 +5,8 @@
  */
 import type { Pt } from '../../../../render/viewport';
 
-/** Where the eye rests: the basin's near rim. The phone crop is 600 wide around it. */
-export const FOCUS: Pt = { x: 790, y: 640 };
+/** Where the eye rests: the basin's near left corner. The phone crop is 600 wide around it. */
+export const FOCUS: Pt = { x: 750, y: 640 };
 
 /** The far flat-topped ranges (lilac), their skyline left to right. */
 export const FAR_RANGE: readonly Pt[] = [
@@ -32,8 +32,8 @@ export const DUNE_BASE = 452;
 
 /** The bluff: flat top under the ksar, a lit right face dropping to the grove, the foot at ~490. */
 export const BLUFF: readonly Pt[] = [
-  { x: -20, y: 252 }, { x: 40, y: 240 }, { x: 120, y: 236 }, { x: 210, y: 240 }, { x: 300, y: 236 },
-  { x: 420, y: 240 }, { x: 520, y: 244 }, { x: 568, y: 252 }, { x: 596, y: 274 }, { x: 610, y: 306 },
+  { x: -20, y: 262 }, { x: 30, y: 246 }, { x: 70, y: 244 }, { x: 120, y: 238 }, { x: 210, y: 240 }, { x: 300, y: 234 },
+  { x: 420, y: 240 }, { x: 500, y: 242 }, { x: 545, y: 246 }, { x: 568, y: 254 }, { x: 596, y: 274 }, { x: 610, y: 306 },
   { x: 628, y: 346 }, { x: 650, y: 390 }, { x: 676, y: 428 }, { x: 706, y: 462 }, { x: 690, y: 480 },
   { x: 600, y: 488 }, { x: 460, y: 494 }, { x: 260, y: 500 }, { x: -20, y: 506 },
 ];
@@ -57,19 +57,21 @@ export interface Block {
 
 /** Back to front: houses behind, towers, the curtain wall last. */
 export const KSAR: readonly Block[] = [
-  { x: 186, w: 128, h: 70, base: 244, side: 18, tower: false },
-  { x: 348, w: 96, h: 62, base: 244, side: 16, tower: false },
-  { x: 136, w: 48, h: 112, base: 250, side: 14, tower: true },
-  { x: 296, w: 54, h: 132, base: 250, side: 16, tower: true },
-  { x: 436, w: 46, h: 98, base: 250, side: 14, tower: true },
-  { x: 474, w: 72, h: 54, base: 252, side: 14, tower: false, ruined: true },
-  { x: 524, w: 42, h: 86, base: 256, side: 16, tower: true },
-  { x: 100, w: 440, h: 36, base: 260, side: 0, tower: false },
+  { x: 196, w: 120, h: 86, base: 244, side: 18, tower: false },
+  { x: 352, w: 92, h: 76, base: 244, side: 16, tower: false },
+  { x: 84, w: 70, h: 52, base: 252, side: 12, tower: false, ruined: true },
+  { x: 136, w: 50, h: 138, base: 252, side: 14, tower: true },
+  { x: 290, w: 58, h: 164, base: 254, side: 18, tower: true },
+  { x: 438, w: 48, h: 120, base: 254, side: 14, tower: true },
+  { x: 182, w: 108, h: 52, base: 276, side: 0, tower: false, ruined: true },
+  { x: 346, w: 92, h: 48, base: 276, side: 0, tower: false, ruined: true },
+  { x: 480, w: 64, h: 60, base: 258, side: 14, tower: false, ruined: true },
+  { x: 528, w: 44, h: 104, base: 262, side: 18, tower: true },
 ];
 
 /** Palms rising from behind the ksar (crown x, crown y, size). */
 export const PALMS_BEHIND: readonly [number, number, number][] = [
-  [92, 168, 0.8], [252, 150, 0.9], [404, 160, 0.85], [212, 178, 0.7], [480, 186, 0.7],
+  [60, 150, 0.85], [246, 128, 0.95], [404, 138, 0.9], [212, 160, 0.75], [500, 166, 0.75],
 ];
 
 /** The pisé terrace walls' top edges, left to right, and their face height. */
@@ -78,16 +80,11 @@ export interface Wall {
   h: number;
 }
 export const WALLS: readonly Wall[] = [
-  { edge: [{ x: 640, y: 524 }, { x: 820, y: 530 }, { x: 1040, y: 526 }, { x: 1300, y: 532 }, { x: 1620, y: 522 }], h: 12 },
-  { edge: [{ x: -20, y: 640 }, { x: 240, y: 650 }, { x: 520, y: 664 }, { x: 700, y: 678 }, { x: 960, y: 680 }, { x: 1220, y: 670 }, { x: 1620, y: 656 }], h: 18 },
-  { edge: [{ x: -20, y: 556 }, { x: 200, y: 552 }, { x: 420, y: 548 }, { x: 560, y: 540 }], h: 12 },
+  { edge: [{ x: 600, y: 520 }, { x: 760, y: 534 }, { x: 960, y: 532 }, { x: 1150, y: 524 }, { x: 1380, y: 532 }, { x: 1620, y: 522 }], h: 12 },
+  { edge: [{ x: -20, y: 552 }, { x: 180, y: 548 }, { x: 380, y: 552 }, { x: 540, y: 536 }], h: 12 },
+  { edge: [{ x: -20, y: 646 }, { x: 200, y: 660 }, { x: 460, y: 664 }, { x: 640, y: 684 }, { x: 800, y: 694 }, { x: 960, y: 690 }, { x: 1120, y: 674 }, { x: 1360, y: 668 }, { x: 1620, y: 650 }], h: 22 },
 ];
 
-/** Short cross walls dividing the plots (top edge from, to). */
-export const CROSS_WALLS: readonly [Pt, Pt][] = [
-  [{ x: 1180, y: 530 }, { x: 1150, y: 670 }],
-  [{ x: 330, y: 556 }, { x: 300, y: 652 }],
-];
 
 /** The seguia: from the bluff's foot down across the terraces to the basin's left end. */
 export const SEGUIA: readonly Pt[] = [
@@ -107,28 +104,22 @@ export const OVERFLOW: readonly Pt[] = [
 
 /** The oued: a wide bend from the lower left, up toward the centre, and out at the right. */
 export const OUED: readonly Pt[] = [
-  { x: -30, y: 846 }, { x: 140, y: 822 }, { x: 360, y: 800 }, { x: 600, y: 786 }, { x: 860, y: 782 },
-  { x: 1080, y: 790 }, { x: 1300, y: 806 }, { x: 1460, y: 800 }, { x: 1630, y: 792 },
-  { x: 1630, y: 880 }, { x: 1440, y: 892 }, { x: 1250, y: 884 }, { x: 1060, y: 868 }, { x: 860, y: 868 },
-  { x: 640, y: 884 }, { x: 420, y: 912 }, { x: 220, y: 948 }, { x: 60, y: 972 }, { x: -30, y: 980 },
-];
+  { x: -30, y: 880 }, { x: 160, y: 856 }, { x: 380, y: 822 }, { x: 600, y: 796 }, { x: 860, y: 782 },
+  { x: 1080, y: 776 }, { x: 1300, y: 772 }, { x: 1460, y: 764 }, { x: 1630, y: 752 },
+  { x: 1630, y: 832 }, { x: 1440, y: 850 }, { x: 1250, y: 858 }, { x: 1060, y: 864 }, { x: 860, y: 872 },
+  { x: 640, y: 892 }, { x: 440, y: 924 }, { x: 240, y: 962 }, { x: 80, y: 996 }, { x: -30, y: 1010 },
+]
 
 /** Sand bars in the oued, pale islands near the inside of the bend. */
 export const BARS: readonly { cx: number; cy: number; rx: number; ry: number }[] = [
-  { cx: 1180, cy: 846, rx: 110, ry: 12 },
-  { cx: 520, cy: 868, rx: 70, ry: 8 },
+  { cx: 1200, cy: 830, rx: 110, ry: 11 },
+  { cx: 560, cy: 884, rx: 70, ry: 8 },
 ];
 
-/** The dense grove's palms in the middle band (crown x, crown y, size); far rows first. */
-export const GROVE: readonly [number, number, number][] = [
-  [700, 400, 0.55], [760, 396, 0.6], [830, 404, 0.5], [1010, 398, 0.55], [1080, 392, 0.6], [1140, 402, 0.55],
-  [1260, 396, 0.6], [1330, 404, 0.5], [1450, 398, 0.6], [1520, 392, 0.55], [1580, 402, 0.55],
-  [736, 430, 0.75], [880, 424, 0.8], [960, 436, 0.7], [1180, 428, 0.8], [1290, 436, 0.75], [1400, 426, 0.8], [1490, 434, 0.75],
-  [1560, 440, 0.8],
-];
 /** Palms on the upper terraces at the bluff's foot and by the seguia's head. */
 export const TERRACE_PALMS: readonly [number, number, number][] = [
   [330, 410, 1.0], [430, 400, 1.05], [560, 420, 0.95], [190, 430, 0.9], [1050, 452, 1.0], [1350, 456, 1.05],
+  [40, 560, 0.45], [1570, 580, 0.5], [610, 590, 0.4], [780, 430, 0.85], [1240, 438, 0.9], [1500, 444, 0.9],
 ];
 
 /** Plantable zones for the composition map (centre, radii, label, slot count). */
@@ -136,9 +127,9 @@ export const ZONES: readonly { cx: number; cy: number; rx: number; ry: number; l
   { cx: 430, cy: 610, rx: 160, ry: 34, label: 'upper plots W', n: 4 },
   { cx: 1050, cy: 612, rx: 120, ry: 34, label: 'plots by the basin', n: 3 },
   { cx: 1390, cy: 604, rx: 140, ry: 34, label: 'upper plots E', n: 3 },
-  { cx: 400, cy: 726, rx: 260, ry: 34, label: 'lower terrace', n: 4 },
-  { cx: 1250, cy: 734, rx: 220, ry: 32, label: 'river bank E', n: 3 },
-  { cx: 780, cy: 816, rx: 130, ry: 20, label: 'shallows', n: 2 },
-  { cx: 1180, cy: 846, rx: 90, ry: 14, label: 'sand bar', n: 1 },
-  { cx: 860, cy: 940, rx: 380, ry: 40, label: 'near sand bank', n: 5 },
+  { cx: 380, cy: 740, rx: 260, ry: 34, label: 'lower terrace', n: 4 },
+  { cx: 1280, cy: 720, rx: 220, ry: 28, label: 'river bank E', n: 3 },
+  { cx: 760, cy: 830, rx: 130, ry: 20, label: 'shallows', n: 2 },
+  { cx: 1200, cy: 830, rx: 90, ry: 14, label: 'sand bar', n: 1 },
+  { cx: 920, cy: 940, rx: 380, ry: 40, label: 'near sand bank', n: 5 },
 ];

@@ -3,7 +3,7 @@
  * (the paper is multiplied last). Light comes from the upper right.
  */
 import { createRng, type Rng } from '../../../../core/rng';
-import { PAPER_WHITE, blob, bounds, lighten, mix, resample, rgba, ribbon, shade, smoothPath, type Painter, type Pigment } from '../../../../paint';
+import { PAPER_WHITE, blob, lighten, mix, resample, rgba, ribbon, shade, smoothPath, type Painter, type Pigment } from '../../../../paint';
 import type { Pt } from '../../../../render/viewport';
 import { paintMargins } from '../../../../scene/paint-land';
 import {
@@ -12,11 +12,9 @@ import {
   BASIN_RIM,
   BLUFF,
   BLUFF_FLANK,
-  CROSS_WALLS,
   DUNE_BASE,
   DUNE_CRESTS,
   FAR_RANGE,
-  GROVE,
   KSAR,
   NEAR_RANGE,
   OUED,
@@ -44,9 +42,9 @@ export const C = {
   mud: '#cf8f68',
   mudLit: '#f0bc8a',
   mudShadow: '#9a5c4e',
-  palm: '#808c52',
-  palmDark: '#56613c',
-  palmLight: '#aab36e',
+  palm: '#8c9a5c',
+  palmDark: '#66714a',
+  palmLight: '#b3bb78',
   palmFar: '#9aa38a',
   trunk: '#8a6a4e',
   waterLight: '#86bcbc',
@@ -94,7 +92,7 @@ function yAt(line: readonly Pt[], x: number): number {
 export function paintSky(p: Painter, rng: Rng): void {
   const sky: Pt[] = [{ x: -20, y: -20 }, { x: 1620, y: -20 }, { x: 1620, y: 380 }, { x: -20, y: 380 }];
   p.wetInWet(sky, C.skyTop, C.skyLow, { rng, angle: Math.PI / 2, split: 0.55, softness: 0.6, opacity: 0.32, edge: 0, granulation: 0.05, flow: 0.5, flowScale: 200 });
-  p.glaze(blob(1380, 250, 300, 80, rng, { irregularity: 0.3 }), C.skyLow, { rng, opacity: 0.18, edge: 0, sharpness: 0.05 });
+  p.glaze([{ x: -20, y: 200 }, { x: 1620, y: 180 }, { x: 1620, y: 380 }, { x: -20, y: 380 }], C.skyLow, { rng, opacity: 0.22, edge: 0, sharpness: 0.05, fade: { angle: -Math.PI / 2, start: 0.2, amount: 1, ragged: 0.4 } });
 }
 
 export function paintRanges(p: Painter, rng: Rng): void {
@@ -120,19 +118,19 @@ export function paintDunes(p: Painter, rng: Rng): void {
   const body = belowLine(crest, DUNE_BASE);
   reserve(p, body);
   p.wetInWet(body, C.sandLight, C.sand, { rng, angle: Math.PI / 2, split: 0.35, opacity: 0.75, deform: 0.05, spread: 0.04, edge: 0.35, sharpness: 0.75, granulation: 0.35, granules: 0.15 });
-  // slip faces: shadow on the west side of each crest, a sharp crest line and a soft foot
+  // the shaded west flank of each crest: a lune hugging the crest line, lost toward the foot
   for (let i = 1; i < DUNE_CRESTS.length - 1; i++) {
     const c = DUNE_CRESTS[i]!;
-    const prev = DUNE_CRESTS[i - 1]!;
-    const w = (c.x - prev.x) * 0.55;
-    const face: Pt[] = [
-      { x: c.x, y: c.y + 1 },
-      { x: c.x - w * 0.35, y: c.y + 26 },
-      { x: c.x - w, y: c.y + 62 },
-      { x: c.x - w * 0.2, y: c.y + 70 },
-      { x: c.x + 18, y: c.y + 40 },
-    ];
-    p.wash(face, C.sandShadow, { rng, opacity: 0.42, deform: 0.12, spread: 0.08, edge: 0.4, sharpness: 0.8, granulation: 0.4, fade: { angle: Math.PI / 2 + 0.6, start: 0.3, amount: 0.9 } });
+    const w = (c.x - DUNE_CRESTS[i - 1]!.x) * 0.7;
+    const top: Pt[] = [];
+    const low: Pt[] = [];
+    for (let k = 0; k <= 10; k++) {
+      const x = c.x - w + (w * k) / 10;
+      const y = yAt(crest, x);
+      top.push({ x, y: y + 1 });
+      low.push({ x: x + 6, y: y + Math.sin((Math.PI * k) / 10) ** 0.7 * 46 + 4 });
+    }
+    p.wash([...top, ...low.reverse()], C.sandShadow, { rng, opacity: 0.4, deform: 0.06, spread: 0.05, edge: 0.35, sharpness: 0.8, granulation: 0.45, fade: { angle: Math.PI / 2 + 0.3, start: 0.25, amount: 0.95 } });
   }
   // ripples on the lit faces
   for (let i = 0; i < 22; i++) {
@@ -147,30 +145,46 @@ export function paintDunes(p: Painter, rng: Rng): void {
 
 export function paintBluff(p: Painter, rng: Rng): void {
   reserve(p, BLUFF);
-  p.wetInWet(BLUFF, C.redOchre, C.redDeep, { rng, angle: Math.PI / 2 - 0.4, split: 0.6, softness: 0.5, opacity: 0.8, deform: 0.04, spread: 0.03, edge: 0.4, sharpness: 0.75, granulation: 0.45, granules: 0.2, flow: 0.5 });
-  p.wash(poly(BLUFF_FLANK), C.mudLit, { rng, opacity: 0.55, deform: 0.05, spread: 0.04, edge: 0.15, sharpness: 0.6, blend: 'source-over', fade: { angle: Math.PI, start: 0.5, amount: 0.9 } });
-  p.glaze(poly(BLUFF_FLANK), C.redOchre, { rng, opacity: 0.25, edge: 0.2 });
+  p.wetInWet(BLUFF, mix(C.redOchre, C.mudLit, 0.25), mix(C.redOchre, C.redDeep, 0.5), { rng, angle: Math.PI / 2 - 0.4, split: 0.6, softness: 0.6, opacity: 0.78, drops: [{ pigment: C.soil, at: { x: 200, y: 400 }, size: 0.3, alpha: 0.4 }, { pigment: C.redDeep, at: { x: 420, y: 330 }, size: 0.2, alpha: 0.3 }], deform: 0.04, spread: 0.03, edge: 0.4, sharpness: 0.75, granulation: 0.45, granules: 0.2, flow: 0.5 });
+  reserve(p, BLUFF_FLANK);
+  p.wetInWet(poly(BLUFF_FLANK), mix(C.mudLit, C.redOchre, 0.2), mix(C.redOchre, C.mudLit, 0.4), { rng, angle: Math.PI, split: 0.5, softness: 0.7, opacity: 0.8, deform: 0.04, spread: 0.03, edge: 0.3, sharpness: 0.7, granulation: 0.4, granules: 0.1 });
   clipTo(p, BLUFF);
-  // strata: wavy ledges, a lit lip over a dark band
-  for (let k = 0; k < 7; k++) {
-    const y0 = 290 + k * 30 + rng.range(-6, 6);
-    const pts: Pt[] = [];
-    for (let x = -20; x <= 720; x += 40) pts.push({ x, y: y0 + Math.sin(x / 90 + k) * 5 + (x > 560 ? (x - 560) * 0.35 : 0) });
-    p.dryBrush(pts, { rng, pigment: C.redDeep, width: rng.range(5, 9), opacity: 0.4, dryness: 0.55 });
+  // strata: broken ledges, darker under a lit lip
+  for (let k = 0; k < 5; k++) {
+    const y0 = 300 + k * 38 + rng.range(-8, 8);
+    for (let x = -20; x < 640; ) {
+      const len = rng.range(60, 180);
+      const pts: Pt[] = [];
+      for (let t = 0; t <= 1.001; t += 0.25) pts.push({ x: x + len * t, y: y0 + Math.sin((x + len * t) / 90 + k) * 4 + Math.max(0, x + len * t - 560) * 0.4 });
+      p.dryBrush(pts, { rng, pigment: C.redDeep, width: rng.range(4, 7), opacity: 0.32, dryness: 0.6 });
+      x += len + rng.range(20, 90);
+    }
   }
-  // gullies down the face
-  for (let i = 0; i < 16; i++) {
-    const x = rng.range(10, 560);
-    const y = rng.range(262, 300);
-    const len = rng.range(80, 200);
+  // gullies: cut from the rim, branching, lost toward the foot
+  for (let i = 0; i < 9; i++) {
+    const x = 30 + i * 60 + rng.range(-15, 15);
+    const y = 252 + rng.range(0, 12);
+    const len = rng.range(110, 210);
     const pts: Pt[] = [];
-    for (let t = 0; t <= 1.001; t += 0.2) pts.push({ x: x + Math.sin(t * 3 + i) * 6 + t * 10, y: y + t * len });
-    p.stroke(pts, { rng, pigment: shade(C.redDeep, 0.15), width: rng.range(4, 10), taper: [0.1, 0.6], opacity: 0.45, wetness: 0.6, dryness: 0.3 });
+    for (let t = 0; t <= 1.001; t += 0.2) pts.push({ x: x + Math.sin(t * 3 + i) * 7 + t * 8, y: y + t * len });
+    p.stroke(pts, { rng, pigment: mix(C.redDeep, '#8c89a1', 0.2), width: rng.range(6, 12), taper: [0.02, 0.85], opacity: 0.4, wetness: 0.65, dryness: 0.25 });
+    p.dryBrush(pts.map((q) => ({ x: q.x + 7, y: q.y })), { rng, pigment: C.mudLit, width: 3, opacity: 0.35, dryness: 0.6, blend: 'source-over' });
   }
   p.ctx.restore();
   // the talus at its foot: soft and grainy into the grove
   const foot: Pt[] = [{ x: -20, y: 470 }, { x: 300, y: 470 }, { x: 600, y: 462 }, { x: 720, y: 470 }, { x: 700, y: 500 }, { x: 300, y: 512 }, { x: -20, y: 516 }];
   p.wash(foot, mix(C.redOchre, C.sand, 0.5), { rng, opacity: 0.5, edge: 0.1, granulation: 0.5, fade: { angle: Math.PI / 2, start: 0.4, amount: 0.8 } });
+}
+
+/** A tower's top: tall stepped horns at the corners over a low parapet. */
+function horns(x0: number, x1: number, top: number): Pt[] {
+  const w = x1 - x0;
+  const hw = w * 0.2;
+  return [
+    { x: x0 - 2, y: top + 2 }, { x: x0 - 2, y: top - 16 }, { x: x0 + hw * 0.5, y: top - 20 }, { x: x0 + hw, y: top - 14 }, { x: x0 + hw, y: top - 6 },
+    { x: x0 + w * 0.42, y: top - 6 }, { x: x0 + w * 0.42, y: top - 10 }, { x: x0 + w * 0.58, y: top - 10 }, { x: x0 + w * 0.58, y: top - 6 },
+    { x: x1 - hw, y: top - 6 }, { x: x1 - hw, y: top - 14 }, { x: x1 - hw * 0.5, y: top - 20 }, { x: x1 + 2, y: top - 16 }, { x: x1 + 2, y: top + 2 },
+  ];
 }
 
 function crenels(x0: number, x1: number, top: number, size: number, ruin: Rng | null): Pt[] {
@@ -191,7 +205,7 @@ function paintBlock(p: Painter, b: Block, rng: Rng): void {
   const taper = b.tower ? b.w * 0.07 : 0;
   const tl = b.x + taper;
   const tr = b.x + b.w - taper;
-  const cren = crenels(tl, tr, top, b.tower ? 7 : 5, b.ruined ? rng : null);
+  const cren = b.tower ? horns(tl, tr, top) : crenels(tl, tr, top, 5, b.ruined ? rng : null);
   const front: Pt[] = [...cren, { x: b.x + b.w, y: b.base }, { x: b.x, y: b.base }];
   reserve(p, front);
   // the lit flank first, so the front's edge sits over it
@@ -199,7 +213,7 @@ function paintBlock(p: Painter, b: Block, rng: Rng): void {
     const s = b.side;
     const flank: Pt[] = [{ x: tr, y: top }, { x: tr + s, y: top - s * 0.32 + taper * 0.3 }, { x: b.x + b.w + s, y: b.base - s * 0.32 }, { x: b.x + b.w, y: b.base }];
     reserve(p, flank);
-    p.wash(flank, C.mudLit, { rng, opacity: 0.7, deform: 0.04, spread: 0.03, edge: 0.3, sharpness: 0.85, granulation: 0.3 });
+    p.wash(flank, mix(C.mudLit, C.mud, 0.35), { rng, opacity: 0.75, deform: 0.04, spread: 0.03, edge: 0.3, sharpness: 0.85, granulation: 0.3 });
     p.dryBrush([{ x: tr + s * 0.5, y: top + 6 }, { x: tr + s * 0.5, y: b.base - 6 }], { rng, pigment: C.mud, width: s * 0.5, opacity: 0.25, dryness: 0.7 });
   }
   p.wetInWet(front, C.mud, C.mudShadow, { rng, angle: Math.PI / 2, split: 0.55, opacity: 0.78, deform: 0.03, spread: 0.02, edge: 0.4, sharpness: 0.85, granulation: 0.4, granules: 0.15 });
@@ -241,6 +255,9 @@ function paintBlock(p: Painter, b: Block, rng: Rng): void {
 export function paintKsar(p: Painter, rng: Rng): void {
   for (const [x, y, s] of PALMS_BEHIND) palm(p, { x, y }, { x: x + 4, y: 262 }, s, rng.fork(`behind-${x}`), 0.65);
   for (const b of KSAR) paintBlock(p, b, rng.fork(`block-${b.x}`));
+  // the rock's top lip in front of the walls, so the ksar grows out of the bluff
+  const lip: Pt[] = [{ x: 60, y: 252 }, { x: 300, y: 254 }, { x: 600, y: 258 }, { x: 600, y: 278 }, { x: 60, y: 276 }];
+  p.wash(lip, C.redOchre, { rng, opacity: 0.7, deform: 0.2, spread: 0.15, edge: 0.15, granulation: 0.5, fade: { angle: -Math.PI / 2, start: 0.3, amount: 1, ragged: 0.9 } });
   // the block shadows: each tower's cast shade on the wall to its left
   for (const b of KSAR.filter((k) => k.tower)) {
     p.glaze([{ x: b.x - 14, y: b.base - 34 }, { x: b.x, y: b.base - 34 }, { x: b.x, y: b.base }, { x: b.x - 26, y: b.base }], C.mudShadow, { rng, opacity: 0.3, edge: 0.1, fade: { angle: Math.PI, start: 0.4, amount: 1 } });
@@ -264,41 +281,58 @@ export function palm(p: Painter, top: Pt, base: Pt, size: number, rng: Rng, atmo
     }
     p.dryBrush(trunk.map((q) => ({ x: q.x + trunkW * 0.3, y: q.y })), { rng, pigment: lighten(C.mudLit, 0.05), width: trunkW * 0.35, opacity: 0.35, dryness: 0.6, blend: 'source-over' });
   }
-  // fronds: dark under-fronds first, then the lit upper ones
-  const n = Math.round(rng.range(11, 15));
-  for (let pass = 0; pass < 2; pass++) {
-    for (let i = 0; i < n; i++) {
-      const a0 = -Math.PI / 2 + (i / (n - 1) - 0.5) * 2.9 + rng.range(-0.12, 0.12);
-      const len = size * rng.range(48, 70) * (1 - Math.abs(Math.cos(a0)) * 0.1);
-      const droop = (0.6 + Math.abs(Math.cos(a0)) * 0.9) * (pass ? 0.8 : 1.15);
-      const pts: Pt[] = [];
-      for (let t = 0; t <= 1.001; t += 0.125) pts.push({ x: top.x + Math.cos(a0) * len * t, y: top.y + Math.sin(a0) * len * t * 0.8 + droop * len * t * t * 0.7 });
-      const lit = Math.cos(a0) > 0.2;
-      const pig = pass === 0 ? far(C.palmDark) : far(lit ? C.palmLight : C.palm);
-      p.stroke(pts, { rng, pigment: pig, width: size * (pass ? 4.5 : 5.5), taper: [0.05, 0.7], opacity: pass ? 0.75 : 0.65, wetness: 0.35, dryness: 0.45, wobble: 0.25 });
-      if (atmos >= 0.6) continue;
-      // leaflets hanging from the rachis
-      for (let t = 0.2; t < 0.95; t += 0.14) {
-        const q = pts[Math.round(t * (pts.length - 1))]!;
-        const dir = Math.atan2(Math.sin(a0) + droop * t * 1.4, Math.cos(a0));
-        for (const side of [-1, 1]) {
-          p.dab(q, pig, { rng, variant: 'blade', angle: dir + side * 0.9 + 0.35, length: size * rng.range(10, 16) * (1 - t * 0.4), width: size * 2.2, opacity: 0.55, layers: 2 });
-        }
+  // fronds: drooping lower ones in shade first, then the stiff upper ones catching the light
+  const n = Math.round(rng.range(16, 20));
+  for (let i = 0; i < n; i++) {
+    const u = i / (n - 1);
+    const lower = u < 0.35;
+    const dip = rng.range(-0.3, 0.5);
+    const a0 = lower ? (rng.chance(0.5) ? dip : Math.PI - dip) : -Math.PI - 0.25 + rng.range(0, Math.PI + 0.5);
+    const side = Math.abs(Math.cos(a0));
+    const len = size * rng.range(46, 64) * (lower ? 0.9 : 1);
+    const droop = lower ? 0.9 : 0.15 + side * 0.5;
+    const pts: Pt[] = [];
+    for (let t = 0; t <= 1.001; t += 0.125) pts.push({ x: top.x + Math.cos(a0) * len * t, y: top.y + Math.sin(a0) * len * t * 0.85 + droop * len * t * t * 0.55 });
+    const lit = Math.cos(a0) > 0.1 && !lower;
+    const pig = far(lower ? mix(C.palm, C.palmDark, 0.6) : lit ? C.palmLight : C.palm);
+    p.stroke(pts, { rng, pigment: pig, width: size * 3, taper: [0.05, 0.75], opacity: 0.7, wetness: 0.3, dryness: 0.3, wobble: 0.2 });
+    if (atmos >= 0.6) {
+      p.stroke(pts.map((q) => ({ x: q.x, y: q.y + 3 * size })), { rng, pigment: pig, width: size * 6, taper: [0.1, 0.8], opacity: 0.35, wetness: 0.6, dryness: 0.5 });
+      continue;
+    }
+    // leaflets: pinnae set in a V along the rachis, shorter toward the tip
+    const dirAt = (t: number) => Math.atan2(Math.sin(a0) * 0.85 + droop * t * 1.1, Math.cos(a0));
+    for (let t = 0.15; t < 0.97; t += 0.075) {
+      const k = Math.round(t * (pts.length - 1));
+      const q = { x: pts[k]!.x, y: pts[k]!.y };
+      const dir = dirAt(t);
+      for (const sgn of [-1, 1]) {
+        p.dab(q, pig, { rng, variant: 'blade', angle: dir + sgn * 0.75 + 0.25, length: size * rng.range(9, 14) * (1.1 - t * 0.6), width: size * 1.8, opacity: 0.42, layers: 2, pool: 0.3 });
       }
     }
   }
   // the crown's dark heart and date clusters
-  p.dab(top, far(C.palmDark), { rng, variant: 'round', length: size * 12, width: size * 10, opacity: 0.7 });
+  p.dab(top, far(C.palmDark), { rng, variant: 'round', length: size * 9, width: size * 8, opacity: 0.6 });
   if (atmos < 0.4) p.dab({ x: top.x + 4 * size, y: top.y + 10 * size }, far(mix(C.redOchre, '#e0a043', 0.4)), { rng, variant: 'round', length: size * 8, width: size * 6, opacity: 0.6, angle: Math.PI / 2 });
 }
 
 export function paintGrove(p: Painter, rng: Rng): void {
   // understory haze: a dusty green mass under the crowns so the grove reads as a whole
-  const under: Pt[] = [{ x: 640, y: 440 }, { x: 900, y: 420 }, { x: 1200, y: 424 }, { x: 1620, y: 416 }, { x: 1620, y: 520 }, { x: 640, y: 524 }];
-  p.wetInWet(under, C.palmFar, mix(C.palm, C.palmDark, 0.5), { rng, angle: Math.PI / 2, split: 0.4, opacity: 0.5, deform: 0.3, spread: 0.2, edge: 0.15, granulation: 0.3, fade: { angle: -Math.PI / 2, start: 0.55, amount: 0.9, ragged: 0.9 } });
-  for (const [x, y, s] of GROVE) {
-    const far = s < 0.65 ? 0.7 : 0.35;
-    palm(p, { x, y }, { x: x + rng.range(-8, 8), y: y + 90 * s + 20 }, s, rng.fork(`grove-${x}-${y}`), far);
+  for (let x = 660; x < 1640; x += rng.range(60, 110)) {
+    const y = rng.range(470, 492);
+    p.wetInWet(blob(x, y, rng.range(50, 90), rng.range(22, 34), rng, { irregularity: 0.3, flatBottom: 0.6 }), C.palmFar, mix(C.palm, C.palmDark, 0.5), { rng, angle: Math.PI / 2, split: 0.45, opacity: 0.5, deform: 0.3, spread: 0.2, edge: 0.2, granulation: 0.3 });
+  }
+  // two rows: a hazy far one, crowded, and a nearer, sparser one
+  const rows = [
+    { step: [34, 56], y: [372, 400], s: [0.45, 0.6], far: 0.72 },
+    { step: [60, 110], y: [404, 440], s: [0.68, 0.85], far: 0.3 },
+  ];
+  for (const [r, row] of rows.entries()) {
+    for (let x = 670 + rng.range(0, 30); x < 1640; x += rng.range(row.step[0]!, row.step[1]!)) {
+      const y = rng.range(row.y[0]!, row.y[1]!);
+      const s = rng.range(row.s[0]!, row.s[1]!);
+      palm(p, { x, y }, { x: x + rng.range(-10, 10), y: 480 + r * 14 + rng.range(-6, 6) }, s, rng.fork(`grove-${r}-${Math.round(x)}`), row.far);
+    }
   }
 }
 
@@ -314,18 +348,26 @@ export function paintTerracePalms(p: Painter, rng: Rng): void {
 
 export function paintGround(p: Painter, rng: Rng): void {
   const ground: Pt[] = [{ x: -20, y: 470 }, { x: 1620, y: 440 }, { x: 1620, y: 1020 }, { x: -20, y: 1020 }];
-  p.wetInWet(ground, C.soil, C.sand, { rng, angle: Math.PI / 2, split: 0.35, softness: 0.5, opacity: 0.45, edge: 0.05, granulation: 0.45, granules: 0.15, flow: 0.55, flowScale: 120 });
+  p.wetInWet(ground, mix(C.soil, C.sand, 0.4), C.sand, { rng, angle: Math.PI / 2, split: 0.35, softness: 0.5, opacity: 0.6, edge: 0.05, granulation: 0.45, granules: 0.15, flow: 0.55, flowScale: 120 });
   // the tilled plots on the upper terrace: darker, damp earth with furrows
-  const plots: Pt[][] = [
-    [{ x: 120, y: 560 }, { x: 560, y: 548 }, { x: 660, y: 600 }, { x: 640, y: 668 }, { x: 140, y: 650 }],
-    [{ x: 930, y: 540 }, { x: 1600, y: 536 }, { x: 1600, y: 658 }, { x: 940, y: 676 }],
-  ];
-  for (const pl of plots) {
-    p.wash(pl, C.soil, { rng, opacity: 0.35, deform: 0.2, spread: 0.15, edge: 0.1, granulation: 0.5, fade: { angle: -Math.PI / 2, start: 0.5, amount: 0.6 } });
-    const b = bounds(pl);
-    for (let y = b.y + 14; y < b.y + b.h - 8; y += rng.range(11, 16)) {
-      p.dryBrush([{ x: b.x + rng.range(10, 60), y }, { x: b.x + b.w - rng.range(10, 60), y: y + rng.range(-2, 2) }], { rng, pigment: C.soilDamp, width: 2, opacity: 0.25, dryness: 0.7 });
+  // the tilled plots: a patchwork of damp and dry earth, furrowed
+  const plots = [
+    [60, 572, 250, 640], [270, 568, 470, 652], [490, 566, 640, 664], [930, 548, 1120, 676], [1150, 546, 1360, 664], [1390, 544, 1590, 652],
+    [140, 690, 420, 790], [450, 696, 640, 770],
+  ] as const;
+  for (const [x0, y0, x1, y1] of plots) {
+    const sk = (y1 - y0) * 0.12;
+    const pl: Pt[] = [{ x: x0 + sk, y: y0 }, { x: x1 - sk, y: y0 + rng.range(-3, 3) }, { x: x1, y: y1 }, { x: x0, y: y1 + rng.range(-3, 3) }];
+    const pig = rng.chance(0.5) ? C.soil : mix(C.soil, C.soilDamp, 0.5);
+    p.wash(pl, pig, { rng, opacity: 0.24, deform: 0.25, spread: 0.2, edge: 0.06, sharpness: 0.2, granulation: 0.55, granules: 0.1, fade: { angle: -Math.PI / 2, start: 0.55, amount: 0.7, ragged: 0.8 } });
+    for (let yy = y0 + 10; yy < y1 - 6; yy += rng.range(9, 13)) {
+      const f = (yy - y0) / (y1 - y0);
+      p.dryBrush([{ x: x0 + sk * (1 - f) + 8, y: yy }, { x: x1 - sk * (1 - f) - 8, y: yy + rng.range(-2, 2) }], { rng, pigment: C.soilDamp, width: 1.8, opacity: 0.25, dryness: 0.7 });
     }
+  }
+  // young barley under the grove's edge: a pale green tint in the far plots
+  for (const [x, y, rx, ry] of [[1480, 556, 120, 14], [800, 548, 110, 12], [250, 566, 160, 12]] as const) {
+    p.glaze(blob(x, y, rx, ry, rng, { irregularity: 0.2 }), mix(C.palmLight, C.sand, 0.3), { rng, opacity: 0.4, deform: 0.3, edge: 0.05, granulation: 0.3 });
   }
   // sunlit sand on the lower terrace and the near banks
   const sandy: Pt[][] = [
@@ -343,25 +385,17 @@ function wallFace(edge: readonly Pt[], h: number): Pt[] {
 function paintWall(p: Painter, edge: readonly Pt[], h: number, rng: Rng): void {
   const face = wallFace(edge, h);
   reserve(p, face);
-  p.wetInWet(face, C.mud, C.mudShadow, { rng, angle: Math.PI / 2, split: 0.3, opacity: 0.75, deform: 0.03, spread: 0.02, edge: 0.35, sharpness: 0.8, granulation: 0.45 });
+  p.wetInWet(face, mix(C.mud, C.mudLit, 0.3), C.mudShadow, { rng, angle: Math.PI / 2, split: 0.45, opacity: 0.7, deform: 0.04, spread: 0.03, edge: 0.15, sharpness: 0.6, granulation: 0.5 });
   const top = resample(smoothPath(edge.map((q) => ({ x: q.x, y: q.y })), 8), 12);
   // the lit coping and crumbling notches
-  p.stroke(top.map((q) => ({ x: q.x, y: q.y + 1.5 })), { rng, pigment: C.mudLit, width: 3.5, opacity: 0.6, wetness: 0.2, dryness: 0.3, taper: [0.02, 0.02] });
-  for (let i = 0; i < top.length / 6; i++) {
-    const q = top[rng.int(0, top.length - 1)]!;
-    p.wash(blob(q.x, q.y + 3, rng.range(5, 12), rng.range(2, 4), rng), PAPER_WHITE, { rng, opacity: 0.9, blend: 'source-over', layers: 3, edge: 0 });
-  }
+  p.stroke(top.map((q) => ({ x: q.x, y: q.y + 1.5 })), { rng, pigment: C.mudLit, width: 3, opacity: 0.7, wetness: 0.2, dryness: 0.3, taper: [0.02, 0.02] });
+  p.glaze(top.map((q) => ({ x: q.x, y: q.y })).concat(top.slice().reverse().map((q) => ({ x: q.x, y: q.y - 22 }))), C.sandLight, { rng, opacity: 0.35, edge: 0, fade: { angle: -Math.PI / 2, start: 0.2, amount: 1 } });
   // the cast shadow at its foot
   p.glaze(top.map((q) => ({ x: q.x, y: q.y + h })).concat(top.slice().reverse().map((q) => ({ x: q.x + 6, y: q.y + h + 10 }))), mix(C.mudShadow, '#8c89a1', 0.4), { rng, opacity: 0.32, edge: 0.05, fade: { angle: Math.PI / 2, start: 0.3, amount: 1 } });
 }
 
 export function paintWalls(p: Painter, rng: Rng): void {
   for (const w of WALLS) paintWall(p, w.edge, w.h, rng.fork(`wall-${w.edge[0]!.y}`));
-  for (const [a, b] of CROSS_WALLS) {
-    const side: Pt[] = [a, b, { x: b.x + 10, y: b.y + 4 }, { x: a.x + 8, y: a.y + 4 }];
-    p.wash(side, C.mud, { rng, opacity: 0.6, edge: 0.3, granulation: 0.4 });
-    p.stroke([a, b], { rng, pigment: C.mudLit, width: 3, opacity: 0.5, wetness: 0.2 });
-  }
 }
 
 function channel(path: readonly Pt[], w: number): Pt[] {
@@ -370,12 +404,13 @@ function channel(path: readonly Pt[], w: number): Pt[] {
 }
 
 export function paintSeguia(p: Painter, rng: Rng): void {
-  const bed = channel(SEGUIA, 7);
+  const bed = channel(SEGUIA, 4.5);
+  p.wash(channel(SEGUIA, 8), C.mud, { rng, opacity: 0.45, deform: 0.1, edge: 0.2, sharpness: 0.5, granulation: 0.4 });
   reserve(p, bed);
-  p.wash(channel(SEGUIA, 9), C.mudShadow, { rng, opacity: 0.55, edge: 0.4, sharpness: 0.8, granulation: 0.3 });
   p.wetInWet(bed, C.waterLight, C.waterMid, { rng, angle: 0.4, split: 0.5, opacity: 0.8, edge: 0.35, sharpness: 0.85, deform: 0.02, spread: 0.02 });
   const s = smoothPath(SEGUIA.map((q) => ({ x: q.x, y: q.y })), 4);
-  p.stroke(s.map((q) => ({ x: q.x + 1, y: q.y - 2 })), { rng, pigment: lighten(C.waterLight, 0.2), width: 1.4, opacity: 0.6, wetness: 0.1, blend: 'source-over' });
+  p.stroke(s.map((q) => ({ x: q.x + 2, y: q.y - 5 })), { rng, pigment: C.mudLit, width: 2.4, opacity: 0.7, wetness: 0.2 });
+  p.stroke(s.map((q) => ({ x: q.x - 1, y: q.y + 5 })), { rng, pigment: C.mudShadow, width: 2, opacity: 0.5, wetness: 0.2 });
   // the overflow runnel to the oued
   const run = channel(OVERFLOW, 4);
   reserve(p, run);
@@ -416,15 +451,15 @@ export function paintOued(p: Painter, rng: Rng): void {
   reserve(p, water);
   p.waterBody(water, { rng, pigments: [C.waterLight, C.waterMid, C.waterDeep], bands: 5, ripples: 3, reflection: 0.45, farShadow: 0.65, granulation: 0.35 });
   // warm shallows on the inside of the bend and the sand bars
-  p.glaze([{ x: 380, y: 880 }, { x: 640, y: 862 }, { x: 860, y: 856 }, { x: 860, y: 868 }, { x: 640, y: 884 }, { x: 420, y: 912 }], C.sand, { rng, opacity: 0.4, fade: { angle: -Math.PI / 2, start: 0.2, amount: 1 } });
+  p.glaze([{ x: 380, y: 900 }, { x: 640, y: 872 }, { x: 900, y: 860 }, { x: 900, y: 872 }, { x: 640, y: 892 }, { x: 440, y: 924 }], C.sand, { rng, opacity: 0.4, fade: { angle: -Math.PI / 2, start: 0.2, amount: 1 } });
   for (const b of BARS) {
     const bar = blob(b.cx, b.cy, b.rx, b.ry, rng, { irregularity: 0.25, flatBottom: 0.3 });
     reserve(p, bar);
-    p.wash(bar, C.sandLight, { rng, opacity: 0.7, edge: 0.3, granulation: 0.5 });
+    p.wash(bar, C.sandLight, { rng, opacity: 0.7, edge: 0.1, sharpness: 0.3, granulation: 0.5 });
     p.glaze(blob(b.cx, b.cy + b.ry * 0.6, b.rx * 0.9, b.ry * 0.5, rng), C.sandShadow, { rng, opacity: 0.35 });
   }
   // the bluff's warm reflection on the far left water, and the sky's pale band
-  p.glaze([{ x: -20, y: 846 }, { x: 300, y: 808 }, { x: 420, y: 830 }, { x: 120, y: 880 }, { x: -20, y: 900 }], C.redOchre, { rng, opacity: 0.18, fade: { angle: Math.PI / 2, start: 0.3, amount: 1 } });
+  p.glaze([{ x: -20, y: 880 }, { x: 300, y: 836 }, { x: 440, y: 856 }, { x: 120, y: 910 }, { x: -20, y: 930 }], C.redOchre, { rng, opacity: 0.18, fade: { angle: Math.PI / 2, start: 0.3, amount: 1 } });
   for (let i = 0; i < 10; i++) {
     const x = rng.range(200, 1500);
     const y = yAt(OUED.slice(0, 9), x) + rng.range(16, 60);
@@ -434,12 +469,12 @@ export function paintOued(p: Painter, rng: Rng): void {
 
 /** Reeds and a few stones at the water's edge, sparing (the plants come later). */
 export function paintEdges(p: Painter, rng: Rng): void {
-  for (const [x, y] of [[90, 836], [1480, 806], [1560, 800], [300, 812]] as const) {
+  for (const [x, y] of [[90, 866], [1480, 766], [1560, 758], [300, 840]] as const) {
     for (let i = 0; i < 9; i++) {
       p.dab({ x: x + rng.range(-12, 12), y }, mix(C.palm, C.sand, 0.3), { rng, variant: 'blade', angle: -Math.PI / 2 + rng.range(-0.4, 0.4), length: rng.range(18, 34), width: 3, opacity: 0.6, layers: 2 });
     }
   }
-  for (const [x, y, w] of [[470, 704, 22], [1100, 702, 18], [640, 900, 26], [1360, 890, 20]] as const) {
+  for (const [x, y, w] of [[470, 704, 22], [1100, 702, 18], [640, 900, 26], [1360, 856, 20]] as const) {
     p.stone({ x, y, w, h: w * 0.6 }, { rng, pigment: mix('#c9ae8a', C.mudLit, 0.3), warm: 0.6, moss: 0, ink: 0.15 });
   }
 }
