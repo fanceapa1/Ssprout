@@ -180,7 +180,7 @@ export function paintLeafBases(p: Painter, bases: readonly LeafBase[], rng: Rng,
     const shade = 0.5 + 0.5 * b.flank;
     // the crescent of shadow under the stub's lip
     const lip = r.range(0.05, 0.3);
-    D.fill([pt(lip * h, -w), pt(-h * 0.25, -w * 0.55), pt(-h, r.range(-0.15, 0.15) * w), pt(-h * 0.25, w * 0.55), pt(lip * h, w), pt(-h * 0.35, w * 0.2), pt(-h * 0.55, 0), pt(-h * 0.35, -w * 0.2)], pig.dark, (0.3 + 0.4 * shade) * r.range(0.75, 1.1) * Math.min(1, b.k * 1.5));
+    D.fill([pt(lip * h, -w), pt(-h * 0.25, -w * 0.55), pt(-h, r.range(-0.15, 0.15) * w), pt(-h * 0.25, w * 0.55), pt(lip * h, w), pt(-h * 0.35, w * 0.2), pt(-h * 0.55, 0), pt(-h * 0.35, -w * 0.2)], pig.dark, (0.24 + 0.36 * shade) * r.range(0.75, 1.1) * Math.min(1, b.k * 1.5));
     // the lit upper facet of the stub
     if (b.flank < 0.55) P.fill([pt(lip * h + 0.4, -w * 0.8), pt(h * 0.75, r.range(-0.2, 0.2) * w), pt(lip * h + 0.4, w * 0.8), pt(lip * h + h * 0.18, 0)], pig.pale, (0.55 - 0.45 * Math.max(0, b.flank)) * Math.min(1, b.k * 1.5));
   }
@@ -207,18 +207,20 @@ export function paintDates(p: Painter, stalks: readonly RachisMark[], dates: rea
     S.dry({ opacity: 0.85, edge: 0.4, edgeWidth: 0.5, sharpness: 0.75, centreLift: 0.1, granulation: 0.2, flowScale: 8 });
   }
   if (!live.length) return;
-  const D = stableLayer(p, padRect(bounds(live.map((d) => d.at)), 6), rng.fork('dates-dry'));
-  for (const d of live) {
+  // alternate dates in two layers, so neighbours keep their own edges instead of merging
+  const area = padRect(bounds(live.map((d) => d.at)), 6);
+  const layers = [stableLayer(p, area, rng.fork('dates-dry')), stableLayer(p, area, rng.fork('dates-dry-2'))];
+  live.forEach((d, i) => {
     const c = Math.cos(d.angle);
     const s = Math.sin(d.angle);
     const poly: Pt[] = [];
-    for (let i = 0; i < 12; i++) {
-      const a = (i / 12) * Math.PI * 2;
+    for (let k = 0; k < 12; k++) {
+      const a = (k / 12) * Math.PI * 2;
       const u = Math.cos(a) * d.size * 0.5;
-      const v = Math.sin(a) * d.size * 0.4;
+      const v = Math.sin(a) * d.size * 0.46;
       poly.push({ x: d.at.x + c * u - s * v, y: d.at.y + s * u + c * v });
     }
-    D.fill(poly, d.pigment, d.alpha);
-  }
-  D.dry({ opacity: 0.9, edge: 0.6, edgeWidth: 0.55, sharpness: 0.8, centreLift: 0.4, granulation: 0.15, flow: 0.25, flowScale: 6, darken: 0.3 });
+    layers[i % 2]!.fill(poly, d.pigment, d.alpha);
+  });
+  for (const L of layers) L.dry({ opacity: 0.92, edge: 0.55, edgeWidth: 0.5, sharpness: 0.85, centreLift: 0.12, granulation: 0.15, flow: 0.25, flowScale: 6, darken: 0.35 });
 }

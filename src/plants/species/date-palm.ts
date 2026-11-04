@@ -175,7 +175,7 @@ export function planDatePalm(rng: Rng): DatePalmPlan {
   const top = trunk.at(-1)!;
   for (let c = 0; c < nc; c++) {
     const side = c === 0 ? (cr.chance(0.5) ? 1 : -1) : -clusters[c - 1]!.side * (cr.chance(0.75) ? 1 : -1);
-    const strands = Array.from({ length: cr.int(8, 11) }, (_, s, a = cr.range(-0.5, 0.5)) => ({ angle: Math.PI / 2 + a + side * 0.1, len: cr.range(20, 32) * (1 - 0.3 * Math.abs(a)), n: cr.int(3, 6) }));
+    const strands = Array.from({ length: cr.int(8, 11) }, (_, s, a = cr.range(-0.5, 0.5)) => ({ angle: Math.PI / 2 + a + side * 0.1, len: cr.range(20, 32) * (1 - 0.3 * Math.abs(a)), n: cr.int(4, 7) }));
     clusters.push({
       id: c,
       side,
@@ -340,13 +340,13 @@ const datePalm: SpeciesDef = {
       const cr = pr.fork(`cluster-${c.id}`);
       const from = { x: top.x + (c.stalk.from.x - plan.trunk.at(-1)!.x), y: top.y + (c.stalk.from.y - plan.trunk.at(-1)!.y) };
       const stalk = rachisPath({ ...c.stalk, from, length: c.stalk.length * ks }, 8);
-      stalks.push({ path: stalk, width: 1.8, pigment: mix(STALK, TRUNK, 0.3), alpha: 0.8 });
+      stalks.push({ path: stalk, width: 1.6, pigment: mix(STALK, TRUNK, 0.4), alpha: 0.7 });
       const end = stalk.at(-1)!;
       const kf = arrive.fruit(c);
       for (const s of c.strands) {
         const sl = s.len * ks;
         const strand: Pt[] = [end, { x: end.x + Math.cos(s.angle) * sl * 0.5, y: end.y + Math.sin(s.angle) * sl * 0.5 }, { x: end.x + Math.cos(s.angle) * sl + c.side * 1.5, y: end.y + Math.sin(s.angle) * sl }];
-        stalks.push({ path: strand, width: 0.55, pigment: mix(STALK, TRUNK, 0.2), alpha: 0.6 });
+        stalks.push({ path: strand, width: 0.4, pigment: mix(STALK, TRUNK, 0.35), alpha: 0.32 });
         for (let d = 0; d < s.n; d++) {
           const t = 0.2 + (0.8 * d) / Math.max(1, s.n - 1);
           const q = along(strand, t).at;
@@ -354,7 +354,7 @@ const datePalm: SpeciesDef = {
           const tone = cr.range(0, 1);
           const ripe = clamp01(arrive.ripe * cr.range(0.75, 1.15));
           const pig = mix(mix(DATE.yellow, DATE.amber, ripe), DATE.brown, ripe * (tone > 0.8 ? 0.55 : 0.12));
-          dates.push({ at: { x: q.x + side * 2 * kf, y: q.y + 1.5 }, angle: Math.PI / 2 + side * 0.35 + cr.range(-0.2, 0.2), size: 5.8 * kf * cr.range(0.85, 1.1), pigment: pig, alpha: 0.85 });
+          dates.push({ at: { x: q.x + side * 1.7 * kf, y: q.y + 1.5 }, angle: Math.PI / 2 + side * 0.35 + cr.range(-0.2, 0.2), size: 6.2 * kf * cr.range(0.85, 1.1), pigment: pig, alpha: 0.85 });
         }
       }
     }
