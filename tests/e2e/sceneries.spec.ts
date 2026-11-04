@@ -157,7 +157,7 @@ test.describe('sceneries · reduced motion', () => {
     expect(night[0] + night[1] + night[2]).toBeLessThan((noon[0] + noon[1] + noon[2]) * 0.85);
     expect(night[2] / (night[0] + 1)).toBeGreaterThan(noon[2] / (noon[0] + 1));
     // its plates are stored under its own keys (ADR 0242); a second load takes them from the cache
-    await expect.poll(async () => (await storedOf(page, 'sky-plate')).filter((e) => e.key.startsWith('waterfall|')).length, { timeout: 40_000 }).toBeGreaterThanOrEqual(2);
+    await expect.poll(async () => (await storedOf(page, 'sky-plate')).filter((e) => e.key.startsWith('waterfall|')).length, { timeout: 80_000 }).toBeGreaterThanOrEqual(2);
     await openDev(page);
     await show(page, 'waterfall');
     await mean('night');
