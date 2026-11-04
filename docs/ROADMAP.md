@@ -189,7 +189,7 @@ Phase 13 (owner request 2026-11-04): a third garden, a desert oasis, with a gold
 | O3 | Oasis painters: the basin, the seguia and its falls, the oued | `src/scenery/oasis/paint-water.ts` | done (devlog 110; basin with reflection, steps and sluice gate, seguia falls, braided oued; the oued is pale at the overview, sunset greys the basin until O5) |
 | O4 | Oasis painters: palms, grove, terraces, sand and foreground | `src/scenery/oasis/{paint-veg,paint-land}.ts` | done (devlog 112; own land and veg painters, no draft steps in the app; terraces still straight-ish, big palm crowns mostly above the 1440 frame) |
 | O5 | Oasis daylight: 4 sky plates, basin plate, light plates, sun side | `src/scenery/oasis/{sky,light}.ts` | done (devlog 114; ADR 0301 per-scenery grades; turquoise basin in every phase, shadows fall left; moon top hidden on wide screens) |
-| O6 | Moving water: the seguia's falls and the oued's glints | `src/scenery/oasis/motion.ts` | in progress |
+| O6 | Moving water: the seguia's falls and the oued's glints | `src/scenery/oasis/motion.ts` | done (devlog 117; seguia falls, sluice spill, inlet rings, oued glints at TEMPO 1.25, within noise per frame; the generic pond shimmer still draws on the basin) |
 | O7 | Oasis sound bed (wind in the palms, trickling water, doves) | `src/audio/**`, `src/core/soundscape.ts` | after O1 |
 | O8 | Acceptance and docs, release | `docs/**`, `tests/**` | last |
 
@@ -204,4 +204,5 @@ Phase 13 art queue (after O0 and O1): one plant (OP1–OP12) or creature (OK1–
 | OP5 | Southern cattail (*Typha domingensis*): T2, water and shore, the basin and the oued | `src/plants/species/cattail.ts` | done (devlog 113; 20–22 ms; oued shallows slots are small only) |
 | OP11 | Pomegranate (*Punica granatum*): T4, flowers and crowned fruit together | `src/plants/species/pomegranate.ts` | done (devlog 115; 60–76 ms; large, T4) |
 | OP10 | Damask rose (*Rosa × damascena*): T3, ruffled cups on arching canes; distinct from the oleander | `src/plants/species/damask-rose.ts` | done (devlog 116; 76–79 ms; reads apart from the oleander) |
+| OP7 | Desert hyacinth (*Cistanche phelypaea*): T2, a leafless gold candle in the sand, path and back | `src/plants/species/desert-hyacinth.ts` | in progress |
 | O1b | Oasis slots: a medium shallows slot in the oued for the cattail (shallows-1/2 take small only), from OP5; lower the moon arc top to about y 150 so wide screens show it (O5); a stronger far range at sunset on wide screens (O5) | `src/scenery/oasis/slots.ts` | queued |
