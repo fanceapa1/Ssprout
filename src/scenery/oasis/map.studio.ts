@@ -13,7 +13,8 @@ import { drawSlotOverlay } from '../../scene/overlay';
 import type { StudioEntry, StudioSection } from '../../studio/types';
 import { OASIS } from '.';
 import { BASIN_STONE, BASIN_WATER } from './geometry';
-import { BLUFF, FOOTPATH, openSky, OASIS_SKY_LAYOUT, WALLS } from './layout';
+import { KSAR_SHAPES } from './ksar';
+import { BLUFF, BUNDS, FOOTPATH, NEAR_PLOTS, openSky, OASIS_SKY_LAYOUT, WALLS } from './layout';
 
 const scene = OASIS.geometry;
 
@@ -68,6 +69,9 @@ function drawMap(ctx: CanvasRenderingContext2D): void {
   ctx.lineWidth = 2;
   poly(ctx, openSky(), 'rgba(170,200,230,0.25)', 'rgba(60,90,160,0.6)');
   poly(ctx, BLUFF, null, '#8f4a3e');
+  for (const s of KSAR_SHAPES) for (const q of [s.front, s.flank]) if (q.length) poly(ctx, q, null, '#8f4a3e');
+  for (const plot of NEAR_PLOTS) poly(ctx, plot, null, '#8a6a3a');
+  for (const b of BUNDS) poly(ctx, b, null, '#8a6a3a', false);
   poly(ctx, BASIN_STONE, null, '#6d5a44');
   poly(ctx, BASIN_WATER, 'rgba(80,150,170,0.2)', '#2b5d66');
   for (const s of scene.streams) poly(ctx, s, 'rgba(80,150,170,0.25)', '#3f7f8f');
@@ -115,10 +119,11 @@ function drawMap(ctx: CanvasRenderingContext2D): void {
   ctx.moveTo(focus.x, focus.y - 16);
   ctx.lineTo(focus.x, focus.y + 16);
   ctx.stroke();
-  label(ctx, 'basin', 820, 520, '#2b5d66');
+  label(ctx, 'basin', 770, 520, '#2b5d66');
   label(ctx, 'oued', 1420, 700, '#2b5d66');
   label(ctx, 'footpath', 850, 990, '#8a6a3a');
-  label(ctx, 'sunset', 800, 300, '#c2414f');
+  label(ctx, 'ksar', 610, 120, '#8f4a3e');
+  label(ctx, 'sunset', 860, 290, '#c2414f');
   label(ctx, 'sunrise', 990, 300, '#b07a2a');
   label(ctx, 'portrait crop', focus.x - MIN_VISIBLE_W / 2 + 10, 30, '#d9623d');
 }

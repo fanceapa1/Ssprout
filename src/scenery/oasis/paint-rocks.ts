@@ -7,7 +7,6 @@ import type { Rng } from '../../core/rng';
 import { PAPER_WHITE, bounds, closedResample, createSimplex2D, lighten, mix, rgba, shade, smoothPath, type Painter, type Pigment } from '../../paint';
 import type { Pt } from '../../render/viewport';
 import type { Strokes } from '../../scene/paint-land';
-import { palm } from './drafts/a/paint';
 import { FOOTING, KSAR_PALMS, KSAR_SHAPES, windows, type BlockShape } from './ksar';
 import { BLUFF } from './layout';
 
@@ -253,11 +252,36 @@ function seatAt(x: number): number | null {
  */
 export function* paintKsar(p: Painter, rng: Rng): Strokes {
   for (const k of KSAR_PALMS) {
-    palm(p, k.top, k.base, k.size, rng.fork(`palm-${k.top.x}`), 0.2);
-    yield;
+    yield* ksarPalm(p, k.top, k.base, k.size, rng.fork(`palm-${k.top.x}`));
   }
   for (const s of KSAR_SHAPES) yield* paintBlock(p, s, rng.fork(s.block.id));
   yield* paintSeat(p, rng.fork('seat'));
+}
+
+const PALM = { trunk: '#8a6a4e', frond: '#8c9a5c', shade: '#66714a', lit: '#b3bb78' } satisfies Record<string, Pigment>;
+
+/** A date palm growing in a courtyard: its trunk, then its fronds a pair at a time. */
+function* ksarPalm(p: Painter, top: Pt, base: Pt, size: number, rng: Rng): Strokes {
+  p.stroke(smoothPath([base, { x: (top.x + base.x) / 2 + rng.range(-4, 4), y: (top.y + base.y) / 2 }, top], 6), { rng, pigment: PALM.trunk, width: 6 * size, taper: [0, 0.05], opacity: 0.8, wetness: 0.35, dryness: 0.25 });
+  const n = 15;
+  for (let i = 0; i < n; i++) {
+    const lower = i < 5;
+    const a0 = lower ? (i % 2 ? rng.range(-0.2, 0.4) : Math.PI - rng.range(-0.2, 0.4)) : -Math.PI - 0.2 + rng.range(0, Math.PI + 0.4);
+    const len = size * rng.range(40, 54);
+    const droop = lower ? 0.9 : 0.2 + Math.abs(Math.cos(a0)) * 0.5;
+    const pts: Pt[] = [];
+    for (let t = 0; t <= 1.001; t += 0.125) pts.push({ x: top.x + Math.cos(a0) * len * t, y: top.y + Math.sin(a0) * len * t * 0.85 + droop * len * t * t * 0.55 });
+    const pig = lower ? PALM.shade : Math.cos(a0) > 0.1 ? PALM.lit : PALM.frond;
+    p.stroke(pts, { rng, pigment: pig, width: size * 2.6, taper: [0.05, 0.75], opacity: 0.7, wetness: 0.3, dryness: 0.3 });
+    for (let k = 2; k < pts.length; k++) {
+      const q = pts[k]!;
+      const dir = Math.atan2(q.y - pts[k - 1]!.y, q.x - pts[k - 1]!.x);
+      for (const sgn of [-1, 1]) p.dab(q, pig, { rng, variant: 'blade', angle: dir + sgn * 0.75, length: size * rng.range(8, 12) * (1.2 - k / pts.length), width: size * 1.6, opacity: 0.42, layers: 1 });
+    }
+    yield;
+  }
+  p.dab(top, PALM.shade, { rng, variant: 'round', length: size * 8, width: size * 7, opacity: 0.6 });
+  yield;
 }
 
 /** The houses' fronts, where a tower's shadow falls. */
@@ -273,7 +297,7 @@ function* paintBlock(p: Painter, s: BlockShape, rng: Rng): Strokes {
     p.ctx.beginPath();
     for (const h of HOUSE_FRONTS) h.forEach((q, i) => (i ? p.ctx.lineTo(q.x, q.y) : p.ctx.moveTo(q.x, q.y)));
     p.ctx.clip();
-    p.glaze([{ x: b.x - 26, y: top + 30 }, { x: b.x + 4, y: top + 20 }, { x: b.x + 4, y: b.base + FOOTING }, { x: b.x - 26, y: b.base + FOOTING }], EARTH.shade, { rng, opacity: 0.42, deform: 0.1, edge: 0.2, fade: { angle: Math.PI, start: 0.5, amount: 1, ragged: 0.5 } });
+    yield* p.parts.glaze([{ x: b.x - 26, y: top + 30 }, { x: b.x + 4, y: top + 20 }, { x: b.x + 4, y: b.base + FOOTING }, { x: b.x - 26, y: b.base + FOOTING }], EARTH.shade, { rng, opacity: 0.42, deform: 0.1, edge: 0.2, fade: { angle: Math.PI, start: 0.5, amount: 1, ragged: 0.5 } });
     p.ctx.restore();
     yield;
   }
@@ -296,7 +320,7 @@ function* paintBlock(p: Painter, s: BlockShape, rng: Rng): Strokes {
   yield;
   clipTo(p, front);
   // the face turns from the sun toward its left edge
-  p.glaze(box(b.x - 4, top - 20, b.x + Math.min(22, b.w * 0.3), b.base + FOOTING), EARTH.shade, { rng, opacity: 0.32, deform: 0.1, fade: { angle: 0, start: 0.2, amount: 1, ragged: 0.4 } });
+  yield* p.parts.glaze(box(b.x - 4, top - 20, b.x + Math.min(22, b.w * 0.3), b.base + FOOTING), EARTH.shade, { rng, opacity: 0.32, deform: 0.1, fade: { angle: 0, start: 0.2, amount: 1, ragged: 0.4 } });
   // pisé lifts: the formwork's courses, and the putlog holes in rows
   for (let y = top + 10; y < b.base; y += rng.range(9, 12)) {
     p.dryBrush([{ x: b.x - 2, y }, { x: b.x + b.w + 2, y: y + rng.range(-1, 1) }], { rng, pigment: mix(EARTH.deep, EARTH.shade, 0.3), width: 1.3, opacity: 0.28, dryness: 0.65 });
@@ -381,8 +405,10 @@ function* paintSeat(p: Painter, rng: Rng): Strokes {
   g.addColorStop(0.5, rgba(SEAT, 1));
   g.addColorStop(1, rgba(SEAT, 0));
   p.ctx.fillStyle = g;
-  p.ctx.fillRect(x0 - 10, 300, x1 - x0 + 20, 90);
-  yield* p.parts.glaze(lip, mix(EARTH.deep, EARTH.body, 0.5), { rng, opacity: 0.25, deform: 0.3, spread: 0.3, edge: 0, granulation: 0.8, granules: 0.35, fade: { angle: Math.PI / 2, start: 0.4, amount: 1, ragged: 0.8 } });
+  p.ctx.fillRect(x0, 310, x1 - x0, 70);
+  yield;
+  // in stretches, so no part of the step grows past one big mark at a close view
+  for (let sx = x0; sx < x1; sx += 120) yield* p.parts.glaze(box(sx - 4, 312, Math.min(x1, sx + 124), 370), mix(EARTH.deep, EARTH.body, 0.5), { rng, opacity: 0.25, deform: 0.3, spread: 0.3, edge: 0, granulation: 0.8, granules: 0.35, fade: { angle: Math.PI / 2, start: 0.4, amount: 1, ragged: 0.8 } });
   p.ctx.restore();
   yield;
   // runnels start again under the walls' feet
