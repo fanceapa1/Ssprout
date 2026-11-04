@@ -416,7 +416,8 @@ painting's streaks stay as the sheet's structure, and three kinds of marks fall 
 Each mark is a spindle sprite with a long tail that dissolves (faded toward the top) and a short
 rounded head with a watercolour edge. A pointed head reads as an icicle. A mark is drawn between
 its tail's and its head's heights on `dropAt`. Water leaves the lip at 40 units/s and reaches the
-foam at 120 (constant gravity, `FALL_S` ≈ 3.9 s). The sprite stretches as the water speeds up, and
+foam at 120 (constant gravity, `FALL_S` ≈ 3.9 s), all played at `TEMPO` 1.25× (the owner's pace, so
+about 3.1 s on screen; foam and spray too). The sprite stretches as the water speeds up, and
 it is born out of the lip and swallowed by the foam by length and alpha, never cut flat. Lanes
 fall at 0.8–1.2× speed, fastest in the middle. Each pass draws its sprite, length, lane jitter and
 strength from a 96-entry table (a weak draw skips the pass), so a lane repeats only after 32

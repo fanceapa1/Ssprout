@@ -32,6 +32,9 @@ export function dropAt(a: number): number {
 
 /** Sprite resolution, pixels per world unit. */
 const RES = 3;
+/** Playback speed of the whole motion (falls, foam, spray); 1 is the painted pace. */
+const TEMPO = 1.25;
+
 /** Random draws per mark, three per cycle, so passes differ (a mark repeats after TABLE / 3 cycles). */
 const TABLE = 96;
 
@@ -378,8 +381,8 @@ export function createFallsMotion(opts: FallsOptions = {}): FallsMotion {
     draw(ctx, t) {
       if (!ready || !inView(ctx)) return;
       const outer = ctx.globalAlpha;
-      drawFallers(ctx, t, outer);
-      drawFoam(ctx, t, outer);
+      drawFallers(ctx, t * TEMPO, outer);
+      drawFoam(ctx, t * TEMPO, outer);
       ctx.globalAlpha = outer;
     },
     sprites() {
@@ -387,7 +390,7 @@ export function createFallsMotion(opts: FallsOptions = {}): FallsMotion {
       return Object.entries(all).flatMap(([kind, list]) => list.map((sp) => ({ kind, ...sp })));
     },
     visibleAt(t) {
-      return { fallers: drawFallers(null, t, 1), ...drawFoam(null, t) };
+      return { fallers: drawFallers(null, t * TEMPO, 1), ...drawFoam(null, t * TEMPO) };
     },
   };
 }
