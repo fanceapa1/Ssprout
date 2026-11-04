@@ -65,7 +65,7 @@ describe('the oasis scenery', () => {
     expect(OASIS.available).toBe(oasisAvailable);
   });
 
-  it('is consistent with itself and has no building, lantern, eave, falls or motion yet', () => {
+  it('is consistent with itself, has no building, lantern, eave or falls, and its water moves (O6)', () => {
     expect(OASIS.id).toBe('oasis');
     expect(OASIS.art.scenery).toBe('oasis');
     expect(OASIS.art.scene).toBe(OASIS.geometry);
@@ -75,7 +75,7 @@ describe('the oasis scenery', () => {
     expect(oasisScene.eave).toBeNull();
     expect(oasisScene.falls).toBeNull();
     expect(oasisScene.pond).toBe(BASIN_WATER);
-    expect(OASIS.motion).toBeUndefined();
+    expect(OASIS.motion).toBeTypeOf('function');
     expect(OASIS.blurb.length).toBeLessThanOrEqual(110);
   });
 
