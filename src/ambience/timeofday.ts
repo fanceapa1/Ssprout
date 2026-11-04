@@ -110,17 +110,18 @@ export function mixGrade(a: Grade, b: Grade, t: number): Grade {
   };
 }
 
-/** The grade for a weight set (a weighted mix of the phase grades). */
-export function gradeFor(weights: PhaseWeights): Grade {
+/** The grade for a weight set (a weighted mix of the phase grades, a scenery's own where it has them). */
+export function gradeFor(weights: PhaseWeights, own: Partial<Record<DayPhase, Grade>> = {}): Grade {
   let g: Grade | null = null;
   let acc = 0;
   for (const p of PHASES) {
     const w = weights[p];
     if (w <= 0) continue;
     acc += w;
-    g = g ? mixGrade(g, PHASE_GRADES[p], w / acc) : PHASE_GRADES[p];
+    const pg = own[p] ?? PHASE_GRADES[p];
+    g = g ? mixGrade(g, pg, w / acc) : pg;
   }
-  return g ?? PHASE_GRADES.midday;
+  return g ?? own.midday ?? PHASE_GRADES.midday;
 }
 
 /**

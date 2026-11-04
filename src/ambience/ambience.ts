@@ -169,7 +169,8 @@ export function createAmbience(opts: AmbienceOptions): Ambience {
   // the light plates' field and canvases are built on the first frame that lights the garden, not
   // when the engine is made (ADR 0232)
   let castLight: CastLight | null = null;
-  const cast = (): CastLight => (castLight ??= castFor(scene, opts.lightArt ?? scenery.light, `${seed}-cast`, scenery.id));
+  const lightArt = opts.lightArt ?? scenery.light;
+  const cast = (): CastLight => (castLight ??= castFor(scene, lightArt, `${seed}-cast`, scenery.id));
   const nightEdge = createNightEdge(`${seed}-edge`);
   const plate = createDevicePlate();
   const area0 = opts.area ?? { x: 0, y: 0, w: WORLD_W, h: WORLD_H };
@@ -181,7 +182,7 @@ export function createAmbience(opts: AmbienceOptions): Ambience {
   let lightDirty = true;
   let sinceLight = Infinity;
   let light: DaylightState = pinnedState(only('midday'));
-  let grade: Grade = gradeFor(light.weights);
+  let grade: Grade = gradeFor(light.weights, lightArt.grades);
   let paints = 0;
   let preparing = false;
   let phase: SessionPhase = 'idle';
@@ -284,7 +285,7 @@ export function createAmbience(opts: AmbienceOptions): Ambience {
       if (lightDirty || frame.dt === 0 || sinceLight >= LIGHT.redrawS) {
         sinceLight = 0;
         if (cast().update(light, lightDirty)) {
-          grade = gradeFor(light.weights);
+          grade = gradeFor(light.weights, lightArt.grades);
           paints++;
           // a new phase in the blend needs its detail plate too
           if (cast().stats().detail) scheduleDetail();

@@ -314,7 +314,7 @@ stays the ground's perspective. Creatures read `w.perspective(y, x)`: a scenery 
 (`Scenery.fauna.perspective`, the waterfall's knows the cliff); otherwise a line fitted through the
 slots' scales.
 
-### Sceneries (`src/scenery/`, ADRs 0240–0245, 0247, 0248, 0250, 0282, 0283; docs/systems/scenery.md)
+### Sceneries (`src/scenery/`, ADRs 0240–0245, 0247, 0248, 0250, 0282, 0283, 0301; docs/systems/scenery.md)
 ```ts
 export const SCENERY_IDS = ['japanese-garden', 'waterfall'] as const;  // core/sceneries.ts (ADR 0240); ids.ts re-exports
 export type SceneryId = (typeof SCENERY_IDS)[number];
@@ -325,7 +325,7 @@ export interface Scenery {                    // types.ts
   geometry: SceneGeometry;
   art: SceneArt;                              // seed, painting layout, steps(art, only?) (art.scene = geometry), rockSprites?
   sky: ScenerySky;                            // layout (SkyLayout, with its sunSide: ADR 0284), rect, shape(below?), paint, paintWater
-  light: LightArt;                            // trees, shrubs, sky, shadows?(…), lights?(…)
+  light: LightArt;                            // trees, shrubs, sky, shadows?(…), lights?(…), grades? (its own phase grades, ADR 0301)
   ambience: SceneryAmbience;                  // dew: Rect[], mistBands, veilTo
   view: SceneryView;                          // focus (portrait crop), pathOut (guiding path origin)
   flora: SceneryBiome;                        // its place in the world: the species it offers (ADR 0250)
@@ -352,7 +352,7 @@ sprite pass and the sprite atlas layout use it, and default to the garden's `GAR
 its folder holds its numbers (`sky.ts`, `ambience.ts`, `view.ts`) and its light art (`light.ts`).
 The consumers take a scenery's data as an option and default to the Japanese garden's:
 `createSkyLight({ sky, scenery })`, `createCastLight(scene, art, seed, { scenery })`,
-`createAmbience({ scenery })` / `addAmbience(renderer, { scenery })`, `sunDisc(s, sky)`,
+`createAmbience({ scenery })` / `addAmbience(renderer, { scenery })`, `gradeFor(weights, art.grades)`, `sunDisc(s, sky)`,
 `moonDisc(s, sky)`, `stars(n, seed, sky)`, `createWayfinding({ pathOut })`, `DEFAULT_FOCUS`
 (= the default scenery's `view.focus`).
 

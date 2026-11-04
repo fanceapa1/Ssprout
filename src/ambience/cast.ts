@@ -23,7 +23,7 @@ import { PHASES, only, pinnedState, whenIdle, type DayPhase, type DaylightState,
 import { gradePlate, washField, type WashField } from './lighting';
 import { createPlateCache, cutImage, defaultPlateCache, fingerprint } from './plate-cache';
 import { castShadow, moonDisc, reserveStar, stars, sunDisc, sunSide, type CastShadow, type Disc, type SkyLayout } from './sky-layout';
-import { PHASE_GRADES } from './timeofday';
+import { PHASE_GRADES, type Grade } from './timeofday';
 
 type Ctx = CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
 
@@ -52,6 +52,8 @@ export interface LightArt {
   shadows?(p: Painter, rng: Rng, scene: SceneGeometry, shadow: CastShadow, pigment: string): void;
   /** the scenery's own lights on one phase's plate (the shoji's lamp light) */
   lights?(p: Painter, rng: Rng, scene: SceneGeometry, phase: DayPhase): void;
+  /** the scenery's own phase grades (ADR 0301); a phase it leaves out takes `PHASE_GRADES` */
+  grades?: Partial<Record<DayPhase, Grade>>;
 }
 
 /** The radius of the warm pool of light lifted round each of the scene's lights. */
@@ -107,7 +109,8 @@ export function lightPlateKey(scenery: SceneryId, seed: string, phase: DayPhase,
 /** What the light plates are painted from, as a fingerprint (the studio paints other scenes). */
 export function castPrint(scene: SceneGeometry, art: LightArt): string {
   const { pond, waterline, rocks, structure, lights } = scene;
-  return fingerprint({ pond, waterline, rocks, structure, lights, trees: art.trees, shrubs: art.shrubs, sky: art.sky ?? null });
+  // grades only when a scenery has its own, so the other sceneries' keys stay as they were
+  return fingerprint({ pond, waterline, rocks, structure, lights, trees: art.trees, shrubs: art.shrubs, sky: art.sky ?? null, ...(art.grades ? { grades: art.grades } : {}) });
 }
 
 const SHADOW = mix(PIGMENTS.shadow, PIGMENTS.ultramarine, 0.38);
@@ -272,6 +275,7 @@ export function lightPlateTotals(): { painted: number; cacheHits: number; cacheM
 export function createCastLight(scene: SceneGeometry, art: LightArt, seed = 'cast', opts: { cache?: PaintCache | null; scenery?: SceneryId } = {}): CastLight {
   const sky = art.sky ?? GARDEN_SKY_LAYOUT;
   const scenery = opts.scenery ?? DEFAULT_SCENERY;
+  const phaseGrade = (phase: DayPhase): Grade => art.grades?.[phase] ?? PHASE_GRADES[phase];
   // the wash's noise fields are built only when a plate is painted (not when it comes from the cache)
   let washed: WashField | null = null;
   const field = () => (washed ??= washField(scene, `${seed}-wash`, CAST_SCALE));
@@ -322,7 +326,7 @@ export function createCastLight(scene: SceneGeometry, art: LightArt, seed = 'cas
     const known = plates.get(phase);
     if (known) return known;
     const t0 = now();
-    const c = gradePlate(PHASE_GRADES[phase], field());
+    const c = gradePlate(phaseGrade(phase), field());
     const g = makeCanvas(w, h);
     (g.getContext('2d') as Ctx).drawImage(c as CanvasImageSource, 0, 0);
     grades.set(phase, g);
@@ -340,7 +344,7 @@ export function createCastLight(scene: SceneGeometry, art: LightArt, seed = 'cas
   /** a phase's grade wash before its marks (kept when its plate was painted here, else made now) */
   const gradeOf = (phase: DayPhase): AnyCanvas => {
     let g = grades.get(phase);
-    if (!g) grades.set(phase, (g = gradePlate(PHASE_GRADES[phase], field())));
+    if (!g) grades.set(phase, (g = gradePlate(phaseGrade(phase), field())));
     return g;
   };
 
@@ -444,7 +448,7 @@ export function createCastLight(scene: SceneGeometry, art: LightArt, seed = 'cas
     }
     // each lantern's own warm pool of light (the wash already reserves paper round it)
     let lantern = 0;
-    for (const p of PHASES) lantern += state.weights[p] * PHASE_GRADES[p].lantern;
+    for (const p of PHASES) lantern += state.weights[p] * phaseGrade(p).lantern;
     if (lantern > 0.01) for (const L of scene.lights) liftGlow(ctx, L.at.x, L.at.y + 6, LIGHT_POOL_R, 0.55 * lantern, [255, 222, 160]);
     // the light's broken path on the water, under its reflection
     const path = pond();
