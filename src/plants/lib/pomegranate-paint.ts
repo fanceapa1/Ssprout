@@ -154,7 +154,7 @@ export interface FruitPigments {
 /** The globe's outline: nearly round, a little flattened across its axis. */
 export function fruitOutline(f: Pick<FruitMark, 'at' | 'angle' | 'id'>, R: number): Pt[] {
   const r = createRng(f.id * 71 + 3);
-  return blob(f.at.x, f.at.y, R, R * 0.94, r, { points: 18, irregularity: 0.05, rotation: f.angle });
+  return blob(f.at.x, f.at.y, R, R * 0.94, r, { points: 30, irregularity: 0.04, rotation: f.angle });
 }
 
 /**

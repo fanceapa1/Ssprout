@@ -56,7 +56,7 @@ export interface PomegranatePlan {
 }
 
 const LEVELS: LevelSpec[] = [
-  { count: [3, 4], span: [0.4, 0.95], angle: [0.45, 1.0], length: [0.4, 0.62], shrink: 0.3, side: 'alternate', limb: { segments: 5, wander: 0.16, kink: 0.12, gravity: 0.03 }, width: 0.6, tipWidth: 0.3, dur: 0.7 },
+  { count: [3, 4], span: [0.4, 0.95], angle: [0.35, 0.85], length: [0.4, 0.6], shrink: 0.3, up: 0.15, side: 'alternate', limb: { segments: 5, wander: 0.16, kink: 0.12, gravity: 0.03 }, width: 0.6, tipWidth: 0.3, dur: 0.7 },
   { count: [2, 3], span: [0.3, 1], angle: [0.4, 0.95], length: [0.38, 0.62], limb: { segments: 4, wander: 0.2, gravity: 0.1 }, width: 0.65, tipWidth: 0.45, minTip: 0.5, dur: 0.6, tag: 'twig' },
 ];
 
@@ -97,8 +97,8 @@ export function planPomegranate(rng: Rng): PomegranatePlan {
     const f = r.range(0.55, 0.8);
     const at = pointAt(s, f);
     const out = at.x >= base.x ? 1 : -1;
-    const a = steer(headingAt(s, f) + out * r.range(0.5, 0.8), out > 0 ? 0 : Math.PI, 0.2);
-    const len = r.range(70, 95);
+    const a = steer(headingAt(s, f) + out * r.range(0.25, 0.45), out > 0 ? 0 : Math.PI, 0.1);
+    const len = r.range(48, 66);
     const pts = [at];
     let h = a;
     for (let i = 0; i < 6; i++) {
@@ -121,7 +121,7 @@ export function planPomegranate(rng: Rng): PomegranatePlan {
       b.t0 = 0.55 + (b.id % 3) * 0.06;
       b.t1 = b.t0 + 0.25;
     }
-  fitTree(tree, SIZE, 18, 24);
+  fitTree(tree, SIZE, 18, 36);
 
   // the crown: a rounded, lobed dome over the twig tips, ragged where whips and twigs poke out
   const pr = rng.fork('pads');
@@ -211,7 +211,7 @@ export function planPomegranate(rng: Rng): PomegranatePlan {
   for (const pad of pads) {
     const d = dome(pad.x, pad.y);
     const front = (pad.depth ?? 0) > FRONT;
-    const spurs = Math.round((pad.r / 3.4) * (d > 0.72 ? 1 : front ? 0.8 : 0.55));
+    const spurs = Math.round((pad.r / 1.9) * (d > 0.72 ? 1 : front ? 0.8 : 0.55));
     for (let i = 0; i < spurs; i++) {
       const th = d > 0.72 ? Math.atan2(pad.y - cy, pad.x - cx) + lr.gaussian(0, 0.9) : lr.range(-Math.PI, Math.PI);
       const k = lr.chance(0.7) ? lr.range(0.6, 1.02) : lr.range(0.15, 0.6);
@@ -221,8 +221,8 @@ export function planPomegranate(rng: Rng): PomegranatePlan {
       const out = Math.atan2(Math.sin(th) * 0.6 - 0.3, Math.cos(th));
       const bronze = d > 0.8 && pad.lit > 0.2 && lr.chance(0.12);
       const tone = lr.range(0, 1);
-      for (let j = 0, m = lr.int(2, 4); j < m; j++)
-        leaves.push({ x: sx, y: sy, angle: out + (j - (m - 1) / 2) * lr.range(0.35, 0.6) + lr.gaussian(0, 0.12), length: lr.range(6.2, 8.4), width: lr.range(0.26, 0.34), tone: clamp01(tone + lr.range(-0.2, 0.2)), delay: clamp01(pad.delay + lr.range(-0.05, 0.12)), id: leaves.length, variant: 'leaf', curve: lr.range(-0.2, 0.2), group: pad.id, front, bronze });
+      for (let j = 0, m = lr.int(1, 3); j < m; j++)
+        leaves.push({ x: sx, y: sy, angle: out + (j - (m - 1) / 2) * lr.range(0.16, 0.3) + lr.gaussian(0, 0.2), length: lr.range(6.5, 9), width: lr.range(0.26, 0.34), tone: clamp01(tone + lr.range(-0.2, 0.2)), delay: clamp01(pad.delay + lr.range(-0.05, 0.12)), id: leaves.length, variant: 'leaf', curve: lr.range(-0.2, 0.2), group: pad.id, front, bronze });
     }
   }
 
@@ -246,7 +246,7 @@ export function planPomegranate(rng: Rng): PomegranatePlan {
     let a = steer(outA, UP, 0.25) + xr.gaussian(0, 0.3);
     if (Math.sin(a) > 0.2) a = Math.cos(a) >= 0 ? 0.2 : Math.PI - 0.2;
     taken.push(q);
-    fruits.push({ at: q, angle: a, r: xr.range(7.5, 9.5), blush: xr.range(0.3, 1), front: fruits.length % 3 !== 2, delay: xr.range(0, 1), id: fruits.length });
+    fruits.push({ at: q, angle: a, r: xr.range(7.5, 9.5), blush: xr.range(0.55, 1), front: fruits.length % 3 !== 2, delay: xr.range(0, 1), id: fruits.length });
   }
 
   // flowers at the twig tips round the crown's rim, facing out and up
@@ -282,10 +282,10 @@ const BARK = mix('#8a877e', '#9d9787', 0.3);
 const BARK_BACK = mix(BARK, '#b4ae9e', 0.4);
 const LIMB = mix(BARK, '#8e7960', 0.25);
 /** the narrow glossy leaf: a clear spring green, deeper in the clumps' shade */
-const LEAF = { light: '#b4c872', mid: '#8aa456', shadow: '#5a7a3c', dark: '#41592f' };
+const LEAF = { light: '#a9c062', mid: '#7f9c48', shadow: '#4f7036', dark: '#3a552c' };
 const BRONZE = '#b2664a';
-const FLOWER = { calyx: '#c03a2a', calyxShade: '#7e2626', petal: '#e0503a', petalDeep: '#a82e2a' };
-const FRUIT = { unripe: '#a9ad5c', gold: '#d99a5a', rose: '#c45a48', deep: '#7e3430', crown: '#9a4232' };
+const FLOWER = { calyx: '#a8302a', calyxShade: '#6e2024', petal: '#ea5a36', petalDeep: '#b8322a' };
+const FRUIT = { unripe: '#a9ad5c', gold: '#d9925a', rose: '#bf4438', deep: '#76302e', crown: '#8a3a30' };
 
 /** growth window of the foliage pads (as `stagger`) */
 const FOLIAGE: [number, number, number] = [0.42, 0.72, 0.14];
@@ -335,12 +335,12 @@ const pomegranate: SpeciesDef = {
       const front = paintSkeleton(p, part((b) => b.order === 0 && b.tag === 'trunk'), view, pr, { pigment: BARK, texture: 0.7, modelling: 0.6, flare: 0.4, wobble: 0.4 });
       paintTwist(p, [...back, ...front], pr.fork('twist'), BARK);
       const limbs = paintSkeleton(p, part((b) => b.order > 0 || b.tag === 'sucker'), view, pr.fork('limbs'), { pigment: LIMB, texture: 0.25, modelling: 0.3, opacity: 0.7, wobble: 0.3 });
-      paintTipLeaves(p, [...back, ...front, ...limbs], view, arrive.tips, pr.fork('tips'), { pigment: BRONZE, size: 5 });
+      paintTipLeaves(p, [...back, ...front, ...limbs], view, arrive.tips, pr.fork('tips'), { pigment: mix(BRONZE, LEAF.mid, 0.55), size: 5 });
 
       // the crown's body: a soft wash over the twigs, then the clumps' shaded undersides
       const live = plan.pads.map((pad) => ({ pad, k: arrive.pad(pad), at: viewPt(view, pad) }));
       const holes = plan.holes.map((h) => ({ ...viewPt(view, h), r: h.r * view.scale * ramp(g, FOLIAGE[0], FOLIAGE[1]) }));
-      const body: Blot[] = live.map(({ pad, k, at }) => ({ x: at.x, y: at.y, r: pad.r * view.scale * k * 0.92, alpha: Math.min(1, k * 2.5) * 0.8, pigment: mix(LEAF.light, LEAF.mid, 0.25 + 0.4 * (1 - pad.lit) / 2), id: pad.id }));
+      const body: Blot[] = live.map(({ pad, k, at }) => ({ x: at.x, y: at.y, r: pad.r * view.scale * k * 0.92, alpha: Math.min(1, k * 2.5) * 0.6, pigment: mix(LEAF.light, LEAF.mid, 0.45 + 0.5 * (1 - pad.lit) / 2), id: pad.id }));
       paintBlots(p, body, pr.fork('body'), holes, { opacity: 0.9, edge: 0.22, edgeWidth: 1.2, sharpness: 0.55, centreLift: 0.2, granulation: 0.15, flow: 0.45, flowScale: 12, blend: 'source-over' }, softRes(p), 0.8, 0.95);
       const shadeBlots: Blot[] = live
         .filter(({ pad }) => pad.lit < 0.3)
@@ -359,7 +359,7 @@ const pomegranate: SpeciesDef = {
       };
       const fruitMarks = (front: boolean): FruitMark[] =>
         plan.fruits.filter((f) => f.front === front).map((f) => ({ at: viewPt(view, f.at), angle: f.angle, r: f.r, calyx: arrive.bud(f), swell: arrive.swell(f), ripe: arrive.ripe(f), blush: f.blush, id: f.id }));
-      paintSet(plan.leaves.filter((l) => !l.front), 'back', { opacity: 0.6, darken: 0.12, edge: 0.35 });
+      paintSet(plan.leaves.filter((l) => !l.front), 'back', { opacity: 0.75, darken: 0.15, edge: 0.4 });
       paintFruits(p, fruitMarks(false), pr.fork('fruit-back'), FRUIT);
       paintSet(plan.leaves.filter((l) => l.front), 'front', { opacity: 0.88, blend: 'source-over', sharpness: 0.85, edge: 0.6 });
       paintFruits(p, fruitMarks(true), pr.fork('fruit-front'), FRUIT);
