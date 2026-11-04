@@ -179,7 +179,7 @@ export function caperFlower(
   const ctx = F.ctx;
   ctx.lineCap = 'round';
   o.stamens.forEach((s) => {
-    const a = o.view.roll + s.spread * lerp(0.4, 1, sk);
+    const a = o.view.roll + s.spread * lerp(0.4, 1, sk) * lerp(0.8, 2.1, o.view.tilt);
     const len = o.size * s.len * sk;
     const end = { x: c.x + Math.cos(a) * len, y: c.y + Math.sin(a) * len };
     // the filaments arch outward from the flower's axis, like a fountain

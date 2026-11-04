@@ -71,7 +71,7 @@ function zigzagStem(rng: Rng, angle: number, length: number, droop: number, n: n
     const t = (i + 0.5) / n;
     bends.push((droop * (0.6 + t * 0.8)) / n + (i % 2 ? zig : -zig) + rng.gaussian(0, 0.03));
   }
-  return { base: { x: rng.gaussian(0, 0.6), y: rng.range(-1.2, -0.2) }, length, angle, bends };
+  return { base: { x: rng.gaussian(0, 1.4), y: rng.range(-1.4, 0) }, length, angle, bends };
 }
 
 /** Largest scale (≤ 1) of a shoot that keeps its points, padded, inside the box at both bends. */
@@ -101,9 +101,9 @@ export function planCaper(rng: Rng): CaperPlan {
     const u = ns === 1 ? 0.5 : i / (ns - 1);
     const side = (i % 2 ? -1 : 1) * (u < 0.5 ? lean : -lean) as 1 | -1;
     const hang = hangs.has(i);
-    const angle = hang ? DOWN - side * rng.range(0.25, 0.7) : UP + side * rng.range(0.25, 1.15);
-    const droop = hang ? side * rng.range(-0.2, 0.3) : side * rng.range(1.9, 2.8);
-    const length = hang ? rng.range(26, 36) : rng.range(30, 44);
+    const angle = hang ? DOWN - side * rng.range(0.15, 0.9) : UP + side * rng.range(0.45, 1.3);
+    const droop = hang ? side * rng.range(-0.3, 0.3) : side * rng.range(1.6, 2.6);
+    const length = hang ? rng.range(18, 36) : rng.range(26, 44);
     const n = rng.int(9, 13);
     const stem = zigzagStem(rng, angle, length, droop, n);
     const nodes: Node[] = [];
@@ -158,7 +158,7 @@ export function planCaper(rng: Rng): CaperPlan {
     const stamens: Stamen[] = [];
     const nst = rng.int(22, 32);
     for (let i = 0; i < nst; i++) {
-      stamens.push({ spread: rng.gaussian(0, 0.75), len: rng.range(0.9, 1.4), bow: rng.range(0.1, 0.24) });
+      stamens.push({ spread: rng.gaussian(0, 0.8), len: rng.range(0.9, 1.4), bow: rng.range(0.1, 0.24) });
     }
     flowers.push({
       shoot: si,
