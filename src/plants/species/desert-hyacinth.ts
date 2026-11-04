@@ -17,7 +17,7 @@ const C: HyacinthColours = {
   creamShade: mix('#e8d9b0', '#b39a6a', 0.55),
   scale: '#b39a6a',
   violet: mix('#7a5668', '#b39a6a', 0.2),
-  bud: mix('#e8d9b0', '#dcbc62', 0.5),
+  bud: mix('#e8d9b0', '#dcbc62', 0.66),
   gold: '#e5b63c',
   goldDeep: mix('#e5b63c', '#b8862a', 0.55),
   lobe: '#efd27a',
@@ -105,10 +105,10 @@ export function planDesertHyacinth(rng: Rng): HyacinthPlan {
 /** One spike at growth `g`: its axis, where the stem ends, and every flower's state. */
 export function poseSpike(s: Spike, g: number) {
   const e = ease(g, s.rise[0], s.rise[1]);
-  const axis: Pt[] = stemPoints(s.stem, easeOut(e), 1);
+  const axis: Pt[] = stemPoints(s.stem, lerp(smooth(e), easeOut(e), e), 1);
   // the tip that breaks the sand is all bud cone; the bare stem lengthens below it
   const split = lerp(0.04, s.split, smooth(e));
-  const rk = lerp(0.42, 1, smooth(e));
+  const rk = lerp(0.62, 1, smooth(e));
   const front = ease(g, s.open[0], s.open[1]) * 1.25 - 0.06;
   const flowers: FlowerNow[] = s.flowers.map((f) => ({
     u: f.u,

@@ -137,6 +137,7 @@ describe('each garden’s flora', () => {
       'cattail',
       'damask-rose',
       'date-palm',
+      'desert-hyacinth',
       'oleander',
       'pomegranate',
       'spearmint',
