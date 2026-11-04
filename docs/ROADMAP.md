@@ -201,4 +201,4 @@ Phase 13 art queue (after O0 and O1): one plant (OP1–OP12) or creature (OK1–
 | OP9 | Oleander (*Nerium oleander*): T3 shrub, shore and back; distinct from the Damask rose | `src/plants/species/oleander.ts` | in progress |
 | OP3 | Caper (*Capparis spinosa*): T1, trailing from wall cracks, rock and path | `src/plants/species/caper.ts` | in progress |
 | OP1 | Spearmint (*Mentha spicata*): T1, shore and path, the freshest green | `src/plants/species/spearmint.ts` | done (devlog 111; 50–54 ms) |
-| OP5 | Southern cattail (*Typha domingensis*): T2, water and shore, the basin and the oued | `src/plants/species/cattail.ts` | in progress |
+| OP5 | Southern cattail (*Typha domingensis*): T2, water and shore, the basin and the oued | `src/plants/species/cattail.ts` | done (devlog 113; 20–22 ms; oued shallows slots are small only) |
