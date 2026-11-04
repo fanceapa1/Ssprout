@@ -27,6 +27,7 @@ Lines for the orchestrator to place:
   - Slots moved: `basin-4` (1010→975), `basin-5` (1128,584 → 1040,582), `rim-5` (1254,604 →
     1236,622), `talus-1` (y 462 → 470), and `talus-2` (944,474 grove → 1040,472 on the basin
     terrace, at the shoulder's foot).
+  - Shore: `oued-1` and `oued-3` are now large, for the oleander on the oued bank.
   - The draft's painters now read the live `layout.ts`. Its own bluff and ksar only paint in the
     draft's studio.
 - **Rock** (`paint-rocks.ts`): see docs/systems/scenery.md › Oasis › Rock. Studio `oasis-rock`
