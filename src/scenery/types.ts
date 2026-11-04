@@ -82,4 +82,6 @@ export interface Scenery {
   sound: SoundSceneryId;
   /** moving water over the painting (none under reduced motion: the painting stays still) */
   motion?: () => SceneryMotion;
+  /** how much of the scene's generic water surface (shimmer, rings, glints) plays on its pond: 1 when left out, 0 a still mirror (ADR 0302) */
+  pondSurface?: number;
 }

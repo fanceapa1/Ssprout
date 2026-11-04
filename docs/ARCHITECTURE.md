@@ -333,6 +333,7 @@ export interface Scenery {                    // types.ts
   fauna: SceneryFauna;                        // fauna/habitat.ts: unlocks (FaunaTable); water? { still, moving, avoid? }, perches?, stands?, perspective?(x, y)
   sound: SoundSceneryId;                      // the sound profile it plays (core/soundscape.ts SCENERIES; ADR 0283)
   motion?: () => SceneryMotion;               // moving water over the painting (ADR 0282): { prepare(): Generator (sprites, in parts); draw(ctx, t) (world units, pure in t) }
+  pondSurface?: number;                       // how much of the generic water surface (water.ts: shimmer, rings, glints) plays on its pond: 1 when left out, 0 a still mirror (ADR 0302)
 }
 getScenery(id): Scenery /* the default when not registered */; hasScenery(id); sceneries(flags?)  // registry.ts
 ```
@@ -340,6 +341,10 @@ The scene system creates `motion()` in `init` unless reduced motion is on, runs 
 frames like a painting (the first `ready()` waits for it) and draws it on `waterSurface` after the
 water, under the light plate. A scenery switch drops it. Only the waterfall has one (its falls,
 foam and spray, S9).
+The scene system passes `pondSurface` to `createWaterSurface` as `strength`, which scales every
+shimmer, ring and glint blit's alpha; at 0 the generic surface draws nothing, while the mirrored
+sky and the scenery's motion still draw. Only the oasis sets it (0: its basin is a still mirror
+but for the inlet's rings, ADR 0302).
 `JAPANESE_GARDEN` (`japanese-garden/index.ts`) and `WATERFALL` (`waterfall/index.ts`, ADR 0245)
 are registered, in that order, and both are offered to everyone (S17): `sceneries()` lists both
 without any flag, and a new garden opens on `DEFAULT_SCENERY`. The waterfall is complete: its land,

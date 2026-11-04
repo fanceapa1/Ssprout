@@ -21,6 +21,8 @@ export interface WaterOptions {
   still?: boolean;
   /** sprite resolution in pixels per world unit (default 2) */
   resolution?: number;
+  /** how strongly it plays, 0–1 (default 1); 0 draws nothing: a still mirror (ADR 0302) */
+  strength?: number;
 }
 
 interface WaterSprite {
@@ -44,6 +46,7 @@ function sprite(w: number, h: number, res: number, seed: string, paint: (p: Retu
 export function createWaterSurface(scene: SceneGeometry, opts: WaterOptions = {}): WaterSurface {
   const seed = opts.seed ?? 1;
   const res = opts.resolution ?? 2;
+  const strength = Math.max(0, Math.min(1, opts.strength ?? 1));
   const clip = insetPolygon(scene.pond, 8);
   const b: Rect = bounds(clip);
   let sprites: { light: WaterSprite; dark: WaterSprite; ripple: WaterSprite; glint: WaterSprite } | null = null;
@@ -93,6 +96,7 @@ export function createWaterSurface(scene: SceneGeometry, opts: WaterOptions = {}
 
   return {
     draw(ctx, t, light) {
+      if (strength === 0) return;
       const w = light?.weights;
       // sparkle follows the sun: brightest and busiest at midday, a few at sunrise/sunset, rare at night
       const sparkle = w ? w.midday * 1.5 + w.sunrise * 0.8 + w.sunset * 0.9 + w.night * 0.12 : 1;
@@ -113,7 +117,7 @@ export function createWaterSurface(scene: SceneGeometry, opts: WaterOptions = {}
         const y = band.y + Math.sin(time * band.speed * 0.7 + band.ph * 2) * 3;
         const breathe = 0.5 + 0.5 * Math.sin(time * band.speed * 4 + band.ph);
         const sp = band.dark ? s.dark : s.light;
-        ctx.globalAlpha = band.dark ? 0.05 + 0.04 * breathe : 0.1 + 0.12 * breathe;
+        ctx.globalAlpha = (band.dark ? 0.05 + 0.04 * breathe : 0.1 + 0.12 * breathe) * strength;
         ctx.drawImage(sp.canvas as CanvasImageSource, x - band.w / 2, y - sp.h / 2, band.w, sp.h);
       }
 
@@ -127,7 +131,7 @@ export function createWaterSurface(scene: SceneGeometry, opts: WaterOptions = {}
           const q = ripplePoint(k);
           const grow = 0.3 + u * 1.1;
           const fadeIn = Math.min(1, age / 0.6);
-          ctx.globalAlpha = 0.55 * fadeIn * (1 - u) ** 1.6;
+          ctx.globalAlpha = 0.55 * fadeIn * (1 - u) ** 1.6 * strength;
           const w = s.ripple.w * grow;
           const h = s.ripple.h * grow;
           ctx.drawImage(s.ripple.canvas as CanvasImageSource, q.x - w / 2, q.y - h * 0.43, w, h);
@@ -136,7 +140,7 @@ export function createWaterSurface(scene: SceneGeometry, opts: WaterOptions = {}
         for (const g of glints) {
           const v = Math.sin(t * g.rate + g.ph);
           if (v < glintAt || sparkle <= 0.01) continue;
-          ctx.globalAlpha = Math.min(0.85, ((v - glintAt) / (1 - glintAt)) ** 2 * 0.5 * sparkle) * outer;
+          ctx.globalAlpha = Math.min(0.85, ((v - glintAt) / (1 - glintAt)) ** 2 * 0.5 * sparkle) * outer * strength;
           ctx.drawImage(s.glint.canvas as CanvasImageSource, g.x - s.glint.w / 2, g.y - s.glint.h / 2, s.glint.w, s.glint.h);
         }
       }

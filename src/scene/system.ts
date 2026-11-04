@@ -494,7 +494,7 @@ export function createSceneSystem(opts: SceneSystemOptions = {}): SceneSystem {
       seenDetail = -1;
       if (ctx.scenery && ctx.scenery.id !== art.scenery) switchTo(ctx.scenery);
       else if (ctx.scenery && !skySpec) skySpec = ctx.scenery.sky;
-      water ??= createWaterSurface(ctx.scene, { seed: art.seed, still: ctx.reducedMotion });
+      water ??= createWaterSurface(ctx.scene, { seed: art.seed, still: ctx.reducedMotion, strength: ctx.scenery?.pondSurface });
       if (!motion && !reducedMotion && ctx.scenery?.motion) startMotion(ctx.scenery.motion());
       if (!sky) {
         sky = createSkyLight({ pond: art.scene.pond, seed: art.seed, sky: skySpec, scenery: art.scenery });

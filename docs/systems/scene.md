@@ -23,7 +23,7 @@ Look at it: studio → **Scene · painted garden** (`npm run shots -- --studio s
 | `sprites.ts` | foreground sprites: boulders (+ moss, base tufts, contact shadow) and tufts |
 | `background.ts` | `SceneArt` (with its `scenery` and `steps`), `GARDEN_ART` and its `gardenSteps`, `backgroundSteps` (= `art.steps`), `paintJob` generator (one part of a step per `next()`), `paintSceneSync`, cooperative `paintScene`, `StepTiming`; the paint cache's `SCENE_CACHE` kinds, `paintingKey`, `spritesKey`, the sprite atlas (`spriteAtlasLayout`, `packSprites`, `unpackSprites`) and `canvasOf` (ADR 0228) |
 | `paint-record.ts` | test-only recording canvas: hashes every canvas call with its arguments (fractions to 7 significant digits by default, exact on request) and counts the work between pauses (ADR 0226, docs/TESTING.md) |
-| `water.ts` | `createWaterSurface`: shimmer bands, ripple rings, glints following the sun (per frame) |
+| `water.ts` | `createWaterSurface`: shimmer bands, ripple rings, glints following the sun (per frame); `strength` (the scenery's `pondSurface`, ADR 0302) scales them, 0 turns them off |
 | `paint-sky.ts` | the four painted daylight skies and their mirrored water plates (ADR 0145); `GARDEN_SKY`, the Japanese garden's `ScenerySky` |
 | `sky-light.ts` | `createSkyLight`: phase plates blended, sun and moon punched out; sky + water composites |
 | `daylight.studio.ts` | studio section `daylight`: each phase and blend over the garden, each plate, the moon |
