@@ -215,7 +215,7 @@ export function paintDates(p: Painter, stalks: readonly RachisMark[], dates: rea
     for (let i = 0; i < 12; i++) {
       const a = (i / 12) * Math.PI * 2;
       const u = Math.cos(a) * d.size * 0.5;
-      const v = Math.sin(a) * d.size * 0.34;
+      const v = Math.sin(a) * d.size * 0.4;
       poly.push({ x: d.at.x + c * u - s * v, y: d.at.y + s * u + c * v });
     }
     D.fill(poly, d.pigment, d.alpha);

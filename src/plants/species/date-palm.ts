@@ -102,7 +102,7 @@ export function planDatePalm(rng: Rng): DatePalmPlan {
   const base = { x: SIZE.w / 2 - Math.sin(lean) * 60 + r.range(-6, 6), y: BASE_Y };
   const height = r.range(205, 235);
   const trunk = trunkPath(base, height, lean, r.range(0.1, 0.35));
-  const trunkWidth = r.range(21, 25);
+  const trunkWidth = r.range(17, 20);
 
   const fr = rng.fork('fronds');
   const fronds: Frond[] = [];
@@ -112,7 +112,7 @@ export function planDatePalm(rng: Rng): DatePalmPlan {
     const age = i / (n - 1);
     const side = i === 0 ? (fr.chance(0.5) ? 1 : -1) : i % 2 === 0 ? 1 : -1;
     // upper fronds stand up, the lowest reach out level and arch down
-    const tilt = (0.08 + 1.7 * age ** 0.9) * fr.range(0.85, 1.1);
+    const tilt = (0.08 + 1.7 * age ** 0.9) * fr.range(0.82, 1.12) + fr.gaussian(0, 0.06);
     const heading = UP + side * Math.min(1.85, tilt);
     // some fronds point at the viewer: foreshortened, they hide the crown's base
     const toward = i > 2 && fr.chance(0.3);
@@ -121,11 +121,11 @@ export function planDatePalm(rng: Rng): DatePalmPlan {
       crown: 0,
       heading,
       side,
-      len: fr.range(138, 165) * (1 - 0.18 * (1 - age) ** 2) * (age > 0.85 ? 0.93 : 1) * (toward ? fr.range(0.5, 0.72) : 1),
+      len: fr.range(125, 170) * (1 - 0.18 * (1 - age) ** 2) * (age > 0.85 ? 0.93 : 1) * (toward ? fr.range(0.5, 0.72) : 1),
       bend: (0.25 + 1.9 * age ** 1.5) * fr.range(0.85, 1.15) * (toward ? 1.3 : 1),
       age,
       // the oldest arrive first: they were the young palm's fan
-      delay: clamp01(1 - age + fr.range(-0.06, 0.06)),
+      delay: clamp01((1 - age) ** 1.25 + fr.range(-0.05, 0.05)),
       front: i === 0 || toward ? true : fr.chance(0.5),
       dry: age > 0.92 && !toward ? fr.range(0.45, 0.8) : 0,
     });
@@ -137,14 +137,14 @@ export function planDatePalm(rng: Rng): DatePalmPlan {
     offshoots.push({ x: base.x + s * fr.range(17, 28) * (1 + 0.4 * Math.floor(k / 2)), delay: k / Math.max(1, no - 1), scale: fr.range(0.7, 1) * (k === 2 ? 0.7 : 1) });
   }
   offshoots.forEach((o, k) => {
-    const m = fr.int(6, 8);
+    const m = fr.int(5, 7);
     for (let j = 0; j < m; j++) {
       const age = j / (m - 1);
       const side = j % 2 === 0 ? 1 : -1;
       fronds.push({
         id: fronds.length,
         crown: k + 1,
-        heading: UP + side * (0.12 + 0.95 * age) * fr.range(0.85, 1.1),
+        heading: UP + side * (0.2 + 1.05 * age) * fr.range(0.85, 1.1) + Math.sign(o.x - base.x) * 0.25,
         side,
         len: fr.range(52, 72) * o.scale * (1 - 0.25 * (1 - age)),
         bend: (0.3 + 0.9 * age) * fr.range(0.8, 1.1),
@@ -161,8 +161,9 @@ export function planDatePalm(rng: Rng): DatePalmPlan {
   for (const f of fronds) {
     const reach = f.len * 0.2;
     for (let tries = 0; tries < 30; tries++) {
-      const path = rachisPath(frondShape(f, crownAt(pl, f.crown), f.len, 1));
-      const out = path.some((q) => q.x < MARGIN + reach || q.x > SIZE.w - MARGIN - reach || q.y < MARGIN + reach || q.y > BASE_Y - 14);
+      const path = rachisPath(frondShape(f, crownAt(pl, f.crown), f.len, 1)).slice(1);
+      const floor = f.crown === 0 ? BASE_Y - 14 : BASE_Y - 3;
+      const out = path.some((q) => q.x < MARGIN + reach || q.x > SIZE.w - MARGIN - reach || q.y < MARGIN + reach || q.y > floor);
       if (!out) break;
       f.len *= 0.95;
     }
@@ -173,12 +174,12 @@ export function planDatePalm(rng: Rng): DatePalmPlan {
   const nc = cr.int(3, 5);
   const top = trunk.at(-1)!;
   for (let c = 0; c < nc; c++) {
-    const side = c % 2 === 0 ? 1 : -1;
-    const strands = Array.from({ length: cr.int(10, 14) }, (_, s, a = cr.range(-0.4, 0.4)) => ({ angle: Math.PI / 2 + a * 0.8 + side * 0.1, len: cr.range(20, 32) * (1 - 0.35 * Math.abs(a)), n: cr.int(5, 8) }));
+    const side = c === 0 ? (cr.chance(0.5) ? 1 : -1) : -clusters[c - 1]!.side * (cr.chance(0.75) ? 1 : -1);
+    const strands = Array.from({ length: cr.int(8, 11) }, (_, s, a = cr.range(-0.5, 0.5)) => ({ angle: Math.PI / 2 + a + side * 0.1, len: cr.range(20, 32) * (1 - 0.3 * Math.abs(a)), n: cr.int(3, 6) }));
     clusters.push({
       id: c,
       side,
-      stalk: { from: { x: top.x + side * cr.range(2, 6), y: top.y + cr.range(2, 6) }, heading: side > 0 ? cr.range(-0.5, 0.15) : Math.PI - cr.range(-0.5, 0.15), length: cr.range(24, 34), bend: cr.range(1.1, 1.5), side },
+      stalk: { from: { x: top.x + side * cr.range(1, 6), y: top.y + cr.range(1, 8) }, heading: side > 0 ? cr.range(-0.7, 0.3) : Math.PI - cr.range(-0.7, 0.3), length: cr.range(14, 40), bend: cr.range(0.9, 1.6), side },
       strands,
       delay: c / Math.max(1, nc - 1),
     });
@@ -192,9 +193,9 @@ export function planDatePalm(rng: Rng): DatePalmPlan {
 export function datePalmArrivals(g: number) {
   return {
     /** fraction of the trunk risen: none while the fronds fan from the ground */
-    trunk: ramp(g, 0.22, 0.62),
+    trunk: ramp(g, 0.32, 0.66),
     /** how far fronds have taken their mature arch */
-    mature: ramp(g, 0.28, 0.7),
+    mature: ramp(g, 0.34, 0.72),
     /** overall size of the fronds, young palm to grown */
     size: 0.42 + 0.58 * ramp(g, 0.02, 0.7),
     frond: (f: Frond) => (f.crown === 0 ? stagger(g, 0.015, 0.8, f.delay, 0.16) : stagger(g, 0.55 + 0.12 * ((f.crown - 1) % 2), 0.86, f.delay, 0.12)),
@@ -258,7 +259,7 @@ const datePalm: SpeciesDef = {
       const len = f.len * k ** 0.8 * (f.crown === 0 ? arrive.size : 1);
       const path = rachisPath(frondShape(f, crownNow(f), len, f.crown === 0 ? arrive.mature : 0.4 + 0.6 * k));
       const dry = arrive.dry(f);
-      const deep = f.front ? 0 : 0.45;
+      const deep = f.crown > 0 ? 0.3 : f.front ? 0 : 0.45;
       const pig = (t: number): Pigment => mix(mix(mix(FROND.light, FROND.mid, t), FROND.shadow, deep), mix(DRY.light, DRY.mid, t), dry);
       // the spear opens as it grows: leaflets fold out from the rib
       const open = ramp(k, 0.2, 0.85);
@@ -288,7 +289,7 @@ const datePalm: SpeciesDef = {
         }
       }
       (f.front ? ribsFront : ribsBack).push({ path, width: 1.1 + len / 140, pigment: mix(mix(RACHIS, FROND.mid, deep), DRY.mid, dry), alpha: 0.75 * Math.min(1, k * 3) });
-      const hw = (t: number) => P * 0.85 * open * Math.sin(Math.PI * Math.min(1, 0.06 + t * 0.94)) ** 0.7;
+      const hw = (t: number) => P * 0.5 * open * Math.sin(Math.PI * Math.min(1, 0.06 + t * 0.94)) ** 0.7;
       wash.push({ path: path.slice(1), hw, pigment: mix(mix(FROND.mid, FROND.shadow, f.front ? 0.2 : 0.6), DRY.mid, dry), alpha: 0.26 * Math.min(1, k * 2) });
     }
 
@@ -347,13 +348,13 @@ const datePalm: SpeciesDef = {
         const strand: Pt[] = [end, { x: end.x + Math.cos(s.angle) * sl * 0.5, y: end.y + Math.sin(s.angle) * sl * 0.5 }, { x: end.x + Math.cos(s.angle) * sl + c.side * 1.5, y: end.y + Math.sin(s.angle) * sl }];
         stalks.push({ path: strand, width: 0.55, pigment: mix(STALK, TRUNK, 0.2), alpha: 0.6 });
         for (let d = 0; d < s.n; d++) {
-          const t = 0.3 + (0.7 * d) / Math.max(1, s.n - 1);
+          const t = 0.2 + (0.8 * d) / Math.max(1, s.n - 1);
           const q = along(strand, t).at;
           const side = d % 2 === 0 ? 1 : -1;
           const tone = cr.range(0, 1);
           const ripe = clamp01(arrive.ripe * cr.range(0.75, 1.15));
           const pig = mix(mix(DATE.yellow, DATE.amber, ripe), DATE.brown, ripe * (tone > 0.8 ? 0.55 : 0.12));
-          dates.push({ at: { x: q.x + side * 1.6 * kf, y: q.y + 1.2 }, angle: Math.PI / 2 + side * 0.35 + cr.range(-0.2, 0.2), size: 5.2 * kf * cr.range(0.85, 1.1), pigment: pig, alpha: 0.85 });
+          dates.push({ at: { x: q.x + side * 2 * kf, y: q.y + 1.5 }, angle: Math.PI / 2 + side * 0.35 + cr.range(-0.2, 0.2), size: 5.8 * kf * cr.range(0.85, 1.1), pigment: pig, alpha: 0.85 });
         }
       }
     }
