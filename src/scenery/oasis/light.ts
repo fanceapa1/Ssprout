@@ -128,8 +128,8 @@ function paintPalmShadows(p: Painter, rng: Rng, sh: CastShadow, pig: string, low
       p.stroke([palm.base, { x: (palm.base.x + end.x) / 2, y: (palm.base.y + end.y) / 2 + 3 }, end], {
         rng,
         pigment: pig,
-        width: palm.width * 1.3,
-        opacity: sh.alpha * 0.5,
+        width: palm.width * 1.4,
+        opacity: sh.alpha * 0.85,
         dryness: 0.3,
         wetness: 0.6,
         wobble: 0.2,
@@ -138,7 +138,7 @@ function paintPalmShadows(p: Painter, rng: Rng, sh: CastShadow, pig: string, low
       // the crown's ragged blot at the trunk shadow's end
       p.wash({ cx: end.x + dir * height * 0.06, cy: end.y + 2, rx: height * 0.16, ry: height * 0.035 }, pig, {
         rng,
-        opacity: sh.alpha * 0.36,
+        opacity: sh.alpha * 0.6,
         deform: 0.6,
         spread: 0.35,
         edge: 0.15,
@@ -157,10 +157,10 @@ function oasisLights(p: Painter, rng: Rng, _scene: SceneGeometry, phase: DayPhas
   if (phase === 'sunrise' || phase === 'sunset') {
     const sunset = phase === 'sunset';
     const k = sunset ? 0.62 : 0.45;
-    const warm: Rgb = sunset ? [255, 222, 168] : [255, 234, 214];
+    const warm: Rgb = sunset ? [255, 226, 172] : [255, 234, 214];
     const sunX = sunset ? OASIS_SKY_LAYOUT.sunsetX : OASIS_SKY_LAYOUT.sunriseX;
     // the ksar glows: a broad warmth over its fronts, then a rim down each lit flank and parapet
-    dab(p, 664, 250, 280, 80, k * 0.45, warm);
+    dab(p, 664, 250, 300, 90, k * 0.75, warm);
     for (const s of ROCK_SHAPES.ksar) {
       const b = s.block;
       const top = b.base - b.h;
@@ -171,7 +171,7 @@ function oasisLights(p: Painter, rng: Rng, _scene: SceneGeometry, phase: DayPhas
     for (let y = 340; y <= 470; y += 22) dab(p, 1000 - (470 - y) * 0.35, y, 30, 22, k * 0.8, warm);
     for (let x = 0; x <= 420; x += 40) dab(p, x + rng.range(-6, 6), bluffTopAt(x) + 10, 46, 14, k * 0.5 * (0.4 + x / 700), warm);
     // the far range and the haze under the sun
-    dab(p, sunX + 40, skylineAt(sunX) + 24, 300, 60, k * 0.4, warm);
+    dab(p, sunX + 40, skylineAt(sunX) + 10, 300, 40, k * 0.2, warm);
     // the palms: the trunks' right flanks and the crowns' sun side
     for (const palm of VEG_SHAPES.bigPalms) {
       for (let i = 2; i < palm.trunk.length - 2; i++) {

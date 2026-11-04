@@ -30,7 +30,7 @@ O5 paints the oasis's daylight. Two things were not like the waterfall's:
   broken streaks. The light plate's `lights` hook leaves pale paper over the basin's water by day
   (0.4–0.55), so the warm grade does not grey it, and a cool sheen at night.
 - **Sky plates** are clipped to the skyline with a 4-unit hang over the bluff and the ksar, and
-  up to 30 units over the far range, held above the bluff's shoulder.
+  up to 44 units over the far range, held above the bluff's shoulder.
 - **Shadows always fall left**, as at the waterfall. The bluff's left ridge, the towers onto their
   neighbours, the terrace walls' faces and the strip below them, the basin's coping onto the
   water, and the big palms' trunks and crowns. The palms' shadows run diagonally toward the
@@ -39,6 +39,6 @@ O5 paints the oasis's daylight. Two things were not like the waterfall's:
 ## Consequences
 - Every scenery can now tune its grades without touching the others. The garden's and the
   waterfall's plates, keys and pixels are unchanged.
-- The night's 170 extra stars are reserved on the sky plate and on the night light plate. The
+- The night's 240 extra stars are reserved on the sky plate and on the night light plate. The
   close-view sky detail plate punches only the shared 30, so in a zoomed view the extra stars are
   the upscaled plate's (softer).

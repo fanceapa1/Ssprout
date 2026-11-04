@@ -32,13 +32,13 @@ const DESERT = {
 
 /**
  * How far the washes hang under the skyline: a short hang over the bluff and the ksar (paper must
- * not show at their edge, a long one would tint the pale pisé), down to 30 over the far range,
+ * not show at their edge, a long one would tint the pale pisé), down to 44 over the far range,
  * which takes the distance's colour, but never onto the bluff's shoulder in front of it.
  */
 function hangAt(x: number, y: number): number {
   const rock = bluffTopAt(x);
   if (x < 880) return 4;
-  return Math.max(4, Math.min(30, rock - y - 3));
+  return Math.max(4, Math.min(44, rock - y - 3));
 }
 
 /** The washes' outline: the skyline with its hang, closed over the top of the plate. */
@@ -87,12 +87,12 @@ function streak(p: Painter, rng: Rng, x: number, y: number, len: number, h: numb
 }
 
 /** The night's extra stars: a dense desert field over the whole open sky, smaller and fainter than the shared 30. */
-export const OASIS_NIGHT_STARS: readonly Star[] = stars(170, 'oasis-stars', {
+export const OASIS_NIGHT_STARS: readonly Star[] = stars(240, 'oasis-stars', {
   ...OASIS_SKY_LAYOUT,
-  stars: { top: -200, depth: 520, gap: null },
+  stars: { top: -40, depth: 380, gap: null },
 })
   .filter((s) => s.y < skylineAt(s.x) - 14)
-  .map((s) => ({ ...s, r: s.r * 0.85, a: s.a * 0.9 }));
+  .map((s) => ({ ...s, r: s.r * 0.9, a: s.a * 0.95 }));
 
 /** The Milky Way's line across the night sky, from the upper left down toward the notch. */
 export const MILKY_WAY = { x0: 60, y0: 0, x1: 1540, y1: 250 } as const;
@@ -157,7 +157,7 @@ function paintPhaseSky(p: Painter, rng: Rng, phase: DayPhase): void {
       // the low haze over the grove, lying along the far range
       p.glaze(band(240, 380, 760), mix(DESERT.roseGold, DESERT.bleach, 0.4), { rng, opacity: 0.34, deform: 0.06, fade: { angle: -Math.PI / 2, start: 0.3, amount: 1, ragged: 0.6 } });
       streak(p, rng, 1260, 180, 460, 6, mix(PIGMENTS.violet, PIGMENTS.rose, 0.45), 0.22, lighten(PIGMENTS.gold, 0.15));
-      streak(p, rng, 300, 90, 420, 6, mix(PIGMENTS.violet, PIGMENTS.rose, 0.4), 0.12, DESERT.roseGold);
+      streak(p, rng, 330, 130, 420, 5, mix(PIGMENTS.violet, PIGMENTS.rose, 0.4), 0.1, DESERT.roseGold);
       break;
     }
     case 'sunset': {
@@ -228,7 +228,7 @@ function paintPhaseSky(p: Painter, rng: Rng, phase: DayPhase): void {
 }
 
 /** Each phase's mirrored sky on the basin: turquoise always, the far edge a little of the horizon, the near the zenith. */
-const WATER_SKY: Record<DayPhase, { far: Pigment; near: Pigment; glints: Pigment | null }> = {
+export const OASIS_WATER_SKY: Record<DayPhase, { far: Pigment; near: Pigment; glints: Pigment | null }> = {
   midday: { far: mix(TURQUOISE, DESERT.bleach, 0.3), near: mix(TURQUOISE, PIGMENTS.cerulean, 0.3), glints: DESERT.bleach },
   sunrise: { far: mix(TURQUOISE, DESERT.roseGold, 0.22), near: mix(TURQUOISE, PIGMENTS.bellflower, 0.25), glints: DESERT.roseGold },
   sunset: { far: mix(TURQUOISE, DESERT.coral, 0.16), near: mix(TURQUOISE, PIGMENTS.ultramarine, 0.12), glints: mix(DESERT.coral, DESERT.ember, 0.4) },
@@ -245,7 +245,7 @@ export function paintOasisWaterSky(p: Painter, rng: Rng, phase: DayPhase, box: R
     { x: box.x + box.w + 20, y: near + 10 },
     { x: box.x - 20, y: near + 10 },
   ];
-  const w = WATER_SKY[phase];
+  const w = OASIS_WATER_SKY[phase];
   p.wetInWet(whole, w.far, w.near, { rng, angle: Math.PI / 2, split: 0.45, softness: 0.7, opacity: 0.85, deform: 0.02, edge: 0.04, centreLift: 0, granulation: 0.06, flow: 0.5, flowScale: 60 });
   if (w.glints) {
     // the sky's colour caught in slow ripples, more of it toward the far edge
