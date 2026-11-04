@@ -170,8 +170,9 @@ function oasisLights(p: Painter, rng: Rng, _scene: SceneGeometry, phase: DayPhas
     // the shoulder's face turned to the notch, and the left ridge's crown
     for (let y = 340; y <= 470; y += 22) dab(p, 1000 - (470 - y) * 0.35, y, 30, 22, k * 0.8, warm);
     for (let x = 0; x <= 420; x += 40) dab(p, x + rng.range(-6, 6), bluffTopAt(x) + 10, 46, 14, k * 0.5 * (0.4 + x / 700), warm);
-    // the far range and the haze under the sun
+    // the far range and the dunes under the sun take the sky's colour (they read as a pale strip)
     dab(p, sunX + 40, skylineAt(sunX) + 10, 300, 40, k * 0.2, warm);
+    p.glaze(blob(1340, 350, 440, 46, rng, { irregularity: 0.3 }), sunset ? '#ec8a64' : '#e8b4a4', { rng, opacity: sunset ? 0.3 : 0.2, deform: 0.4, spread: 0.9, edge: 0, edgeWidth: 0 });
     // the palms: the trunks' right flanks and the crowns' sun side
     for (const palm of VEG_SHAPES.bigPalms) {
       for (let i = 2; i < palm.trunk.length - 2; i++) {
