@@ -69,6 +69,17 @@ garden's. Everything that is lit from the side reads it from the viewed scenery'
   lights on the sun side), the studio's daylight sections and `sprout.daylight()`.
 - Not sided: the weather sun's lifted bands and leaf glints (ADR 0193) keep their upper-left light.
 
+**Mirror symmetry (S10c).** A shadow falling left is the mirror image of one falling right. A
+boulder's long shadow (`cast.ts › rockShadow`, pure) tilts by `side × atan2(dy, |dx|) × 0.15`, a
+few degrees, its far end dipping toward the viewer on either side. Until S10c it was
+`atan2(dy, dx) × 0.15`, which is about π × 0.15 when `dx < 0`: a left-falling shadow rose about
+27° away from the viewer (the garden's sunrise, the waterfall's sunrise and sunset). Right-falling
+shadows keep their exact value, so the garden's sunset is pixel-identical. Shrub and tree shadows
+were already mirrored (only their `x` offsets and fade turn with the side). A plant's blot is placed
+as a mirror (`shadowBox` angle `π − tilt`, so the outline is the mirror image), but the blot's
+texture is rotated, not flipped, so its painted grain is upside down on the left. That is
+invisible in a soft violet glaze and kept, so the moon's left-falling night shadow is unchanged.
+
 ## The painting
 - **Sky plates** (scene, ADR 0145): one per phase, 0.7 px/unit over world y −240 … 500, multiplied
   over the landscape in the cached background. Midday: wet-in-wet cerulean graded to warm paper, a
@@ -152,8 +163,10 @@ Unit: `solar.test.ts` (London, New York, Tokyo, Sydney ±3 min; polar day, polar
 night, the exact poles; moon phase), `zones.test.ts`, `daylight.test.ts` (windows, blends, sums,
 continuity minute by minute, short days, white nights, polar cases, setTime parsing),
 `daylight-source.test.ts`, `sky-layout.test.ts` (with the sun side of both gardens, and the
-garden's shadow and rim pinned to the pre-0284 formulas), `timeofday.test.ts`, `scene/sky-light.test.ts`,
-`paint/rim.test.ts`, `plants/shadow.test.ts`, `ambience/plate-cache.test.ts` (the plates' lookups,
+garden's shadow and rim pinned to the pre-0284 formulas), `cast.test.ts` (a boulder's shadow with
+the sun on the other side is its exact mirror; the right-falling tilt pinned to the pre-S10c
+formula), `timeofday.test.ts`, `scene/sky-light.test.ts`,
+`paint/rim.test.ts`, `plants/shadow.test.ts` (the blot placed as the mirror), `ambience/plate-cache.test.ts` (the plates' lookups,
 stores and keys). E2E: `tests/e2e/daylight.spec.ts` (each phase's
 pixels, the moon and the setting sun as lights, blends, the clock-driven location, fauna's night,
 frame budget, plantsReady), `tests/e2e/plates-cache.spec.ts` (a repeat visit paints no plate and
