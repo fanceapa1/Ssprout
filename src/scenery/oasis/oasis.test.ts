@@ -230,6 +230,12 @@ describe('oasis slots', () => {
     }
     for (const s of slots.filter((q) => q.habitat !== 'path')) expect(edgeDistance(s, [...FOOTPATH, ...FOOTPATH.slice().reverse()]), s.id).toBeGreaterThanOrEqual(40);
   });
+
+  it('offers medium plants open sand by the footpath, one each side (O1b)', () => {
+    const medium = byHabitat('path').filter((s) => s.maxSize === 'medium');
+    expect(medium.length).toBeGreaterThanOrEqual(2);
+    expect(medium.some((s) => s.x < 800) && medium.some((s) => s.x > 860)).toBe(true);
+  });
 });
 
 describe('oasis spacing at the garden scale (1.25×)', () => {

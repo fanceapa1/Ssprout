@@ -53,10 +53,10 @@ const SPECS: Record<Habitat, SlotSpec[]> = {
   path: [
     ['walk-1', 730, 950, 'small'],
     ['walk-2', 920, 940, 'small'],
-    ['walk-3', 750, 850, 'small'],
-    ['walk-4', 920, 846, 'small'],
-    ['walk-5', 770, 760, 'small'],
-    ['walk-6', 930, 762, 'small'],
+    ['walk-3', 714, 852, 'medium'],
+    ['walk-4', 950, 848, 'medium'],
+    ['walk-5', 796, 758, 'small'],
+    ['walk-6', 900, 764, 'small'],
   ],
   // the high terrace under the bluff, the grove's terrace and the palms' floor: a tree at each end
   back: [
