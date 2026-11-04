@@ -338,6 +338,15 @@ describe('the oasis sky (placeholder until O5)', () => {
     }
   });
 
+  it('keeps the moon under the corner controls and the paper edge on a 16:9 screen (O1b)', () => {
+    // a 16:9 screen shows y 70–970; the controls and the paper's ragged edge take about its top 60
+    const top = Math.max(0, Math.min(100, OASIS.view.focus.y - 450));
+    for (let u = 0; u <= 1.0001; u += 0.02) {
+      const d = moonDisc(sky(-20, false, u), OASIS_SKY_LAYOUT);
+      expect(d.y - d.r - top, `moon at ${u.toFixed(2)}`).toBeGreaterThanOrEqual(60);
+    }
+  });
+
   it('scatters the stars in open sky only, off the ksar', () => {
     for (const seed of ['stars', 'a', 'b', 'c']) {
       for (const s of stars(40, seed, OASIS_SKY_LAYOUT)) expect(inSky(s, 6), `${seed} ${s.x},${s.y}`).toBe(true);

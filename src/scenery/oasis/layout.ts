@@ -226,7 +226,7 @@ export const OASIS_SKY_LAYOUT: SkyLayout = {
   sunsetX: 920,
   moonArc: [
     { x: 1040, y: 232 },
-    { x: 960, y: 110 },
+    { x: 960, y: 150 },
     { x: 926, y: 200 },
   ],
   // the stars stay off the ksar's towers (the gap); high on the left and over the notch
