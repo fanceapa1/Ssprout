@@ -137,6 +137,7 @@ describe('each garden’s flora', () => {
       'cattail',
       'date-palm',
       'oleander',
+      'pomegranate',
       'spearmint',
     ]);
     expect(RELEASED.map((s) => s.id)).not.toContain('oasis');
