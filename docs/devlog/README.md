@@ -113,3 +113,4 @@ never used.
 | 102 | [Oasis draft A: Ksar & palmeraie](102-oasis-draft-a.md) | Phase 13 draft, chosen: a red bluff with a ksar close behind a big stone basin, a seguia falling down the terraces, big palms right, the oued bend; round 2 is the close view (plants dominate) | — |
 | 105 | [Oasis scenery skeleton](105-oasis-skeleton.md) | O1: draft A as a third scenery behind ?dev&scenery=oasis: basin, seguia and oued geometry, 47 slots with terrace lifts, habitat words, view, placeholder golden sky and light, an empty flora profile, the creatures shared by biology | Done |
 | 106 | [P12: date palm](106-date-palm.md) | A slim leaning trunk with a diamond lattice of leaf bases under a starburst of grey-green pinnate fronds; offshoots at the foot, amber date bunches under the crown | — |
+| 108 | [P9: oleander](108-oleander.md) | A dense fountain of dark knife leaves in whorls of three, with rose-pink pinwheel clusters at the tips | — |
