@@ -119,17 +119,17 @@ function nodesOf(rng: Rng, length: number, tone: Pigment, from: number): NodePla
 /** A terminal cyme: open pinwheels in a loose dome over the tip, buds tucked among them. */
 function clusterOf(rng: Rng, flowers: FlowerPlan[], scale: number, lean: number): FlowerPlan[] {
   const out: FlowerPlan[] = [];
-  const n = rng.int(4, 7);
+  const n = rng.int(3, 6);
   const buds = rng.int(2, 4);
   for (let i = 0; i < n + buds; i++) {
     const bud = i >= n;
     const a = UP + lean * 0.5 + lerp(-1.25, 1.25, (i % n) / Math.max(1, n - 1)) * rng.range(0.7, 1) + rng.range(-0.15, 0.15);
-    const d = (bud ? rng.range(2, 7) : rng.range(4, 10)) * scale;
+    const d = (bud ? rng.range(2, 7) : rng.range(6, 13)) * scale;
     const f: FlowerPlan = {
       id: flowers.length,
       dx: Math.cos(a) * d,
       dy: Math.sin(a) * d * 0.8 - (bud ? 2 : 0),
-      radius: rng.range(5.6, 7) * scale * (bud ? 0.85 : 1),
+      radius: rng.range(6, 7.6) * scale * (bud ? 0.85 : 1),
       facing: rng.range(-0.5, 0.5),
       squash: rng.chance(0.3) ? rng.range(0.85, 1) : rng.range(0.55, 0.85),
       roll: rng.range(0, Math.PI * 2),

@@ -170,6 +170,8 @@ export interface PinwheelShape {
   curls: Pt[][];
   throat: Pt[];
   fringe: Pt[][];
+  /** deeper rose streaks running from the throat onto each petal */
+  streaks: Pt[][];
   bud: Pt[];
   twist: Pt[][];
 }
@@ -222,6 +224,10 @@ export function pinwheelShape(f: Pinwheel): PinwheelShape {
       fringe.push([proj(Math.cos(th) * tr * 0.7, Math.sin(th) * tr * 0.7), proj(Math.cos(a) * tr * 1.75, Math.sin(a) * tr * 1.75)]);
     }
   }
+  const streaks = Array.from({ length: 5 }, (_, k) => {
+    const th = f.roll + (k * Math.PI * 2) / 5 + 0.25;
+    return [proj(Math.cos(th) * tr * 0.4, Math.sin(th) * tr * 0.4), proj(Math.cos(th + 0.12) * tr * 2.3, Math.sin(th + 0.12) * tr * 2.3)];
+  });
   // the bud: a slender spindle twisted at the tip, pointing along budAngle
   const bl = f.radius * 0.95;
   const bw = f.radius * 0.3;
@@ -232,7 +238,7 @@ export function pinwheelShape(f: Pinwheel): PinwheelShape {
   const half = (sg: number) => Array.from({ length: B + 1 }, (_, i) => bp(i / B, sg * bw * Math.sin(Math.PI * (i / B) ** 0.8) ** 0.9));
   const bud = [...half(1), ...half(-1).reverse()];
   const twist = [0.35, 0.6].map((t0) => [bp(t0, -bw * 0.7), bp(t0 + 0.2, 0), bp(t0 + 0.38, bw * 0.55)]);
-  return { petals, curls, throat, fringe, bud, twist };
+  return { petals, curls, throat, fringe, streaks, bud, twist };
 }
 
 export interface PinwheelStyle {
@@ -265,8 +271,8 @@ export function paintPinwheels(p: Painter, items: readonly Pinwheel[], o: Pinwhe
   }
   const open = shapes.filter((x) => x.f.open > 0.05);
   if (!open.length) return;
-  for (const gi of [0, 1]) {
-    const set = open.filter((_, i) => i % 2 === gi);
+  for (const gi of [0, 1, 2]) {
+    const set = open.filter((_, i) => i % 3 === gi);
     if (!set.length) continue;
     const L = p.layer(padRect(bounds(set.flatMap((x) => x.s.petals.flat())), 3));
     for (const { f, s, r } of set) {
@@ -274,19 +280,21 @@ export function paintPinwheels(p: Painter, items: readonly Pinwheel[], o: Pinwhe
       s.petals.forEach((pt, i) => {
         L.fill(deformPolygon(pt, r, { depth: 1, variance: 0.04 }), jitter(f.petal ?? o.petal, r, 0.035), 0.6 * k);
         L.fill(pt, f.petal ?? o.petal, 0.3 * k);
-        L.lift(s.curls[i]!, 0.25 * k);
-        L.fill(s.curls[i]!, o.reverse, 0.4 * k);
+        L.lift(s.curls[i]!, 0.35 * k);
+        L.fill(s.curls[i]!, o.reverse, 0.55 * k);
       });
     }
     const mean = set.reduce((a, x) => a + x.f.radius, 0) / set.length;
-    L.dry({ opacity: 0.95 * alpha, blend: 'source-over', edge: 0.55, edgeWidth: Math.max(0.3, mean * 0.07), darken: 0.2, sharpness: 0.75, centreLift: 0.1, granulation: 0.04, flow: 0.25, flowScale: 6 });
+    L.dry({ opacity: 0.95 * alpha, blend: 'source-over', edge: 0.7, edgeWidth: Math.max(0.3, mean * 0.06), darken: 0.3, sharpness: 0.75, centreLift: 0.1, granulation: 0.04, flow: 0.25, flowScale: 6 });
   }
   const T = p.layer(padRect(bounds(open.flatMap((x) => x.s.throat)), 4));
   for (const { f, s, r } of open) {
     const k = f.alpha * smooth01((f.open - 0.3) / 0.5);
     if (k < 0.02) continue;
-    T.fill(deformPolygon(s.throat, r, { depth: 1, variance: 0.06 }), o.deep, 0.75 * k);
-    if (f.radius > 3) for (const fr of s.fringe) T.fill(ribbon(fr, (u) => Math.max(0.1, f.radius * 0.035) * (1 - u * 0.7)), mix(o.reverse, o.petal, 0.4), 0.7 * k);
+    // a pale mouth, deep streaks fanning onto the petals, and the fringe of the corona
+    T.fill(deformPolygon(s.throat, r, { depth: 1, variance: 0.06 }), mix(o.reverse, '#fbf4ef', 0.55), 0.85 * k);
+    for (const st of s.streaks) T.fill(ribbon(st, (u) => Math.max(0.12, f.radius * 0.05) * (1 - u * 0.8)), o.deep, 0.7 * k);
+    if (f.radius > 3) for (const fr of s.fringe) T.fill(ribbon(fr, (u) => Math.max(0.1, f.radius * 0.03) * (1 - u * 0.7)), mix(o.reverse, o.deep, 0.3), 0.6 * k);
   }
   T.dry({ opacity: 0.9 * alpha, blend: 'source-over', edge: 0.4, edgeWidth: 0.3, darken: 0.15, sharpness: 0.8, centreLift: 0.05, flowScale: 4 });
 }

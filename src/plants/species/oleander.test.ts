@@ -91,7 +91,7 @@ describe('oleander', () => {
     for (let seed = 1; seed <= 12; seed++) {
       const plant = build(seed);
       for (const st of plant.stems) {
-        expect(st.flowers.length).toBeGreaterThanOrEqual(6);
+        expect(st.flowers.length).toBeGreaterThanOrEqual(5);
         expect(st.flowers.some((f) => f.bud)).toBe(true);
         for (const nd of st.nodes) {
           expect(nd.leaves.map((l) => l.side).sort()).toEqual([-1, 0, 1]);
