@@ -179,13 +179,24 @@ export function gourd(p: Painter, rng: Rng, g: GourdNow, c: GourdColours): void 
     sharpness: 0.4,
     fade: { angle: 0.25, start: 0.45, amount: 0.8 },
   });
-  const base = mix(mix(c.pale, c.gold, ripe), c.green, (1 - ripe) * 0.25);
+  const base = mix(mix(c.pale, c.gold, ripe), c.green, (1 - ripe) ** 1.5 * 0.45);
   const L = p.layer(bounds([g.c], g.r + 1.5));
-  p.dabInto(L, { x: g.c.x, y: g.c.y + g.r * 1.02 }, base, { rng: rng.fork('ball'), variant: 'round', angle: -Math.PI / 2, length: g.r * 2.04, width: g.r * 2.04, asym: 0, pool: 0.4, poolSide: 1, basePool: 0.15, layers: 3 });
+  // the ball: a few slightly wandering round fills, so its rim is a wet edge and not a circle
+  const br = rng.fork('ball');
+  for (let k = 0; k < 4; k++) {
+    const ph = br.range(0, Math.PI * 2);
+    const amp = br.range(0.015, 0.035);
+    const ring = Array.from({ length: 30 }, (_, i) => {
+      const a = (i / 30) * Math.PI * 2;
+      const rr = g.r * (1 + amp * Math.sin(a * 3 + ph) + br.gaussian(0, 0.008));
+      return { x: g.c.x + Math.cos(a) * rr, y: g.c.y + Math.sin(a) * rr * 0.97 };
+    });
+    L.fill(ring, base, 0.32);
+  }
   L.ctx.save();
   L.clip(circle(g.c, g.r * 0.97));
   const stripe = mix(c.green, c.goldDeep, ripe);
-  const sa = lerp(0.82, 0.22, smooth(ripe));
+  const sa = lerp(0.85, 0.18, ripe ** 1.6);
   for (const s of g.stripes) {
     const left: Pt[] = [];
     const right: Pt[] = [];
@@ -248,7 +259,7 @@ export function flowers(p: Painter, rng: Rng, fs: readonly FlowerNow[], c: { pet
 export function sandBed(p: Painter, rng: Rng, o: { rx: number; k: number; seed: number; crown: number; sand: Pigment; crownTone: Pigment }): void {
   p.wash({ cx: 0, cy: 0.5, rx: o.rx * lerp(0.4, 1, o.k), ry: o.rx * SIN_E * 0.55 * lerp(0.4, 1, o.k) }, o.sand, {
     rng: rng.fork('sand'),
-    opacity: 0.2,
+    opacity: 0.12,
     edge: 0.2,
     centreLift: 0.35,
     granulation: 0.55,
@@ -258,6 +269,6 @@ export function sandBed(p: Painter, rng: Rng, o: { rx: number; k: number; seed: 
     p.dab({ x: 0.4, y: -0.3 }, mix(PIGMENTS.wood, PIGMENTS.sumi, 0.3), { rng: rng.fork('seed'), variant: 'round', angle: -0.3, length: 1.5, width: 1.0, opacity: 0.85 * o.seed });
   }
   if (visible(o.crown)) {
-    p.dab({ x: 0, y: 0.6 }, o.crownTone, { rng: rng.fork('crown'), variant: 'round', angle: -Math.PI / 2, length: 2.6 * o.crown, width: 3.2 * o.crown, opacity: 0.7, pool: 0.4, basePool: 0.2 });
+    p.dab({ x: 0, y: 0.6 }, o.crownTone, { rng: rng.fork('crown'), variant: 'round', angle: -Math.PI / 2, length: 1.4 * o.crown, width: 2.6 * o.crown, opacity: 0.6, pool: 0.4, basePool: 0.2 });
   }
 }

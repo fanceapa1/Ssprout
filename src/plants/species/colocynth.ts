@@ -183,7 +183,7 @@ export function planColocynth(rng: Rng): ColocynthPlan {
   });
   const ng = rng.chance(0.55) ? 3 : 2;
   const gourds: Gourd[] = [];
-  for (const c of rng.shuffle(cands)) {
+  for (const c of rng.shuffle(cands).sort((a, b) => Number(b.at.y > -3) - Number(a.at.y > -3))) {
     if (gourds.length >= ng) break;
     if (gourds.some((g) => g.runner === c.ri || Math.hypot(g.at.x - c.at.x, (g.at.y - c.at.y) * SIN_E) < g.r + c.r + 3)) continue;
     const stripes = [];
@@ -191,7 +191,7 @@ export function planColocynth(rng: Rng): ColocynthPlan {
     const rot = rng.range(0, Math.PI * 2);
     for (let i = 0; i < ns; i++) stripes.push({ lon: rot + (i / ns) * Math.PI * 2 + rng.gaussian(0, 0.06), w: rng.range(0.17, 0.24) });
     const mottles = Array.from({ length: rng.int(5, 8) }, () => ({ u: rng.range(0.25, 0.75) * Math.PI, lon: rng.range(0, Math.PI * 2), s: rng.range(0.06, 0.12) }));
-    gourds.push({ runner: c.ri, node: c.ni, at: c.at, r: c.r, yaw: c.yaw, ripe: 0, swell: [0, 0], ripen: [0, 0], bloom: [0, 0], flower: { size: rng.range(1.7, 2.1), rot: rng.range(0, Math.PI * 2) }, stripes, mottles });
+    gourds.push({ runner: c.ri, node: c.ni, at: c.at, r: c.r, yaw: c.yaw, ripe: 0, swell: [0, 0], ripen: [0, 0], bloom: [0, 0], flower: { size: rng.range(1.35, 1.6), rot: rng.range(0, Math.PI * 2) }, stripes, mottles });
   }
   // the first set is the oldest: it swells first and ripens fully; the others lag behind
   const ripeAt = ng === 3 ? [1, rng.range(0.45, 0.65), rng.range(0, 0.12)] : [1, rng.range(0.1, 0.4)];
@@ -225,7 +225,7 @@ export function planColocynth(rng: Rng): ColocynthPlan {
   for (const s of spots) {
     if (male.length >= nm) break;
     if (male.some((m) => m.runner === s.ri)) continue;
-    male.push({ runner: s.ri, node: s.ni, stalk: rng.range(1.8, 3), lean: rng.gaussian(0, 0.35), size: rng.range(1.6, 2), rot: rng.range(0, Math.PI * 2), open: [0, 0] });
+    male.push({ runner: s.ri, node: s.ni, stalk: rng.range(1.8, 3), lean: rng.gaussian(0, 0.35), size: rng.range(1.35, 1.65), rot: rng.range(0, Math.PI * 2), open: [0, 0] });
   }
   male.forEach((m, k) => (m.open = [...stagger(k, male.length, [0.46, 0.84], 0.55)] as [number, number]));
   return { runners, gourds, flowers: male };
@@ -241,7 +241,7 @@ function drawRunner(p: Parameters<SpeciesDef['draw']>[0], rng: Rng, rn: Runner, 
   if (!visible(ext)) return;
   const full = groundPts(rn.stem);
   const pts = subPath(full, lerp(0.03, 1, ext)).map(toScreen);
-  p.stroke(pts, { rng: rng.fork('stem'), pigment: STEM, width: 0.8 * rn.width, taper: [0.03, 0.35], pressure: [1, 0.85, 0.65], wobble: 0.25, wetness: 0.35, dryness: 0.12, opacity: 0.82 * smooth(ext * 4), edge: 0.45 });
+  p.stroke(pts, { rng: rng.fork('stem'), pigment: STEM, width: 0.8 * rn.width, taper: [0.03, 0.35], pressure: [1, 0.85, 0.65], wobble: 0.25, wetness: 0.45, opacity: 0.6 * smooth(ext * 4), edge: 0.25 });
   const leaves: LobedLeaf[] = [];
   const ts: Tendril[] = [];
   rn.nodes.forEach((nd, j) => {
@@ -335,12 +335,12 @@ const colocynth: SpeciesDef = {
     const end = plantFrame(p, this, opts, SMALL_DESIGN);
     try {
       const r = rng.fork('paint');
-      sandBed(p, r.fork('bed'), { rx: 30, k: ease(g, 0.02, 0.5), seed: 1 - ease(g, 0.04, 0.14), crown: ease(g, 0.06, 0.4), sand: SAND, crownTone: mix(STEM, PIGMENTS.wood, 0.4) });
+      sandBed(p, r.fork('bed'), { rx: 22, k: ease(g, 0.02, 0.5), seed: 1 - ease(g, 0.04, 0.14), crown: ease(g, 0.06, 0.4), sand: SAND, crownTone: mix(PIGMENTS.wood, PIGMENTS.sumi, 0.2) });
       groundShadow(p, r, { rx: 22, ry: 6, k: ease(g, 0.15, 0.6), opacity: 0.08, pigment: PIGMENTS.shadow });
       const order = plan.runners.map((rn, i) => [rn, i] as const).sort((a, b) => a[0].depth - b[0].depth);
       for (const [rn, i] of order) drawRunner(p, r.fork(`runner-${i}`), rn, i, g);
       const fls = drawGourds(p, r.fork('gourds'), plan, g);
-      flowers(p, r.fork('flowers'), [...maleFlowers(plan, g), ...fls], { petal: PETAL, deep: mix(PETAL, '#b8862e', 0.55), dry: '#b59a6a' });
+      flowers(p, r.fork('flowers'), [...maleFlowers(plan, g), ...fls], { petal: mix(PETAL, PIGMENTS.petalWhite, 0.3), deep: mix(PETAL, '#b8862e', 0.55), dry: '#b59a6a' });
     } finally {
       end();
     }
