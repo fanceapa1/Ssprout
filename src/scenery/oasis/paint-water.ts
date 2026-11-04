@@ -98,7 +98,15 @@ const INLET = { from: { x: 512, y: 604 }, to: { x: WNL.x + 10, y: 602 } };
 /** A small fall's sheet over a terrace wall: a little wider at its foot. */
 export function fallSheet(f: (typeof SEGUIA_FALLS)[number]): Pt[] {
   const { x, y } = f.top;
-  return [{ x: x - 7, y: y - 1 }, { x: x + 7, y: y - 1 }, { x: x + 9, y: y + f.drop }, { x: x - 9, y: y + f.drop }];
+  const left: Pt[] = [];
+  const right: Pt[] = [];
+  for (let i = 0; i <= 6; i++) {
+    const t = i / 6;
+    const w = 5.5 + 3.5 * t * t + Math.sin(t * 9) * 0.6;
+    left.push({ x: x - w, y: y - 1 + (f.drop + 1) * t });
+    right.push({ x: x + w + Math.sin(t * 7 + 1) * 0.6, y: y - 1 + (f.drop + 1) * t });
+  }
+  return [...left, ...right.reverse()];
 }
 
 /** The oued's two banks, resampled to the same count, upstream first: left (outer) and right. */
@@ -213,14 +221,17 @@ export function* paintBasin(p: Painter, rng: Rng): Strokes {
 
 function* paintRim(p: Painter, rng: Rng): Strokes {
   fillPaper(p, BASIN_STONE);
+  // washes run past the stone and are clipped to it, so no paper is left at its corners
+  clipTo(p, [BASIN_STONE]);
   // the coping: a pale lime wash, warm and granular
-  yield* p.parts.wash(BASIN, STONE.coping, { rng, opacity: 0.7, deform: 0.02, spread: 0.02, layers: 8, edge: 0.3, sharpness: 0.8, granulation: 0.6, granules: 0.2 });
+  yield* p.parts.wash(insetPolygon(BASIN_STONE, -6), STONE.coping, { rng, opacity: 0.7, deform: 0.02, spread: 0.02, layers: 8, edge: 0.3, sharpness: 0.8, granulation: 0.6, granules: 0.2 });
   yield;
   // the near outer face, toward the viewer: warmer and darker, shade gathering at its foot
   const face: Pt[] = [NL, NR, BASIN_STONE[3]!, BASIN_STONE[4]!];
-  yield* p.parts.wetInWet(face, STONE.near, mix(STONE.face, EARTH.shade, 0.35), { rng, angle: Math.PI / 2, split: 0.45, opacity: 0.75, deform: 0.02, spread: 0.02, edge: 0.3, sharpness: 0.8, granulation: 0.5 });
+  yield* p.parts.wetInWet(insetPolygon(face, -5), STONE.near, mix(STONE.face, EARTH.shade, 0.35), { rng, angle: Math.PI / 2, split: 0.45, opacity: 0.75, deform: 0.02, spread: 0.02, edge: 0.3, sharpness: 0.8, granulation: 0.5 });
   yield;
   // the inner faces under the coping: the far one in soft shade, the left lit by the sun, the right turned away
+  p.ctx.restore();
   yield* p.parts.wash([LIP[0]!, LIP[1]!, WFR, WFL], STONE.face, { rng, opacity: 0.7, deform: 0.03, spread: 0.03, layers: 8, edge: 0.3, sharpness: 0.7, granulation: 0.5 });
   yield;
   yield* p.parts.wash([LIP[0]!, WFL, WNL, LIP[3]!], mix(STONE.face, STONE.coping, 0.45), { rng, opacity: 0.6, deform: 0.03, spread: 0.03, layers: 8, edge: 0.25, sharpness: 0.7, granulation: 0.5 });
@@ -286,11 +297,14 @@ function* paintBasinWater(p: Painter, rng: Rng): Strokes {
   const under = (x: number, y: number) => WATERLINE + (WATERLINE - y) * k;
   const bluffLine = (x: number) => (x < 1024 ? Math.max(silhouetteAt(x), 312) : 470);
   const bluff: Pt[] = [...xs.map((x) => ({ x, y: WATERLINE - 4 })), ...xs.slice().reverse().map((x) => ({ x: x + rng.range(-1.5, 1.5), y: under(x, bluffLine(x)) }))];
-  yield* p.parts.glaze(bluff, mix(EARTH.body, EARTH.shade, 0.35), { rng, opacity: 0.42, deform: 0.12, spread: 0.2, edge: 0.06, fade: { angle: Math.PI / 2, start: 0.55, amount: 0.7, ragged: 0.9 } });
+  // the teal lifted where the warm rock lies on the water, so the red reads rather than greys
+  yield* p.parts.lift(bluff, { rng, amount: 0.45, deform: 0.15, spread: 0.25, layers: 5, edge: 0, fade: { angle: Math.PI / 2, start: 0.4, amount: 1, ragged: 0.9 } });
+  yield;
+  yield* p.parts.glaze(bluff, mix(EARTH.body, EARTH.gold, 0.2), { rng, opacity: 0.62, deform: 0.22, spread: 0.45, edge: 0.02, fade: { angle: Math.PI / 2, start: 0.35, amount: 1, ragged: 0.9 } });
   yield;
   const towers = xs.filter((x) => x > 420 && x < 920);
   const ksar: Pt[] = [...towers.map((x) => ({ x, y: under(x, bluffLine(x)) - 3 })), ...towers.slice().reverse().map((x) => ({ x, y: under(x, Math.min(silhouetteAt(x), bluffLine(x))) }))];
-  yield* p.parts.glaze(ksar, mix(EARTH.deep, EARTH.shade, 0.3), { rng, opacity: 0.38, deform: 0.08, spread: 0.12, edge: 0.08, fade: { angle: Math.PI / 2, start: 0.4, amount: 0.8, ragged: 0.9 } });
+  yield* p.parts.glaze(ksar, mix(EARTH.deep, EARTH.shade, 0.3), { rng, opacity: 0.42, deform: 0.14, spread: 0.35, edge: 0.02, fade: { angle: Math.PI / 2, start: 0.3, amount: 1, ragged: 0.9 } });
   yield;
   // the grove's palms on the right, dark olive in the water
   yield* p.parts.glaze(blob(b.x + b.w - 40, WATERLINE + 22, 70, 22, rng, { irregularity: 0.3 }), mix('#66714a', WATER.deep, 0.4), { rng, opacity: 0.32, deform: 0.3, spread: 0.3, fade: { angle: Math.PI / 2, start: 0.3, amount: 1, ragged: 0.8 } });
@@ -338,8 +352,8 @@ function* paintSteps(p: Painter, rng: Rng): Strokes {
   const first = BASIN_STEPS[0]!;
   const last = BASIN_STEPS[BASIN_STEPS.length - 1]!;
   clipTo(p, [BASIN_WATER]);
-  yield* p.parts.glaze([first.tread[3]!, last.tread[2]!, { x: last.tread[2]!.x - 14, y: last.tread[2]!.y + 8 }, { x: first.tread[3]!.x - 12, y: first.tread[3]!.y + 6 }], mix(WATER.deep, EARTH.shade, 0.4), {
-    rng, opacity: 0.35, deform: 0.2, spread: 0.25, fade: { angle: Math.PI, start: 0.3, amount: 1 },
+  yield* p.parts.glaze([first.tread[3]!, last.tread[2]!, { x: last.tread[2]!.x - 8, y: last.tread[2]!.y + 6 }, { x: first.tread[3]!.x - 6, y: first.tread[3]!.y + 4 }], mix(WATER.deep, EARTH.shade, 0.4), {
+    rng, opacity: 0.22, deform: 0.3, spread: 0.35, fade: { angle: Math.PI, start: 0.3, amount: 1 },
   });
   yield;
   for (const s of BASIN_STEPS) {
@@ -411,8 +425,10 @@ function* paintChannel(p: Painter, rng: Rng, run: readonly Pt[], w: number, grow
   // the water
   const water = ribbon(line, half);
   fillPaper(p, water);
-  yield* p.parts.wetInWet(water, WATER.light, WATER.teal, { rng, angle: Math.PI / 2, split: 0.5, softness: 0.6, opacity: 0.7, deform: 0.03, spread: 0.04, edge: 0.35, edgeWidth: 2, sharpness: 0.7, granulation: 0.2, flow: 0.5, flowScale: 30 });
+  clipTo(p, [water]);
+  yield* p.parts.wetInWet(ribbon(line, (t) => half(t) + 3), WATER.light, WATER.teal, { rng, angle: Math.PI / 2, split: 0.5, softness: 0.6, opacity: 0.7, deform: 0.03, spread: 0.04, edge: 0.35, edgeWidth: 2, sharpness: 0.7, granulation: 0.2, flow: 0.5, flowScale: 30 });
   yield;
+  p.ctx.restore();
   // the dark wet edges, the far one stronger, broken
   for (const side of [far, -far]) {
     const edge = ribbon(line, () => 0.1, (t) => side * half(t)).slice(0, line.length);
@@ -443,8 +459,9 @@ function* paintFall(p: Painter, rng: Rng, f: (typeof SEGUIA_FALLS)[number]): Str
   // the wall darkened by the spray, widest at the foot
   yield* p.parts.glaze([{ x: x - 11, y }, { x: x + 11, y }, { x: x + 18, y: foot + 2 }, { x: x - 18, y: foot + 2 }], STONE.clayWet, { rng, opacity: 0.4, deform: 0.2, spread: 0.25, layers: 6, fade: { angle: -Math.PI / 2, start: 0.4, amount: 0.8, ragged: 0.8 } });
   yield;
-  fillPaper(p, sheet);
-  yield* p.parts.glaze(sheet, WATER.light, { rng, opacity: 0.35, deform: 0.1, spread: 0.12, layers: 5, edge: 0.2, sharpness: 0.4, fade: { angle: Math.PI / 2, start: 0.35, amount: 0.9, ragged: 0.8 } });
+  yield* p.parts.lift(sheet, { rng, amount: 0.8, deform: 0.12, spread: 0.18, layers: 5, sharpness: 0.1, edge: 0 });
+  yield;
+  yield* p.parts.glaze(sheet, WATER.light, { rng, opacity: 0.3, deform: 0.1, spread: 0.12, layers: 5, edge: 0.2, sharpness: 0.4, fade: { angle: Math.PI / 2, start: 0.35, amount: 0.9, ragged: 0.8 } });
   yield;
   // the falling threads: thin, broken teal streaks, white paper between them
   for (let u = -5.5; u <= 5.5; u += rng.range(2.2, 3.4)) {
@@ -452,11 +469,8 @@ function* paintFall(p: Painter, rng: Rng, f: (typeof SEGUIA_FALLS)[number]): Str
     const y0 = y + rng.range(2, 8);
     const y1 = foot - rng.range(4, 12);
     const pts: Pt[] = [{ x: x + u, y: y0 }, { x: x + u * 1.1 + rng.range(-0.4, 0.4), y: (y0 + y1) / 2 }, { x: x + u * 1.22, y: y1 }];
-    p.dryBrush(pts, { rng, pigment: rng.chance(0.35) ? WATER.teal : WATER.turquoise, width: rng.range(0.7, 1.2), opacity: rng.range(0.3, 0.5), dryness: 0.5, taper: [0.1, 0.6] });
+    p.stroke(pts, { rng, pigment: rng.chance(0.35) ? WATER.teal : WATER.turquoise, width: rng.range(0.6, 1), opacity: rng.range(0.3, 0.5), wetness: 0.3, wobble: 0.2, taper: [0.1, 0.6] });
   }
-  yield;
-  // the glassy roll where the water bends over the lip, darker than the falling sheet
-  p.stroke([{ x: x - 7, y: y + 0.5 }, { x: x - 3, y: y + 2.5 }, { x: x + 3, y: y + 2.5 }, { x: x + 7, y: y + 0.5 }], { rng, pigment: WATER.teal, width: 2.4, opacity: 0.5, wetness: 0.4, wobble: 0.2, taper: [0.2, 0.2] });
   yield;
   // the splash: a pale churn at the foot with cool water shade either side, and a few drops
   for (const side of [-1, 1]) {
@@ -465,9 +479,8 @@ function* paintFall(p: Painter, rng: Rng, f: (typeof SEGUIA_FALLS)[number]): Str
   yield;
   yield* p.parts.lift(blob(x, foot + 1, 15, 5, rng, { irregularity: 0.35, points: 14 }), { rng, amount: 0.85, deform: 0.3, spread: 0.35, layers: 5, sharpness: 0.02, edge: 0 });
   yield;
-  for (let i = 0; i < 7; i++) {
-    yield* p.parts.lift({ cx: x + rng.range(-15, 15), cy: foot - rng.range(1, 8), rx: rng.range(0.7, 1.3), ry: rng.range(0.7, 1.3) }, { rng, amount: 0.75, deform: 0.2, spread: 0.2, layers: 2, edge: 0 });
-  }
+  // the spray: a soft pale haze rising off the splash
+  yield* p.parts.lift({ cx: x, cy: foot - 5, rx: 14, ry: 6 }, { rng, amount: 0.35, deform: 0.3, spread: 0.4, layers: 4, sharpness: 0.02, edge: 0 });
   yield;
 }
 
@@ -505,16 +518,16 @@ export function* paintOued(p: Painter, rng: Rng): Strokes {
   // the bed: gold sand under the water
   fillPaper(p, water);
   clipTo(p, [water]);
-  yield* p.parts.wash(water, STONE.sand, { rng, opacity: 0.42, deform: 0.05, spread: 0.06, layers: 8, edge: 0.05, granulation: 0.6, granules: 0.25 });
+  yield* p.parts.wash(insetPolygon(water, -10), STONE.sand, { rng, opacity: 0.42, deform: 0.05, spread: 0.06, layers: 8, edge: 0.05, granulation: 0.6, granules: 0.25 });
   yield;
   // the milky water over it, bluer where it runs deeper along the outer bank
-  yield* p.parts.wetInWet(water, WATER.milkMid, WATER.milk, { rng, angle: 0, split: 0.45, softness: 0.6, fingers: 0.6, opacity: 0.6, deform: 0.06, spread: 0.08, edge: 0.04, granulation: 0.3, flow: 0.6, flowScale: 80 });
+  yield* p.parts.wetInWet(insetPolygon(water, -10), WATER.milkMid, WATER.milk, { rng, angle: 0, split: 0.45, softness: 0.6, fingers: 0.6, opacity: 0.72, deform: 0.06, spread: 0.08, edge: 0.04, granulation: 0.3, flow: 0.6, flowScale: 80 });
   yield;
   yield* p.parts.lift(water, { rng, amount: 0.16, deform: 0.2, spread: 0.3, layers: 4, edge: 0 });
   yield;
   // the braids: deeper threads either side of the big bar, joining above and below it
   const threads: [number, number, (s: number) => number, (s: number) => number, number][] = [
-    [0, 1.02, (s) => 0.04 + 0.04 * Math.sin(s * 9), (s) => 0.34 + 0.08 * Math.sin(s * 5 + 1), 0.42],
+    [0, 1.02, (s) => 0.03 + 0.04 * Math.sin(s * 9), (s) => 0.34 + 0.08 * Math.sin(s * 5 + 1), 0.5],
     [0.36, 1.02, (s) => 0.74 + 0.04 * Math.sin(s * 7), (s) => 0.88 + 0.03 * Math.sin(s * 6), 0.3],
     [0, 0.42, (s) => 0.4 + 0.05 * Math.sin(s * 11), (s) => 0.56, 0.26],
   ];
@@ -526,10 +539,10 @@ export function* paintOued(p: Painter, rng: Rng): Strokes {
   for (const [i, bar] of OUED_BARS.entries()) {
     yield* p.parts.lift(bar, { rng, amount: 0.6, deform: 0.1, spread: 0.15, layers: 6, sharpness: 0.15, edge: 0 });
     yield;
-    yield* p.parts.wash(bar, mix(STONE.sand, EARTH.lit, 0.3), { rng, opacity: 0.5, deform: 0.12, spread: 0.15, layers: 8, edge: 0.06, sharpness: 0.2, granulation: 0.7, granules: 0.3, fade: { angle: Math.PI / 2, start: 0.55, amount: 0.8, ragged: 0.9 } });
+    yield* p.parts.wash(bar, mix(STONE.sand, EARTH.lit, 0.5), { rng, opacity: 0.5, deform: 0.2, spread: 0.15, layers: 8, edge: 0.06, sharpness: 0.2, granulation: 0.7, granules: 0.3, fade: { angle: Math.PI / 2, start: 0.55, amount: 0.8, ragged: 0.9 } });
     yield;
     const bb = bounds(bar);
-    yield* p.parts.glaze(blob(bb.x + bb.w * 0.4, bb.y + bb.h * 0.58, bb.w * 0.32, bb.h * 0.3, rng, { irregularity: 0.3 }), STONE.sandWet, { rng, opacity: 0.25, deform: 0.3, spread: 0.3, layers: 6 });
+    yield* p.parts.glaze(blob(bb.x + bb.w * 0.4, bb.y + bb.h * 0.58, bb.w * 0.32, bb.h * 0.3, rng, { irregularity: 0.3 }), STONE.sandWet, { rng, opacity: 0.12, deform: 0.3, spread: 0.3, layers: 6 });
     yield;
     // the riffle at its head: pale broken arcs where the water parts
     const head = { x: bb.x + bb.w * 0.5, y: bb.y + 2 };
@@ -573,18 +586,19 @@ const PEBBLE: readonly Pigment[] = ['#c4ab90', '#ab9c8e', '#d6b994', '#a08474', 
 /** Pebbles on the bars and along the banks: a body, a cool shade under it and a lit top. */
 function* paintPebbles(p: Painter, rng: Rng): Strokes {
   const spots: { s: number; u: number }[] = [];
-  for (let i = 0; i < 40; i++) spots.push({ s: rng.range(0.4, 0.8), u: rng.range(0.4, 0.72) });
+  for (let i = 0; i < 12; i++) spots.push({ s: rng.range(0.6, 0.8), u: rng.range(0.42, 0.7) });
   for (let i = 0; i < 14; i++) spots.push({ s: rng.range(0.1, 1), u: rng.chance(0.5) ? rng.range(-0.1, -0.02) : rng.range(1.02, 1.1) });
-  for (let i = 0; i < 12; i++) spots.push({ s: rng.range(0.86, 1), u: rng.range(0.7, 0.9) });
+  for (let i = 0; i < 6; i++) spots.push({ s: rng.range(0.9, 1), u: rng.range(0.7, 0.9) });
   const onLand = (q: Pt) => OUED_BARS.some((b) => pointInPolygon(q, b)) || !pointInPolygon(q, OUED_WATER);
   let n = 0;
   for (const { s, u } of spots) {
     const q = ouedAt(s, u);
-    const r = rng.range(2.2, 5) * (0.6 + s * 0.7);
+    const r = rng.range(3, 6.5) * (0.6 + s * 0.6);
     if (!onLand(q)) continue;
     const pg = PEBBLE[rng.int(0, PEBBLE.length - 1)]!;
     p.wash({ cx: q.x + r * 0.2, cy: q.y + r * 0.45, rx: r * 1.15, ry: r * 0.45 }, mix(EARTH.shade, STONE.sandWet, 0.4), { rng, opacity: 0.25, layers: 3, deform: 0.2, spread: 0.2, edge: 0.05 });
-    p.wash(blob(q.x, q.y, r, r * 0.66, rng, { irregularity: 0.3, points: 10 }), pg, { rng, opacity: 0.6, layers: 4, deform: 0.08, spread: 0.08, edge: 0.3, sharpness: 0.5, granulation: 0.4 });
+    p.lift(blob(q.x, q.y, r, r * 0.66, rng, { irregularity: 0.3, points: 10 }), { rng, amount: 0.5, layers: 2, deform: 0.05, spread: 0.05 });
+    p.wash(blob(q.x, q.y, r, r * 0.66, rng, { irregularity: 0.3, points: 10 }), pg, { rng, opacity: 0.4, layers: 4, deform: 0.08, spread: 0.08, edge: 0.3, sharpness: 0.5, granulation: 0.4 });
     p.lift({ cx: q.x + r * 0.2, cy: q.y - r * 0.25, rx: r * 0.5, ry: r * 0.24 }, { rng, amount: 0.5, layers: 2, deform: 0.2, spread: 0.2 });
     if (++n % 6 === 0) yield;
   }
