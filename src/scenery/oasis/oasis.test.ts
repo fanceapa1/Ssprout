@@ -16,6 +16,7 @@ import { OASIS, OASIS_ELEMENTS, oasisAvailable } from '.';
 import { BAR, BASIN_STONE, BASIN_WATER, OUED_WATER, oasisScene, SEGUIA, SLUICE_WATER } from './geometry';
 import { BLUFF, copingAt, FOOTPATH, LIFT, OASIS_HABITAT_WORDS, OASIS_SKY_LAYOUT, openSky, silhouetteAt, skylineAt, terraceScale, WALLS } from './layout';
 import { KSAR_SHAPES } from './ksar';
+import { OUED_BARS } from './paint-water';
 import { SLOT_TERRACE } from './slots';
 
 const { slots } = oasisScene;
@@ -235,6 +236,18 @@ describe('oasis slots', () => {
     const medium = byHabitat('path').filter((s) => s.maxSize === 'medium');
     expect(medium.length).toBeGreaterThanOrEqual(2);
     expect(medium.some((s) => s.x < 800) && medium.some((s) => s.x > 860)).toBe(true);
+  });
+
+  it('stands a medium plant in the oued’s open water, clear of every sand bar (O1b)', () => {
+    const river = byHabitat('water').filter((s) => s.id.startsWith('shallows-') && s.maxSize === 'medium');
+    expect(river.length).toBeGreaterThanOrEqual(1);
+    for (const s of river) {
+      expect(edgeDistance(s, OUED_WATER), s.id).toBeGreaterThanOrEqual(40);
+      for (const bar of OUED_BARS) {
+        expect(pointInPolygon(s, bar), s.id).toBe(false);
+        expect(edgeDistance(s, bar), s.id).toBeGreaterThanOrEqual(30);
+      }
+    }
   });
 });
 

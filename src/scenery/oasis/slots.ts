@@ -20,6 +20,7 @@ const SPECS: Record<Habitat, SlotSpec[]> = {
     ['basin-5', 1040, 582, 'large'],
     ['shallows-1', 1352, 726, 'small'],
     ['shallows-2', 1396, 950, 'small'],
+    ['shallows-3', 1446, 722, 'medium'],
   ],
   // in front of the basin's near face, between the basin and the oued, the seguia's and the oued's banks
   shore: [
