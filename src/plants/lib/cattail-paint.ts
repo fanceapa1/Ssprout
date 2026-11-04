@@ -241,9 +241,9 @@ export function cattailSpikes(p: Painter, rng: Rng, s: SpikePaint, c: { green: P
     return pts;
   };
   const shadeSide = -c.light;
-  L.fill(flank(0.05, 1.02, shadeSide), deep, 0.75);
+  L.fill(flank(0.05, 1.02, shadeSide), deep, 0.85);
   L.lift(flank(0.3, 0.55, -shadeSide), 0.22 * s.k);
-  L.dry({ opacity: 0.94, edge: 0.5, edgeWidth: 0.3, sharpness: 0.55, centreLift: 0.1, granulation: 0.25, granules: 0.15, flow: 0.3, flowScale: 1.5, darken: 0.35, blend: 'source-over' });
+  L.dry({ opacity: 0.94, edge: 0.5, edgeWidth: 0.3, sharpness: 0.55, centreLift: 0.1, granulation: 0.25, granules: 0.15, flow: 0.3, flowScale: 1.5, darken: 0.5, blend: 'source-over' });
   // shed pollen drifting down beside the male spike
   s.flecks.forEach((f, i) => {
     const q = pointAt(s.stalk, clamp01(lerp(m0, m1, f.t) / total));

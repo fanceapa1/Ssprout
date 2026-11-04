@@ -28,7 +28,7 @@ const WATER = mix(PIGMENTS.celadon, PIGMENTS.celadonMid, 0.4);
 const BOX = { x: 54, top: -140 };
 const SEG = 14;
 
-interface Leaf {
+export interface Leaf {
   stem: StemPlan;
   width: number;
   twist: number;
@@ -41,7 +41,7 @@ interface Leaf {
   straw: number;
 }
 
-interface Stalk {
+export interface Stalk {
   stem: StemPlan;
   window: [number, number];
   spike: [number, number];
@@ -124,10 +124,10 @@ export function planCattail(rng: Rng): CattailPlan {
   for (let i = 0; i < ns; i++) {
     const u = ns === 1 ? 0 : (i / (ns - 1) - 0.5) * flip;
     const length = rng.range(118, 138) * (1 - Math.abs(u) * 0.12);
-    const angle = UP + lean + u * rng.range(0.12, 0.26);
+    const angle = UP + lean + u * rng.range(0.22, 0.36);
     const reach = Math.min(1, (BOX.x - 8) / Math.abs(Math.cos(angle) * length + 1e-6), (-BOX.top - 4) / length);
     stalks.push({
-      stem: makeStem(rng, { base: { x: u * rng.range(6, 12), y: 0 }, length: length * reach, angle, bend: rng.gaussian(0, 0.04), segments: 8, wobble: 0.008 }),
+      stem: makeStem(rng, { base: { x: u * rng.range(10, 16), y: 0 }, length: length * reach, angle, bend: rng.gaussian(0, 0.04), segments: 8, wobble: 0.008 }),
       window: [...stagger(i, ns, [0.3, 0.7], 0.6)] as [number, number],
       spike: [...stagger(i, ns, [0.42, 0.82], 0.6)] as [number, number],
       brown: [...stagger(i, ns, [0.72, 0.98], 0.7)] as [number, number],
@@ -216,13 +216,13 @@ const cattail: SpeciesDef = {
     try {
       const r = rng.fork('paint');
       // it stands in still, shallow water, there before the first blade
-      groundShadow(p, r.fork('water'), { rx: 34, ry: 5, k: lerp(0.35, 1, ease(g, 0, 0.5)), pigment: WATER, opacity: 0.3 });
+      groundShadow(p, r.fork('water'), { rx: 34, ry: 5, k: lerp(0.35, 1, ease(g, 0, 0.5)), pigment: WATER, opacity: 0.2 });
       p.ripple({ x: 0, y: 1 }, { rng: r.fork('ring'), width: lerp(12, 40, ease(g, 0, 0.5)), count: 2, squash: 0.22, opacity: 0.24 * (1 - 0.4 * ease(g, 0.4, 0.8)), light: 0.3 });
       drawLeaves(p, r.fork('back'), plan, g, false, 0.86);
       plan.stalks.forEach((s, i) => drawStalk(p, r.fork(`stalk-${i}`), s, g));
       drawLeaves(p, r.fork('front'), plan, g, true, 0.9);
       // the feet are lost in the water, and it parts round them
-      groundShadow(p, r.fork('foot'), { rx: 22, ry: 3, k: ease(g, 0.1, 0.5), pigment: WATER, opacity: 0.4 });
+      groundShadow(p, r.fork('foot'), { rx: 22, ry: 3, k: ease(g, 0.1, 0.5), pigment: WATER, opacity: 0.3 });
       const wk = ease(g, 0.2, 0.6);
       if (visible(wk)) {
         for (const [i, sg] of [[0, -1], [1, 1]] as const) {
