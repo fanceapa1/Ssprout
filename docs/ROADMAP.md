@@ -202,5 +202,5 @@ Phase 13 art queue (after O0 and O1): one plant (OP1–OP12) or creature (OK1–
 | OP3 | Caper (*Capparis spinosa*): T1, trailing from wall cracks, rock and path | `src/plants/species/caper.ts` | in progress |
 | OP1 | Spearmint (*Mentha spicata*): T1, shore and path, the freshest green | `src/plants/species/spearmint.ts` | done (devlog 111; 50–54 ms) |
 | OP5 | Southern cattail (*Typha domingensis*): T2, water and shore, the basin and the oued | `src/plants/species/cattail.ts` | done (devlog 113; 20–22 ms; oued shallows slots are small only) |
-| OP11 | Pomegranate (*Punica granatum*): T4, flowers and crowned fruit together | `src/plants/species/pomegranate.ts` | in progress |
+| OP11 | Pomegranate (*Punica granatum*): T4, flowers and crowned fruit together | `src/plants/species/pomegranate.ts` | done (devlog 115; 60–76 ms; large, T4) |
 | O1b | Oasis slots: a medium shallows slot in the oued for the cattail (shallows-1/2 take small only), from OP5 | `src/scenery/oasis/slots.ts` | queued |
