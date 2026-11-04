@@ -1,11 +1,12 @@
 /**
- * Studio: oasis draft A, "Ksar & palmeraie" (phase 13): the whole world, the phone crop round the
- * focus, the composition map with the plantable zones, and a close view of the ksar.
+ * Studio: oasis draft A, "Ksar & palmeraie" (phase 13, round 2): the whole world, the world with
+ * ghost plants, the phone crop, the composition map with true-size plant boxes, the ksar close up.
  */
 import { createPainter, makeCanvas, paperTexture, type AnyCanvas } from '../../../../paint';
 import { MIN_VISIBLE_W, WORLD_H, WORLD_W, type Pt, type Rect } from '../../../../render/viewport';
 import type { StudioEntry, StudioSection } from '../../../../studio/types';
-import { BASIN, BLUFF, DUNE_BASE, FAR_RANGE, FOCUS, KSAR, OUED, SEGUIA, WALLS, ZONES } from './layout';
+import { GARDEN_PLANT_SCALE, PLANT_SIZES, perspectiveScale } from '../../../../scene/slots';
+import { BASIN, BLUFF, FAR_RANGE, FOCUS, OUED, SEGUIA_RUNS, SLOTS, WALLS, type DraftSlot } from './layout';
 import { paintDraftA } from './paint';
 
 const cache = new Map<string, AnyCanvas>();
@@ -71,9 +72,52 @@ function label(ctx: CanvasRenderingContext2D, text: string, x: number, y: number
   ctx.fillText(text, x, y);
 }
 
+/** A slot's plant box in world units: size class × perspective × the garden's 1.25, base-anchored. */
+function plantBox(s: DraftSlot): Rect {
+  const k = perspectiveScale(s.y) * GARDEN_PLANT_SCALE;
+  const { w, h } = PLANT_SIZES[s.size];
+  return { x: s.x - (w * k) / 2, y: s.y - h * k, w: w * k, h: h * k };
+}
+
+/** A faint plant silhouette filling its box: a canopy on a trunk for trees, a tuft otherwise. */
+function ghost(ctx: CanvasRenderingContext2D, s: DraftSlot): void {
+  const b = plantBox(s);
+  ctx.fillStyle = 'rgba(70,110,40,0.42)';
+  ctx.beginPath();
+  if (s.size === 'tree') {
+    ctx.ellipse(b.x + b.w / 2, b.y + b.h * 0.36, b.w * 0.48, b.h * 0.34, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillRect(b.x + b.w * 0.46, b.y + b.h * 0.6, b.w * 0.08, b.h * 0.4);
+    return;
+  }
+  ctx.ellipse(b.x + b.w / 2, b.y + b.h * 0.55, b.w * 0.46, b.h * 0.45, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = 'rgba(200,80,110,0.5)';
+  for (let i = 0; i < 3; i++) {
+    ctx.beginPath();
+    ctx.arc(b.x + b.w * (0.3 + i * 0.2), b.y + b.h * (0.25 + (i % 2) * 0.12), Math.min(b.w, b.h) * 0.1, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+const ghosts: StudioEntry = {
+  id: 'ghosts',
+  label: 'the world with ghost plants: the 25 slots as faint silhouettes at true plant size',
+  w: 1600,
+  h: 1000,
+  render(canvas, { seed }) {
+    const ctx = canvas.getContext('2d')!;
+    const k = canvas.width / WORLD_W;
+    ctx.drawImage(painting(WHOLE, k, seed) as CanvasImageSource, 0, 0);
+    withPaper(canvas);
+    ctx.setTransform(k, 0, 0, k, 0, 0);
+    for (const s of [...SLOTS].sort((a, b) => a.y - b.y)) ghost(ctx, s);
+  },
+};
+
 const map: StudioEntry = {
   id: 'map',
-  label: 'composition map: landforms, the 25 plantable places (zones · slot count), focus and the phone crop',
+  label: 'composition map: landforms, the 25 slots as true-size plant boxes (size class × perspective × 1.25), UI corners, focus and phone crop',
   w: 1200,
   h: 750,
   render(canvas, { seed }) {
@@ -90,11 +134,6 @@ const map: StudioEntry = {
     ctx.strokeStyle = '#7d6aa0';
     path(ctx, FAR_RANGE, false);
     ctx.stroke();
-    ctx.strokeStyle = '#b07a2a';
-    ctx.beginPath();
-    ctx.moveTo(500, DUNE_BASE);
-    ctx.lineTo(1600, DUNE_BASE - 10);
-    ctx.stroke();
     ctx.strokeStyle = '#9a5c4e';
     for (const w of WALLS) {
       path(ctx, w.edge, false);
@@ -106,31 +145,29 @@ const map: StudioEntry = {
     path(ctx, BASIN, true);
     ctx.stroke();
     ctx.lineWidth = 4;
-    path(ctx, SEGUIA, false);
-    ctx.stroke();
-    // plantable zones with their slot counts
-    let total = 0;
-    for (const z of ZONES) {
-      total += z.n;
-      ctx.beginPath();
-      ctx.ellipse(z.cx, z.cy, z.rx, z.ry, 0, 0, Math.PI * 2);
-      ctx.fillStyle = 'rgba(122,150,60,0.25)';
-      ctx.fill();
-      ctx.setLineDash([8, 6]);
-      ctx.lineWidth = 2.5;
-      ctx.strokeStyle = '#4f6a1c';
+    for (const r of SEGUIA_RUNS) {
+      path(ctx, r, false);
       ctx.stroke();
-      ctx.setLineDash([]);
-      for (let i = 0; i < z.n; i++) {
-        const x = z.cx + (z.n === 1 ? 0 : (i / (z.n - 1) - 0.5) * z.rx * 1.5);
-        ctx.beginPath();
-        ctx.arc(x, z.cy, 6, 0, Math.PI * 2);
-        ctx.fillStyle = '#4f6a1c';
-        ctx.fill();
-      }
-      label(ctx, `${z.label} · ${z.n}`, z.cx - z.rx * 0.6, z.cy - z.ry - 6, '#3d5214');
     }
-    // focus and phone crop
+    // UI corners (button top-left, icons top-right) in world units
+    ctx.fillStyle = 'rgba(80,80,90,0.18)';
+    ctx.fillRect(0, 0, 290, 100);
+    ctx.fillRect(1210, 22, 370, 68);
+    // slots: base-anchored boxes, back to front
+    for (const s of [...SLOTS].sort((a, b) => a.y - b.y)) {
+      const b = plantBox(s);
+      ctx.fillStyle = 'rgba(122,150,60,0.22)';
+      ctx.fillRect(b.x, b.y, b.w, b.h);
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = '#4f6a1c';
+      ctx.strokeRect(b.x, b.y, b.w, b.h);
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, 5, 0, Math.PI * 2);
+      ctx.fillStyle = '#4f6a1c';
+      ctx.fill();
+      ctx.font = 'italic 600 16px Georgia, serif';
+      ctx.fillText(s.size, b.x + 4, b.y + 16);
+    }
     ctx.setLineDash([14, 10]);
     ctx.strokeStyle = '#d9623d';
     ctx.lineWidth = 3;
@@ -142,16 +179,12 @@ const map: StudioEntry = {
     ctx.moveTo(FOCUS.x, FOCUS.y - 18);
     ctx.lineTo(FOCUS.x, FOCUS.y + 18);
     ctx.stroke();
-    label(ctx, 'ksar', KSAR[3]!.x - 10, 100);
-    label(ctx, 'red-ochre bluff', 120, 400, '#8f4a3e');
-    label(ctx, 'lilac ranges', 1180, 230, '#5d4c80');
-    label(ctx, 'golden dunes', 1260, 330, '#8a5a1a');
-    label(ctx, 'palm grove', 1300, 470, '#3d5214');
-    label(ctx, 'seguia', 480, 530, '#235b78');
-    label(ctx, 'basin', 760, 580, '#235b78');
-    label(ctx, 'oued', 1460, 860, '#235b78');
-    label(ctx, 'sun (open sky)', 1250, 120, '#b07a2a');
-    label(ctx, `phone crop · focus · ${total} slots`, FOCUS.x - MIN_VISIBLE_W / 2 + 10, 30, '#d9623d');
+    label(ctx, 'ksar on the red bluff', 300, 330, '#8f4a3e');
+    label(ctx, 'stone basin', 760, 560, '#235b78');
+    label(ctx, 'oued', 1420, 700, '#235b78');
+    label(ctx, 'seguia falls', 330, 540, '#235b78');
+    label(ctx, 'big palms', 1300, 300, '#3d5214');
+    label(ctx, `phone crop · focus · ${SLOTS.length} slots`, FOCUS.x - MIN_VISIBLE_W / 2 + 10, 130, '#d9623d');
   },
 };
 
@@ -160,10 +193,11 @@ const section: StudioSection = {
   title: 'Oasis draft A · Ksar & palmeraie',
   order: 140,
   entries: [
-    view('world', 'the whole world: ksar on the red bluff, palm terraces, seguia and basin, the oued bend', WHOLE, 1600),
-    view('phone', 'phone crop: 600 wide round the focus (the basin)', { x: FOCUS.x - 300, y: 0, w: 600, h: WORLD_H }, 600),
+    view('world', 'the whole world from the basin terrace: the ksar bluff close behind, big palms, the basin, seguia falls and the oued', WHOLE, 1600),
+    ghosts,
+    view('phone', 'phone crop: 600 wide round the focus (the basin\'s near rim)', { x: FOCUS.x - 300, y: 0, w: 600, h: WORLD_H }, 600),
     map,
-    view('ksar', 'close view: the ksar on the bluff, its lit flanks, pisé courses and chevron bands', { x: 60, y: 100, w: 640, h: 300 }, 1280, true),
+    view('ksar', 'close view: the ksar on the bluff, its lit flanks, pisé courses and chevron bands', { x: 220, y: 0, w: 640, h: 340 }, 1280, true),
   ],
 };
 

@@ -1,47 +1,42 @@
 /**
- * Oasis draft A, "Ksar & palmeraie": the shapes of the composition in world units (1600 × 1000).
- * A red-ochre bluff crowned by a ksar on the left, palm terraces with a seguia and a stone basin
- * in the middle, an oued bend in the foreground. A rough draft (phase 13), not a scenery yet.
+ * Oasis draft A, "Ksar & palmeraie", round 2: standing on the basin's terrace. A large stone basin
+ * in the middle, the red bluff with its ksar close behind on the left, big palms cropped by the top
+ * on the right, terraces stepping down on the left, and the oued bending past on the right.
  */
+import type { SizeClass } from '../../../../plants/types';
 import type { Pt } from '../../../../render/viewport';
 
-/** Where the eye rests: the basin's near left corner. The phone crop is 600 wide around it. */
-export const FOCUS: Pt = { x: 750, y: 640 };
+/** Where the eye rests: the basin's near rim, a little left of centre. */
+export const FOCUS: Pt = { x: 800, y: 640 };
 
-/** The far flat-topped ranges (lilac), their skyline left to right. */
+/** A sliver of the far flat-topped range, seen between the bluff and the palms. */
 export const FAR_RANGE: readonly Pt[] = [
-  { x: -20, y: 300 }, { x: 560, y: 298 }, { x: 640, y: 286 }, { x: 690, y: 266 }, { x: 870, y: 262 },
-  { x: 905, y: 274 }, { x: 960, y: 284 }, { x: 1090, y: 286 }, { x: 1125, y: 270 }, { x: 1150, y: 256 },
-  { x: 1340, y: 254 }, { x: 1375, y: 268 }, { x: 1430, y: 288 }, { x: 1510, y: 292 }, { x: 1545, y: 280 },
-  { x: 1620, y: 276 },
+  { x: 780, y: 336 }, { x: 900, y: 322 }, { x: 936, y: 304 }, { x: 1100, y: 300 }, { x: 1132, y: 314 },
+  { x: 1300, y: 318 }, { x: 1336, y: 304 }, { x: 1500, y: 302 }, { x: 1540, y: 318 }, { x: 1620, y: 320 },
 ];
 
-/** The nearer, rosier range, lower and broken. */
-export const NEAR_RANGE: readonly Pt[] = [
-  { x: 520, y: 332 }, { x: 610, y: 322 }, { x: 690, y: 318 }, { x: 728, y: 304 }, { x: 820, y: 302 },
-  { x: 850, y: 316 }, { x: 1000, y: 324 }, { x: 1180, y: 320 }, { x: 1215, y: 306 }, { x: 1240, y: 300 },
-  { x: 1300, y: 302 }, { x: 1330, y: 316 }, { x: 1450, y: 326 }, { x: 1620, y: 322 },
-];
-
-/** The golden dune crests beyond the grove (x, crest y), a strip between the ranges and the palms. */
+/** Golden dune crests behind the grove (mostly hidden by it). */
 export const DUNE_CRESTS: readonly Pt[] = [
-  { x: 560, y: 376 }, { x: 700, y: 352 }, { x: 860, y: 344 }, { x: 990, y: 338 }, { x: 1130, y: 350 },
-  { x: 1250, y: 332 }, { x: 1400, y: 340 }, { x: 1530, y: 348 }, { x: 1640, y: 342 },
+  { x: 780, y: 384 }, { x: 960, y: 352 }, { x: 1110, y: 362 }, { x: 1260, y: 342 }, { x: 1420, y: 356 }, { x: 1640, y: 338 },
 ];
-export const DUNE_BASE = 452;
+export const DUNE_BASE = 480;
 
-/** The bluff: flat top under the ksar, a lit right face dropping to the grove, the foot at ~490. */
+/** The bluff: a high cliff on the left, the ksar's shoulder, a lit right flank down to the foot. */
 export const BLUFF: readonly Pt[] = [
-  { x: -20, y: 262 }, { x: 30, y: 246 }, { x: 70, y: 244 }, { x: 120, y: 238 }, { x: 210, y: 240 }, { x: 300, y: 234 },
-  { x: 420, y: 240 }, { x: 500, y: 242 }, { x: 545, y: 246 }, { x: 568, y: 254 }, { x: 596, y: 274 }, { x: 610, y: 306 },
-  { x: 628, y: 346 }, { x: 650, y: 390 }, { x: 676, y: 428 }, { x: 706, y: 462 }, { x: 690, y: 480 },
-  { x: 600, y: 488 }, { x: 460, y: 494 }, { x: 260, y: 500 }, { x: -20, y: 506 },
+  { x: -20, y: 140 }, { x: 60, y: 126 }, { x: 150, y: 132 }, { x: 206, y: 160 }, { x: 236, y: 214 },
+  { x: 270, y: 256 }, { x: 420, y: 262 }, { x: 600, y: 264 }, { x: 760, y: 268 }, { x: 800, y: 276 },
+  { x: 836, y: 306 }, { x: 862, y: 352 }, { x: 884, y: 400 }, { x: 904, y: 440 }, { x: 930, y: 476 },
+  { x: 880, y: 482 }, { x: 700, y: 466 }, { x: 420, y: 452 }, { x: 160, y: 446 }, { x: -20, y: 448 },
 ];
 /** The bluff's lit right flank (a sub-shape of BLUFF). */
 export const BLUFF_FLANK: readonly Pt[] = [
-  { x: 548, y: 248 }, { x: 568, y: 252 }, { x: 596, y: 274 }, { x: 610, y: 306 }, { x: 628, y: 346 },
-  { x: 650, y: 390 }, { x: 676, y: 428 }, { x: 706, y: 462 }, { x: 690, y: 480 }, { x: 640, y: 484 },
-  { x: 606, y: 430 }, { x: 584, y: 370 }, { x: 568, y: 310 }, { x: 552, y: 270 },
+  { x: 770, y: 268 }, { x: 800, y: 276 }, { x: 836, y: 306 }, { x: 862, y: 352 }, { x: 884, y: 400 },
+  { x: 904, y: 440 }, { x: 930, y: 476 }, { x: 880, y: 482 }, { x: 846, y: 430 }, { x: 818, y: 370 },
+  { x: 796, y: 316 }, { x: 778, y: 286 },
+];
+/** The high cliff's lit edge on the left, where the shoulder steps down to the ksar. */
+export const CLIFF_STEP: readonly Pt[] = [
+  { x: 150, y: 132 }, { x: 206, y: 160 }, { x: 236, y: 214 }, { x: 270, y: 256 }, { x: 250, y: 300 }, { x: 214, y: 240 }, { x: 180, y: 180 },
 ];
 
 /** A ksar block: front face from `x` to `x + w`, `h` tall above `base`; `side` deep lit flank. */
@@ -55,81 +50,105 @@ export interface Block {
   ruined?: boolean;
 }
 
-/** Back to front: houses behind, towers, the curtain wall last. */
+/** Back to front: houses behind, towers, the ruined curtain walls last. */
 export const KSAR: readonly Block[] = [
-  { x: 196, w: 120, h: 86, base: 244, side: 18, tower: false },
-  { x: 352, w: 92, h: 76, base: 244, side: 16, tower: false },
-  { x: 84, w: 70, h: 52, base: 252, side: 12, tower: false, ruined: true },
-  { x: 136, w: 50, h: 138, base: 252, side: 14, tower: true },
-  { x: 290, w: 58, h: 164, base: 254, side: 18, tower: true },
-  { x: 438, w: 48, h: 120, base: 254, side: 14, tower: true },
-  { x: 182, w: 108, h: 52, base: 276, side: 0, tower: false, ruined: true },
-  { x: 346, w: 92, h: 48, base: 276, side: 0, tower: false, ruined: true },
-  { x: 480, w: 64, h: 60, base: 258, side: 14, tower: false, ruined: true },
-  { x: 528, w: 44, h: 104, base: 262, side: 18, tower: true },
+  { x: 340, w: 180, h: 150, base: 266, side: 30, tower: false },
+  { x: 606, w: 150, h: 132, base: 268, side: 28, tower: false },
+  { x: 256, w: 84, h: 214, base: 270, side: 26, tower: true },
+  { x: 506, w: 96, h: 246, base: 272, side: 30, tower: true },
+  { x: 730, w: 76, h: 188, base: 276, side: 30, tower: true },
+  { x: 336, w: 172, h: 84, base: 300, side: 0, tower: false, ruined: true },
+  { x: 600, w: 130, h: 74, base: 300, side: 0, tower: false, ruined: true },
 ];
+/** Detail scale of the ksar (window slits, chevrons, horns) against round 1. */
+export const KSAR_DETAIL = 1.8;
 
 /** Palms rising from behind the ksar (crown x, crown y, size). */
 export const PALMS_BEHIND: readonly [number, number, number][] = [
-  [60, 150, 0.85], [246, 128, 0.95], [404, 138, 0.9], [212, 160, 0.75], [500, 166, 0.75],
+  [450, 120, 1.5], [680, 136, 1.4], [580, 150, 1.2],
 ];
 
-/** The pisé terrace walls' top edges, left to right, and their face height. */
+/** Big palms on the right, crowns cut by the top edge, plus one framing the left terraces. */
+export const BIG_PALMS: readonly { top: Pt; base: Pt; size: number }[] = [
+  { top: { x: 1236, y: 70 }, base: { x: 1276, y: 548 }, size: 3.0 },
+  { top: { x: 1452, y: 14 }, base: { x: 1410, y: 580 }, size: 3.5 },
+  { top: { x: 1600, y: 150 }, base: { x: 1572, y: 560 }, size: 2.8 },
+  { top: { x: 1090, y: 190 }, base: { x: 1116, y: 472 }, size: 2.0 },
+];
+
+/** The pisé terrace walls' top edges and their face height (the drop toward the viewer). */
 export interface Wall {
   edge: readonly Pt[];
   h: number;
 }
 export const WALLS: readonly Wall[] = [
-  { edge: [{ x: 600, y: 520 }, { x: 760, y: 534 }, { x: 960, y: 532 }, { x: 1150, y: 524 }, { x: 1380, y: 532 }, { x: 1620, y: 522 }], h: 12 },
-  { edge: [{ x: -20, y: 552 }, { x: 180, y: 548 }, { x: 380, y: 552 }, { x: 540, y: 536 }], h: 12 },
-  { edge: [{ x: -20, y: 646 }, { x: 200, y: 660 }, { x: 460, y: 664 }, { x: 640, y: 684 }, { x: 800, y: 694 }, { x: 960, y: 690 }, { x: 1120, y: 674 }, { x: 1360, y: 668 }, { x: 1620, y: 650 }], h: 22 },
+  { edge: [{ x: 880, y: 478 }, { x: 1100, y: 474 }, { x: 1300, y: 480 }, { x: 1620, y: 470 }], h: 24 },
+  { edge: [{ x: -20, y: 506 }, { x: 200, y: 500 }, { x: 400, y: 494 }, { x: 500, y: 490 }], h: 34 },
+  { edge: [{ x: -20, y: 602 }, { x: 200, y: 592 }, { x: 380, y: 580 }, { x: 478, y: 574 }], h: 36 },
 ];
 
-
-/** The seguia: from the bluff's foot down across the terraces to the basin's left end. */
-export const SEGUIA: readonly Pt[] = [
-  { x: 470, y: 494 }, { x: 520, y: 512 }, { x: 560, y: 540 }, { x: 600, y: 566 }, { x: 640, y: 590 }, { x: 690, y: 606 },
+/** The seguia's runs along the terraces, and the falls over each wall into the basin. */
+export const SEGUIA_RUNS: readonly (readonly Pt[])[] = [
+  [{ x: 300, y: 446 }, { x: 370, y: 462 }, { x: 430, y: 478 }, { x: 458, y: 490 }],
+  [{ x: 458, y: 526 }, { x: 466, y: 544 }, { x: 480, y: 562 }, { x: 490, y: 574 }],
+  [{ x: 560, y: 662 }, { x: 480, y: 720 }, { x: 380, y: 790 }, { x: 290, y: 880 }, { x: 230, y: 1020 }],
+];
+export const SEGUIA_FALLS: readonly { top: Pt; drop: number }[] = [
+  { top: { x: 458, y: 492 }, drop: 34 },
+  { top: { x: 492, y: 576 }, drop: 34 },
 ];
 
-/** The basin, a stone-edged rectangle in perspective (outer rim). */
+/** The basin: a stone-edged rectangle in perspective (outer rim), its near face, its rim width. */
 export const BASIN: readonly Pt[] = [
-  { x: 690, y: 592 }, { x: 900, y: 590 }, { x: 918, y: 646 }, { x: 676, y: 650 },
+  { x: 540, y: 476 }, { x: 1150, y: 476 }, { x: 1214, y: 640 }, { x: 476, y: 640 },
 ];
-export const BASIN_RIM = 9;
+export const BASIN_RIM = { far: 12, near: 26, side: 22, face: 18 };
 
-/** The overflow runnel from the basin's near right corner down through the wall to the oued. */
-export const OVERFLOW: readonly Pt[] = [
-  { x: 880, y: 650 }, { x: 896, y: 690 }, { x: 930, y: 730 }, { x: 980, y: 768 }, { x: 1020, y: 792 },
+/** The sluice from the basin's near right corner into the oued. */
+export const SLUICE: readonly Pt[] = [
+  { x: 1196, y: 618 }, { x: 1250, y: 640 }, { x: 1300, y: 664 }, { x: 1334, y: 676 },
 ];
 
-/** The oued: a wide bend from the lower left, up toward the centre, and out at the right. */
+/** The oued: from behind the big palms on the right, bending down past the viewer's feet. */
 export const OUED: readonly Pt[] = [
-  { x: -30, y: 880 }, { x: 160, y: 856 }, { x: 380, y: 822 }, { x: 600, y: 796 }, { x: 860, y: 782 },
-  { x: 1080, y: 776 }, { x: 1300, y: 772 }, { x: 1460, y: 764 }, { x: 1630, y: 752 },
-  { x: 1630, y: 832 }, { x: 1440, y: 850 }, { x: 1250, y: 858 }, { x: 1060, y: 864 }, { x: 860, y: 872 },
-  { x: 640, y: 892 }, { x: 440, y: 924 }, { x: 240, y: 962 }, { x: 80, y: 996 }, { x: -30, y: 1010 },
-]
-
-/** Sand bars in the oued, pale islands near the inside of the bend. */
-export const BARS: readonly { cx: number; cy: number; rx: number; ry: number }[] = [
-  { cx: 1200, cy: 830, rx: 110, ry: 11 },
-  { cx: 560, cy: 884, rx: 70, ry: 8 },
+  { x: 1630, y: 572 }, { x: 1520, y: 590 }, { x: 1420, y: 620 }, { x: 1346, y: 670 }, { x: 1300, y: 746 },
+  { x: 1272, y: 840 }, { x: 1250, y: 940 }, { x: 1240, y: 1020 },
+  { x: 1520, y: 1020 }, { x: 1500, y: 920 }, { x: 1514, y: 820 }, { x: 1560, y: 740 }, { x: 1630, y: 700 },
 ];
+/** A sand bar on the inside of the bend. */
+export const BAR = { cx: 1400, cy: 830, rx: 46, ry: 70 };
 
-/** Palms on the upper terraces at the bluff's foot and by the seguia's head. */
-export const TERRACE_PALMS: readonly [number, number, number][] = [
-  [330, 410, 1.0], [430, 400, 1.05], [560, 420, 0.95], [190, 430, 0.9], [1050, 452, 1.0], [1350, 456, 1.05],
-  [40, 560, 0.45], [1570, 580, 0.5], [610, 590, 0.4], [780, 430, 0.85], [1240, 438, 0.9], [1500, 444, 0.9],
-];
-
-/** Plantable zones for the composition map (centre, radii, label, slot count). */
-export const ZONES: readonly { cx: number; cy: number; rx: number; ry: number; label: string; n: number }[] = [
-  { cx: 430, cy: 610, rx: 160, ry: 34, label: 'upper plots W', n: 4 },
-  { cx: 1050, cy: 612, rx: 120, ry: 34, label: 'plots by the basin', n: 3 },
-  { cx: 1390, cy: 604, rx: 140, ry: 34, label: 'upper plots E', n: 3 },
-  { cx: 380, cy: 740, rx: 260, ry: 34, label: 'lower terrace', n: 4 },
-  { cx: 1280, cy: 720, rx: 220, ry: 28, label: 'river bank E', n: 3 },
-  { cx: 760, cy: 830, rx: 130, ry: 20, label: 'shallows', n: 2 },
-  { cx: 1200, cy: 830, rx: 90, ry: 14, label: 'sand bar', n: 1 },
-  { cx: 920, cy: 940, rx: 380, ry: 40, label: 'near sand bank', n: 5 },
+/** A plant slot for the composition map: base point and size class. */
+export interface DraftSlot {
+  x: number;
+  y: number;
+  size: SizeClass;
+  where: string;
+}
+export const SLOTS: readonly DraftSlot[] = [
+  { x: 70, y: 486, size: 'small', where: 'upper terrace' },
+  { x: 220, y: 482, size: 'medium', where: 'upper terrace' },
+  { x: 80, y: 584, size: 'medium', where: 'middle terrace' },
+  { x: 250, y: 570, size: 'small', where: 'middle terrace' },
+  { x: 390, y: 560, size: 'small', where: 'middle terrace' },
+  { x: 180, y: 680, size: 'tree', where: 'basin terrace' },
+  { x: 400, y: 690, size: 'large', where: 'basin terrace' },
+  { x: 560, y: 704, size: 'medium', where: 'basin rim' },
+  { x: 720, y: 716, size: 'small', where: 'basin rim' },
+  { x: 900, y: 712, size: 'small', where: 'basin rim' },
+  { x: 1080, y: 704, size: 'medium', where: 'basin rim' },
+  { x: 1280, y: 610, size: 'medium', where: 'between basin and oued' },
+  { x: 330, y: 800, size: 'medium', where: 'foreground' },
+  { x: 560, y: 830, size: 'small', where: 'foreground' },
+  { x: 770, y: 800, size: 'medium', where: 'foreground' },
+  { x: 980, y: 830, size: 'small', where: 'foreground' },
+  { x: 1160, y: 790, size: 'large', where: 'oued bank' },
+  { x: 150, y: 900, size: 'medium', where: 'foreground' },
+  { x: 440, y: 920, size: 'small', where: 'foreground' },
+  { x: 1010, y: 940, size: 'medium', where: 'foreground' },
+  { x: 1200, y: 950, size: 'small', where: 'oued bank' },
+  { x: 1340, y: 760, size: 'small', where: 'shallows' },
+  { x: 1400, y: 880, size: 'small', where: 'sand bar' },
+  { x: 1580, y: 800, size: 'medium', where: 'oued far bank' },
+  { x: 1560, y: 950, size: 'small', where: 'oued far bank' },
 ];

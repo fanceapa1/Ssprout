@@ -75,3 +75,36 @@ seguia and overflow, and the oued.
 - The basin is a clean trapezoid. It could do with steps down into it, a sluice and wet stone.
 - The sky is a placeholder (no daylight plates). There is no reflection of the ksar in the oued.
 - Not a scenery: no contract, slots, flora, fauna, motion or sound.
+
+## Round 2: a closer view (owner feedback)
+The owner found round 1 too zoomed out for planting. Now the viewer stands on the basin's terrace.
+- **Basin**: a large stone basin in the middle (x 476–1214, near rim at y 640, 46 % of the width).
+  It reflects the red bluff and the palms. A sluice runs from it into the oued.
+- **Bluff and ksar**: the bluff now rises close behind on the left and fills the upper-left third.
+  It has a high cliff on the left, and the ksar sits on its shoulder at about twice round 1's size
+  (towers 190–250 tall). Its details (horns, chevrons, slits, formwork lines) are scaled with
+  `KSAR_DETAIL`.
+- **Big palms**: four on the right (sizes 2–3.5, up to about 570 tall), with crowns cut by the
+  top edge. A two-row grove and only a sliver of lilac range and dunes sit behind them.
+- **Terraces and seguia**: on the left, the terraces step down toward the viewer with 34–36-unit
+  pisé drops. The seguia runs along each terrace and falls over each wall, the last fall into the
+  basin. A wider channel runs from the basin's near-left corner down to the bottom-left, so the
+  foreground isn't an empty plain.
+- **Oued**: it bends in from the right edge, behind the palms, down past the viewer's right foot,
+  around a sand bar.
+- **Slots**: 25 `SLOTS` with size classes. The map draws them as true-size, base-anchored boxes
+  (`PLANT_SIZES × perspectiveScale × GARDEN_PLANT_SCALE`) and shows the UI corners. The new
+  `ghosts` entry paints them as faint silhouettes over the painting. With them in, the plants
+  dominate the lower 55 %.
+
+Looked at (2 rounds, 20-minute timebox):
+- **v2r1**: the composition reads close, but the foreground was an empty plain and the basin had
+  blocky tower reflections. Fixed: a foreground channel, stronger plots, soft reflections and
+  shorter coping joints.
+- **v2-final**: checked against the two reference shots.
+
+Left open after round 2:
+- The ksar's ruined curtain walls still float slightly above the rock lip.
+- The big palms' crowns are thin for their size and need wet-in-wet masses.
+- The foreground channel is a plain ribbon.
+- The terrace walls are still straight bands, and the tree slot on the left covers part of them.
