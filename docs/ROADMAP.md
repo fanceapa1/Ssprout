@@ -204,5 +204,5 @@ Phase 13 art queue (after O0 and O1): one plant (OP1–OP12) or creature (OK1–
 | OP5 | Southern cattail (*Typha domingensis*): T2, water and shore, the basin and the oued | `src/plants/species/cattail.ts` | done (devlog 113; 20–22 ms; oued shallows slots are small only) |
 | OP11 | Pomegranate (*Punica granatum*): T4, flowers and crowned fruit together | `src/plants/species/pomegranate.ts` | done (devlog 115; 60–76 ms; large, T4) |
 | OP10 | Damask rose (*Rosa × damascena*): T3, ruffled cups on arching canes; distinct from the oleander | `src/plants/species/damask-rose.ts` | done (devlog 116; 76–79 ms; reads apart from the oleander) |
-| OP7 | Desert hyacinth (*Cistanche phelypaea*): T2, a leafless gold candle in the sand, path and back | `src/plants/species/desert-hyacinth.ts` | in progress |
+| OP7 | Desert hyacinth (*Cistanche phelypaea*): T2, a leafless gold candle in the sand, path and back | `src/plants/species/desert-hyacinth.ts` | done (devlog 118; 42–52 ms; path slots are all small, so it grows on the two medium back slots only) |
 | O1b | Oasis slots: a medium shallows slot in the oued for the cattail (shallows-1/2 take small only), from OP5; lower the moon arc top to about y 150 so wide screens show it (O5); a stronger far range at sunset on wide screens (O5) | `src/scenery/oasis/slots.ts` | queued |
