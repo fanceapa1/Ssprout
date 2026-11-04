@@ -117,3 +117,4 @@ never used.
 | 108 | [P9: oleander](108-oleander.md) | A dense fountain of dark knife leaves in whorls of three, with rose-pink pinwheel clusters at the tips | — |
 | 109 | [P3: caper](109-caper.md) | A trailing mound of zigzag shoots spilling from a wall crack, round glaucous leaves with hooked stipule spines, green capers, and big white flowers with a fountain of violet-tipped stamens | — |
 | 110 | [Oasis water](110-oasis-water.md) | O3: the oasis's water painted in parts: the stone basin (lime-washed coping, wet-stained inner faces, turquoise into green-brown depths, the bluff and ksar reflected, steps, sluice gate), the clay-lined seguia with a small fall over each terrace wall, and the braided oued over gold sand | Done |
+| 111 | [P1: spearmint](111-spearmint.md) | A patch of upright square stems from runners, opposite crinkled toothed lance leaves in the freshest green, and slender spikes of lilac whorls | — |
