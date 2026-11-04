@@ -55,6 +55,10 @@ Shots in `artifacts/o4/` (in the worktree), against the garden's and the waterfa
   covered, path softer. The sunset holds together, the grove's palms reading against the sun.
 
 ## Left open
+- Close up (`o4-r3-close-grove`) the big trunks' lattice reads as regular stamped chevrons and
+  the trunks are a little grey and columnar; the grove palms' crowns repeat one shape. Vary the
+  lattice rows and warm the trunk body.
+- The 120 ms per part at 1.6× budget is held by the tests' call and pixel caps, not timed.
 - The terraces still read as fairly straight bands at the overview: the walls follow the
   layout's nearly straight copings. Bending `WALLS` more would move the wall and terrace slots.
 - The near plots' top edges, along the bund, show as straight lines under the warm sunset plate.
