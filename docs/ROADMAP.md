@@ -178,13 +178,11 @@ Phase 12 art queue: one species or creature per task (atomic), 2–3 at a time, 
 | C8 | Yamasemi (crested kingfisher, rare) | `src/fauna/creatures/yamasemi.ts` | done (devlog 92) |
 | C8b | Predator reactions (C8 devlog): the wagtail (`bird.ts`) treats only other wagtails' perches as taken, so it can land on the yamasemi's rock; the iwana ignores all birds and could sink or scatter when the yamasemi hovers | `src/fauna/creatures/{bird,iwana}.ts` | done (devlog 92 › C8b) |
 
-Phase 13 (owner request 2026-11-04): a third garden, a desert oasis, with a golden, sandy feel in the same watercolour style, and its own plants and creatures, sharing species with the other gardens only where biology fits. Owner decisions: Sahara / Maghreb; a tended palm grove (mud-brick walls, irrigation channels, terraces); three rough drafts with different landforms first, then the chosen one is built in full. Drafts are rough (20 minutes a round). The owner asked for a closer view in round 2: plants are the focus, so the camera stands in the garden like the other two. Chosen: draft A, "Ksar & palmeraie" (Draa valley).
+Phase 13 (owner request 2026-11-04): a third garden, a desert oasis, with a golden, sandy feel in the same watercolour style, and its own plants and creatures, sharing species with the other gardens only where biology fits. Owner decisions: Sahara / Maghreb; a tended palm grove (mud-brick walls, irrigation channels, terraces); rough drafts first, then the chosen one is built in full. Drafts are rough (20 minutes a round). The owner asked for a closer view in round 2: plants are the focus, so the camera stands in the garden like the other two. Chosen: draft A, "Ksar & palmeraie" (Draa valley).
 
 | # | Task | Area | Status |
 |---|---|---|---|
 | D-a | Draft A: ksar on a red bluff, palm terraces, a seguia into a stone basin, the oued bend | `src/scenery/oasis/drafts/a/**` | done, chosen (devlog 102; round 2 is the close view) |
-| D-b | Draft B: dune lake, shaduf, walled beds | branch `worktree-agent-ab2f8494af4f8340b` | done, not chosen (devlog 103) |
-| D-c | Draft C: gorge spring, honey limestone, dry-stone terraces | branch `worktree-agent-af1fe32a7e4343bb6` | done, not chosen (devlog 104) |
 | O0 | Biome research (web, read-only): the Draa valley palmeraie's flora and fauna, about 12 plants and 8 creatures of its own, species shared with the other gardens by biology, cultivated plants of the oasis gardens, pitfalls; illustrator notes | `docs/research/oasis-biome.md` | in progress |
 | O1 | Oasis scenery skeleton from draft A: id, registry, geometry and slots, habitat words, view focus, sky numbers, flora profile, an empty wildlife table, placeholder sky and light; behind `?dev&scenery=oasis` | `src/scenery/oasis/**`, `src/core/sceneries.ts`, `src/scenery/registry.ts` | in progress |
 | O2 | Oasis painters: the bluff and the ksar | `src/scenery/oasis/paint-rocks.ts` | after O1 |
