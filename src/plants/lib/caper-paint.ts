@@ -179,7 +179,7 @@ export function caperFlower(
   const ctx = F.ctx;
   ctx.lineCap = 'round';
   o.stamens.forEach((s) => {
-    const a = o.view.roll + s.spread * lerp(0.4, 1, sk) * lerp(0.8, 2.1, o.view.tilt);
+    const a = o.view.roll + s.spread * lerp(0.4, 1, sk) * lerp(0.7, 1.7, o.view.tilt);
     const len = o.size * s.len * sk;
     const end = { x: c.x + Math.cos(a) * len, y: c.y + Math.sin(a) * len };
     // the filaments arch outward from the flower's axis, like a fountain
@@ -187,7 +187,7 @@ export function caperFlower(
     const mid = { x: (c.x + end.x) / 2 + n.x * len * s.bow, y: (c.y + end.y) / 2 + n.y * len * s.bow };
     // one quadratic through `mid`: pale filament, then its outer part violet
     const k = { x: mid.x * 2 - (c.x + end.x) / 2, y: mid.y * 2 - (c.y + end.y) / 2 };
-    const t0 = 0.5;
+    const t0 = 0.6;
     const from = { x: (1 - t0) ** 2 * c.x + 2 * (1 - t0) * t0 * k.x + t0 * t0 * end.x, y: (1 - t0) ** 2 * c.y + 2 * (1 - t0) * t0 * k.y + t0 * t0 * end.y };
     ctx.lineWidth = Math.max(0.16, o.size * 0.04);
     ctx.strokeStyle = rgba(pale, 0.7);
