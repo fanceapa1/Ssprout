@@ -325,8 +325,8 @@ describe('the oasis’s flora and wildlife (skeleton)', () => {
   });
 
   // why it stays behind the dev flag: the flora invariants (src/scenery/flora.test.ts) hold for released sceneries only
-  it('offers no species yet (none is shared by biology; its own come with the art queue), so it stays behind the dev flag', () => {
-    expect(floraOf(allSpecies(), OASIS.flora)).toEqual([]);
+  it('offers only its own species so far (none is shared by biology), so it stays behind the dev flag', () => {
+    expect(floraOf(allSpecies(), OASIS.flora).every((sp) => sp.range.cultivatedIn?.includes('n-africa-arabia'))).toBe(true);
     expect(OASIS.available(new URLSearchParams())).toBe(false);
   });
 

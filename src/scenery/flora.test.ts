@@ -68,10 +68,8 @@ describe('every species has a range and a home', () => {
   });
 
   it('each species is offered by at least one scenery', () => {
-    // phase 13 species whose scenery (the oasis, O1) is still being built; sorted
-    const awaiting = ['date-palm'];
     const homeless = allSpecies()
-      .filter((sp) => !awaiting.includes(sp.id) && !REGISTERED.some((s) => growsIn(sp.id, sp.range, s.flora)))
+      .filter((sp) => !REGISTERED.some((s) => growsIn(sp.id, sp.range, s.flora)))
       .map((sp) => sp.id);
     expect(homeless).toEqual([]);
   });
@@ -132,8 +130,11 @@ describe('each garden’s flora', () => {
   });
 
   // the invariants below hold for released sceneries; the oasis is not released until they hold for it
-  it('the oasis offers no species yet (none is shared by biology), so it stays behind ?dev&scenery=oasis', () => {
-    expect(offered(getScenery('oasis'))).toEqual([]);
+  it('the oasis offers only its own species so far (none is shared by biology), so it stays behind ?dev&scenery=oasis', () => {
+    // one id per line, sorted: each phase 13 species task adds its own
+    expect(offered(getScenery('oasis')).map((sp) => sp.id).sort()).toEqual([
+      'date-palm',
+    ]);
     expect(RELEASED.map((s) => s.id)).not.toContain('oasis');
     expect(getScenery('oasis').available(new URLSearchParams('dev&scenery=oasis'))).toBe(true);
   });
