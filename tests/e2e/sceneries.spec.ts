@@ -11,6 +11,23 @@ const show = (page: Page, id: string) => page.evaluate((id) => window.sprout!.sh
 const viewed = (page: Page) => page.evaluate(() => window.sprout!.scenery().viewed);
 const sceneStats = (page: Page) => page.evaluate(() => window.sprout!.sceneStats());
 
+/** The frame's mean colour at a pinned time, the ambience settled. */
+const meanAt = (page: Page, time: 'noon' | 'sunset' | 'night') =>
+  page.evaluate(async (time) => {
+    const s = window.sprout!;
+    s.setTime(time);
+    await s.camera.settle();
+    s.settleAmbience();
+    await s.freeze();
+    const c = document.querySelector<HTMLCanvasElement>('#garden')!;
+    const { data } = c.getContext('2d')!.getImageData(0, 0, c.width, c.height);
+    const sum = [0, 0, 0];
+    let n = 0;
+    for (let i = 0; i < data.length; i += 4 * 97, n++) for (let k = 0; k < 3; k++) sum[k]! += data[i + k]!;
+    s.unfreeze();
+    return sum.map((v) => v / n) as [number, number, number];
+  }, time);
+
 /** Ids of the finished plants and seedlings the plant system shows, once their sprites are in. */
 async function shownPlants(page: Page): Promise<{ finished: string[]; seedlings: string[] }> {
   return page.evaluate(async () => {
@@ -136,22 +153,7 @@ test.describe('sceneries · reduced motion', () => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await openDev(page);
     await show(page, 'waterfall');
-    /** The frame's mean colour at a pinned time, the ambience settled. */
-    const mean = (time: 'noon' | 'night') =>
-      page.evaluate(async (time) => {
-        const s = window.sprout!;
-        s.setTime(time);
-        await s.camera.settle();
-        s.settleAmbience();
-        await s.freeze();
-        const c = document.querySelector<HTMLCanvasElement>('#garden')!;
-        const { data } = c.getContext('2d')!.getImageData(0, 0, c.width, c.height);
-        const sum = [0, 0, 0];
-        let n = 0;
-        for (let i = 0; i < data.length; i += 4 * 97, n++) for (let k = 0; k < 3; k++) sum[k]! += data[i + k]!;
-        s.unfreeze();
-        return sum.map((v) => v / n) as [number, number, number];
-      }, time);
+    const mean = (time: 'noon' | 'night') => meanAt(page, time);
     const noon = await mean('noon');
     const night = await mean('night');
     expect(night[0] + night[1] + night[2]).toBeLessThan((noon[0] + noon[1] + noon[2]) * 0.85);
@@ -162,5 +164,22 @@ test.describe('sceneries · reduced motion', () => {
     await show(page, 'waterfall');
     await mean('night');
     expect((await page.evaluate(() => window.sprout!.skyStats()!)).cacheHits).toBeGreaterThanOrEqual(1);
+  });
+
+  test('the oasis has its own daylight: a golden sunset, a dark blue night, its plates under its keys (O5)', async ({ page }) => {
+    test.slow();
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await openDev(page, 'scenery=oasis');
+    await show(page, 'oasis');
+    const noon = await meanAt(page, 'noon');
+    const sunset = await meanAt(page, 'sunset');
+    const night = await meanAt(page, 'night');
+    // noon is warm sand, not grey: red over blue; sunset warmer still; night darker and bluer
+    expect(noon[0]).toBeGreaterThan(noon[2] + 15);
+    expect(sunset[0] / (sunset[2] + 1)).toBeGreaterThan(noon[0] / (noon[2] + 1));
+    expect(night[0] + night[1] + night[2]).toBeLessThan((noon[0] + noon[1] + noon[2]) * 0.85);
+    expect(night[2] / (night[0] + 1)).toBeGreaterThan(noon[2] / (noon[0] + 1));
+    await expect.poll(async () => (await storedOf(page, 'sky-plate')).filter((e) => e.key.startsWith('oasis|')).length, { timeout: 80_000 }).toBeGreaterThanOrEqual(2);
+    await expect.poll(async () => (await storedOf(page, 'light-plate')).filter((e) => e.key.startsWith('oasis|')).length, { timeout: 80_000 }).toBeGreaterThanOrEqual(2);
   });
 });
