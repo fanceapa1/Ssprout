@@ -66,10 +66,10 @@ export function grainLayout(e: EarShape, axis: readonly Pt[] = earAxis(e)): Grai
     const q = pointAt(axis, t);
     const side: 1 | -1 = j % 2 === 0 ? 1 : -1;
     const f = lerp(0.72, 1, smooth(t / 0.25)) * lerp(1, 0.62, t * t);
-    const w = e.width * 0.52 * f * e.k;
+    const w = e.width * 0.55 * f * e.k;
     const nx = -Math.sin(q.angle) * side;
     const ny = Math.cos(q.angle) * side;
-    out.push({ at: { x: q.x + nx * w * 0.42, y: q.y + ny * w * 0.42 }, angle: q.angle + side * 0.42, length: step * 2.5 * f, width: w, side, t });
+    out.push({ at: { x: q.x + nx * w * 0.36, y: q.y + ny * w * 0.36 }, angle: q.angle + side * 0.4, length: step * 2.8 * f, width: w, side, t });
   }
   return out;
 }
@@ -112,7 +112,7 @@ export function barleyEar(p: Painter, rng: Rng, e: EarShape, ripe: number, c: Ea
     // the haze: a soft fan between the outermost awns
     if (lo.length && hi.length) {
       const fan: Pt[] = [axis[0]!, ...lo.map((a) => a.to), ...hi.map((a) => a.to).reverse()];
-      p.glaze(fan, mix(awnTone, c.pale, 0.4), { rng: rng.fork('haze'), opacity: 0.16 * smooth(e.awn) * lerp(0.6, 1, ripe), edge: 0.05, sharpness: 0.2, centreLift: 0, granulation: 0.05 });
+      p.glaze(fan, mix(awnTone, c.pale, 0.4), { rng: rng.fork('haze'), opacity: 0.13 * smooth(e.awn) * lerp(0.6, 1, ripe), edge: 0, sharpness: 0.15, centreLift: 0, granulation: 0.05, fade: { angle: e.angle, start: 0.35, amount: 1 } });
     }
     const L = p.layer(bounds([...tips, ...axis], 4));
     awns.forEach((a, j) => {
@@ -136,6 +136,8 @@ export function barleyEar(p: Painter, rng: Rng, e: EarShape, ripe: number, c: Ea
     L.dry({ opacity: o.opacity * 0.9, edge: 0.2, edgeWidth: 0.2, sharpness: 0.8, centreLift: 0, granulation: 0.05, flow: 0.1, darken: 0.25 });
   }
   const G = p.layer(bounds(axis, e.width + 3));
+  // one body under the grains, so the ear reads dense and not as beads
+  G.fill(earBody(axis, e.width * 0.3 * e.k), mix(body, c.shade, 0.2), 0.4);
   grains.forEach((g, j) => {
     const shaded = g.side !== o.light;
     const tone = shaded ? mix(body, c.shade, lerp(0.25, 0.5, ripe)) : body;
@@ -153,6 +155,23 @@ export function barleyEar(p: Painter, rng: Rng, e: EarShape, ripe: number, c: Ea
     });
   });
   G.dry({ opacity: o.opacity, edge: 0.55, edgeWidth: 0.35, sharpness: 0.65, centreLift: 0.2, granulation: 0.15, flow: 0.25, flowScale: 4, darken: 0.4 });
+}
+
+/** The ear's outline round its axis: full below, narrowing to the tip. */
+function earBody(axis: readonly Pt[], hw: number): Pt[] {
+  const left: Pt[] = [];
+  const right: Pt[] = [];
+  const n = axis.length - 1;
+  axis.forEach((q, i) => {
+    const a = axis[Math.min(n, i + 1)]!;
+    const b = axis[Math.max(0, i - 1)]!;
+    const ang = Math.atan2(a.y - b.y, a.x - b.x);
+    const t = i / n;
+    const w = hw * lerp(0.45, 1, smooth(t / 0.3)) * lerp(1, 0.3, smooth((t - 0.4) / 0.6));
+    left.push({ x: q.x - Math.sin(ang) * w, y: q.y + Math.cos(ang) * w });
+    right.push({ x: q.x + Math.sin(ang) * w, y: q.y - Math.cos(ang) * w });
+  });
+  return [...left, ...right.reverse()];
 }
 
 /** A narrow grass blade: a tapered stroke with a darker crease down one side of it. */

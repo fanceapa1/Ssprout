@@ -113,7 +113,7 @@ export function planBarley(rng: Rng): BarleyPlan {
     const angle = UP + lean + u * rng.range(0.4, 0.62) + leaner + rng.gaussian(0, 0.04);
     const side = Math.sign(angle - UP) || 1;
     const stem = makeStem(rng, { base: { x: u * rng.range(10, 16), y: 0 }, length: rng.range(84, 100) * (1 - Math.abs(u) * 0.22) * (late ? 0.88 : 1), angle, bend: side * rng.range(0.08, 0.22), segments: 10, tipBias: 0.7, wobble: 0.01 });
-    const grains = rng.int(12, 15);
+    const grains = rng.int(14, 18);
     const k = order.indexOf(i);
     const c: Culm = {
       stem,
@@ -123,7 +123,7 @@ export function planBarley(rng: Rng): BarleyPlan {
       ripen: [...stagger(k, n, [0.68, 1], 0.7)] as [number, number],
       ripeMax: late ? rng.range(0.08, 0.2) : 1,
       front: rng.chance(0.45),
-      nod: side * rng.range(0.12, 0.3),
+      nod: side * rng.range(0.25, 0.45),
       ear: {
         length: rng.range(16, 20) * (late ? 0.9 : 1),
         width: rng.range(4.4, 5.2),
@@ -201,15 +201,15 @@ function drawCulm(p: Painter, rng: Rng, c: Culm, g: number) {
     const nk = smooth((ext - t - 0.02) / 0.15);
     if (!visible(nk)) return;
     const q = pointAt(pts, t / Math.max(ext, t + 0.02));
-    p.dab(q, mix(stalk, SHADE, 0.5), { rng: rng.fork(`node-${j}`), variant: 'round', angle: q.angle + Math.PI / 2, length: 2.2 * nk, width: 1.1 * nk, opacity: 0.5 * nk });
+    p.dab(q, mix(stalk, SHADE, 0.6), { rng: rng.fork(`node-${j}`), variant: 'round', angle: q.angle + Math.PI / 2, length: 1.5 * nk, width: 0.8 * nk, opacity: 0.4 * nk });
   });
   // the boot: the flag leaf's sheath swells round the ear, and the ear pushes out of it
   const bk = smooth((ext - 0.55) / 0.35);
   if (visible(bk) && len > 8) {
     const bootLen = 12 * bk;
     const q = pointAt(pts, clamp01(1 - (bootLen + lerp(0, 2, ear.k)) / len));
-    const swell = lerp(3.4, 2.2, smooth(ear.k));
-    p.dab(q, mix(mix(STEM_GREEN, BLADE, 0.5), STRAW, ripe * 0.8), { rng: rng.fork('boot'), variant: 'leaf', angle: q.angle, length: bootLen + lerp(2, 0, ear.k), width: swell * bk, curve: 0, pool: 0.4, basePool: 0.1, opacity: 0.75 * bk });
+    const swell = lerp(3.4, 1.7, smooth(ear.k));
+    p.dab(q, mix(mix(STEM_GREEN, BLADE, 0.5), STRAW, ripe * 0.8), { rng: rng.fork('boot'), variant: 'leaf', angle: q.angle, length: bootLen + lerp(2, 0, ear.k), width: swell * bk, curve: 0, pool: 0.4, basePool: 0.1, opacity: lerp(0.75, 0.5, ear.k) * bk });
   }
   barleyEar(p, rng.fork('ear'), ear, ripe, { green: EAR_GREEN, gold: GOLD, shade: SHADE, pale: PALE, awnGreen: AWN_GREEN }, { opacity: 0.92, light: -1 });
 }
