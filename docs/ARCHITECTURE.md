@@ -330,7 +330,7 @@ export interface Scenery {                    // types.ts
   view: SceneryView;                          // focus (portrait crop), pathOut (guiding path origin)
   flora: SceneryBiome;                        // its place in the world: the species it offers (ADR 0250)
   habitatWords: Record<Habitat, string>;      // how the planting sheet and placement name each habitat
-  fauna: SceneryFauna;                        // fauna/habitat.ts: unlocks (FaunaTable); water? { still, moving, avoid? }, perches?, stands?, perspective?(x, y)
+  fauna: SceneryFauna;                        // fauna/habitat.ts: unlocks (FaunaTable); water? { still, moving, avoid? }, perches?, stands?, ground?, walls?, perspective?(x, y)
   sound: SoundSceneryId;                      // the sound profile it plays (core/soundscape.ts SCENERIES; ADR 0283)
   motion?: () => SceneryMotion;               // moving water over the painting (ADR 0282): { prepare(): Generator (sprites, in parts); draw(ctx, t) (world units, pure in t) }
   pondSurface?: number;                       // how much of the generic water surface (water.ts: shimmer, rings, glints) plays on its pond: 1 when left out, 0 a still mirror (ADR 0302)
@@ -365,7 +365,13 @@ The consumers take a scenery's data as an option and default to the Japanese gar
 `<id>/fauna.ts` (`JAPANESE_FAUNA`, `WATERFALL_FAUNA`; `scenery/fauna.ts › faunaTable(id)` without the
 painting). Rows name creature kinds (`src/fauna/creatures/<kind>.ts`); rows without a module are
 skipped. The optional `water`, `perches`, `stands` and `perspective` replace what the fauna sim
-would derive from `geometry` (the Japanese garden gives none; the waterfall gives all four).
+would derive from `geometry` (the Japanese garden gives none; the waterfall and the oasis give all
+four). `ground` (open patches a walking bird forages over, `GroundSpot`: an ellipse) and `walls`
+(upright faces a lizard clings to, `WallFace`: outline, top edge, height) default to none and reach
+creatures as `FaunaWorld.ground` / `.walls` (ADR 0304). A `Perch` (`fauna/targets.ts`) is a rock,
+stone, ledge, wall coping, basin rim, palm frond, tower top or gate post; it may carry a `slope`
+(`perchY` follows it) and its own `scale` where what stands there is not at the ground's
+perspective (a palm crown, a far tower).
 
 **Switching at runtime** (ADR 0243). `src/scenery/host.ts` follows `state.scenery` (only the
 sceneries `sceneries(flags)` offers; others read as the first) and calls
