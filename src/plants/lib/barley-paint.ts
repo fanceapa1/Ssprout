@@ -66,10 +66,10 @@ export function grainLayout(e: EarShape, axis: readonly Pt[] = earAxis(e)): Grai
     const q = pointAt(axis, t);
     const side: 1 | -1 = j % 2 === 0 ? 1 : -1;
     const f = lerp(0.72, 1, smooth(t / 0.25)) * lerp(1, 0.62, t * t);
-    const w = e.width * 0.55 * f * e.k;
+    const w = e.width * 0.44 * f * e.k;
     const nx = -Math.sin(q.angle) * side;
     const ny = Math.cos(q.angle) * side;
-    out.push({ at: { x: q.x + nx * w * 0.36, y: q.y + ny * w * 0.36 }, angle: q.angle + side * 0.4, length: step * 2.8 * f, width: w, side, t });
+    out.push({ at: { x: q.x + nx * w * 0.45, y: q.y + ny * w * 0.45 }, angle: q.angle + side * 0.48, length: step * 3.2 * f, width: w, side, t });
   }
   return out;
 }
@@ -77,7 +77,7 @@ export function grainLayout(e: EarShape, axis: readonly Pt[] = earAxis(e)): Grai
 /** Each grain's awn: from its tip, long and straight, fanning a little wider at the foot of the ear. */
 export function awnLines(e: EarShape, grains: readonly Grain[] = grainLayout(e)): Awn[] {
   return grains.map((g, j) => {
-    const a0 = g.angle - g.side * 0.42;
+    const a0 = g.angle - g.side * 0.48;
     const a = a0 + g.side * e.spread * lerp(1, 0.35, g.t) + (e.awnJit[j] ?? 0);
     const from = { x: g.at.x + Math.cos(g.angle) * g.length * 0.45, y: g.at.y + Math.sin(g.angle) * g.length * 0.45 };
     const len = e.awnLen * e.awn * lerp(1, 0.78, g.t);
@@ -92,6 +92,8 @@ export interface EarColours {
   /** the lit awns, pale straw */
   pale: Pigment;
   awnGreen: Pigment;
+  /** the darkest accent: shaded awns and the ear's shaded flank */
+  umber: Pigment;
 }
 
 /**
@@ -119,7 +121,7 @@ export function barleyEar(p: Painter, rng: Rng, e: EarShape, ripe: number, c: Ea
       const len = Math.hypot(a.to.x - a.from.x, a.to.y - a.from.y);
       if (len < 0.3) return;
       const lit = a.side === o.light;
-      const tone = lit ? mix(awnTone, c.pale, 0.55) : mix(awnTone, c.shade, 0.35 * ripe + 0.1);
+      const tone = lit ? mix(awnTone, c.pale, 0.45) : mix(awnTone, mix(c.shade, c.umber, 0.5), 0.45 * ripe + 0.15);
       p.dabInto(L, a.from, jitter(tone, rng.fork(`awn-tone-${j}`), 0.03), {
         rng: rng.fork(`awn-${j}`),
         variant: 'needle',
@@ -140,7 +142,7 @@ export function barleyEar(p: Painter, rng: Rng, e: EarShape, ripe: number, c: Ea
   G.fill(earBody(axis, e.width * 0.3 * e.k), mix(body, c.shade, 0.2), 0.4);
   grains.forEach((g, j) => {
     const shaded = g.side !== o.light;
-    const tone = shaded ? mix(body, c.shade, lerp(0.25, 0.5, ripe)) : body;
+    const tone = shaded ? mix(body, c.shade, lerp(0.3, 0.65, ripe)) : body;
     p.dabInto(G, g.at, jitter(tone, rng.fork(`grain-tone-${j}`), 0.03), {
       rng: rng.fork(`grain-${j}`),
       variant: 'leaf',
@@ -148,13 +150,22 @@ export function barleyEar(p: Painter, rng: Rng, e: EarShape, ripe: number, c: Ea
       length: g.length,
       width: g.width,
       curve: g.side * 0.05,
-      pool: 0.45,
+      pool: 0.5,
       poolSide: g.side,
-      basePool: 0.35,
+      basePool: 0.08,
       layers: 2,
     });
   });
   G.dry({ opacity: o.opacity, edge: 0.55, edgeWidth: 0.35, sharpness: 0.65, centreLift: 0.2, granulation: 0.15, flow: 0.25, flowScale: 4, darken: 0.4 });
+  // a broken fine line down the shaded flank gives the ear its edge against sand
+  const flank = axis.map((q, i) => {
+    const a = axis[Math.min(axis.length - 1, i + 1)]!;
+    const b = axis[Math.max(0, i - 1)]!;
+    const ang = Math.atan2(a.y - b.y, a.x - b.x);
+    const w = e.width * 0.42 * e.k * lerp(1, 0.4, (i / (axis.length - 1)) ** 2) * -o.light;
+    return { x: q.x - Math.sin(ang) * w, y: q.y + Math.cos(ang) * w };
+  });
+  p.inkLine(flank, { rng: rng.fork('flank'), width: 0.35, pigment: mix(mix(c.green, c.shade, 0.5), c.umber, ripe), opacity: 0.45 * smooth(e.k * 2), breaks: 0.5, wobble: 0.2, taper: [0.2, 0.5] });
 }
 
 /** The ear's outline round its axis: full below, narrowing to the tip. */

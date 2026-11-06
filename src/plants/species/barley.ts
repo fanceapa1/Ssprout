@@ -18,6 +18,7 @@ const CREASE = mix(INK_GREEN, '#55705e', 0.3);
 const EAR_GREEN = '#a6b56a';
 const GOLD = '#e2bd62';
 const SHADE = '#b98d3e';
+const UMBER = '#8a6634';
 const PALE = '#f3e6bb';
 const AWN_GREEN = mix('#a6b56a', '#cdd19c', 0.5);
 const STEM_GREEN = mix('#a6b56a', PIGMENTS.olive, 0.25);
@@ -100,7 +101,7 @@ function fits(pts: readonly Pt[]): number {
 
 export function planBarley(rng: Rng): BarleyPlan {
   const lean = rng.gaussian(0, 0.05);
-  const n = rng.int(5, 9);
+  const n = rng.int(6, 9);
   const green = rng.int(0, n - 1);
   const xs = Array.from({ length: n }, (_, i) => (i + rng.range(0.2, 0.8)) / n - 0.5);
   const culms: Culm[] = [];
@@ -112,7 +113,7 @@ export function planBarley(rng: Rng): BarleyPlan {
     const leaner = rng.chance(0.22) ? Math.sign(u || 1) * rng.range(0.16, 0.3) : 0;
     const angle = UP + lean + u * rng.range(0.4, 0.62) + leaner + rng.gaussian(0, 0.04);
     const side = Math.sign(angle - UP) || 1;
-    const stem = makeStem(rng, { base: { x: u * rng.range(10, 16), y: 0 }, length: rng.range(84, 100) * (1 - Math.abs(u) * 0.22) * (late ? 0.88 : 1), angle, bend: side * rng.range(0.08, 0.22), segments: 10, tipBias: 0.7, wobble: 0.01 });
+    const stem = makeStem(rng, { base: { x: u * rng.range(10, 16), y: 0 }, length: rng.range(72, 88) * (1 - Math.abs(u) * 0.2) * (late ? 0.88 : 1), angle, bend: side * rng.range(0.08, 0.22), segments: 10, tipBias: 0.7, wobble: 0.01 });
     const grains = rng.int(14, 18);
     const k = order.indexOf(i);
     const c: Culm = {
@@ -125,24 +126,24 @@ export function planBarley(rng: Rng): BarleyPlan {
       front: rng.chance(0.45),
       nod: side * rng.range(0.25, 0.45),
       ear: {
-        length: rng.range(16, 20) * (late ? 0.9 : 1),
-        width: rng.range(4.4, 5.2),
+        length: rng.range(19, 23) * (late ? 0.9 : 1),
+        width: rng.range(4.8, 5.6),
         grains,
-        awnLen: rng.range(26, 34),
-        spread: rng.range(0.1, 0.2),
+        awnLen: rng.range(30, 38),
+        spread: rng.range(0.16, 0.28),
         awnJit: Array.from({ length: grains }, () => rng.gaussian(0, 0.04)),
       },
       leaves: [],
       nodes: [rng.range(0.22, 0.3), rng.range(0.45, 0.55)],
     };
-    const nl = rng.int(1, 2);
+    const nl = 2;
     for (let j = 0; j < nl; j++) {
       const ls = (j % 2 === 0 ? side : -side) as 1 | -1;
       c.leaves.push({
         t: c.nodes[j]! + 0.01,
         side: ls,
         out: rng.range(0.35, 0.6),
-        length: rng.range(20, 30),
+        length: rng.range(24, 34),
         bends: bendProfile(rng, 6, ls * rng.range(0.8, 1.4), 0.5, 0.02),
         width: rng.range(2, 2.5),
         tone: jitter(mix(BLADE, BLADE_DEEP, rng.range(0, 0.25)), rng, 0.025),
@@ -157,13 +158,13 @@ export function planBarley(rng: Rng): BarleyPlan {
     }
     culms.push(c);
   }
-  const nb = rng.int(6, 9);
+  const nb = rng.int(7, 10);
   const blades: Blade[] = [];
   for (let i = 0; i < nb; i++) {
     const u = i / (nb - 1) - 0.5;
     const side = Math.sign(u) || (rng.chance(0.5) ? 1 : -1);
     blades.push({
-      stem: { base: { x: u * rng.range(8, 14), y: 0 }, length: rng.range(30, 54) * (1 - Math.abs(u) * 0.3), angle: UP + lean + u * rng.range(0.9, 1.3) + rng.gaussian(0, 0.08), bends: bendProfile(rng, 8, side * rng.range(0.7, 1.4), 0.55, 0.02) },
+      stem: { base: { x: u * rng.range(8, 14), y: 0 }, length: rng.range(40, 64) * (1 - Math.abs(u) * 0.3), angle: UP + lean + u * rng.range(0.9, 1.3) + rng.gaussian(0, 0.08), bends: bendProfile(rng, 8, side * rng.range(0.7, 1.4), 0.55, 0.02) },
       width: rng.range(2.3, 3),
       window: [0, 0],
       tone: jitter(mix(BLADE, BLADE_DEEP, rng.range(0, 0.3)), rng, 0.03),
@@ -214,7 +215,7 @@ function drawCulm(p: Painter, rng: Rng, c: Culm, g: number) {
     const swell = lerp(3.4, 1.7, smooth(ear.k));
     p.dab(q, mix(mix(STEM_GREEN, BLADE, 0.5), STRAW, ripe * 0.8), { rng: rng.fork('boot'), variant: 'leaf', angle: q.angle, length: bootLen + lerp(2, 0, ear.k), width: swell * bk, curve: 0, pool: 0.4, basePool: 0.1, opacity: lerp(0.75, 0.5, ear.k) * bk });
   }
-  barleyEar(p, rng.fork('ear'), ear, ripe, { green: EAR_GREEN, gold: GOLD, shade: SHADE, pale: PALE, awnGreen: AWN_GREEN }, { opacity: 0.92, light: -1 });
+  barleyEar(p, rng.fork('ear'), ear, ripe, { green: EAR_GREEN, gold: GOLD, shade: SHADE, pale: PALE, awnGreen: AWN_GREEN, umber: UMBER }, { opacity: 0.92, light: -1 });
 }
 
 const barley: SpeciesDef = {
