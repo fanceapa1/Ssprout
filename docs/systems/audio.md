@@ -3,7 +3,8 @@
 `src/audio/` — a fully procedural Web Audio soundscape (no audio files): pond water, wind in
 leaves, distant birds, night crickets, rain during rain sessions, a bloom chime and a short
 completion phrase. The waterfall garden has its own bed instead of the pond's: the falls, the
-gorge's wind, stream birds and the kajika frog at dusk (› Waterfall). **Muted by default**; nothing is created or played until the user has
+gorge's wind, stream birds and the kajika frog at dusk (› Waterfall), and the Ksar oasis has the
+seguia's trickle, palm fronds in the wind, doves, buntings and a gecko after dark (› Oasis). **Muted by default**; nothing is created or played until the user has
 unmuted *and* a user gesture has unlocked audio. Master fades in/out over 2 s, never abruptly.
 
 ## Modules
@@ -15,6 +16,7 @@ unmuted *and* a user gesture has unlocked audio. Master fades in/out over 2 s, n
 | `gate.ts` | yes | mute/unlock/dispose state machine → engine commands |
 | `noise.ts` | yes | seeded white/pink/brown noise loops (click-free) and the reverb impulse |
 | `falls.ts` | yes | the waterfall's bed as seeded PCM: plunge (rumble and roar) and stereo spray (ADR 0283) |
+| `oasis-bed.ts` | yes | the oasis's beds as seeded PCM: the seguia (trickle and murmur) and the palms (ADR 0303) |
 | `standard-loops.ts` | yes | the fireplace, café and lo-fi PCM loops (ADR 0213) |
 | `backend.ts` | no | the only Web Audio code: graph, beds, generic `SoundSpec` renderer (`AudioBackend` facade) |
 | `garden-audio.ts` | — | controller: bus listeners, gate, planner tick, chimes (`createGardenAudio`) |
@@ -66,6 +68,13 @@ Everything above `backend.ts` is unit-tested against a fake backend and fake tim
 | splash | the waterfall, ~1.4/min (×0.6 in rain) | a rounded slap of water noise, a little spatter, 1–3 low bubbles; on the `falls` layer |
 | brown dipper | the waterfall, by day, most at dawn and late afternoon (≥30 s apart) | 9–15 quick rippling notes around 3.2 kHz, now and then a trill; on `birds` |
 | kajika frog | the waterfall after dusk, once a kajika has been seen there (≥25 s apart) | 7–10 rising whistled slides, the gaps closing; ×1.3 in rain; on `crickets` |
+| seguia and palms beds | the oasis (the `seguia` and `palms` layers) | seeded loops, › Oasis; gusts swell the palms |
+| laughing dove | the oasis, by day, most in the morning and before dusk (≥18 s apart) | five low eased notes climbing to the third, sometimes twice; on `birds` |
+| house bunting | the oasis, by day, most in the early morning (≥12 s apart) | 5–8 quick down-slurred notes at 3–4 kHz, stepping down; on `birds` |
+| bee-eater | the oasis, warm hours, not in rain (≥25 s apart) | 1–3 burred "prrüp" calls around 2.6 kHz; on `birds` |
+| insect shimmer | the oasis, midday, none in rain (≥8 s apart) | a faint 5–6.5 kHz rasp swelling in and out over 4–7 s; on `crickets` |
+| gecko | the oasis after dark, rare (≥40 s apart) | 3–8 dry clicks; on `crickets` |
+| frog chorus | the oasis on warm evenings (≥30 s apart) | 2–3 distant frogs rattling at ~12 pulses a second; ×1.3 in rain; on `crickets` |
 | watering pour | every `session:water` (automatic in focus, tapped in a break), `playPour()` | ~2 s trickle: band-passed water noise swelling in over ≥ 0.25 s, an airy top, 10–15 rising bubbles under the stream; one at a time (ADR 0182) |
 
 ## API
@@ -158,6 +167,15 @@ and by sighting, birds under the roar, rain, custom mixes keep to their place), 
 (splash, dipper, kajika), `garden-audio.test.ts › a creature arriving at the falls…`,
 `scenery/registry.test.ts` (each scenery's `sound`), and `tests/e2e/sound-mixer.spec.ts › viewing
 the waterfall garden…` and `› real audio graph: the waterfall sits as quietly…`.
+
+The oasis (ADR 0303): `oasis-bed.test.ts` (determinism, rates and RMS, the trickle mid, the murmur
+low and the fronds bright, click-free seams, a steady trickle and slow gusts, the gust envelope),
+`params.test.ts › the oasis` (beds instead of the water, day and night voices by hour, the breeze,
+rain, sightings, custom mixes and `eventLayer`), `recipes.test.ts` (dove, bunting, shimmer, gecko,
+frogs, bee-eater), `planner.test.ts` (every voice within its planned length; the slow voices'
+gaps), `garden-audio.test.ts › the oasis plays its own bed…`, `core/soundscape.test.ts` (the
+palette, presets, a mix saved before the oasis, an export round trip), and
+`tests/e2e/sound-mixer.spec.ts › viewing the oasis…` and `› real audio graph: the oasis sits as calmly…`.
 
 ## Personal sound mixer (ADR 0213)
 `core/soundscape.ts` is the shared, pure catalogue and preference model. **Standard** has nine
@@ -253,3 +271,70 @@ mix), `audio/splash`, `audio/dipper`, `audio/kajika`, and the dipper and kajika 
 garden swallows' twitter), a dipper "zit" call on landing, and spray that follows the falls'
 animated flow. The bed is checked by unit spectra and offline renders only: it still needs a
 listen by ear in the studio and over a long session.
+
+## Oasis (ADR 0303)
+The Ksar oasis (`Scenery.sound: 'oasis'`) plays its own profile: the `seguia` and `palms` layers,
+birds ("Doves and buntings" in the mixer there), crickets ("Insects and geckos") and rain. Presets
+"In the palm grove" and "A warm night by the basin".
+
+**The beds** (`oasis-bed.ts`) are seeded PCM, built once per context the first time each is
+audible, and looped. Every loop renders at a third of the context rate (at least 8 kHz):
+```
+  seguia (SEGUIA_GAIN 0.056 at 100 %)
+    trickle (stereo, 9 s; the right channel is the left half a loop on)
+      bubbles  ~160/s × flow: sines at 0.6–2.4 kHz (log-uniform), τ ≈ 10 ms + 8/f, pitch rising
+               10–25 % per τ, louder when lower (√(900/f)); a phasor re-tuned every 32 samples
+      sheet    noise → BP 1.1 k → LP 3.5 k × flicker (11 Hz flutter ±30 %) × flow, at 0.65
+      air      noise → HP 2.6 k → LP 6 k × flow, at 0.12
+      flow     swell (1, 3, 8 cycles a loop; ±20, 12, 6 %)
+    murmur (mono, 14 s) × 0.55
+      flow     noise → HP 90 → LP 380 ×2 × drift (1, 3 cycles)
+      eddies   noise → BP 520 (Q 1.2) → LP 1.2 k × turn (2, 5 cycles), at 0.4
+  palms (stereo, 17 s; PALMS_GAIN 0.056 at 100 %) → palm swell (gusts) → gain
+    crackle  noise × grains (0.8 ms and 3 ms decays, 500 + 2000·g² a second) → HP 1.5 k → BP 3.8 k → LP 7.5 k
+    whoosh   noise → HP 900 → LP 4.5 k × g^1.2, at 0.55
+    g        the gust envelope: 0.2 (lull) to 1 (gust), (1, 2, 5 cycles), shaped ^1.4 so lulls last longer
+```
+Each loop gets a soft knee at four times its RMS (tanh), is normalised to RMS 0.16, and its seam
+is cross-faded over 0.4 s.
+
+**The mix there** (`oasisMix`, garden mode): seguia 60 %, palms 45 % × (0.4 + 0.6 × the breeze),
+×0.7 in mist or while paused, ×1.1 in rain; the shared wind at 0.6 × the breeze (some open air
+under the fronds, and no dip when switching from the pond); no pond water, plips or warbler.
+`OASIS_WIND_CURVE` (the breeze): 0.5 at night, rising from 10 h to 1 at 14 h. Gusts at 0.6/min ×
+the breeze, and each gust swells the palms by 1 + 0.8 × (amount − 1) as well as the wind.
+Voices per minute at full activity: dove 0.7 (`DOVE_CURVE`, ×1.4 once a laughing dove is seen
+there), bunting 0.6 (`BUNTING_CURVE`), bee-eater 0.25 (`BEEEATER_CURVE`), shimmer 1.6
+(`CICADA_CURVE`), gecko 0.4 (`GECKO_CURVE`, ×1.5 once seen there), frogs 0.35 (`FROG_CURVE`,
+×1.5 once a Sahara frog is seen there); distant chirps at half the garden's, swallows only once
+seen there, crickets ×0.8. In a custom mix gusts follow the palms slider (`PLACE_EVENT_LAYER`).
+
+| hour | voices per minute (idle, clear) |
+|---|---|
+| 7.5 | dove 0.70, bunting 0.54, chirp 0.57, bee-eater 0.04, gust 0.35 |
+| 13 | shimmer 1.52, dove 0.32, bunting 0.28, bee-eater 0.24, chirp 0.26, gust 0.57 |
+| 20.5 | crickets 3.9, frogs 0.35, gecko 0.27, gust 0.40 |
+| 23 | crickets 5.4, gecko 0.35, frogs 0.17, gust 0.33 |
+
+**Measured** with `sprout.audio.scene` (offline, 22.05 kHz, idle, beds only, 250 ms windows after
+the first second):
+| | noon | 23 h | largest step |
+|---|---|---|---|
+| pond | −41.7 dBFS | −42.2 | 1.5 dB |
+| waterfall | −39.3 | −39.4 | 1.6 dB |
+| oasis | −40.8 | −41.4 | 0.8 dB |
+
+At 44.1 kHz the pond and the oasis both read −40.2/−40.3 dBFS and the waterfall −39.2. With the
+planned voices (40 s, noon) the oasis is −40.5 dBFS, its loudest quarter-second −37.8 (the
+waterfall's −37.5). Pond → oasis at 4 s: largest step 1.9 dB, lowest window 2.0 dB under the
+pond; oasis → pond: 1.3 dB, 1.8 dB under. `scene({ events: true, wav: true })` plays the planned
+voices too and returns a 44.1 kHz WAV.
+
+**Studio**: `audio/oasis` (the trickle, murmur and palms as level traces; click to play the oasis's
+garden mix), `audio/dove`, `audio/bunting`, `audio/beeeater`, `audio/cicada`, `audio/gecko`,
+`audio/frogs`, and the dove and gecko curves on `audio/soundscape`.
+
+**Not done**: no hoopoe "oop-oop-oop" or stork bill-clatter; no seasons (bee-eaters only from April
+to September, frogs mostly in spring and summer). The voices do not follow the creatures on screen.
+Nobody has listened yet: everything here is spectra, rates and offline levels.
+
