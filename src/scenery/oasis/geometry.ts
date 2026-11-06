@@ -6,18 +6,20 @@
 import { ribbon, smoothPath } from '../../paint';
 import type { Pt } from '../../render/viewport';
 import type { SceneGeometry } from '../../scene/geometry';
-import { BAR, BASIN, BASIN_RIM, OUED, SEGUIA_RUNS, SLUICE } from './layout';
+import { BAR, BASIN, BASIN_RIM, OUED, SEGUIA_RUNS, SLUICE, towardVp } from './layout';
 import { OASIS_SLOTS } from './slots';
 
-/** The basin's water inside its coping, as the draft paints it: far left, far right, near right, near left. */
+/** The basin's water inside its coping, its sides on the rim's lines to the vanishing point: far left, far right, near right, near left. */
 export const BASIN_WATER: Pt[] = (() => {
-  const [fl, fr, nr, nl] = BASIN as readonly [Pt, Pt, Pt, Pt];
+  const [fl, , nr, nl] = BASIN as readonly [Pt, Pt, Pt, Pt];
   const r = BASIN_RIM;
+  const [far, near] = [fl.y + r.far, nl.y - r.near];
+  const [x0, x1] = [nl.x + r.side, nr.x - r.side];
   return [
-    { x: fl.x + r.side * 0.8, y: fl.y + r.far },
-    { x: fr.x - r.side * 0.8, y: fr.y + r.far },
-    { x: nr.x - r.side * 1.3, y: nr.y - r.near },
-    { x: nl.x + r.side * 1.3, y: nl.y - r.near },
+    { x: towardVp(x0, far), y: far },
+    { x: towardVp(x1, far), y: far },
+    { x: towardVp(x1, near), y: near },
+    { x: towardVp(x0, near), y: near },
   ];
 })();
 

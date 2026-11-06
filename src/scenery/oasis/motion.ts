@@ -11,7 +11,7 @@ import type { Strokes } from '../../scene/paint-land';
 import type { SceneryMotion } from '../types';
 import { SEGUIA, SLUICE_WATER } from './geometry';
 import { SEGUIA_FALLS } from './layout';
-import { OUED_BARS, SLUICE_GATE, WATER, WATER_BOXES, WATER_SHAPES, ouedAt } from './paint-water';
+import { BASIN_INLET, OUED_BARS, SLUICE_GATE, WATER, WATER_BOXES, WATER_SHAPES, ouedAt } from './paint-water';
 
 /** Playback speed of the whole motion: the waterfall's pace (the owner's). */
 const TEMPO = 1.25;
@@ -22,7 +22,7 @@ const V_LIP = 16;
 const V_FOOT = 44;
 
 /** Where the seguia's last fall comes through the coping into the basin: the rings' centre. */
-export const INLET: Pt = { x: WATER_SHAPES.basin[3]!.x + 14, y: 603 };
+export const INLET: Pt = { x: BASIN_INLET.to.x + 4, y: BASIN_INLET.to.y + 1 };
 /** How far the inlet's rings spread (world units, across) and how long one takes (seconds). */
 const RING_MAX = 150;
 const RING_S = 11;
@@ -345,7 +345,7 @@ export function createOasisMotion(opts: OasisMotionOptions = {}): OasisMotion {
       const r = rng.fork(`ring-${i}`);
       const h = width * 0.3 + 8;
       const { s, p } = sprite(width + 8, h, `ring-${i}`, 4);
-      p.ripple({ x: width / 2 + 4, y: h / 2 }, { rng: r, width, count: 1, squash: 0.13, pigment: mix(WATER.deep, WATER.teal, 0.4), opacity: 0.55, light: 0.85, lineWidth: 0.9 });
+      p.ripple({ x: width / 2 + 4, y: h / 2 }, { rng: r, width, count: 1, squash: 0.09, pigment: mix(WATER.deep, WATER.teal, 0.4), opacity: 0.55, light: 0.85, lineWidth: 0.9 });
       ringSprites.push(seal(s));
       yield;
     }

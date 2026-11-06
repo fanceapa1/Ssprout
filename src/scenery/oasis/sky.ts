@@ -246,7 +246,8 @@ export function paintOasisWaterSky(p: Painter, rng: Rng, phase: DayPhase, box: R
     { x: box.x - 20, y: near + 10 },
   ];
   const w = OASIS_WATER_SKY[phase];
-  p.wetInWet(whole, w.far, w.near, { rng, angle: Math.PI / 2, split: 0.45, softness: 0.7, opacity: 0.85, deform: 0.02, edge: 0.04, centreLift: 0, granulation: 0.06, flow: 0.5, flowScale: 60 });
+  // seen low, the far water mirrors the bluff, not the sky: the shine gathers toward the near rim
+  p.wetInWet(whole, w.far, w.near, { rng, angle: Math.PI / 2, split: 0.45, softness: 0.7, opacity: 0.85, deform: 0.02, edge: 0.04, centreLift: 0, granulation: 0.06, flow: 0.5, flowScale: 60, fade: { angle: -Math.PI / 2, start: 0.4, amount: 0.7, ragged: 0.6 } });
   if (w.glints) {
     // the sky's colour caught in slow ripples, more of it toward the far edge
     for (let i = 0; i < 12; i++) {

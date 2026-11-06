@@ -13,11 +13,11 @@ type SlotSpec = [id: string, x: number, y: number, maxSize: SizeClass, terrace?:
 const SPECS: Record<Habitat, SlotSpec[]> = {
   // the basin's open water, its overflow corner by the sluice, and the oued's shallows
   water: [
-    ['basin-1', 620, 575, 'medium'],
-    ['basin-2', 760, 540, 'large'],
-    ['basin-3', 880, 580, 'medium'],
-    ['basin-4', 975, 528, 'medium'],
-    ['basin-5', 1040, 582, 'large'],
+    ['basin-1', 622, 606, 'medium'],
+    ['basin-2', 726, 596, 'large'],
+    ['basin-3', 830, 610, 'medium'],
+    ['basin-4', 930, 594, 'medium'],
+    ['basin-5', 1020, 610, 'large'],
     ['shallows-1', 1352, 726, 'small'],
     ['shallows-2', 1396, 950, 'small'],
     ['shallows-3', 1446, 722, 'medium'],

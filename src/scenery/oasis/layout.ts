@@ -56,7 +56,7 @@ export interface Wall {
 export const WALLS: readonly Wall[] = [
   { edge: [{ x: 1066, y: 478 }, { x: 1140, y: 474 }, { x: 1300, y: 480 }, { x: 1620, y: 470 }], h: 24 },
   { edge: [{ x: -20, y: 506 }, { x: 200, y: 500 }, { x: 400, y: 494 }, { x: 500, y: 490 }], h: 34 },
-  { edge: [{ x: -20, y: 602 }, { x: 200, y: 592 }, { x: 380, y: 580 }, { x: 506, y: 572 }], h: 36 },
+  { edge: [{ x: -20, y: 602 }, { x: 200, y: 592 }, { x: 380, y: 580 }, { x: 572, y: 568 }], h: 36 },
 ];
 
 /** The seguia's runs along the terraces, and the falls over each wall into the basin. */
@@ -70,15 +70,29 @@ export const SEGUIA_FALLS: readonly { top: Pt; drop: number }[] = [
   { top: { x: 514, y: 576 }, drop: 30 },
 ];
 
-/** The basin: a stone-edged rectangle in perspective (outer rim), its near face, its rim width. */
+/** Where the basin's sides converge: on the horizon (`OASIS_SKY_LAYOUT.horizonY`), under the notch. */
+export const BASIN_VP: Pt = { x: 810, y: 340 };
+const BASIN_NEAR = { y: 640, x0: 506, x1: 1114 };
+const BASIN_FAR_Y = 562;
+
+/** x on the line from (x, from) to the vanishing point, at height y: a basin side at eye level. */
+export function towardVp(x: number, y: number, from = BASIN_NEAR.y): number {
+  return BASIN_VP.x + ((x - BASIN_VP.x) * (y - BASIN_VP.y)) / (from - BASIN_VP.y);
+}
+
+/** The basin: a stone-edged rectangle seen at eye level (outer rim): far left, far right, near right, near left. */
 export const BASIN: readonly Pt[] = [
-  { x: 560, y: 476 }, { x: 1060, y: 476 }, { x: 1114, y: 640 }, { x: 506, y: 640 },
+  { x: towardVp(BASIN_NEAR.x0, BASIN_FAR_Y), y: BASIN_FAR_Y },
+  { x: towardVp(BASIN_NEAR.x1, BASIN_FAR_Y), y: BASIN_FAR_Y },
+  { x: BASIN_NEAR.x1, y: BASIN_NEAR.y },
+  { x: BASIN_NEAR.x0, y: BASIN_NEAR.y },
 ];
-export const BASIN_RIM = { far: 12, near: 26, side: 22, face: 18 };
+/** The rim: far and near coping depths (the far a sliver), the side coping's width at the near rim, the near face's height. */
+export const BASIN_RIM = { far: 6, near: 10, side: 22, face: 24 };
 
 /** The sluice from the basin's near right corner into the oued. */
 export const SLUICE: readonly Pt[] = [
-  { x: 1096, y: 618 }, { x: 1170, y: 642 }, { x: 1250, y: 664 }, { x: 1334, y: 676 },
+  { x: 1100, y: 628 }, { x: 1170, y: 646 }, { x: 1250, y: 664 }, { x: 1334, y: 676 },
 ];
 
 /** The oued: from behind the big palms on the right, bending down past the viewer's feet. */

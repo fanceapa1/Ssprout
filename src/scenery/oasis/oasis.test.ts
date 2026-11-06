@@ -14,7 +14,7 @@ import { FAR_SCALE, NEAR_SCALE, PLANT_SIZES, perspectiveScale, plantScale } from
 import { faunaTable } from '../fauna';
 import { OASIS, OASIS_ELEMENTS, oasisAvailable } from '.';
 import { BAR, BASIN_STONE, BASIN_WATER, OUED_WATER, oasisScene, SEGUIA, SLUICE_WATER } from './geometry';
-import { BLUFF, copingAt, FOOTPATH, LIFT, OASIS_HABITAT_WORDS, OASIS_SKY_LAYOUT, openSky, silhouetteAt, skylineAt, terraceScale, WALLS } from './layout';
+import { BLUFF, copingAt, FOOTPATH, LIFT, OASIS_HABITAT_WORDS, OASIS_SKY_LAYOUT, openSky, silhouetteAt, skylineAt, terraceScale, towardVp, WALLS } from './layout';
 import { KSAR_SHAPES } from './ksar';
 import { OUED_BARS } from './paint-water';
 import { SLOT_TERRACE } from './slots';
@@ -177,7 +177,9 @@ describe('oasis slots', () => {
       expect(inWater(s), s.id).toBe(true);
       const basin = s.id.startsWith('basin-');
       expect(basin || s.id.startsWith('shallows-'), s.id).toBe(true);
-      expect(edgeDistance(s, basin ? BASIN_WATER : OUED_WATER), s.id).toBeGreaterThanOrEqual(basin ? 30 : 24);
+      // the basin is seen low (devlog 121): clear of its side walls by 30, of its far and near edges by 14
+      expect(edgeDistance(s, basin ? BASIN_WATER : OUED_WATER), s.id).toBeGreaterThanOrEqual(basin ? 14 : 24);
+      if (basin) expect(Math.min(s.x - towardVp(BASIN_WATER[3]!.x, s.y, BASIN_WATER[3]!.y), towardVp(BASIN_WATER[2]!.x, s.y, BASIN_WATER[2]!.y) - s.x), s.id).toBeGreaterThanOrEqual(30);
       if (s.id.startsWith('shallows-')) expect(onBar(s), s.id).toBe(false);
     }
     expect(byHabitat('water').filter((s) => s.id.startsWith('basin-') && s.maxSize === 'large').length).toBeGreaterThanOrEqual(2);

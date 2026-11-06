@@ -8,7 +8,7 @@ import { PAPER_WHITE, blob, bounds, insetPolygon, lighten, mix, pathNormals, poi
 import type { Pt, Rect } from '../../render/viewport';
 import type { Strokes } from '../../scene/paint-land';
 import { BASIN_STONE, BASIN_WATER, OUED_WATER, SEGUIA, SLUICE_WATER, WATERLINE } from './geometry';
-import { BAR, BASIN, OUED, SEGUIA_FALLS, SEGUIA_RUNS, SLUICE, silhouetteAt } from './layout';
+import { BAR, BASIN, BASIN_RIM, OUED, SEGUIA_FALLS, SEGUIA_RUNS, SLUICE, silhouetteAt, towardVp } from './layout';
 import { EARTH } from './paint-rocks';
 
 /** The water's palette: turquoise-teal shading to green-brown in the basin, milky in the oued. */
@@ -45,8 +45,12 @@ const [FL, FR, NR, NL] = BASIN as readonly [Pt, Pt, Pt, Pt];
 const [WFL, WFR, WNR, WNL] = BASIN_WATER as unknown as readonly [Pt, Pt, Pt, Pt];
 const lerp = (a: Pt, b: Pt, t: number): Pt => ({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t });
 
+/** The reflection's squeeze, and the height its rock and walls mirror about (the bluff's foot). */
+const REFLECTION_SQUEEZE = 0.17;
+const REFLECTION_FOOT = 470;
+
 /** The coping's inner edge: the far and side walls show an inner face below it, the near one does not. */
-const LIP: Pt[] = [lerp(FL, WFL, 0.4), lerp(FR, WFR, 0.4), lerp(NR, WNR, 0.75), lerp(NL, WNL, 0.75)];
+const LIP: Pt[] = [lerp(FL, WFL, 0.45), lerp(FR, WFR, 0.45), lerp(NR, WNR, 0.75), lerp(NL, WNL, 0.75)];
 
 /** A point on the right wall's water edge, `t` from the far corner to the near one. */
 const rightWall = (t: number): Pt => lerp(WFR, WNR, t);
@@ -93,7 +97,8 @@ export const SLUICE_GATE = (() => {
 })();
 
 /** Where the seguia's last fall enters the basin: a notch through the left coping. */
-const INLET = { from: { x: 512, y: 604 }, to: { x: WNL.x + 10, y: 602 } };
+export const BASIN_INLET = { from: { x: 514, y: 604 }, to: { x: towardVp(NL.x + BASIN_RIM.side, 602) + 10, y: 602 } };
+const INLET = BASIN_INLET;
 
 /** A small fall's sheet over a terrace wall: a little wider at its foot. */
 export function fallSheet(f: (typeof SEGUIA_FALLS)[number]): Pt[] {
@@ -290,40 +295,48 @@ function* paintBasinWater(p: Painter, rng: Rng): Strokes {
   yield;
   yield* p.parts.glaze(blob(b.x + b.w * 0.5, b.y + b.h * 0.8, b.w * 0.5, b.h * 0.4, rng, { irregularity: 0.15, points: 24 }), WATER.murk, { rng, opacity: 0.3, deform: 0.2, spread: 0.5, edge: 0, sharpness: 0.02, centreLift: 0, fade: { angle: -Math.PI / 2, start: 0.3, amount: 1, ragged: 0.5 } });
   yield;
-  // the reflection: the bluff and the ksar mirrored about the far waterline, squeezed to fit the water
-  const k = 0.36;
+  // the reflection, as a low eye sees it: the bluff, the ksar and the grove mirrored about their
+  // feet and squeezed, so the towers' tops fall near the near rim and little sky shows between them
+  const k = REFLECTION_SQUEEZE;
   const xs: number[] = [];
   for (let x = b.x - 4; x <= b.x + b.w + 4; x += 6) xs.push(x);
-  const under = (x: number, y: number) => WATERLINE + (WATERLINE - y) * k;
-  const bluffLine = (x: number) => (x < 1024 ? Math.max(silhouetteAt(x), 312) : 470);
-  const bluff: Pt[] = [...xs.map((x) => ({ x, y: WATERLINE - 4 })), ...xs.slice().reverse().map((x) => ({ x: x + rng.range(-1.5, 1.5), y: under(x, bluffLine(x)) }))];
+  const under = (y: number) => WATERLINE + (REFLECTION_FOOT - y) * k;
+  const bluffLine = (x: number) => (x < 1024 ? Math.max(silhouetteAt(x), 312) : REFLECTION_FOOT);
+  const bluff: Pt[] = [...xs.map((x) => ({ x, y: WATERLINE - 4 })), ...xs.slice().reverse().map((x) => ({ x: x + rng.range(-1.5, 1.5), y: under(bluffLine(x)) + 1 }))];
   // the teal lifted where the warm rock lies on the water, so the red reads rather than greys
-  yield* p.parts.lift(bluff, { rng, amount: 0.45, deform: 0.15, spread: 0.25, layers: 5, edge: 0, fade: { angle: Math.PI / 2, start: 0.4, amount: 1, ragged: 0.9 } });
+  yield* p.parts.lift(bluff, { rng, amount: 0.8, deform: 0.1, spread: 0.18, layers: 5, edge: 0, fade: { angle: Math.PI / 2, start: 0.8, amount: 0.4, ragged: 0.9 } });
   yield;
-  yield* p.parts.glaze(bluff, mix(EARTH.body, EARTH.gold, 0.2), { rng, opacity: 0.62, deform: 0.22, spread: 0.45, edge: 0.02, fade: { angle: Math.PI / 2, start: 0.35, amount: 1, ragged: 0.9 } });
+  yield* p.parts.glaze(bluff, mix(mix(EARTH.body, EARTH.deep, 0.3), WATER.teal, 0.1), { rng, opacity: 0.75, deform: 0.14, spread: 0.3, edge: 0.03, fade: { angle: Math.PI / 2, start: 0.75, amount: 0.5, ragged: 0.9 } });
+  yield;
+  // level breaks across the mirrored rock, so it reads as water and not as a wall
+  for (let i = 0; i < 9; i++) {
+    const y = WATERLINE + 3 + rng.range(0, 1) ** 1.3 * (under(312) - WATERLINE);
+    yield* glint(p, rng, rng.range(b.x + 20, b.x + b.w - 20), y, rng.range(60, 160), rng.range(0.25, 0.4));
+  }
   yield;
   const towers = xs.filter((x) => x > 420 && x < 920);
-  const ksar: Pt[] = [...towers.map((x) => ({ x, y: under(x, bluffLine(x)) - 3 })), ...towers.slice().reverse().map((x) => ({ x, y: under(x, Math.min(silhouetteAt(x), bluffLine(x))) }))];
-  yield* p.parts.glaze(ksar, mix(EARTH.deep, EARTH.shade, 0.3), { rng, opacity: 0.42, deform: 0.14, spread: 0.35, edge: 0.02, fade: { angle: Math.PI / 2, start: 0.3, amount: 1, ragged: 0.9 } });
+  const ksar: Pt[] = [...towers.map((x) => ({ x, y: under(bluffLine(x)) - 2 })), ...towers.slice().reverse().map((x) => ({ x, y: under(Math.min(silhouetteAt(x), bluffLine(x))) }))];
+  yield* p.parts.lift(ksar, { rng, amount: 0.6, deform: 0.08, spread: 0.12, layers: 4, edge: 0 });
+  yield* p.parts.glaze(ksar, mix(mix(EARTH.gold, EARTH.body, 0.4), WATER.teal, 0.1), { rng, opacity: 0.62, deform: 0.1, spread: 0.25, edge: 0.03, fade: { angle: Math.PI / 2, start: 0.6, amount: 0.6, ragged: 0.9 } });
   yield;
   // the grove's palms on the right, dark olive in the water
-  yield* p.parts.glaze(blob(b.x + b.w - 40, WATERLINE + 22, 70, 22, rng, { irregularity: 0.3 }), mix('#66714a', WATER.deep, 0.4), { rng, opacity: 0.32, deform: 0.3, spread: 0.3, fade: { angle: Math.PI / 2, start: 0.3, amount: 1, ragged: 0.8 } });
+  yield* p.parts.glaze(blob(b.x + b.w - 34, WATERLINE + 12, 64, 13, rng, { irregularity: 0.3 }), mix('#66714a', WATER.deep, 0.4), { rng, opacity: 0.4, deform: 0.3, spread: 0.3, fade: { angle: Math.PI / 2, start: 0.4, amount: 1, ragged: 0.8 } });
   yield;
   // the far wall's shade on the water just under it
-  yield* p.parts.glaze([WFL, WFR, { x: WFR.x + 2, y: WFR.y + 14 }, { x: WFL.x + 4, y: WFL.y + 12 }], mix(WATER.deep, EARTH.shade, 0.4), { rng, opacity: 0.4, deform: 0.15, spread: 0.2, fade: { angle: Math.PI / 2, start: 0.2, amount: 1, ragged: 0.6 } });
+  yield* p.parts.glaze([WFL, WFR, { x: WFR.x + 1, y: WFR.y + 4 }, { x: WFL.x + 2, y: WFL.y + 4 }], mix(WATER.deep, EARTH.dark, 0.4), { rng, opacity: 0.55, deform: 0.15, spread: 0.2, fade: { angle: Math.PI / 2, start: 0.2, amount: 1, ragged: 0.6 } });
   yield;
   // the reflection broken by slow horizontal lifts, longer toward the viewer
-  for (let i = 0; i < 26; i++) {
-    const t = i / 26;
-    const y = WATERLINE + 6 + t * (b.h - 12) + rng.range(-3, 3);
-    const w = rng.range(30, 110) * (0.6 + t * 0.8);
+  for (let i = 0; i < 16; i++) {
+    const t = i / 16;
+    const y = WATERLINE + 4 + t * (b.h - 8) + rng.range(-2, 2);
+    const w = rng.range(40, 130) * (0.6 + t * 0.8);
     const x = rng.range(b.x + 30, b.x + b.w - 30);
     yield* glint(p, rng, x, y, w, rng.range(0.18, 0.36));
     yield;
   }
   // a few dark ripple strokes in the reflection
   for (let i = 0; i < 12; i++) {
-    const y = WATERLINE + rng.range(14, b.h - 10);
+    const y = WATERLINE + rng.range(8, b.h - 6);
     const x = rng.range(b.x + 40, b.x + b.w - 40);
     const len = rng.range(16, 40);
     p.stroke([{ x: x - len / 2, y }, { x, y: y + rng.range(-1, 1) }, { x: x + len / 2, y }], { rng, pigment: shade(WATER.deep, 0.2), width: rng.range(0.8, 1.3), opacity: 0.28, wetness: 0.4, wobble: 0.5, taper: [0.4, 0.4] });
@@ -331,17 +344,17 @@ function* paintBasinWater(p: Painter, rng: Rng): Strokes {
   }
   // the slow rings where the seguia comes in
   for (const [dx, dy, w, n] of [[18, 0, 46, 3], [52, 6, 90, 2], [100, 10, 120, 2]] as const) {
-    p.ripple({ x: INLET.to.x + dx, y: INLET.to.y + dy }, { rng, width: w, count: n, squash: 0.12, pigment: WATER.deep, opacity: 0.3, light: 0.75, lineWidth: 1 });
+    p.ripple({ x: INLET.to.x + dx, y: INLET.to.y + dy }, { rng, width: w, count: n, squash: 0.08, pigment: WATER.deep, opacity: 0.3, light: 0.75, lineWidth: 1 });
     yield;
   }
-  yield* p.parts.lift(blob(INLET.to.x + 6, INLET.to.y + 1, 12, 3.5, rng, { irregularity: 0.3 }), { rng, amount: 0.6, deform: 0.3, spread: 0.3, layers: 4 });
+  yield* p.parts.lift(blob(INLET.to.x + 6, INLET.to.y + 1, 12, 2.5, rng, { irregularity: 0.3 }), { rng, amount: 0.6, deform: 0.3, spread: 0.3, layers: 4 });
   yield;
   p.ctx.restore();
   // wet stain at the waterline on the inner faces, a little algae green just above it
   for (const [a, c] of [[WFL, WFR], [WFL, WNL], [WFR, WNR]] as const) {
     const n = pathNormals([a, c])[0]!;
     const up = n.y < 0 ? 1 : -1;
-    const band: Pt[] = [a, c, { x: c.x + n.x * 4 * up, y: c.y + n.y * 4 * up }, { x: a.x + n.x * 4 * up, y: a.y + n.y * 4 * up }];
+    const band: Pt[] = [a, c, { x: c.x + n.x * 2.5 * up, y: c.y + n.y * 2.5 * up }, { x: a.x + n.x * 2.5 * up, y: a.y + n.y * 2.5 * up }];
     yield* p.parts.glaze(band, mix(STONE.wet, STONE.algae, 0.35), { rng, opacity: 0.45, deform: 0.2, spread: 0.2, layers: 6, edge: 0.1 });
     yield;
   }
