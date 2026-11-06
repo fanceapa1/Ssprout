@@ -68,7 +68,7 @@ export interface BarleyPlan {
 
 /** A culm as grown at `g`: its stalk points, its ear and how ripe it is. */
 export function culmNow(c: Culm, g: number): { pts: Pt[]; ext: number; ear: EarShape; ripe: number } {
-  const ext = easeOut(ease(g, c.window[0], c.window[1]));
+  const ext = ease(g, c.window[0], c.window[1]);
   const ripe = c.ripeMax * ease(g, c.ripen[0], c.ripen[1]);
   const pts = stemPoints(c.stem, ext, lerp(0.35, 1, smooth(ripe)) * lerp(0.4, 1, ext));
   const tip = pointAt(pts, 1);
@@ -148,9 +148,12 @@ export function planBarley(rng: Rng): BarleyPlan {
         tone: jitter(mix(BLADE, BLADE_DEEP, rng.range(0, 0.25)), rng, 0.025),
       });
     }
-    for (let pass = 0; pass < 2; pass++) {
+    // too wide or tall: shorten it, and stand a wide one up a little straighter
+    for (let pass = 0; pass < 6; pass++) {
       const s = fits(culmReach(c));
-      if (s < 1) c.stem.length *= s * 0.97;
+      if (s >= 1) break;
+      c.stem.length *= Math.max(0.9, s * 0.97);
+      c.stem.angle = UP + (c.stem.angle - UP) * 0.85;
     }
     culms.push(c);
   }
@@ -191,7 +194,7 @@ function drawCulm(p: Painter, rng: Rng, c: Culm, g: number) {
   paintStem(p, rng.fork('stalk'), pts, { width: 1.15, pigment: stalk, opacity: 0.85, ink: 0.18 * smooth(ext * 2), inkReach: 0.75, inkPigment: mix(CREASE, SHADE, ripe * 0.5) });
   // the leaves leave the culm at its nodes once it has grown past them
   c.leaves.forEach((l, j) => {
-    const lk = smooth((ext - l.t - 0.05) / 0.3);
+    const lk = smooth((ext - l.t - 0.05) / 0.4);
     if (!visible(lk)) return;
     const q = pointAt(pts, l.t / Math.max(ext, l.t + 0.05));
     const lp = stemPoints({ base: { x: q.x, y: q.y }, length: l.length, angle: q.angle + l.side * l.out, bends: l.bends }, easeOut(lk), lerp(0.3, 1, lk));
