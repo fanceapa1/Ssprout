@@ -140,7 +140,8 @@ const whiteWaterLily: SpeciesDef = {
   nativeName: 'Nilufar',
   nativeLang: 'ar-Latn',
   // the white Egyptian lotus: wild in the Nile's and the Sahel's pools and wetlands
-  range: { realms: ['n-africa-arabia'], biomes: ['wetland'], climates: ['arid'] },
+  // wild round the Sahara's edges (the Nile, the Sahel), not in the Draa: there it is planted in the basin (owner, 2026-11-06)
+  range: { realms: ['n-africa-arabia'], biomes: ['wetland'], climates: ['arid'], cultivatedIn: ['n-africa-arabia'] },
   tier: 2,
   habitats: ['water'],
   sizeClass: 'medium',
