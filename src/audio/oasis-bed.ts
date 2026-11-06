@@ -17,8 +17,8 @@ export const OASIS_RMS = 0.16;
 /** How the backend blends the seguia's two loops (linear gain on each). */
 export const SEGUIA_BLEND = { trickle: 1, murmur: 0.55 } as const;
 /** The backend's gains at 100 % (tuned by offline render, docs/systems/audio.md › Oasis). */
-export const SEGUIA_GAIN = 0.056;
-export const PALMS_GAIN = 0.056;
+export const SEGUIA_GAIN = 0.04;
+export const PALMS_GAIN = 0.04;
 
 /** A stereo loop at its own rate (the buffer source resamples it). */
 export interface StereoLoop {

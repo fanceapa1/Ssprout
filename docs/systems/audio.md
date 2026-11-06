@@ -280,7 +280,7 @@ birds ("Doves and buntings" in the mixer there), crickets ("Insects and geckos")
 **The beds** (`oasis-bed.ts`) are seeded PCM, built once per context the first time each is
 audible, and looped. Every loop renders at a third of the context rate (at least 8 kHz):
 ```
-  seguia (SEGUIA_GAIN 0.056 at 100 %)
+  seguia (SEGUIA_GAIN 0.04 at 100 %, lowered from 0.056 on the owner's ear)
     trickle (stereo, 9 s; the right channel is the left half a loop on)
       bubbles  ~160/s × flow: sines at 0.6–2.4 kHz (log-uniform), τ ≈ 10 ms + 8/f, pitch rising
                10–25 % per τ, louder when lower (√(900/f)); a phasor re-tuned every 32 samples
@@ -290,7 +290,7 @@ audible, and looped. Every loop renders at a third of the context rate (at least
     murmur (mono, 14 s) × 0.55
       flow     noise → HP 90 → LP 380 ×2 × drift (1, 3 cycles)
       eddies   noise → BP 520 (Q 1.2) → LP 1.2 k × turn (2, 5 cycles), at 0.4
-  palms (stereo, 17 s; PALMS_GAIN 0.056 at 100 %) → palm swell (gusts) → gain
+  palms (stereo, 17 s; PALMS_GAIN 0.04 at 100 %, lowered from 0.056) → palm swell (gusts) → gain
     crackle  noise × grains (0.8 ms and 3 ms decays, 500 + 2000·g² a second) → HP 1.5 k → BP 3.8 k → LP 7.5 k
     whoosh   noise → HP 900 → LP 4.5 k × g^1.2, at 0.55
     g        the gust envelope: 0.2 (lull) to 1 (gust), (1, 2, 5 cycles), shaped ^1.4 so lulls last longer
