@@ -48,6 +48,9 @@ function dab(p: Painter, x: number, y: number, rx: number, ry: number, a: number
   ctx.restore();
 }
 
+/** The basin water's middle height, where its light pools sit. */
+const BASIN_MID = (WATER_SHAPES.basin[0]!.y + WATER_SHAPES.basin[2]!.y) / 2;
+
 /** Run `fn` with everything but the basin's water clipped away (or, `outside`, only the water). */
 function aroundWater(p: Painter, outside: boolean, fn: () => void): void {
   const ctx = p.ctx;
@@ -82,7 +85,7 @@ function oasisShadows(p: Painter, rng: Rng, _scene: SceneGeometry, sh: CastShado
   }
   // the basin's far coping shades a strip of water; at a low sun the right coping too
   const [fl, fr, nr] = WATER_SHAPES.basin as [Pt, Pt, Pt, Pt];
-  p.glaze([{ x: fl.x, y: fl.y - 2 }, { x: fr.x, y: fr.y - 2 }, { x: fr.x - 6, y: fr.y + (low ? 12 : 7) }, { x: fl.x + 6, y: fl.y + (low ? 12 : 7) }], pig, { ...soft, opacity: a * 0.32 });
+  p.glaze([{ x: fl.x, y: fl.y - 2 }, { x: fr.x, y: fr.y - 2 }, { x: fr.x - 4, y: fr.y + (low ? 7 : 4) }, { x: fl.x + 4, y: fl.y + (low ? 7 : 4) }], pig, { ...soft, opacity: a * 0.32 });
   if (low) p.glaze([fr, nr, { x: nr.x - 26, y: nr.y }, { x: fr.x - 18, y: fr.y + 6 }], pig, { ...soft, opacity: a * 0.3, fade: { angle: Math.PI, start: 0.3, amount: 0.9, ragged: 0.5 } });
   // the bluff's foot along the high terrace, deeper when the sun is low
   p.glaze(blob(420, 468, 520, low ? 20 : 12, rng, { irregularity: 0.3 }), pig, { ...soft, spread: 0.8, deform: 0.6, opacity: a * (low ? 0.3 : 0.18), fade: { angle: 0, start: 0.5, amount: 0.8, ragged: 0.7 } });
@@ -182,21 +185,22 @@ function oasisLights(p: Painter, rng: Rng, _scene: SceneGeometry, phase: DayPhas
       dab(p, palm.top.x + 30, palm.top.y + 10, 70, 40, k * 0.45, warm);
     }
     // the basin keeps its turquoise under the warm grade (multiplied amber greys it)
-    aroundWater(p, false, () => dab(p, WATER_BOXES.basin.x + WATER_BOXES.basin.w / 2, 560, 340, 90, sunset ? 0.55 : 0.4, [246, 252, 252]));
+    aroundWater(p, false, () => dab(p, WATER_BOXES.basin.x + WATER_BOXES.basin.w / 2, BASIN_MID, 320, 48, sunset ? 0.55 : 0.4, [246, 252, 252]));
     return;
   }
   if (phase === 'midday') {
-    aroundWater(p, false, () => dab(p, WATER_BOXES.basin.x + WATER_BOXES.basin.w / 2, 560, 340, 90, 0.5, [248, 254, 254]));
+    aroundWater(p, false, () => dab(p, WATER_BOXES.basin.x + WATER_BOXES.basin.w / 2, BASIN_MID, 320, 48, 0.5, [248, 254, 254]));
     return;
   }
   // night: moonlight on the basin (a cool sheen, brightest under the moon's arc), on the pale
   // coping and the ksar's pisé, and the desert's dense stars left as paper
   const cool: Rgb = [236, 242, 255];
   aroundWater(p, false, () => {
-    dab(p, 840, 540, 320, 80, 0.4, cool);
-    for (let i = 0; i < 8; i++) dab(p, 900 + rng.range(-120, 120), 500 + i * 15, rng.range(60, 140), 4, 0.5, cool);
+    dab(p, 840, BASIN_MID, 300, 46, 0.4, cool);
+    for (let i = 0; i < 8; i++) dab(p, 900 + rng.range(-120, 120), WATER_SHAPES.basin[0]!.y + 4 + i * 7, rng.range(60, 140), 3, 0.5, cool);
   });
-  dab(p, 810, 478, 300, 14, 0.35, cool);
+  dab(p, 810, WATER_BOXES.basin.y + 3, 240, 5, 0.35, cool);
+  dab(p, 810, WATER_SHAPES.basin[2]!.y + 6, 320, 7, 0.3, cool);
   dab(p, 664, 240, 260, 70, 0.22, cool);
   // the Milky Way's glow, then the desert's dense stars left as paper
   for (let i = 0; i <= 10; i++) {

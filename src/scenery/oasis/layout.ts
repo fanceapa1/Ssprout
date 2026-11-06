@@ -262,7 +262,7 @@ export const OASIS_AMBIENCE: SceneryAmbience = {
   ],
   // the bands on the basin and the grove's floor
   mistBands: [0, 1, 2],
-  // the basin's water top (y 488) + 140
+  // the basin's water (y 568–630), the veil stopping at its near edge
   veilTo: 628,
 };
 

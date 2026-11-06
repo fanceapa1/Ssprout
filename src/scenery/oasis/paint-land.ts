@@ -9,7 +9,7 @@ import { blob, closedResample, createSimplex2D, lighten, mix, resample, ribbon, 
 import type { Pt } from '../../render/viewport';
 import type { Strokes } from '../../scene/paint-land';
 import { perspectiveScale } from '../../scene/slots';
-import { BLUFF, BUNDS, copingAt, DUNE_BASE, DUNE_CRESTS, FAR_RANGE, FOOTPATH, NEAR_PLOTS, OUED, PATH_HALF_WIDTH, SEGUIA_RUNS, WALLS, WET_SAND_HALF_WIDTH, type Wall } from './layout';
+import { BASIN, BLUFF, BUNDS, copingAt, DUNE_BASE, DUNE_CRESTS, FAR_RANGE, FOOTPATH, NEAR_PLOTS, OUED, PATH_HALF_WIDTH, SEGUIA_RUNS, WALLS, WET_SAND_HALF_WIDTH, type Wall } from './layout';
 import { EARTH } from './paint-rocks';
 
 /** The land's palette: gold sand, worked soil, pisé, and the lilac of the far ranges. */
@@ -109,7 +109,8 @@ const OUED_RIGHT = smoothPath(OUED.slice(8).reverse(), 6);
 
 /** Is a point on open sand (off the plots, the water, the walls' terraces and the bluff)? */
 function openSand(q: Pt): boolean {
-  if (q.y < 640) return false;
+  const behindBasin = q.y > 500 && q.y < BASIN[0]!.y - 6 && q.x > 600 && q.x < 1010;
+  if (q.y < 640 && !behindBasin) return false;
   const inPlot = NEAR_PLOTS.some((pl) => inside(q, pl));
   return !inPlot && !inside(q, OUED);
 }
@@ -140,6 +141,7 @@ export function* paintGround(p: Painter, rng: Rng): Strokes {
   }
   // the basin terrace round the basin: pale, trodden
   yield* p.parts.glaze(blob(820, 690, 380, 60, rng, { irregularity: 0.25 }), LAND.sandLight, { rng, opacity: 0.4, deform: 0.3, spread: 0.3, edge: 0, granulation: 0.3, blend: 'source-over' });
+  yield* p.parts.glaze(blob(800, 548, 300, 22, rng, { irregularity: 0.25 }), LAND.sandLight, { rng, opacity: 0.3, deform: 0.3, spread: 0.3, edge: 0, granulation: 0.3, blend: 'source-over' });
   // damp sand along the seguia's last run, wider toward the viewer
   const run = smoothPath(poly(SEGUIA_RUNS[2]!), 8);
   const wet = ribbon(run, (t) => WET_SAND_HALF_WIDTH.far + (WET_SAND_HALF_WIDTH.near - WET_SAND_HALF_WIDTH.far) * t);
@@ -161,6 +163,8 @@ function* paintRipples(p: Painter, rng: Rng): Strokes {
   const sets = [
     { x: 560, y: 720 }, { x: 990, y: 704 }, { x: 1150, y: 720 }, { x: 80, y: 720 }, { x: 880, y: 860 }, { x: 900, y: 970 },
     { x: 300, y: 690 }, { x: 1180, y: 660 }, { x: 640, y: 1000 }, { x: 1590, y: 980 }, { x: 1600, y: 760 },
+    // the open sand behind the basin: short, close-set, so the ground reads as receding
+    { x: 660, y: 516 }, { x: 900, y: 528 },
   ];
   for (const c of sets) {
     const s = perspectiveScale(c.y);
