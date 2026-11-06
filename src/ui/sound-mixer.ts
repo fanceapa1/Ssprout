@@ -1,4 +1,4 @@
-import { copySoundscape, defaultSoundscape, SCENERIES, sceneryMix, selectedMix, silentLevels, SOUND_LAYERS, SOUND_PRESETS, STANDARD_LAYERS, type SoundLayer, type SoundLevels } from '../core/soundscape';
+import { copySoundscape, defaultSoundscape, SCENERIES, sceneryMix, selectedMix, silentLevels, SOUND_LAYERS, SOUND_PRESETS, STANDARD_LAYERS, type SoundLayer, type SoundLevels, type SoundSceneryId } from '../core/soundscape';
 import type { UIContext } from './context';
 import { fragment, h, setText } from './dom';
 import { ICONS, type IconName } from './icons';
@@ -17,6 +17,16 @@ const SOUNDS: Record<SoundLayer, { name: string; note: string; icon: IconName }>
   white: { name: 'White noise', note: 'An even veil of sound.', icon: 'noise' },
   brown: { name: 'Brown noise', note: 'A deeper, softer hush.', icon: 'noise' },
   falls: { name: 'The falls', note: 'Water pouring into the pool, a mist of spray.', icon: 'waves' },
+  seguia: { name: 'The seguia', note: 'Water trickling over the walls into the basin.', icon: 'drops' },
+  palms: { name: 'Wind in the palms', note: 'Dry fronds rustling in slow gusts.', icon: 'wind' },
+};
+
+/** A place's own words for a shared layer, shown while its scenery mix is on view. */
+const PLACE_SOUNDS: Partial<Record<SoundSceneryId, Partial<Record<SoundLayer, { name: string; note: string }>>>> = {
+  oasis: {
+    birds: { name: 'Doves and buntings', note: 'A soft coo from the palms, a short song from the walls.' },
+    crickets: { name: 'Insects and geckos', note: 'A midday shimmer; crickets and a gecko after dark.' },
+  },
 };
 
 /** Two collections share playback, but never overwrite each other's remembered mix. */
@@ -67,12 +77,13 @@ export function createSoundMixer(ctx: UIContext) {
   const remembered = new Map<string, number>();
   const controls = SOUND_LAYERS.map((id) => {
     const def = SOUNDS[id], inputId = `sound-level-${id}`;
+    const label = h('span', {}, def.name), note = h('p.sound-note', {}, def.note);
     const toggle = h('button.quiet.sound-toggle', { type: 'button', 'aria-label': def.name, 'aria-pressed': 'false' },
-      fragment(ICONS[def.icon]), h('span', {}, def.name));
+      fragment(ICONS[def.icon]), label);
     const output = h('output.sound-level', { for: inputId, 'aria-hidden': 'true' });
     const input = h('input.duration.sound-range', { id: inputId, type: 'range', min: 0, max: 100, step: 1, 'aria-label': `${def.name} volume` });
     const row = h('div.sound-layer', { 'data-sound': id },
-      h('div.sound-layer-head', {}, toggle, output), h('p.sound-note', {}, def.note), input);
+      h('div.sound-layer-head', {}, toggle, output), note, input);
     input.addEventListener('input', () => {
       const levels = { ...selectedMix(settings(), scenery()).levels, [id]: Number(input.value) };
       setLevels(levels);
@@ -85,7 +96,7 @@ export function createSoundMixer(ctx: UIContext) {
       setLevels(levels);
     });
     rows.append(row);
-    return { id, row, toggle, input, output };
+    return { id, row, toggle, input, output, label, note };
   });
   const play = h('button.quiet.ink.sound-play', { type: 'button' });
   play.addEventListener('click', () => {
@@ -127,6 +138,13 @@ export function createSoundMixer(ctx: UIContext) {
       // DOM, reading and keyboard order all follow the visible palette. Do not move nodes on edits.
       const ordered = [...visibleLayers, ...SOUND_LAYERS.filter((key) => !visibleLayers.includes(key))];
       rows.replaceChildren(...ordered.map((key) => controls.find((c) => c.id === key)!.row));
+      for (const c of controls) {
+        const words = { ...SOUNDS[c.id], ...(isScenery ? PLACE_SOUNDS[id]?.[c.id] : undefined) };
+        setText(c.label, words.name);
+        setText(c.note, words.note);
+        c.toggle.setAttribute('aria-label', words.name);
+        c.input.setAttribute('aria-label', `${words.name} volume`);
+      }
     }
     for (const c of controls) {
       c.row.hidden = !visibleLayers.includes(c.id);
