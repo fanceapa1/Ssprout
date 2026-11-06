@@ -29,7 +29,7 @@ export interface FallsLoops {
 /** The plunge's sample rate for a context rate: a third, at least 8 kHz (Web Audio's floor). */
 export const plungeRate = (sampleRate: number) => Math.max(8000, Math.round(sampleRate / 3));
 
-type Filter = (x: number) => number;
+export type Filter = (x: number) => number;
 
 /** An RBJ biquad (transposed direct form II); the band-pass has a 0 dB peak. */
 export function biquad(type: 'lowpass' | 'highpass' | 'bandpass', hz: number, q: number, sr: number): Filter {
@@ -51,7 +51,7 @@ export function biquad(type: 'lowpass' | 'highpass' | 'bandpass', hz: number, q:
   };
 }
 
-function chain(a: Filter, b: Filter, c?: Filter): Filter {
+export function chain(a: Filter, b: Filter, c?: Filter): Filter {
   return c ? (x) => c(b(a(x))) : (x) => b(a(x));
 }
 
@@ -68,7 +68,7 @@ export function normaliseRms(data: Float32Array, target: number): Float32Array {
  * A slow swell with whole cycles over the loop, so it is seamless: 1 + Σ depth·sin. Evaluated
  * at 4096 steps per loop (a few ms apart), far finer than any audible change.
  */
-function swell(rng: Rng, parts: readonly (readonly [cycles: number, depth: number])[]) {
+export function swell(rng: Rng, parts: readonly (readonly [cycles: number, depth: number])[]) {
   const phases = parts.map(() => rng.range(0, Math.PI * 2));
   let step = -1, value = 1;
   return (u: number) => {
@@ -81,7 +81,7 @@ function swell(rng: Rng, parts: readonly (readonly [cycles: number, depth: numbe
 }
 
 /** Random flutter around 1 (±depth), new targets `hz` times a second with cosine easing. */
-function flutter(rng: Rng, hz: number, depth: number, sr: number): () => number {
+export function flutter(rng: Rng, hz: number, depth: number, sr: number): () => number {
   const step = hz / sr;
   let phase = 0, from = 0, to = rng.range(-1, 1);
   return () => {
@@ -95,7 +95,7 @@ function flutter(rng: Rng, hz: number, depth: number, sr: number): () => number 
  * Render `n` loop samples from a per-sample source, after a settling pre-roll for the filters,
  * then cross-fade the extra tail into the head (`makeLoopable`).
  */
-function render(sr: number, seconds: number, sample: (u: number) => number): Float32Array {
+export function render(sr: number, seconds: number, sample: (u: number) => number): Float32Array {
   const n = Math.round(seconds * sr), fade = Math.round(sr * 0.4), pre = Math.round(sr * 0.5);
   for (let i = 0; i < pre; i++) sample(0);
   const out = new Float32Array(n + fade);

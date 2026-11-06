@@ -1,5 +1,5 @@
 /** Shared sound catalogue and browser-local mixes; no audio or DOM dependencies. */
-export const SOUND_LAYERS = ['water', 'wind', 'birds', 'crickets', 'rain', 'waves', 'fire', 'cafe', 'lofi', 'white', 'brown', 'falls'] as const;
+export const SOUND_LAYERS = ['water', 'wind', 'birds', 'crickets', 'rain', 'waves', 'fire', 'cafe', 'lofi', 'white', 'brown', 'falls', 'seguia', 'palms'] as const;
 export type SoundLayer = (typeof SOUND_LAYERS)[number];
 export type SoundLevels = Record<SoundLayer, number>;
 export const silentLevels = (): SoundLevels => Object.fromEntries(SOUND_LAYERS.map((id) => [id, 0])) as SoundLevels;
@@ -15,12 +15,14 @@ export interface SoundscapeSettings {
   sceneries: Partial<Record<SoundSceneryId, SceneryMix>>;
 }
 export const STANDARD_LAYERS: readonly SoundLayer[] = ['rain', 'waves', 'wind', 'birds', 'fire', 'cafe', 'lofi', 'white', 'brown'];
-/** Sound profiles: the pond and the waterfall each belong to a scenery (`Scenery.sound`); coast is ready for a future scene. */
+/** Sound profiles: the pond, the waterfall and the oasis each belong to a scenery (`Scenery.sound`); coast is ready for a future scene. */
 export const SCENERIES = {
   pond: { name: 'The pond garden', layers: ['water', 'wind', 'birds', 'crickets', 'rain'], levels: levelsWith({ water: 70, wind: 45, birds: 40 }) },
   coast: { name: 'The seaside garden', layers: ['waves', 'wind', 'birds', 'rain'], levels: levelsWith({ waves: 75, wind: 45, birds: 25 }) },
   /** the rocky waterfall's own bed (ADR 0283): the falls, the gorge's wind, stream birds, the kajika at dusk */
   waterfall: { name: 'The rocky waterfall', layers: ['falls', 'wind', 'birds', 'crickets', 'rain'], levels: levelsWith({ falls: 70, wind: 30, birds: 40 }) },
+  /** the Ksar oasis (ADR 0303): the seguia's trickle, palm fronds in the wind, doves and buntings, insects and a gecko */
+  oasis: { name: 'The Ksar oasis', layers: ['seguia', 'palms', 'birds', 'crickets', 'rain'], levels: levelsWith({ seguia: 60, palms: 45, birds: 40 }) },
 } as const satisfies Record<string, { name: string; layers: readonly SoundLayer[]; levels: SoundLevels }>;
 /** An audio scenery (a sound profile); the stored keys of `SoundscapeSettings.sceneries`. Not a `core/sceneries` id. */
 export type SoundSceneryId = keyof typeof SCENERIES;
@@ -88,4 +90,6 @@ export const SOUND_PRESETS = [
   { id: 'shore', name: 'Along the shore', scenery: 'coast', levels: levelsWith({ waves: 80, wind: 40, birds: 25 }) },
   { id: 'falls', name: 'By the falls', scenery: 'waterfall', levels: levelsWith({ falls: 80, wind: 20, birds: 40 }) },
   { id: 'gorge-dusk', name: 'Dusk in the gorge', scenery: 'waterfall', levels: levelsWith({ falls: 55, wind: 15, crickets: 60 }) },
+  { id: 'grove', name: 'In the palm grove', scenery: 'oasis', levels: levelsWith({ seguia: 55, palms: 55, birds: 45 }) },
+  { id: 'oasis-night', name: 'A warm night by the basin', scenery: 'oasis', levels: levelsWith({ seguia: 65, palms: 20, crickets: 55 }) },
 ] as const;

@@ -7,15 +7,18 @@ import { SCENERIES, selectedMix, levelsWith, SOUND_LAYERS, STANDARD_LAYERS, type
  */
 
 /** Kinds of scheduled one-shot events in the soundscape. `gust` is a wind swell, not a voice. */
-export type EventKind = 'plip' | 'chirp' | 'warbler' | 'swallow' | 'cricket' | 'drip' | 'gust' | 'splash' | 'dipper' | 'kajika';
+export type EventKind = 'plip' | 'chirp' | 'warbler' | 'swallow' | 'cricket' | 'drip' | 'gust' | 'splash' | 'dipper' | 'kajika' |
+  'dove' | 'bunting' | 'beeeater' | 'cicada' | 'gecko' | 'frogs';
 
-export const EVENT_KINDS: readonly EventKind[] = ['plip', 'chirp', 'warbler', 'swallow', 'cricket', 'drip', 'gust', 'splash', 'dipper', 'kajika'];
+export const EVENT_KINDS: readonly EventKind[] = ['plip', 'chirp', 'warbler', 'swallow', 'cricket', 'drip', 'gust', 'splash', 'dipper', 'kajika',
+  'dove', 'bunting', 'beeeater', 'cicada', 'gecko', 'frogs'];
 
 /** The events that belong to each place; a custom mix never brings another place's voices. */
 export const PLACE_EVENTS: Readonly<Record<SoundSceneryId | 'standard', readonly EventKind[]>> = {
   pond: ['plip', 'chirp', 'warbler', 'swallow', 'cricket', 'drip', 'gust'],
   coast: ['chirp', 'warbler', 'swallow', 'drip', 'gust'],
   waterfall: ['splash', 'chirp', 'warbler', 'swallow', 'dipper', 'kajika', 'cricket', 'drip', 'gust'],
+  oasis: ['dove', 'bunting', 'beeeater', 'chirp', 'swallow', 'cicada', 'cricket', 'gecko', 'frogs', 'drip', 'gust'],
   standard: ['chirp', 'warbler', 'drip', 'gust'],
 };
 
@@ -58,7 +61,15 @@ export interface MixParams {
 export const EVENT_LAYER: Record<EventKind, SoundLayer> = {
   plip: 'water', gust: 'wind', chirp: 'birds', warbler: 'birds', swallow: 'birds', cricket: 'crickets', drip: 'rain',
   splash: 'falls', dipper: 'birds', kajika: 'crickets',
+  dove: 'birds', bunting: 'birds', beeeater: 'birds', cicada: 'crickets', gecko: 'crickets', frogs: 'crickets',
 };
+
+/** Where a place moves an event to another layer: the oasis's gusts blow through the palms. */
+export const PLACE_EVENT_LAYER: Readonly<Partial<Record<SoundSceneryId, Partial<Record<EventKind, SoundLayer>>>>> = {
+  oasis: { gust: 'palms' },
+};
+export const eventLayer = (kind: EventKind, scenery: SoundSceneryId = 'pond'): SoundLayer =>
+  PLACE_EVENT_LAYER[scenery]?.[kind] ?? EVENT_LAYER[kind];
 
 /** Overall loudness of the finished mix (master gain into a gentle limiter). Keep it low. */
 export const MASTER_LEVEL = 0.8;
@@ -79,6 +90,12 @@ export const BASE_RATES: Readonly<Record<EventKind, number>> = {
   splash: 1.4,
   dipper: 0.3,
   kajika: 0.45,
+  dove: 0.7,
+  bunting: 0.6,
+  beeeater: 0.25,
+  cicada: 1.6,
+  gecko: 0.4,
+  frogs: 0.35,
 };
 
 type Curve = readonly (readonly [hour: number, value: number])[];
@@ -107,6 +124,34 @@ export const DIPPER_CURVE: Curve = [
 /** The kajika's chorus: after dusk most, on through the night, rarely by day. */
 export const KAJIKA_CURVE: Curve = [
   [0, 0.5], [4, 0.35], [5.5, 0.1], [8, 0.05], [16, 0.08], [18, 0.4], [19.5, 1], [21.5, 0.8], [24, 0.5],
+];
+/** The laughing dove coos from first light, most in the morning and again before dusk. */
+export const DOVE_CURVE: Curve = [
+  [0, 0], [5, 0], [6, 0.5], [7.5, 1], [10, 0.8], [13, 0.45], [16, 0.7], [18.5, 0.8], [19.5, 0.2], [20.5, 0], [24, 0],
+];
+/** The house bunting sings by day, most in the early morning. */
+export const BUNTING_CURVE: Curve = [
+  [0, 0], [5, 0], [6, 0.6], [8, 1], [11, 0.6], [14, 0.4], [17, 0.6], [19, 0.3], [20, 0], [24, 0],
+];
+/** Bee-eaters hunt over the grove once the air is warm. */
+export const BEEEATER_CURVE: Curve = [
+  [0, 0], [7, 0], [9, 0.7], [12, 1], [17, 0.8], [19, 0.2], [20, 0], [24, 0],
+];
+/** The insect shimmer of the hot middle of the day. */
+export const CICADA_CURVE: Curve = [
+  [0, 0], [8, 0], [10, 0.4], [12, 0.9], [14, 1], [16, 0.8], [18, 0.3], [19, 0], [24, 0],
+];
+/** Böhme's gecko clicks only after dark, most in the first hours of the night. */
+export const GECKO_CURVE: Curve = [
+  [0, 0.8], [4, 0.5], [5.5, 0.05], [6.5, 0], [19, 0], [20, 0.5], [21.5, 1], [24, 0.8],
+];
+/** The Sahara frogs call from the basin on warm evenings. */
+export const FROG_CURVE: Curve = [
+  [0, 0.3], [3, 0.1], [6, 0], [17, 0], [19, 0.6], [20.5, 1], [22.5, 0.6], [24, 0.3],
+];
+/** The desert air: still at night, a breeze from late morning, strongest in the afternoon. */
+export const OASIS_WIND_CURVE: Curve = [
+  [0, 0.5], [6, 0.45], [10, 0.8], [14, 1], [17, 0.95], [20, 0.7], [24, 0.5],
 ];
 /** Wind is a little livelier by day. */
 export const WIND_CURVE: Curve = [
@@ -156,6 +201,7 @@ export function mixParams({ hour, weather, activity, fauna, soundscape, scenery 
   const eventActivity = paused ? 0.5 : 1;
 
   const rates: Record<EventKind, number> = {
+    ...(Object.fromEntries(EVENT_KINDS.map((kind) => [kind, 0])) as Record<EventKind, number>),
     plip: BASE_RATES.plip * (rain ? 0.3 : 1) * eventActivity,
     chirp: BASE_RATES.chirp * birds * birdWeather * (smallBirds ? 2.2 : 1) * eventActivity,
     warbler: BASE_RATES.warbler * warblerShare * birdWeather * (smallBirds ? 1.5 : 1) * eventActivity,
@@ -163,9 +209,6 @@ export function mixParams({ hour, weather, activity, fauna, soundscape, scenery 
     cricket: BASE_RATES.cricket * night * (rain ? 0.4 : 1) * eventActivity,
     drip: rain ? BASE_RATES.drip * eventActivity : 0,
     gust: BASE_RATES.gust * windDay * (mist ? 0.5 : 1) * (paused ? 0.3 : 1),
-    splash: 0,
-    dipper: 0,
-    kajika: 0,
   };
 
   const mix: MixParams = {
@@ -183,6 +226,7 @@ export function mixParams({ hour, weather, activity, fauna, soundscape, scenery 
   const selected = soundscape ? selectedMix(soundscape, scenery) : null;
   if (selected?.mode !== 'custom') {
     if (scenery === 'waterfall') return waterfallMix(mix, { hour, rain, birdWeather, eventActivity, fauna });
+    if (scenery === 'oasis') return oasisMix(mix, { hour, rain, mist, paused, birdWeather, eventActivity, fauna });
     return scenery === 'coast' ? { ...mix, water: 0, rates: { ...rates, plip: 0, cricket: 0 } } : mix;
   }
   // Chosen sounds are independent of visual weather, wildlife unlocks and the local hour.
@@ -200,7 +244,7 @@ export function mixParams({ hour, weather, activity, fauna, soundscape, scenery 
     eventLevels: { ...levels },
     extra: { ...levels },
     rates: Object.fromEntries(EVENT_KINDS.map((kind) => [kind,
-      levels[EVENT_LAYER[kind]] === 0 || !native.has(kind) ? 0 : BASE_RATES[kind] * eventActivity * (kind === 'swallow' ? 0 : 1),
+      levels[eventLayer(kind, standard ? 'pond' : scenery)] === 0 || !native.has(kind) ? 0 : BASE_RATES[kind] * eventActivity * (kind === 'swallow' ? 0 : 1),
     ])) as Record<EventKind, number>,
   };
 }
@@ -234,6 +278,46 @@ function waterfallMix(mix: MixParams, o: { hour: number; rain: boolean; birdWeat
       dipper: BASE_RATES.dipper * sampleCurve(DIPPER_CURVE, hour) * birdWeather * eventActivity,
       // frogs call more in the rain
       kajika: seenAtFalls(fauna, 'kajika') ? BASE_RATES.kajika * sampleCurve(KAJIKA_CURVE, hour) * (rain ? 1.3 : 1) * eventActivity : 0,
+    },
+  };
+}
+
+/** `oasis:<id>` creatures seen there (`faunaSeenKey`, ADR 0240). */
+const seenAtOasis = (fauna: ReadonlySet<string>, id: string) => fauna.has(`oasis:${id}`);
+
+/**
+ * The Ksar oasis following the garden (ADR 0303): the seguia's trickle for water, the palms'
+ * dry rustle for wind (gusts swell it), doves and buntings by day, a bee-eater over the grove,
+ * a faint midday insect shimmer; after dark crickets, a rare gecko and a distant frog chorus.
+ */
+function oasisMix(mix: MixParams, o: { hour: number; rain: boolean; mist: boolean; paused: boolean; birdWeather: number; eventActivity: number; fauna: ReadonlySet<string> }): MixParams {
+  const { hour, rain, mist, paused, birdWeather, eventActivity, fauna } = o;
+  const breeze = sampleCurve(OASIS_WIND_CURVE, hour);
+  const day = (curve: Curve) => sampleCurve(curve, hour) * birdWeather * eventActivity;
+  const r = mix.rates;
+  const { seguia, palms } = SCENERIES.oasis.levels;
+  return {
+    ...mix,
+    water: 0,
+    // a little of the open air under the fronds
+    wind: mix.wind * 0.35 * breeze,
+    extra: levelsWith({ seguia, palms: palms * (0.4 + 0.6 * breeze) * (mist ? 0.7 : rain ? 1.1 : 1) * (paused ? 0.7 : 1) }),
+    eventLevels: { ...mix.eventLevels, seguia: 100, palms: 100 },
+    rates: {
+      ...r,
+      plip: 0,
+      // the uguisu is a Japanese bird; sparrows chirp in the ksar, fewer than in the garden
+      warbler: 0,
+      chirp: BASE_RATES.chirp * day(BIRD_CURVE) * 0.5,
+      swallow: seenAtOasis(fauna, 'swallows') ? BASE_RATES.swallow * sampleCurve(SWALLOW_CURVE, hour) * (rain ? 0.2 : 1) * eventActivity : 0,
+      cricket: r.cricket * 0.8,
+      gust: BASE_RATES.gust * breeze * 1.2 * (mist ? 0.5 : 1) * (paused ? 0.3 : 1),
+      dove: BASE_RATES.dove * day(DOVE_CURVE) * (seenAtOasis(fauna, 'laughing-dove') ? 1.4 : 1),
+      bunting: BASE_RATES.bunting * day(BUNTING_CURVE),
+      beeeater: BASE_RATES.beeeater * day(BEEEATER_CURVE) * (rain ? 0 : 1),
+      cicada: BASE_RATES.cicada * sampleCurve(CICADA_CURVE, hour) * (rain ? 0 : mist ? 0.5 : 1) * eventActivity,
+      gecko: BASE_RATES.gecko * sampleCurve(GECKO_CURVE, hour) * (seenAtOasis(fauna, 'gecko') ? 1.5 : 1) * eventActivity,
+      frogs: BASE_RATES.frogs * sampleCurve(FROG_CURVE, hour) * (rain ? 1.3 : 1) * (seenAtOasis(fauna, 'sahara-frog') ? 1.5 : 1) * eventActivity,
     },
   };
 }

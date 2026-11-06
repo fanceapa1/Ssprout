@@ -401,6 +401,157 @@ export function kajika(rng: Rng, pan = 0): SoundSpec {
 }
 
 // ---------------------------------------------------------------------------------------------
+// The Ksar oasis (ADR 0303): doves and buntings by day, a bee-eater overhead, a midday insect
+// shimmer, and after dark a gecko's clicks and a distant frog chorus from the basin
+// ---------------------------------------------------------------------------------------------
+
+/** Ups and downs of a pulse train: each pulse eases to `peak` and falls back to `floor`. */
+function pulses(env: Point[], t: number, n: number, period: number, peak: (i: number) => number, floor = EPS): number {
+  if (t > 0) env.push([t, EPS]);
+  for (let i = 0; i < n; i++) {
+    const s = t + i * period;
+    if (i > 0) env.push([s, floor]);
+    env.push([s + period * 0.35, peak(i)], [s + period * 0.85, floor]);
+  }
+  env.push([t + n * period, EPS]);
+  return t + n * period;
+}
+
+/** Relative pitch and length of the laughing dove's five notes: up to the third, then down. */
+export const DOVE_NOTES: readonly (readonly [pitch: number, length: number])[] = [
+  [1, 0.12], [1.05, 0.11], [1.16, 0.17], [1.12, 0.16], [0.97, 0.26],
+];
+
+/**
+ * Laughing dove: a soft, bubbling five-note laugh, "oo-oo-OO-oo-ooo", low (430–540 Hz), the
+ * pitch climbing to the third note and sinking on the long last one. A slow FM wobble makes
+ * the hoot bubble. Now and then the bird says it twice.
+ */
+export function dove(rng: Rng, pan = 0): SoundSpec {
+  const base = rng.range(430, 540);
+  const twice = rng.chance(0.3);
+  const freq: Point[] = [];
+  const env: Point[] = [[0, EPS]];
+  let t = 0;
+  for (let phrase = 0; phrase < (twice ? 2 : 1); phrase++) {
+    const soft = phrase === 0 ? 1 : 0.75;
+    for (const [i, [pitch, length]] of DOVE_NOTES.entries()) {
+      const f = base * pitch * rng.range(0.985, 1.015), dur = length * rng.range(0.9, 1.1);
+      const amp = soft * (i === 2 ? 1 : i === 4 ? 0.8 : 0.7);
+      freq.push([t, f * 1.02], [t + dur * 0.3, f * 1.03], [t + dur, f * 0.93]);
+      if (t > 0) env.push([t, EPS]);
+      env.push([t + Math.max(0.03, dur * 0.3), amp], [t + dur * 0.75, amp * 0.45], [t + dur, EPS]);
+      t += dur + rng.range(0.05, 0.08);
+    }
+    t += rng.range(0.8, 1.1);
+  }
+  const hoot: ToneVoice = { kind: 'tone', wave: 'sine', freq, env, fm: { ratio: 0.06, depth: base * 0.025 } };
+  // a faint second harmonic for the breathy body of the coo
+  const body: ToneVoice = { kind: 'tone', wave: 'sine', freq: freq.map(([at, f]) => [at, f * 2] as const), env: env.map(([at, v]) => [at, Math.max(EPS, v * 0.18)] as const) };
+  return finish({ name: 'dove', gain: 0.07, pan, reverb: 0.35, lowpass: 2200, voices: [hoot, body] });
+}
+
+/**
+ * House bunting: a short, bright, sparrow-like song of 5–8 quick down-slurred notes around
+ * 3–4 kHz, the phrase stepping down a little and the last notes quicker. About a second long.
+ */
+export function bunting(rng: Rng, pan = 0): SoundSpec {
+  const n = rng.int(5, 8);
+  let f = rng.range(3600, 4300);
+  const freq: Point[] = [];
+  const env: Point[] = [[0, EPS]];
+  let t = 0;
+  for (let i = 0; i < n; i++) {
+    const last = i >= n - 2;
+    const dur = last ? rng.range(0.05, 0.07) : rng.range(0.07, 0.1);
+    const amp = i === 0 ? 0.7 : last ? 0.75 : 1;
+    freq.push([t, f * 1.08], [t + dur * 0.4, f], [t + dur, f * rng.range(0.78, 0.86)]);
+    if (t > 0) env.push([t, EPS]);
+    env.push([t + Math.max(0.012, dur * 0.3), amp], [t + dur * 0.7, amp * 0.5], [t + dur, EPS]);
+    t += dur + (last ? rng.range(0.03, 0.045) : rng.range(0.045, 0.07));
+    f *= rng.range(0.95, 0.99);
+  }
+  return finish({
+    name: 'bunting', gain: 0.04, pan, reverb: 0.3, lowpass: 7000,
+    voices: [{ kind: 'tone', wave: 'sine', freq, env, fm: { ratio: 0.5, depth: f * 0.01 } }],
+  });
+}
+
+/** Blue-cheeked bee-eater overhead: 1–3 rolling, burred "prrüp" calls around 2.6 kHz. */
+export function beeEater(rng: Rng, pan = 0): SoundSpec {
+  const calls = rng.int(1, 3);
+  const base = rng.range(2400, 2900);
+  const freq: Point[] = [];
+  const env: Point[] = [[0, EPS]];
+  let t = 0;
+  for (let c = 0; c < calls; c++) {
+    const n = rng.int(6, 9), period = rng.range(0.022, 0.028);
+    const f = base * rng.range(0.97, 1.03);
+    freq.push([t, f * 0.92], [t + n * period * 0.6, f * 1.06], [t + n * period, f * 0.98]);
+    // the burr: the note dips to a fifth between pulses rather than stopping
+    t = pulses(env, t, n, period, (i) => 0.55 + 0.45 * Math.sin((Math.PI * (i + 0.5)) / n), 0.2);
+    t += rng.range(0.25, 0.4);
+  }
+  return finish({
+    name: 'beeeater', gain: 0.03, pan, reverb: 0.4, lowpass: 6000,
+    voices: [{ kind: 'tone', wave: 'sine', freq, env, fm: { ratio: 0.25, depth: base * 0.01 } }],
+  });
+}
+
+/**
+ * Midday insect shimmer: a faint, raspy buzz high in the palms (5–6.5 kHz, a ~70 Hz FM rasp
+ * and a narrow band of noise), swelling in over 1.2–2 s, holding, and fading over ~2 s.
+ */
+export function cicada(rng: Rng, pan = 0): SoundSpec {
+  const f = rng.range(5000, 6500);
+  const rise = rng.range(1.2, 2), hold = rng.range(1.5, 3), fall = rng.range(1.5, 2.4);
+  const shape = (peak: number): Point[] => [[0, EPS], [rise, peak], [rise + hold * 0.5, peak * rng.range(0.75, 0.9)], [rise + hold, peak], [rise + hold + fall, EPS]];
+  return finish({
+    name: 'cicada', gain: 0.012, pan, reverb: 0.3,
+    voices: [
+      { kind: 'tone', wave: 'sine', freq: [[0, f], [rise + hold + fall, f * 0.985]], env: shape(1), fm: { ratio: 70 / f, depth: f * 0.05 } },
+      { kind: 'noise', filter: { type: 'bandpass', freq: f, q: 4 }, env: shape(0.35) },
+    ],
+  });
+}
+
+/**
+ * Böhme's gecko on the warm wall after dark: 3–8 dry clicks, "tchk-tchk-tchk", a little faster
+ * then slower and fading. Each click a quick falling tick at 2.2–3 kHz with a tiny noise burst.
+ */
+export function gecko(rng: Rng, pan = 0): SoundSpec {
+  const n = rng.int(3, 8);
+  const f = rng.range(2200, 3000);
+  const voices: Voice[] = [];
+  let t = 0;
+  for (let i = 0; i < n; i++) {
+    const amp = 1 - 0.4 * (i / Math.max(1, n - 1));
+    voices.push(delay({ kind: 'tone', wave: 'triangle', freq: [[0, f * 1.1], [0.03, f * 0.85]], env: [[0, EPS], [0.003, amp], [0.03, EPS]] }, t));
+    voices.push(delay({ kind: 'noise', filter: { type: 'bandpass', freq: f * 1.4, q: 3 }, env: [[0, EPS], [0.002, amp * 0.5], [0.016, EPS]] }, t));
+    t += rng.range(0.09, 0.13) * (1 + 0.25 * Math.abs(i - n / 2) / n);
+  }
+  return finish({ name: 'gecko', gain: 0.03, pan, reverb: 0.3, lowpass: 6000, voices });
+}
+
+/**
+ * A distant Sahara frog chorus from the basin: two or three frogs, each a rattling, laughing
+ * croak of 6–12 pulses at ~12 a second on a low (650–950 Hz) reedy note, overlapping.
+ */
+export function frogs(rng: Rng, pan = 0): SoundSpec {
+  const voices: Voice[] = [];
+  const count = rng.int(2, 3);
+  let start = 0;
+  for (let k = 0; k < count; k++) {
+    const n = rng.int(6, 12), period = rng.range(0.075, 0.09), f = rng.range(650, 950);
+    const env: Point[] = [[0, EPS]];
+    const end = pulses(env, 0, n, period, (i) => (0.6 + 0.4 * Math.sin((Math.PI * (i + 0.5)) / n)) * (k === 0 ? 1 : 0.7));
+    voices.push(delay({ kind: 'tone', wave: 'triangle', freq: [[0, f], [end * 0.4, f * 1.05], [end, f * 0.95]], env, fm: { ratio: 0.5, depth: f * 0.04 } }, start));
+    start += rng.range(0.4, 0.9);
+  }
+  return finish({ name: 'frogs', gain: 0.035, pan, reverb: 0.55, lowpass: 1800, voices });
+}
+
+// ---------------------------------------------------------------------------------------------
 // Chimes (never loud; long reverb tail)
 // ---------------------------------------------------------------------------------------------
 
@@ -466,7 +617,8 @@ export function completion(rng: Rng, pan = 0): SoundSpec {
   return finish({ name: 'completion', gain: 0.07, pan, reverb: 0.5, voices });
 }
 
-export type RecipeName = 'plip' | 'drip' | 'pour' | 'chirp' | 'warbler' | 'swallow' | 'cricket' | 'splash' | 'dipper' | 'kajika' | 'rin' | 'completion';
+export type RecipeName = 'plip' | 'drip' | 'pour' | 'chirp' | 'warbler' | 'swallow' | 'cricket' | 'splash' | 'dipper' | 'kajika' |
+  'dove' | 'bunting' | 'beeeater' | 'cicada' | 'gecko' | 'frogs' | 'rin' | 'completion';
 
 export const RECIPES: Readonly<Record<RecipeName, (rng: Rng, pan?: number) => SoundSpec>> = {
   plip,
@@ -479,6 +631,12 @@ export const RECIPES: Readonly<Record<RecipeName, (rng: Rng, pan?: number) => So
   splash,
   dipper,
   kajika,
+  dove,
+  bunting,
+  beeeater: beeEater,
+  cicada,
+  gecko,
+  frogs,
   rin: rinBowl,
   completion,
 };

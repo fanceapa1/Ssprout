@@ -3,6 +3,7 @@ import { SOUND_LAYERS, type SoundLayer } from '../core/soundscape';
 import { brownNoise, impulseResponse, makeLoopable, pinkNoise, whiteNoise } from './noise';
 import type { MixParams } from './params';
 import { FALLS_BLEND, FALLS_GAIN, fallsLoops } from './falls';
+import { PALMS_GAIN, SEGUIA_BLEND, SEGUIA_GAIN, palmsLoops, seguiaLoops } from './oasis-bed';
 import { EPS, type Point, type SoundSpec, type Voice } from './recipes';
 import { standardLoop, type CraftedLoop } from './standard-loops';
 
@@ -13,7 +14,8 @@ import { standardLoop, type CraftedLoop } from './standard-loops';
  *   water  (brown → HP 80 → LP 520, slow lapping LFO) ─┐
  *   wind   (pink → BP, LFO-swept; gust swell)          ├─ bed (gain) → warmth (low-shelf) ─┐
  *   rain   (pink → HP 900 → LP 7k)                     ─┤                                  │
- *   extras (waves, fire, café, lo-fi, noise, falls)    ─┘                                  │
+ *   extras (waves, fire, café, lo-fi, noise, falls,    ─┘                                  │
+ *           seguia, palms; gusts swell the palms too)                                      │
  *   events (plip/chirp/…/splash/dipper/kajika) → panner → layer bus → eventsBus ───────────┤
  *                                       └─ send ─→ convolver (procedural IR) → return ─────┤
  *                                                                                          ▼
@@ -46,7 +48,7 @@ export interface AudioBackend {
 export type BackendFactory = () => AudioBackend | null;
 
 /** Looping beds built on first use, each with its gain at 100 %. */
-const EXTRA_GAIN = { waves: 0.035, fire: 0.035, cafe: 0.035, lofi: 0.045, white: 0.012, brown: 0.035, falls: FALLS_GAIN } as const;
+const EXTRA_GAIN = { waves: 0.035, fire: 0.035, cafe: 0.035, lofi: 0.045, white: 0.012, brown: 0.035, falls: FALLS_GAIN, seguia: SEGUIA_GAIN, palms: PALMS_GAIN } as const;
 const EXTRA_BEDS = Object.keys(EXTRA_GAIN) as (keyof typeof EXTRA_GAIN)[];
 
 /** Hard safety cap on simultaneously scheduled sounds (the planner normally stays far below). */
@@ -150,6 +152,7 @@ export function createWebAudioBackend(
   let beds: { water: GainNode; wind: GainNode; windBand: BiquadFilterNode; swell: GainNode; rain: GainNode } | null = null;
   const sources: AudioScheduledSourceNode[] = [];
   const extras = new Map<SoundLayer, GainNode>();
+  let palmSwell: GainNode | null = null;
 
   const loop = (buf: AudioBuffer, offset: number) => {
     const src = ctx.createBufferSource();
@@ -197,6 +200,17 @@ export function createWebAudioBackend(
       spray.gain.value = FALLS_BLEND.spray;
       loop(plunge, 0).connect(gain);
       loop(buffer(f.spray), 0).connect(spray).connect(gain);
+    } else if (id === 'seguia') {
+      const w = seguiaLoops(rng.fork('seguia'), sr);
+      const murmur = ctx.createBuffer(1, w.murmur.length, w.murmurRate);
+      murmur.getChannelData(0).set(w.murmur);
+      const under = ctx.createGain();
+      under.gain.value = SEGUIA_BLEND.murmur;
+      loop(buffer(w.trickle), 0).connect(gain);
+      loop(murmur, 0).connect(under).connect(gain);
+    } else if (id === 'palms') {
+      palmSwell = ctx.createGain();
+      loop(buffer(palmsLoops(rng.fork('palms'), sr)), 0).connect(palmSwell).connect(gain);
     } else {
       const buf = id === 'white' ? whiteBed : id === 'brown' ? brown :
         buffer([standardLoop(id as CraftedLoop, rng.fork(id), sr)]);
@@ -357,6 +371,14 @@ export function createWebAudioBackend(
       g.setValueAtTime(1, t0);
       g.linearRampToValueAtTime(amount, t0 + duration * 0.4);
       g.linearRampToValueAtTime(1, t0 + duration);
+      // the same gust through the grove, a little gentler on the fronds' own swell
+      if (palmSwell) {
+        const p = palmSwell.gain;
+        p.cancelScheduledValues(t0);
+        p.setValueAtTime(1, t0);
+        p.linearRampToValueAtTime(1 + (amount - 1) * 0.8, t0 + duration * 0.4);
+        p.linearRampToValueAtTime(1, t0 + duration);
+      }
     },
     close() {
       for (const s of sources) {
