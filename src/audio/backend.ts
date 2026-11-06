@@ -87,8 +87,8 @@ export function createWebAudioBackend(
   const rng = createRng(seed);
   const sr = ctx.sampleRate;
 
-  const buffer = (channels: Float32Array[]): AudioBuffer => {
-    const b = ctx.createBuffer(channels.length, channels[0]!.length, sr);
+  const buffer = (channels: Float32Array[], rate = sr): AudioBuffer => {
+    const b = ctx.createBuffer(channels.length, channels[0]!.length, rate);
     channels.forEach((data, i) => b.getChannelData(i).set(data));
     return b;
   };
@@ -206,11 +206,12 @@ export function createWebAudioBackend(
       murmur.getChannelData(0).set(w.murmur);
       const under = ctx.createGain();
       under.gain.value = SEGUIA_BLEND.murmur;
-      loop(buffer(w.trickle), 0).connect(gain);
+      loop(buffer(w.trickle.data, w.trickle.rate), 0).connect(gain);
       loop(murmur, 0).connect(under).connect(gain);
     } else if (id === 'palms') {
       palmSwell = ctx.createGain();
-      loop(buffer(palmsLoops(rng.fork('palms'), sr)), 0).connect(palmSwell).connect(gain);
+      const p = palmsLoops(rng.fork('palms'), sr);
+      loop(buffer(p.data, p.rate), 0).connect(palmSwell).connect(gain);
     } else {
       const buf = id === 'white' ? whiteBed : id === 'brown' ? brown :
         buffer([standardLoop(id as CraftedLoop, rng.fork(id), sr)]);

@@ -300,7 +300,7 @@ function oasisMix(mix: MixParams, o: { hour: number; rain: boolean; mist: boolea
     ...mix,
     water: 0,
     // a little of the open air under the fronds
-    wind: mix.wind * 0.35 * breeze,
+    wind: mix.wind * 0.6 * breeze,
     extra: levelsWith({ seguia, palms: palms * (0.4 + 0.6 * breeze) * (mist ? 0.7 : rain ? 1.1 : 1) * (paused ? 0.7 : 1) }),
     eventLevels: { ...mix.eventLevels, seguia: 100, palms: 100 },
     rates: {

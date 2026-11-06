@@ -9,7 +9,7 @@ import { biquad, chain, flutter, normaliseRms, plungeRate, render, swell } from 
  * over a soft airy whoosh. docs/systems/audio.md › Oasis.
  */
 
-export const TRICKLE_S = 11;
+export const TRICKLE_S = 9;
 export const MURMUR_S = 14;
 export const PALMS_S = 17;
 /** Each loop is scaled to this RMS; the backend's gains set the level in the mix. */
@@ -17,17 +17,17 @@ export const OASIS_RMS = 0.16;
 /** How the backend blends the seguia's two loops (linear gain on each). */
 export const SEGUIA_BLEND = { trickle: 1, murmur: 0.55 } as const;
 /** The backend's gains at 100 % (tuned by offline render, docs/systems/audio.md › Oasis). */
-export const SEGUIA_GAIN = 0.05;
-export const PALMS_GAIN = 0.05;
+export const SEGUIA_GAIN = 0.056;
+export const PALMS_GAIN = 0.056;
 
-export interface OasisLoops {
-  /** left and right: one loop, the right half a loop on */
-  trickle: [Float32Array, Float32Array];
-  murmur: Float32Array;
-  /** the murmur's own sample rate (a third of the context's, at least 8 kHz) */
-  murmurRate: number;
-  palms: [Float32Array, Float32Array];
+/** A stereo loop at its own rate (the buffer source resamples it). */
+export interface StereoLoop {
+  data: [Float32Array, Float32Array];
+  rate: number;
 }
+
+/** Nothing in the trickle or the fronds needs more than ~7 kHz: every loop renders at a third of the context rate. */
+export const loopRate = plungeRate;
 
 /** A wide stereo pair from one loop: the right channel is the left half a loop on. */
 function widen(left: Float32Array): [Float32Array, Float32Array] {
@@ -38,27 +38,35 @@ function widen(left: Float32Array): [Float32Array, Float32Array] {
   return [left, right];
 }
 
+interface Bubble { c: number; s: number; cw: number; sw: number; f: number; grow: number; amp: number; decay: number; age: number }
+
 /**
- * Water bubbles: each a sine ringing at 0.45–2.2 kHz whose pitch rises as it decays (a bubble
- * shrinking), starting at zero phase so it never clicks. `density(u)` is bubbles a second.
+ * Water bubbles: each a sine ringing at 0.6–2.4 kHz whose pitch rises as it decays (a bubble
+ * shrinking), from zero phase so it never clicks. A rotating phasor, re-tuned every 32 samples,
+ * stands in for `Math.sin`. `density(u)` is bubbles a second.
  */
 function bubbles(rng: Rng, sr: number, density: (u: number) => number) {
-  const live: { phase: number; f: number; rise: number; amp: number; decay: number }[] = [];
+  const live: Bubble[] = [];
+  const tune = (b: Bubble) => { b.cw = Math.cos((2 * Math.PI * b.f) / sr); b.sw = Math.sin((2 * Math.PI * b.f) / sr); };
   return (u: number) => {
     if (rng.next() < density(u) / sr) {
-      const f = 450 * Math.exp(rng.next() * Math.log(2200 / 450));
+      const f = 600 * Math.exp(rng.next() * Math.log(4));
       // smaller bubbles ring higher, shorter and softer
-      const tau = rng.range(0.6, 1.2) * (0.012 + 9 / f);
-      live.push({ phase: 0, f, rise: rng.range(1.5, 3.5) / tau, amp: rng.range(0.35, 1) * Math.sqrt(700 / f), decay: Math.exp(-1 / (tau * sr)) });
+      const tau = rng.range(0.7, 1.1) * (0.01 + 8 / f);
+      const b = { c: 1, s: 0, cw: 1, sw: 0, f, grow: Math.exp((rng.range(0.1, 0.25) * 32) / (tau * sr)), amp: rng.range(0.6, 1) * Math.sqrt(900 / f), decay: Math.exp(-1 / (tau * sr)), age: 0 };
+      tune(b);
+      live.push(b);
     }
     let out = 0;
     for (let i = live.length - 1; i >= 0; i--) {
       const b = live[i]!;
-      out += b.amp * Math.sin(b.phase);
-      b.phase += (2 * Math.PI * b.f) / sr;
-      b.f *= 1 + (b.rise * 0.06) / sr;
+      out += b.amp * b.s;
+      const c = b.c * b.cw - b.s * b.sw;
+      b.s = b.s * b.cw + b.c * b.sw;
+      b.c = c;
       b.amp *= b.decay;
-      if (b.amp < 1e-3) live.splice(i, 1);
+      if (++b.age % 32 === 0) { b.f *= b.grow; tune(b); }
+      if (b.amp < 0.01) live.splice(i, 1);
     }
     return out;
   };
@@ -70,13 +78,13 @@ function trickleLoop(rng: Rng, sr: number): Float32Array {
   // the flow over the lip varies slowly; the sheet of water flickers quickly
   const flow = swell(rng.fork('flow'), [[1, 0.2], [3, 0.12], [8, 0.06]]);
   const flick = flutter(rng.fork('flick'), 11, 0.3, sr);
-  const drops = bubbles(rng.fork('bubbles'), sr, (u) => 55 * flow(u));
+  const drops = bubbles(rng.fork('bubbles'), sr, (u) => 160 * flow(u));
   const n = rng.fork('sheet'), a = rng.fork('air');
   const pop = render(sr, TRICKLE_S, (u) => drops(u));
   const body = render(sr, TRICKLE_S, (u) => sheet(n.next() * 2 - 1) * flick() * flow(u));
   const top = render(sr, TRICKLE_S, (u) => air(a.next() * 2 - 1) * flow(u));
   normaliseRms(pop, 1);
-  normaliseRms(body, 0.5);
+  normaliseRms(body, 0.65);
   normaliseRms(top, 0.12);
   for (let i = 0; i < pop.length; i++) pop[i] = pop[i]! + body[i]! + top[i]!;
   return normaliseRms(pop, OASIS_RMS);
@@ -98,10 +106,15 @@ function murmurLoop(rng: Rng, sr: number): Float32Array {
 
 /** The palms' gust envelope over a loop, 0.2 (a lull) to 1 (a gust); gusts shorter than lulls. */
 export function frondGust(rng: Rng): (u: number) => number {
-  const parts = [[1, 0.6], [2, 0.3], [5, 0.12]] as const;
+  const parts = [[1, 0.6], [2, 0.3], [5, 0.08]] as const;
   const depth = parts.reduce((s, [, d]) => s + d, 0);
   const raw = swell(rng, parts);
-  return (u) => 0.2 + 0.8 * ((raw(u) - (1 - depth)) / (2 * depth)) ** 1.6;
+  let last = NaN, value = 0;
+  return (u) => {
+    const r = raw(u);
+    if (r !== last) { last = r; value = 0.2 + 0.8 * ((r - (1 - depth)) / (2 * depth)) ** 1.4; }
+    return value;
+  };
 }
 
 function palmsLoop(rng: Rng, sr: number): Float32Array {
@@ -109,13 +122,13 @@ function palmsLoop(rng: Rng, sr: number): Float32Array {
   const papery = chain(biquad('highpass', 1500, 0.7, sr), biquad('bandpass', 3800, 0.5, sr), biquad('lowpass', 7500, 0.7, sr));
   const whoosh = chain(biquad('highpass', 900, 0.7, sr), biquad('lowpass', 4500, 0.7, sr));
   const g = rng.fork('grains'), n = rng.fork('crackle'), w = rng.fork('whoosh');
-  // grains: tiny decaying ticks of noise, two lengths; more of them, and louder, as a gust builds
+  // grains: tiny decaying ticks of noise, two lengths; a gust brings more of them, not louder ones
   const short = Math.exp(-1 / (0.0008 * sr)), long = Math.exp(-1 / (0.003 * sr));
   let es = 0, el = 0;
   const crackle = render(sr, PALMS_S, (u) => {
     const level = gust(u);
-    if (g.next() < (250 + 2400 * level * level) / sr) {
-      if (g.chance(0.6)) es += g.range(0.3, 1) * level; else el += g.range(0.2, 0.7) * level;
+    if (g.next() < (500 + 2000 * level * level) / sr) {
+      if (g.chance(0.6)) es += g.range(0.3, 1); else el += g.range(0.2, 0.7);
     }
     es *= short; el *= long;
     return papery((n.next() * 2 - 1) * (es + el));
@@ -127,13 +140,14 @@ function palmsLoop(rng: Rng, sr: number): Float32Array {
   return normaliseRms(crackle, OASIS_RMS);
 }
 
-/** The seguia's loops for a context rate; deterministic for a given Rng. */
-export function seguiaLoops(rng: Rng, sampleRate: number): Pick<OasisLoops, 'trickle' | 'murmur' | 'murmurRate'> {
-  const rate = plungeRate(sampleRate);
-  return { trickle: widen(trickleLoop(rng.fork('trickle'), sampleRate)), murmur: murmurLoop(rng.fork('murmur'), rate), murmurRate: rate };
+/** The seguia's loops for a context rate (each at its own lower rate); deterministic for a given Rng. */
+export function seguiaLoops(rng: Rng, sampleRate: number): { trickle: StereoLoop; murmur: Float32Array; murmurRate: number } {
+  const rate = loopRate(sampleRate);
+  return { trickle: { data: widen(trickleLoop(rng.fork('trickle'), rate)), rate }, murmur: murmurLoop(rng.fork('murmur'), rate), murmurRate: rate };
 }
 
-/** The palms' loop for a context rate, stereo. */
-export function palmsLoops(rng: Rng, sampleRate: number): [Float32Array, Float32Array] {
-  return widen(palmsLoop(rng.fork('palms'), sampleRate));
+/** The palms' stereo loop for a context rate, at a third of that rate. */
+export function palmsLoops(rng: Rng, sampleRate: number): StereoLoop {
+  const rate = loopRate(sampleRate);
+  return { data: widen(palmsLoop(rng.fork('palms'), rate)), rate };
 }
