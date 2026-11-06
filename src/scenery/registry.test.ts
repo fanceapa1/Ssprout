@@ -58,10 +58,10 @@ describe('the registry', () => {
     }
   });
 
-  it('plays its own sound profile: the pond garden, the falls (ADR 0283); the oasis borrows the pond’s until O7', () => {
+  it('plays its own sound profile: the pond garden, the falls (ADR 0283), the oasis (ADR 0303)', () => {
     expect(JAPANESE_GARDEN.sound).toBe('pond');
     expect(WATERFALL.sound).toBe('waterfall');
-    expect(OASIS.sound).toBe('pond');
+    expect(OASIS.sound).toBe('oasis');
   });
 });
 

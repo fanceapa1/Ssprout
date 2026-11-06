@@ -110,6 +110,6 @@ export const OASIS: Scenery = {
   motion: () => createOasisMotion({ seed: OASIS_ART.seed }),
   // the basin is a still mirror: only the inlet's rings move on it (ADR 0302)
   pondSurface: 0,
-  // the pond garden's bed (still water, wind, birds) until O7 makes the oasis's own
-  sound: 'pond',
+  // the seguia's trickle, palms in the wind, doves and buntings, a gecko after dark (O7, ADR 0303)
+  sound: 'oasis',
 };
