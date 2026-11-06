@@ -158,6 +158,33 @@ test.describe('sound mixer', () => {
     await expect(sheet.getByRole('slider', { name: 'The falls volume' })).toHaveValue('64');
   });
 
+  test('viewing the oasis brings its own sounds: the seguia, the palms, its words and presets, a mix kept per garden (ADR 0303)', async ({ page }) => {
+    await openUi(page, 'scenery=oasis');
+    const sheet = await openMixer(page);
+    await page.evaluate(() => window.sprout!.showScenery('oasis'));
+    expect(await page.evaluate(() => window.sprout!.audio.getScenery())).toBe('oasis');
+    await expect(sheet.locator('.sound-place')).toHaveText('The Ksar oasis');
+    for (const name of ['The seguia', 'Wind in the palms', 'Doves and buntings', 'Insects and geckos', 'Soft rain']) {
+      await expect(sheet.getByRole('slider', { name: `${name} volume`, exact: true })).toBeVisible();
+    }
+    for (const name of ['Pond water', 'The falls', 'Wind in the leaves']) {
+      await expect(sheet.getByRole('slider', { name: `${name} volume`, exact: true })).toBeHidden();
+    }
+    await expect(sheet.getByRole('button', { name: 'In the palm grove', exact: true })).toBeVisible();
+    await expect(sheet.getByRole('button', { name: 'By the falls', exact: true })).toBeHidden();
+    await level(sheet, 'The seguia volume', 42);
+    // back at the pond the shared layers take their own words again
+    await page.evaluate(() => window.sprout!.showScenery('japanese-garden'));
+    await expect(sheet.getByRole('slider', { name: 'Distant birds volume', exact: true })).toBeVisible();
+    await expect(sheet.getByRole('slider', { name: 'Crickets volume', exact: true })).toBeVisible();
+    await expect(sheet.getByRole('slider', { name: 'The seguia volume', exact: true })).toBeHidden();
+    await page.evaluate(() => window.sprout!.showScenery('oasis'));
+    await expect(sheet.getByRole('slider', { name: 'The seguia volume', exact: true })).toHaveValue('42');
+    const saved = await page.evaluate(() => window.sprout!.state().settings.soundscape!.sceneries);
+    expect(saved.oasis!.levels.seguia).toBe(42);
+    expect(saved.pond).toBeUndefined();
+  });
+
   test('real audio graph: every Standard layer is audible, quiet, and zero channels silence scheduled birds', async ({ page }) => {
     await openUi(page);
     await page.evaluate(() => window.sprout!.freeze());
@@ -205,6 +232,39 @@ test.describe('sound mixer', () => {
       for (let i = 1; i < w.length; i++) expect(Math.abs(w[i]! - w[i - 1]!)).toBeLessThan(2.5);
       expect(Math.min(...w)).toBeGreaterThan(Math.min(mean(from.windowsDb.slice(4)), mean(to.windowsDb.slice(4))) - 3);
       // 6 s on, it sounds as the new garden does at that moment
+      expect(Math.abs(mean(m.windowsDb.slice(-8)) - mean(to.windowsDb.slice(-8)))).toBeLessThan(1.5);
+    }
+  });
+
+  test('real audio graph: the oasis sits as calmly as the pond, under the falls, and the switch glides (ADR 0303)', async ({ page }) => {
+    await openUi(page);
+    await page.evaluate(() => window.sprout!.freeze());
+    const r = await page.evaluate(async () => {
+      const api = window.sprout!.audio;
+      return {
+        pond: await api.scene({ scenery: 'pond', seconds: 12 }),
+        falls: await api.scene({ scenery: 'waterfall', seconds: 12 }),
+        oasis: await api.scene({ scenery: 'oasis', seconds: 12 }),
+        night: await api.scene({ scenery: 'oasis', seconds: 12, hour: 23 }),
+        voices: await api.scene({ scenery: 'oasis', seconds: 30, hour: 8, events: true }),
+        there: await api.scene({ scenery: 'pond', to: 'oasis', switchAt: 4, seconds: 12 }),
+        back: await api.scene({ scenery: 'oasis', to: 'pond', switchAt: 4, seconds: 12 }),
+      };
+    });
+    const mean = (w: number[]) => 10 * Math.log10(w.reduce((s, v) => s + 10 ** (v / 10), 0) / w.length);
+    const pond = mean(r.pond.windowsDb.slice(4)), falls = mean(r.falls.windowsDb.slice(4)), oasis = mean(r.oasis.windowsDb.slice(4));
+    // calm enough to study to: within a couple of dB of the pond, never over the falls
+    expect(Math.abs(oasis - pond)).toBeLessThan(2.5);
+    expect(oasis).toBeLessThan(falls);
+    expect(mean(r.night.windowsDb.slice(4))).toBeLessThan(oasis + 0.5);
+    expect(r.oasis.peak).toBeLessThan(0.08);
+    // the morning's voices sound over the bed without ever standing out loudly
+    expect(mean(r.voices.windowsDb.slice(4))).toBeGreaterThan(oasis - 1.5);
+    expect(Math.max(...r.voices.windowsDb)).toBeLessThan(oasis + 6);
+    for (const [m, from, to] of [[r.there, r.pond, r.oasis], [r.back, r.oasis, r.pond]] as const) {
+      const w = m.windowsDb.slice(4);
+      for (let i = 1; i < w.length; i++) expect(Math.abs(w[i]! - w[i - 1]!)).toBeLessThan(2.5);
+      expect(Math.min(...w)).toBeGreaterThan(Math.min(mean(from.windowsDb.slice(4)), mean(to.windowsDb.slice(4))) - 3);
       expect(Math.abs(mean(m.windowsDb.slice(-8)) - mean(to.windowsDb.slice(-8)))).toBeLessThan(1.5);
     }
   });
