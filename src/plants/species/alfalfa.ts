@@ -189,7 +189,7 @@ function drawShoot(p: Painter, rng: Rng, sh: Shoot, i: number, g: number, out: M
       key: `${i}-${j}`,
       base: end,
       angle: angle + rc.turn * 0.3,
-      length: rc.length * lerp(0.25, 1, rk),
+      length: rc.length * rk,
       width: rc.width,
       florets: rc.florets,
       age: rc.age,
