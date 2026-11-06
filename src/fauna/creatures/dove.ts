@@ -30,7 +30,7 @@ export const DOVE_TUNING = {
   walk: 7,
   stride: 3.4,
   /** a pair sits this far apart along a perch (world units at perspective 1) */
-  pair: 10,
+  pair: 12,
   /** seconds between bow-and-coo bouts on a perch */
   bowGap: [4, 12] as const,
   /** keeps this far from what others hold (`choosePerch`'s gap) */
@@ -72,8 +72,8 @@ function colours(): Colours {
     primary: mix(PIGMENTS.sumi, '#6e6a78', 0.4),
     cinnamon: '#b0744e',
     spot: mix(PIGMENTS.sumi, '#3a2a22', 0.5),
-    tail: mix('#8a6e5c', '#8a92a8', 0.2),
-    tailDark: mix(PIGMENTS.sumi, '#5a524c', 0.4),
+    tail: mix('#8a6e5c', '#a8704e', 0.25),
+    tailDark: mix(PIGMENTS.sumi, '#5a4a40', 0.35),
     white: PIGMENTS.petalWhite,
     shade: mix(PIGMENTS.shadow, '#a8704e', 0.2),
     bill: mix(PIGMENTS.sumi, PIGMENTS.stone, 0.25),
@@ -86,7 +86,8 @@ const P = (x: number, y: number): Pt => ({ x: x * U, y: y * U });
 
 /** Standing: the hip above the feet, the neck (head anchor) on the body, the tail's root (hip-relative). */
 const HIP = 3.2 * U;
-const NECK = P(4.0, -8.2);
+const NECK = P(4.5, -7.6);
+const HEAD_K = 0.88;
 const TAIL_ROOT = P(-6.6, -2.9);
 const BODY = [P(6.8, -5.6), P(6.0, -7.8), P(4.4, -9.0), P(2.4, -9.0), P(-1.0, -7.8), P(-4.8, -6.0), P(-7.6, -3.8), P(-7.8, -2.2), P(-4.6, -0.6), P(-0.8, 0.4), P(3.2, 0.0), P(5.8, -2.4)];
 const WING = [P(3.4, -7.8), P(0.4, -8.4), P(-3.6, -7.0), P(-7.2, -4.8), P(-10.2, -3.0), P(-7.2, -2.4), P(-3.0, -2.6), P(0.6, -3.6), P(3.0, -5.2)];
@@ -120,7 +121,7 @@ function paintBody(p: Painter, c: Colours): void {
   p.glaze(belly, c.belly, { rng, opacity: 0.85, edge: 0, darken: 0, deform: 0.2, blend: 'source-over', fade: { angle: -Math.PI / 2, start: 0.3, ragged: 0.8 } });
   // the round form: a cool shade under the belly, lost toward the lit breast
   p.glaze(body, c.shade, { rng, opacity: 0.22, edge: 0, darken: 0, deform: 0.08, fade: { angle: -Math.PI / 2 - 0.4, start: 0.2, amount: 1, ragged: 0.7 } });
-  feathers(p, rng, smoothPolygon([P(6.4, -6.0), P(4.4, -8.4), P(1.6, -6.6), P(2.4, -3.2), P(5.4, -3.0)], 1), { n: 9, size: 1.3 * U, angle: Math.PI / 2, pigments: [c.head, c.breast], opacity: [0.18, 0.32] });
+  feathers(p, rng, smoothPolygon([P(6.4, -5.0), P(4.4, -5.6), P(1.6, -4.6), P(2.4, -2.2), P(5.4, -2.4)], 1), { n: 6, size: 0.9 * U, angle: Math.PI / 2, pigments: [c.head, c.breast], opacity: [0.1, 0.2] });
   // the neck patch: cinnamon, chequered with black spots, across the upper breast
   const patch = smoothPolygon([P(6.4, -7.2), P(4.8, -8.8), P(2.8, -8.6), P(2.6, -6.6), P(4.2, -5.6), P(6.2, -5.6)], 1);
   p.wash(patch, c.cinnamon, { rng, opacity: 0.6, edge: 0.3, deform: 0.25, spread: 0.06, layers: 4, fade: { angle: Math.PI / 2 + 0.3, start: 0.5, ragged: 0.8 } });
@@ -136,8 +137,8 @@ function paintBody(p: Painter, c: Colours): void {
   p.wetInWet(wing, c.back, c.panel, { rng, angle: Math.PI / 2 + 0.35, split: 0.4, softness: 0.4, fingers: 0.5, opacity: 0.9, edge: 0.45, edgeWidth: 0.45, deform: 0.1, granulation: 0.25, flow: 0.4, flowScale: 4 * U, blend: 'source-over' });
   const panel = smoothPolygon([P(1.6, -6.4), P(-2.6, -6.4), P(-6.0, -4.6), P(-5.0, -3.2), P(-1.2, -3.2), P(1.8, -4.4)], 1);
   p.glaze(panel, c.panel, { rng, opacity: 0.55, edge: 0.3, deform: 0.18, fade: { angle: Math.PI, start: 0.6, ragged: 0.8 } });
-  feathers(p, rng, panel, { n: 10, size: 1.4 * U, angle: Math.PI - 0.3, pigments: [c.panel, mix(c.panel, c.ink, 0.25)], opacity: [0.2, 0.4] });
-  feathers(p, rng, smoothPolygon([P(3.0, -7.8), P(-2.6, -7.4), P(-5.6, -5.4), P(-2.0, -6.2), P(2.4, -6.4)], 1), { n: 7, size: 1.5 * U, angle: Math.PI - 0.35, pigments: [c.back, mix(c.back, c.ink, 0.2)], opacity: [0.25, 0.45] });
+  feathers(p, rng, panel, { n: 8, size: 1.2 * U, angle: Math.PI - 0.3, pigments: [mix(c.panel, c.white, 0.3), c.panel], opacity: [0.15, 0.3] });
+  feathers(p, rng, smoothPolygon([P(3.0, -7.8), P(-2.6, -7.4), P(-5.6, -5.4), P(-2.0, -6.2), P(2.4, -6.4)], 1), { n: 7, size: 1.3 * U, angle: Math.PI - 0.35, pigments: [c.back, mix(c.back, c.ink, 0.15)], opacity: [0.18, 0.32] });
   const primaries = smoothPolygon([P(-5.4, -5.4), P(-7.6, -4.6), P(-10.2, -3.0), P(-7.2, -2.4), P(-5.0, -2.8)], 1);
   p.glaze(primaries, c.primary, { rng, opacity: 0.7, edge: 0.4, deform: 0.1, fade: { angle: 0, start: 0.55 } });
   for (let k = 0; k < 3; k++) {
@@ -172,13 +173,17 @@ function paintTail(p: Painter, c: Colours): void {
   const len = 12.6 * U;
   const ax = Math.cos(a);
   const ay = Math.sin(a);
-  const at = (t: number, off: number): Pt => ({ x: ax * len * t - ay * off * U, y: ay * len * t + ax * off * U });
-  const shape = smoothPolygon([at(0, -1.4), at(0.5, -1.5), at(0.97, -1.3), at(1, 0), at(0.97, 1.3), at(0.5, 1.5), at(0, 1.5)], 1);
-  p.wetInWet(shape, c.tail, c.tailDark, { rng, angle: a, split: 0.55, softness: 0.4, fingers: 0.3, opacity: 0.9, edge: 0.4, edgeWidth: 0.4, deform: 0.05, granulation: 0.2, blend: 'source-over' });
-  // the outer feather's white tip, seen from the side under the dark band
-  const tip = smoothPolygon([at(0.8, 0.2), at(0.98, -0.2), at(1.0, 1.2), at(0.82, 1.5)], 1);
-  p.wash(tip, c.white, { rng, opacity: 0.95, edge: 0, darken: 0, deform: 0.12, layers: 4, blend: 'source-over' });
-  p.inkLine([at(0.15, -1.2), at(0.95, -1.0)], { rng, width: 0.16 * U, opacity: 0.25, breaks: 0.5, pigment: c.ink });
+  // `off` across the tail, + toward its underside
+  const at = (t: number, off: number): Pt => ({ x: ax * len * t + ay * off * U, y: ay * len * t - ax * off * U });
+  // narrow at the root, broadening to a rounded, graduated end
+  const shape = smoothPolygon([at(0, -0.9), at(0.45, -1.1), at(0.9, -1.35), at(1, -0.5), at(0.98, 0.8), at(0.88, 1.55), at(0.45, 1.3), at(0, 1.1)], 1);
+  p.wetInWet(shape, c.tail, c.tailDark, { rng, angle: a, split: 0.6, softness: 0.35, fingers: 0.3, opacity: 0.9, edge: 0.4, edgeWidth: 0.4, deform: 0.05, granulation: 0.2, blend: 'source-over' });
+  // the outer feathers: a dark band, then their white ends, seen below the middle pair
+  const band = smoothPolygon([at(0.55, 0.3), at(0.82, 0.1), at(0.84, 1.5), at(0.58, 1.3)], 1);
+  p.glaze(band, c.tailDark, { rng, opacity: 0.6, edge: 0.3, deform: 0.1 });
+  const tip = smoothPolygon([at(0.8, 0.4), at(0.97, 0.3), at(0.97, 1.0), at(0.87, 1.55), at(0.8, 1.35)], 1);
+  p.wash(tip, c.white, { rng, opacity: 0.95, edge: 0, darken: 0, deform: 0.1, layers: 4, blend: 'source-over' });
+  for (const off of [-0.6, 0.35]) p.inkLine([at(0.12, off), at(0.92, off * 1.3)], { rng, width: 0.13 * U, opacity: 0.22, breaks: 0.5, pigment: c.ink });
   // white undertail coverts at the root
   p.dab(at(0.08, 1.0), c.belly, { rng, variant: 'leaf', angle: a, length: 3.6 * U, width: 1.6 * U, opacity: 0.85, layers: 3, blend: 'source-over', edge: 0.1 });
 }
@@ -186,27 +191,31 @@ function paintTail(p: Painter, c: Colours): void {
 /** The tail spread (landing, flight): grey-brown middle, the outer feathers black at the base with broad white corners. */
 function paintFan(p: Painter, c: Colours): void {
   const rng = p.rng;
-  const n = 9;
-  for (let i = 0; i < n; i++) {
-    const k = i / (n - 1) - 0.5;
-    const outer = Math.abs(k) > 0.3;
-    const a = Math.PI + k * 0.72;
-    const len = (11.6 - Math.abs(k) * 1.2) * U;
-    const wd = 2.6 * U;
-    p.dab({ x: 0, y: 0 }, outer ? c.tailDark : c.tail, { rng, variant: 'blade', angle: a, length: len, width: wd, opacity: 0.85, layers: 3, pool: 0.5, edge: 0.4, blend: 'source-over' });
+  // outer pairs first, the middle pair last on top: broad overlapping feathers
+  const order = [-3, 3, -2, 2, -1, 1, 0];
+  for (const i of order) {
+    const k = i / 6;
+    const outer = Math.abs(i) >= 2;
+    const a = Math.PI + k * 0.62;
+    const len = (11.4 - Math.abs(k) * 1.6) * U;
+    const wd = 3.4 * U;
+    p.dab({ x: 0, y: 0 }, outer ? mix(c.tailDark, c.tail, 0.3) : c.tail, { rng, variant: 'petal', angle: a, length: len, width: wd, opacity: 0.88, layers: 3, pool: 0.5, edge: 0.4, blend: 'source-over' });
     if (outer) {
-      const q = { x: Math.cos(a) * len * 0.83, y: Math.sin(a) * len * 0.83 };
-      p.dab(q, c.white, { rng, variant: 'petal', angle: a, length: len * 0.3, width: wd * 1.1, opacity: 1, layers: 3, edge: 0, blend: 'source-over' });
+      const q = { x: Math.cos(a) * len * 0.8, y: Math.sin(a) * len * 0.8 };
+      p.dab(q, c.white, { rng, variant: 'round', angle: a, length: len * 0.24, width: wd * 0.7, opacity: 1, layers: 3, edge: 0, blend: 'source-over' });
     }
   }
-  p.dab({ x: -1.4 * U, y: 0 }, c.back, { rng, variant: 'leaf', angle: Math.PI, length: 4.4 * U, width: 3.4 * U, opacity: 0.7, layers: 3 });
+  p.dab({ x: -0.6 * U, y: 0 }, c.belly, { rng, variant: 'leaf', angle: Math.PI, length: 3.2 * U, width: 2.6 * U, opacity: 0.5, layers: 2 });
 }
 
 /** One leg, anchored at the hip, the foot at the bottom: short and pinkish red. */
 function paintLeg(p: Painter, c: Colours): void {
   const rng = p.rng;
-  p.inkLine([P(0, 0), P(0.15, HIP * 0.55), P(0.1, HIP)], { rng, width: 0.5 * U, opacity: 0.9, breaks: 0, pigment: c.leg, taper: [0.1, 0.1] });
-  p.inkLine([P(-0.9, HIP), P(1.7, HIP + 0.05)], { rng, width: 0.32 * U, opacity: 0.85, breaks: 0, pigment: mix(c.leg, c.ink, 0.25), taper: [0.2, 0.4] });
+  p.inkLine([{ x: 0, y: 0 }, { x: 0.15 * U, y: HIP * 0.55 }, { x: 0.2 * U, y: HIP + 0.1 * U }], { rng, width: 0.55 * U, opacity: 0.9, breaks: 0, pigment: c.leg, taper: [0, 0] });
+  // toes: forward from the foot, one back
+  const toe = mix(c.leg, c.ink, 0.2);
+  p.inkLine([{ x: 0.1 * U, y: HIP }, { x: 1.8 * U, y: HIP + 0.1 * U }], { rng, width: 0.36 * U, opacity: 0.85, breaks: 0, pigment: toe, taper: [0, 0.5] });
+  p.inkLine([{ x: 0.3 * U, y: HIP }, { x: -0.8 * U, y: HIP + 0.05 * U }], { rng, width: 0.3 * U, opacity: 0.8, breaks: 0, pigment: toe, taper: [0, 0.5] });
 }
 
 function paintFlyBody(p: Painter, c: Colours): void {
@@ -217,7 +226,7 @@ function paintFlyBody(p: Painter, c: Colours): void {
   p.glaze(belly, c.belly, { rng, opacity: 0.8, edge: 0, darken: 0, deform: 0.2, blend: 'source-over', fade: { angle: -Math.PI / 2, start: 0.3, ragged: 0.8 } });
   const patch = smoothPolygon([P(7.4, -0.8), P(6.4, -2.4), P(5.0, -2.0), P(5.0, 0.2), P(6.6, 0.6)], 1);
   p.wash(patch, c.cinnamon, { rng, opacity: 0.55, edge: 0.3, deform: 0.25, layers: 3 });
-  for (let i = 0; i < 6; i++) p.dab(P(5.2 + rng.range(0, 2), rng.range(-1.8, 0)), c.spot, { rng, variant: 'round', angle: 0, length: 0.6 * U, width: 0.45 * U, opacity: 0.7, layers: 2 });
+  for (let i = 0; i < 5; i++) p.dab(P(5.4 + rng.range(-0.4, 1.4), rng.range(-0.6, 0.6)), c.spot, { rng, variant: 'round', angle: 0, length: 0.45 * U, width: 0.35 * U, opacity: 0.5, layers: 2 });
   feathers(p, rng, smoothPolygon([P(5.4, -2.4), P(-5.6, -2.4), P(-4.0, -0.6), P(4.6, -0.8)], 1), { n: 10, size: 1.4 * U, angle: Math.PI, pigments: [c.back, mix(c.back, c.ink, 0.2)], opacity: [0.2, 0.4] });
   p.glaze(body, c.shade, { rng, opacity: 0.2, edge: 0, darken: 0, deform: 0.08, fade: { angle: -Math.PI / 2, start: 0.3 } });
 }
@@ -250,18 +259,22 @@ export interface DoveParts {
   leg: Sprite; // anchored at the hip
   flyBody: Sprite; // level, anchored at the body centre
   wing: Sprite; // one raised wing, anchored at the shoulder
+  shadow: Sprite; // a soft cool glaze under the feet
 }
 
 export function paintDove(res: number, seed: number): DoveParts {
   const c = colours();
   return {
+    shadow: paintSprite(res, { w: 18 * U, h: 4 * U, ox: 9 * U, oy: 2 * U }, seed + 7, (p, rng) =>
+      p.wash(smoothPolygon([P(-7.5, 0), P(-3, -1.1), P(3, -1.2), P(7, -0.2), P(3, 1.1), P(-3, 1.0)], 1), PIGMENTS.shadow, { rng, opacity: 0.35, edge: 0, darken: 0, deform: 0.2, spread: 0.15, layers: 5, fade: { angle: Math.PI, start: 0.3, ragged: 0.6 } }),
+    ),
     body: paintSprite(res, { w: 21 * U, h: 13 * U, ox: 11.4 * U, oy: 10.6 * U }, seed, (p) => paintBody(p, c)),
     head: paintSprite(res, { w: 9.6 * U, h: 10.6 * U, ox: 2.6 * U, oy: 6.4 * U }, seed + 1, (p) => paintHead(p, c)),
     tail: paintSprite(res, { w: 14.4 * U, h: 6.4 * U, ox: 13.4 * U, oy: 2.6 * U }, seed + 2, (p) => paintTail(p, c)),
     fan: paintSprite(res, { w: 13.6 * U, h: 12 * U, ox: 12.8 * U, oy: 6 * U }, seed + 3, (p) => paintFan(p, c)),
     leg: paintSprite(res, { w: 4 * U, h: 4.6 * U, ox: 1.6 * U, oy: 0.6 * U }, seed + 4, (p) => paintLeg(p, c)),
     flyBody: paintSprite(res, { w: 17.6 * U, h: 8.6 * U, ox: 8.8 * U, oy: 4.4 * U }, seed + 5, (p) => paintFlyBody(p, c)),
-    wing: paintSprite(res, { w: 13.4 * U, h: 18.6 * U, ox: 10.6 * U, oy: 17.4 * U }, seed + 6, (p) => paintWing(p, c)),
+    wing: paintSprite(res, { w: 16.4 * U, h: 18.6 * U, ox: 13.6 * U, oy: 17.4 * U }, seed + 6, (p) => paintWing(p, c)),
   };
 }
 
@@ -289,9 +302,11 @@ export interface DovePose {
   /** in flight: the wing's height through the beat (1 up … −1 down) and the legs let down to land (0..1) */
   wing: number;
   legsDown: number;
+  /** its shadow on the ground or the stone under it (0 on a frond) */
+  shadow: number;
 }
 
-export const REST_POSE: DovePose = { fly: false, pitch: -0.12, crouch: 0, headX: 0, headY: 0, headRot: 0, tail: 0, fan: 0, legNear: 0.08, legFar: -0.1, liftNear: 0, liftFar: 0, wing: 0, legsDown: 0 };
+export const REST_POSE: DovePose = { fly: false, pitch: -0.12, crouch: 0, headX: 0, headY: 0, headRot: 0, tail: 0, fan: 0, legNear: 0.08, legFar: -0.1, liftNear: 0, liftFar: 0, wing: 0, legsDown: 0, shadow: 0 };
 
 const img = (ctx: Ctx, s: Sprite, alpha = 1) => {
   if (alpha < 1) ctx.globalAlpha *= alpha;
@@ -315,6 +330,12 @@ export function drawDove(ctx: Ctx, parts: DoveParts, q: DovePose): void {
     return;
   }
   const hipY = -(HIP - q.crouch * U);
+  if (q.shadow > 0) {
+    ctx.save();
+    ctx.translate(-1.5 * U, 0.4 * U);
+    img(ctx, parts.shadow, q.shadow);
+    ctx.restore();
+  }
   drawLeg(ctx, parts, { x: -0.6 * U, y: hipY }, q.legFar, q.liftFar, 0.8);
   ctx.save();
   ctx.translate(0, hipY);
@@ -323,6 +344,7 @@ export function drawDove(ctx: Ctx, parts: DoveParts, q: DovePose): void {
   ctx.save();
   ctx.translate(NECK.x + q.headX * U, NECK.y + q.headY * U);
   ctx.rotate(q.headRot - q.pitch * 0.6);
+  ctx.scale(HEAD_K, HEAD_K);
   img(ctx, parts.head);
   ctx.restore();
   ctx.save();
@@ -363,6 +385,7 @@ function drawFlying(ctx: Ctx, parts: DoveParts, q: DovePose): void {
   ctx.save();
   ctx.translate(FLY_NECK.x + q.headX * U, FLY_NECK.y + q.headY * U);
   ctx.rotate(1.05 + q.headRot);
+  ctx.scale(HEAD_K, HEAD_K);
   img(ctx, parts.head);
   ctx.restore();
   img(ctx, parts.flyBody);
@@ -431,8 +454,16 @@ export function groundPoint(g: GroundSpot, rng: Rng, taken: readonly Pt[] = [], 
 
 export const inEllipse = (g: GroundSpot, q: Pt, k = 1) => ((q.x - g.x) / g.rx) ** 2 + ((q.y - g.y) / g.ry) ** 2 <= k * k;
 
+/** At the rim it drinks from the coping's water edge: just behind it on the far rim, on the inner edge of the near one. */
+export function drinkY(w: Pick<FaunaWorld, 'pond'>, p: Perch, x: number): number {
+  const y = alongPerch(p, x);
+  const c = closestOnPolygon({ x, y }, w.pond.world).pt;
+  if (Math.abs(c.y - y) > 8) return y;
+  return c.y > y ? c.y - 0.5 : c.y + 1.2;
+}
+
 function perchPlace(w: Pick<FaunaWorld, 'perspective' | 'perches' | 'pond'>, p: Perch, x: number, drink: boolean): Place {
-  return { kind: p.kind as PlaceKind, perch: p, ground: null, x, y: alongPerch(p, x), scale: perchScale(w, p), depth: p.depth + 0.5, drink };
+  return { kind: p.kind as PlaceKind, perch: p, ground: null, x, y: drink ? drinkY(w, p, x) : alongPerch(p, x), scale: perchScale(w, p), depth: p.depth + 0.5, drink };
 }
 
 function groundPlace(w: Pick<FaunaWorld, 'perspective'>, g: GroundSpot, q: Pt): Place {
@@ -546,6 +577,7 @@ export class Dove extends BaseCreature {
   private drinkRing = 0;
   private first = true;
   private leaveIn = -1;
+  private drank = false;
 
   constructor(
     w: FaunaWorld,
@@ -553,12 +585,13 @@ export class Dove extends BaseCreature {
     readonly stay: number,
     to: Place,
     delay = 0,
+    from: Pt | null = null,
   ) {
     super();
-    const side = rng.chance(0.5) ? -1 : 1;
-    const start = entryPoint(w.view, rng, 0.04, 0.3, side);
-    // a follower comes in a little behind its mate
-    this.pos = { x: start.x + side * delay * 60, y: start.y + rng.range(-10, 10) };
+    const side = from ? Math.sign(from.x - (w.view.x + w.view.w / 2)) || 1 : rng.chance(0.5) ? -1 : 1;
+    const start = from ?? entryPoint(w.view, rng, 0.04, 0.3, side);
+    // a follower comes in from the same side, a little behind its mate
+    this.pos = { x: start.x + side * delay * 60, y: start.y + rng.range(-12, 12) };
     this.scale = to.scale;
     this.flyTo(to, false, 'arrive');
     this.sync();
@@ -654,6 +687,7 @@ export class Dove extends BaseCreature {
     const sf = w.speed;
     const span = this.first ? DOVE_TUNING.firstSpell : DOVE_TUNING.spell;
     this.first = false;
+    this.drank = false;
     this.spellFor = rangeOf(this.rng, [...span]) / sf;
     // a pair sits facing the same way, or now and then toward each other
     if (this.mate && !this.lead && this.mate.place && this.rng.chance(0.75)) this.facing = this.mate.facing;
@@ -663,6 +697,8 @@ export class Dove extends BaseCreature {
 
   private setAct(a: Act, t: number): void {
     this.act = a;
+    // the state names what it is doing there (the spell's timer runs on)
+    this.state = a === 'drink' ? 'drink' : a === 'bow' ? 'coo' : this.place?.kind === 'ground' ? 'walk' : 'perch';
     this.actT = 0;
     this.actFor = t;
   }
@@ -689,7 +725,7 @@ export class Dove extends BaseCreature {
       const k = Math.min(1, (v * dt) / Math.max(1e-6, d));
       this.pos = { x: lerp(this.pos.x, this.walkTo.x, k), y: lerp(this.pos.y, this.walkTo.y, k) };
       this.walkPh += (v * dt) / (DOVE_TUNING.stride * p.scale);
-      if (p.ground) this.place = { ...p, x: this.pos.x, y: this.pos.y, depth: this.pos.y + 0.5, scale: w.perspective(this.pos.y, this.pos.x) };
+      this.place = p.ground ? { ...p, x: this.pos.x, y: this.pos.y, depth: this.pos.y + 0.5, scale: w.perspective(this.pos.y, this.pos.x) } : { ...p, x: this.pos.x, y: this.pos.y };
       this.scale = this.place!.scale;
       if (d < 0.3) this.endAct(w);
       return;
@@ -731,8 +767,11 @@ export class Dove extends BaseCreature {
       this.setAct('bow', 1.15 / sf);
       return;
     }
-    if (this.act === 'drink') this.drinks++;
-    if (this.leaving && this.lead) {
+    if (this.act === 'drink') {
+      this.drinks++;
+      this.drank = true;
+    }
+    if (this.leaving && (this.lead || this.mate?.state === 'depart')) {
       this.depart(w);
       return;
     }
@@ -740,7 +779,7 @@ export class Dove extends BaseCreature {
       this.move(w);
       return;
     }
-    if (p.drink && this.act === 'look' && this.drinks === 0) {
+    if (p.drink && this.act === 'look' && !this.drank) {
       this.setAct('drink', rangeOf(rng, [...DOVE_TUNING.drink]) / sf);
       this.drinkRing = 0;
       return;
@@ -766,8 +805,11 @@ export class Dove extends BaseCreature {
     if (r < 0.22 && p.kind !== 'rim') this.startBows(rng.int(2, 4), sf);
     else if (r < 0.34 && p.perch && p.perch.spread > 4) {
       const to = clamp(this.pos.x + rng.range(-1, 1) * 5 * p.scale, p.perch.x - p.perch.spread, p.perch.x + p.perch.spread);
-      if (!this.mate?.place || Math.abs(to - this.mate.pos.x) > DOVE_TUNING.pair * p.scale * 0.7) {
-        this.walkTo = { x: to, y: alongPerch(p.perch, to) };
+      // a pair keeps close: never onto the mate, never away from it
+      const gap = DOVE_TUNING.pair * p.scale;
+      const m = this.mate?.place?.perch === p.perch && !this.mate.flight ? Math.abs(to - this.mate.pos.x) : null;
+      if (m === null || (m > gap * 0.75 && m < gap * 1.4)) {
+        this.walkTo = { x: to, y: p.drink ? drinkY(w, p.perch, to) : alongPerch(p.perch, to) };
         this.setAct('step', 99);
       } else this.setAct('rest', rng.range(1, 3) / sf);
     } else if (r < 0.42) {
@@ -808,11 +850,13 @@ export class Dove extends BaseCreature {
   }
 
   private depart(w: FaunaWorld): void {
-    const to = exitPoint(w.view, this.pos, this.rng, 160, this.rng.chance(0.5) ? -1 : 1);
+    // off the nearer side; a follower goes the way its mate went
+    const side = this.mate?.state === 'depart' ? Math.sign(this.mate.x - this.x) || undefined : undefined;
+    const to = exitPoint(w.view, this.pos, this.rng, 160, side);
     this.place = null;
     this.flyTo(null, true, 'depart', to);
     const m = this.mate;
-    if (m && m.place && !m.leaving) {
+    if (m && m.place && !m.flight && m.leaveIn < 0) {
       m.leaving = true;
       m.leaveIn = this.rng.range(0.3, 1) / w.speed;
     }
@@ -870,13 +914,14 @@ export class Dove extends BaseCreature {
         // bursts of beats, then a glide on bowed wings
         const burst = Math.sin(this.flap * 0.7 + this.id) > -0.2 || (landing && f.u > 0.55);
         const glide = landing && f.u > 0.55 ? 1 : burst ? 0 : 1;
-        q.wing = glide ? -0.22 + 0.04 * Math.sin(t * 3) : 0.2 + 0.8 * ph;
+        q.wing = glide ? -0.3 + 0.04 * Math.sin(t * 3) : 0.2 + 0.8 * ph;
         q.fan = glide ? 0.35 : 0.2;
       }
       return q;
     }
     const p = this.place;
     q.headRot = this.headTurn;
+    q.shadow = p?.kind === 'ground' ? 1 : p?.kind === 'frond' ? 0 : 0.6;
     if (p?.kind === 'ground' || this.act === 'step') {
       q.pitch = 0.1;
       q.tail = 0.05;
@@ -925,7 +970,7 @@ export class Dove extends BaseCreature {
         q.crouch = 1.0 * down;
         q.headRot = 1.25 * down + sip * 0.3;
         q.headX = 1.6 * down;
-        q.headY = (2.6 + sip) * down;
+        q.headY = (1.5 + sip) * down;
         q.tail = -0.45 * down;
         q.legNear = 0.25 * down;
         q.legFar = -0.05;
@@ -971,7 +1016,7 @@ const dove: CreatureDef = {
     const a = new Dove(w, rng.fork('a'), stay, first);
     if (n === 1) return [a];
     const brng = rng.fork('b');
-    const b = new Dove(w, brng, stay + 5, besidePlace(w, first, side, brng), brng.range(0.4, 1));
+    const b = new Dove(w, brng, stay + 5, besidePlace(w, first, side, brng), brng.range(0.4, 1), { x: a.x, y: a.y });
     a.mate = b;
     b.mate = a;
     b.lead = false;
