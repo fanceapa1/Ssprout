@@ -641,6 +641,8 @@ export function drawFlying(ctx: Ctx, parts: BuntingParts, flap: number, heading:
   ctx.drawImage(s.img as CanvasImageSource, -s.ox, -s.oy + lift, s.w, s.h);
 }
 
+const oasisLike = (w: Pick<FaunaWorld, 'perches'>) => w.perches.some((p) => p.kind === 'wall' || p.kind === 'rim');
+
 const bunting: CreatureDef = {
   kind: 'bunting',
   title: 'house bunting',
@@ -649,8 +651,10 @@ const bunting: CreatureDef = {
   variants: BUNTING_SEXES,
   // a pair by day; they go to roost in the walls at dusk
   resident: (n, mode) => (n > 0 && !mode.night ? 2 : 0),
-  needs: (w) => buntingPerches(w).length > 0,
+  // a wall or the basin's rim: the oasis only (the other gardens' rocks alone are not its country)
+  needs: oasisLike,
   spawn(w, s) {
+    if (!oasisLike(w)) return [];
     const rng = w.rng.fork(`bunting:${s.seed}:${w.t.toFixed(3)}:${s.index}:${w.creatures.length}`);
     const held = heldSpots(w);
     const out: Bunting[] = [];
