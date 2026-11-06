@@ -657,7 +657,7 @@ default; it follows `settings:changed` and the session/plant/fauna events on the
 `unlock()` inside a user gesture. Details: `docs/systems/audio.md`.
 
 `core/soundscape.ts` owns `SoundLayer`, `SoundLevels` (0–100), `SoundSceneryId` (the audio sceneries
-`pond`/`coast`/`waterfall`, not a garden's `SceneryId`; ADR 0240), `SCENERIES` and
+`pond`/`coast`/`waterfall`/`oasis`, not a garden's `SceneryId`; ADR 0240, 0303), `SCENERIES` and
 `SoundscapeSettings = { collection: 'standard'|'scenery', volume: number, standard: SoundLevels,
 sceneries: Partial<Record<SoundSceneryId, { mode: 'garden'|'custom', levels: SoundLevels }>> }`.
 `readSoundscape(v)` reads a stored or patched mix as a complete copy, a missing layer as 0.
