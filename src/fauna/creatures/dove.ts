@@ -193,17 +193,19 @@ function paintFan(p: Painter, c: Colours): void {
   const rng = p.rng;
   // outer pairs first, the middle pair last on top: broad overlapping feathers
   const order = [-3, 3, -2, 2, -1, 1, 0];
+  const ray = (i: number) => {
+    const a = Math.PI + (i / 6) * 0.66;
+    return { a, len: (11.4 - Math.abs(i / 6) * 1.6) * U, at: (s: number) => ({ x: Math.cos(a) * 11 * U * s, y: Math.sin(a) * 11 * U * s }) };
+  };
   for (const i of order) {
-    const k = i / 6;
-    const outer = Math.abs(i) >= 2;
-    const a = Math.PI + k * 0.62;
-    const len = (11.4 - Math.abs(k) * 1.6) * U;
-    const wd = 3.4 * U;
-    p.dab({ x: 0, y: 0 }, outer ? mix(c.tailDark, c.tail, 0.3) : c.tail, { rng, variant: 'petal', angle: a, length: len, width: wd, opacity: 0.88, layers: 3, pool: 0.5, edge: 0.4, blend: 'source-over' });
-    if (outer) {
-      const q = { x: Math.cos(a) * len * 0.8, y: Math.sin(a) * len * 0.8 };
-      p.dab(q, c.white, { rng, variant: 'round', angle: a, length: len * 0.24, width: wd * 0.7, opacity: 1, layers: 3, edge: 0, blend: 'source-over' });
-    }
+    const { a, len } = ray(i);
+    p.dab({ x: 0, y: 0 }, Math.abs(i) >= 2 ? mix(c.tailDark, c.tail, 0.3) : c.tail, { rng, variant: 'petal', angle: a, length: len, width: 3.4 * U, opacity: 0.88, layers: 3, pool: 0.5, edge: 0.4, blend: 'source-over' });
+  }
+  // the corners last, over the middle pair: a black band, then broad white ends
+  for (const i of [-3, -2, 2, 3]) {
+    const { a, at } = ray(i);
+    p.dab(at(0.5), c.tailDark, { rng, variant: 'petal', angle: a, length: 3.4 * U, width: 2.4 * U, opacity: 0.6, layers: 2, edge: 0.3 });
+    p.dab(at(0.74), c.white, { rng, variant: 'petal', angle: a, length: 3.4 * U, width: 2.8 * U, opacity: 0.97, layers: 4, edge: 0.15, pool: 0.3, blend: 'source-over' });
   }
   p.dab({ x: -0.6 * U, y: 0 }, c.belly, { rng, variant: 'leaf', angle: Math.PI, length: 3.2 * U, width: 2.6 * U, opacity: 0.5, layers: 2 });
 }
