@@ -7,7 +7,7 @@
 import { createRng } from '../../core/rng';
 import type { PaintStep, SceneArt } from '../../scene/background';
 import type { Scenery, SceneryView } from '../types';
-import { OASIS_WILDLIFE } from './fauna';
+import { OASIS_WILDLIFE } from './wildlife';
 import { OASIS_FLORA } from './flora';
 import { oasisScene } from './geometry';
 import { FOCUS, FOOTPATH, OASIS_AMBIENCE, OASIS_HABITAT_WORDS } from './layout';

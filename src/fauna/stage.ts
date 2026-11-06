@@ -1,7 +1,8 @@
 /**
  * Small painted stages for looking at creatures on their own (studio), with a FaunaSim running on
- * top: the pond (a perch rock, stepping stones, flowering plants, a lily pad) and the falls (a
- * plunge pool with foam at the foot, a stream, a ledge and wet rocks; ADR 0248).
+ * top: the pond (a perch rock, stepping stones, flowering plants, a lily pad), the falls (a
+ * plunge pool with foam at the foot, a stream, a ledge and wet rocks; ADR 0248), and a crop of the
+ * oasis's own painting with its real wildlife targets (ADR 0304).
  */
 import { createRng } from '../core/rng';
 import type { PlantInstance } from '../core/state';
@@ -10,6 +11,10 @@ import type { LayerId } from '../render/types';
 import type { SceneGeometry, Slot } from '../scene/geometry';
 import { JAPANESE_FAUNA } from '../scenery/japanese-garden/fauna';
 import { WATERFALL_FAUNA } from '../scenery/waterfall/fauna';
+import { OASIS } from '../scenery/oasis';
+import { OASIS_FAUNA } from '../scenery/oasis/fauna';
+import { paintSceneSync } from '../scene/background';
+import type { Rect } from '../render/viewport';
 import type { Show } from './creatures/lib/def';
 import type { Foam, SceneryFauna } from './habitat';
 import { ledgePerch, perchesOf } from './targets';
@@ -23,6 +28,28 @@ export interface StageSpec {
   /** world units shown */
   w: number;
   h: number;
+  /** the oasis stage: the crop's top-left in the oasis's world (default `OASIS_STAGE`'s) */
+  x?: number;
+  y?: number;
+}
+
+/** The oasis stage's default crop: the middle tower, the walls' ends, the basin, the grove's edge and the near plots. */
+export const OASIS_STAGE: Required<StageSpec> = { x: 360, y: 120, w: 880, h: 790 };
+
+/** The world rect a stage shows. */
+export function stageView(spec: StageSpec, kind: NonNullable<Show['stage']>): Rect {
+  if (kind !== 'oasis') return { x: 0, y: 0, w: spec.w, h: spec.h };
+  return { x: spec.x ?? OASIS_STAGE.x, y: spec.y ?? OASIS_STAGE.y, w: spec.w, h: spec.h };
+}
+
+/** The oasis's painting of `view` on white at `k` px per unit (no sky plate: paper and sky are the light's). */
+function paintOasisBackdrop(canvas: AnyCanvas, view: Rect, k: number, seed: number): void {
+  const res = paintSceneSync({ ...OASIS.art, seed }, { rect: view, scale: k });
+  const ctx = canvas.getContext('2d') as CanvasRenderingContext2D;
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(res.canvas as CanvasImageSource, 0, 0, canvas.width, canvas.height);
 }
 
 export function stageScene({ w, h }: StageSpec): SceneGeometry {
@@ -144,6 +171,12 @@ const FLOWER: TargetSpecies = { pollinators: true, habitats: ['meadow', 'shore']
 const LILY: TargetSpecies = { pollinators: false, habitats: ['water'], size: { w: 46, h: 20 }, anchor: { x: 0.5, y: 0.6 }, bloomColor: PIGMENTS.petalWhite };
 const stageLookup = (id: string) => (id === 'stage-lily' ? LILY : id === 'stage-flower' ? FLOWER : undefined);
 
+/** Flowers in the oasis's plots, banks and sand slots, lilies in its basin: enough plants to unlock every row. */
+function oasisPlants(): PlantInstance[] {
+  const slots = OASIS.geometry.slots.filter((s) => s.habitat === 'meadow' || s.habitat === 'shore' || s.habitat === 'path' || s.id.startsWith('basin-'));
+  return stagePlants({ ...OASIS.geometry, slots }).map((p) => ({ ...p, sceneryId: 'oasis' }));
+}
+
 function stagePlants(scene: SceneGeometry): PlantInstance[] {
   return scene.slots.map((s, i) => ({
     id: `stage-${i}`,
@@ -242,6 +275,7 @@ const backdrops = new Map<string, AnyCanvas>();
 export class Stage {
   readonly sim: FaunaSim;
   readonly scene: SceneGeometry;
+  readonly view: Rect;
   private backdrop: AnyCanvas | null = null;
   private key = '';
   respawnAt = -1;
@@ -252,8 +286,14 @@ export class Stage {
     readonly only: FaunaKind | null,
     readonly kind: NonNullable<Show['stage']> = 'pond',
   ) {
-    const view = { x: 0, y: 0, w: spec.w, h: spec.h };
-    if (kind === 'falls') {
+    const view = stageView(spec, kind);
+    this.view = view;
+    if (kind === 'oasis') {
+      // the oasis's real geometry and targets; its plots and banks flower so pollinators come
+      this.scene = OASIS.geometry;
+      this.sim = new FaunaSim({ scene: this.scene, seed, auto: only === null, view, habitat: OASIS.fauna });
+      this.sim.setGarden(oasisPlants(), OASIS_FAUNA.filter((f) => only === null || f.kind === only), stageLookup);
+    } else if (kind === 'falls') {
       const falls = fallsStage(spec);
       this.scene = falls.scene;
       this.sim = new FaunaSim({ scene: this.scene, seed, auto: only === null, view, habitat: falls.habitat });
@@ -285,11 +325,12 @@ export class Stage {
     const key = `${canvas.width}x${canvas.height}`;
     if (!this.backdrop || this.key !== key) {
       // the backdrop doesn't depend on the seed: shared across reseeds and stages of one size
-      const shared = `${this.kind}:${this.spec.w}x${this.spec.h}@${key}`;
+      const shared = `${this.kind}:${this.view.x},${this.view.y},${this.spec.w}x${this.spec.h}@${key}`;
       let bd = backdrops.get(shared);
       if (!bd) {
         bd = makeCanvas(canvas.width, canvas.height);
-        if (this.kind === 'falls') paintFallsBackdrop(bd, this.spec, k, 1);
+        if (this.kind === 'oasis') paintOasisBackdrop(bd, this.view, k, OASIS.art.seed);
+        else if (this.kind === 'falls') paintFallsBackdrop(bd, this.spec, k, 1);
         else paintBackdrop(bd, this.scene, this.spec, k, 1);
         backdrops.set(shared, bd);
       }
@@ -301,7 +342,7 @@ export class Stage {
     const ctx = canvas.getContext('2d')!;
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.drawImage(this.backdrop as CanvasImageSource, 0, 0);
-    ctx.setTransform(k, 0, 0, k, 0, 0);
+    ctx.setTransform(k, 0, 0, k, -this.view.x * k, -this.view.y * k);
     const layers: LayerId[] = ['underwater', 'waterSurface'];
     for (const l of layers) {
       ctx.save();

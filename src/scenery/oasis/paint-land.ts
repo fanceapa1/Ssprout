@@ -387,6 +387,10 @@ export function* paintWalls(p: Painter, rng: Rng): Strokes {
 // ── the near foreground ───────────────────────────────────────────────────────────────────
 
 /** Where the bund meets the seguia: a small stone-lined channel letting water into the left plot. */
+/** Stones fallen with the earth into the basin's near-left corner, and the near ground's stones: foot x, y, width (h = 0.6 w, 0.52 w). */
+export const FALLEN_STONES: readonly (readonly [number, number, number])[] = [[500, 652, 12], [488, 640, 9], [509, 628, 8]];
+export const NEAR_STONES: readonly (readonly [number, number, number])[] = [[40, 1000, 64], [1160, 1004, 46], [470, 680, 22], [1000, 990, 22], [1230, 740, 18]];
+
 const CULVERT = { from: { x: 372, y: 794 }, to: { x: 324, y: 808 } };
 
 /** Pale dry grass (halfa): tufts along the bund, the plots' edges and the sheet's bottom. */
@@ -418,9 +422,9 @@ export function* paintForeground(p: Painter, rng: Rng): Strokes {
   }
   // earth fallen from the middle wall's end into the basin's near-left corner
   yield* p.parts.wash([{ x: 486, y: 612 }, { x: 510, y: 610 }, { x: 518, y: 646 }, { x: 512, y: 666 }, { x: 480, y: 664 }, { x: 474, y: 636 }], mix(LAND.pise, LAND.soil, 0.4), { rng, opacity: 0.6, deform: 0.15, spread: 0.2, edge: 0.15, granulation: 0.5 });
-  for (const [x, y, w] of [[500, 652, 12], [488, 640, 9], [509, 628, 8]] as const) yield* p.parts.stone({ x, y, w, h: w * 0.6 }, { rng, pigment: mix(LAND.pise, '#c9ae8a', 0.5), warm: 0.6, moss: 0, ink: 0.1, light: LIGHT });
+  for (const [x, y, w] of FALLEN_STONES) yield* p.parts.stone({ x, y, w, h: w * 0.6 }, { rng, pigment: mix(LAND.pise, '#c9ae8a', 0.5), warm: 0.6, moss: 0, ink: 0.1, light: LIGHT });
   yield* paintJar(p, rng.fork('jar'), { x: 655, y: 900 });
-  for (const [x, y, w] of [[40, 1000, 64], [1160, 1004, 46], [470, 680, 22], [1000, 990, 22], [1230, 740, 18]] as const) {
+  for (const [x, y, w] of NEAR_STONES) {
     yield* p.parts.stone({ x, y, w, h: w * 0.52 }, { rng, pigment: mix('#c9ae8a', EARTH.lit, 0.3), warm: 0.6, moss: 0, ink: 0.12, light: LIGHT });
   }
   for (const [x, y, h] of TUFTS) {

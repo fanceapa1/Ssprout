@@ -7,7 +7,7 @@ import { createPainter } from '../paint';
 import type { StudioEntry, StudioSection } from '../studio/types';
 import { drawKoiStraight, KOI_PATTERNS, paintKoi } from './creatures/koi';
 import { creatureDefs } from './creatures/registry';
-import { multiplyPaper, Stage, type StageSpec } from './stage';
+import { multiplyPaper, OASIS_STAGE, Stage, type StageSpec } from './stage';
 import type { Sprite } from './sprite';
 import type { FaunaKind } from './tuning';
 
@@ -119,6 +119,13 @@ sections.splice(1, 0, {
   title: 'Fauna · the falls (the waterfall’s table, scheduled visits)',
   order: 301,
   entries: [aliveEntry('all', 'the waterfall’s creatures that are painted so far, real pacing; still pool, foam, stream, ledge', null, { w: 900, h: 560 }, 720, 448, 'falls')],
+});
+
+sections.splice(2, 0, {
+  id: 'fauna-oasis',
+  title: 'Fauna · the oasis (the oasis’s table over its painting, scheduled visits)',
+  order: 302,
+  entries: [aliveEntry('all', 'the oasis’s creatures that are painted so far, real pacing, over the middle of its painting: basin, walls, a tower, the grove’s edge, the plots', null, OASIS_STAGE, 720, Math.round((720 * OASIS_STAGE.h) / OASIS_STAGE.w), 'oasis')],
 });
 
 export default sections;
