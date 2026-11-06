@@ -115,7 +115,7 @@ export function racemes(p: Painter, rng: Rng, list: readonly Raceme[], o: { bud:
     const bloom = mix(o.bloom, o.old, rc.age);
     // a soft body under the florets, so the cluster reads as one compact head
     const mid = clamp01(rc.open(0.5));
-    p.dabInto(L, rc.base, mix(o.bud, mix(bloom, o.pale, 0.35), mid), { rng: r.fork('body'), variant: 'petal', angle: rc.angle, length: rc.length * 1.08, width: rc.width * 2.1 * grown, pool: 0.3, poolSide: shadowSide(rc.angle), basePool: 0.2, layers: 1 });
+    p.dabInto(L, rc.base, mix(o.bud, mix(bloom, o.pale, 0.6), mid), { rng: r.fork('body'), variant: 'petal', angle: rc.angle, length: rc.length * 1.02, width: rc.width * 1.7 * grown, pool: 0.3, poolSide: shadowSide(rc.angle), basePool: 0.2, layers: 1 });
     rc.florets.forEach((f, j) => {
       const half = rc.width * lerp(1, 0.5, f.v) * grown;
       const c = { x: rc.base.x + ca * rc.length * f.v + nx * f.u * half, y: rc.base.y + sa * rc.length * f.v + ny * f.u * half };
@@ -128,7 +128,7 @@ export function racemes(p: Painter, rng: Rng, list: readonly Raceme[], o: { bud:
       p.dabInto(L, c, pig, { rng: r.fork(`f-${j}`), variant: 'petal', angle: a, length: size * 1.35, width: size * 1.05, pool: 0.35, poolSide: shadowSide(a), basePool: 0.25, layers: 1 });
       if (ok > 0.4) {
         const kk = smooth((ok - 0.4) / 0.6);
-        p.dabInto(L, add(c, a, -size * 0.1), mix(o.keel, bloom, 0.3), { rng: r.fork(`k-${j}`), variant: 'round', angle: a, length: size * 0.6 * kk, width: size * 0.45 * kk, pool: 0, basePool: 0, layers: 1 });
+        p.dabInto(L, add(c, a, -size * 0.1), mix(o.keel, bloom, 0.15), { rng: r.fork(`k-${j}`), variant: 'round', angle: a, length: size * 0.7 * kk, width: size * 0.42 * kk, pool: 0, basePool: 0, layers: 1 });
       }
     });
   }
@@ -148,7 +148,7 @@ export function coiledPod(p: Painter, rng: Rng, c: Pt, o: { r: number; turns: nu
     const rr = r * lerp(0.15, 0.95, s);
     pts.push({ x: c.x + Math.cos(a) * rr, y: c.y + Math.sin(a) * rr * 0.9 });
   }
-  p.inkLine(pts, { rng: rng.fork('coil'), width: Math.max(0.2, r * 0.22), pigment: o.line, opacity: 0.6 * smooth(o.k * 1.5), breaks: 0.1, wobble: 0.15, taper: [0.2, 0.2] });
+  p.inkLine(pts, { rng: rng.fork('coil'), width: Math.max(0.18, r * 0.16), pigment: o.line, opacity: 0.55 * smooth(o.k * 1.5), breaks: 0.1, wobble: 0.15, taper: [0.2, 0.2] });
 }
 
 /** Turned, watered earth of a plot under the clump, there from the start. */

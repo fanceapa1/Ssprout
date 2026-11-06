@@ -136,10 +136,10 @@ export function planAlfalfa(rng: Rng): AlfalfaPlan {
     if (rc.open[0] < rc.bud[1] - 0.08) rc.open[0] = rc.bud[1] - 0.08;
   });
   // one or two coiled pods low on the outer stems, where the first flowers were
-  const outer = shoots.map((sh, i) => [sh, Math.abs(us[i]!)] as const).filter(([, a]) => a > 0.3);
+  const outer = shoots.map((sh, i) => [sh, us[i]!] as const).filter(([, u]) => Math.abs(u) > 0.3);
   const np = rng.int(1, 2);
-  for (const [sh] of rng.shuffle(outer).slice(0, np)) {
-    sh.pod = { t: rng.range(0.42, 0.6), side: rng.chance(0.5) ? 1 : -1, stalk: rng.range(1.6, 2.6), r: rng.range(1.3, 1.6), turns: rng.range(2, 2.6), rot: rng.range(0, Math.PI * 2) };
+  for (const [sh, u] of rng.shuffle(outer).slice(0, np)) {
+    sh.pod = { t: rng.range(0.5, 0.68), side: u > 0 ? 1 : -1, stalk: rng.range(2.4, 3.4), r: rng.range(1.45, 1.7), turns: rng.range(2.2, 2.8), rot: rng.range(0, Math.PI * 2) };
   }
   // fit each stem with its top cluster and its widest leaf into the box
   for (const sh of shoots) {
@@ -159,6 +159,7 @@ export function planAlfalfa(rng: Rng): AlfalfaPlan {
 interface Marks {
   leaves: Trefoil[];
   racemes: Raceme[];
+  later: (() => void)[];
 }
 
 function drawShoot(p: Painter, rng: Rng, sh: Shoot, i: number, g: number, out: Marks): void {
@@ -203,7 +204,7 @@ function drawShoot(p: Painter, rng: Rng, sh: Shoot, i: number, g: number, out: M
     const a = q.angle + pd.side * 0.9;
     const stalk = subPath([q, add(q, a, pd.stalk)], pk);
     paintStem(p, rng.fork('pod-stalk'), stalk, { width: 0.3, pigment: STEM, opacity: 0.6 });
-    coiledPod(p, rng.fork('pod'), add(q, a, pd.stalk * pk + pd.r * 0.8 * pk), { r: pd.r, turns: pd.turns, rot: pd.rot, k: pk, pigment: POD, line: mix(POD, PIGMENTS.wood, 0.6) });
+    out.later.push(() => coiledPod(p, rng.fork('pod'), add(q, a, pd.stalk * pk + pd.r * 0.8 * pk), { r: pd.r, turns: pd.turns, rot: pd.rot, k: pk, pigment: lighten(POD, 0.12), line: mix(POD, PIGMENTS.wood, 0.5) }));
   }
 }
 
@@ -231,16 +232,17 @@ const alfalfa: SpeciesDef = {
     try {
       const r = rng.fork('paint');
       plotSoil(p, r.fork('soil'), { rx: 22, k: ease(g, 0.03, 0.5) });
-      groundShadow(p, r, { rx: 18, ry: 3.6, k: ease(g, 0.15, 0.7), opacity: 0.12, pigment: PIGMENTS.shadow });
+      groundShadow(p, r, { rx: 18, ry: 3.6, k: ease(g, 0.15, 0.7), opacity: 0.07, pigment: mix(PIGMENTS.shadow, PIGMENTS.stoneWarm, 0.4) });
       // back to front in depth bands: each band's stems, then its leaves and its flowers in one layer each
       const order = plan.shoots.map((sh, i) => [sh, i] as const).sort((a, b) => a[0].depth - b[0].depth);
       for (let b = 0; b < BANDS; b++) {
         const band = order.filter(([sh]) => Math.min(BANDS - 1, Math.floor(sh.depth * BANDS)) === b);
-        const marks: Marks = { leaves: [], racemes: [] };
+        const marks: Marks = { leaves: [], racemes: [], later: [] };
         for (const [sh, i] of band) drawShoot(p, r.fork(`shoot-${i}`), sh, i, g, marks);
         const k = b / (BANDS - 1);
         trefoils(p, r.fork(`leaves-${b}`), marks.leaves, { deep: LEAF_DEEP, stalk: STEM, opacity: lerp(0.78, 0.9, k) });
         racemes(p, r.fork(`flowers-${b}`), marks.racemes, { bud: BUD, bloom: BLOOM, pale: lighten(LILAC, 0.05), old: OLD, keel: KEEL, opacity: lerp(0.82, 0.92, k) });
+        for (const f of marks.later) f();
       }
     } finally {
       end();
