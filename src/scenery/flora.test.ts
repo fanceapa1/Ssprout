@@ -144,6 +144,7 @@ describe('each garden’s flora', () => {
       'oleander',
       'pomegranate',
       'spearmint',
+      'white-water-lily',
     ]);
     expect(RELEASED.map((s) => s.id)).not.toContain('oasis');
     expect(getScenery('oasis').available(new URLSearchParams('dev&scenery=oasis'))).toBe(true);
