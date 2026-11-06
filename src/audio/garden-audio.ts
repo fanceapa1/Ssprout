@@ -75,7 +75,7 @@ const globalTimers: Timers = {
   clearTimeout: (h) => globalThis.clearTimeout(h as ReturnType<typeof setTimeout>),
 };
 
-const RECIPE_FOR: Record<Exclude<PlannedEvent['kind'], 'gust'>, RecipeName> = {
+export const RECIPE_FOR: Record<Exclude<PlannedEvent['kind'], 'gust'>, RecipeName> = {
   plip: 'plip',
   drip: 'drip',
   chirp: 'chirp',
