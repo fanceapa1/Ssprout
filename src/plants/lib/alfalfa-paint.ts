@@ -113,6 +113,9 @@ export function racemes(p: Painter, rng: Rng, list: readonly Raceme[], o: { bud:
     const ny = ca;
     const grown = clamp01(rc.length / 3);
     const bloom = mix(o.bloom, o.old, rc.age);
+    // a soft body under the florets, so the cluster reads as one compact head
+    const mid = clamp01(rc.open(0.5));
+    p.dabInto(L, rc.base, mix(o.bud, mix(bloom, o.pale, 0.35), mid), { rng: r.fork('body'), variant: 'petal', angle: rc.angle, length: rc.length * 1.08, width: rc.width * 2.1 * grown, pool: 0.3, poolSide: shadowSide(rc.angle), basePool: 0.2, layers: 1 });
     rc.florets.forEach((f, j) => {
       const half = rc.width * lerp(1, 0.5, f.v) * grown;
       const c = { x: rc.base.x + ca * rc.length * f.v + nx * f.u * half, y: rc.base.y + sa * rc.length * f.v + ny * f.u * half };
@@ -150,9 +153,9 @@ export function coiledPod(p: Painter, rng: Rng, c: Pt, o: { r: number; turns: nu
 
 /** Turned, watered earth of a plot under the clump, there from the start. */
 export function plotSoil(p: Painter, rng: Rng, o: { rx: number; k: number }): void {
-  p.wash({ cx: 0, cy: 0.5, rx: o.rx, ry: o.rx * 0.17 }, mix(PIGMENTS.stoneWarm, PIGMENTS.wood, 0.4), {
+  p.wash({ cx: 0, cy: 0.5, rx: o.rx, ry: o.rx * 0.13 }, mix(PIGMENTS.stoneWarm, PIGMENTS.wood, 0.4), {
     rng: rng.fork('soil'),
-    opacity: 0.16 * lerp(0.6, 1, o.k),
+    opacity: 0.1 * lerp(0.6, 1, o.k),
     edge: 0.25,
     centreLift: 0.3,
     granulation: 0.5,

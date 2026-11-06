@@ -63,9 +63,9 @@ export interface AlfalfaPlan {
 }
 
 function makeFlorets(rng: Rng): Floret[] {
-  const n = rng.int(10, 14);
+  const n = rng.int(12, 16);
   const out: Floret[] = [];
-  for (let i = 0; i < n; i++) out.push({ v: (i + rng.range(0.2, 0.8)) / n, u: rng.range(-1, 1), size: rng.range(0.85, 1.15), pale: rng.chance(0.25) ? rng.range(0.5, 0.9) : rng.range(0, 0.2) });
+  for (let i = 0; i < n; i++) out.push({ v: (i + rng.range(0.2, 0.8)) / n, u: rng.range(-1, 1), size: rng.range(0.75, 0.95), pale: rng.chance(0.25) ? rng.range(0.5, 0.9) : rng.range(0, 0.2) });
   return out;
 }
 
@@ -74,9 +74,9 @@ function makeRaceme(rng: Rng, t: number, turn: number, end: number): RacemePlan 
   return {
     t,
     turn,
-    stalk: t >= 1 ? rng.range(1.5, 3) : rng.range(3, 4.8),
-    length: rng.range(4.4, 5.8),
-    width: rng.range(1.7, 2.1),
+    stalk: t >= 1 ? rng.range(0.8, 1.8) : rng.range(2, 3.2),
+    length: rng.range(3.4, 4.4),
+    width: rng.range(1.05, 1.3),
     florets: makeFlorets(rng),
     age: rng.chance(0.25) ? rng.range(0.5, 0.9) : rng.range(0, 0.25),
     bud: [start, Math.min(0.84, start + 0.22)],
@@ -94,7 +94,7 @@ export function planAlfalfa(rng: Rng): AlfalfaPlan {
     const u = us[i]!;
     const depth = rng.next();
     // the stems fan out of one crown: tall and upright in the middle, shorter and leaning outside
-    const base = { x: u * rng.range(2.5, 5) + rng.gaussian(0, 0.8), y: lerp(-1.4, 0.8, depth) };
+    const base = { x: u * rng.range(4, 7) + rng.gaussian(0, 0.8), y: lerp(-1.4, 0.8, depth) };
     const length = rng.range(38, 47) * (1 - Math.abs(u) ** 1.4 * 0.45);
     const angle = UP + u * rng.range(0.5, 0.75) + rng.gaussian(0, 0.06);
     const stem = makeStem(rng, { base, length, angle, bend: u * rng.range(0.05, 0.22) + rng.gaussian(0, 0.08), segments: 8, tipBias: 0.25 });
@@ -119,8 +119,8 @@ export function planAlfalfa(rng: Rng): AlfalfaPlan {
       side = side === 1 ? -1 : 1;
     }
     const rcs: RacemePlan[] = [];
-    if (Math.abs(u) < 0.85 || rng.chance(0.5)) rcs.push(makeRaceme(rng, 1, rng.gaussian(0, 0.1), window[1]));
-    const na = Math.abs(u) < 0.7 ? rng.int(0, 2) : rng.int(0, 1);
+    if (rng.chance(Math.abs(u) < 0.7 ? 0.8 : 0.4)) rcs.push(makeRaceme(rng, 1, rng.gaussian(0, 0.1), window[1]));
+    const na = Math.abs(u) < 0.7 && rng.chance(0.45) ? 1 : 0;
     for (let j = 0; j < na; j++) {
       const lf = leaves[nl - 2 - j * 2];
       if (!lf) break;
@@ -168,7 +168,7 @@ function drawShoot(p: Painter, rng: Rng, sh: Shoot, i: number, g: number, out: M
   const head = lerp(0.03, 1, ext);
   const pts = subPath(full, head);
   const back = 1 - sh.depth;
-  paintStem(p, rng.fork('stem'), pts, { width: 0.6, pigment: mix(STEM, PIGMENTS.sageLight, 0.1 + back * 0.2), opacity: 0.75, ink: 0.05 * ext, inkReach: 0.6, inkPigment: mix(LEAF_DEEP, PIGMENTS.sumi, 0.3) });
+  paintStem(p, rng.fork('stem'), pts, { width: 0.48, pigment: mix(STEM, PIGMENTS.sageLight, 0.25 + back * 0.2), opacity: 0.62, ink: 0.025 * ext, inkReach: 0.6, inkPigment: mix(LEAF_DEEP, PIGMENTS.sumi, 0.3) });
   sh.leaves.forEach((lf, j) => {
     const lk = smooth((head * 1.12 - lf.t) / 0.3);
     if (!visible(lk)) return;
