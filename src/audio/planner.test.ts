@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { createRng } from '../core/rng';
 import { EVENT_KINDS, type EventKind } from './params';
-import { createPlanner, MAX_VOICES, MIN_GAP_S, PAN_SPREAD, type PlannedEvent } from './planner';
+import { RECIPE_FOR } from './garden-audio';
+import { RECIPES } from './recipes';
+import { createPlanner, EVENT_DURATION_S, MAX_VOICES, MIN_GAP_S, PAN_SPREAD, type PlannedEvent } from './planner';
 
 const rates = (patch: Partial<Record<EventKind, number>>): Record<EventKind, number> => ({
   ...(Object.fromEntries(EVENT_KINDS.map((k) => [k, 0])) as Record<EventKind, number>),
@@ -88,4 +90,21 @@ describe('planner', () => {
     for (const e of events) expect(Math.abs(e.pan)).toBeLessThanOrEqual(PAN_SPREAD[e.kind]);
     expect(new Set(events.map((e) => e.seed)).size).toBe(events.length);
   });
+
+  it('every voice stays within its planned length, so the voice budget holds (the oasis’s too)', () => {
+    for (const kind of EVENT_KINDS) {
+      if (kind === 'gust') continue;
+      for (let seed = 1; seed <= 40; seed++) expect(RECIPES[RECIPE_FOR[kind]](createRng(seed)).duration, kind).toBeLessThanOrEqual(EVENT_DURATION_S[kind]);
+    }
+  });
+
+  it('keeps the oasis’s slow voices apart: the dove, the gecko and the shimmer never crowd', () => {
+    const { events } = simulate(rates({ dove: 30, gecko: 30, cicada: 30 }), 600, 'oasis');
+    for (const kind of ['dove', 'gecko', 'cicada'] as const) {
+      const at = events.filter((e) => e.kind === kind).map((e) => e.abs);
+      expect(at.length).toBeGreaterThan(3);
+      for (let i = 1; i < at.length; i++) expect(at[i]! - at[i - 1]!).toBeGreaterThanOrEqual(MIN_GAP_S[kind] - 1e-9);
+    }
+  });
 });
+

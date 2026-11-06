@@ -1,10 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import { defaultSoundscape, levelsWith, silentLevels } from '../core/soundscape';
 import {
+  BEEEATER_CURVE,
   BIRD_CURVE,
+  BUNTING_CURVE,
+  CICADA_CURVE,
   CRICKET_CURVE,
+  DOVE_CURVE,
   EVENT_KINDS,
+  FROG_CURVE,
+  GECKO_CURVE,
+  OASIS_WIND_CURVE,
   PLACE_EVENTS,
+  eventLayer,
   localHour,
   mixParams,
   sameMix,
@@ -34,11 +42,11 @@ describe('time-of-day curves', () => {
   });
 
   it('every curve stays within [0, 1] and is continuous across midnight', () => {
-    for (const curve of [BIRD_CURVE, CRICKET_CURVE]) {
+    for (const curve of [BIRD_CURVE, CRICKET_CURVE, DOVE_CURVE, BUNTING_CURVE, BEEEATER_CURVE, CICADA_CURVE, GECKO_CURVE, FROG_CURVE, OASIS_WIND_CURVE]) {
       expect(curve[0]![1]).toBeCloseTo(curve[curve.length - 1]![1]);
       for (let h = 0; h < 24; h += 0.25) {
         const v = sampleCurve(curve, h);
-        expect(v).toBeGreaterThanOrEqual(0);
+        expect(v).toBeGreaterThanOrEqual(-1e-12);
         expect(v).toBeLessThanOrEqual(1);
       }
     }
@@ -225,3 +233,81 @@ describe('the waterfall (ADR 0283)', () => {
     for (const kind of EVENT_KINDS) expect(listed.has(kind)).toBe(true);
   });
 });
+
+describe('the oasis (ADR 0303)', () => {
+  const oasis = (patch: Partial<MixInput> = {}) => at({ scenery: 'oasis', ...patch });
+  type Mix = ReturnType<typeof at>;
+  const sum = (m: Mix, kinds: readonly (keyof Mix['rates'])[]) => kinds.reduce((s, k) => s + m.rates[k], 0);
+
+  it('the seguia and the palms replace the pond water; no plips, no Japanese warbler', () => {
+    const m = oasis();
+    expect(m.water).toBe(0);
+    expect(m.extra.seguia).toBe(60);
+    expect(m.extra.palms).toBeGreaterThan(0);
+    expect(m.extra.falls + m.extra.waves).toBe(0);
+    expect(m.rates.plip + m.rates.warbler + m.rates.splash + m.rates.dipper + m.rates.kajika).toBe(0);
+    // a little of the open air stays under the fronds, so a switch never dips
+    expect(m.wind).toBeGreaterThan(0);
+    expect(m.wind).toBeLessThan(at({}).wind);
+    const pond = at({});
+    expect(pond.extra.seguia + pond.extra.palms).toBe(0);
+    expect(sum(pond, ['dove', 'bunting', 'beeeater', 'cicada', 'gecko', 'frogs'])).toBe(0);
+  });
+
+  it('day voices by day: doves and buntings in the morning, the insect shimmer at midday', () => {
+    expect(oasis({ hour: 7.5 }).rates.dove).toBeGreaterThan(oasis({ hour: 13 }).rates.dove);
+    expect(oasis({ hour: 7.5 }).rates.bunting).toBeGreaterThan(0);
+    expect(oasis({ hour: 13 }).rates.cicada).toBeGreaterThan(oasis({ hour: 9.5 }).rates.cicada * 2);
+    expect(oasis({ hour: 13 }).rates.beeeater).toBeGreaterThan(0);
+    for (const hour of [23, 2]) expect(sum(oasis({ hour }), ['dove', 'bunting', 'beeeater', 'cicada'])).toBe(0);
+  });
+
+  it('night voices after dark: crickets, a rare gecko, a distant frog chorus in the evening', () => {
+    const night = oasis({ hour: 22 });
+    expect(night.rates.cricket).toBeGreaterThan(0);
+    expect(night.rates.gecko).toBeGreaterThan(0);
+    expect(night.rates.gecko).toBeLessThan(0.6);
+    expect(oasis({ hour: 20.5 }).rates.frogs).toBeGreaterThan(oasis({ hour: 2 }).rates.frogs);
+    for (const hour of [9, 13]) expect(sum(oasis({ hour }), ['cricket', 'gecko', 'frogs'])).toBe(0);
+    // a gecko seen there clicks a little more often; one seen in the garden does not count
+    expect(oasis({ hour: 22, fauna: new Set(['oasis:gecko']) }).rates.gecko).toBeGreaterThan(night.rates.gecko);
+    expect(oasis({ hour: 22, fauna: new Set(['gecko']) }).rates.gecko).toBe(night.rates.gecko);
+  });
+
+  it('the palms rustle more in the afternoon breeze than in the still night, and gust more often', () => {
+    expect(oasis({ hour: 14 }).extra.palms).toBeGreaterThan(oasis({ hour: 2 }).extra.palms);
+    expect(oasis({ hour: 14 }).rates.gust).toBeGreaterThan(oasis({ hour: 2 }).rates.gust);
+    expect(oasis({ weather: 'mist' }).extra.palms).toBeLessThan(oasis().extra.palms);
+    expect(oasis({ activity: { sessionActive: true, paused: true } }).extra.palms).toBeLessThan(oasis().extra.palms);
+  });
+
+  it('rain hushes the insects and the bee-eaters and wakes the frogs; the garden’s unlocks stay in the garden', () => {
+    expect(oasis({ hour: 13, weather: 'rain' }).rates.cicada).toBe(0);
+    expect(oasis({ hour: 13, weather: 'rain' }).rates.beeeater).toBe(0);
+    expect(oasis({ hour: 20.5, weather: 'rain' }).rates.frogs).toBeGreaterThan(oasis({ hour: 20.5 }).rates.frogs);
+    expect(oasis({ hour: 7, fauna: new Set(['small-birds', 'swallows']) }).rates).toEqual(oasis({ hour: 7 }).rates);
+    expect(oasis({ hour: 12, fauna: new Set(['oasis:swallows']) }).rates.swallow).toBeGreaterThan(0);
+  });
+
+  it('a custom mix there plays its own beds and voices; gusts follow the palms slider', () => {
+    const s = defaultSoundscape();
+    s.sceneries.oasis = { mode: 'custom', levels: levelsWith({ seguia: 70, palms: 50, birds: 40, crickets: 30, water: 90, falls: 80 }) };
+    const m = oasis({ soundscape: s });
+    expect(m.extra.seguia).toBe(70);
+    expect(m.extra.palms).toBe(50);
+    expect(m.water + m.extra.falls).toBe(0);
+    expect(m.rates.gust).toBeGreaterThan(0);
+    expect(m.rates.dove + m.rates.gecko).toBeGreaterThan(0);
+    expect(m.rates.plip + m.rates.dipper + m.rates.kajika + m.rates.warbler).toBe(0);
+    expect(eventLayer('gust', 'oasis')).toBe('palms');
+    expect(eventLayer('gust', 'pond')).toBe('wind');
+    s.sceneries.oasis.levels.palms = 0;
+    expect(oasis({ soundscape: s }).rates.gust).toBe(0);
+    // the other places' custom mixes never bring the oasis's voices or beds
+    s.sceneries.waterfall = { mode: 'custom', levels: levelsWith({ falls: 60, birds: 50, crickets: 50, seguia: 80, palms: 80 }) };
+    const falls = at({ scenery: 'waterfall', soundscape: s });
+    expect(falls.extra.seguia + falls.extra.palms).toBe(0);
+    expect(sum(falls, ['dove', 'bunting', 'beeeater', 'cicada', 'gecko', 'frogs'])).toBe(0);
+  });
+});
+

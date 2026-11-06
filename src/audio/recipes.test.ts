@@ -165,4 +165,78 @@ describe('sound recipes', () => {
       expect(song[song.length - 1]![2]).toBeLessThan(Math.max(...song.map((n) => n[2])));
     }
   });
+
+  it('the laughing dove: five low, eased notes climbing to the third and sinking on a long last one', () => {
+    for (let seed = 1; seed <= 30; seed++) {
+      const spec = RECIPES.dove(createRng(seed));
+      const hoot = spec.voices[0] as ToneVoice;
+      const song = notes(hoot.env);
+      expect([5, 10]).toContain(song.length);
+      for (const [, attack] of song) expect(attack).toBeGreaterThanOrEqual(0.0299);
+      const pitches = hoot.freq.map((p) => p[1]);
+      expect(Math.min(...pitches)).toBeGreaterThan(380);
+      expect(Math.max(...pitches)).toBeLessThan(700);
+      const pitchAt = (t: number) => hoot.freq.find((p) => p[0] >= t - 1e-9)![1];
+      const first = song.slice(0, 5);
+      const onsets = first.map((n) => pitchAt(n[0]));
+      expect(onsets[2]!).toBeGreaterThan(onsets[0]!);
+      expect(onsets[4]!).toBeLessThan(onsets[2]!);
+      expect(first[2]![2]).toBe(Math.max(...first.map((n) => n[2])));
+      expect(spec.duration).toBeLessThan(3.6);
+    }
+  });
+
+  it('the house bunting: a quick bright phrase of 5–8 down-slurred notes, stepping down', () => {
+    for (let seed = 1; seed <= 30; seed++) {
+      const spec = RECIPES.bunting(createRng(seed));
+      const v = only(spec);
+      const song = notes(v.env);
+      expect(song.length).toBeGreaterThanOrEqual(5);
+      expect(song.length).toBeLessThanOrEqual(8);
+      expect(spec.duration).toBeLessThan(1.4);
+      for (const [, attack] of song) expect(attack).toBeGreaterThanOrEqual(0.012);
+      const pitches = v.freq.map((p) => p[1]);
+      expect(Math.min(...pitches)).toBeGreaterThan(2000);
+      expect(Math.max(...pitches)).toBeLessThan(5000);
+      expect(v.freq[v.freq.length - 2]![1]).toBeLessThan(v.freq[1]![1]);
+    }
+  });
+
+  it('the insect shimmer is long, faint and high, swelling in and out', () => {
+    for (let seed = 1; seed <= 30; seed++) {
+      const spec = RECIPES.cicada(createRng(seed));
+      expect(spec.gain).toBeLessThanOrEqual(0.015);
+      expect(spec.duration).toBeGreaterThan(4);
+      expect(spec.duration).toBeLessThan(7.5);
+      for (const v of spec.voices) expect(v.env[1]![0]).toBeGreaterThanOrEqual(1.2);
+      const tone = spec.voices.find((v) => v.kind === 'tone') as ToneVoice;
+      expect(tone.freq[0]![1]).toBeGreaterThan(4500);
+    }
+  });
+
+  it('the gecko clicks 3–8 times; the frogs rattle in slow low pulses, two or three overlapping; the bee-eater burrs', () => {
+    for (let seed = 1; seed <= 30; seed++) {
+      const g = RECIPES.gecko(createRng(seed));
+      const clicks = g.voices.filter((v) => v.kind === 'tone');
+      expect(clicks.length).toBeGreaterThanOrEqual(3);
+      expect(clicks.length).toBeLessThanOrEqual(8);
+      expect(g.duration).toBeLessThan(1.3);
+      const f = RECIPES.frogs(createRng(seed));
+      expect(f.voices.length).toBeGreaterThanOrEqual(2);
+      expect(f.duration).toBeLessThan(3);
+      for (const v of f.voices as ToneVoice[]) {
+        const pulses = notes(v.env);
+        expect(pulses.length).toBeGreaterThanOrEqual(6);
+        const rate = (pulses.length - 1) / (pulses[pulses.length - 1]![0] - pulses[0]![0]);
+        expect(rate).toBeGreaterThan(10);
+        expect(rate).toBeLessThan(14);
+        expect(Math.max(...v.freq.map((p) => p[1]))).toBeLessThan(1100);
+      }
+      // the burr dips between pulses but never stops inside a call: one rise out of silence per call
+      const calls = notes(only(RECIPES.beeeater(createRng(seed))).env);
+      expect(calls.length).toBeGreaterThanOrEqual(1);
+      expect(calls.length).toBeLessThanOrEqual(3);
+    }
+  });
 });
+

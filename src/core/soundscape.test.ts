@@ -40,6 +40,49 @@ describe('sound collections', () => {
     expect(SOUND_PRESETS.filter((p) => p.scenery === 'waterfall').every((p) => p.levels.falls > 0)).toBe(true);
   });
 
+  it('the oasis has its own palette, the seguia and the palms, and its own two presets (ADR 0303)', () => {
+    const s = defaultSoundscape();
+    expect(sceneryMix(s, 'oasis')).toEqual({ mode: 'garden', levels: levelsWith({ seguia: 60, palms: 45, birds: 40 }) });
+    expect(SCENERIES.oasis.layers).toEqual(['seguia', 'palms', 'birds', 'crickets', 'rain']);
+    for (const id of ['pond', 'coast', 'waterfall'] as const) {
+      expect(SCENERIES[id].layers).not.toContain('seguia');
+      expect(SCENERIES[id].layers).not.toContain('palms');
+    }
+    expect(STANDARD_LAYERS).not.toContain('seguia');
+    expect(STANDARD_LAYERS).not.toContain('palms');
+    const presets = SOUND_PRESETS.filter((p) => p.scenery === 'oasis');
+    expect(presets).toHaveLength(2);
+    for (const p of presets) expect(p.levels.seguia).toBeGreaterThan(0);
+  });
+
+  it('a mix saved before the oasis loads: no oasis entry, no seguia or palms levels (no schema change)', () => {
+    const { seguia: _s, palms: _p, ...before } = levelsWith({ falls: 70, wind: 30 });
+    const saved = { collection: 'scenery', volume: 80, standard: before, sceneries: { waterfall: { mode: 'custom', levels: before } } };
+    const read = readSoundscape(saved)!;
+    expect(read).not.toBeNull();
+    expect(read.sceneries.oasis).toBeUndefined();
+    expect(read.sceneries.waterfall!.levels).toEqual(levelsWith({ falls: 70, wind: 30 }));
+    expect(read.standard.seguia + read.standard.palms).toBe(0);
+    // the oasis then follows the garden until its own mix is made
+    expect(selectedMix(read, 'oasis').mode).toBe('garden');
+    const state = createDefaultState(1234);
+    const doc = JSON.parse(exportState(state, 1234)) as { state: { settings: Record<string, unknown> } };
+    doc.state.settings.soundscape = saved;
+    const imported = importState(JSON.stringify(doc));
+    expect(imported.ok).toBe(true);
+    if (imported.ok) expect(imported.state.settings.soundscape).toEqual(read);
+  });
+
+  it('an oasis mix round-trips through a garden export', () => {
+    const state = createDefaultState(1234);
+    state.settings.soundscape = defaultSoundscape();
+    state.settings.soundscape.sceneries.oasis = { mode: 'custom', levels: levelsWith({ seguia: 72, palms: 31, crickets: 12 }) };
+    const result = importState(exportState(state, 1234));
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.state.settings.soundscape).toEqual(state.settings.soundscape);
+    expect(isSoundscape(state.settings.soundscape)).toBe(true);
+  });
+
   it('rejects invalid levels, collections, incomplete mixes and unknown scenery keys', () => {
     const s = defaultSoundscape();
     for (const value of [-1, 101, NaN, Infinity, '50', null]) {

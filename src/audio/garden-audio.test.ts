@@ -395,6 +395,23 @@ describe('createGardenAudio soundscape', () => {
     expect(s.fake.mixes.at(-1)!.water).toBe(0);
   });
 
+  it('the oasis plays its own bed and voices, and a gecko seen there clicks there (ADR 0303)', () => {
+    const s = setup({}, { muted: false });
+    s.audio.unlock();
+    s.audio.setTimeOfDay(22);
+    s.audio.setScenery('oasis');
+    const before = s.fake.mixes.at(-1)!;
+    expect(before.extra.seguia).toBeGreaterThan(0);
+    expect(before.extra.palms).toBeGreaterThan(0);
+    expect(before.water).toBe(0);
+    expect(before.rates.gecko).toBeGreaterThan(0);
+    s.bus.emit('fauna:arrived', { id: 'gecko', sceneryId: 'oasis' });
+    expect(s.fake.mixes.at(-1)!.rates.gecko).toBeGreaterThan(before.rates.gecko);
+    s.audio.setScenery('pond');
+    expect(s.fake.mixes.at(-1)!.rates.gecko).toBe(0);
+    expect(s.fake.mixes.at(-1)!.extra.seguia).toBe(0);
+  });
+
   it('caps the step after a long stall instead of bursting', () => {
     const s = setup({}, { muted: false });
     s.audio.unlock();
