@@ -78,8 +78,8 @@ export function lilyPads(plants: readonly PlantInstance[], slots: readonly Slot[
 
 export interface Perch {
   id: string;
-  /** a boulder's top, a stepping stone, or a shelf on a cliff */
-  kind: 'rock' | 'stone' | 'ledge';
+  /** a boulder's top, a stepping stone, a shelf on a cliff; the oasis's wall copings, basin rim, palm fronds, tower top and gate posts */
+  kind: 'rock' | 'stone' | 'ledge' | 'wall' | 'rim' | 'frond' | 'tower' | 'post';
   /** centre of the standing area; y is the surface there */
   x: number;
   y: number;
@@ -89,6 +89,10 @@ export interface Perch {
   dome: number;
   /** entities depth: in front of the rock / stone it stands on */
   depth: number;
+  /** rise per unit x along the spread (a frond, a coping running toward the horizon); default flat */
+  slope?: number;
+  /** the scale of what stands here when it is not the ground's (`w.perspective`): a palm crown, a far tower */
+  scale?: number;
 }
 
 /** Rocks flagged `perch` (birds stand on their top) and the stepping stones. */
@@ -114,7 +118,44 @@ export function ledgePerch(id: string, a: Pt, b: Pt): Perch {
 /** Surface y of a perch at `x` (clamped to its spread). */
 export function perchY(p: Perch, x: number): number {
   const u = clamp((x - p.x) / (p.spread || 1), -1, 1);
-  return p.y + p.dome * u * u;
+  return p.y + p.dome * u * u + (p.slope ?? 0) * u * p.spread;
+}
+
+/** An open patch of ground a walking bird forages over (the oasis's damp plots): an ellipse in world units. */
+export interface GroundSpot {
+  id: string;
+  x: number;
+  y: number;
+  rx: number;
+  ry: number;
+}
+
+/**
+ * An upright wall face a lizard can cling to: its outline, its top edge left → right and its
+ * height (the foot is `h` below the top). Scale: `w.perspective(y, x)`; depth: `wallFootAt`.
+ */
+export interface WallFace {
+  id: string;
+  outline: Pt[];
+  top: Pt[];
+  h: number;
+}
+
+/** The y of a wall face's top edge at x (clamped to its ends). */
+export function wallTopAt(face: Pick<WallFace, 'top'>, x: number): number {
+  const t = face.top;
+  if (x <= t[0]!.x) return t[0]!.y;
+  for (let i = 1; i < t.length; i++) {
+    const a = t[i - 1]!;
+    const b = t[i]!;
+    if (b.x >= x) return b.x === a.x ? a.y : a.y + ((b.y - a.y) * (x - a.x)) / (b.x - a.x);
+  }
+  return t[t.length - 1]!.y;
+}
+
+/** The y of a wall face's foot at x: the entities depth of whatever clings to it there. */
+export function wallFootAt(face: Pick<WallFace, 'top' | 'h'>, x: number): number {
+  return wallTopAt(face, x) + face.h;
 }
 
 /**

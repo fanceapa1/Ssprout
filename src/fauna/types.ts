@@ -8,7 +8,7 @@ import type { Pt, Rect } from '../render/viewport';
 import type { SceneGeometry } from '../scene/geometry';
 import type { FaunaMode } from './schedule';
 import type { ArtCache } from './sprite';
-import type { FlowerTarget, Pad, Perch, Stand } from './targets';
+import type { FlowerTarget, GroundSpot, Pad, Perch, Stand, WallFace } from './targets';
 import type { FaunaKind } from './tuning';
 
 export type Ctx = CanvasRenderingContext2D;
@@ -48,6 +48,10 @@ export interface FaunaWorld {
   speed: number;
   flowers: FlowerTarget[];
   perches: Perch[];
+  /** open ground walking birds forage over (`SceneryFauna.ground`) */
+  ground: GroundSpot[];
+  /** upright faces lizards cling to (`SceneryFauna.walls`) */
+  walls: WallFace[];
   pads: Pad[];
   art: ArtCache;
   /** where a heron could wade right now (cached) */

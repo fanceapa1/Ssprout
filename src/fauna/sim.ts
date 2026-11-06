@@ -136,6 +136,8 @@ export class FaunaSim {
       speed: this.reduced ? FAUNA_TUNING.reducedSpeed : 1,
       flowers: [],
       perches: opts.habitat?.perches ?? perchesOf(scene),
+      ground: opts.habitat?.ground ?? [],
+      walls: opts.habitat?.walls ?? [],
       pads: [],
       art: new ArtCache(),
       perspective: perspectiveOf(scene, opts.habitat, pond),
@@ -156,6 +158,8 @@ export class FaunaSim {
     w.pond = pondInfo(waters.still);
     w.water = waters.water;
     w.perches = habitat?.perches ?? perchesOf(scene);
+    w.ground = habitat?.ground ?? [];
+    w.walls = habitat?.walls ?? [];
     w.perspective = perspectiveOf(scene, habitat, w.pond);
     this.refreshTargets();
   }

@@ -1,11 +1,11 @@
 /**
- * What a scenery tells its wildlife (ADR 0248): the unlock table, and where the water, perches,
- * heron stands and perspective differ from what `SceneGeometry` alone gives (the Japanese garden
+ * What a scenery tells its wildlife (ADR 0248, 0304): the unlock table, and where the water, perches,
+ * heron stands, ground, wall faces and perspective differ from what `SceneGeometry` alone gives (the Japanese garden
  * needs none of them). docs/systems/fauna.md › Sceneries.
  */
 import type { FaunaTable } from '../core/fauna-unlocks';
 import type { Pt } from '../render/viewport';
-import type { Perch, Stand } from './targets';
+import type { GroundSpot, Perch, Stand, WallFace } from './targets';
 
 /** White water the still-water creatures keep out of: an ellipse in world units. */
 export interface Foam {
@@ -32,6 +32,10 @@ export interface SceneryFauna {
   perches?: Perch[];
   /** default: wading spots along the pond's far edge (`heronStands`) */
   stands?: Stand[];
+  /** open ground a walking bird forages over (the oasis's damp plots); default none */
+  ground?: GroundSpot[];
+  /** upright faces a lizard clings to (the oasis's terrace walls); default none */
+  walls?: WallFace[];
   /** default: a line fitted through the slots' scales */
   perspective?(x: number, y: number): number;
 }
