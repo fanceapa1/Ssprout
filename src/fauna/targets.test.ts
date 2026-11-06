@@ -12,6 +12,9 @@ import {
   perchY,
   perspectiveFit,
   plantBox,
+  wallFootAt,
+  wallTopAt,
+  type Perch,
   type TargetSpecies,
 } from './targets';
 
@@ -84,6 +87,22 @@ describe('perches', () => {
     expect(perchY(p, p.x)).toBe(p.y);
     expect(perchY(p, p.x + p.spread)).toBeGreaterThan(p.y);
     expect(perchY(p, p.x + p.spread * 5)).toBe(perchY(p, p.x + p.spread));
+  });
+
+  it('perchY follows a sloped perch (a frond, a receding coping) and clamps at the ends', () => {
+    const p: Perch = { id: 'f', kind: 'frond', x: 100, y: 50, spread: 10, dome: 0, depth: 60, slope: 0.5 };
+    expect(perchY(p, 100)).toBe(50);
+    expect(perchY(p, 110)).toBeCloseTo(55);
+    expect(perchY(p, 90)).toBeCloseTo(45);
+    expect(perchY(p, 200)).toBeCloseTo(55);
+  });
+
+  it('a wall face gives its top and foot along x, clamped at its ends', () => {
+    const face = { top: [{ x: 0, y: 100 }, { x: 100, y: 90 }], h: 30 };
+    expect(wallTopAt(face, 50)).toBeCloseTo(95);
+    expect(wallFootAt(face, 50)).toBeCloseTo(125);
+    expect(wallTopAt(face, -20)).toBe(100);
+    expect(wallTopAt(face, 300)).toBe(90);
   });
 
   it('choosePerch avoids occupied perches and prefers the kind asked for', () => {

@@ -383,7 +383,8 @@ describe('the oasis’s flora and wildlife (skeleton)', () => {
 
   it('shares only the creatures biology allows (O0), the basin as still water', () => {
     expect(faunaTable('oasis')).toBe(OASIS.fauna.unlocks);
-    expect(OASIS.fauna.unlocks.map((r) => (r.variant ? r.kind + '/' + r.variant : r.kind))).toEqual([
+    const own = ['bunting', 'dove', 'dropwing', 'sahara-frog', 'hoopoe', 'gecko', 'bee-eater', 'stork'];
+    expect(OASIS.fauna.unlocks.filter((r) => !own.includes(r.kind)).map((r) => (r.variant ? r.kind + '/' + r.variant : r.kind))).toEqual([
       'strider/margin', 'leaf/katsura', 'butterfly/white', 'bee', 'butterfly/swallowtail', 'swallow', 'heron',
     ]);
     expect(new Set(OASIS.fauna.unlocks.map((r) => r.id)).size).toBe(OASIS.fauna.unlocks.length);
