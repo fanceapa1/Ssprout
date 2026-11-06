@@ -15,18 +15,18 @@ import type { SpeciesDef } from '../types';
 
 const LEAF = '#8fa85a';
 const OLIVE = '#7a8a4a';
-const STEM = mix('#8a5a44', '#9a948a', 0.5);
+const STEM = mix('#8a5a44', '#a29c90', 0.55);
 const YOUNG = '#8a5a44';
 const CREAM = '#f1e2bf';
 const SHADE = mix(OLIVE, PIGMENTS.shadow, 0.4);
 const BUD = '#e6c7b0';
 const EYE = mix('#d9b25a', '#c98a5a', 0.3);
-const STALK = mix('#a7a066', '#b98f6a', 0.4);
+const STALK = mix('#b3ad7a', '#c4a284', 0.4);
 const CAPSULE = ['#a3a25e', '#9a8a54', '#8a6a48'] as const;
 
 const BOX = { w: 120, h: 160, ax: 0.5, ay: 0.92 };
 /** the rounded crown the twigs fill: centre and radii (plant units, base at 0) */
-const DOME = { cy: -52, rx: 41, ry: 44 };
+const DOME = { cy: -48, rx: 44, ry: 40 };
 
 interface PairPlan {
   t: number;
@@ -137,18 +137,18 @@ function sprayOf(rng: Rng, florets: FloretPlan[]): SprayPlan {
       id: florets.length,
       dx: rng.range(-1.2, 1.2),
       dy: rng.range(-1.2, 0.6),
-      radius: rng.range(2, 2.5) * (bud ? 0.8 : 1),
+      radius: rng.range(2.2, 2.7) * (bud ? 0.8 : 1),
       rot: rng.range(0, Math.PI * 2),
       squash: rng.range(0.65, 1),
       bud,
-      petal: jitter(mix(CREAM, rng.chance(0.3) ? BUD : '#f6ecd2', rng.range(0, 0.35)), rng, 0.015),
+      petal: jitter(mix(mix(CREAM, '#fdf8ec', 0.55), rng.chance(0.3) ? BUD : '#fdf8ec', rng.range(0, 0.3)), rng, 0.015),
       open: [0, 0],
       seed: seedOf(rng),
     };
     florets.push(f);
     return f.id;
   };
-  const nArms = rng.int(4, 6);
+  const nArms = rng.int(5, 7);
   const side0: 1 | -1 = rng.chance(0.5) ? 1 : -1;
   const arms: SprayPlan['arms'] = [];
   for (let j = 0; j < nArms; j++) {
@@ -182,7 +182,7 @@ export function buildHenna(rng: Rng): Henna {
     // they leave the crown flared, then curve back up
     const plan = makeStem(rng, { base, length: dist * 1.04, angle: aim + u * rng.range(0.12, 0.22), bend: -u * rng.range(0.2, 0.36), segments: 10, tipBias: 0.1, wobble: 0.025 });
     const start = 0.1 + 0.1 * (order[i]! / Math.max(1, n - 1));
-    branches.push({ plan, parent: null, window: [start, start + rng.range(0.26, 0.3)], width: rng.range(1.2, 1.5), band: rng.chance(0.45) ? 0 : 1, pairs: [], masses: [], spray: null, capsules: [], seed: seedOf(rng) });
+    branches.push({ plan, parent: null, window: [start, start + rng.range(0.26, 0.3)], width: rng.range(1.1, 1.4), band: 0, pairs: [], masses: [], spray: null, capsules: [], seed: seedOf(rng) });
   }
   // side twigs branch off toward the dome's surface: much-branched, every way
   for (let i = 0; i < n; i++) {
@@ -207,12 +207,12 @@ export function buildHenna(rng: Rng): Henna {
     b.pairs = pairsAlong(rng, main ? 0.32 : 0.12, b.plan.length, green, main ? 1 : 0.94);
     const nm = main ? 2 : 1;
     for (let k = 0; k < nm; k++) {
-      const t = main ? lerp(0.55, 0.95, k) : rng.range(0.55, 0.85);
+      const t = main ? lerp(0.45, 0.75, k) : rng.range(0.3, 0.6);
       const inner = main && k === 0;
       b.masses.push({
         t,
-        rx: rng.range(10, 14),
-        ry: rng.range(8, 11),
+        rx: rng.range(8, 11),
+        ry: rng.range(6.5, 9),
         rot: rng.range(-0.5, 0.5),
         dx: rng.range(-2, 2),
         dy: rng.range(-1, 2.5),
@@ -247,7 +247,13 @@ export function buildHenna(rng: Rng): Henna {
   }
   // the sprays rise in turn; buds swell, then the florets open from the base of each spray up
   const sprayed = branches.filter((b) => b.spray);
-  rng.shuffle(sprayed.map((_, k) => k)).forEach((k, j) => (sprayed[k]!.spray!.window = stagger(j, sprayed.length, 0.54, 0.8, 0.4)));
+  rng.shuffle(sprayed.map((_, k) => k)).forEach((k, j) => {
+    const b = sprayed[k]!;
+    const [w0, w1] = stagger(j, sprayed.length, 0.52, 0.84, 0.55);
+    // a spray only rises once its twig has finished growing
+    const shift = Math.max(0, b.window[1] - w0);
+    b.spray!.window = [w0 + shift, Math.min(0.92, w1 + shift)];
+  });
   for (const b of sprayed) {
     const s = b.spray!;
     const ids = [...s.arms.flatMap((a) => a.florets), ...s.top];
@@ -426,7 +432,7 @@ const henna: SpeciesDef = {
       const pose = poseHenna(plant, g);
       paintMasses(p, pose.masses);
       for (const band of [0, 1]) {
-        paintTwigs(p, pose.twigs.filter((t) => t.band === band), { opacity: band ? 0.9 : 0.78 });
+        paintTwigs(p, pose.twigs.filter((t) => t.band === band), { opacity: band ? 0.82 : 0.66, darken: 0.18 });
         paintLeaves(p, pose.leaves.filter((l) => l.band === band), { opacity: band ? 0.92 : 0.82 });
       }
       paintTwigs(p, pose.stalks, { opacity: 0.85, granulation: 0.05 });
