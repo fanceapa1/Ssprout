@@ -55,7 +55,7 @@ export function paintToothedPad(p: Painter, rng: Rng, pad: ToothedPad, k: number
   const ry = pad.r * s * pad.flat;
   // its cool shadow on the water just below, so the dark disc sits on the surface
   p.glaze({ cx: pad.x + 1, cy: pad.y + ry * 0.22, rx: rx * 1.02, ry: ry * 0.9 }, PIGMENTS.celadonDeep, { rng: rng.fork('shadow'), opacity: 0.2 * op });
-  p.wetInWet(outline, lighten(pad.tone, 0.1), mix(shade(pad.tone, 0.2), pad.flush, 0.35), {
+  p.wetInWet(outline, lighten(pad.tone, 0.1), mix(shade(pad.tone, 0.2), pad.flush, 0.45), {
     rng: rng.fork('pad'),
     angle: UP,
     split: 0.55,
@@ -68,7 +68,7 @@ export function paintToothedPad(p: Painter, rng: Rng, pad: ToothedPad, k: number
     granulation: 0.25,
   });
   // the bronze-purple flush bleeds in from the far rim
-  p.glaze(outline, pad.flush, { rng: rng.fork('flush'), opacity: 0.3 * smooth((k - 0.35) / 0.65), fade: { angle: -UP, start: 0.05, amount: 0.85 } });
+  p.glaze(outline, pad.flush, { rng: rng.fork('flush'), opacity: 0.45 * smooth((k - 0.35) / 0.65), fade: { angle: -UP, start: 0.05, amount: 0.85 } });
   const mk = smooth((k - 0.5) / 0.5);
   if (visible(mk)) {
     pad.spots.forEach((sp, i) => {
@@ -100,7 +100,7 @@ export function paintToothedPad(p: Painter, rng: Rng, pad: ToothedPad, k: number
       const len = rx * pad.depth * 1.25 * ek;
       const dir = { x: Math.cos(a), y: Math.sin(a) * pad.flat };
       const near = Math.sin(t) > 0;
-      p.dabInto(L, base, near ? shade(pad.tone, 0.1) : mix(pad.tone, pad.flush, 0.4), { rng: rng.fork(`tooth-${i}`), variant: 'needle', angle: Math.atan2(dir.y, dir.x), length: Math.max(len * 0.45, len * Math.hypot(dir.x, dir.y)), width: len * 0.42, pool: 0.1, basePool: 0, layers: 2 });
+      p.dabInto(L, base, near ? shade(pad.tone, 0.1) : mix(pad.tone, pad.flush, 0.4), { rng: rng.fork(`tooth-${i}`), variant: 'needle', angle: Math.atan2(dir.y, dir.x), length: Math.max(len * 0.45, len * Math.hypot(dir.x, dir.y)), width: len * 0.42, pool: 0.1, basePool: 0, layers: 1 });
     }
     L.dry({ opacity: 0.7 * ek, edge: 0.5, edgeWidth: 0.25, sharpness: 0.85, centreLift: 0.05, granulation: 0.1, flow: 0.2, flowScale: 3, darken: 0.25 });
   }
