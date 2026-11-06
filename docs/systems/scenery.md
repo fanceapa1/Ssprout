@@ -60,7 +60,10 @@ The Japanese garden's painters stay in `src/scene/` (docs/systems/scene.md): its
 | `oasis/layout.ts` | draft A's shapes re-exported, `SKYLINE`/`skylineAt`/`openSky`, `LIFT` and `terraceScale` (ADR 0300), `copingAt`, `FOOTPATH`, `OASIS_SKY_LAYOUT` (both low suns on the right), `FOCUS`, `OASIS_AMBIENCE`, `OASIS_HABITAT_WORDS` |
 | `oasis/geometry.ts` | `BASIN_WATER` (the pond), `BASIN_STONE`, `WATERLINE`, `SEGUIA`, `SLUICE_WATER`, `OUED_WATER`, `BAR`, `oasisScene` |
 | `oasis/slots.ts` | `OASIS_SLOTS`: 47 slots, terrace lift in scale; `SLOT_TERRACE` |
-| `oasis/flora.ts`, `oasis/fauna.ts` | `OASIS_FLORA` (offers nothing yet); `OASIS_FAUNA` (the creatures shared by biology), `OASIS_WILDLIFE` |
+| `oasis/flora.ts`, `oasis/fauna.ts` | `OASIS_FLORA` (offers nothing yet); `OASIS_FAUNA`: the unlock table, data only (the shared creatures and its own eight) |
+| `oasis/wildlife.ts` | where its wildlife lives (ADR 0304): `OASIS_PERCHES`, `OASIS_GROUND`, `OASIS_WALLS`, `OASIS_STANDS`, `oasisPerspective(x, y)`, `KSAR_SCALE`, `NEST`, `OASIS_WILDLIFE` (`Scenery.fauna`) |
+| `oasis/wildlife.studio.ts` | studio `oasis-wildlife` (142): every target over the painting with a creature of its size, whole and close |
+| `oasis/fauna.test.ts`, `oasis/wildlife.test.ts` | the table (ids, kinds, thresholds, skipping) and the targets (each in its shape, perspective) |
 | `oasis/sky.ts`, `oasis/light.ts` | placeholders until O5: one golden wash per phase cut to the skyline, a plain basin sky; a shade at the bluff's foot and warm light on the ksar |
 | `oasis/map.studio.ts` | studio `oasis-map` (141): the composition map over the painting, and the painting under the midday plate |
 | `oasis/oasis.test.ts` | see Tests |
@@ -498,8 +501,18 @@ Composition map: studio `oasis-map/map`. Rock: studio `oasis-rock`. Water: studi
   cultivated: true }`. No existing species is shared by biology (docs/research/oasis-biome.md),
   so it offers none until the phase 13 art queue lands. That is why it stays behind the flag:
   `flora.test.ts` holds its invariants for released sceneries only.
-- **Wildlife**: the creatures it shares by biology: striders, a gold leaf, the cabbage white,
-  bees, the swallowtail, swallows and a rare heron. There are no perches yet.
+- **Wildlife** (OK0, ADR 0304; docs/systems/fauna.md › The oasis): `fauna.ts` is the table: the
+  creatures it shares by biology (striders, a gold leaf, the cabbage white, bees, the swallowtail,
+  swallows, a rare heron) and its own eight, from the house bunting at the start to the rare white
+  stork at 20 plants. Their rows are skipped until each creature's module exists. `wildlife.ts`
+  says where they live, from the real shapes: the basin still and the channels and oued moving;
+  perches on the three terrace walls' copings, the basin's rim (near, far and both sides), green
+  front fronds of the big and the near grove palms, the middle tower's top (the stork's `NEST`),
+  the sluice gate's posts and the painted stones; five damp plots and terrace strips for the
+  hoopoe; the terrace walls' faces and the basin's near face for the gecko; heron stands on the
+  basin's submerged steps and in the oued. `oasisPerspective(x, y)` is the slots' rule: a raised
+  terrace and its coping take its lift, a wall face its coping's scale, the basin's near face its
+  rim's; the fronds and the tower carry their own scale.
 
 - **Daylight** (O5, `sky.ts`, `light.ts`; docs/systems/daylight.md › Oasis): four desert skies
   clipped to `plateSky()` (4 under the rock, up to 44 over the far range), a turquoise basin plate
