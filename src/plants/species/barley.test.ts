@@ -15,10 +15,10 @@ describe('barley plan', () => {
     expect(def.range).toEqual({ realms: [], biomes: [], climates: [], cultivatedIn: ['n-africa-arabia'] });
   });
 
-  it('raises five to nine bearded culms, one of which stays green', () => {
+  it('raises six to nine bearded culms, one of which stays green', () => {
     for (let seed = 1; seed <= 60; seed++) {
       const plan = planBarley(createRng(seed).fork('plan'));
-      expect(plan.culms.length).toBeGreaterThanOrEqual(5);
+      expect(plan.culms.length).toBeGreaterThanOrEqual(6);
       expect(plan.culms.length).toBeLessThanOrEqual(9);
       expect(plan.culms.filter((c) => c.ripeMax < 0.5)).toHaveLength(1);
       for (const c of plan.culms) expect(c.ear.awnLen).toBeGreaterThan(c.ear.length * 1.2);
