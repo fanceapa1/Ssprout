@@ -190,7 +190,7 @@ Phase 13 (owner request 2026-11-04): a third garden, a desert oasis, with a gold
 | O4 | Oasis painters: palms, grove, terraces, sand and foreground | `src/scenery/oasis/{paint-veg,paint-land}.ts` | done (devlog 112; own land and veg painters, no draft steps in the app; terraces still straight-ish, big palm crowns mostly above the 1440 frame) |
 | O5 | Oasis daylight: 4 sky plates, basin plate, light plates, sun side | `src/scenery/oasis/{sky,light}.ts` | done (devlog 114; ADR 0301 per-scenery grades; turquoise basin in every phase, shadows fall left; moon top hidden on wide screens) |
 | O6 | Moving water: the seguia's falls and the oued's glints | `src/scenery/oasis/motion.ts` | done (devlog 117; seguia falls, sluice spill, inlet rings, oued glints at TEMPO 1.25, within noise per frame; the generic pond shimmer still draws on the basin) |
-| O7 | Oasis sound bed (wind in the palms, trickling water, doves) | `src/audio/**`, `src/core/soundscape.ts` | after O1 |
+| O7 | Oasis sound bed (wind in the palms, trickling water, doves) | `src/audio/**`, `src/core/soundscape.ts` | in progress |
 | O8 | Acceptance and docs, release | `docs/**`, `tests/**` | last |
 
 Phase 13 art queue (after O0 and O1): one plant (OP1–OP12) or creature (OK1–OK8) per task, from the O0 brief.
@@ -209,5 +209,6 @@ Phase 13 art queue (after O0 and O1): one plant (OP1–OP12) or creature (OK1–
 | OP6 | Barley (*Hordeum vulgare*): T2, golden bearded ears in the plots | `src/plants/species/barley.ts` | done (devlog 122; 82–105 ms median, near the top of the budget) |
 | OP13 | White water lily (*Nymphaea lotus*): T2 or T3, the second water plant (owner decision 2026-11-06: release needs 2 per habitat; white flowers on floating pads in the basin, distinct from the garden's lotus) | `src/plants/species/white-water-lily.ts` | done (devlog 123; tier 2, water; wild only round the Sahara's edges, so planted in the Draa basin: owner's call 2026-11-06; about 64 ms) |
 | OP8 | Henna (*Lawsonia inermis*): T2, a neat green dome frothing with cream sprays, meadow and back | `src/plants/species/henna.ts` | done (devlog 124; 29–32 ms) |
+| OP2 | Alfalfa (*Medicago sativa*): T1, a green tuft with violet clusters, distinct from the garden's white clover | `src/plants/species/alfalfa.ts` | in progress |
 | O1b | Oasis polish: medium sand slots for the desert hyacinth, a medium shallows slot for the cattail, the moon arc lower for wide screens, a stronger far range at sunset, the basin a still mirror (a minimal opt-out of the generic water surface) | `src/scenery/oasis/**`, `src/scene/water.ts`, `src/scenery/types.ts` | done (devlog 119; medium sand and shallows slots, moon arc lower, deeper far range, the basin a still mirror, ADR 0302) |
 | O2d | Oasis basin perspective (owner: "the camera is looking at it from too high, not aligned with the rest of the scenery"): a flatter basin with sides converging on the horizon, a thin far wall, more reflection | `src/scenery/oasis/{layout,geometry,slots,paint-water,motion,light}.ts` | done (devlog 121; far rim y 476 → 562, sides aimed at the horizon point (810, 340), thin far wall, reflection fills the water) |
