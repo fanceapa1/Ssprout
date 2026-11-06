@@ -121,7 +121,7 @@ export function barleyEar(p: Painter, rng: Rng, e: EarShape, ripe: number, c: Ea
       const len = Math.hypot(a.to.x - a.from.x, a.to.y - a.from.y);
       if (len < 0.3) return;
       const lit = a.side === o.light;
-      const tone = lit ? mix(awnTone, c.pale, 0.45) : mix(awnTone, mix(c.shade, c.umber, 0.5), 0.45 * ripe + 0.15);
+      const tone = lit ? mix(awnTone, c.pale, 0.45) : mix(awnTone, mix(c.green, mix(c.shade, c.umber, 0.5), ripe), lerp(0.2, 0.55, ripe));
       p.dabInto(L, a.from, jitter(tone, rng.fork(`awn-tone-${j}`), 0.03), {
         rng: rng.fork(`awn-${j}`),
         variant: 'needle',
