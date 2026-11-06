@@ -40,6 +40,13 @@ function widen(left: Float32Array): [Float32Array, Float32Array] {
 
 interface Bubble { c: number; s: number; cw: number; sw: number; f: number; grow: number; amp: number; decay: number; age: number }
 
+/** A soft knee at `crest` times the RMS, so no single grain or bubble ticks out of the texture. */
+function soften(data: Float32Array, crest: number): Float32Array {
+  normaliseRms(data, 1);
+  for (let i = 0; i < data.length; i++) data[i] = crest * Math.tanh(data[i]! / crest);
+  return data;
+}
+
 /**
  * Water bubbles: each a sine ringing at 0.6–2.4 kHz whose pitch rises as it decays (a bubble
  * shrinking), from zero phase so it never clicks. A rotating phasor, re-tuned every 32 samples,
@@ -87,7 +94,7 @@ function trickleLoop(rng: Rng, sr: number): Float32Array {
   normaliseRms(body, 0.65);
   normaliseRms(top, 0.12);
   for (let i = 0; i < pop.length; i++) pop[i] = pop[i]! + body[i]! + top[i]!;
-  return normaliseRms(pop, OASIS_RMS);
+  return normaliseRms(soften(pop, 4), OASIS_RMS);
 }
 
 function murmurLoop(rng: Rng, sr: number): Float32Array {
@@ -137,7 +144,7 @@ function palmsLoop(rng: Rng, sr: number): Float32Array {
   normaliseRms(crackle, 1);
   normaliseRms(air, 0.55);
   for (let i = 0; i < crackle.length; i++) crackle[i] = crackle[i]! + air[i]!;
-  return normaliseRms(crackle, OASIS_RMS);
+  return normaliseRms(soften(crackle, 4), OASIS_RMS);
 }
 
 /** The seguia's loops for a context rate (each at its own lower rate); deterministic for a given Rng. */

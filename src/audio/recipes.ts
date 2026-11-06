@@ -469,7 +469,7 @@ export function bunting(rng: Rng, pan = 0): SoundSpec {
     if (t > 0) env.push([t, EPS]);
     env.push([t + Math.max(0.012, dur * 0.3), amp], [t + dur * 0.7, amp * 0.5], [t + dur, EPS]);
     t += dur + (last ? rng.range(0.03, 0.045) : rng.range(0.045, 0.07));
-    f *= rng.range(0.95, 0.99);
+    f *= rng.range(0.97, 0.99);
   }
   return finish({
     name: 'bunting', gain: 0.04, pan, reverb: 0.3, lowpass: 7000,
