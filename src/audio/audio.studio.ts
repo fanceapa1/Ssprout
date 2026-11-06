@@ -7,7 +7,8 @@ import type { StudioEntry, StudioRenderContext, StudioSection } from '../studio/
 import { createWebAudioBackend, type AudioBackend, type SoundBus } from './backend';
 import { createGardenAudio, type GardenAudio } from './garden-audio';
 import { fallsLoops } from './falls';
-import { BIRD_CURVE, CRICKET_CURVE, DIPPER_CURVE, KAJIKA_CURVE, MASTER_LEVEL, mixParams, sampleCurve, SWALLOW_CURVE, WARBLER_CURVE, type MixParams } from './params';
+import { palmsLoops, SEGUIA_BLEND, seguiaLoops } from './oasis-bed';
+import { BIRD_CURVE, CRICKET_CURVE, DIPPER_CURVE, DOVE_CURVE, GECKO_CURVE, KAJIKA_CURVE, MASTER_LEVEL, mixParams, sampleCurve, SWALLOW_CURVE, WARBLER_CURVE, type MixParams } from './params';
 import { standardLoop } from './standard-loops';
 import { brownNoise, pinkNoise, whiteNoise } from './noise';
 import { EPS, RECIPES, type Point, type RecipeName, type SoundSpec, type Voice } from './recipes';
@@ -235,6 +236,8 @@ function drawCurves(canvas: HTMLCanvasElement, { pixelRatio }: StudioRenderConte
     { name: 'crickets', curve: CRICKET_CURVE, w: 1.8, a: 0.4, dash: [], at: 1 },
     { name: 'dipper (falls)', curve: DIPPER_CURVE, w: 1, a: 0.45, dash: [4, 2], at: 6 },
     { name: 'kajika (falls)', curve: KAJIKA_CURVE, w: 1, a: 0.45, dash: [1, 2], at: 20.5 },
+    { name: 'dove (oasis)', curve: DOVE_CURVE, w: 1, a: 0.45, dash: [6, 2], at: 10 },
+    { name: 'gecko (oasis)', curve: GECKO_CURVE, w: 1, a: 0.45, dash: [3, 3], at: 22.5 },
   ];
   ctx.font = '10px "Cormorant Garamond", serif';
   ctx.textBaseline = 'bottom';
@@ -301,8 +304,15 @@ const section: StudioSection = {
     soundEntry('splash', 'Waterfall: splash in the plunge pool', 'events'),
     soundEntry('dipper', 'Waterfall: brown dipper warble', 'events'),
     soundEntry('kajika', 'Waterfall: kajika frog trill at dusk', 'events'),
+    soundEntry('dove', 'Oasis: laughing dove, five-note coo', 'events'),
+    soundEntry('bunting', 'Oasis: house bunting song', 'events'),
+    soundEntry('beeeater', 'Oasis: bee-eater calls overhead', 'events'),
+    soundEntry('cicada', 'Oasis: midday insect shimmer', 'events'),
+    soundEntry('gecko', 'Oasis: gecko clicks after dark', 'events'),
+    soundEntry('frogs', 'Oasis: distant frog chorus from the basin', 'events'),
     soundscape,
     fallsEntry(),
+    oasisEntry(),
     ...(['waves', 'fire', 'cafe', 'lofi', 'white', 'brown'] as const).map(standardEntry),
   ],
 };
@@ -381,6 +391,32 @@ function fallsEntry(): StudioEntry {
       ctx.fillText('spray, 9 s loop (× 0.28)', 12, H - 6);
       clickable(canvas, () => toggleBed('falls', () =>
         mixParams({ hour: 12, weather: null, activity: idle, fauna: new Set(), scenery: 'waterfall' })));
+    },
+  };
+}
+
+/** The oasis's beds (ADR 0303): the seguia (trickle over murmur) and the palms; plays the garden mix there. */
+function oasisEntry(): StudioEntry {
+  return {
+    id: 'oasis', label: 'Oasis beds: the seguia (trickle, murmur) and the palms — click to play / stop', w: W, h: H,
+    render(canvas, rc) {
+      const rng = createRng(rc.seed);
+      const water = seguiaLoops(rng.fork('seguia'), 16000), palms = palmsLoops(rng.fork('palms'), 16000);
+      const ctx = canvas.getContext('2d')!;
+      ctx.scale(rc.pixelRatio, rc.pixelRatio);
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = ink(0.75);
+      trace(ctx, water.trickle.data[0], H * 0.2, 70);
+      ctx.strokeStyle = ink(0.45);
+      trace(ctx, water.murmur, H * 0.45, 70 * SEGUIA_BLEND.murmur);
+      ctx.strokeStyle = ink(0.6);
+      trace(ctx, palms.data[0], H * 0.75, 70);
+      ctx.fillStyle = ink(0.65);
+      ctx.font = 'italic 13px "Cormorant Garamond", serif';
+      ctx.fillText('trickle 9 s, murmur 14 s', 12, H * 0.6);
+      ctx.fillText('palms, 17 s loop', 12, H - 6);
+      clickable(canvas, () => toggleBed('oasis', () =>
+        mixParams({ hour: 12, weather: null, activity: idle, fauna: new Set(), scenery: 'oasis' })));
     },
   };
 }
