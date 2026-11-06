@@ -305,7 +305,7 @@ const inView = (p: Pt, v: Rect, m: number) => p.x > v.x + m && p.x < v.x + v.w -
 /** The next perch: free ones in view, near ones likelier, never `not`. Null when every one is held. */
 export function choosePerch(w: Pick<FaunaWorld, 'perches' | 'view'>, rng: Rng, from: Pt | null, not: Perch | null, held: readonly Pt[]): Perch | null {
   const free = buntingPerches(w).filter((p) => p !== not && !isHeld(p, held));
-  const seen = free.filter((p) => inView(p, w.view, 16));
+  const seen = free.filter((p) => inView(p, w.view, 40));
   const pool = seen.length > 0 ? seen : free;
   if (pool.length === 0) return null;
   const weights = pool.map((p) => (from ? 1 / (1 + (dist(p, from) / BUNTING_TUNING.reach) ** 2) : 1) * (p.kind === 'rock' ? 0.6 : 1));
