@@ -48,18 +48,18 @@ export function toothedOutline(p: ToothedPad, k: number, s = 1): Pt[] {
   return pts;
 }
 
-export function paintToothedPad(p: Painter, rng: Rng, pad: ToothedPad, k: number, s: number, ink: Pigment): void {
+export function paintToothedPad(p: Painter, rng: Rng, pad: ToothedPad, k: number, s: number): void {
   const op = smooth(k * 3);
   const outline = toothedOutline(pad, k, s);
   const rx = pad.r * s;
   const ry = pad.r * s * pad.flat;
   // its cool shadow on the water just below, so the dark disc sits on the surface
-  p.glaze({ cx: pad.x + 1, cy: pad.y + ry * 0.4, rx: rx * 1.04, ry: ry * 0.95 }, PIGMENTS.celadonDeep, { rng: rng.fork('shadow'), opacity: 0.26 * op });
-  p.wetInWet(outline, lighten(pad.tone, 0.1), shade(pad.tone, 0.3), {
+  p.glaze({ cx: pad.x + 1, cy: pad.y + ry * 0.22, rx: rx * 1.02, ry: ry * 0.9 }, PIGMENTS.celadonDeep, { rng: rng.fork('shadow'), opacity: 0.2 * op });
+  p.wetInWet(outline, lighten(pad.tone, 0.1), mix(shade(pad.tone, 0.2), pad.flush, 0.35), {
     rng: rng.fork('pad'),
     angle: UP,
     split: 0.55,
-    deform: 0.06,
+    deform: 0.025,
     spread: 0.06,
     softness: 0.4,
     opacity: 0.9 * op,
@@ -68,7 +68,7 @@ export function paintToothedPad(p: Painter, rng: Rng, pad: ToothedPad, k: number
     granulation: 0.25,
   });
   // the bronze-purple flush bleeds in from the far rim
-  p.glaze(outline, pad.flush, { rng: rng.fork('flush'), opacity: 0.4 * smooth((k - 0.35) / 0.65), fade: { angle: -UP, start: 0.05, amount: 0.85 } });
+  p.glaze(outline, pad.flush, { rng: rng.fork('flush'), opacity: 0.3 * smooth((k - 0.35) / 0.65), fade: { angle: -UP, start: 0.05, amount: 0.85 } });
   const mk = smooth((k - 0.5) / 0.5);
   if (visible(mk)) {
     pad.spots.forEach((sp, i) => {
@@ -87,15 +87,22 @@ export function paintToothedPad(p: Painter, rng: Rng, pad: ToothedPad, k: number
       );
     });
   }
-  // a dark saw-edge along the near rim, where the teeth catch against the bright water
+  // the saw: forward-raked teeth in one wet layer, so the wash's soft rim gets its points back
   const ek = smooth((k - 0.4) / 0.6);
   if (visible(ek)) {
+    const half = (pad.notchWidth / 2) * k;
+    const span = Math.PI * 2 - 2 * half;
+    const L = p.layer({ x: pad.x - rx * 1.3, y: pad.y - ry * 1.6 - 2, w: rx * 2.6, h: ry * 3.2 + 4 });
     for (let i = 0; i < pad.teeth; i++) {
-      const q = outline.slice(i * 2, i * 2 + 3);
-      const near = (q[1]!.y - pad.y) / Math.max(0.5, ry);
-      const o = 0.42 * ek * smooth(near * 1.6 + 0.2);
-      if (o > 0.01) p.inkLine(q, { rng: rng.fork(`saw-${i}`), width: 0.4, pigment: ink, opacity: o, breaks: 0, taper: [0.15, 0.15], wobble: 0.05 });
+      const t = pad.notch + half + (span * (i + 0.5)) / pad.teeth;
+      const base = { x: pad.x + Math.cos(t) * rx, y: pad.y + Math.sin(t) * ry };
+      const a = t + 0.9;
+      const len = rx * pad.depth * 1.25 * ek;
+      const dir = { x: Math.cos(a), y: Math.sin(a) * pad.flat };
+      const near = Math.sin(t) > 0;
+      p.dabInto(L, base, near ? shade(pad.tone, 0.1) : mix(pad.tone, pad.flush, 0.4), { rng: rng.fork(`tooth-${i}`), variant: 'needle', angle: Math.atan2(dir.y, dir.x), length: Math.max(len * 0.45, len * Math.hypot(dir.x, dir.y)), width: len * 0.42, pool: 0.1, basePool: 0, layers: 2 });
     }
+    L.dry({ opacity: 0.7 * ek, edge: 0.5, edgeWidth: 0.25, sharpness: 0.85, centreLift: 0.05, granulation: 0.1, flow: 0.2, flowScale: 3, darken: 0.25 });
   }
 }
 
@@ -144,13 +151,13 @@ export function paintStarFlower(p: Painter, rng: Rng, f: StarFlower, open: numbe
   if (visible(k)) {
     const s = f.size;
     const ring = { x: f.c.x, y: f.c.y - s * 0.08 };
-    p.dab(ring, c.goldDeep, { rng: rng.fork('disc'), variant: 'round', angle: 0, length: s * 0.5 * k, width: s * 0.5 * f.view.tilt * k, opacity: 0.7 * opacity * k, blend: 'source-over', edge: 0.4 });
-    const n = 14;
+    p.dab(ring, c.goldDeep, { rng: rng.fork('disc'), variant: 'round', angle: 0, length: s * 0.42 * k, width: s * 0.42 * f.view.tilt * k, opacity: 0.45 * opacity * k, blend: 'source-over', edge: 0.4 });
+    const n = 22;
     for (let i = 0; i < n; i++) {
       const a = (i / n) * Math.PI * 2;
-      const base = { x: ring.x + Math.cos(a) * s * 0.22, y: ring.y + Math.sin(a) * s * 0.22 * f.view.tilt };
-      const tip = { x: base.x + Math.cos(a) * s * 0.05, y: base.y - s * lerp(0.08, 0.22, k) * (0.8 + 0.2 * Math.sin(a)) };
-      p.stroke([base, tip], { rng: rng.fork(`stamen-${i}`), pigment: Math.sin(a) > 0 ? c.gold : mix(c.gold, c.goldDeep, 0.4), width: s * 0.09, taper: [0.1, 0.5], wobble: 0.1, wetness: 0.3, opacity: 0.9 * opacity * k, edge: 0.35 });
+      const base = { x: ring.x + Math.cos(a) * s * 0.2, y: ring.y + Math.sin(a) * s * 0.2 * f.view.tilt };
+      const tip = { x: base.x - Math.cos(a) * s * 0.04, y: base.y - s * lerp(0.05, 0.15, k) * (0.8 + 0.2 * Math.sin(a)) };
+      p.stroke([base, tip], { rng: rng.fork(`stamen-${i}`), pigment: Math.sin(a) > 0 ? c.gold : mix(c.gold, c.goldDeep, 0.4), width: s * 0.045, taper: [0.1, 0.5], wobble: 0.1, wetness: 0.3, opacity: 0.9 * opacity * k, edge: 0.35 });
     }
   }
   row(f.inner, open * 0.62, 0.82, 0.22, 'inner', white(0.5), (d) => d >= 0);

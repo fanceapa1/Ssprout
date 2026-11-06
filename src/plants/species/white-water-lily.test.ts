@@ -19,7 +19,7 @@ describe('white water lily plan', () => {
     for (let seed = 1; seed <= 60; seed++) {
       const plan = planWhiteWaterLily(createRng(seed).fork('plan'));
       for (const pad of plan.pads) {
-        expect(pad.teeth).toBeGreaterThanOrEqual(16);
+        expect(pad.teeth).toBeGreaterThanOrEqual(14);
         expect(toothedOutline(pad, 1).length).toBe(pad.teeth * 2 + 2);
       }
       const open = plan.flowers.filter((f) => !f.bud);

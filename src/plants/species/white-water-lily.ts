@@ -1,7 +1,7 @@
 import type { Rng } from '../../core/rng';
-import { PIGMENTS, jitter, mix, type Pigment, type Pt } from '../../paint';
+import { PIGMENTS, jitter, mix, type Pt } from '../../paint';
 import { ease, easeOut, lerp, smooth, stagger, visible } from '../lib/small-growth';
-import { INK_GREEN, plantFrame } from '../lib/small-paint';
+import { plantFrame } from '../lib/small-paint';
 import { UP, type FlowerView } from '../lib/small-structure';
 import { paintPointedBud, paintStarFlower, paintToothedPad, type StarPetal, type ToothedPad } from '../lib/white-water-lily-paint';
 import type { SpeciesDef } from '../types';
@@ -12,8 +12,8 @@ import type { SpeciesDef } from '../types';
  * round a gold crown. It unrolls its pads first, then raises pointed green buds that open.
  */
 
-const PAD = '#4b6a45';
-const PAD_DEEP = '#36533b';
+const PAD = '#55764c';
+const PAD_DEEP = '#3f5d41';
 const BRONZE = '#7d5a3c';
 const PURPLE = '#634457';
 const PETAL = '#f8f4ea';
@@ -61,19 +61,20 @@ export function planWhiteWaterLily(rng: Rng): WhiteWaterLilyPlan {
   const turn = rng.range(0, Math.PI * 2);
   for (let i = 0; i < n; i++) {
     const a = turn + (i / n) * Math.PI * 2 + rng.gaussian(0, 0.35);
-    const d = i === 0 ? rng.range(0, 5) : rng.range(20, 31);
-    const r = rng.range(12, 16.5) * (i === 0 ? 1.12 : 1);
+    const d = i === 0 ? rng.range(0, 5) : rng.range(24, 34);
+    const r = rng.range(12, 16) * (i === 0 ? 1.1 : 1);
     const veins: number[] = [];
     for (let v = 0; v < 9; v++) veins.push((v / 9) * Math.PI * 2 + rng.gaussian(0, 0.12));
+    const reach = 62 - r * 1.15;
     pads.push({
-      x: Math.cos(a) * d * 1.45,
+      x: Math.max(-reach, Math.min(reach, Math.cos(a) * d * 1.6)),
       y: Math.sin(a) * d * FLAT,
       r,
       flat: FLAT,
       notch: rng.range(0, Math.PI * 2),
       notchWidth: rng.range(0.14, 0.26),
-      teeth: Math.round(r * rng.range(1.5, 1.8)),
-      depth: rng.range(0.07, 0.1),
+      teeth: Math.round(r * rng.range(1.7, 2)),
+      depth: rng.range(0.11, 0.15),
       tone: jitter(green, rng, 0.03),
       flush: jitter(rng.chance(0.5) ? BRONZE : PURPLE, rng, 0.04),
       spots: rng.chance(0.45) ? Array.from({ length: rng.int(2, 5) }, () => ({ a: rng.range(0, Math.PI * 2), d: rng.range(0.25, 0.75), s: rng.range(1, 2.2) })) : [],
@@ -120,7 +121,9 @@ function drawFlower(p: Parameters<SpeciesDef['draw']>[0], rng: Rng, f: Flower, g
   const head = { x: f.base.x + Math.sin(f.lean) * lift, y: f.base.y - Math.cos(f.lean) * lift };
   // where the stalk leaves the water: a dark collar and a ring that settles
   p.glaze({ cx: f.base.x, cy: f.base.y + 0.6, rx: lerp(1, 4.5, rk), ry: lerp(0.4, 1.3, rk) }, PIGMENTS.celadonDeep, { rng: rng.fork('collar'), opacity: 0.3 * rk });
-  p.stroke([f.base, { x: (f.base.x + head.x) / 2 + f.lean, y: (f.base.y + head.y) / 2 }, head], { rng: rng.fork('stalk'), pigment: STALK, width: 1.1, taper: [0.1, 0.3], wobble: 0.15, wetness: 0.4, opacity: 0.85 * smooth(rk * 2), edge: 0.4 });
+  // the open flower hides the top of its stalk, so it stops under the front petals
+  const top = { x: head.x, y: head.y + f.size * 0.3 * f.view.tilt * (f.bud ? 0 : ok) };
+  p.stroke([f.base, { x: (f.base.x + top.x) / 2 + f.lean, y: (f.base.y + top.y) / 2 }, top], { rng: rng.fork('stalk'), pigment: STALK, width: 1.1, taper: [0.1, 0.3], wobble: 0.15, wetness: 0.4, opacity: 0.85 * smooth(rk * 2), edge: 0.4 });
   const open = f.bud ? ok * 0.12 : ok;
   const fade = f.bud ? 1 : 1 - smooth(ok / 0.45);
   if (visible(fade)) {
@@ -160,7 +163,7 @@ const whiteWaterLily: SpeciesDef = {
         if (!visible(k)) continue;
         const s = easeOut(k);
         if (pd.r * s < 0.6) continue;
-        paintToothedPad(p, r.fork(`pad-${i}`), pd, k, s, mix(INK_GREEN, PURPLE, 0.3) as Pigment);
+        paintToothedPad(p, r.fork(`pad-${i}`), pd, k, s);
       }
       const flowers = plan.flowers.map((f, i) => ({ f, i })).sort((a, b) => a.f.base.y - b.f.base.y);
       for (const { f, i } of flowers) drawFlower(p, r.fork(`flower-${i}`), f, g);
