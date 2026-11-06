@@ -463,8 +463,14 @@ Composition map: studio `oasis-map/map`. Rock: studio `oasis-rock`. Water: studi
   y 318. The tallest horn tip is at y 152, so a 16:9 screen (which shows y 70–970 round the focus)
   keeps about 80 units of sky above it, clear of the corner controls. The bluff is a rounded
   conglomerate ridge on the left (top y 216), broken down to the ksar's seat, with a rounded,
-  broken shoulder on the right (x 900–1022) falling to its foot by the basin. The basin's far rim
-  runs x 560–1060 and its near rim 506–1114. Grove palms begin at `GROVE_FROM` 1030, right of the notch.
+  broken shoulder on the right (x 900–1022) falling to its foot by the basin. The basin is seen
+  at eye level (O2d, devlog 121): a shallow band whose sides run to `BASIN_VP` (810, 340) on the
+  horizon (`towardVp`). Its near rim runs x 506–1114 at y 640, its far rim x 585–1035 at y 562
+  (78 deep, the far rim 0.74 of the near's width). `BASIN_RIM`: far coping 6 (a sliver: a thin top
+  and the inner face below it), near coping 10, side coping 22 wide at the near rim, near outer
+  face 24. The water runs y 568–630. The middle terrace wall runs on to the basin's far-left
+  corner, and the sand behind the basin takes a pale trodden patch and two sets of short ripples.
+  Grove palms begin at `GROVE_FROM` 1030, right of the notch.
 - **Skyline**: `SKYLINE` is sampled every 2 units from the painted silhouette (`silhouetteAt`:
   the bluff, every block's front and flank with its horns and crenels, the far range right of
   x 780). Each sample takes the lowest edge within a step either side, plus 1, so the sky plate
@@ -476,7 +482,7 @@ Composition map: studio `oasis-map/map`. Rock: studio `oasis-rock`. Water: studi
   seguia's last run (`WET_SAND_HALF_WIDTH`), and the footpath's trodden band (`PATH_HALF_WIDTH`).
 
 - **Water**: the basin's water inside its coping is the still pond (`BASIN_WATER`, the reflections'
-  waterline at its far edge, y 488). The seguia's three runs, the sluice and the oued are
+  waterline at its far edge, y 568). The seguia's three runs, the sluice and the oued are
   `streams`. The sand bars inside the oued are land (`OUED_BARS`, the big one the layout's `BAR`). There are no boulders or stepping stones yet.
 - **Terraces** (ADR 0300): ground and copings on a raised terrace take `perspectiveScale(y + lift)`.
   The lifts are high 70, middle 36 and grove 24, the wall drops in front of each.
@@ -546,13 +552,16 @@ The shapes are the layout's (`geometry.ts`); the big sand bar is the layout's `B
 - **Basin**: a lime-washed coping of dressed stone (joints square to each wall), the near outer
   face warmer and darker, the inner faces under the coping (left lit, right turned away) with a
   wet, algae-tinged stain at the waterline. The water runs turquoise under the far wall into
-  deep teal, green-brown in the depths. The bluff and the ksar are reflected about the far
-  waterline, squeezed to 0.36 so the towers fit: the teal is lifted there first so the red reads
-  warm, then broken by slow horizontal lifts and a few dark ripple strokes. The grove's palms
-  reflect dark olive on the right. Slow rings spread from the inlet notch in the left coping.
-  `BASIN_STEPS`: five steps down the right wall from its far corner, two dry, the rest paler
-  shapes under the water. `SLUICE_GATE`: a cut through the right coping near the overflow
-  corner, an upright post either side and a board in their slots with a thin spill over it.
+  deep teal, green-brown in the depths. Seen low, the water is mostly mirror: the bluff and the
+  ksar are reflected about their feet (y 470) onto the far waterline, squeezed to 0.17 so the
+  towers' tops fall near the near rim. The teal is lifted under them first so the red reads warm,
+  level breaks run across the mirrored rock (so it reads as water, not as a wall), then slow
+  horizontal lifts and a few dark ripple strokes. Turquoise shows between the towers and along
+  the near rim. The grove's palms reflect dark olive on the right. The phase's mirrored sky
+  plate (`paintOasisWaterSky`) fades out toward the far edge, so its shine gathers near the rim. Slow rings spread from the inlet notch in the left coping.
+  `BASIN_STEPS`: five short, foreshortened treads down the right wall from its far corner, two
+  dry, the rest paler shapes under the water. `SLUICE_GATE`: a cut through the right coping at
+  the near right corner, an upright post either side and a board in their slots with a thin spill over it.
 - **Seguia**: each run is a clay-lined cut: damp clay either side, the far bank's inner face in
   shade, the water light-to-teal with broken dark wet edges and a broken sky glint. The last run
   widens toward the viewer. Each fall (`fallSheet`) is a lifted spill the channel's width at
@@ -613,7 +622,7 @@ waterfall's pace. Each element is clipped to its own water.
 - **Sluice spill** (`SLUICE_GATE.spill`): five glassy lights, each a white dash over a small teal
   trough, slip outward over the board and off its lip (1.1–1.7 s). A small puff pulses where the
   spill drops. Clip: the gate's cut, the spill and the sluice's channel.
-- **Basin**: three rings from `INLET` (the notch in the left coping), 11 s each, spreading ever
+- **Basin**: three rings from `INLET` (the notch in the left coping, `BASIN_INLET`), flattened to 0.09 for the low view, 11 s each, spreading ever
   slower to 150 units and fading. Three ring sprites (30, 70, 140 wide) keep the line's width as
   a ring grows. Clip: `BASIN_WATER`. The rest of the basin gets nothing: the oasis sets
   `pondSurface: 0`, so the scene's generic shimmer, rings and glints stay off it and the basin
