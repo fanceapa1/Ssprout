@@ -75,8 +75,10 @@ strokes, each with an ink crease, and two wet layers per culm.
   than 1.2 times the ear (60 seeds); every culm, ear and awn tip inside the box (60 seeds).
 - `src/scenery/flora.test.ts`: the oasis pin gains `barley`; the garden's 25 and the
   waterfall's list are unchanged.
-- `npx vitest run src/plants src/scenery/flora.test.ts` and `npm run typecheck` pass. No e2e
-  was run (the task says not to).
+- `npm run typecheck` passes. `npx vitest run src/plants src/scenery/flora.test.ts` (one worker,
+  under `nice -n 19`, on a loaded machine): 466 of 468 pass. The two box tests that failed,
+  `damask-rose` and `tochinoki`, pass when re-run alone (19/19), so they look like load
+  timeouts; neither touches barley's files. No e2e was run (the task says not to).
 
 ## Looked at
 All in `artifacts/op6-barley/`:
