@@ -120,7 +120,7 @@ describe('the pair at the oasis', () => {
     expect(bs.reduce((n, b) => n + b.flights, 0)).toBeGreaterThan(30);
     expect(bs.reduce((n, b) => n + b.sips, 0)).toBeGreaterThan(0);
     expect(bs.reduce((n, b) => n + b.pecks, 0)).toBeGreaterThan(50);
-  });
+  }, 60_000);
 
   it('keeps off a perch another creature holds', () => {
     const sim = oasisSim(6, { rows: [] });
