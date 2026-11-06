@@ -133,6 +133,7 @@ describe('each garden’s flora', () => {
   it('the oasis offers only its own species so far (none is shared by biology), so it stays behind ?dev&scenery=oasis', () => {
     // one id per line, sorted: each phase 13 species task adds its own
     expect(offered(getScenery('oasis')).map((sp) => sp.id).sort()).toEqual([
+      'alfalfa',
       'barley',
       'caper',
       'cattail',
