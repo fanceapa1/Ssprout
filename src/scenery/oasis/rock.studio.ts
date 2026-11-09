@@ -1,6 +1,7 @@
 /**
- * Studio: the oasis's rock (O2): the whole rock element (bluff and ksar), the ksar close up (horns,
- * incised bands, windows, the seat in the rock), the bluff's shoulder, and the painting so far.
+ * Studio: the oasis's rock (O2, O9): the whole rock element (bluff and ksar), the ksar close up
+ * (horns, carved bands, openings), its tallest tower and the seat in the rock, the bluff's
+ * shoulder, and the painting so far.
  */
 import { paperTexture } from '../../paint';
 import { WORLD_H, WORLD_W, type Rect } from '../../render/viewport';
@@ -34,7 +35,8 @@ const section: StudioSection = {
   order: 142,
   entries: [
     region('rock', 'the rock element: the bluff (conglomerate, sandstone beds, runnels) and the ksar on it', { x: -20, y: 120, w: 1060, h: 380 }, ['rock']),
-    region('ksar', 'the ksar close up: tapering pisé towers, horned merlons, incised chevrons and diamonds, the seat in the rock', { x: 420, y: 130, w: 490, h: 240 }, ['rock']),
+    region('ksar', 'the ksar close up: tapering pisé towers with rounded horns and worn merlons, houses stepping back, ruined curtain walls, all growing out of the rock', { x: 420, y: 130, w: 490, h: 240 }, ['rock']),
+    region('tower', 'the tallest tower and its seat: wet-in-wet pisé, lit flank, carved band in loose brush marks, openings with palm-wood lintels, the rock rising into its foot', { x: 590, y: 140, w: 200, h: 220 }, ['rock'], 600),
     region('shoulder', 'the bluff’s rounded, broken shoulder: lit face to the sun, core shade, beds wrapping round', { x: 820, y: 290, w: 240, h: 200 }, ['rock']),
     region('scene', 'the painting so far, with the rock in it', { x: 0, y: 0, w: WORLD_W, h: WORLD_H }, undefined),
   ],
