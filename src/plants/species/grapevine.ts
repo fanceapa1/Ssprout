@@ -255,7 +255,7 @@ export function planGrapevine(rng: Rng): GrapevinePlan {
       const v = clamp01((jy - t) / Math.max(10, bottom - t));
       const back = v < 0.4;
       const a = DOWN + lr.gaussian(0, back ? 0.9 : 0.6);
-      leaf(jx, jy, a, back ? 'back' : 'mid', lr.range(8.5, 12) * (back ? 0.9 : 1), lr.range(0.55, 0.9), litAt(jx, jy) + lr.range(-0.15, 0.15), reach(jx) * 0.6 + (1 - v) * 0.15 + lr.range(0, 0.25));
+      leaf(jx, jy, a, back ? 'back' : 'mid', lr.range(8.5, 12) * (back ? 0.9 : 1), lr.range(0.55, 0.9), litAt(jx, jy) + lr.range(-0.15, 0.15), reach(jx) * 0.5 + (1 - v) * 0.35 + lr.range(0, 0.15));
     }
   for (let x = roofX0 + 6; x < roofX1 - 4; x += lr.range(10, 16)) {
     const t = roofTop(x);
