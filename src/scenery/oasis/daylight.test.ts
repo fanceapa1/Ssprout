@@ -162,4 +162,4 @@ describe('the oasis daylight (O5)', () => {
   });
 });
 
-const PINS: Record<DayPhase, string> = { sunrise: 'dfc50823', midday: 'c8973db1', sunset: '5ba81738', night: '66cfe507' };
+const PINS: Record<DayPhase, string> = { sunrise: 'f0fc4d95', midday: 'a760575a', sunset: 'a8961905', night: '05429cfe' };

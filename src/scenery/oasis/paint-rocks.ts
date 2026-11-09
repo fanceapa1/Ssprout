@@ -3,11 +3,11 @@
  * growing out of it in the same golden-red earth. Lit from the upper right (ADR 0300), painted on
  * white in world units, in parts (ADR 0226, 0238). docs/systems/scenery.md › Oasis › Rock.
  */
-import type { Rng } from '../../core/rng';
-import { PAPER_WHITE, bounds, closedResample, createSimplex2D, lighten, mix, rgba, shade, smoothPath, type Painter, type Pigment } from '../../paint';
+import { createRng, type Rng } from '../../core/rng';
+import { PAPER_WHITE, blob, bounds, closedResample, insetPolygon, createSimplex2D, lighten, mix, rgba, shade, smoothPath, type Painter, type Pigment } from '../../paint';
 import type { Pt } from '../../render/viewport';
 import type { Strokes } from '../../scene/paint-land';
-import { FOOTING, KSAR_PALMS, KSAR_SHAPES, windows, type BlockShape } from './ksar';
+import { FOOTING, KSAR_PALMS, KSAR_SHAPES, taper, windows, type BlockShape } from './ksar';
 import { BLUFF } from './layout';
 
 /** The earth both are made of: golden where the sun strikes, red-ochre in the body, deep in the cuts. */
@@ -23,7 +23,7 @@ export const EARTH = {
   sand: '#ebcb8b',
 } satisfies Record<string, Pigment>;
 /** The bluff's painted tone just under the ksar, for the solid seat over the walls' feet. */
-const SEAT: Pigment = '#d49d78';
+const SEAT: Pigment = '#d3a088';
 const PEBBLES: readonly Pigment[] = ['#b98a6a', '#d9b48c', '#8f5a48', '#c9a080', '#a79a90', '#e0c39c', '#7d5446'];
 
 /** The shapes daylight (O5) shades and lights: the bluff and each block's front and flank. */
@@ -37,9 +37,14 @@ function trace(p: Painter, shape: readonly Pt[]): void {
 
 /** Paper over `shape`, so nothing painted earlier shows through it. */
 function fillPaper(p: Painter, shape: readonly Pt[]): void {
+  fillUnder(p, shape, PAPER_WHITE);
+}
+
+/** An opaque underlayer over `shape`: hides what is behind, and no white shows where a wash stops short of the edge. */
+function fillUnder(p: Painter, shape: readonly Pt[], pigment: Pigment): void {
   p.ctx.save();
   trace(p, shape);
-  p.ctx.fillStyle = rgba(PAPER_WHITE);
+  p.ctx.fillStyle = rgba(pigment);
   p.ctx.fill();
   p.ctx.restore();
 }
@@ -247,14 +252,15 @@ function seatAt(x: number): number | null {
 }
 
 /**
- * The ksar: the palms inside its walls, then each block back to front (houses, towers, the
- * ruined curtain walls), then the bluff's lip in front of their feet so they stand in the rock.
+ * The ksar: the palms inside its walls, then each block back to front (the far houses, the near
+ * houses, the towers, the ruined curtain walls), then the bluff's lip in front of their feet so
+ * they grow out of the rock.
  */
 export function* paintKsar(p: Painter, rng: Rng): Strokes {
   for (const k of KSAR_PALMS) {
     yield* ksarPalm(p, k.top, k.base, k.size, rng.fork(`palm-${k.top.x}`));
   }
-  for (const s of KSAR_SHAPES) yield* paintBlock(p, s, rng.fork(s.block.id));
+  for (let i = 0; i < KSAR_SHAPES.length; i++) yield* paintBlock(p, KSAR_SHAPES[i]!, i, rng.fork(KSAR_SHAPES[i]!.block.id));
   yield* paintSeat(p, rng.fork('seat'));
 }
 
@@ -284,155 +290,324 @@ function* ksarPalm(p: Painter, top: Pt, base: Pt, size: number, rng: Rng): Strok
   yield;
 }
 
-/** The houses' fronts, where a tower's shadow falls. */
-const HOUSE_FRONTS = KSAR_SHAPES.filter((s) => s.block.kind === 'house').map((s) => s.front);
-
-function* paintBlock(p: Painter, s: BlockShape, rng: Rng): Strokes {
-  const b = s.block;
-  const top = b.base - b.h;
-  const tower = b.kind === 'tower';
-  // a tower throws its shade left onto the houses behind it (the sun is on the right)
-  if (tower) {
-    p.ctx.save();
-    p.ctx.beginPath();
-    for (const h of HOUSE_FRONTS) h.forEach((q, i) => (i ? p.ctx.lineTo(q.x, q.y) : p.ctx.moveTo(q.x, q.y)));
-    p.ctx.clip();
-    yield* p.parts.glaze([{ x: b.x - 26, y: top + 30 }, { x: b.x + 4, y: top + 20 }, { x: b.x + 4, y: b.base + FOOTING }, { x: b.x - 26, y: b.base + FOOTING }], EARTH.shade, { rng, opacity: 0.42, deform: 0.1, edge: 0.2, fade: { angle: Math.PI, start: 0.5, amount: 1, ragged: 0.5 } });
-    p.ctx.restore();
-    yield;
-  }
-  const front = roughOutline(s.front, rng, 0.7, 3);
-  const flank = s.flank.length ? roughOutline(s.flank, rng.fork('flank'), 0.6, 3) : [];
-  if (flank.length) {
-    fillPaper(p, flank);
-    yield* p.parts.wetInWet(flank, mix(EARTH.lit, EARTH.gold, 0.35), mix(EARTH.gold, EARTH.body, 0.3), { rng, angle: Math.PI / 2, split: 0.6, opacity: 0.8, deform: 0.03, spread: 0.02, edge: 0.3, sharpness: 0.85, granulation: 0.35, granules: 0.1 });
-    yield;
-    clipTo(p, flank);
-    for (let y = top + 8; y < b.base; y += rng.range(9, 12)) p.dryBrush([{ x: b.x + b.w, y: y + 2 }, { x: b.x + b.w + b.side, y: y - b.side * 0.3 + 2 }], { rng, pigment: EARTH.gold, width: 1.6, opacity: 0.3, dryness: 0.6 });
-    p.ctx.restore();
-  }
-  fillPaper(p, front);
-  // houses sit back in the ksar: a touch paler and cooler than the towers in front
-  const far = b.kind === 'house' ? 0.18 : 0;
-  yield* p.parts.wetInWet(front, mix(mix(EARTH.gold, EARTH.body, 0.45), EARTH.cool, far * 0.5), mix(mix(EARTH.body, EARTH.deep, 0.2), EARTH.shade, 0.15 + far), {
-    rng, angle: Math.PI / 2 - 0.5, split: 0.55, opacity: 0.9 - far * 0.5, deform: 0.03, spread: 0.02, edge: 0.25, sharpness: 0.85, granulation: 0.45, granules: 0.18,
-  });
-  yield;
-  clipTo(p, front);
-  // the face turns from the sun toward its left edge
-  yield* p.parts.glaze(box(b.x - 4, top - 20, b.x + Math.min(22, b.w * 0.3), b.base + FOOTING), EARTH.shade, { rng, opacity: 0.32, deform: 0.1, fade: { angle: 0, start: 0.2, amount: 1, ragged: 0.4 } });
-  // pisé lifts: the formwork's courses, and the putlog holes in rows
-  for (let y = top + 10; y < b.base; y += rng.range(9, 12)) {
-    p.dryBrush([{ x: b.x - 2, y }, { x: b.x + b.w + 2, y: y + rng.range(-1, 1) }], { rng, pigment: mix(EARTH.deep, EARTH.shade, 0.3), width: 1.3, opacity: 0.28, dryness: 0.65 });
-    if (rng.chance(0.35)) for (let x = b.x + rng.range(6, 12); x < b.x + b.w - 4; x += rng.range(12, 18)) p.dab({ x, y: y - 2 }, EARTH.dark, { rng, variant: 'round', length: 1.6, width: 1.4, opacity: 0.45, layers: 1 });
-  }
-  yield;
-  if (tower) paintBands(p, s, rng);
-  // small dark windows, a palm-wood lintel over some
-  for (const w of windows(b)) {
-    p.wash(box(w.x, w.y, w.x + w.w, w.y + w.h), mix(EARTH.dark, EARTH.deep, 0.25), { rng, layers: 3, opacity: 0.8, deform: 0.05, edge: 0.25, sharpness: 0.9 });
-    if (w.h > 8 && rng.chance(0.3)) p.stroke([{ x: w.x - 1, y: w.y - 1.2 }, { x: w.x + w.w + 1, y: w.y - 1.2 }], { rng, pigment: mix('#7a5a40', EARTH.dark, 0.3), width: 1.4, opacity: 0.6, wetness: 0.1 });
-  }
-  yield;
-  // rain has washed down from every merlon; the edges have crumbled
-  for (let i = 0; i < Math.round(b.w / 9); i++) {
-    const x = rng.range(b.x + 3, b.x + b.w - 3);
-    p.dryBrush([{ x, y: top + rng.range(0, 6) }, { x: x + rng.range(-1.5, 1.5), y: top + rng.range(16, b.h * 0.7) }], { rng, pigment: mix(EARTH.deep, EARTH.shade, 0.3), width: rng.range(1.2, 2.6), opacity: 0.32, dryness: 0.65 });
-  }
-  for (let i = 0; i < Math.round(b.h / 30); i++) {
-    const left = rng.chance(0.6);
-    const x = left ? b.x + rng.range(0, 4) : b.x + b.w - rng.range(0, 4);
-    p.lift({ cx: x, cy: rng.range(top + 6, b.base - 4), rx: rng.range(2, 4.5), ry: rng.range(2, 5) }, { rng, amount: 0.45, layers: 3, deform: 0.5 });
-  }
-  // the lit tops of the parapet and the horns
-  for (let i = 1; i < s.top.length - 1; i++) {
-    const a = s.top[i]!;
-    const c = s.top[i + 1]!;
-    if (Math.abs(c.y - a.y) < 3 && c.x > a.x) p.stroke([{ x: a.x + 0.5, y: a.y + 1.4 }, { x: c.x - 0.5, y: c.y + 1.4 }], { rng, pigment: EARTH.lit, width: 1.8, opacity: 0.6, wetness: 0.15, blend: 'source-over' });
-  }
-  p.ctx.restore();
-  yield;
+/** A block's own earth: each tower a slightly different mud, the far houses paler and cooler. */
+interface Tint {
+  lit: Pigment;
+  body: Pigment;
+  shade: Pigment;
+  /** how far back it stands: 0 for the towers and walls, up to 0.4 for the far houses */
+  far: number;
 }
 
-/** A tower's incised bands near the top: chevrons over a row of diamonds, between two fillets. */
-function paintBands(p: Painter, s: BlockShape, rng: Rng): void {
+function tintOf(s: BlockShape, rng: Rng): Tint {
+  const b = s.block;
+  const far = b.id.endsWith('-back') ? 0.55 : b.kind === 'house' ? 0.35 : 0;
+  const warm = rng.range(-0.12, 0.12);
+  const body = mix(mix(mix(EARTH.body, EARTH.gold, 0.42 + warm), EARTH.cool, far * 0.4), EARTH.lit, far * 0.3);
+  return {
+    lit: mix(mix(EARTH.lit, EARTH.gold, 0.4 + warm), EARTH.cool, far * 0.3),
+    body,
+    shade: mix(mix(EARTH.shade, EARTH.deep, 0.3), EARTH.cool, 0.05 + far * 0.35),
+    far,
+  };
+}
+
+/** What lies behind each block (the fronts painted before it), where its shade falls. */
+const BEHIND: readonly (readonly Pt[])[][] = KSAR_SHAPES.map((_, i) => KSAR_SHAPES.slice(0, i).filter((q) => q.block.kind === 'house').map((q) => q.front));
+
+function* paintBlock(p: Painter, s: BlockShape, index: number, rng: Rng): Strokes {
   const b = s.block;
   const top = b.base - b.h;
-  const x0 = b.x + 5;
-  const x1 = b.x + b.w - 5;
-  const incise = mix(EARTH.deep, EARTH.dark, 0.35);
-  const fillet = (y: number) => {
-    p.dryBrush([{ x: x0 - 3, y }, { x: x1 + 3, y }], { rng, pigment: incise, width: 1.4, opacity: 0.5, dryness: 0.4 });
-    p.stroke([{ x: x0 - 3, y: y + 1.6 }, { x: x1 + 3, y: y + 1.6 }], { rng, pigment: EARTH.lit, width: 1, opacity: 0.45, wetness: 0.1, blend: 'source-over' });
-  };
-  const y1 = top + 12;
-  fillet(y1 - 3);
-  // chevrons: a running zigzag
-  const zig: Pt[] = [];
-  const step = 5;
-  for (let x = x0, i = 0; x <= x1 + 0.1; x += step, i++) zig.push({ x, y: y1 + (i % 2 ? 6 : 1) });
-  p.stroke(zig, { rng, pigment: incise, width: 1.3, opacity: 0.6, wetness: 0.1, wobble: 0.1 });
-  // diamonds, each a small lozenge with a dark eye
-  const y2 = y1 + 13;
-  const n = Math.max(2, Math.floor((x1 - x0) / 11));
-  const dx = (x1 - x0) / n;
-  for (let i = 0; i < n; i++) {
-    const cx = x0 + dx * (i + 0.5);
-    p.stroke([{ x: cx - 4, y: y2 }, { x: cx, y: y2 - 5 }, { x: cx + 4, y: y2 }, { x: cx, y: y2 + 5 }, { x: cx - 4, y: y2 }], { rng, pigment: incise, width: 1.1, opacity: 0.55, wetness: 0.1 });
+  const foot = b.base + FOOTING;
+  const tower = b.kind === 'tower';
+  const tint = tintOf(s, rng.fork('tint'));
+  clipAboveSeat(p);
+  // a block throws its shade left onto the houses behind it (the sun is on the right)
+  const behind = BEHIND[index]!;
+  if (behind.length && b.kind !== 'curtain') {
+    p.ctx.save();
+    p.ctx.beginPath();
+    for (const h of behind) h.forEach((q, i) => (i ? p.ctx.lineTo(q.x, q.y) : p.ctx.moveTo(q.x, q.y)));
+    p.ctx.clip();
+    const len = tower ? 30 : 12;
+    yield* p.parts.glaze([{ x: b.x - len, y: top + len * 0.9 }, { x: b.x + 4, y: top + 6 }, { x: b.x + 4, y: foot }, { x: b.x - len, y: foot }], mix(EARTH.shade, EARTH.cool, 0.3), { rng, opacity: tower ? 0.55 : 0.4, deform: 0.12, spread: 0.2, edge: 0.15, fade: { angle: Math.PI, start: 0.5, amount: 1, ragged: 0.6 } });
+    p.ctx.restore();
+    yield;
   }
-  fillet(y2 + 8);
+  const front = roughOutline(s.front, rng, 0.6, 3);
+  const flank = s.flank.length ? roughOutline(s.flank, rng.fork('flank'), 0.5, 3) : [];
+  if (flank.length) {
+    fillUnder(p, insetPolygon(flank, 1), mix(PAPER_WHITE, tint.lit, 0.6));
+    // the flank turned to the sun: the palest wash, pooling darker at its far edge
+    yield* p.parts.wetInWet(flank, tint.lit, mix(tint.lit, tint.body, 0.6), { rng, angle: Math.PI / 2, split: 0.6, opacity: 0.85 - tint.far * 0.3, deform: 0.03, spread: 0.02, edge: 0.45, sharpness: 0.75, granulation: 0.55, granules: 0.2 });
+    yield;
+  }
+  fillUnder(p, insetPolygon(front, 1.2), mix(PAPER_WHITE, tint.lit, 0.35));
+  // the front: warm where the light strikes high on the right, cooling down and to the left
+  yield* p.parts.wetInWet(front, mix(tint.lit, tint.body, 0.45), mix(tint.body, tint.shade, 0.2), {
+    rng, angle: Math.PI / 2 + 0.55, split: 0.5, softness: 0.7, opacity: 0.8 - tint.far * 0.35, deform: 0.03, spread: 0.02, edge: 0.3, sharpness: 0.65,
+    granulation: 0.45, granules: 0.2, flow: 0.5, flowScale: 40,
+  });
+  yield;
+  // the parapet with a smaller brush: a big wash's outline is too coarse for the merlons
+  const crest = roughOutline([...s.top, { x: b.x + b.w - taper(b), y: top + 9 }, { x: b.x + taper(b), y: top + 9 }], rng.fork('crest'), 0.4, 1.5);
+  yield* p.parts.wash(crest, mix(tint.lit, tint.body, 0.5), { rng, layers: 6, opacity: 0.6 - tint.far * 0.3, deform: 0.02, spread: 0.02, edge: 0.3, sharpness: 0.6, granulation: 0.4, fade: { angle: Math.PI / 2, start: 0.5, amount: 1 } });
+  yield;
+  clipTo(p, front);
+  const x0 = b.x;
+  const x1 = b.x + b.w;
+  // pisé is patchy: newer mud in pale patches, damp darker ones, soft and overlapping
+  for (let i = 0; i < Math.max(2, Math.round((b.w * b.h) / 2600)); i++) {
+    const dark = rng.chance(0.5);
+    p.glaze({ cx: rng.range(x0, x1), cy: rng.range(top + 8, b.base), rx: rng.range(8, 20), ry: rng.range(6, 16) }, dark ? mix(tint.body, EARTH.deep, 0.5) : tint.lit, { rng, opacity: dark ? 0.16 : 0.22, deform: 0.5, spread: 0.5, edge: 0.15, granulation: 0.5 });
+  }
+  yield;
+  // the face turns from the sun toward its left edge; a cool shade gathers there and at the foot
+  yield* p.parts.glaze(box(x0 - 4, top - 20, x0 + Math.max(10, b.w * 0.38), foot), mix(EARTH.shade, EARTH.cool, 0.3 + tint.far * 0.3), { rng, opacity: b.kind === 'tower' ? 0.5 : 0.4, deform: 0.14, spread: 0.2, edge: 0.05, fade: { angle: 0, start: 0.15, amount: 1, ragged: 0.7 } });
+  yield* p.parts.glaze(box(x0 - 4, b.base - 30, x1 + 4, foot), mix(tint.shade, EARTH.deep, 0.3), { rng, opacity: 0.28, deform: 0.2, spread: 0.3, edge: 0, fade: { angle: -Math.PI / 2, start: 0.2, amount: 1, ragged: 0.7 } });
+  yield;
+  // the lifts of the formwork: short broken courses, never a ruled line across
+  for (let y = top + rng.range(12, 18); y < b.base - 6; y += rng.range(10, 14)) {
+    for (let x = x0 + rng.range(-2, 10); x < x1; ) {
+      const len = rng.range(12, 34);
+      if (rng.chance(0.6)) p.dryBrush([{ x, y: y + rng.range(-0.6, 0.6) }, { x: x + len * 0.5, y: y + rng.range(-0.8, 0.8) }, { x: x + len, y: y + rng.range(-0.6, 0.6) }], { rng, pigment: mix(tint.shade, EARTH.deep, 0.4), width: rng.range(1, 1.6), opacity: 0.2, dryness: 0.7 });
+      x += len + rng.range(4, 16);
+    }
+    if (tower && rng.chance(0.25)) {
+      // the putlog holes of one lift, a short run of them
+      const hx = rng.range(x0 + 8, x1 - 24);
+      for (let k = 0; k < 3; k++) p.dab({ x: hx + k * rng.range(6, 9), y: y - 2 }, mix(EARTH.dark, tint.shade, 0.3), { rng, variant: 'round', length: 1.5, width: 1.3, opacity: 0.35, layers: 1 });
+    }
+  }
+  yield;
+  if (tower) paintBands(p, s, tint, rng.fork('bands'));
+  if (b.kind === 'curtain') yield* paintRuin(p, s, tint, rng.fork('ruin'));
+  paintOpenings(p, b, tint, rng.fork('openings'));
+  yield;
+  // rain has washed down from the merlons and gullied the corners
+  for (let i = 0; i < Math.round(b.w / 14); i++) {
+    const x = rng.range(x0 + 4, x1 - 4);
+    const len = rng.range(10, b.h * (tower ? 0.55 : 0.4));
+    const y = top + rng.range(0, 6);
+    p.stroke([{ x, y }, { x: x + rng.range(-1, 1), y: y + len * 0.5 }, { x: x + rng.range(-1.5, 1.5), y: y + len }], { rng, pigment: mix(tint.shade, EARTH.deep, 0.35), width: rng.range(1.4, 2.8), taper: [0.2, 0.9], opacity: 0.18, wetness: 0.6, dryness: 0.3 });
+  }
+  for (let i = 0; i < Math.round(b.h / 34) + 1; i++) {
+    const left = rng.chance(0.8);
+    const x = left ? x0 + rng.range(-1, 3) : x1 - rng.range(-1, 3);
+    p.lift({ cx: x, cy: rng.range(top + 4, b.base - 4), rx: rng.range(2, 4), ry: rng.range(3, 7) }, { rng, amount: 0.25, layers: 3, deform: 0.5 });
+  }
+  // the light catches the worn tops: broken, loose touches along the parapet
+  const lit = smoothPath(s.top.map((q) => ({ x: q.x, y: q.y + 1.6 })), 3);
+  for (let i = 0; i < lit.length; ) {
+    const n = Math.round(rng.range(4, 9));
+    const run = lit.slice(i, i + n);
+    if (run.length > 1 && rng.chance(0.5)) p.dryBrush(run, { rng, pigment: lighten(tint.lit, 0.08), width: rng.range(1.4, 2.2), opacity: 0.36 - tint.far * 0.3, dryness: 0.5, blend: 'source-over' });
+    i += n + Math.round(rng.range(1, 4));
+  }
+  p.ctx.restore();
+  p.ctx.restore();
+  yield;
 }
 
 /**
- * The bluff's lip in front of the walls' feet: rock of the same earth, its ragged top just above
- * each block's base, so the ksar stands in the rock rather than on it; a dark seam at the join.
+ * A tower's carved band near the top, done as quick loose brushwork: a broken fillet, a running
+ * zigzag of uneven teeth, a row of lozenges flicked in two strokes each, some faint or missing.
  */
-function* paintSeat(p: Painter, rng: Rng): Strokes {
-  const x0 = KSAR_SHAPES.reduce((a, s) => Math.min(a, s.block.x), Infinity) - 6;
-  const x1 = KSAR_SHAPES.reduce((a, s) => Math.max(a, s.block.x + s.block.w + s.block.side), -Infinity) + 6;
-  const top: Pt[] = [];
-  for (let x = x0; x <= x1; x += 4) {
-    const seat = seatAt(x) ?? bluffTopAt(x);
-    top.push({ x, y: Math.max(bluffTopAt(x), seat - 2) + rng.range(-1.5, 1.5) });
+function paintBands(p: Painter, s: BlockShape, tint: Tint, rng: Rng): void {
+  const b = s.block;
+  const top = b.base - b.h;
+  const tp = taper(b);
+  const x0 = b.x + tp + 4;
+  const x1 = b.x + b.w - tp - 4;
+  const incise = mix(EARTH.deep, tint.shade, 0.35);
+  // the band stands proud of the wall: a touch lighter, with a soft shade under its lower fillet
+  p.glaze(box(x0 - 3, top + 6, x1 + 3, top + 32), tint.lit, { rng, opacity: 0.18, deform: 0.2, spread: 0.3, edge: 0 });
+  const broken = (y: number, width: number, op: number) => {
+    for (let x = x0 - 3; x < x1 + 2; ) {
+      const len = rng.range(10, 26);
+      p.dryBrush([{ x, y: y + rng.range(-0.5, 0.5) }, { x: Math.min(x1 + 3, x + len), y: y + rng.range(-0.7, 0.7) }], { rng, pigment: incise, width, opacity: op, dryness: 0.5 });
+      x += len + rng.range(1, 5);
+    }
+  };
+  const y1 = top + 11 + rng.range(-1, 1);
+  broken(y1 - 3, 1.3, 0.38);
+  // the zigzag: one flick of the brush per tooth edge, heavy where it lands, now and then skipped
+  const flick = (a: Pt, c: Pt, op: number) => p.stroke([a, c], { rng, pigment: incise, width: rng.range(1.1, 1.6), taper: [0.05, 0.6], opacity: op, wetness: 0.3, wobble: 0.2 });
+  let up = true;
+  for (let x = x0; x < x1 - 3; x += rng.range(4.2, 5.4), up = !up) {
+    if (rng.chance(0.08)) continue;
+    const lo = y1 + rng.range(4.6, 6.2);
+    const hi = y1 + rng.range(0, 1);
+    const nx = Math.min(x1, x + rng.range(4.2, 5.4));
+    flick({ x, y: up ? lo : hi }, { x: nx, y: up ? hi : lo }, rng.range(0.3, 0.5));
   }
-  // thinning to nothing at both ends, so the seat has no edge of its own on the rock
-  const depth = (x: number) => (FOOTING + 30) * Math.min(1, (x - x0) / 30, (x1 - x) / 30);
-  const lip = [...top, ...top.slice().reverse().map((q) => ({ x: q.x, y: q.y + depth(q.x) }))];
-  // the feet are covered with the bluff's own tone, solid down past them and lost below
-  clipTo(p, lip);
-  const g = p.ctx.createLinearGradient(0, 316, 0, 376);
-  g.addColorStop(0, rgba(SEAT, 1));
-  g.addColorStop(0.5, rgba(SEAT, 1));
-  g.addColorStop(1, rgba(SEAT, 0));
-  p.ctx.fillStyle = g;
-  p.ctx.fillRect(x0, 310, x1 - x0, 70);
-  yield;
-  // in stretches, so no part of the step grows past one big mark at a close view
-  for (let sx = x0; sx < x1; sx += 120) yield* p.parts.glaze(box(sx - 4, 312, Math.min(x1, sx + 124), 370), mix(EARTH.deep, EARTH.body, 0.5), { rng, opacity: 0.25, deform: 0.3, spread: 0.3, edge: 0, granulation: 0.8, granules: 0.35, fade: { angle: Math.PI / 2, start: 0.4, amount: 1, ragged: 0.8 } });
-  p.ctx.restore();
-  yield;
-  // runnels start again under the walls' feet
-  for (let x = x0 + 14; x < x1 - 10; x += rng.range(26, 50)) {
-    const y = (seatAt(x) ?? bluffTopAt(x)) + rng.range(6, 14);
-    const pts: Pt[] = [];
-    for (let t = 0; t <= 1.001; t += 0.2) pts.push({ x: x + Math.sin(t * 3 + x) * 2, y: y + t * rng.range(30, 60) });
-    p.stroke(pts, { rng, pigment: mix(EARTH.deep, EARTH.shade, 0.35), width: rng.range(3, 6), taper: [0.2, 0.7], opacity: 0.32, wetness: 0.5, dryness: 0.3 });
+  const y2 = y1 + 13;
+  const n = Math.max(2, Math.floor((x1 - x0) / 10.5));
+  const dx = (x1 - x0) / n;
+  for (let i = 0; i < n; i++) {
+    if (rng.chance(0.12)) continue;
+    const cx = x0 + dx * (i + 0.5) + rng.range(-0.8, 0.8);
+    const rx = rng.range(3.2, 4.2);
+    const ry = rng.range(4.2, 5.4);
+    const op = rng.range(0.3, 0.48);
+    const t = { x: cx + rng.range(-0.4, 0.4), y: y2 - ry };
+    const l = { x: cx - rx, y: y2 + rng.range(-0.4, 0.4) };
+    const bt = { x: cx + rng.range(-0.4, 0.4), y: y2 + ry };
+    const r = { x: cx + rx, y: y2 + rng.range(-0.4, 0.4) };
+    // a lozenge in four flicks, the corners overlapping or just missing as a quick hand leaves them
+    flick(t, l, op);
+    flick(l, bt, op * 0.9);
+    flick({ x: t.x + 0.4, y: t.y }, r, op * 0.85);
+    if (rng.chance(0.85)) flick(r, { x: bt.x + 0.5, y: bt.y - 0.3 }, op * 0.8);
   }
-  yield;
-  // the seam where the walls go into the rock, and the rock's broken lit edge under it
-  const seam = smoothPath(top.map((q) => ({ x: q.x, y: q.y - 0.5 })), 3);
-  p.dryBrush(seam, { rng, pigment: mix(EARTH.dark, EARTH.shade, 0.4), width: 2.2, opacity: 0.5, dryness: 0.4 });
-  p.dryBrush(seam.map((q) => ({ x: q.x, y: q.y + 3 })), { rng, pigment: EARTH.lit, width: 2, opacity: 0.4, dryness: 0.6, blend: 'source-over' });
-  // fallen pisé on the lip under the ruined stretches
-  for (const s of KSAR_SHAPES.filter((q) => q.block.kind === 'curtain')) {
-    const b = s.block;
-    for (let i = 0; i < 6; i++) {
-      const x = rng.range(b.x + 4, b.x + b.w - 4);
-      const y = b.base + rng.range(1, 6);
-      p.dab({ x, y }, mix(EARTH.body, EARTH.deep, rng.range(0, 0.4)), { rng, variant: 'round', length: rng.range(3, 6), width: rng.range(2, 4), opacity: 0.6, layers: 2 });
+  const y3 = y2 + 8 + rng.range(-0.5, 0.5);
+  broken(y3, 1.4, 0.36);
+  p.glaze(box(x0 - 3, y3 + 1, x1 + 3, y3 + 6), tint.shade, { rng, opacity: 0.22, deform: 0.2, spread: 0.2, edge: 0, fade: { angle: Math.PI / 2, start: 0.1, amount: 1, ragged: 0.5 } });
+  // on the tallest towers, two blind niches under the band
+  if (b.h > 125) {
+    for (const f of [0.34, 0.66]) {
+      const cx = x0 + (x1 - x0) * f + rng.range(-1.5, 1.5);
+      p.wash(arch(cx - 2.6, y3 + 9, 5.2, 9), mix(tint.shade, EARTH.deep, 0.35), { rng, layers: 3, opacity: 0.4, deform: 0.08, edge: 0.4, sharpness: 0.6 });
     }
   }
-  // the shade the walls' feet cast down the rock below them, and the runnels starting there
-  p.glaze(box(x0, 336, x1, 356), shade(EARTH.shade, 0.1), { rng, opacity: 0.22, deform: 0.3, fade: { angle: Math.PI / 2, start: 0.2, amount: 1, ragged: 0.7 } });
+}
+
+/** A ruined curtain wall's wear: a lit crest, a shade under it, rain gullies down the face, a few holes. */
+function* paintRuin(p: Painter, s: BlockShape, tint: Tint, rng: Rng): Strokes {
+  const b = s.block;
+  const crest = s.top;
+  const band = (d0: number, d1: number) => [...crest.map((q) => ({ x: q.x, y: q.y + d0 })), ...crest.slice().reverse().map((q) => ({ x: q.x, y: q.y + d1 }))];
+  yield* p.parts.glaze(band(-2, 9), tint.lit, { rng, opacity: 0.4, deform: 0.15, spread: 0.2, edge: 0, fade: { angle: Math.PI / 2, start: 0.3, amount: 1, ragged: 0.6 } });
+  yield* p.parts.glaze(band(8, 16), mix(tint.shade, EARTH.deep, 0.3), { rng, opacity: 0.22, deform: 0.25, spread: 0.3, edge: 0, fade: { angle: Math.PI / 2, start: 0.2, amount: 1, ragged: 0.8 } });
+  for (let x = b.x + rng.range(6, 14); x < b.x + b.w - 6; x += rng.range(14, 26)) {
+    const i = crest.findIndex((q) => q.x >= x);
+    const y0 = (crest[Math.max(0, i)]?.y ?? b.base - b.h) + rng.range(1, 4);
+    const len = rng.range(0.35, 0.8) * (b.base - y0);
+    const pts: Pt[] = [];
+    for (let t = 0; t <= 1.001; t += 0.25) pts.push({ x: x + Math.sin(t * 2.6 + x) * 1.2, y: y0 + t * len });
+    p.stroke(pts, { rng, pigment: mix(tint.shade, EARTH.deep, 0.4), width: rng.range(2, 3.2), taper: [0.15, 0.85], opacity: 0.3, wetness: 0.45, dryness: 0.3 });
+    p.dryBrush(pts.slice(0, 4).map((q) => ({ x: q.x - 1.8, y: q.y })), { rng, pigment: tint.lit, width: 1.1, opacity: 0.35, dryness: 0.6, blend: 'source-over' });
+  }
+  for (let i = 0; i < 2; i++) {
+    const x = rng.range(b.x + 10, b.x + b.w - 10);
+    const y = rng.range(b.base - b.h * 0.6, b.base - 8);
+    p.wash(blob(x, y, rng.range(1.5, 2.6), rng.range(1.2, 2), rng, { irregularity: 0.35, points: 8 }), mix(EARTH.dark, tint.shade, 0.35), { rng, layers: 3, opacity: 0.5, deform: 0.1, edge: 0.4, sharpness: 0.6 });
+  }
+  yield;
+}
+
+/** An opening's outline: a box, or a box under a round head. */
+function arch(x: number, y: number, w: number, h: number): Pt[] {
+  const r = w / 2;
+  const out: Pt[] = [{ x, y: y + h }, { x, y: y + r }];
+  for (let i = 1; i < 6; i++) {
+    const a = Math.PI + (Math.PI * i) / 6;
+    out.push({ x: x + r + Math.cos(a) * r, y: y + r + Math.sin(a) * r });
+  }
+  out.push({ x: x + w, y: y + r }, { x: x + w, y: y + h });
+  return out;
+}
+
+/** The openings: soft dark washes darkest at their top, a palm-wood lintel and a lit sill on some. */
+function paintOpenings(p: Painter, b: BlockShape['block'], tint: Tint, rng: Rng): void {
+  const hole = mix(mix(EARTH.dark, EARTH.deep, 0.35), tint.shade, 0.2 + tint.far);
+  for (const w of windows(b)) {
+    const shape = w.kind === 'arch' ? arch(w.x, w.y, w.w, w.h) : roughOutline(box(w.x, w.y, w.x + w.w, w.y + w.h), rng, 0.3, 1.5);
+    p.wash(shape, hole, { rng, layers: 4, opacity: 0.66 - tint.far * 0.4, deform: 0.06, spread: 0.05, edge: 0.45, sharpness: 0.7, fade: { angle: Math.PI / 2, start: 0.4, amount: 0.35 } });
+    if (w.lintel) {
+      const over = rng.range(1.5, 3);
+      p.stroke([{ x: w.x - over, y: w.y - 1.3 }, { x: w.x + w.w + over, y: w.y - 1.1 + rng.range(-0.4, 0.4) }], { rng, pigment: mix('#7a5a40', EARTH.dark, 0.25), width: 1.5, opacity: 0.6 - tint.far * 0.3, wetness: 0.15, wobble: 0.2 });
+    }
+    p.dryBrush([{ x: w.x - 0.5, y: w.y + w.h + 1.2 }, { x: w.x + w.w + 1, y: w.y + w.h + 1.4 }], { rng, pigment: tint.lit, width: 1.2, opacity: 0.4, dryness: 0.4, blend: 'source-over' });
+  }
+}
+
+/** The ksar's span over the rock, with a little room either side. */
+const SEAT_X0 = KSAR_SHAPES.reduce((a, s) => Math.min(a, s.block.x), Infinity) - 6;
+const SEAT_X1 = KSAR_SHAPES.reduce((a, s) => Math.max(a, s.block.x + s.block.w + s.block.side), -Infinity) + 6;
+
+/**
+ * Where the walls go into the rock, left → right: just above each block's base, with the rock
+ * swelling up into them here and there as outcrops the builders kept. Deterministic.
+ */
+export const SEAT_LINE: readonly Pt[] = (() => {
+  const rng = createRng('ksar-seat');
+  const noise = createSimplex2D(rng.fork('rise'));
+  const out: Pt[] = [];
+  for (let x = SEAT_X0; x <= SEAT_X1; x += 4) {
+    const seat = seatAt(x);
+    const rise = Math.max(0, noise(x / 40, 3) - 0.1) * 17 + Math.max(0, noise(x / 13, 9)) * 1.5;
+    out.push({ x, y: (seat === null ? bluffTopAt(x) : seat - 2 - rise) + rng.range(-1.2, 1.2) });
+  }
+  return out;
+})();
+
+/** Clip to everything above the seat line, so no wall foot is painted over the rock. */
+function clipAboveSeat(p: Painter): void {
+  clipTo(p, [{ x: SEAT_X0 - 60, y: -100 }, { x: SEAT_X1 + 60, y: -100 }, { x: SEAT_X1 + 60, y: SEAT_LINE[SEAT_LINE.length - 1]!.y }, ...SEAT_LINE.slice().reverse(), { x: SEAT_X0 - 60, y: SEAT_LINE[0]!.y }]);
+}
+
+/**
+ * Where the ksar meets the bluff: the walls stop at the seat line, and the rock rises into them
+ * in outcrops of its own earth over the bluff's top, so the ksar grows out of the rock rather
+ * than standing on it; the join broken, not ruled.
+ */
+function* paintSeat(p: Painter, rng: Rng): Strokes {
+  const top = SEAT_LINE;
+  const x0 = SEAT_X0;
+  const x1 = SEAT_X1;
+  // the rock's tone creeps up the wall feet, so pisé and rock read as one earth
+  yield* p.parts.glaze([...top.map((q) => ({ x: q.x, y: q.y - 22 })), ...top.slice().reverse().map((q) => ({ x: q.x, y: q.y + 2 }))], mix(SEAT, EARTH.body, 0.3), { rng, opacity: 0.28, deform: 0.2, spread: 0.3, edge: 0, granulation: 0.4, fade: { angle: -Math.PI / 2, start: 0.25, amount: 1, ragged: 0.8 } });
+  yield;
+  // the outcrops above the bluff's own top: an underlayer so no paper shows, then a granulating wash
+  // that runs on down over the bluff and is lost in it, in stretches (one big mark's work each)
+  const under = [...top, ...top.slice().reverse().map((q) => ({ x: q.x, y: Math.max(q.y, bluffTopAt(q.x) + 3) }))];
+  fillUnder(p, under, mix(PAPER_WHITE, SEAT, 0.85));
+  for (let sx = x0; sx < x1; sx += 120) {
+    const run = top.filter((q) => q.x >= sx - 4 && q.x <= sx + 124);
+    if (run.length < 2) continue;
+    const low = Math.max(...run.map((q) => q.y));
+    const fade = Math.min(1, (run[0]!.x - x0 + 20) / 40, (x1 - run[run.length - 1]!.x + 20) / 40);
+    const shape = [...run, { x: run[run.length - 1]!.x, y: low + 20 }, { x: run[0]!.x, y: low + 20 }];
+    yield* p.parts.wash(shape, SEAT, { rng, layers: 6, opacity: 0.75 * fade, deform: 0.04, spread: 0.06, edge: 0.12, sharpness: 0.4, granulation: 0.7, granules: 0.3, fade: { angle: Math.PI / 2, start: 0.35, amount: 1, ragged: 0.8 } });
+  }
+  yield;
+  // the outcrops' faces turned from the sun, and the beds running on through them
+  for (let i = 2; i < top.length - 2; i++) {
+    const q = top[i]!;
+    const prev = top[i - 2]!;
+    if (prev.y - q.y > 3) p.glaze({ cx: q.x - 3, cy: q.y + 6, rx: 4, ry: 7 }, mix(EARTH.shade, EARTH.deep, 0.3), { rng, opacity: 0.2, deform: 0.4, spread: 0.4, edge: 0 });
+  }
+  for (let x = x0 + rng.range(0, 30); x < x1 - 20; x += rng.range(60, 120)) {
+    const len = rng.range(20, 50);
+    const y = Math.max(top[Math.round((x - x0) / 4)]?.y ?? 318, 314) + rng.range(8, 16);
+    const pts = [{ x, y }, { x: x + len * 0.5, y: y + rng.range(-1, 1) }, { x: x + len, y: y + rng.range(-1.5, 1.5) }];
+    p.dryBrush(pts.map((q) => ({ x: q.x, y: q.y + 2.5 })), { rng, pigment: mix(EARTH.deep, EARTH.shade, 0.3), width: rng.range(2, 3), opacity: 0.25, dryness: 0.6 });
+    p.dryBrush(pts, { rng, pigment: EARTH.lit, width: rng.range(1.5, 2.2), opacity: 0.3, dryness: 0.6, blend: 'source-over' });
+  }
+  yield;
+  // the join, in broken touches: a dark crack here, the rock's lit edge there
+  const seam = smoothPath(top.map((q) => ({ x: q.x, y: q.y - 0.3 })), 3);
+  for (let i = 0; i < seam.length; ) {
+    const n = Math.round(rng.range(4, 12));
+    const run = seam.slice(i, i + n);
+    if (run.length > 1) {
+      if (rng.chance(0.55)) p.dryBrush(run, { rng, pigment: mix(EARTH.dark, EARTH.shade, 0.45), width: rng.range(1.2, 2.2), opacity: 0.34, dryness: 0.5 });
+      if (rng.chance(0.55)) p.dryBrush(run.map((q) => ({ x: q.x, y: q.y + 2.4 })), { rng, pigment: EARTH.lit, width: 1.6, opacity: 0.34, dryness: 0.6, blend: 'source-over' });
+    }
+    i += n + Math.round(rng.range(0, 5));
+  }
+  // fallen pisé slumped below the ruined stretches, in the walls' own colour
+  for (const s of KSAR_SHAPES.filter((q) => q.block.kind === 'curtain')) {
+    const b = s.block;
+    for (let i = 0; i < 3; i++) {
+      const x = rng.range(b.x + 6, b.x + b.w - 6);
+      const y = b.base + rng.range(0, 4);
+      const w = rng.range(8, 14);
+      p.wash(blob(x, y, w, w * 0.3, rng, { irregularity: 0.3, points: 12 }), mix(SEAT, EARTH.gold, 0.35), { rng, layers: 4, opacity: 0.35, deform: 0.2, edge: 0.15, sharpness: 0.5, granulation: 0.6, fade: { angle: Math.PI / 2, start: 0.3, amount: 0.7 } });
+    }
+  }
+  // the shade the walls cast down the rock just below them
+  yield* p.parts.glaze([...top.map((q) => ({ x: q.x, y: q.y + 2 })), ...top.slice().reverse().map((q) => ({ x: q.x, y: q.y + 18 }))], shade(EARTH.shade, 0.1), { rng, opacity: 0.16, deform: 0.3, spread: 0.3, edge: 0, fade: { angle: Math.PI / 2, start: 0.2, amount: 1, ragged: 0.7 } });
   yield;
 }
