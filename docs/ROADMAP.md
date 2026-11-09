@@ -197,9 +197,9 @@ Phase 13 art queue (after O0 and O1): one plant (OP1–OP12) or creature (OK1–
 
 | # | Task | Area | Status |
 |---|---|---|---|
-| OP12 | Date palm (*Phoenix dactylifera*): T4 tree, the signature; the background palms follow it | `src/plants/species/date-palm.ts` | in progress |
-| OP9 | Oleander (*Nerium oleander*): T3 shrub, shore and back; distinct from the Damask rose | `src/plants/species/oleander.ts` | in progress |
-| OP3 | Caper (*Capparis spinosa*): T1, trailing from wall cracks, rock and path | `src/plants/species/caper.ts` | in progress |
+| OP12 | Date palm (*Phoenix dactylifera*): T4 tree, the signature; the background palms follow it | `src/plants/species/date-palm.ts` | done (devlog 106) |
+| OP9 | Oleander (*Nerium oleander*): T3 shrub, shore and back; distinct from the Damask rose | `src/plants/species/oleander.ts` | done (devlog 108) |
+| OP3 | Caper (*Capparis spinosa*): T1, trailing from wall cracks, rock and path | `src/plants/species/caper.ts` | done (devlog 109) |
 | OP1 | Spearmint (*Mentha spicata*): T1, shore and path, the freshest green | `src/plants/species/spearmint.ts` | done (devlog 111; 50–54 ms) |
 | OP5 | Southern cattail (*Typha domingensis*): T2, water and shore, the basin and the oued | `src/plants/species/cattail.ts` | done (devlog 113; 20–22 ms; oued shallows slots are small only) |
 | OP11 | Pomegranate (*Punica granatum*): T4, flowers and crowned fruit together | `src/plants/species/pomegranate.ts` | done (devlog 115; 60–76 ms; large, T4) |
@@ -210,6 +210,10 @@ Phase 13 art queue (after O0 and O1): one plant (OP1–OP12) or creature (OK1–
 | OP13 | White water lily (*Nymphaea lotus*): T2 or T3, the second water plant (owner decision 2026-11-06: release needs 2 per habitat; white flowers on floating pads in the basin, distinct from the garden's lotus) | `src/plants/species/white-water-lily.ts` | done (devlog 123; tier 2, water; wild only round the Sahara's edges, so planted in the Draa basin: owner's call 2026-11-06; about 64 ms) |
 | OP8 | Henna (*Lawsonia inermis*): T2, a neat green dome frothing with cream sprays, meadow and back | `src/plants/species/henna.ts` | done (devlog 124; 29–32 ms) |
 | OP2 | Alfalfa (*Medicago sativa*): T1, a green tuft with violet clusters, distinct from the garden's white clover | `src/plants/species/alfalfa.ts` | done (devlog 125; 51–68 ms; now the first species, so the widget and shell studio cards show it) |
+| OP14 | Grapevine arbour (*Vitis vinifera*): T4, the oasis's showpiece (owner pick 2026-11-10), trunks on a palm-wood treille, a leaf canopy hung with purple and amber bunches | `src/plants/species/grapevine.ts` | in progress |
+| OP15 | White broom (*Retama raetam*): T2, a fountain of fine grey-green rods foaming with fragrant white pea flowers, sand and path | `src/plants/species/retama.ts` | queued |
+| OP16 | Jujube (*Ziziphus lotus*): T3, a spiny, tangled grey shrub with small glossy red fruit, back and rock | `src/plants/species/jujube.ts` | queued |
+| OP17 | Southern maidenhair (*Adiantum capillus-veneris*): T1, fan-leaflet fern on the wet walls by the seguia and the basin | `src/plants/species/southern-maidenhair.ts` | queued |
 | OK0 | Oasis wildlife infra: unlock rows for the 8 oasis creatures (rows skip until a module exists), perches (walls, basin rim, palm fronds, a ksar tower), hoopoe ground spots, gecko wall faces, heron stands, a studio stage | `src/scenery/oasis/fauna.ts`, `src/fauna/habitat.ts` | done (devlog 127; ADR 0304; 15 rows, 42 perches, 5 ground spots, 4 wall faces, 5 heron stands; dropwing its own kind; swallows moved to 17) |
 | OK1 | House bunting (*Emberiza sahari*): tame, hops the copings and rim, always | `src/fauna/creatures/bunting.ts` | done (devlog 128; a resident pair by day on walls, rim and stones; 0.90 ms with the whole roster) |
 | OK2 | Laughing dove (*Spilopelia senegalensis*): fronds, wall tops, walks the plots, drinks at the rim; 2 plants | `src/fauna/creatures/dove.ts` | in progress |
@@ -221,3 +225,6 @@ Phase 13 art queue (after O0 and O1): one plant (OP1–OP12) or creature (OK1–
 | OK8 | White stork: nest on the ksar tower, now and then the plots; 20 plants, rare | `src/fauna/creatures/stork.ts` | queued |
 | O1b | Oasis polish: medium sand slots for the desert hyacinth, a medium shallows slot for the cattail, the moon arc lower for wide screens, a stronger far range at sunset, the basin a still mirror (a minimal opt-out of the generic water surface) | `src/scenery/oasis/**`, `src/scene/water.ts`, `src/scenery/types.ts` | done (devlog 119; medium sand and shallows slots, moon arc lower, deeper far range, the basin a still mirror, ADR 0302) |
 | O2d | Oasis basin perspective (owner: "the camera is looking at it from too high, not aligned with the rest of the scenery"): a flatter basin with sides converging on the horizon, a thin far wall, more reflection | `src/scenery/oasis/{layout,geometry,slots,paint-water,motion,light}.ts` | done (devlog 121; far rim y 476 → 562, sides aimed at the horizon point (810, 340), thin far wall, reflection fills the water) |
+| O9 | Oasis ksar (owner: the background castle is not finished): eroded pisé towers, layered washes, varied openings, loose carved bands, seated in the bluff; same silhouette | `src/scenery/oasis/{ksar,paint-rocks}.ts` | in progress |
+| O10 | Oasis bluff and cliffs: real rock form (strata, buttresses, talus, cast shadows) instead of a flat wash with streaks | `src/scenery/oasis/paint-rocks.ts` | queued (after O9) |
+| O11 | Oasis falls: the seguia's drops and the sluice spill painted as falling water, not blue strips | `src/scenery/oasis/{paint-water,motion}.ts` | queued |
