@@ -8,9 +8,9 @@ import { createRng } from '../../core/rng';
 import { paintJob, type PaintView } from '../../scene/background';
 import { PaintRecorder, type RecordedCost } from '../../scene/paint-record';
 import { OASIS_ART, OASIS_ELEMENTS } from '.';
-import { blockShape, KSAR, KSAR_SHAPES } from './ksar';
+import { blockShape, KSAR, KSAR_SHAPES, windows } from './ksar';
 import { BLUFF } from './layout';
-import { ROCK_SHAPES, roughOutline } from './paint-rocks';
+import { ROCK_SHAPES, roughOutline, SEAT_LINE } from './paint-rocks';
 
 const OVERVIEW: PaintView = { rect: { x: 0, y: 0, w: 1600, h: 1000 }, scale: 0.6 };
 // a resting close view on the middle tower and the seat under it
@@ -53,7 +53,7 @@ describe('oasis rock painting (O2)', () => {
 
   it('is deterministic: the same marks every time, and the same crumbling for each block', () => {
     // quantised hashes from a fresh process, pinned as the waterfall's (paint caches warm up across runs)
-    expect({ overview: runs.overview!.hash, detail: runs.detail!.hash }).toEqual({ overview: '25305b33', detail: '20a98a6b' });
+    expect({ overview: runs.overview!.hash, detail: runs.detail!.hash }).toEqual({ overview: 'f1596bec', detail: 'fe2353de' });
     expect(runs.again!.chunks.map((c) => c.name)).toEqual(runs.overview!.chunks.map((c) => c.name));
     for (const b of KSAR) expect(blockShape(b)).toEqual(blockShape(b));
   });
@@ -99,5 +99,58 @@ describe('oasis rock painting (O2)', () => {
       }
       expect(d).toBeLessThanOrEqual(3);
     }
+  });
+});
+
+describe('the ksar finished (O9)', () => {
+  it('opens its walls sparingly and loosely: a few varied openings inside each face, clear of the carved band', () => {
+    for (const s of KSAR_SHAPES) {
+      const b = s.block;
+      const ws = windows(b);
+      if (b.kind === 'curtain') {
+        expect(ws, b.id).toEqual([]);
+        continue;
+      }
+      expect(ws.length, b.id).toBeGreaterThanOrEqual(1);
+      expect(ws.length, b.id).toBeLessThanOrEqual(b.kind === 'tower' ? 5 : 3);
+      for (const w of ws) {
+        expect(pointInPolygon({ x: w.x, y: w.y }, s.front) && pointInPolygon({ x: w.x + w.w, y: w.y + w.h }, s.front), b.id).toBe(true);
+        if (b.kind === 'tower') expect(w.y, b.id).toBeGreaterThan(b.base - b.h + 40);
+      }
+    }
+    const towers = KSAR_SHAPES.filter((s) => s.block.kind === 'tower').flatMap((s) => windows(s.block));
+    expect(new Set(towers.map((w) => w.kind)).size).toBeGreaterThanOrEqual(2);
+    expect(towers.some((w) => w.lintel)).toBe(true);
+  });
+
+  it('steps its houses back: each far house stands taller than the near house in front of it', () => {
+    for (const far of KSAR.filter((b) => b.id.endsWith('-back'))) {
+      const near = KSAR.find((b) => b.id === far.id.replace('-back', ''))!;
+      expect(far.h, far.id).toBeGreaterThan(near.h);
+      expect(KSAR.indexOf(far), far.id).toBeLessThan(KSAR.indexOf(near));
+    }
+  });
+
+  it('rules no edge: every tower side is broken into many nudged points, and the towers taper', () => {
+    for (const s of KSAR_SHAPES.filter((q) => q.block.kind === 'tower')) {
+      const b = s.block;
+      const left = s.front.filter((q) => q.y > b.base - b.h + 4 && q.x < b.x + b.w / 2);
+      expect(left.length, b.id).toBeGreaterThan(8);
+      expect(new Set(left.map((q) => Math.round((q.x - b.x) * 10))).size, b.id).toBeGreaterThan(5);
+      expect(Math.min(...s.top.map((q) => q.x)) - b.x, b.id).toBeGreaterThan(b.w * 0.05);
+    }
+  });
+
+  it('seats the walls in the rock: the seat line runs just above each base and rises into the walls in places', () => {
+    let rises = 0;
+    for (const q of SEAT_LINE) {
+      const over = KSAR.filter((b) => q.x >= b.x - 2 && q.x <= b.x + b.w + b.side + 2);
+      if (!over.length) continue;
+      const base = Math.max(...over.map((b) => b.base));
+      expect(q.y, `${q.x}`).toBeLessThanOrEqual(base);
+      expect(q.y, `${q.x}`).toBeGreaterThan(base - 24);
+      if (q.y < base - 10) rises++;
+    }
+    expect(rises).toBeGreaterThan(5);
   });
 });
