@@ -546,16 +546,33 @@ earth (`EARTH`), so the building grows out of the rock. The sun is on the right 
   runnels have their left (east-facing) wall lit. A warm bounce of light from the sand lies along
   the foot, there is a lit rim where the skyline turns to the sun, and talus fans spill onto the
   terrace.
-- **Ksar** (`ksar.ts`, deterministic shapes): two courtyard palms, then three houses, three
-  tapering pisé towers and three ruined curtain walls. Towers have stepped, blunt corner
-  pinnacles and a row of small stepped merlons. Lit flanks slope away (eye level is below) and
-  tuck 6 units under the front. Each tower casts its shade left onto the houses, and the fronts
-  turn into shade at their left edge. They have formwork courses with putlog holes, an incised
-  chevron band over a row of diamonds between two fillets, small dark windows (some with a
-  palm-wood lintel), rain streaks and crumbled edges.
-- **Seat**: the blocks run `FOOTING` 14 into the rock. A solid band in the bluff's tone covers
-  their feet and is lost downward and at both ends. Over it go a dark seam at the join, a lit
-  broken edge, fallen pisé under the ruins, and runnels starting again under the walls.
+- **Ksar** (`ksar.ts`, deterministic shapes; O9, devlog 130): two courtyard palms, then six
+  houses (three far ones stepping up behind three near ones), three pisé towers tapering 9 % a
+  side, and three ruined curtain walls. No edge is ruled: the sides carry a slow bulge and a
+  little crumble. Towers end in rounded, blunt corner horns with worn round merlons between;
+  houses in a low parapet of small rounded merlons; curtain walls in an eroded crest with a
+  breach worn to a saddle and sharp notches where chunks came away.
+- **Ksar painting**: each block has its own earth (`tintOf`: the towers vary a little warmer or
+  redder, the houses paler and cooler as they step back). A block's flank (the face turned to
+  the sun) takes the palest gold; its front a wet-in-wet wash from warm upper right to cooler
+  lower left, granulating, with pooled edges. An opaque underlayer just inside each outline
+  hides what is behind (a wash stops short of its edge, so a paper fill would leave a white rim).
+  The parapet gets its own small wash, because a big wash's outline is too coarse for merlons.
+  Over that: soft patches of newer and damp mud, a cool shade at the front's left edge and foot,
+  short broken formwork courses with a few putlog runs, rain streaks, and broken lit touches on
+  the worn tops. Each tower and near house throws its shade left onto the houses behind it.
+  Towers carry the carved band as loose brushwork: broken fillets, a zigzag of single flicks, a
+  row of lozenges in four flicks each (some faint or missing), and two blind niches on the tall
+  ones. Openings (`windows`) are few and placed loosely: slits, small squares and round-headed
+  windows, darkest at the top, some with a palm-wood lintel, with a lit sill. Curtain walls get
+  a lit crest, a shade under it, rain gullies and a couple of holes (`paintRuin`).
+- **Seat**: `SEAT_LINE` runs just above each block's base, with the rock swelling up into the
+  walls in outcrops. Every block is clipped above it, so no wall foot is painted over the rock
+  and the bluff's own texture (beds, runnels) runs right up to the walls. The outcrops above the
+  bluff's top get an underlayer and a granulating wash in the bluff's tone that is lost down
+  into the bluff. Over it: the rock's tone creeping up the wall feet, shaded outcrop faces,
+  short beds, a broken seam (a dark crack here, a lit edge there), fallen pisé under the ruins
+  and a soft shade below the walls.
 - **Seams for O5**: `ROCK_SHAPES` (`bluff`, `ksar` with each block's `front`, `flank` and `top`),
   `bluffTopAt` and `EARTH`.
 
