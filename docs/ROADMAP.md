@@ -10,7 +10,7 @@ ADR numbering ranges (to avoid collisions in parallel work):
 0100–0109 audio · 0110–0119 plant view/growth/watering · 0120–0129 integration/polish ·
 0130–0139 app shell & dock · 0140–0149 daylight & colour · 0150–0159 parallel sessions & watering ·
 0160–0169 camera & plant descriptions · 0170–0179 calendar & scheduling · 0180–0189 v2 polish 1 & close views ·
-0190–0194 v2 polish 2 · 0200–0204 dock wayfinding · 0205+ queue tasks (Q1 0205, Q2 0206, Q3 0207, Q11 0208–0209, Q13 0210) · 0220–0239 performance (phase 9, one block of numbers per task) · 0240–0259 sceneries (phase 10) · 0260–0279 accounts (phase 11, branch `feat/accounts`) · 0250–0259 per-scenery flora and fauna (phase 12; S11 keeps 0248) · 0280–0299 phase 12 art tasks (only for real decisions) · 0300–0329 phase 13 (the oasis).
+0190–0194 v2 polish 2 · 0200–0204 dock wayfinding · 0205+ queue tasks (Q1 0205, Q2 0206, Q3 0207, Q11 0208–0209, Q13 0210) · 0220–0239 performance (phase 9, one block of numbers per task) · 0240–0259 sceneries (phase 10) · 0260–0279 accounts (phase 11, branch `feat/accounts`) · 0250–0259 per-scenery flora and fauna (phase 12; S11 keeps 0248) · 0280–0299 phase 12 art tasks (only for real decisions) · 0300–0329 phase 13 (the oasis) · 0330–0359 phase 14 (optimization pass).
 
 | Phase | Task | Area (owned paths) | Status |
 |---|---|---|---|
@@ -231,3 +231,34 @@ Phase 13 art queue (after O0 and O1): one plant (OP1–OP12) or creature (OK1–
 | O12 | Plantable ground between the basin and the ksar (owner: "super empty rn"): 5–7 slots behind the basin, bunds or damp tilled earth so it reads as plots | `src/scenery/oasis/{slots,paint-land,layout,fauna}.ts` | done (devlog 137; four irrigated beds and a head ditch behind the basin, 7 new slots bed-1…4, foot-1…2, talus-3; 55 slots) |
 | O13 | Oasis bluff, second pass: the buttresses under the ksar read as rounded loaves with even ledges; vary them, fix the hanging clefts and the pale left ridge at sunset | `src/scenery/oasis/paint-rocks.ts` | done (devlog 138; continuous beds and caprock, shade by plane, V gullies over scree, varied buttresses; sunset ridge fixed in the painter) |
 | O14 | Oasis basin corner and sluice gate: the bare paper triangle at the near-right corner, a roomier gate | `src/scenery/oasis/{paint-water,motion}.ts` | done (devlog 139; washes run past every corner of the coping, face and water; a roomier gate with its foam downstream) |
+
+Phase 14: optimization pass (owner request 2026-11-10). Optimize the whole app, the desert oasis first. Drawing is done, so sprites and paints may be bundled. Measured first: the oasis cold landscape is 3.8 s of CPU at DPR 1 and 5.5 s at DPR 2 (plots and ksar are 43 % of that). Nothing is lazy-loaded: 1.41 MB of JS in the first view. A cold switch into the oasis takes 6.9 s; a warm one freezes the main thread for about 205 ms in the ambience rebuild. The frog's water checks are about 20 % of an oasis frame. Alfalfa is the slowest sprite at 246 ms. Owner decisions:
+- slight pixel changes are fine when an art review compares before and after screenshots
+- unseen gardens are pre-painted on idle when the Gardens section nears
+- 30 fps at rest is built behind a flag, and the owner judges it
+
+Not done: a motion-sprite atlas (1.3 MB, not worth it) and shipping pre-painted landscapes. The phase 9 tasks still queued (P15, P17, P19–P22, P24) follow once this queue is done.
+
+| # | Task | Area | Status |
+|---|---|---|---|
+| Z1 | Oasis cold paint yields: split the paint steps into finer parts (longest 72 → ≤20 ms), same pixels | `src/scenery/oasis/paint-*.ts` | in progress (devlog 141) |
+| Z2 | Frog water checks cheap (`closestOnPolygon` 23–26 ms/s, high GC in the oasis), same behaviour | `src/fauna/creatures/kajika*`, geometry helper | in progress (devlog 142) |
+| Z3 | Oasis plots: one wet layer per plot instead of per furrow (bundle, −0.6–0.9 s), art review | `src/scenery/oasis/paint-land.ts` | queued (after Z1) |
+| Z4 | Ksar blocks batched per tower or band (bundle, −0.3–0.5 s), art review | `src/scenery/oasis/{ksar,paint-rocks}.ts` | queued (after Z1) |
+| Z5 | Garden switch: ambience (cast, night edge, grade wash) rebuilt in parts, 205–557 ms freeze → <50 ms; confirm with a profile first | `src/ambience/*` | queued |
+| Z6 | Pre-paint unseen gardens into the paint cache on idle when the Gardens section nears; cards use the cached overview instead of draft paints (cold switch 6.9 → ~0.3 s) | `src/scene/system.ts`, `src/scenery/thumbnail.ts`, `src/ui/gardens-section.ts` | queued |
+| Z7 | Lazy per-garden painters: each scenery's painters in its own chunk (P16g, −150–200 kB at boot) | `src/scenery/{types,registry}.ts`, each garden's `index.ts`, `src/scene/{system,sky-light}.ts`, `src/ambience/cast.ts` | queued |
+| Z8 | Creatures loaded per garden (P16a′, −190 kB at boot) | `src/fauna/creatures/registry.ts`, `src/fauna/{system,roster}.ts` | queued |
+| Z9 | Species painters out of the main bundle, spike then build (P16f, −433 kB raw) | `src/plants/{types,registry}.ts`, `src/ui/previews.ts`, `src/plants/sprites.ts` | queued |
+| Z10 | Alfalfa sprite: batch wet layers (246 ms, the slowest), art review | `src/plants/species/alfalfa.ts` | queued |
+| Z11 | Damask rose sprite: batch wet layers (125 ms), art review | `src/plants/species/damask-rose.ts` | queued |
+| Z12 | Oleander sprite: batch wet layers (103 ms), art review | `src/plants/species/oleander.ts` | queued |
+| Z13 | Spike, then build if it pays: drying skips empty tiles, bit-identical (every garden, every sprite) | `src/paint/wet.ts` | queued |
+| Z14 | 30 fps while the camera rests, behind a flag, so the owner can compare | `src/render/renderer.ts` | queued (owner judges) |
+| Z15 | Free close-view buffers back at the overview (−33 MB) | `src/scene/system.ts`, `src/paint/wet.ts` scratch | queued |
+| Z16 | Free the night-edge canvases by day, rebuilt on idle before dusk (−9.5 MB) | `src/ambience/night-edge.ts` | queued |
+| Z17 | Paint-cache eviction at DPR 2: measure, then give priority to the viewed and base sets | `src/paint/persist.ts` | queued |
+| Z18 | `latin-ext` fonts out of the SW precache (−99 kB install) | `src/build/sw-manifest.ts` | queued |
+| Z19 | Oasis: skip the empty `scene-sprites` cache entry | `src/scene/system.ts` | queued |
+| Z20 | Oasis motion tidy: cached clip paths, no per-mark allocations, `drawFall` indexed | `src/scenery/oasis/motion.ts` | queued |
+| Z21 | Creature part atlas (bundle, about 50 canvases → 8): measure the GPU first, drop it if it doesn't pay | `src/fauna/sprite.ts` | queued |
