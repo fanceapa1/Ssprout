@@ -96,22 +96,44 @@ export function closestOnSegment(p: Pt, a: Pt, b: Pt): Pt {
 
 /** Closest point on the polygon's boundary and its distance. */
 export function closestOnPolygon(p: Pt, poly: readonly Pt[]): { pt: Pt; d: number } {
-  let best: Pt = poly[0] ?? p;
-  let bd = Infinity;
+  closestScan(p, poly);
+  return { pt: scan.found ? { x: scan.x, y: scan.y } : (poly[0] ?? p), d: scan.d };
+}
+
+/** The distance from `p` to the polygon's boundary (`closestOnPolygon(p, poly).d`, allocation-free). */
+export function distanceToPolygon(p: Pt, poly: readonly Pt[]): number {
+  return closestScan(p, poly).d;
+}
+
+const scan = { x: 0, y: 0, d: Infinity, found: false };
+
+// the same arithmetic as closestOnSegment per edge, without allocating
+function closestScan(p: Pt, poly: readonly Pt[]): typeof scan {
+  scan.d = Infinity;
+  scan.found = false;
   for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
-    const q = closestOnSegment(p, poly[j]!, poly[i]!);
-    const d = Math.hypot(q.x - p.x, q.y - p.y);
-    if (d < bd) {
-      bd = d;
-      best = q;
+    const a = poly[j]!;
+    const b = poly[i]!;
+    const vx = b.x - a.x;
+    const vy = b.y - a.y;
+    const l2 = vx * vx + vy * vy;
+    const t = l2 > 0 ? clamp(((p.x - a.x) * vx + (p.y - a.y) * vy) / l2, 0, 1) : 0;
+    const qx = a.x + vx * t;
+    const qy = a.y + vy * t;
+    const d = Math.hypot(qx - p.x, qy - p.y);
+    if (d < scan.d) {
+      scan.d = d;
+      scan.x = qx;
+      scan.y = qy;
+      scan.found = true;
     }
   }
-  return { pt: best, d: bd };
+  return scan;
 }
 
 /** Inside the polygon and at least `margin` from its edge. */
 export function insideWithMargin(p: Pt, poly: readonly Pt[], margin: number): boolean {
-  return pointInPolygon(p, poly) && (margin <= 0 || closestOnPolygon(p, poly).d >= margin);
+  return pointInPolygon(p, poly) && (margin <= 0 || distanceToPolygon(p, poly) >= margin);
 }
 
 export function polygonCentroid(poly: readonly Pt[]): Pt {
