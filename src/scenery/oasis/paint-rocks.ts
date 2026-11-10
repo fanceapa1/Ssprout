@@ -9,6 +9,7 @@ import type { Pt } from '../../render/viewport';
 import type { Strokes } from '../../scene/paint-land';
 import { FOOTING, KSAR_PALMS, KSAR_SHAPES, taper, windows, type BlockShape } from './ksar';
 import { BLUFF } from './layout';
+import { MARKS_PER_PART, pacer } from './paint-pace';
 
 /** The earth both are made of: golden where the sun strikes, red-ochre in the body, deep in the cuts. */
 export const EARTH = {
@@ -348,7 +349,11 @@ function* paintStrata(p: Painter, gullies: readonly Gully[], noise: Noise, rng: 
   yield* wetBatch(p, red, mix(EARTH.body, EARTH.deep, 0.45), { edge: 0.08, sharpness: 0.3, granulation: 0.5 });
   yield* wetBatch(p, pale, mix(EARTH.lit, EARTH.gold, 0.3), { edge: 0, granulation: 0.3, blend: 'source-over' });
   yield* wetBatch(p, lines, mix(EARTH.shade, EARTH.deep, 0.4), { edge: 0.1, sharpness: 0.4, granulation: 0.3 });
-  for (const l of lits) p.dryBrush(l, { rng, pigment: EARTH.lit, width: rng.range(1, 1.6), opacity: 0.24, dryness: 0.6, blend: 'source-over' });
+  const pace = pacer();
+  for (const l of lits) {
+    p.dryBrush(l, { rng, pigment: EARTH.lit, width: rng.range(1, 1.6), opacity: 0.24, dryness: 0.6, blend: 'source-over' });
+    if (pace()) yield;
+  }
   yield;
 }
 
@@ -436,7 +441,12 @@ function* paintButtresses(p: Painter, gullies: readonly Gully[], rng: Rng): Stro
   yield* wetBatch(p, flutes, PLANE, { edge: 0.05, sharpness: 0.3 });
   yield* wetBatch(p, lit, lighten(mix(EARTH.lit, EARTH.gold, 0.15), 0.04), { edge: 0, granulation: 0.3, blend: 'source-over' });
   // the arrises catch a broken lit line where the planes meet
-  for (const run of edges) if (run.length > 1) p.dryBrush(run.map((q) => ({ x: q.x + 1.2, y: q.y })), { rng, pigment: lighten(EARTH.lit, 0.06), width: 1.4, opacity: 0.32, dryness: 0.65, blend: 'source-over' });
+  const pace = pacer();
+  for (const run of edges) {
+    if (run.length < 2) continue;
+    p.dryBrush(run.map((q) => ({ x: q.x + 1.2, y: q.y })), { rng, pigment: lighten(EARTH.lit, 0.06), width: 1.4, opacity: 0.32, dryness: 0.65, blend: 'source-over' });
+    if (pace()) yield;
+  }
   yield;
 }
 
@@ -492,7 +502,11 @@ function* paintCaprock(p: Painter, gullies: readonly Gully[], noise: Noise, rng:
   yield* wetBatch(p, faces, lighten(EARTH.lit, 0.04), { edge: 0, granulation: 0.3, blend: 'source-over' });
   yield* wetBatch(p, cuts, RECESS, { edge: 0.2, sharpness: 0.5, granulation: 0.4 });
   yield* wetBatch(p, alcoves, mix(RECESS, EARTH.dark, 0.3), { edge: 0.25, sharpness: 0.5 });
-  for (const l of lips) p.dryBrush(l, { rng, pigment: lighten(EARTH.lit, 0.12), width: rng.range(1.6, 2.6), opacity: 0.5, dryness: 0.45, blend: 'source-over' });
+  const pace = pacer();
+  for (const l of lips) {
+    p.dryBrush(l, { rng, pigment: lighten(EARTH.lit, 0.12), width: rng.range(1.6, 2.6), opacity: 0.5, dryness: 0.45, blend: 'source-over' });
+    if (pace()) yield;
+  }
   for (const f of floors) p.dryBrush(f, { rng, pigment: EARTH.lit, width: 1.6, opacity: 0.4, dryness: 0.4, blend: 'source-over' });
   yield;
 }
@@ -728,10 +742,12 @@ function* paintBlock(p: Painter, s: BlockShape, index: number, rng: Rng): Stroke
   clipTo(p, front);
   const x0 = b.x;
   const x1 = b.x + b.w;
+  const pace = pacer();
   // pisé is patchy: newer mud in pale patches, damp darker ones, soft and overlapping
   for (let i = 0; i < Math.max(2, Math.round((b.w * b.h) / 2600)); i++) {
     const dark = rng.chance(0.5);
     p.glaze({ cx: rng.range(x0, x1), cy: rng.range(top + 8, b.base), rx: rng.range(8, 20), ry: rng.range(6, 16) }, dark ? mix(tint.body, EARTH.deep, 0.5) : tint.lit, { rng, opacity: dark ? 0.16 : 0.22, deform: 0.5, spread: 0.5, edge: 0.15, granulation: 0.5 });
+    if (pace()) yield;
   }
   yield;
   // the face turns from the sun toward its left edge; a cool shade gathers there and at the foot
@@ -742,7 +758,10 @@ function* paintBlock(p: Painter, s: BlockShape, index: number, rng: Rng): Stroke
   for (let y = top + rng.range(12, 18); y < b.base - 6; y += rng.range(10, 14)) {
     for (let x = x0 + rng.range(-2, 10); x < x1; ) {
       const len = rng.range(12, 34);
-      if (rng.chance(0.6)) p.dryBrush([{ x, y: y + rng.range(-0.6, 0.6) }, { x: x + len * 0.5, y: y + rng.range(-0.8, 0.8) }, { x: x + len, y: y + rng.range(-0.6, 0.6) }], { rng, pigment: mix(tint.shade, EARTH.deep, 0.4), width: rng.range(1, 1.6), opacity: 0.2, dryness: 0.7 });
+      if (rng.chance(0.6)) {
+        p.dryBrush([{ x, y: y + rng.range(-0.6, 0.6) }, { x: x + len * 0.5, y: y + rng.range(-0.8, 0.8) }, { x: x + len, y: y + rng.range(-0.6, 0.6) }], { rng, pigment: mix(tint.shade, EARTH.deep, 0.4), width: rng.range(1, 1.6), opacity: 0.2, dryness: 0.7 });
+        if (pace()) yield;
+      }
       x += len + rng.range(4, 16);
     }
     if (tower && rng.chance(0.25)) {
@@ -752,9 +771,9 @@ function* paintBlock(p: Painter, s: BlockShape, index: number, rng: Rng): Stroke
     }
   }
   yield;
-  if (tower) paintBands(p, s, tint, rng.fork('bands'));
+  if (tower) yield* paintBands(p, s, tint, rng.fork('bands'));
   if (b.kind === 'curtain') yield* paintRuin(p, s, tint, rng.fork('ruin'));
-  paintOpenings(p, b, tint, rng.fork('openings'));
+  yield* paintOpenings(p, b, tint, rng.fork('openings'));
   yield;
   // rain has washed down from the merlons and gullied the corners
   for (let i = 0; i < Math.round(b.w / 14); i++) {
@@ -762,18 +781,23 @@ function* paintBlock(p: Painter, s: BlockShape, index: number, rng: Rng): Stroke
     const len = rng.range(10, b.h * (tower ? 0.55 : 0.4));
     const y = top + rng.range(0, 6);
     p.stroke([{ x, y }, { x: x + rng.range(-1, 1), y: y + len * 0.5 }, { x: x + rng.range(-1.5, 1.5), y: y + len }], { rng, pigment: mix(tint.shade, EARTH.deep, 0.35), width: rng.range(1.4, 2.8), taper: [0.2, 0.9], opacity: 0.18, wetness: 0.6, dryness: 0.3 });
+    if (pace()) yield;
   }
   for (let i = 0; i < Math.round(b.h / 34) + 1; i++) {
     const left = rng.chance(0.8);
     const x = left ? x0 + rng.range(-1, 3) : x1 - rng.range(-1, 3);
     p.lift({ cx: x, cy: rng.range(top + 4, b.base - 4), rx: rng.range(2, 4), ry: rng.range(3, 7) }, { rng, amount: 0.25, layers: 3, deform: 0.5 });
+    if (pace()) yield;
   }
   // the light catches the worn tops: broken, loose touches along the parapet
   const lit = smoothPath(s.top.map((q) => ({ x: q.x, y: q.y + 1.6 })), 3);
   for (let i = 0; i < lit.length; ) {
     const n = Math.round(rng.range(4, 9));
     const run = lit.slice(i, i + n);
-    if (run.length > 1 && rng.chance(0.5)) p.dryBrush(run, { rng, pigment: lighten(tint.lit, 0.08), width: rng.range(1.4, 2.2), opacity: 0.36 - tint.far * 0.3, dryness: 0.5, blend: 'source-over' });
+    if (run.length > 1 && rng.chance(0.5)) {
+      p.dryBrush(run, { rng, pigment: lighten(tint.lit, 0.08), width: rng.range(1.4, 2.2), opacity: 0.36 - tint.far * 0.3, dryness: 0.5, blend: 'source-over' });
+      if (pace()) yield;
+    }
     i += n + Math.round(rng.range(1, 4));
   }
   p.ctx.restore();
@@ -785,7 +809,7 @@ function* paintBlock(p: Painter, s: BlockShape, index: number, rng: Rng): Stroke
  * A tower's carved band near the top, done as quick loose brushwork: a broken fillet, a running
  * zigzag of uneven teeth, a row of lozenges flicked in two strokes each, some faint or missing.
  */
-function paintBands(p: Painter, s: BlockShape, tint: Tint, rng: Rng): void {
+function* paintBands(p: Painter, s: BlockShape, tint: Tint, rng: Rng): Strokes {
   const b = s.block;
   const top = b.base - b.h;
   const tp = taper(b);
@@ -803,7 +827,9 @@ function paintBands(p: Painter, s: BlockShape, tint: Tint, rng: Rng): void {
   };
   const y1 = top + 11 + rng.range(-1, 1);
   broken(y1 - 3, 1.3, 0.38);
+  yield;
   // the zigzag: one flick of the brush per tooth edge, heavy where it lands, now and then skipped
+  const pace = pacer(2 * MARKS_PER_PART);
   const flick = (a: Pt, c: Pt, op: number) => p.stroke([a, c], { rng, pigment: incise, width: rng.range(1.1, 1.6), taper: [0.05, 0.6], opacity: op, wetness: 0.3, wobble: 0.2 });
   let up = true;
   for (let x = x0; x < x1 - 3; x += rng.range(4.2, 5.4), up = !up) {
@@ -812,6 +838,7 @@ function paintBands(p: Painter, s: BlockShape, tint: Tint, rng: Rng): void {
     const hi = y1 + rng.range(0, 1);
     const nx = Math.min(x1, x + rng.range(4.2, 5.4));
     flick({ x, y: up ? lo : hi }, { x: nx, y: up ? hi : lo }, rng.range(0.3, 0.5));
+    if (pace()) yield;
   }
   const y2 = y1 + 13;
   const n = Math.max(2, Math.floor((x1 - x0) / 10.5));
@@ -831,9 +858,11 @@ function paintBands(p: Painter, s: BlockShape, tint: Tint, rng: Rng): void {
     flick(l, bt, op * 0.9);
     flick({ x: t.x + 0.4, y: t.y }, r, op * 0.85);
     if (rng.chance(0.85)) flick(r, { x: bt.x + 0.5, y: bt.y - 0.3 }, op * 0.8);
+    yield;
   }
   const y3 = y2 + 8 + rng.range(-0.5, 0.5);
   broken(y3, 1.4, 0.36);
+  yield;
   p.glaze(box(x0 - 3, y3 + 1, x1 + 3, y3 + 6), tint.shade, { rng, opacity: 0.22, deform: 0.2, spread: 0.2, edge: 0, fade: { angle: Math.PI / 2, start: 0.1, amount: 1, ragged: 0.5 } });
   // on the tallest towers, two blind niches under the band
   if (b.h > 125) {
@@ -881,7 +910,7 @@ function arch(x: number, y: number, w: number, h: number): Pt[] {
 }
 
 /** The openings: soft dark washes darkest at their top, a palm-wood lintel and a lit sill on some. */
-function paintOpenings(p: Painter, b: BlockShape['block'], tint: Tint, rng: Rng): void {
+function* paintOpenings(p: Painter, b: BlockShape['block'], tint: Tint, rng: Rng): Strokes {
   const hole = mix(mix(EARTH.dark, EARTH.deep, 0.35), tint.shade, 0.2 + tint.far);
   for (const w of windows(b)) {
     const shape = w.kind === 'arch' ? arch(w.x, w.y, w.w, w.h) : roughOutline(box(w.x, w.y, w.x + w.w, w.y + w.h), rng, 0.3, 1.5);
@@ -891,6 +920,7 @@ function paintOpenings(p: Painter, b: BlockShape['block'], tint: Tint, rng: Rng)
       p.stroke([{ x: w.x - over, y: w.y - 1.3 }, { x: w.x + w.w + over, y: w.y - 1.1 + rng.range(-0.4, 0.4) }], { rng, pigment: mix('#7a5a40', EARTH.dark, 0.25), width: 1.5, opacity: 0.6 - tint.far * 0.3, wetness: 0.15, wobble: 0.2 });
     }
     p.dryBrush([{ x: w.x - 0.5, y: w.y + w.h + 1.2 }, { x: w.x + w.w + 1, y: w.y + w.h + 1.4 }], { rng, pigment: tint.lit, width: 1.2, opacity: 0.4, dryness: 0.4, blend: 'source-over' });
+    yield;
   }
 }
 
@@ -947,11 +977,15 @@ function* paintSeat(p: Painter, rng: Rng): Strokes {
   }
   yield;
   yield* paintEndOutcrops(p, rng.fork('ends'));
+  const pace = pacer();
   // the outcrops' faces turned from the sun, and the beds running on through them
   for (let i = 2; i < top.length - 2; i++) {
     const q = top[i]!;
     const prev = top[i - 2]!;
-    if (prev.y - q.y > 3) p.glaze({ cx: q.x - 3, cy: q.y + 6, rx: 4, ry: 7 }, mix(EARTH.shade, EARTH.deep, 0.3), { rng, opacity: 0.2, deform: 0.4, spread: 0.4, edge: 0 });
+    if (prev.y - q.y > 3) {
+      p.glaze({ cx: q.x - 3, cy: q.y + 6, rx: 4, ry: 7 }, mix(EARTH.shade, EARTH.deep, 0.3), { rng, opacity: 0.2, deform: 0.4, spread: 0.4, edge: 0 });
+      if (pace()) yield;
+    }
   }
   for (let x = x0 + rng.range(0, 30); x < x1 - 20; x += rng.range(60, 120)) {
     const len = rng.range(20, 50);
@@ -959,6 +993,7 @@ function* paintSeat(p: Painter, rng: Rng): Strokes {
     const pts = [{ x, y }, { x: x + len * 0.5, y: y + rng.range(-1, 1) }, { x: x + len, y: y + rng.range(-1.5, 1.5) }];
     p.dryBrush(pts.map((q) => ({ x: q.x, y: q.y + 2.5 })), { rng, pigment: mix(EARTH.deep, EARTH.shade, 0.3), width: rng.range(2, 3), opacity: 0.25, dryness: 0.6 });
     p.dryBrush(pts, { rng, pigment: EARTH.lit, width: rng.range(1.5, 2.2), opacity: 0.3, dryness: 0.6, blend: 'source-over' });
+    if (pace()) yield;
   }
   yield;
   // the join, in broken touches: a dark crack here, the rock's lit edge there
@@ -969,6 +1004,7 @@ function* paintSeat(p: Painter, rng: Rng): Strokes {
     if (run.length > 1) {
       if (rng.chance(0.55)) p.dryBrush(run, { rng, pigment: mix(EARTH.dark, EARTH.shade, 0.45), width: rng.range(1.2, 2.2), opacity: 0.34, dryness: 0.5 });
       if (rng.chance(0.55)) p.dryBrush(run.map((q) => ({ x: q.x, y: q.y + 2.4 })), { rng, pigment: EARTH.lit, width: 1.6, opacity: 0.34, dryness: 0.6, blend: 'source-over' });
+      if (pace()) yield;
     }
     i += n + Math.round(rng.range(0, 5));
   }
@@ -980,6 +1016,7 @@ function* paintSeat(p: Painter, rng: Rng): Strokes {
       const y = b.base + rng.range(0, 4);
       const w = rng.range(8, 14);
       p.wash(blob(x, y, w, w * 0.3, rng, { irregularity: 0.3, points: 12 }), mix(SEAT, EARTH.gold, 0.35), { rng, layers: 4, opacity: 0.35, deform: 0.2, edge: 0.15, sharpness: 0.5, granulation: 0.6, fade: { angle: Math.PI / 2, start: 0.3, amount: 0.7 } });
+      if (pace()) yield;
     }
   }
   // the shade the walls cast down the rock just below them

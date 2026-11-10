@@ -11,6 +11,7 @@ import type { Strokes } from '../../scene/paint-land';
 import { perspectiveScale } from '../../scene/slots';
 import { BACK_BEDS, BACK_RUNNEL, BASIN_VP, BLUFF, BUNDS, copingAt, DUNE_BASE, DUNE_CRESTS, FAR_RANGE, FOOTPATH, NEAR_PLOTS, OUED, PATH_HALF_WIDTH, SEGUIA_RUNS, WALLS, WET_SAND_HALF_WIDTH, type Wall } from './layout';
 import { EARTH } from './paint-rocks';
+import { MARKS_PER_PART, pacer } from './paint-pace';
 
 /** The land's palette: gold sand, worked soil, pisé, and the lilac of the far ranges. */
 export const LAND = {
@@ -208,12 +209,16 @@ export function* paintTerraces(p: Painter, rng: Rng): Strokes {
     // watered strips: greener toward the seguia's end of each terrace
     yield* p.parts.glaze(blob(300 + i * 60, terraceLine(t.upper, t.lower, 0.55, 300), 150, 12 + i * 4, rng, { irregularity: 0.3 }), mix(LAND.sprout, LAND.soil, 0.25), { rng, opacity: 0.3, deform: 0.35, spread: 0.35, edge: 0.05, granulation: 0.35 });
     // furrows along the contour, and the cross-bunds that split the terrace into plots
+    const pace = pacer();
     for (let s = 0.22; s < 0.95; s += 0.17 + rng.range(-0.03, 0.03)) {
       for (let x0 = -20; x0 < t.x1; ) {
         const len = rng.range(70, 160);
         const line: Pt[] = [];
         for (let x = x0; x <= Math.min(t.x1, x0 + len); x += 12) line.push({ x, y: terraceLine(t.upper, t.lower, s, x) + Math.sin(x / 40 + s * 7) * 1.6 });
-        if (line.length > 1) p.dryBrush(line, { rng, pigment: LAND.soilDamp, width: 1.6 + i * 0.4, opacity: 0.22, dryness: 0.65 });
+        if (line.length > 1) {
+          p.dryBrush(line, { rng, pigment: LAND.soilDamp, width: 1.6 + i * 0.4, opacity: 0.22, dryness: 0.65 });
+          if (pace()) yield;
+        }
         x0 += len + rng.range(14, 34);
       }
     }
@@ -222,6 +227,7 @@ export function* paintTerraces(p: Painter, rng: Rng): Strokes {
       const b = { x: x - 6, y: terraceLine(t.upper, t.lower, 0.95, x - 6) };
       p.stroke([a, b], { rng, pigment: mix(LAND.soilDamp, EARTH.shade, 0.3), width: 3, opacity: 0.16, wetness: 0.4, taper: [0.3, 0.3] });
       p.dryBrush([{ x: a.x + 2, y: a.y }, { x: b.x + 2, y: b.y }], { rng, pigment: LAND.piseLit, width: 2, opacity: 0.45, dryness: 0.5, blend: 'source-over' });
+      if (pace()) yield;
     }
     yield;
   }
@@ -261,7 +267,9 @@ export function* paintPlots(p: Painter, rng: Rng): Strokes {
       const line: Pt[] = [];
       for (let k = 0; k <= 6; k++) line.push({ x: foot.x + dir.x * len * (k / 6) + Math.sin(k + x) * 1.2, y: foot.y + dir.y * len * (k / 6) });
       p.dryBrush(line, { rng, pigment: LAND.soilDamp, width: 3.2, taper: [0.4, 0], opacity: 0.2, dryness: 0.65 });
+      yield;
       p.dryBrush(line.map((q) => ({ x: q.x + 4, y: q.y })), { rng, pigment: LAND.sandLight, width: 2, opacity: 0.35, dryness: 0.6, blend: 'source-over' });
+      yield;
       if (seedlings && rng.chance(0.55)) {
         for (let k = 1; k <= 6; k++) {
           const q = line[k]!;
@@ -312,6 +320,7 @@ function* paintBackBeds(p: Painter, rng: Rng): Strokes {
     p.ctx.closePath();
     p.ctx.clip();
     // furrows from the front bund toward the vanishing point: a dark trough, a lit ridge right of it
+    const pace = pacer(MARKS_PER_PART / 2);
     const t = (fl.y - bl.y) / (fl.y - BASIN_VP.y);
     for (let x = fl.x + 6; x < fr.x - 3; x += r.range(7.5, 11)) {
       const line = [{ x, y: fl.y + 2 }, { x: x + (BASIN_VP.x - x) * t, y: fl.y + (BASIN_VP.y - fl.y) * t }];
@@ -321,6 +330,7 @@ function* paintBackBeds(p: Painter, rng: Rng): Strokes {
       const seg = [0, 0.5, 1].map((u) => u0 + (u1 - u0) * u).map((u) => ({ x: line[0]!.x + (line[1]!.x - line[0]!.x) * u + r.range(-0.6, 0.6), y: line[0]!.y + (line[1]!.y - line[0]!.y) * u }));
       p.dryBrush(seg, { rng: r, pigment: mix(LAND.soilDark, EARTH.shade, 0.3), width: r.range(1.6, 2.4), taper: [0, 0.5], opacity: r.range(0.26, 0.42), dryness: 0.5 });
       if (r.chance(0.6)) p.dryBrush(seg.map((q) => ({ x: q.x + 2.6, y: q.y })), { rng: r, pigment: mix(LAND.sandLight, LAND.piseLit, 0.4), width: 1.4, taper: [0, 0.5], opacity: 0.38, dryness: 0.55, blend: 'source-over' });
+      if (pace()) yield;
       if (i % 2 === 1) {
         for (let k = 1; k <= 5; k++) {
           if (r.chance(0.45)) continue;
