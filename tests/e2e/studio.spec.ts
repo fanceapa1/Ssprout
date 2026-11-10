@@ -40,7 +40,7 @@ async function sectionIds(page: Page): Promise<string[]> {
  * split into shards that run in parallel, and each shard shows one section at a time
  * (`#<section>`, the studio's own section view), so no single step renders the whole studio.
  */
-const SHARDS = 4;
+const SHARDS = 6;
 
 test.describe('studio', () => {
   test('lists every section in the nav, including the scene and the species', async ({ page }) => {

@@ -458,7 +458,7 @@ Legend: unit tests as `folder/file › test`, under `src/` (`.test.ts` omitted).
 
 | # | Rule | Unit | E2E | Status |
 |---|---|---|---|---|
-| 11.1 | Studio shows every sprite, creature, effect and paint primitive | studio/registry › discovers the real *.studio.ts files; › flattens…; › rejects duplicate…; › finds entries… | studio › lists every section in the nav…; › every entry renders without errors and paints something (4 shards) | ◐ "every sprite has an entry" is a convention (AGENTS.md), not machine-checked |
+| 11.1 | Studio shows every sprite, creature, effect and paint primitive | studio/registry › discovers the real *.studio.ts files; › flattens…; › rejects duplicate…; › finds entries… | studio › lists every section in the nav…; › every entry renders without errors and paints something (6 shards) | ◐ "every sprite has an entry" is a convention (AGENTS.md), not machine-checked |
 | 11.2 | Seed/reseed, play/pause, speed, background, scale; URL `#section`, `?entry`, `?seed`, `?t` | — | studio › reseed re-renders with a new seed; › #section shows only that section; › ?entry shows a single entry large; › ?seed and ?t start paused…; › speed, background and scale controls | ✔ |
 | 11.3 | The dev clock pins a time of day (`sprout.advanceTo`, forward only, daylight saving included); `schedule.demo()` opens at the same hour whenever it runs, with a session due; e2e never depends on the hour it runs at | dev/local-time (all) | marks › the sprout marks what begins a planting…; calendar · a planned slip on a phone’s garden…; calendar · the day follows now (all); calendar › schedule a session…; › edit only this one…: all pass with `E2E_CLOCK` = 00:30, 09:00, 17:00, 23:50 (devlog 31) | ✔ (hour-proofing is a run, not a CI job) |
 
