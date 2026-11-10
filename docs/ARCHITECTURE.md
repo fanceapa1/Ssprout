@@ -690,7 +690,7 @@ beds (optionally gliding to another) returning RMS, peak and dB per 250 ms (ADR 
 
 ### Persistent paint cache (`src/paint/persist.ts`, ADR 0227; docs/systems/paint.md › Persistence)
 `paintCache()` returns the app's `PaintCache`, created on first use, with this API:
-`get(kind, key): Promise<ImageBitmap | null>`, `put(kind, key, canvas, { copy? }): Promise<boolean>`,
+`get(kind, key): Promise<ImageBitmap | null>`, `has?(kind, key): Promise<boolean>` (stored or queued, from the index; ADR 0339), `put(kind, key, canvas, { copy? }): Promise<boolean>`,
 `clear()`, `stats()`, `settle()` and `version`. None of them throws or rejects. Entries are lossless PNG
 Blobs in IndexedDB `studysprout-paint`, stored under `version:kind:key`. The version is
 `__PAINT_VERSION__` plus a user-agent hash. `__PAINT_VERSION__` is a build-time `define`
@@ -746,7 +746,15 @@ Scene (`src/scene/debug.ts`): `slots()`, `sceneStats()` (paints, rescales, per-s
 each step's parts and longest part, the paint's `longest` uninterrupted part, ADR 0226; `cacheHits`, `cacheMisses`, `lastLookupMs`: overview paintings taken from the paint cache, ADR 0228),
 `scenePainted()` (resolves when no background repaint is pending), `skyStats()` (daylight sky plates painted,
 composites, paint ms, the detail composite), `sceneDetail()` (the camera's detail painting: view,
-painting, fade, its `longest` part, extension, `cacheHits`, `cacheMisses`). `?dev&slots` draws the slot overlay.
+painting, fade, its `longest` part, extension, `cacheHits`, `cacheMisses`), `scenePrepaint()` (gardens not on view
+pre-painted into the paint cache: `painted`, `cached`, `cancelled`, `cpuMs`, `longest`, the garden `painting` now; ADR 0339).
+`?dev&slots` draws the slot overlay.
+
+Gardens pre-paint (`src/dev/ui-debug.ts`, ADR 0339): `gardens.prepaint()` → `{ state: 'waiting' | 'running' |
+'paused' | 'done' | 'skipped', reason: 'save-data' | 'battery' | null }`; `gardens.prepaintReady()` resolves once
+the Gardens section has pre-painted every garden not on view (or at once when skipped). The pre-paint starts when
+the Gardens cards come near the window (`ui.scrollTo('gardens')`) or with `ui.gardenThumbsReady()`; it pauses while a
+session is active, so do not await it with one running.
 
 Sceneries (`src/dev/scenery-debug.ts`, ADR 0243): `scenery()` → `{ viewed, available, fade }`,
 `showScenery(id)` (dispatches `scenery/view`; resolves once the garden is ready, rejects an
@@ -823,7 +831,10 @@ dispose() }`. `slots()` and `habitatWords?()` are getters for the garden on view
 scenery's `geometry.slots` and habitat words), re-read at each use so a switch needs no rebuild;
 `sceneries?` (id, name, blurb) adds the Gardens section when it lists two or more (ADR 0244).
 Its thumbnails come from `drawOverview?(target)` (main: `renderer.drawOverview`) for the garden on view,
-the paint cache, or `paintOverview?(id, w, h, yieldTo)` (main: `paintThumbnail`) for a garden never seen (ADR 0285).
+the paint cache, or `paintOverview?(id, w, h, yieldTo, thumb)` (main: `prepaintThumbnail` → `sceneSystem.prepaint`), which
+pre-paints a garden not on view into the paint cache and, with `thumb`, makes its thumbnail from that painting (ADRs 0285, 0339).
+`gardens` gives `thumbs()`, `settle()`, `prepaint()` (`{ state: 'waiting' | 'running' | 'paused' | 'done' | 'skipped', reason }`)
+and `prepaintReady()`.
 `whenGardenReady` (main: `renderer.whenReady()`) starts the planting sheet's preview
 prewarm on the next idle moment; `previewsReady()` resolves once every card on the sheet shows its
 preview (the sheet opens at once and fills in, ADR 0222). The dock's sheets, its guiding path and

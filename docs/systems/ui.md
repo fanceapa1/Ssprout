@@ -208,13 +208,23 @@ Both gardens are offered to everyone since S17, so every visitor has the section
     live take is painted small instead;
   - `stored`: the paint cache's `scenery-thumb` entry (every live or painted one is put there),
     so a reload shows each garden as last seen;
-  - `painted`: a garden with neither, painted small by `deps.paintOverview` (`paintThumbnail`: its
-    painting in `draft`, 10 ms slices with idle callbacks between them, no sky plate). It starts
-    once the cards come within 400 px of the window;
+  - `painted`: a garden with neither, made from its overview painting (no plants, no sky plate),
+    which the section pre-paints into the paint cache (below). Without a paint cache it is painted
+    small (`paintThumbnail`, `draft`);
   - `waiting`: the pale wash.
 
   Dev: `sprout.ui.gardenThumbs()` → `[{ id, source }]`; `sprout.ui.gardenThumbsReady()` resolves
   once the garden on view has its live thumbnail and the others have one too (it starts the fill).
+- **Pre-paint** (ADR 0339): once the cards come within 400 px of the window, the section's fill
+  goes over every garden not on view and calls `deps.paintOverview(id, w, h, yieldTo, thumb)`
+  (main: `prepaintThumbnail` → `sceneSystem.prepaint`). That paints the garden's overview and its
+  sprites into the paint cache at the view a switch would paint, unless the cache holds them
+  already. It runs in 8 ms slices, one per idle callback (250 ms timeout), after the scene's own
+  paint jobs. It pauses while a session is active or the tab is hidden, and is skipped on
+  `navigator.connection.saveData` or a battery at 20 % or less and unplugged (`prepaintSkip`).
+  With `thumb` (the card has no stored thumbnail) the painting comes back and is composed into
+  the card's thumbnail. Dev: `sprout.gardens.prepaint()` → `{ state, reason }`,
+  `sprout.gardens.prepaintReady()`, `sprout.scenePrepaint()`.
 
 When the active seedling grows in the other garden, the timer pill adds
 `button.pill-away` "Growing in the rocky waterfall · Go" ("Waterfall · Go" at ≤ 600 px),

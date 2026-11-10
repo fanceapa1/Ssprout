@@ -284,7 +284,8 @@ dabs at nodes alternating ±0.6–1.0 rad, lengths tapering toward the tip; pass
 Finished paintings that depend only on code, seed, view and scale (the landscape, the sky and
 light plates) can be kept across reloads, so a repeat visit decodes them (~40 ms) instead of
 painting them (~1 s). The scene uses it for the landscape, its sprites and its detail paintings (ADR 0228),
-and the daylight for its sky and light plates (`sky-plate`, `light-plate`; ADR 0236).
+and the daylight for its sky and light plates (`sky-plate`, `light-plate`; ADR 0236). The Gardens
+section pre-paints the gardens not on view into it (ADR 0339).
 
 ```ts
 import { paintCache } from '../paint/persist';
@@ -294,8 +295,9 @@ if (hit) ctx.drawImage(hit, 0, 0);
 else { paint(canvas); void cache.put('scene', key, canvas); } // copied now, encoded when idle
 ```
 
-- **API:** `get(kind, key)` → `ImageBitmap | null`. `put(kind, key, canvas, { copy? })` → `Promise<boolean>`
-  (true once written). `clear()` removes every entry of every version. `stats()` →
+- **API:** `get(kind, key)` → `ImageBitmap | null`. `has?(kind, key)` → whether the entry is stored
+  or queued to be, from the index without reading it (the Gardens pre-paint, ADR 0339).
+  `put(kind, key, canvas, { copy? })` → `Promise<boolean>` (true once written). `clear()` removes every entry of every version. `stats()` →
   `{ enabled, off, version, entries, bytes, maxBytes, hits, misses, puts, skipped, evictions, dropped, errors, lastError }`.
   `settle()` waits for queued puts, and `version` is the cache's version. Nothing throws or
   rejects. `createPaintCache({ adapter, version?, maxBytes?, encode?, decode?, copy?, idle? })`
