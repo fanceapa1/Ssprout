@@ -184,9 +184,30 @@ Every key starts with the scenery id: `japanese-garden|s7|normal|0,0,1600,1000@1
 `japanese-garden|s7|midday|…` (`sky-plate`), `japanese-garden|ambience-cast|sunset|…` (`light-plate`).
 `src/scenery` is one of `PAINT_ROOTS`.
 
+## Lazy painters (ADR 0341)
+Each scenery's painters are a chunk of their own, loaded the first time one of its paints has to
+run. With a warm paint cache they are never requested.
+- `<id>/painters.ts` exports its `GardenPainters`: `steps(art, only?)`, `rock?`/`tuft?` sprites,
+  `sky: { paint, paintWater }` and `light: { shadows?, lights? }`. Nothing imports it statically.
+- `index.ts` (the Japanese garden's `art.ts`) makes one handle,
+  `lazyPainters(() => import('./painters').then((m) => m?.X_PAINTERS_LOADED))`, and puts it on
+  `Scenery.painters`, `art.painters`, `sky.painters` and `light.painters`.
+- `motion` imports its own module (`motion.ts`, `falls.ts`): the motion's sprites are painted on
+  every visit, so they do not drag the landscape painters in.
+- What stays eager is data: geometry, layout, slots, flora, fauna habitat data, the sky's layout,
+  rect and shape, the light's trees, shrubs, sky layout and grades. Keep painting code out of the
+  modules these import, or it lands in the first view again.
+- Sync painting (`paintSceneSync`, `paintJob`, `backgroundSteps`, the studio, unit tests) needs
+  `await scenery.painters.load()` first; `paintScene` loads them itself.
+- **Not yet lazy:** the oasis's `paint-land`, `paint-water`, `paint-veg` and `paint-rocks`. Its
+  wildlife data reads shapes from the first three (`WALL_FACES`, `BASIN_STEPS`, `GROVE_PALMS`, …),
+  and `paint-land` and `paint-water` take `EARTH` from `paint-rocks`. Only its steps, sky and light
+  marks, and its motion are in lazy chunks.
+
 ## Adding a scenery
-1. A folder `src/scenery/<id>/` with its geometry, painting (`SceneArt` with its own `steps`),
-   `ScenerySky`, `LightArt`, `SceneryAmbience` and `SceneryView`, gathered in `index.ts`.
+1. A folder `src/scenery/<id>/` with its geometry, painting data (`SceneArt`), `ScenerySky`,
+   `LightArt`, `SceneryAmbience` and `SceneryView`, gathered in `index.ts`, and its painters in
+   `painters.ts` behind a `lazyPainters` handle (see Lazy painters).
 2. Register it in `registry.ts` and its unlock table in `fauna.ts`, and name its `sound` profile;
    keep `available` false behind a dev flag until it is done (the waterfall's was
    `?dev&scenery=waterfall` until S17), then return true and check `flora.test.ts`. Its
