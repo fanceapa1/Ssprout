@@ -27,7 +27,7 @@ export interface AmbienceSystem extends System {
   setWeather(weather: Weather | null): void;
   /** dev/tests: jump every transition to its steady state */
   settle(): void;
-  debug(): (AmbienceDebug & { ms: number; timeOverride: string | null; location: { lat: number; lon: number; source: string; zone: string | null }; sunTimes: Record<string, string | null> | null }) | null;
+  debug(): (AmbienceDebug & { switching: boolean; ms: number; timeOverride: string | null; location: { lat: number; lon: number; source: string; zone: string | null }; sunTimes: Record<string, string | null> | null }) | null;
   /** the daylight this system paints with (shared with the scene, plants and fauna) */
   readonly daylight: DaylightSource;
   /** the clock time (epoch ms) of the last frame */
@@ -36,6 +36,8 @@ export interface AmbienceSystem extends System {
   sky(): SkyLayout;
   /** the sharp light plate for the camera's resting view: wanted rect, scale, painted yet (null: none) */
   lightDetail(): ReturnType<Ambience['lightDetail']>;
+  /** resolves once a garden switch's light is in place (at once when none is under way; ADR 0337) */
+  lightReady(): Promise<void>;
   /** called with the time-of-day grade whenever the lighting repaints (e.g. to tint the DOM UI) */
   onLight(fn: (grade: Grade) => void): () => void;
   /**
@@ -85,6 +87,10 @@ export function createAmbienceSystem(opts: AmbienceSystemOptions = {}): Ambience
   let reducedMotion = false;
   let camera: CameraView | null = null;
   let seenDetail = -1;
+  /** bumps on every init: a newer one wins over a switch still getting ready */
+  let initGen = 0;
+  /** a switch's new engine getting its light ready (null: none) */
+  let switching: Promise<void> | null = null;
   const now = () => (typeof performance !== 'undefined' ? performance.now() : 0);
 
   const timed = (fn: () => void) => {
@@ -99,6 +105,9 @@ export function createAmbienceSystem(opts: AmbienceSystemOptions = {}): Ambience
     now: () => lastNow,
     sky: () => scenery?.light.sky ?? GARDEN_SKY_LAYOUT,
     lightDetail: () => engine?.lightDetail() ?? null,
+    async lightReady() {
+      while (switching) await switching;
+    },
     init(ctx) {
       store = ctx.store;
       reducedMotion = ctx.reducedMotion;
@@ -106,6 +115,25 @@ export function createAmbienceSystem(opts: AmbienceSystemOptions = {}): Ambience
       seenDetail = -1;
       const switched = !!ctx.scenery && ctx.scenery.id !== scenery?.id;
       if (ctx.scenery && switched) scenery = ctx.scenery;
+      const gen = ++initGen;
+      if (engine && switched) {
+        // another garden: the old engine keeps drawing (under the renderer's cover) while the new
+        // one gets its light ready in parts, then takes over (ADR 0337)
+        const next = createAmbience({ scene: ctx.scene, reducedMotion: ctx.reducedMotion, seed: opts.seed, area: ctx.viewport.visible, scenery });
+        next.preview = preview;
+        const scene = ctx.scene;
+        const ready = next.prepare(daylight.at(lastNow), engine.sprites()).then(() => {
+          if (gen !== initGen) return;
+          engine = next;
+          engineScene = scene;
+          lightPaints = -1;
+          seenDetail = -1;
+          switching = null;
+        });
+        switching = ready;
+        return ready;
+      }
+      switching = null;
       if (!engine || engineScene !== ctx.scene || switched) {
         const lightArt = switched ? undefined : opts.lightArt;
         engine = createAmbience({ scene: ctx.scene, reducedMotion: ctx.reducedMotion, seed: opts.seed, area: ctx.viewport.visible, lightArt, scenery });
@@ -195,6 +223,7 @@ export function createAmbienceSystem(opts: AmbienceSystemOptions = {}): Ambience
       const iso = (t: number | null | undefined) => (t == null ? null : new Date(t).toISOString());
       return {
         ...engine.debug(),
+        switching: switching !== null,
         ms,
         timeOverride: daylight.override()?.label ?? null,
         location: { lat: loc.lat, lon: loc.lon, source: loc.source, zone: loc.zone },

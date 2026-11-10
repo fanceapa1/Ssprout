@@ -12,7 +12,7 @@ import type { SceneGeometry } from '../scene/geometry';
 import { createEnvelope, settleEnvelope, stepEnvelope, targetsFor, type Channel, type EnvelopeState, type Levels } from './envelope';
 import { createCastLight, type CastLight, type LightArt } from './cast';
 import { createDevicePlate } from './device-plate';
-import { createNightEdge, edgeStrength } from './night-edge';
+import { edgeStrength, nightEdgeFor } from './night-edge';
 import { LIGHT } from './lighting';
 import { nextPhase, pinnedState, only, whenIdle, type DayPhase, type DaylightState } from './daylight';
 import { MOTE, type Emitter } from './motes';
@@ -100,6 +100,10 @@ export interface AmbienceScenery {
 }
 
 /** Without a scenery: the Japanese garden's numbers and only the geometry's own light marks. */
+/** How long `prepare` waits for the paint cache's answers before painting a plate anyway (ms). */
+const PREPARE_LOOKUP_WAIT_MS = 1000;
+const clock = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
+
 const NO_SCENERY: AmbienceScenery = { id: DEFAULT_SCENERY, light: { trees: [], shrubs: [], ...ENGAWA_LIGHT }, ambience: GARDEN_AMBIENCE };
 
 export interface AmbienceDebug {
@@ -141,6 +145,14 @@ export interface Ambience {
   setDetail(visible: Rect | null, pixelScale: number): void;
   /** the wanted detail plate and whether it is painted (null: none wanted) */
   lightDetail(): { rect: Rect; scale: number; ready: boolean; ms: number } | null;
+  /**
+   * Get ready to light `state` without one long task (ADR 0337): the blend's light plates from
+   * the paint cache, or painted a part per idle callback, then the sprite groups in `warm`, one
+   * per idle callback. Resolves when the first frame can draw without painting.
+   */
+  prepare(state: DaylightState, warm?: readonly SpriteGroup[]): Promise<void>;
+  /** the sprite groups built so far */
+  sprites(): SpriteGroup[];
   /** current eased level of one channel */
   level(channel: Channel): number;
   debug(): AmbienceDebug;
@@ -171,7 +183,7 @@ export function createAmbience(opts: AmbienceOptions): Ambience {
   let castLight: CastLight | null = null;
   const lightArt = opts.lightArt ?? scenery.light;
   const cast = (): CastLight => (castLight ??= castFor(scene, lightArt, `${seed}-cast`, scenery.id));
-  const nightEdge = createNightEdge(`${seed}-edge`);
+  const nightEdge = nightEdgeFor(`${seed}-edge`);
   const plate = createDevicePlate();
   const area0 = opts.area ?? { x: 0, y: 0, w: WORLD_W, h: WORLD_H };
   /** the visible area: on tall phones it reaches above and below the world (bare paper there) */
@@ -519,6 +531,26 @@ export function createAmbience(opts: AmbienceOptions): Ambience {
         for (const { at: L } of scene.lights) ctx.drawImage(sprites.flame as CanvasImageSource, L.x - s, L.y - s * 1.2, s * 2, s * 2.4);
       }
     },
+    async prepare(state, warm = []) {
+      const c = cast();
+      c.lookup(state);
+      const t0 = clock();
+      for (;;) {
+        const miss = c.missing(state);
+        if (!miss.length) break;
+        const p = miss.find((q) => !c.looking(q)) ?? (clock() - t0 >= PREPARE_LOOKUP_WAIT_MS ? miss[0] : undefined);
+        if (p) {
+          await new Promise<void>((r) => idleSoon(r));
+          c.paintPart(p);
+        } else await new Promise<void>((r) => setTimeout(r, 16));
+      }
+      for (const g of warm) {
+        if (builtSprites(sprites).includes(g)) continue;
+        await new Promise<void>((r) => idleSoon(r));
+        void sprites[g];
+      }
+    },
+    sprites: () => builtSprites(sprites),
     level: (c) => env.value[c],
     light: () => ({ grade, paints }),
     debug() {
