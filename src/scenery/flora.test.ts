@@ -147,6 +147,7 @@ describe('each garden’s flora', () => {
       'oleander',
       'pomegranate',
       'retama',
+      'southern-maidenhair',
       'spearmint',
       'white-water-lily',
     ]);
