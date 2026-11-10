@@ -111,7 +111,9 @@ export function paintOasisSky(p: Painter, rng: Rng, phase: DayPhase): void {
 
 function paintPhaseSky(p: Painter, rng: Rng, phase: DayPhase): void {
   // deeper than the plate: a wash smooths its outline, so it would leave paper in the crenels
-  const sky = openSky(48);
+  // right of the ksar the open sky turns a corner onto the bluff; a wash rounds a convex corner off
+  // and left a pale wedge there, so the wash runs on much deeper and the plate's clip cuts it
+  const sky = openSky(48).map((q, i) => (i > 1 && q.x > 893 ? { x: q.x, y: q.y + 120 } : q));
   const { sunriseX, sunsetX, horizonY } = OASIS_SKY_LAYOUT;
   switch (phase) {
     case 'midday': {
