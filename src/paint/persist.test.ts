@@ -233,6 +233,22 @@ describe('paint cache puts stay off the hot path', () => {
     expect(await cache.stats()).toMatchObject({ puts: 2, skipped: 1 });
   });
 
+  it('has() answers from the index without reading, and counts a queued put (ADR 0339)', async () => {
+    const idle: (() => void)[] = [];
+    const store = memoryStore();
+    const { cache } = harness(store, { idle: (fn) => idle.push(fn) });
+    expect(await cache.has!('scene', 'a')).toBe(false);
+    const put = cache.put('scene', 'a', canvas(10));
+    expect(await cache.has!('scene', 'a')).toBe(true);
+    for (let i = 0; i < 10 && idle.length === 0; i++) await new Promise((r) => setTimeout(r, 0));
+    idle.shift()!();
+    expect(await put).toBe(true);
+    expect(await cache.has!('scene', 'a')).toBe(true);
+    expect(await cache.has!('sky', 'a')).toBe(false);
+    expect((await cache.stats()).hits + (await cache.stats()).misses).toBe(0);
+    expect(await createNullPaintCache('dev').has!('scene', 'a')).toBe(false);
+  });
+
   it('settle waits for every queued put', async () => {
     const { cache } = harness();
     void cache.put('scene', 'a', canvas(10));

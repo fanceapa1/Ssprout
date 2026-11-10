@@ -100,6 +100,8 @@ export interface PaintCache {
   readonly version: string;
   /** The stored painting, decoded, or null (miss, off, or any failure). */
   get(kind: string, key: string): Promise<ImageBitmap | null>;
+  /** Whether the entry is stored or queued to be, without reading it (false when off). */
+  has?(kind: string, key: string): Promise<boolean>;
   /**
    * Store a finished painting. Copies it now (see `PutOptions.copy`), encodes it to PNG in idle
    * time and writes it, evicting the least recently used entries over the cap. Resolves true
@@ -202,6 +204,8 @@ export function createPaintCache(opts: PaintCacheOptions): PaintCache {
   let seq = 0;
   /** The latest put per id: an earlier queued put of the same entry is skipped. */
   const latest = new Map<string, object>();
+  /** Puts not yet written or given up, per id (`has`). */
+  const queued = new Map<string, number>();
   /** Puts and clears run one at a time, in order. */
   let queue: Promise<unknown> = Promise.resolve();
 
@@ -293,6 +297,12 @@ export function createPaintCache(opts: PaintCacheOptions): PaintCache {
       }
     },
 
+    async has(kind, key) {
+      if (!(await opened)) return false;
+      const id = entryId(version, kind, key);
+      return index.has(id) || queued.has(id);
+    },
+
     put(kind, key, canvas, putOpts) {
       if (off) return Promise.resolve(false);
       let source: AnyCanvas;
@@ -305,6 +315,7 @@ export function createPaintCache(opts: PaintCacheOptions): PaintCache {
       const id = entryId(version, kind, key);
       const token = {};
       latest.set(id, token);
+      queued.set(id, (queued.get(id) ?? 0) + 1);
       return enqueue(async () => {
         const a = await opened;
         if (!a) return false;
@@ -331,6 +342,9 @@ export function createPaintCache(opts: PaintCacheOptions): PaintCache {
         return true;
       }, false).finally(() => {
         if (latest.get(id) === token) latest.delete(id);
+        const n = (queued.get(id) ?? 1) - 1;
+        if (n > 0) queued.set(id, n);
+        else queued.delete(id);
       });
     },
 
@@ -371,6 +385,7 @@ export function createNullPaintCache(off: PaintCacheOff, version: string = paint
   return {
     version,
     get: async () => null,
+    has: async () => false,
     put: async () => false,
     clear: async () => {},
     settle: async () => {},
