@@ -4,31 +4,20 @@
  * the ksar's flanks, the shoulder and the palms at sunrise and sunset; moonlight on the basin at
  * night; and its own golden grades. docs/systems/daylight.md › Oasis.
  */
-import type { LightArt } from '../../ambience/cast';
+import type { LightPainters } from '../../ambience/cast';
 import type { DayPhase } from '../../ambience/daylight';
 import { reserveStar, type CastShadow } from '../../ambience/sky-layout';
-import type { Grade } from '../../ambience/timeofday';
 import type { Rng } from '../../core/rng';
 import { blob, type Painter, type Pt } from '../../paint';
 import type { SceneGeometry } from '../../scene/geometry';
-import { OASIS_SKY_LAYOUT, skylineAt } from './layout';
+import { OASIS_GRADES, OASIS_SKY_LAYOUT, skylineAt } from './layout';
 import { WALL_FACES } from './paint-land';
 import { bluffTopAt, ROCK_SHAPES } from './paint-rocks';
 import { VEG_SHAPES } from './paint-veg';
 import { WATER_BOXES, WATER_SHAPES } from './paint-water';
 import { MILKY_WAY, OASIS_NIGHT_STARS } from './sky';
 
-/**
- * The oasis's grades: warmer and more golden than the other gardens' (midday a thin gold rather
- * than bare paper, sunset a deep amber), the glow standing over the notch; night a violet-indigo
- * a touch lighter than the garden's so the sand stays readable.
- */
-export const OASIS_GRADES: Record<DayPhase, Grade> = {
-  sunrise: { tint: [238, 204, 206], amount: 0.2, sky: 0, ground: 0.85, glow: 0.6, warm: [255, 214, 168], glowX: 0.62, glowY: 0.34, lantern: 0, mottle: 0.16 },
-  midday: { tint: [250, 230, 188], amount: 0.09, sky: -0.06, ground: 1, glow: 0, warm: [252, 240, 214], glowX: 0.5, glowY: 0.1, lantern: 0, mottle: 0.12 },
-  sunset: { tint: [244, 168, 104], amount: 0.36, sky: -0.06, ground: 1, glow: 0.62, warm: [255, 206, 128], glowX: 0.58, glowY: 0.34, lantern: 0, mottle: 0.16 },
-  night: { tint: [90, 98, 178], amount: 0.5, sky: 0.2, ground: 1.15, glow: 0, warm: [236, 214, 170], glowX: 0.5, glowY: 0.3, lantern: 0, mottle: 0.1 },
-};
+export { OASIS_GRADES };
 
 type Rgb = readonly [number, number, number];
 
@@ -210,4 +199,5 @@ function oasisLights(p: Painter, rng: Rng, _scene: SceneGeometry, phase: DayPhas
   for (const s of OASIS_NIGHT_STARS) if (s.y > 14) reserveStar(p.ctx, s, 0.9);
 }
 
-export const OASIS_LIGHT_ART: LightArt = { trees: [], shrubs: [], sky: OASIS_SKY_LAYOUT, shadows: oasisShadows, lights: oasisLights, grades: OASIS_GRADES };
+/** The oasis's own marks on the light plates (its painter chunk, ADR 0341). */
+export const OASIS_LIGHT: LightPainters = { shadows: oasisShadows, lights: oasisLights };

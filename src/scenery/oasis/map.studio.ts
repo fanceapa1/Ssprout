@@ -58,7 +58,7 @@ function painting(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement, seed
     plate.height = canvas.height;
     const p = createPainter(plate);
     p.ctx.setTransform(scale, 0, 0, scale, 0, 0);
-    OASIS.sky.paint(p, createRng('oasis-map-sky'), 'midday');
+    OASIS.painters.get()!.sky.paint(p, createRng('oasis-map-sky'), 'midday');
     ctx.drawImage(plate, 0, 0);
   }
   ctx.drawImage(paperTexture(canvas.width, canvas.height, 1) as CanvasImageSource, 0, 0);

@@ -5,7 +5,7 @@ import { PAINT_ROOTS } from '../paint/paint-version';
 import { DEFAULT_FOCUS, WORLD_H, WORLD_W } from '../render/viewport';
 import { GARDEN_ART } from '../scene/background';
 import { gardenScene, PATH } from '../scene/geometry';
-import { GARDEN_SKY } from '../scene/paint-sky';
+import { GARDEN_SKY } from './japanese-garden/art';
 import { DEFAULT_SCENERY, isSceneryId, SCENERY_IDS, type SceneryId } from './ids';
 import { JAPANESE_GARDEN } from './japanese-garden';
 import { OASIS } from './oasis';

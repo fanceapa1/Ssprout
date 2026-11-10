@@ -21,8 +21,12 @@ import type { ScenerySky } from '../types';
 import { WATERFALL } from '../waterfall';
 import { OASIS } from '.';
 import { OASIS_SKY_LAYOUT, skylineAt } from './layout';
-import { OASIS_GRADES, OASIS_LIGHT_ART } from './light';
-import { MILKY_WAY, OASIS_NIGHT_STARS, OASIS_SKY, OASIS_SKY_RECT, OASIS_WATER_SKY, plateSky } from './sky';
+import { OASIS_LIGHT_ART, OASIS_SKY } from '.';
+import { OASIS_GRADES, OASIS_LIGHT } from './light';
+import { MILKY_WAY, OASIS_NIGHT_STARS, OASIS_SKY_RECT, OASIS_WATER_SKY, plateSky } from './sky';
+
+// the painters are a lazy chunk (ADR 0341)
+beforeAll(() => Promise.all([OASIS.painters.load(), WATERFALL.painters.load()]));
 
 interface Plates {
   hash: string;
@@ -42,10 +46,10 @@ function recordPlates(sky: ScenerySky, scene: SceneGeometry, art: LightArt, seed
       const r = sky.rect;
       const s = createPainter(makeCanvas(Math.ceil(r.w * SKY_SCALE), Math.ceil(r.h * SKY_SCALE)), { seed: `${seed}:sky:${phase}` });
       s.ctx.setTransform(SKY_SCALE, 0, 0, SKY_SCALE, -r.x * SKY_SCALE, -r.y * SKY_SCALE);
-      sky.paint(s, createRng(`${seed}:sky:${phase}`), phase);
+      sky.painters.get()!.sky.paint(s, createRng(`${seed}:sky:${phase}`), phase);
       const w = createPainter(makeCanvas(Math.ceil(pond.w * 0.5) + 20, Math.ceil(pond.h * 0.5) + 20), { seed: `${seed}:water-sky:${phase}` });
       w.ctx.setTransform(0.5, 0, 0, 0.5, -pond.x * 0.5 + 10, -pond.y * 0.5 + 10);
-      sky.paintWater(w, createRng(`${seed}:water-sky:${phase}`), phase, pond);
+      sky.painters.get()!.sky.paintWater(w, createRng(`${seed}:water-sky:${phase}`), phase, pond);
       const c = createPainter(makeCanvas(640, 400), { seed: `cast:${phase}` });
       c.ctx.setTransform(CAST_SCALE, 0, 0, CAST_SCALE, 0, 0);
       paintCastPlate(c, createRng(`cast:${phase}`), phase, scene, art);
@@ -71,8 +75,8 @@ describe('the oasis daylight (O5)', () => {
     expect(OASIS.light).toBe(OASIS_LIGHT_ART);
     expect(OASIS.light.sky).toBe(OASIS_SKY_LAYOUT);
     expect(OASIS.sky.layout.sunSide).toEqual({ sunrise: 1, sunset: 1 });
-    expect(OASIS.light.shadows).toBeTypeOf('function');
-    expect(OASIS.light.lights).toBeTypeOf('function');
+    expect(OASIS_LIGHT.shadows).toBeTypeOf('function');
+    expect(OASIS_LIGHT.lights).toBeTypeOf('function');
   });
 
   it('has its own grades: warmer and more golden by day, readable at night (ADR 0301)', () => {

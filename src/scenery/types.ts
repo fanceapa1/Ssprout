@@ -3,7 +3,7 @@
  * systems take their data from the current scenery instead of module constants.
  * docs/systems/scenery.md, docs/ARCHITECTURE.md › Sceneries.
  */
-import type { LightArt } from '../ambience/cast';
+import type { LightArt, LightPainters } from '../ambience/cast';
 import type { DayPhase } from '../ambience/daylight';
 import type { SceneryFauna } from '../fauna/habitat';
 import type { SkyLayout } from '../ambience/sky-layout';
@@ -13,9 +13,10 @@ import type { Painter } from '../paint';
 import type { SceneryBiome } from '../plants/flora';
 import type { Habitat } from '../plants/types';
 import type { Pt, Rect } from '../render/viewport';
-import type { SceneArt } from '../scene/background';
+import type { ArtPainters, SceneArt } from '../scene/background';
 import type { SceneGeometry } from '../scene/geometry';
 import type { SceneryId } from './ids';
+import type { Painters } from './painters';
 
 /** A scenery's sky: where the light comes from, and the four painted daylight plates. */
 export interface ScenerySky {
@@ -24,10 +25,25 @@ export interface ScenerySky {
   rect: Rect;
   /** the open sky (the sun is clipped to it), with `below` units hanging under its skyline */
   shape(below?: number): Pt[];
+  /** the plates' painters, loaded when a plate is not in the paint cache (ADR 0341) */
+  painters: Painters<{ sky: SkyPainters }>;
+}
+
+/** How a scenery paints its sky plates (in its painter chunk, ADR 0341). */
+export interface SkyPainters {
   /** one phase's sky, into a painter whose transform maps world units onto the plate */
   paint(p: Painter, rng: Rng, phase: DayPhase): void;
   /** the same sky mirrored into the still water's box (the caller clips it to the water) */
   paintWater(p: Painter, rng: Rng, phase: DayPhase, box: Rect): void;
+}
+
+/**
+ * Everything a scenery paints with, in one lazy chunk per scenery (ADR 0341): the landscape's
+ * steps and sprites, the sky plates and the light plates' own marks.
+ */
+export interface GardenPainters extends ArtPainters {
+  sky: SkyPainters;
+  light: LightPainters;
 }
 
 /** Where the weather's ground effects go. */
@@ -80,8 +96,10 @@ export interface Scenery {
   fauna: SceneryFauna;
   /** the sound profile it plays: its palette, garden mix and events (ADR 0283) */
   sound: SoundSceneryId;
-  /** moving water over the painting (none under reduced motion: the painting stays still) */
-  motion?: () => SceneryMotion;
+  /** its painters (the same handle as `art.painters`, `sky.painters` and `light.painters`) */
+  painters: Painters<GardenPainters>;
+  /** moving water over the painting, from its own chunk (none under reduced motion: the painting stays still) */
+  motion?: () => Promise<SceneryMotion | undefined>;
   /** how much of the scene's generic water surface (shimmer, rings, glints) plays on its pond: 1 when left out, 0 a still mirror (ADR 0302) */
   pondSurface?: number;
 }

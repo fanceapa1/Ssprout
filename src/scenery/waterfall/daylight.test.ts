@@ -9,8 +9,9 @@ import { moonDisc, stars, sunDisc } from '../../ambience/sky-layout';
 import { skyPlateKey } from '../../scene/sky-light';
 import { WATERFALL } from '.';
 import { skylineAt, WATERFALL_SKY_LAYOUT } from './layout';
-import { WATERFALL_LIGHT_ART } from './light';
-import { plateSky, WATERFALL_SKY, WATERFALL_SKY_RECT, WATERFALL_SUN_SKY, WATERFALL_SUNSET_X } from './sky';
+import { WATERFALL_LIGHT_ART, WATERFALL_SKY } from '.';
+import { WATERFALL_LIGHT } from './light';
+import { plateSky, WATERFALL_SKY_RECT, WATERFALL_SUN_SKY, WATERFALL_SUNSET_X } from './sky';
 import { createViewport } from '../../render/viewport';
 
 describe('the waterfall daylight', () => {
@@ -19,8 +20,8 @@ describe('the waterfall daylight', () => {
     expect(WATERFALL.light).toBe(WATERFALL_LIGHT_ART);
     expect(WATERFALL.light.sky).toBe(WATERFALL_SUN_SKY);
     expect(WATERFALL_SUN_SKY).toEqual({ ...WATERFALL_SKY_LAYOUT, sunsetX: WATERFALL_SUNSET_X, sunSide: { sunrise: 1, sunset: 1 } });
-    expect(WATERFALL.light.shadows).toBeTypeOf('function');
-    expect(WATERFALL.light.lights).toBeTypeOf('function');
+    expect(WATERFALL_LIGHT.shadows).toBeTypeOf('function');
+    expect(WATERFALL_LIGHT.lights).toBeTypeOf('function');
   });
 
   it('keeps the sun’s centre and the moon’s whole disc in the open sky in every phase', () => {

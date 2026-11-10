@@ -18,7 +18,7 @@ import { nextPhase, pinnedState, only, whenIdle, type DayPhase, type DaylightSta
 import { MOTE, type Emitter } from './motes';
 import { DEFAULT_SCENERY, type SceneryId } from '../scenery/ids';
 import { GARDEN_AMBIENCE } from '../scenery/japanese-garden/ambience';
-import { ENGAWA_LIGHT } from '../scenery/japanese-garden/light';
+import { GARDEN_PAINTERS } from '../scenery/japanese-garden/art';
 import type { SceneryAmbience } from '../scenery/types';
 import { createSim, lifeAlpha, setSimArea, SPRITE_VARIANTS, stepSim, warmSim, type Eave, type Sim } from './sim';
 import { buildSprites, builtSprites, type SpriteGroup, type Sprites } from './sprites';
@@ -104,7 +104,7 @@ export interface AmbienceScenery {
 const PREPARE_LOOKUP_WAIT_MS = 1000;
 const clock = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
 
-const NO_SCENERY: AmbienceScenery = { id: DEFAULT_SCENERY, light: { trees: [], shrubs: [], ...ENGAWA_LIGHT }, ambience: GARDEN_AMBIENCE };
+const NO_SCENERY: AmbienceScenery = { id: DEFAULT_SCENERY, light: { trees: [], shrubs: [], painters: GARDEN_PAINTERS }, ambience: GARDEN_AMBIENCE };
 
 export interface AmbienceDebug {
   phase: SessionPhase;

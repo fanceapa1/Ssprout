@@ -13,6 +13,10 @@ import { BASIN_STONE, BASIN_WATER, OUED_WATER } from './geometry';
 import { BAR, copingAt, SEGUIA_FALLS, SEGUIA_RUNS, WALLS } from './layout';
 import { BASIN_INLET, BASIN_STEPS, fallHalf, OUED_BARS, ouedAt, RIM_WASHES, SLUICE_GATE, WATER_BOXES, WATER_SHAPES } from './paint-water';
 import { OASIS_SLOTS } from './slots';
+import { oasisSteps } from './painters';
+
+// the painters are a lazy chunk (ADR 0341)
+beforeAll(() => OASIS_ART.painters.load());
 
 const OVERVIEW: PaintView = { rect: { x: 0, y: 0, w: 1600, h: 1000 }, scale: 0.6 };
 // a resting close view on the basin's far-right corner, its steps and the sluice gate
@@ -52,7 +56,7 @@ describe('oasis water painting (O3)', () => {
 
   it('paints the water element as its own three steps: the basin, the seguia, the oued', () => {
     expect(OASIS_ELEMENTS.water).toEqual(['basin', 'seguia', 'oued']);
-    expect(OASIS_ART.steps(OASIS_ART, ['water']).map((s) => s.name)).toEqual(['basin', 'seguia', 'oued']);
+    expect(oasisSteps(OASIS_ART, ['water']).map((s) => s.name)).toEqual(['basin', 'seguia', 'oued']);
   });
 
   // quantised (paint-record's default rounding), so the pins hold on every platform (docs/TESTING.md)

@@ -11,7 +11,7 @@ import { createRimCache, drawRim } from '../paint/rim';
 import { WORLD_H, WORLD_W, type Rect } from '../render/viewport';
 import type { StudioEntry, StudioSection } from '../studio/types';
 import { GARDEN_ART, paintSceneSync, type PaintResult } from './background';
-import { GARDEN_LIGHT_ART } from '../scenery/japanese-garden/light';
+import { GARDEN_LIGHT_ART } from '../scenery/japanese-garden/art';
 import { SKY_RECT } from './paint-sky';
 import { createSkyLight, type SkyLight } from './sky-light';
 

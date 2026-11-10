@@ -242,6 +242,7 @@ export function createSceneSystem(opts: SceneSystemOptions = {}): SceneSystem {
   let motion: SceneryMotion | null = null;
   let motionReady = false;
   let motionJob: Promise<void> | null = null;
+  let motionToken = 0;
   let reducedMotion = false;
   const daylight = opts.daylight ?? pinnedSource('midday');
   let sky: SkyLight | null = null;
@@ -278,7 +279,14 @@ export function createSceneSystem(opts: SceneSystemOptions = {}): SceneSystem {
   const lookup = async (kind: string, view: PaintView, of: SceneArt = art): Promise<Lookup> => {
     const t0 = now();
     const layout = spriteAtlasLayout(of, view.scale);
-    const [bitmap, atlas] = await Promise.all([cache.get(kind, paintingKey(of, view, quality)), cache.get(SCENE_CACHE.sprites, spritesKey(of, view.scale, quality))]);
+    const keys = [paintingKey(of, view, quality), spritesKey(of, view.scale, quality)] as const;
+    // the index answers before the images decode: on a miss, the painters start loading (ADR 0341)
+    if (cache.has && !of.painters.get())
+      void Promise.all([cache.has(kind, keys[0]), cache.has(SCENE_CACHE.sprites, keys[1])]).then(
+        ([a, b]) => void (a && b ? null : of.painters.load().catch(() => {})),
+        () => void of.painters.load().catch(() => {}),
+      );
+    const [bitmap, atlas] = await Promise.all([cache.get(kind, keys[0]), cache.get(SCENE_CACHE.sprites, keys[1])]);
     const w = Math.max(1, Math.ceil(view.rect.w * view.scale));
     const h = Math.max(1, Math.ceil(view.rect.h * view.scale));
     const background = !!bitmap && bitmap.width === w && bitmap.height === h;
@@ -506,14 +514,25 @@ export function createSceneSystem(opts: SceneSystemOptions = {}): SceneSystem {
     motion = null;
     motionReady = false;
     motionJob = null;
+    motionToken++;
     switchedIn = true;
   };
 
   /** paint the motion's sprites between frames, like a painting; a switch away drops them */
-  const startMotion = (m: SceneryMotion): void => {
-    motion = m;
-    const parts = m.prepare();
+  const startMotion = (made: Promise<SceneryMotion | undefined>): void => {
+    const token = ++motionToken;
     motionJob = (async () => {
+      let m: SceneryMotion | undefined;
+      try {
+        m = await made;
+      } catch (err) {
+        // its chunk did not load (ADR 0230 reloads a stale deploy): the painting stays still
+        console.warn('[scene] motion failed to load', err);
+        return;
+      }
+      if (token !== motionToken || !m) return;
+      motion = m;
+      const parts = m.prepare();
       let start = now();
       while (motion === m) {
         if (parts.next().done) {
@@ -538,9 +557,18 @@ export function createSceneSystem(opts: SceneSystemOptions = {}): SceneSystem {
       if (ctx.scenery && ctx.scenery.id !== art.scenery) switchTo(ctx.scenery);
       else if (ctx.scenery && !skySpec) skySpec = ctx.scenery.sky;
       water ??= createWaterSurface(ctx.scene, { seed: art.seed, still: ctx.reducedMotion, strength: ctx.scenery?.pondSurface });
-      if (!motion && !reducedMotion && ctx.scenery?.motion) startMotion(ctx.scenery.motion());
+      if (!motionJob && !reducedMotion && ctx.scenery?.motion) startMotion(ctx.scenery.motion());
       if (!sky) {
-        sky = createSkyLight({ pond: art.scene.pond, seed: art.seed, sky: skySpec, scenery: art.scenery });
+        sky = createSkyLight({
+          pond: art.scene.pond,
+          seed: art.seed,
+          sky: skySpec,
+          scenery: art.scenery,
+          onPainters: () => {
+            sinceSky = SKY_CHECK_S;
+            invalidate('background');
+          },
+        });
         light = daylight.at(ctx.clock.now());
         sky.update(light, true);
         skyVersion = daylight.version;

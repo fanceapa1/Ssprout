@@ -1,15 +1,15 @@
 /**
  * The Japanese garden as a scenery: the pond, the engawa and its lantern, the stepping stones.
- * Its painters live in `src/scene/` (docs/systems/scene.md); this file gathers them.
+ * Its painters live in `src/scene/` (docs/systems/scene.md), gathered in `painters.ts`, its lazy
+ * chunk (ADR 0341).
  */
 import { GARDEN_ART } from '../../scene/background';
 import { gardenScene } from '../../scene/geometry';
-import { GARDEN_SKY } from '../../scene/paint-sky';
 import type { Scenery } from '../types';
 import { GARDEN_AMBIENCE } from './ambience';
+import { GARDEN_LIGHT_ART, GARDEN_PAINTERS, GARDEN_SKY } from './art';
 import { GARDEN_FLORA, GARDEN_HABITAT_WORDS } from './flora';
 import { JAPANESE_FAUNA } from './fauna';
-import { GARDEN_LIGHT_ART } from './light';
 import { GARDEN_VIEW } from './view';
 
 export const JAPANESE_GARDEN: Scenery = {
@@ -28,4 +28,5 @@ export const JAPANESE_GARDEN: Scenery = {
   habitatWords: GARDEN_HABITAT_WORDS,
   fauna: { unlocks: JAPANESE_FAUNA },
   sound: 'pond',
+  painters: GARDEN_PAINTERS,
 };

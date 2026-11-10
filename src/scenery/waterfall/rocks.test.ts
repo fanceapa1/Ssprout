@@ -9,6 +9,10 @@ import { rockBox } from '../../scene/sprites';
 import { WATERFALL_ART } from '.';
 import { ROCKS } from './geometry';
 import { isWetRock, WATERFALL_ROCKS } from './sprites';
+import { WATERFALL_PAINTERS_LOADED, waterfallSteps } from './painters';
+
+// the painters are a lazy chunk (ADR 0341)
+beforeAll(() => WATERFALL_ART.painters.load());
 
 const ROCK = ['gorge', 'cliff', 'ledges', 'path'];
 const OVERVIEW: PaintView = { rect: { x: 0, y: 0, w: 1600, h: 1000 }, scale: 0.6 };
@@ -45,8 +49,8 @@ describe('waterfall rock painting (S6)', () => {
   }, 120_000);
 
   it('paints the rock steps, back to front, and its own boulders', () => {
-    expect(WATERFALL_ART.steps(WATERFALL_ART, ROCK).map((s) => s.name)).toEqual(['gorge', 'cliff', 'buttress', 'ledges', 'stones']);
-    expect(WATERFALL_ART.rockSprites).toBe(WATERFALL_ROCKS);
+    expect(waterfallSteps(WATERFALL_ART, ROCK).map((s) => s.name)).toEqual(['gorge', 'cliff', 'buttress', 'ledges', 'stones']);
+    expect(WATERFALL_PAINTERS_LOADED.rock).toBe(WATERFALL_ROCKS.paint);
     const layout = spriteAtlasLayout(WATERFALL_ART, 1);
     expect(layout.slots.slice(0, ROCKS.length).map((s) => s.box)).toEqual(ROCKS.map(rockBox));
   });

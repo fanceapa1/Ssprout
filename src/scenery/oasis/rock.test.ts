@@ -11,6 +11,10 @@ import { OASIS_ART, OASIS_ELEMENTS } from '.';
 import { blockShape, KSAR, KSAR_SHAPES, windows } from './ksar';
 import { BLUFF } from './layout';
 import { BLUFF_FORM, ROCK_SHAPES, roughOutline, SEAT_LINE } from './paint-rocks';
+import { oasisSteps } from './painters';
+
+// the painters are a lazy chunk (ADR 0341)
+beforeAll(() => OASIS_ART.painters.load());
 
 const seatBase = (x: number): number | null => {
   const over = KSAR.filter((b) => x >= b.x - 2 && x <= b.x + b.w + b.side + 2);
@@ -53,7 +57,7 @@ describe('oasis rock painting (O2)', () => {
 
   it('paints the rock element as its own two steps, the bluff then the ksar', () => {
     expect(OASIS_ELEMENTS.rock).toEqual(['bluff', 'ksar']);
-    expect(OASIS_ART.steps(OASIS_ART, ['rock']).map((s) => s.name)).toEqual(['bluff', 'ksar']);
+    expect(oasisSteps(OASIS_ART, ['rock']).map((s) => s.name)).toEqual(['bluff', 'ksar']);
   });
 
   it('is deterministic: the same marks every time, and the same crumbling for each block', () => {

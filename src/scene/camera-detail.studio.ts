@@ -11,7 +11,7 @@ import { WORLD_H, WORLD_W, type Rect } from '../render/viewport';
 import type { StudioSection } from '../studio/types';
 import { GARDEN_ART } from './background';
 import { SHRUBS } from './layout';
-import { GARDEN_LIGHT_ART } from '../scenery/japanese-garden/light';
+import { GARDEN_LIGHT_ART } from '../scenery/japanese-garden/art';
 import { createSkyLight } from './sky-light';
 
 const PANEL = 300;

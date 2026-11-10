@@ -11,6 +11,10 @@ import { OASIS_ART, OASIS_ELEMENTS } from '.';
 import { BIG_PALMS, GROVE_FROM } from './layout';
 import { BIG_PALM_SHAPES, GROVE_PALMS, GROVE_TREES, VEG_SHAPES } from './paint-veg';
 import { OASIS_SLOTS } from './slots';
+import { oasisSteps } from './painters';
+
+// the painters are a lazy chunk (ADR 0341)
+beforeAll(() => OASIS_ART.painters.load());
 
 const OVERVIEW: PaintView = { rect: { x: 0, y: 0, w: 1600, h: 1000 }, scale: 0.6 };
 // a resting close view on the grove and the notch palm, at 1.6×
@@ -49,7 +53,7 @@ describe('oasis vegetation painting (O4)', () => {
   it('paints the grove and the big palms as their own steps', () => {
     expect(OASIS_ELEMENTS.grove).toEqual(['grove']);
     expect(OASIS_ELEMENTS.palms).toEqual(['big-palms']);
-    expect(OASIS_ART.steps(OASIS_ART, ['grove', 'palms']).map((s) => s.name)).toEqual(['grove', 'big-palms']);
+    expect(oasisSteps(OASIS_ART, ['grove', 'palms']).map((s) => s.name)).toEqual(['grove', 'big-palms']);
   });
 
   // quantised hashes from a fresh process's first runs (paint caches warm up, so a later run differs)
