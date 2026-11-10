@@ -9,7 +9,7 @@ import { blob, closedResample, createSimplex2D, lighten, mix, resample, ribbon, 
 import type { Pt } from '../../render/viewport';
 import type { Strokes } from '../../scene/paint-land';
 import { perspectiveScale } from '../../scene/slots';
-import { BASIN, BLUFF, BUNDS, copingAt, DUNE_BASE, DUNE_CRESTS, FAR_RANGE, FOOTPATH, NEAR_PLOTS, OUED, PATH_HALF_WIDTH, SEGUIA_RUNS, WALLS, WET_SAND_HALF_WIDTH, type Wall } from './layout';
+import { BACK_BEDS, BACK_RUNNEL, BASIN_VP, BLUFF, BUNDS, copingAt, DUNE_BASE, DUNE_CRESTS, FAR_RANGE, FOOTPATH, NEAR_PLOTS, OUED, PATH_HALF_WIDTH, SEGUIA_RUNS, WALLS, WET_SAND_HALF_WIDTH, type Wall } from './layout';
 import { EARTH } from './paint-rocks';
 
 /** The land's palette: gold sand, worked soil, pisé, and the lilac of the far ranges. */
@@ -109,8 +109,7 @@ const OUED_RIGHT = smoothPath(OUED.slice(8).reverse(), 6);
 
 /** Is a point on open sand (off the plots, the water, the walls' terraces and the bluff)? */
 function openSand(q: Pt): boolean {
-  const behindBasin = q.y > 500 && q.y < BASIN[0]!.y - 6 && q.x > 600 && q.x < 1010;
-  if (q.y < 640 && !behindBasin) return false;
+  if (q.y < 640) return false;
   const inPlot = NEAR_PLOTS.some((pl) => inside(q, pl));
   return !inPlot && !inside(q, OUED);
 }
@@ -163,8 +162,6 @@ function* paintRipples(p: Painter, rng: Rng): Strokes {
   const sets = [
     { x: 560, y: 720 }, { x: 990, y: 704 }, { x: 1150, y: 720 }, { x: 80, y: 720 }, { x: 880, y: 860 }, { x: 900, y: 970 },
     { x: 300, y: 690 }, { x: 1180, y: 660 }, { x: 640, y: 1000 }, { x: 1590, y: 980 }, { x: 1600, y: 760 },
-    // the open sand behind the basin: short, close-set, so the ground reads as receding
-    { x: 660, y: 516 }, { x: 900, y: 528 },
   ];
   for (const c of sets) {
     const s = perspectiveScale(c.y);
@@ -275,6 +272,74 @@ export function* paintPlots(p: Painter, rng: Rng): Strokes {
       }
     }
     p.ctx.restore();
+    yield;
+  }
+  yield* paintBackBeds(p, rng.fork('back-beds'));
+}
+
+/** Water in the head ditch: a sky-teal glint, low. */
+const DITCH_WATER = mix('#7fb3ad', LAND.sandWet, 0.25);
+
+/**
+ * The irrigated beds behind the basin (O12): damp tilled earth inside low lit bunds, furrows
+ * toward the basin's vanishing point, fed by a head ditch from the first fall's pool.
+ */
+function* paintBackBeds(p: Painter, rng: Rng): Strokes {
+  const s = (q: Pt) => perspectiveScale(q.y);
+  // the worked ground at the bluff's foot, behind the ditch: a shade darker, lost at its ends
+  yield* p.parts.glaze(blob(770, 496, 260, 11, rng, { irregularity: 0.3 }), mix(LAND.soil, LAND.sand, 0.55), { rng, opacity: 0.2, deform: 0.3, spread: 0.3, edge: 0.03, granulation: 0.45 });
+  const ditch = smoothPath(poly(BACK_RUNNEL), 6);
+  yield* p.parts.wash(ribbon(ditch, (_, i) => 3 * s(ditch[i]!)), mix(LAND.soilDamp, LAND.soilDark, 0.35), { rng, opacity: 0.5, deform: 0.15, spread: 0.15, edge: 0.25, sharpness: 0.6, granulation: 0.45, fade: { angle: 0, start: 0.85, amount: 0.6, ragged: 0.6 } });
+  for (let k = 0; k < ditch.length - 1; ) {
+    const len = rng.int(3, 8);
+    const seg = ditch.slice(k, k + len).map((q) => ({ x: q.x, y: q.y + 0.4 }));
+    if (seg.length > 1) p.dryBrush(seg, { rng, pigment: DITCH_WATER, width: 2.2 * s(seg[0]!), opacity: 0.7, dryness: 0.3, blend: 'source-over' });
+    k += len + rng.int(1, 4);
+  }
+  p.dryBrush(ditch.map((q) => ({ x: q.x, y: q.y - 3.2 * s(q) })), { rng, pigment: LAND.piseLit, width: 2, opacity: 0.45, dryness: 0.55, blend: 'source-over' });
+  yield;
+  for (const [i, bed] of BACK_BEDS.entries()) {
+    const r = rng.fork(`bed-${i}`);
+    const shape = softOutline(bed, r, 1.2);
+    const [fl, fr, br, bl] = bed as [Pt, Pt, Pt, Pt];
+    // damp tilled earth, darkest at the head where the ditch lets water in; a young crop greening two
+    const wet = [0.9, 0.55, 0.15, 0.6][i]!;
+    yield* p.parts.wetInWet(shape, mix(LAND.soilDamp, LAND.soilDark, 0.3 * wet), mix(LAND.soil, LAND.soilDamp, wet), { rng: r, angle: Math.PI / 2, split: 0.4, softness: 0.5, opacity: 0.36 + 0.16 * wet, deform: 0.1, spread: 0.1, edge: 0.08, edgeWidth: 2, sharpness: 0.5, granulation: 0.55, granules: 0.2 });
+    if (i % 2 === 1) yield* p.parts.glaze(shape, mix(LAND.sprout, LAND.soilDamp, 0.35), { rng: r, opacity: 0.28, deform: 0.2, spread: 0.2, edge: 0.05, granulation: 0.4, fade: { angle: -Math.PI / 2, start: 0.3, amount: 0.7, ragged: 0.8 } });
+    p.ctx.save();
+    p.ctx.beginPath();
+    shape.forEach((q, k) => (k ? p.ctx.lineTo(q.x, q.y) : p.ctx.moveTo(q.x, q.y)));
+    p.ctx.closePath();
+    p.ctx.clip();
+    // furrows from the front bund toward the vanishing point: a dark trough, a lit ridge right of it
+    const t = (fl.y - bl.y) / (fl.y - BASIN_VP.y);
+    for (let x = fl.x + 6; x < fr.x - 3; x += r.range(7.5, 11)) {
+      const line = [{ x, y: fl.y + 2 }, { x: x + (BASIN_VP.x - x) * t, y: fl.y + (BASIN_VP.y - fl.y) * t }];
+      // broken, uneven troughs, fainter toward the back
+      const u0 = r.range(0, 0.25);
+      const u1 = r.range(0.6, 1);
+      const seg = [0, 0.5, 1].map((u) => u0 + (u1 - u0) * u).map((u) => ({ x: line[0]!.x + (line[1]!.x - line[0]!.x) * u + r.range(-0.6, 0.6), y: line[0]!.y + (line[1]!.y - line[0]!.y) * u }));
+      p.dryBrush(seg, { rng: r, pigment: mix(LAND.soilDark, EARTH.shade, 0.3), width: r.range(1.6, 2.4), taper: [0, 0.5], opacity: r.range(0.26, 0.42), dryness: 0.5 });
+      if (r.chance(0.6)) p.dryBrush(seg.map((q) => ({ x: q.x + 2.6, y: q.y })), { rng: r, pigment: mix(LAND.sandLight, LAND.piseLit, 0.4), width: 1.4, taper: [0, 0.5], opacity: 0.38, dryness: 0.55, blend: 'source-over' });
+      if (i % 2 === 1) {
+        for (let k = 1; k <= 5; k++) {
+          if (r.chance(0.45)) continue;
+          const q = { x: line[0]!.x + (line[1]!.x - line[0]!.x) * (k / 6) + 1.5, y: line[0]!.y + (line[1]!.y - line[0]!.y) * (k / 6) };
+          p.dab(q, mix(lighten(LAND.sprout, 0.1), '#8fa864', r.range(0, 0.5)), { rng: r, variant: 'blade', angle: -Math.PI / 2 + r.range(-0.4, 0.4), length: 4 * s(q), width: 1.3 * s(q), opacity: 0.5, layers: 2 });
+        }
+      }
+    }
+    p.ctx.restore();
+    yield;
+    // the low bunds: raised earth, a shade on the bed's side and a lit ridge, along the front and up each side
+    for (const [a, z] of [[fl, fr], [fl, bl], [fr, br]] as const) {
+      const line = resample([a, z], 4).map((q) => ({ x: q.x + r.range(-0.5, 0.5), y: q.y + r.range(-0.3, 0.3) }));
+      const k = s(line[0]!);
+      const front = a === fl && z === fr;
+      yield* p.parts.wash(ribbon(line, () => 2.6 * k), mix(LAND.soil, LAND.sand, 0.35), { rng: r, opacity: 0.45, deform: 0.2, spread: 0.2, edge: 0.15, granulation: 0.5 });
+      p.dryBrush(line.map((q) => ({ x: q.x + (front ? 0 : a === fl ? 2.4 * k : -2.4 * k), y: q.y + (front ? 2.6 * k : 0) })), { rng: r, pigment: mix(LAND.soilDamp, EARTH.shade, 0.4), width: 2 * k, opacity: front ? 0.3 : 0.18, dryness: 0.55 });
+      p.dryBrush(line.map((q) => ({ x: q.x, y: q.y - 1 * k })), { rng: r, pigment: LAND.piseLit, width: 2.2 * k, opacity: 0.7, dryness: 0.45, blend: 'source-over' });
+    }
     yield;
   }
 }
