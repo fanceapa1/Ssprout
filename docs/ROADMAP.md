@@ -191,7 +191,7 @@ Phase 13 (owner request 2026-11-04): a third garden, a desert oasis, with a gold
 | O5 | Oasis daylight: 4 sky plates, basin plate, light plates, sun side | `src/scenery/oasis/{sky,light}.ts` | done (devlog 114; ADR 0301 per-scenery grades; turquoise basin in every phase, shadows fall left; moon top hidden on wide screens) |
 | O6 | Moving water: the seguia's falls and the oued's glints | `src/scenery/oasis/motion.ts` | done (devlog 117; seguia falls, sluice spill, inlet rings, oued glints at TEMPO 1.25, within noise per frame; the generic pond shimmer still draws on the basin) |
 | O7 | Oasis sound bed (wind in the palms, trickling water, doves) | `src/audio/**`, `src/core/soundscape.ts` | done (devlog 126; ADR 0303; seguia trickle, palm rustle, dove, bunting, bee-eater, insects, gecko, frogs; ≈ −40.8 dBFS between the pond and the waterfall; needs a human ear: artifacts/o7/*.wav) |
-| O8 | Acceptance and docs, release | `docs/**`, `tests/**` | last |
+| O8 | Acceptance and docs, release | `docs/**`, `tests/**` | done (devlog 140; released 2026-11-10 at the owner's word; the wildlife queue OK2–OK8 continues after release) |
 
 Phase 13 art queue (after O0 and O1): one plant (OP1–OP12) or creature (OK1–OK8) per task, from the O0 brief.
 
