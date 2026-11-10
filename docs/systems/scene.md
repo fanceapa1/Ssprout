@@ -28,7 +28,7 @@ Look at it: studio → **Scene · painted garden** (`npm run shots -- --studio s
 | `sky-light.ts` | `createSkyLight`: phase plates blended, sun and moon punched out; sky + water composites |
 | `daylight.studio.ts` | studio section `daylight`: each phase and blend over the garden, each plate, the moon |
 | `overlay.ts` | `drawSlotOverlay` (dev) |
-| `system.ts` | `createSceneSystem` (background + entities + water + overlay; paintings looked up in the paint cache first, ADR 0228), `createPaperSystem`, `paintViewFor`, `canReuse`, `CUT_FADE` |
+| `system.ts` | `createSceneSystem` (background + entities + water + overlay; paintings looked up in the paint cache first, ADR 0228; `prepaint` of a garden not on view, ADR 0339), `createPaperSystem`, `paintViewFor`, `canReuse`, `CUT_FADE` |
 | `debug.ts` | `?dev` hooks: `sprout.slots()`, `sprout.sceneStats()`, `sprout.scenePainted()`, `sprout.skyStats()`, `sprout.sceneDetail()` |
 | `scene.studio.ts` | studio section `scene` |
 | `close-view.studio.ts` | studio section `close-view`: overview vs detail for the meadow, the margin and a trunk |
@@ -297,3 +297,16 @@ the detail repaint from 49–52 ms (water) to 11–14 ms. At 4× CPU throttle: 3
   (the big tree, pavilion and stones each longest part under half the step, ADR 0226), at load and in a
   close view's detail.
 - The daylight (skies, phases): docs/systems/daylight.md › Tests.
+
+## Pre-painting a garden not on view (ADR 0339)
+`prepaint(scenery, { yieldTo, cancelled?, painting?, sliceMs? })` paints another garden's overview
+painting and sprite atlas into the paint cache at the view a switch to it would paint
+(`paintViewFor` of the last `init`'s overview viewport), so the switch's lookup hits. It asks the
+cache with `has` first and paints nothing when both entries are held. It paints in `sliceMs`
+(default 8) slices through `yieldTo`, and waits while the scene has its own paint job, detail job
+or motion to prepare. It is cancelled when that garden comes on view. Its answer is `{ status:
+'cached' | 'painted' | 'cancelled' | 'shown' | 'off', painting }`. `painting` is the fresh painting,
+or the stored one decoded when asked for (`painting: true`, for a thumbnail). `prepaintStats()` and
+`sprout.scenePrepaint()` give `painted`, `cached`, `cancelled`, `cpuMs`, `longest` and `painting`.
+The Gardens section drives it (docs/systems/ui.md › Gardens). The sky and light plates are not
+pre-painted (the sky plate is still one long task).

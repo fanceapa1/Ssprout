@@ -8,6 +8,12 @@ import { msUntilLocalTime } from './local-time';
 /** UI additions to `window.sprout` (docs/systems/ui.md › Debug API). */
 declare module './debug' {
   interface SproutDebug {
+    /** the Gardens section's pre-paint of the gardens not on view (ADR 0339) */
+    gardens: {
+      prepaint(): { state: string; reason: string | null };
+      /** resolves once every garden not on view is in the paint cache (or the pre-paint was skipped) */
+      prepaintReady(): Promise<void>;
+    };
     ui: {
       /** what the UI is showing right now */
       state(): UIState;
@@ -112,6 +118,10 @@ export interface UiDebugDeps {
 
 export function installUiDebug({ ui, clock, widget, viewport, slots }: UiDebugDeps): void {
   extendDebug({
+    gardens: {
+      prepaint: () => ui.gardens?.prepaint() ?? { state: 'waiting', reason: null },
+      prepaintReady: () => ui.gardens?.prepaintReady() ?? Promise.resolve(),
+    },
     ui: {
       state: () => ui.state(),
       refresh: () => ui.refresh(),

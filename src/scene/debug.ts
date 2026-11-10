@@ -1,6 +1,6 @@
 import { extendDebug } from '../dev/debug';
 import type { SceneGeometry, Slot } from './geometry';
-import type { SceneStats, SceneSystem } from './system';
+import type { PrepaintStats, SceneStats, SceneSystem } from './system';
 
 declare module '../dev/debug' {
   interface SproutDebug {
@@ -14,6 +14,8 @@ declare module '../dev/debug' {
     skyStats(): ReturnType<SceneSystem['skyStats']>;
     /** The camera's detail painting (its view, painting, fade-in) and the whole-world extension. */
     sceneDetail(): ReturnType<SceneSystem['detailStats']>;
+    /** Gardens not on view pre-painted into the paint cache: painted, found stored, cancelled, CPU (ADR 0339). */
+    scenePrepaint(): PrepaintStats;
   }
 }
 
@@ -25,5 +27,6 @@ export function installSceneDebug(system: SceneSystem, scene: SceneGeometry): vo
     scenePainted: () => system.whenPainted(),
     skyStats: () => system.skyStats(),
     sceneDetail: () => system.detailStats(),
+    scenePrepaint: () => system.prepaintStats(),
   });
 }
