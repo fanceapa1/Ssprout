@@ -110,11 +110,11 @@ const section: StudioSection = {
   title: 'Scenery · oasis water in motion',
   order: 147,
   entries: [
-    moving('falls', 'the seguia’s two small falls: sheens and shades sliding down, threads, the splash pulsing at each foot', FALLS_RECT, 360),
+    moving('falls', 'the seguia’s two small falls: narrow sheens and shades streaking down the strands, threads, foam flickering up at each foot', FALLS_RECT, 360),
     moving('falls-frames', 'the falls at t, t + 0.4 s and t + 0.8 s', FALLS_RECT, 260, 3),
     moving('oued', 'the oued: glints and riffles drifting downstream, livelier at the bars’ heads, sparse over the braids', OUED_RECT, 600),
     moving('oued-frames', 'the oued at t, t + 0.4 s and t + 0.8 s', OUED_RECT, 300, 3),
-    moving('gate', 'the sluice gate: a thin glassy sheet slipping over the board', GATE_RECT, 420),
+    moving('gate', 'the sluice gate: glassy lights slipping over the board’s tongue, a puff at the sluice’s head', GATE_RECT, 420),
     moving('inlet', 'the basin’s inlet: slow rings spreading from the notch, the rest a mirror', INLET_RECT, 660),
     moving('inlet-frames', 'the inlet at t, t + 2 s… (0.4 s apart: the rings are slow)', INLET_RECT, 300, 3),
     spriteSheet,
