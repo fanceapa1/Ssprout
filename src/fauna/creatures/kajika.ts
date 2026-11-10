@@ -8,8 +8,8 @@
 import type { Rng } from '../../core/rng';
 import { blob, mix, smoothPolygon, type Painter } from '../../paint';
 import type { LayerId } from '../../render/types';
-import type { Pt } from '../../render/viewport';
-import { clamp, closestOnPolygon, dist, easeInOut, insideWithMargin, lerp, rangeOf } from '../math';
+import type { Pt, Rect } from '../../render/viewport';
+import { clamp, closestOnPolygon, dist, distanceToPolygon, easeInOut, insideWithMargin, lerp, pointInPolygon, polygonBounds, rangeOf } from '../math';
 import { deepCopy, paintSprite, type Sprite } from '../sprite';
 import { perchesOf, perchY } from '../targets';
 import { BaseCreature, type Ctx, type FaunaWorld } from '../types';
@@ -250,8 +250,39 @@ export function kajikaWaters(w: Pick<FaunaWorld, 'pond' | 'water'>): Pt[][] {
   return [w.pond.world, ...w.water.moving].filter((p) => p.length >= 3);
 }
 
-function nearWater(q: Pt, waters: readonly Pt[][], reach: number): boolean {
-  return waters.some((poly) => insideWithMargin(q, poly, 0) || closestOnPolygon(q, poly).d < reach);
+const boundsOf = new WeakMap<readonly Pt[], Rect>();
+
+/** Whether `q` is in a water or nearer than `reach` to its edge (a box test first rules out far ones). */
+export function nearWater(q: Pt, waters: readonly Pt[][], reach: number): boolean {
+  for (const poly of waters) {
+    let b = boundsOf.get(poly);
+    if (!b) boundsOf.set(poly, (b = polygonBounds(poly)));
+    const dx = Math.max(b.x - q.x, 0, q.x - b.x - b.w);
+    const dy = Math.max(b.y - q.y, 0, q.y - b.y - b.h);
+    if (reach > 0 && Math.hypot(dx, dy) > reach + 1e-6) continue;
+    if (pointInPolygon(q, poly) || distanceToPolygon(q, poly) < reach) return true;
+  }
+  return false;
+}
+
+interface SeatsKey {
+  pond: readonly Pt[];
+  moving: readonly Pt[][];
+  perches: FaunaWorld['perches'];
+  rocks: FaunaWorld['scene']['rocks'];
+  view: [number, number, number, number];
+  has: boolean;
+}
+const seatsKeys = new WeakMap<object, SeatsKey>();
+
+/** `needs`, checked every frame: the waters and seats only change with the scene or the view. */
+export function kajikaHasSeats(w: Where): boolean {
+  const k = seatsKeys.get(w);
+  const v = w.view;
+  if (k && k.pond === w.pond.world && k.moving === w.water.moving && k.perches === w.perches && k.rocks === w.scene.rocks && k.view[0] === v.x && k.view[1] === v.y && k.view[2] === v.w && k.view[3] === v.h) return k.has;
+  const has = kajikaWaters(w).length > 0 && kajikaSeats(w).length > 0;
+  seatsKeys.set(w, { pond: w.pond.world, moving: w.water.moving, perches: w.perches, rocks: w.scene.rocks, view: [v.x, v.y, v.w, v.h], has });
+  return has;
 }
 
 /**
@@ -819,7 +850,7 @@ const kajika: CreatureDef = {
   rank: 5,
   // one singer, day and night (by day it often hides under a stone)
   resident: (n) => (n > 0 ? 1 : 0),
-  needs: (w) => kajikaWaters(w).length > 0 && kajikaSeats(w).length > 0,
+  needs: kajikaHasSeats,
   spawn(w, s) {
     const taken: Pt[] = [];
     for (const c of w.creatures) {
