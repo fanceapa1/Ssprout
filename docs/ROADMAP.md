@@ -245,8 +245,8 @@ Not done: a motion-sprite atlas (1.3 MB, not worth it) and shipping pre-painted 
 | Z2 | Frog water checks cheap (`closestOnPolygon` 23–26 ms/s, high GC in the oasis), same behaviour | `src/fauna/creatures/kajika*`, geometry helper | done (devlog 142; oasis frog checks 26 → 0.2 ms/s, GC 3 → 0.6/s, frame JS 1.83 → 1.40 ms; the oasis has no kajika, its suitability check is now cached) |
 | Z3 | Oasis plots: one wet layer per plot instead of per furrow (bundle, −0.6–0.9 s), art review | `src/scenery/oasis/paint-land.ts` | queued (after Z1) |
 | Z4 | Ksar blocks batched per tower or band (bundle, −0.3–0.5 s), art review | `src/scenery/oasis/{ksar,paint-rocks}.ts` | queued (after Z1) |
-| Z5 | Garden switch: ambience (cast, night edge, grade wash) rebuilt in parts, 205–557 ms freeze → <50 ms; confirm with a profile first | `src/ambience/*` | in progress (devlog 143) |
-| Z6 | Pre-paint unseen gardens into the paint cache on idle when the Gardens section nears; cards use the cached overview instead of draft paints (cold switch 6.9 → ~0.3 s) | `src/scene/system.ts`, `src/scenery/thumbnail.ts`, `src/ui/gardens-section.ts` | queued |
+| Z5 | Garden switch: ambience (cast, night edge, grade wash) rebuilt in parts, 205–557 ms freeze → <50 ms; confirm with a profile first | `src/ambience/*` | done (devlog 143; ADR 0337; the light ready in parts under the cover, the night edge shared; warm switch at night 99–129 ms → no task over 50; noon: ~100 ms left in fauna first sprites, see Z23) |
+| Z6 | Pre-paint unseen gardens into the paint cache on idle when the Gardens section nears; cards use the cached overview instead of draft paints (cold switch 6.9 → ~0.3 s) | `src/scene/system.ts`, `src/scenery/thumbnail.ts`, `src/ui/gardens-section.ts` | in progress (devlog 144) |
 | Z7 | Lazy per-garden painters: each scenery's painters in its own chunk (P16g, −150–200 kB at boot) | `src/scenery/{types,registry}.ts`, each garden's `index.ts`, `src/scene/{system,sky-light}.ts`, `src/ambience/cast.ts` | queued |
 | Z8 | Creatures loaded per garden (P16a′, −190 kB at boot) | `src/fauna/creatures/registry.ts`, `src/fauna/{system,roster}.ts` | queued |
 | Z9 | Species painters out of the main bundle, spike then build (P16f, −433 kB raw) | `src/plants/{types,registry}.ts`, `src/ui/previews.ts`, `src/plants/sprites.ts` | queued |
@@ -263,3 +263,4 @@ Not done: a motion-sprite atlas (1.3 MB, not worth it) and shipping pre-painted 
 | Z20 | Oasis motion tidy: cached clip paths, no per-mark allocations, `drawFall` indexed | `src/scenery/oasis/motion.ts` | queued |
 | Z21 | Creature part atlas (bundle, about 50 canvases → 8): measure the GPU first, drop it if it doesn't pay | `src/fauna/sprite.ts` | queued |
 | Z22 | Fauna sim asks for a creature's wanted count before its suitability check, so creatures not on the garden's roster cost nothing | `src/fauna/sim.ts` | queued |
+| Z23 | Garden switch at noon: each creature's first sprite (bunting, dipper, ~100 ms) and the waterfall falls' `prepare` built in parts or on idle before the switch | `src/fauna/sprite.ts`, `src/scenery/waterfall/falls.ts` | queued |
