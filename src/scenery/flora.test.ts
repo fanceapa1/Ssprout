@@ -142,6 +142,7 @@ describe('each garden’s flora', () => {
       'date-palm',
       'desert-hyacinth',
       'henna',
+      'jujube',
       'oleander',
       'pomegranate',
       'spearmint',
