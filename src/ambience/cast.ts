@@ -75,6 +75,14 @@ export interface CastLight {
   paintDetailStep(): boolean;
   /** the detail composite for the current light, when it is ready */
   detail(): { canvas: AnyCanvas; rect: Rect } | null;
+  /** the phases a light's blend needs whose plate is not here yet */
+  missing(state: DaylightState): DayPhase[];
+  /** look the blend's missing plates up in the paint cache (no painting) */
+  lookup(state: DaylightState): void;
+  /** whether a phase's plate is still being looked up */
+  looking(phase: DayPhase): boolean;
+  /** one part of painting a phase's plate: the wash field first, then the plate (ADR 0337) */
+  paintPart(phase: DayPhase): void;
   /** bumps whenever the composite or the detail composite is repainted (caches of them key off it) */
   version(): number;
   stats(): CastStats;
@@ -499,6 +507,16 @@ export function createCastLight(scene: SceneGeometry, art: LightArt, seed = 'cas
       }
     },
     has: (p) => plates.has(p),
+    missing: (state) => phasesOf(state).filter((p) => !plates.has(p)),
+    lookup(state) {
+      if (store.enabled) for (const p of phasesOf(state)) if (!plates.has(p)) store.request(p);
+    },
+    looking: (p) => !plates.has(p) && store.enabled && store.pending(p),
+    paintPart(p) {
+      if (plates.has(p)) return;
+      if (!washed) field();
+      else plate(p);
+    },
     setDetail(visible, pixelScale) {
       const scale = Math.round(Math.min(CAST_DETAIL_MAX, pixelScale) * 100) / 100;
       if (!visible || scale <= CAST_SCALE * 1.5) {

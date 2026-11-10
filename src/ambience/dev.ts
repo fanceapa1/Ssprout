@@ -44,6 +44,8 @@ declare module '../dev/debug' {
     daylight(): DaylightDebug;
     /** Light plates painted, taken from the paint cache and looked up in vain so far (ADR 0236). */
     lightPlates(): ReturnType<typeof lightPlateTotals>;
+    /** Resolves once a garden switch's light is in place, got ready in parts (ADR 0337); at once when none is under way. */
+    lightReady(): Promise<void>;
   }
 }
 
@@ -55,6 +57,7 @@ export function installAmbienceDebug(system: AmbienceSystem): void {
     ambience: () => system.debug(),
     lightDetail: () => system.lightDetail(),
     lightPlates: () => lightPlateTotals(),
+    lightReady: () => system.lightReady(),
     daylight: (): DaylightDebug => {
       const t = system.now();
       const s = system.daylight.at(t);

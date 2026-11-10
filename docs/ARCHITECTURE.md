@@ -776,7 +776,9 @@ Ambience (`src/ambience/dev.ts`): `setTime('sunrise'|'midday'|'sunset'|'night'|{
 moon, shadow, rim, location, sun times),
 `setWeather('sun'|'rain'|'mist'|null)` (preview without a session), `settleAmbience()` (jump
 transitions to steady state), `ambience()` (phase, levels, daylight phase and weights, particle counts, ms/frame),
-`lightDetail()` (the light plate's detail for the camera's resting view: rect, scale, ready).
+`lightDetail()` (the light plate's detail for the camera's resting view: rect, scale, ready),
+`lightReady()` (resolves once a garden switch's light is in place, got ready in parts under the renderer's cover;
+`ambience().switching` is true until then; ADR 0337).
 `setTime` moves the shared daylight: sky, light, shadows, rims and fauna's night (`fauna.setHour` still pins an
 hour for fauna; audio keeps the real clock).
 
