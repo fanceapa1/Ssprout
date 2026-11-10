@@ -11,7 +11,7 @@ import type { Strokes } from '../../scene/paint-land';
 import type { SceneryMotion } from '../types';
 import { SEGUIA, SLUICE_WATER } from './geometry';
 import { SEGUIA_FALLS } from './layout';
-import { BASIN_INLET, OUED_BARS, SLUICE_GATE, WATER, WATER_BOXES, WATER_SHAPES, ouedAt } from './paint-water';
+import { BASIN_INLET, OUED_BARS, SLUICE_GATE, WATER, WATER_BOXES, WATER_SHAPES, fallHalf, ouedAt } from './paint-water';
 
 /** Playback speed of the whole motion: the waterfall's pace (the owner's). */
 const TEMPO = 1.25;
@@ -48,7 +48,7 @@ export const FALLS = SEGUIA_FALLS.map((f, i) => {
   const top = f.top.y + 1;
   const foot = f.top.y + f.drop;
   const g = (V_FOOT * V_FOOT - V_LIP * V_LIP) / (2 * (foot - top));
-  return { x: f.top.x, top, foot, g, s: (V_FOOT - V_LIP) / g, sheet: WATER_SHAPES.falls[i]!, half: (k: number) => 5.5 + 3.5 * k * k };
+  return { x: f.top.x, top, foot, g, s: (V_FOOT - V_LIP) / g, sheet: WATER_SHAPES.falls[i]!, half: fallHalf };
 });
 type Fall = (typeof FALLS)[number];
 
@@ -192,11 +192,11 @@ export function createOasisMotion(opts: OasisMotionOptions = {}): OasisMotion {
   const riffleSprites: Sprite[] = [];
   const partSprites: Sprite[] = [];
 
-  // the falls: three light lanes and two shade lanes across each sheet, two marks a lane out of
-  // phase so the sheen never stops, and three bright threads
+  // the falls: three light lanes and two shade lanes across each sheet, narrow like the painted
+  // strands, two marks a lane out of phase so the sheen never stops, and four threads
   const fallers: Faller[] = [];
   for (const [i, f] of FALLS.entries()) {
-    const lanes: [FallKind, number, number][] = [['sheen', -0.6, 0.45], ['shade', -0.15, 0.4], ['sheen', 0.15, 0.45], ['shade', 0.5, 0.4], ['sheen', 0.65, 0.4]];
+    const lanes: [FallKind, number, number][] = [['sheen', -0.6, 0.32], ['shade', -0.2, 0.3], ['sheen', 0.15, 0.32], ['shade', 0.45, 0.3], ['sheen', 0.72, 0.28]];
     for (const [kind, u, w] of lanes) {
       const cycle = f.s * (kind === 'shade' ? 1.9 : 1) + rng.range(0.5, 0.9);
       const phase = rng.range(0, cycle);
@@ -204,18 +204,19 @@ export function createOasisMotion(opts: OasisMotionOptions = {}): OasisMotion {
         fallers.push({ fall: i, kind, u: u + rng.range(-0.08, 0.08), w, cycle, phase: phase + (cycle * j) / 2 + rng.range(-0.1, 0.1), alpha: kind === 'shade' ? rng.range(0.6, 0.85) : rng.range(0.6, 0.85), table: tableOf(rng) });
       }
     }
-    for (let j = 0; j < 3; j++) {
+    for (let j = 0; j < 4; j++) {
       const cycle = f.s + rng.range(0.6, 1.4);
-      fallers.push({ fall: i, kind: 'thread', u: rng.range(-0.7, 0.7), w: 0.12, cycle, phase: rng.range(0, cycle), alpha: rng.range(0.6, 0.85), table: tableOf(rng) });
+      fallers.push({ fall: i, kind: 'thread', u: -0.75 + j * 0.5 + rng.range(-0.15, 0.15), w: 0.12, cycle, phase: rng.range(0, cycle), alpha: rng.range(0.6, 0.85), table: tableOf(rng) });
     }
   }
-  // the splash at each foot: pale puffs swelling and sinking, a cool shade breathing either side
+  // the splash at each foot: pale puffs flickering up out of the foam, a cool shade breathing either side
   const puffs: { fall: number; p: Pulse }[] = [];
   const pools: { fall: number; p: Pulse }[] = [];
   for (const [i, f] of FALLS.entries()) {
-    for (let j = 0; j < 3; j++) {
-      const cycle = rng.range(1.3, 2);
-      puffs.push({ fall: i, p: { x: f.x + (j - 1) * 6 + rng.range(-1.5, 1.5), y: f.foot + 1 + rng.range(-0.5, 1), size: rng.range(9, 13) - Math.abs(j - 1) * 2, cycle, phase: rng.range(0, cycle), alpha: rng.range(0.35, 0.5), table: tableOf(rng) } });
+    for (let j = 0; j < 4; j++) {
+      const cycle = rng.range(0.7, 1.1);
+      const u = (j - 1.5) / 1.5;
+      puffs.push({ fall: i, p: { x: f.x + u * (fallHalf(1) + 1) + rng.range(-1.5, 1.5), y: f.foot - 1 + Math.abs(u) * 1.5 + rng.range(-0.5, 0.5), size: rng.range(8, 11) - Math.abs(u) * 2, cycle, phase: rng.range(0, cycle), alpha: rng.range(0.5, 0.7), table: tableOf(rng) } });
     }
     for (const side of [-1, 1]) {
       const cycle = rng.range(2.2, 3.2);

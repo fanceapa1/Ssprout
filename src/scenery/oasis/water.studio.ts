@@ -1,6 +1,6 @@
 /**
  * Studio: the oasis's water (O3): the whole water element, the basin's steps and sluice gate close
- * up, a seguia fall, the oued's sand bar, and the painting so far.
+ * up, the seguia's falls, the gate's spill, the oued's sand bar, and the painting so far.
  */
 import { paperTexture } from '../../paint';
 import { WORLD_H, WORLD_W, type Rect } from '../../render/viewport';
@@ -37,7 +37,9 @@ const section: StudioSection = {
   entries: [
     region('water', 'the water element: the basin, the seguia with its falls, the sluice and the oued', { x: 260, y: 420, w: 1360, h: 600 }, ['water']),
     region('basin-corner', 'the basin’s far-right corner and overflow: the steps into the water, the sluice gate in its stone slots', { x: 940, y: 470, w: 200, h: 190 }, IN_PLACE),
-    region('fall', 'a seguia fall over the middle terrace wall: the spill, the wet pisé, the splash and the inlet ripples', { x: 440, y: 540, w: 180, h: 110 }, IN_PLACE),
+    region('fall', 'a seguia fall over the middle terrace wall: the glassy tongue at the lip, the sheet breaking into strands, foam and a churned pool at the foot, the wet wall, the inlet through the coping', { x: 440, y: 540, w: 180, h: 110 }, IN_PLACE),
+    region('falls', 'both seguia drops down the terraces: lined runs between them, a fall over each wall', { x: 400, y: 460, w: 200, h: 170 }, IN_PLACE),
+    region('gate', 'the sluice gate close up: the tongue over the board, the foam at the sluice’s head', { x: 1060, y: 590, w: 90, h: 70 }, IN_PLACE),
     region('oued-bar', 'the oued’s bend: milky water over gold sand, the braids round the bar, pebbles, lost-and-found edges', { x: 1220, y: 640, w: 380, h: 380 }, IN_PLACE),
     region('scene', 'the painting so far, with the water in it', { x: 0, y: 0, w: WORLD_W, h: WORLD_H }, undefined),
   ],

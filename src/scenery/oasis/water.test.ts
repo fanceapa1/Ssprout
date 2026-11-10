@@ -9,8 +9,8 @@ import { paintJob, type PaintView } from '../../scene/background';
 import { PaintRecorder, type RecordedCost } from '../../scene/paint-record';
 import { OASIS_ART, OASIS_ELEMENTS } from '.';
 import { BASIN_STONE, BASIN_WATER, OUED_WATER } from './geometry';
-import { BAR, copingAt, SEGUIA_FALLS, WALLS } from './layout';
-import { BASIN_STEPS, OUED_BARS, ouedAt, SLUICE_GATE, WATER_BOXES, WATER_SHAPES } from './paint-water';
+import { BAR, copingAt, SEGUIA_FALLS, SEGUIA_RUNS, WALLS } from './layout';
+import { BASIN_INLET, BASIN_STEPS, fallHalf, OUED_BARS, ouedAt, SLUICE_GATE, WATER_BOXES, WATER_SHAPES } from './paint-water';
 import { OASIS_SLOTS } from './slots';
 
 const OVERVIEW: PaintView = { rect: { x: 0, y: 0, w: 1600, h: 1000 }, scale: 0.6 };
@@ -57,7 +57,7 @@ describe('oasis water painting (O3)', () => {
   // quantised (paint-record's default rounding), so the pins hold on every platform (docs/TESTING.md)
   // quantised hashes from a fresh process, as the rock's and the waterfall's (paint caches warm up across runs)
   it('is deterministic: the same marks every time (recording hash pins)', () => {
-    expect({ overview: runs.overview!.hash, detail: runs.detail!.hash }).toEqual({ overview: '7b77ebb3', detail: 'b2109bc3' });
+    expect({ overview: runs.overview!.hash, detail: runs.detail!.hash }).toEqual({ overview: 'edeeab25', detail: '1365a7a9' });
     // a second run hashes differently (warm caches) but paints in the same parts
     expect(runs.again!.chunks.map((c) => c.name)).toEqual(runs.overview!.chunks.map((c) => c.name));
   });
@@ -92,6 +92,19 @@ describe('oasis water painting (O3)', () => {
       const b = WATER_BOXES.falls[i]!;
       for (const q of WATER_SHAPES.falls[i]!) expect(q.x >= b.x && q.x <= b.x + b.w && q.y >= b.y && q.y <= b.y + b.h).toBe(true);
     }
+  });
+
+  it('spills each fall from its run’s end, as wide as the channel, onto the next run or the basin’s inlet (O11)', () => {
+    const near = (a: { x: number; y: number }, b: { x: number; y: number }) => Math.hypot(a.x - b.x, a.y - b.y) < 4;
+    for (const [i, f] of SEGUIA_FALLS.entries()) {
+      expect(near(SEGUIA_RUNS[i]!.at(-1)!, f.top), `fall ${i} lip`).toBe(true);
+      const foot = { x: f.top.x, y: f.top.y + f.drop };
+      expect(near(i + 1 < SEGUIA_FALLS.length ? SEGUIA_RUNS[i + 1]![0]! : BASIN_INLET.from, foot), `fall ${i} foot`).toBe(true);
+    }
+    // the tongue leaves the lip nearly the channel's width (7) and spreads as it breaks
+    expect(fallHalf(0)).toBeGreaterThan(6);
+    expect(fallHalf(1)).toBeGreaterThan(fallHalf(0));
+    expect(pointInPolygon(BASIN_INLET.to, BASIN_WATER)).toBe(true);
   });
 
   it('keeps the oued’s sand bars in its water, the big one the layout’s bar, and off the shallows’ slots', () => {
