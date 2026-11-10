@@ -188,3 +188,31 @@ describe('the bluff finished (O10)', () => {
     expect(new Set(hard.slice(1).map((y, i) => y - hard[i]!)).size).toBeGreaterThan(1);
   });
 });
+
+describe('the bluff, second pass (O13)', () => {
+  const { gullies, hard, soft } = BLUFF_FORM;
+  const width = (g: (typeof gullies)[number], i: number) => g.right[i]!.x - g.left[i]!.x;
+
+  it('cuts V gullies that taper to a point over their scree, with no chute hanging below', () => {
+    for (const g of gullies) {
+      expect(width(g, 5), `${g.x}`).toBeLessThan(width(g, 0) * 0.6);
+      expect(width(g, 10), `${g.x}`).toBeLessThan(4);
+    }
+    // a few are shallow creases where two buttresses have merged, stopping short of the scree
+    const creases = gullies.filter((g) => g.depth < 0.45);
+    expect(creases.length).toBeGreaterThanOrEqual(1);
+    for (const g of creases) expect(g.foot, `${g.x}`).toBeLessThan(Math.max(...gullies.filter((q) => q.depth >= 0.45).map((q) => q.foot)));
+  });
+
+  it('stands buttresses of uneven width between them', () => {
+    const gaps = gullies.slice(1).map((g, i) => g.x - gullies[i]!.x);
+    expect(Math.max(...gaps) / Math.min(...gaps)).toBeGreaterThan(1.4);
+  });
+
+  it('shares its beds across the whole face: many soft ones at uneven spacing, none on a hard bed', () => {
+    expect(soft.length).toBeGreaterThanOrEqual(10);
+    const steps = soft.slice(1).map((b, i) => Math.round(b.y - soft[i]!.y));
+    expect(new Set(steps).size).toBeGreaterThan(4);
+    for (const b of soft) for (const h of hard) expect(Math.abs(b.y - h)).toBeGreaterThanOrEqual(6);
+  });
+});
