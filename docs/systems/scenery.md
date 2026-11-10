@@ -604,11 +604,25 @@ The shapes are the layout's (`geometry.ts`); the big sand bar is the layout's `B
   `BASIN_STEPS`: five short, foreshortened treads down the right wall from its far corner, two
   dry, the rest paler shapes under the water. `SLUICE_GATE`: a cut through the right coping at
   the near right corner, an upright post either side and a board in their slots with a thin spill over it.
-- **Seguia**: each run is a clay-lined cut: damp clay either side, the far bank's inner face in
-  shade, the water light-to-teal with broken dark wet edges and a broken sky glint. The last run
-  widens toward the viewer. Each fall (`fallSheet`) is a lifted spill the channel's width at
-  the lip, splaying at the foot, with thin broken teal threads, wet pisé either side, a pale
-  churn and a haze of spray. The sluice's channel runs from the gate to the oued.
+- **Seguia** (O11, devlog 132): each run is a clay-lined cut: damp clay either side, the far
+  bank's inner face in shade with a few lining joints, the water light-to-teal with the far bank
+  mirrored dark under it, a lit, broken near lip lying over the water's edge (so the water sits
+  in the cut), dark wet edges and a broken sky glint. A run that ends at a fall is clipped at
+  its wall's top edge (`aboveWall`), so the water meets the lip instead of ending square. The
+  last run widens toward the viewer. The sluice's channel runs from the gate to the oued.
+- **Falls** (O11): small drops (`fallSheet`, half-width `fallHalf`: 6.5 at the lip, 9.5 at the
+  foot). Under each: a damp halo on the wall, narrow at the lip and widest past the foot, the face
+  soaked dark either side of the sheet, a little moss low down and a faint runnel. Then the
+  sheet: reserved whole for the tongue (the top 45%), then as tapering strands with the wet wall
+  between them; the tongue glazed turquoise, fading as it thins, a teal roll just under the
+  brink and the shaded left side; the sky caught in a bowed lifted line along the brink and a
+  gleam down the tongue's lit side; thin streaks down the strands; a churned turquoise pool and
+  a row of white foam lifts across the foot, a few drops and a faint spray haze; the coping's
+  edge soaked either side of the lip. The last fall's water runs on in a short lined cut
+  (`BASIN_INLET`) and alone through the coping's notch into the basin.
+- **Gate's spill**: the cut's outer half holds turquoise; the spill over the board is reserved,
+  its roll in teal and the sky along its top; broken white foam lies along its outer edge at the
+  sluice's head (kept off the posts), and the coping round it is damp.
 - **Oued**: banks of damp, darker sand lost into the dry, then gold sand under milky blue-green
   water, deeper threads braiding round the bars (`OUED_BARS`: the big bar on the inside of the
   bend, a sliver upstream, one by the viewer's feet), riffles at each bar's head, flow marks,
@@ -653,13 +667,14 @@ V-set leaflets, a wet crown wash, a few gold old fronds, the diamond leaf-base l
 the still painting and never covers it. About 20 sprites are painted once in parts and sealed into
 `ImageBitmap`s. Each frame blits them as a pure function of `t`, played at `TEMPO` 1.25, the
 waterfall's pace. Each element is clipped to its own water.
-- **Seguia falls** (`FALLS`, from `SEGUIA_FALLS` and `fallSheet`): per fall, five lanes with two
-  marks each, out of phase, so the sheen never stops. Three are lifted lights and two are long
-  greyed-turquoise surges (`SURGE`). The surges run 0.85–1.25 of the fall long, so their heads
-  are lost in the splash and never read as drips. There are also three threads, bright or teal.
+- **Seguia falls** (`FALLS`, from `SEGUIA_FALLS`, `fallSheet` and `fallHalf`): per fall, five
+  narrow lanes (0.28–0.32 of the sheet, like the painted strands) with two marks each, out of
+  phase, so the sheen never stops. Three are lifted lights and two are long greyed-turquoise
+  surges (`SURGE`). The surges run 0.85–1.25 of the fall long, so their heads are lost in the
+  splash and never read as drips. There are also four threads, bright or teal, spread across.
   Water leaves the lip at 16 units/s and reaches the foot at 44 (`fallDropAt`, constant gravity,
-  about 1.1 s; 0.9 s on screen). Clip: the sheet. At each foot, three pale puffs swell and sink
-  (1.3–2 s) and a turquoise pool breathes either side. Clip: an ellipse round the foot and the
+  about 1.1 s; 0.9 s on screen). Clip: the sheet. At each foot, four pale puffs flicker up out
+  of the painted foam across its width (0.7–1.1 s, O11) and a turquoise pool breathes either side. Clip: an ellipse round the foot and the
   channel below it (fall 0) or the inlet (fall 1).
 - **Sluice spill** (`SLUICE_GATE.spill`): five glassy lights, each a white dash over a small teal
   trough, slip outward over the board and off its lip (1.1–1.7 s). A small puff pulses where the
@@ -703,7 +718,8 @@ waterfall's pace. Each element is clipped to its own water.
   hung from its coping, every wall slot on a face; the near shapes in the world and off the oued.
 - `src/scenery/oasis/water.test.ts` (O3): three steps, pinned recording hashes, no part over one
   big mark's work (overview and the basin's corner close up), many parts per step, the steps in
-  the water and the gate across the coping, each fall off a wall's coping inside its box, the
+  the water and the gate across the coping, each fall off a wall's coping inside its box, each
+  fall spilling from its run's end as wide as the channel onto the next run or the inlet (O11), the
   bars in the oued, the big one the layout's bar and none on the shallows' slots, the exported boxes.
 - `src/scenery/oasis/oasis.test.ts` (O1): hidden unless `?dev&scenery=oasis`; self-consistency
   with no building, lantern, eave, falls or motion; its own steps in order, by element; habitat words; the portrait crop and `pathOut`; the basin inside its stone and the
