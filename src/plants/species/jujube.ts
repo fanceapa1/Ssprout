@@ -14,13 +14,13 @@ import type { SpeciesDef } from '../types';
 const STEM = '#ada798';
 const STEM_ACCENT = '#7d7568';
 const THORN = '#8a6a50';
-const LEAF = '#679a3a';
+const LEAF = '#6b973f';
 const LEAF_DEEP = '#3f6a2c';
-const FLOWER = '#dccf5e';
+const FLOWER = '#d8cc64';
 const FLOWER_EYE = '#b39a34';
 const SAND = '#e2c48e';
 const HAZE = '#a7a196';
-const FRUIT = { green: '#b3b14e', gold: '#dca23f', orange: '#dc7430', red: '#c9432b', rust: '#9a3527', stalk: '#7d6a4c' };
+const FRUIT = { green: '#b3b14e', gold: '#dca23f', orange: '#d77834', red: '#c4472f', rust: '#9a3527', stalk: '#7d6a4c' };
 
 const BOX = { w: 200, h: 220, ax: 0.5, ay: 0.93 };
 
@@ -293,7 +293,7 @@ const jujube: SpeciesDef = {
     const plant = buildJujube(rng);
     const g = opts.growth;
     inPlantSpace(p, opts, jujube, () => {
-      groundShadow(p, plant.seeds.ground, g, plant.foot + 6, plant.dome.w * 0.85, 7, 0.22);
+      groundShadow(p, plant.seeds.ground, g, plant.foot + 6, plant.dome.w * 0.7, 6, 0.13);
       const pose = poseJujube(plant, g);
       const { half, height, skew } = plant.drift;
       paintDrift(p, plant.seeds.drift, driftShape(plant.foot, half, height * pose.drift, skew), plant.foot, half, pose.drift, SAND);
