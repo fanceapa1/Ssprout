@@ -52,6 +52,20 @@ const REFLECTION_FOOT = 470;
 /** The coping's inner edge: the far and side walls show an inner face below it, the near one does not. */
 const LIP: Pt[] = [lerp(FL, WFL, 0.45), lerp(FR, WFR, 0.45), lerp(NR, WNR, 0.75), lerp(NL, WNL, 0.75)];
 
+/**
+ * The coping's, near face's and water's washes, each clipped to its shape. A wash resamples its
+ * outline about every 1/24 of its perimeter, which cut the corners off, so they run 36 past them.
+ */
+export const RIM_WASHES = (() => {
+  const [s3, s4] = [BASIN_STONE[3]!, BASIN_STONE[4]!];
+  const run = 36;
+  return {
+    stone: [{ x: FL.x - run, y: FL.y - 8 }, { x: FR.x + run, y: FR.y - 8 }, { x: NR.x + run, y: NR.y - 4 }, { x: s3.x + run, y: s3.y + 6 }, { x: s4.x - run, y: s4.y + 6 }, { x: NL.x - run, y: NL.y - 4 }],
+    face: [{ x: NL.x - run, y: NL.y - 5 }, { x: NR.x + run, y: NR.y - 5 }, { x: s3.x + run, y: s3.y + 5 }, { x: s4.x - run, y: s4.y + 5 }],
+    water: BASIN_WATER.map((q, i) => ({ x: q.x + (i === 0 || i === 3 ? -run : run), y: q.y + (i < 2 ? -10 : 10) })),
+  };
+})();
+
 /** A point on the right wall's water edge, `t` from the far corner to the near one. */
 const rightWall = (t: number): Pt => lerp(WFR, WNR, t);
 
@@ -73,12 +87,20 @@ export const BASIN_STEPS: readonly { tread: Pt[]; riser: Pt[]; depth: number }[]
   return out;
 })();
 
+/** A point on the board's outer side carried `d` down the sluice's head. */
+const down = (q: Pt, d: number): Pt => {
+  const [a, b] = [SLUICE[0]!, SLUICE[1]!];
+  const n = Math.hypot(b.x - a.x, b.y - a.y);
+  return { x: q.x + 5 + ((b.x - a.x) / n) * d, y: q.y + ((b.y - a.y) / n) * d };
+};
+const FOAM_DOWN = 10;
+
 /**
  * The sluice gate near the overflow corner: a cut through the right coping between `t0` and `t1`
  * along the wall, an upright stone post either side, and the board standing in their slots.
  */
 export const SLUICE_GATE = (() => {
-  const [t0, t1] = [0.84, 0.96];
+  const [t0, t1] = [0.78, 0.955];
   const inner = (t: number) => lerp(WFR, WNR, t);
   const outer = (t: number) => lerp(FR, NR, t);
   const mid = (t: number) => lerp(inner(t), outer(t), 0.55);
@@ -93,6 +115,8 @@ export const SLUICE_GATE = (() => {
     board: [{ x: b0.x - 1.5, y: b0.y - 4 }, { x: b0.x + 2, y: b0.y - 4 }, { x: b1.x + 2, y: b1.y + 1 }, { x: b1.x - 1.5, y: b1.y + 1 }],
     /** the thin spill over the board, on its outer side */
     spill: [{ x: b0.x + 2, y: b0.y - 3 }, { x: b0.x + 5, y: b0.y - 2 }, { x: b1.x + 5, y: b1.y + 2 }, { x: b1.x + 2, y: b1.y + 1 }],
+    /** where the spill's foam lies: across the sluice's head, a little downstream of the spill, clear of the posts */
+    foam: [down(lerp(b0, b1, 0.05), FOAM_DOWN), down(lerp(b0, b1, 0.8), FOAM_DOWN)] as [Pt, Pt],
   };
 })();
 
@@ -232,11 +256,10 @@ function* paintRim(p: Painter, rng: Rng): Strokes {
   // washes run past the stone and are clipped to it, so no paper is left at its corners
   clipTo(p, [BASIN_STONE]);
   // the coping: a pale lime wash, warm and granular
-  yield* p.parts.wash(insetPolygon(BASIN_STONE, -6), STONE.coping, { rng, opacity: 0.7, deform: 0.02, spread: 0.02, layers: 8, edge: 0.3, sharpness: 0.8, granulation: 0.6, granules: 0.2 });
+  yield* p.parts.wash(RIM_WASHES.stone, STONE.coping, { rng, opacity: 0.7, deform: 0.02, spread: 0.02, layers: 8, edge: 0.3, sharpness: 0.8, granulation: 0.6, granules: 0.2 });
   yield;
   // the near outer face, toward the viewer: warmer and darker, shade gathering at its foot
-  const face: Pt[] = [NL, NR, BASIN_STONE[3]!, BASIN_STONE[4]!];
-  yield* p.parts.wetInWet(insetPolygon(face, -5), STONE.near, mix(STONE.face, EARTH.shade, 0.35), { rng, angle: Math.PI / 2, split: 0.45, opacity: 0.75, deform: 0.02, spread: 0.02, edge: 0.3, sharpness: 0.8, granulation: 0.5 });
+  yield* p.parts.wetInWet(RIM_WASHES.face, STONE.near, mix(STONE.face, EARTH.shade, 0.35), { rng, angle: Math.PI / 2, split: 0.45, opacity: 0.75, deform: 0.02, spread: 0.02, edge: 0.3, sharpness: 0.8, granulation: 0.5 });
   yield;
   // the inner faces under the coping: the far one in soft shade, the left lit by the sun, the right turned away
   p.ctx.restore();
@@ -294,7 +317,7 @@ function* paintBasinWater(p: Painter, rng: Rng): Strokes {
   fillPaper(p, water);
   clipTo(p, [water]);
   // the body: turquoise under the far wall going deep teal toward the near rim, green-brown in the depths
-  yield* p.parts.wetInWet(insetPolygon(water, -10), WATER.turquoise, WATER.deep, { rng, angle: Math.PI / 2, split: 0.45, softness: 0.6, fingers: 0.5, opacity: 0.75, deform: 0.04, spread: 0.04, edge: 0.1, granulation: 0.3, flow: 0.5, flowScale: 90 });
+  yield* p.parts.wetInWet(RIM_WASHES.water, WATER.turquoise, WATER.deep, { rng, angle: Math.PI / 2, split: 0.45, softness: 0.6, fingers: 0.5, opacity: 0.75, deform: 0.04, spread: 0.04, edge: 0.1, granulation: 0.3, flow: 0.5, flowScale: 90 });
   yield;
   yield* p.parts.glaze(blob(b.x + b.w * 0.5, b.y + b.h * 0.8, b.w * 0.5, b.h * 0.4, rng, { irregularity: 0.15, points: 24 }), WATER.murk, { rng, opacity: 0.3, deform: 0.2, spread: 0.5, edge: 0, sharpness: 0.02, centreLift: 0, fade: { angle: -Math.PI / 2, start: 0.3, amount: 1, ragged: 0.5 } });
   yield;
@@ -483,11 +506,11 @@ function* paintChannel(p: Painter, rng: Rng, run: readonly Pt[], w: number, grow
     p.stroke([at(1.02), at(1.5)], { rng, pigment: STONE.joint, width: rng.range(0.5, 0.8), opacity: rng.range(0.3, 0.45), wetness: 0.1, taper: [0.1, 0.2] });
   }
   yield;
-  // the water
+  // the water; its wash runs on past the reserve's ends, so resampling its outline leaves no paper corners
   const water = ribbon(long, half);
   fillPaper(p, water);
   clipTo(p, [water]);
-  yield* p.parts.wetInWet(ribbon(long, (t) => half(t) + 3), WATER.light, WATER.teal, { rng, angle: Math.PI / 2, split: 0.5, softness: 0.6, opacity: 0.7, deform: 0.03, spread: 0.04, edge: 0.35, edgeWidth: 2, sharpness: 0.7, granulation: 0.2, flow: 0.5, flowScale: 30 });
+  yield* p.parts.wetInWet(ribbon(extend(long, 12, 12), (t) => half(t) + 3), WATER.light, WATER.teal, { rng, angle: Math.PI / 2, split: 0.5, softness: 0.6, opacity: 0.7, deform: 0.03, spread: 0.04, edge: 0.35, edgeWidth: 2, sharpness: 0.7, granulation: 0.2, flow: 0.5, flowScale: 30 });
   yield;
   // the far bank mirrored in the water: a dark, warm band under it, lost toward the middle
   yield* p.parts.glaze(ribbon(long, (t) => half(t) * 0.42, (t) => far * half(t) * 0.7), mix(WATER.deep, STONE.clayWet, 0.45), { rng, opacity: 0.5, deform: 0.08, spread: 0.12, layers: 4, edge: 0.1, fade: { angle: rng.range(0, 6), start: 0.6, amount: 0.4, ragged: 0.8 } });
@@ -662,17 +685,20 @@ export function* paintSeguia(p: Painter, rng: Rng): Strokes {
   p.ctx.restore();
   yield;
   for (const [i, f] of SEGUIA_FALLS.entries()) yield* paintFall(p, rng.fork(`fall-${i}`), f);
-  // the gate's spill lands in the sluice's head: a churn of white foam over turquoise
-  const [g1, g2] = [SLUICE_GATE.spill[1]!, SLUICE_GATE.spill[2]!];
+  // the gate's spill lands in the sluice's head, a little downstream of the board: the water paled
+  // round the drop, then the foam as reserved paper (lifts left it grey over the turquoise)
+  const [g1, g2] = SLUICE_GATE.foam;
   clipTo(p, SLUICE_GATE.posts, true);
+  const mid = lerp(g1, g2, 0.5);
+  yield* p.parts.lift(blob(mid.x + 1, mid.y + 1, 9, 6, rng, { irregularity: 0.3 }), { rng, amount: 0.45, deform: 0.25, spread: 0.3, layers: 3, sharpness: 0.1, edge: 0 });
   for (let j = 0; j < 3; j++) {
-    const [a0, a1] = [lerp(g1, g2, 0.04 + j * 0.33), lerp(g1, g2, 0.3 + j * 0.33)];
-    yield* p.parts.lift(ribbon([a0, a1].map((q) => ({ x: q.x + 1.2, y: q.y })), (t) => 1.3 * Math.sin(Math.PI * t) ** 0.5), { rng, amount: 1, deform: 0.15, spread: 0.2, layers: 3, sharpness: 0.3, edge: 0 });
+    const [a0, a1] = [lerp(g1, g2, 0.04 + j * 0.33), lerp(g1, g2, 0.28 + j * 0.33)];
+    fillPaper(p, ribbon([a0, lerp(a0, a1, 0.5), a1].map((q, k) => ({ x: q.x + k * 0.6, y: q.y + rng.range(-0.3, 0.3) })), (t) => 0.9 * Math.sin(Math.PI * t) ** 0.6));
   }
-  for (let j = 0; j < 4; j++) {
-    const q = lerp(g1, g2, 0.15 + j * 0.24);
-    const r = rng.range(1.8, 2.8);
-    yield* p.parts.lift(blob(q.x + rng.range(1, 3), q.y + rng.range(0, 1.5), r, r * 0.6, rng, { irregularity: 0.4, points: 10 }), { rng, amount: rng.range(0.85, 1), deform: 0.25, spread: 0.3, layers: 3, sharpness: 0.1, edge: 0 });
+  for (let j = 0; j < 5; j++) {
+    const q = lerp(g1, g2, 0.1 + j * 0.2);
+    const r = rng.range(1.1, 1.9);
+    fillPaper(p, blob(q.x + rng.range(1, 3.5), q.y + rng.range(-0.5, 1.5), r, r * 0.6, rng, { irregularity: 0.4, points: 10 }));
   }
   p.ctx.restore();
   yield;

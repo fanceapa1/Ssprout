@@ -37,7 +37,7 @@ const union = (rs: Rect[]): Rect => {
 /** What each element can touch, world units (the motion skips any the view misses). */
 export const MOTION_BOXES = {
   falls: WATER_BOXES.falls.map((b) => grow(b, 6)),
-  gate: grow(union([bounds(SLUICE_GATE.cut), bounds(SLUICE_GATE.spill)]), 8),
+  gate: grow(union([bounds(SLUICE_GATE.cut), bounds(SLUICE_GATE.spill), bounds(SLUICE_GATE.foam)]), 8),
   rings: { x: INLET.x - 20, y: INLET.y - 20, w: RING_MAX + 40, h: 50 },
   oued: WATER_BOXES.oued,
 };
@@ -231,7 +231,9 @@ export function createOasisMotion(opts: OasisMotionOptions = {}): OasisMotion {
     const cycle = rng.range(1.1, 1.7);
     glass.push({ x: (j + 0.5) / 5 + rng.range(-0.05, 0.05), y: 0, size: rng.range(6, 8), cycle, phase: rng.range(0, cycle), alpha: rng.range(0.5, 0.75), table: tableOf(rng) });
   }
-  const spillFoot: Pulse = { x: (s1.x + s2.x) / 2 + 2, y: (s1.y + s2.y) / 2 + 1, size: 7, cycle: 1.8, phase: rng.range(0, 2), alpha: 0.45, table: tableOf(rng) };
+  // the foot's flicker sits on the painted foam, downstream of the board
+  const [f1, f2] = g.foam;
+  const spillFoot: Pulse = { x: (f1.x + f2.x) / 2 + 1, y: (f1.y + f2.y) / 2 + 0.5, size: 7, cycle: 1.8, phase: rng.range(0, 2), alpha: 0.45, table: tableOf(rng) };
   // the inlet's rings, three on the go
   const rings = Array.from({ length: 3 }, (_, j) => ({ phase: (RING_S * j) / 3 + rng.range(-0.6, 0.6), table: tableOf(rng) }));
   // the oued: glints and riffle lines drifting down, and riffles standing at each bar's head

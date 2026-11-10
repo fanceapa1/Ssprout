@@ -4,13 +4,14 @@
  * slots and later tasks (daylight's basin plate, motion's falls) expect them.
  */
 import { beforeAll, describe, expect, it } from 'vitest';
-import { bounds, pointInPolygon } from '../../paint/geometry';
+import { bounds, closedResample, insetPolygon, pathLength, pointInPolygon } from '../../paint/geometry';
+import type { Pt } from '../../render/viewport';
 import { paintJob, type PaintView } from '../../scene/background';
 import { PaintRecorder, type RecordedCost } from '../../scene/paint-record';
 import { OASIS_ART, OASIS_ELEMENTS } from '.';
 import { BASIN_STONE, BASIN_WATER, OUED_WATER } from './geometry';
 import { BAR, copingAt, SEGUIA_FALLS, SEGUIA_RUNS, WALLS } from './layout';
-import { BASIN_INLET, BASIN_STEPS, fallHalf, OUED_BARS, ouedAt, SLUICE_GATE, WATER_BOXES, WATER_SHAPES } from './paint-water';
+import { BASIN_INLET, BASIN_STEPS, fallHalf, OUED_BARS, ouedAt, RIM_WASHES, SLUICE_GATE, WATER_BOXES, WATER_SHAPES } from './paint-water';
 import { OASIS_SLOTS } from './slots';
 
 const OVERVIEW: PaintView = { rect: { x: 0, y: 0, w: 1600, h: 1000 }, scale: 0.6 };
@@ -57,7 +58,7 @@ describe('oasis water painting (O3)', () => {
   // quantised (paint-record's default rounding), so the pins hold on every platform (docs/TESTING.md)
   // quantised hashes from a fresh process, as the rock's and the waterfall's (paint caches warm up across runs)
   it('is deterministic: the same marks every time (recording hash pins)', () => {
-    expect({ overview: runs.overview!.hash, detail: runs.detail!.hash }).toEqual({ overview: 'edeeab25', detail: '1365a7a9' });
+    expect({ overview: runs.overview!.hash, detail: runs.detail!.hash }).toEqual({ overview: 'adb32980', detail: 'b1374c56' });
     // a second run hashes differently (warm caches) but paints in the same parts
     expect(runs.again!.chunks.map((c) => c.name)).toEqual(runs.overview!.chunks.map((c) => c.name));
   });
@@ -83,6 +84,37 @@ describe('oasis water painting (O3)', () => {
     expect(pointInPolygon(inner!, BASIN_STONE)).toBe(true);
     expect(pointInPolygon({ x: outer!.x + 4, y: outer!.y }, BASIN_STONE)).toBe(false);
     for (const post of SLUICE_GATE.posts) expect(inside(BASIN_STONE, post.slice(2))).toBe(true);
+  });
+
+  // a wash resamples its outline every 1/24 of its perimeter (paint/geometry organicOutline), from any start
+  const covers = (wash: readonly Pt[], corners: readonly Pt[]): boolean => {
+    const spacing = pathLength([...wash, wash[0]!]) / 24;
+    const c = { x: corners.reduce((a, q) => a + q.x, 0) / corners.length, y: corners.reduce((a, q) => a + q.y, 0) / corners.length };
+    const near = corners.map((q) => ({ x: q.x + Math.sign(c.x - q.x) * 0.5, y: q.y + Math.sign(c.y - q.y) * 0.5 }));
+    for (let f = 0; f < 1; f += 0.125) {
+      const [a, b] = [wash[0]!, wash[1]!];
+      const loop = closedResample([{ x: a.x + (b.x - a.x) * f, y: a.y + (b.y - a.y) * f }, ...wash.slice(1), a], spacing);
+      if (!near.every((q) => pointInPolygon(q, loop))) return false;
+    }
+    return true;
+  };
+
+  it('paints the basin’s corners: its washes run past the stone’s, the face’s and the water’s corners (O14)', () => {
+    const face = [BASIN_STONE[5]!, BASIN_STONE[2]!, BASIN_STONE[3]!, BASIN_STONE[4]!];
+    expect(covers(RIM_WASHES.stone, BASIN_STONE)).toBe(true);
+    expect(covers(RIM_WASHES.face, face)).toBe(true);
+    expect(covers(RIM_WASHES.water, BASIN_WATER)).toBe(true);
+    // the washes before O14 left the near face's ends bare (the paper triangle under the gate)
+    expect(covers(insetPolygon(face, -5), face)).toBe(false);
+  });
+
+  it('gives the sluice gate room: posts apart, the foam downstream of the board in the sluice, clear of the posts (O14)', () => {
+    const [p0, p1] = SLUICE_GATE.posts.map((q) => bounds(q));
+    expect(Math.hypot(p1!.x - p0!.x, p1!.y - p0!.y)).toBeGreaterThan(20);
+    for (const q of SLUICE_GATE.foam) {
+      expect(pointInPolygon(q, BASIN_STONE)).toBe(false);
+      for (const post of SLUICE_GATE.posts) expect(pointInPolygon(q, post)).toBe(false);
+    }
   });
 
   it('drops each fall from a terrace wall’s coping, within its box', () => {
