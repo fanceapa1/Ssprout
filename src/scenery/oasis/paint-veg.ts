@@ -232,6 +232,8 @@ const TRUNK_DRY: DryOptions = { opacity: 0.88, edge: 0.35, edgeWidth: 1.2, sharp
 function* fillAndDry(p: Painter, marks: readonly { poly: Pt[]; pig: Pigment; a: number }[], rng: Rng, dry: DryOptions, res?: number): Strokes {
   const live = marks.filter((m) => m.poly.length > 2);
   if (!live.length) return;
+  // the last layer's composite in its own part, apart from this layer's start
+  yield;
   const L = layerOver(p, padRect(bounds(live.flatMap((m) => m.poly)), 6), rng, res);
   if (L.empty) return;
   for (const m of live) L.fill(m.poly, m.pig, m.a);
@@ -274,14 +276,20 @@ export function* paintGrove(p: Painter, rng: Rng): Strokes {
   const floor: Pt[] = [{ x: GROVE_FROM - 40, y: 404 }, { x: 1640, y: 396 }, { x: 1640, y: 480 }, { x: GROVE_FROM - 30, y: 482 }];
   yield* p.parts.wetInWet(floor, haze(mix(PALM.mid, '#c2b07a', 0.5), 0.5), mix(PALM.shadow, '#8a7a5a', 0.3), { rng, angle: Math.PI / 2, split: 0.5, softness: 0.7, opacity: 0.45, deform: 0.12, spread: 0.2, edge: 0.05, granulation: 0.3, fade: { angle: -Math.PI / 2, start: 0.45, amount: 1, ragged: 0.7 } });
   for (const [r, far] of [[0, 0.75], [1, 0.4]] as const) {
+    yield;
     const row = GROVE_PALMS.filter((s) => s.far === far);
     const L = layerOver(p, padRect(bounds(row.flatMap((s) => s.trunk)), 10), rng.fork(`trunks-${r}`));
     if (!L.empty) {
       for (const s of row) trunkMarks(L, s, 1);
+      yield;
       yield* L.dryParts(TRUNK_DRY);
     }
     const marks: FrondMarks = { wash: [], back: [], front: [] };
-    for (const s of row) crownMarks(s, rng.fork(`crown-${r}-${Math.round(s.top.x)}`), far > 0.5 ? 0.45 : 0.6, marks);
+    // a crown's marks are plain sums (no canvas call): a pause after each palm keeps a row's from one long part
+    for (const s of row) {
+      crownMarks(s, rng.fork(`crown-${r}-${Math.round(s.top.x)}`), far > 0.5 ? 0.45 : 0.6, marks);
+      yield;
+    }
     yield* fillAndDry(p, marks.wash, rng.fork(`wash-${r}`), WASH_DRY, softRes(p));
     yield* fillAndDry(p, [...marks.back, ...marks.front], rng.fork(`fronds-${r}`), { ...FROND_DRY, edge: 0.3 });
   }
@@ -327,8 +335,10 @@ export function* paintBigPalms(p: Painter, rng: Rng): Strokes {
       reserve(p, ribbon(s.trunk, (t) => (s.width / 2) * (1.05 - 0.25 * t)));
       yield* p.parts.glaze(blob(s.base.x, s.base.y - 2, s.width * 1.1, s.width * 0.28, r, { irregularity: 0.3 }), mix(PALM.trunkShade, '#9e7183', 0.3), { rng: r, opacity: 0.45, deform: 0.2, spread: 0.3, edge: 0.05 });
       trunkMarks(T, s, 1);
+      yield;
       yield* T.dryParts(TRUNK_DRY);
       paintLeafBases(p, leafBases(s, s.width / 18), r.fork('bases'), { dark: shade(PALM.trunkShade, 0.15), pale: PALM.trunkPale });
+      yield;
       // the sun on its right flank
       const lit = ribbon(s.trunk, (t) => s.width * 0.14 * (1 - 0.3 * t), (t) => s.width * 0.34 * (1 - 0.25 * t));
       yield* p.parts.glaze(lit, PALM.trunkPale, { rng: r, opacity: 0.4, deform: 0.05, spread: 0.1, edge: 0.1, blend: 'source-over' });

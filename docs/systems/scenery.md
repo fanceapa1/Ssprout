@@ -686,6 +686,14 @@ V-set leaflets, a wet crown wash, a few gold old fronds, the diamond leaf-base l
 - **Seams for O5**: `VEG_SHAPES` (`bigPalms` with trunk, width and crown outline, `grovePalms`,
   `groveTrees`, `grove`), `PALM` and `haze()`.
 
+### Paint parts (Z1, ADR 0330)
+The oasis steps pause inside their loops so the cooperative painter can yield. Each grove palm's
+crown is planned in its own part. Runs of dry-brush strokes, flicks and small glazes pause every
+few marks (`pacer()`, `paint-pace.ts`), sometimes inside a clip. A pause adds no canvas call, so the
+recording hash pins hold. In the app the cold oasis's longest part is about 18 ms on a quiet
+laptop (it was 24–26). That part is Chromium rasterising the job canvas's queued composites, not
+oasis code. A new loop of small wet marks should take a `pacer()`.
+
 ### Motion (O6, `motion.ts`, ADR 0282)
 `createOasisMotion` is `OASIS.motion`. Like the waterfall's (Waterfall › Motion), it goes over
 the still painting and never covers it. About 20 sprites are painted once in parts and sealed into

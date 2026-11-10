@@ -80,6 +80,11 @@ describe('oasis rock painting (O2)', () => {
     expect(most('pixels').pixels, most('pixels').name).toBeLessThanOrEqual(400_000);
   });
 
+  it.each(['overview', 'detail'])('pauses inside the runs of small marks: no part lays more than 60 000 calls (%s, ADR 0330)', (view) => {
+    const most = runs[view]!.chunks.reduce((a, c) => (c.calls > a.calls ? c : a));
+    expect(most.calls, most.name).toBeLessThanOrEqual(60_000);
+  });
+
   it('pauses inside both steps: each comes in many parts', () => {
     for (const step of ['bluff', 'ksar']) expect(runs.overview!.chunks.filter((c) => c.name === step).length, step).toBeGreaterThan(10);
   });
