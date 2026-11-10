@@ -110,7 +110,46 @@ export interface SceneStats {
   lastLookupMs: number;
 }
 
+export interface PrepaintOptions {
+  /** awaited between slices: resolves when the painting may go on (idle time, nothing pausing it) */
+  yieldTo: () => Promise<void>;
+  /** stop at the next slice */
+  cancelled?: () => boolean;
+  /** also hand back the painting (decoded from the cache when it is already stored), for a thumbnail */
+  painting?: boolean;
+  /** ms painted between yields (default 8) */
+  sliceMs?: number;
+}
+
+export interface PrepaintResult {
+  /**
+   * `cached`: already stored, nothing painted; `painted`: painted and stored; `cancelled`: the garden
+   * came on view or the caller cancelled; `shown`: it is the garden on view; `off`: no paint cache
+   * (or no overview viewport yet), so nothing is pre-painted
+   */
+  status: 'cached' | 'painted' | 'cancelled' | 'shown' | 'off';
+  painting: PaintResult | null;
+}
+
+export interface PrepaintStats {
+  painted: number;
+  cached: number;
+  cancelled: number;
+  /** painting time of every pre-paint, and their longest part painted without a pause */
+  cpuMs: number;
+  longest: { name: string; ms: number };
+  /** the garden being pre-painted now */
+  painting: string | null;
+}
+
 export interface SceneSystem extends System {
+  /**
+   * Paint a garden not on view into the persistent paint cache at the view a switch to it would
+   * paint (its overview painting and sprites), in parts between `yieldTo`s, unless it is stored
+   * already (ADR 0339). The garden's own paint jobs go first.
+   */
+  prepaint(scenery: Scenery, opts: PrepaintOptions): Promise<PrepaintResult>;
+  prepaintStats(): PrepaintStats;
   /** resolves when no paint job is pending (the current painting matches the viewport) */
   whenPainted(): Promise<void>;
   stats(): SceneStats;
@@ -191,6 +230,9 @@ export function createSceneSystem(opts: SceneSystemOptions = {}): SceneSystem {
   const cacheDetail = opts.cacheDetail ?? true;
 
   let current: Painting | null = null;
+  /** the overview viewport of the last init: the view a switch would paint (pre-paint, ADR 0339) */
+  let overview: Viewport | null = null;
+  const prepaints: PrepaintStats = { painted: 0, cached: 0, cancelled: 0, cpuMs: 0, longest: { name: '', ms: 0 }, painting: null };
   let previous: Painting | null = null;
   let fade = 1; // 0..1 progress of `current` fading in over `previous` (or paper)
   let job: Promise<void> | null = null;
@@ -233,10 +275,10 @@ export function createSceneSystem(opts: SceneSystemOptions = {}): SceneSystem {
   };
 
   /** Look a painting and the sprites of its scale up in the paint cache. Never rejects. */
-  const lookup = async (kind: string, view: PaintView): Promise<Lookup> => {
+  const lookup = async (kind: string, view: PaintView, of: SceneArt = art): Promise<Lookup> => {
     const t0 = now();
-    const layout = spriteAtlasLayout(art, view.scale);
-    const [bitmap, atlas] = await Promise.all([cache.get(kind, paintingKey(art, view, quality)), cache.get(SCENE_CACHE.sprites, spritesKey(art, view.scale, quality))]);
+    const layout = spriteAtlasLayout(of, view.scale);
+    const [bitmap, atlas] = await Promise.all([cache.get(kind, paintingKey(of, view, quality)), cache.get(SCENE_CACHE.sprites, spritesKey(of, view.scale, quality))]);
     const w = Math.max(1, Math.ceil(view.rect.w * view.scale));
     const h = Math.max(1, Math.ceil(view.rect.h * view.scale));
     const background = !!bitmap && bitmap.width === w && bitmap.height === h;
@@ -257,12 +299,12 @@ export function createSceneSystem(opts: SceneSystemOptions = {}): SceneSystem {
   };
 
   /** Store a fresh painting (and its sprites) in idle time: the parts the lookup did not find. */
-  const store = (kind: string, res: PaintResult, found: Lookup | null): void => {
+  const store = (kind: string, res: PaintResult, found: Omit<Lookup, 'painting'> | null, of: SceneArt = art): void => {
     // nothing draws on the painting again once it is finished (and faded), so the cache need not copy it
-    if (!found?.background) void cache.put(kind, paintingKey(art, res.view, quality), res.canvas, { copy: false });
+    if (!found?.background) void cache.put(kind, paintingKey(of, res.view, quality), res.canvas, { copy: false });
     if (!found?.sprites) {
-      const atlas = packSprites(res.sprites, spriteAtlasLayout(art, res.view.scale));
-      if (atlas) void cache.put(SCENE_CACHE.sprites, spritesKey(art, res.view.scale, quality), atlas, { copy: false });
+      const atlas = packSprites(res.sprites, spriteAtlasLayout(of, res.view.scale));
+      if (atlas) void cache.put(SCENE_CACHE.sprites, spritesKey(of, res.view.scale, quality), atlas, { copy: false });
     }
   };
 
@@ -490,6 +532,7 @@ export function createSceneSystem(opts: SceneSystemOptions = {}): SceneSystem {
     id: 'scene',
     async init(ctx: SystemContext) {
       reducedMotion = ctx.reducedMotion;
+      overview = ctx.viewport;
       camera = ctx.camera ?? null;
       seenDetail = -1;
       if (ctx.scenery && ctx.scenery.id !== art.scenery) switchTo(ctx.scenery);
@@ -634,6 +677,49 @@ export function createSceneSystem(opts: SceneSystemOptions = {}): SceneSystem {
       cacheHits: detailCounts.cacheHits,
       cacheMisses: detailCounts.cacheMisses,
     }),
+    async prepaint(s: Scenery, o: PrepaintOptions): Promise<PrepaintResult> {
+      const a = s.art;
+      const vp = overview;
+      const has = cache.has?.bind(cache);
+      const off = !has || (await cache.stats()).off !== null;
+      if (!vp || !has || off || a.scenery === art.scenery) return { status: !vp || off ? 'off' : 'shown', painting: null };
+      const view = paintViewFor(vp, maxScale, margin);
+      const [background, sprites] = await Promise.all([has(SCENE_CACHE.overview, paintingKey(a, view, quality)), has(SCENE_CACHE.sprites, spritesKey(a, view.scale, quality))]);
+      const cancelled = () => a.scenery === art.scenery || !!o.cancelled?.();
+      if (background && sprites) {
+        prepaints.cached++;
+        if (!o.painting) return { status: 'cached', painting: null };
+        const found = await lookup(SCENE_CACHE.overview, view, a);
+        if (found.painting) return { status: 'cached', painting: found.painting };
+      }
+      // the garden's own paint jobs (a switch, a repaint, a detail view) go first
+      const gate = async () => {
+        await o.yieldTo();
+        while (job || detailJob || (motion && !motionReady)) {
+          await Promise.all([job, detailJob, motionJob]);
+          await o.yieldTo();
+        }
+      };
+      prepaints.painting = a.scenery;
+      try {
+        await gate();
+        if (cancelled()) throw new PaintCancelled();
+        const res = await paintScene(a, view, { quality, yieldTo: gate, now, cancelled, sliceMs: o.sliceMs ?? 8 });
+        softenCutEdges(res);
+        store(SCENE_CACHE.overview, res, { background, sprites }, a);
+        prepaints.painted++;
+        prepaints.cpuMs += res.cpuMs;
+        if (res.longest.ms > prepaints.longest.ms) prepaints.longest = { ...res.longest };
+        return { status: 'painted', painting: res };
+      } catch (err) {
+        if (!(err instanceof PaintCancelled)) throw err;
+        prepaints.cancelled++;
+        return { status: 'cancelled', painting: null };
+      } finally {
+        prepaints.painting = null;
+      }
+    },
+    prepaintStats: () => ({ ...prepaints, longest: { ...prepaints.longest } }),
     stats: () => ({ ...stats, timings: stats.timings.map((t) => ({ ...t })), longest: { ...stats.longest } }),
     skyStats: () => sky?.stats() ?? null,
   };

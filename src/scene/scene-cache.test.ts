@@ -14,6 +14,7 @@ import { gardenScene } from './geometry';
 import { PaintRecorder } from './paint-record';
 import { rockBox, tuftBox } from './sprites';
 import { createSceneSystem, paintViewFor } from './system';
+import { getScenery } from '../scenery/registry';
 
 const VIEW: PaintView = { rect: { x: 0, y: 0, w: 1600, h: 1000 }, scale: 1.5 };
 
@@ -91,6 +92,8 @@ function memoryCache() {
   let hold: Promise<void> | null = null;
   const cache: PaintCache = {
     ...createNullPaintCache('dev'),
+    has: async (kind, key) => stored.has(`${kind}:${key}`),
+    stats: async () => ({ ...(await createNullPaintCache('dev').stats()), enabled: true, off: null }),
     async get(kind, key) {
       if (hold) await hold;
       const c = stored.get(`${kind}:${key}`);
@@ -182,5 +185,68 @@ describe('scene system and the paint cache (ADR 0228)', () => {
     await scene.init!(context());
     expect(yields).toBeGreaterThanOrEqual(2);
     expect(scene.stats()).toMatchObject({ paints: 0, cacheHits: 1, cacheMisses: 0 });
+  });
+});
+
+describe('pre-painting a garden not on view (ADR 0339)', () => {
+  let uninstall: () => void = () => {};
+  beforeEach(() => {
+    uninstall = new PaintRecorder({ hash: false }).install();
+  });
+  afterEach(() => uninstall());
+
+  const view = paintViewFor(createViewport(160, 100, 1), 1.5, 60);
+  const opts = { yieldTo: async () => {}, extendDelayMs: -1 };
+  const waterfall = getScenery('waterfall');
+  const idle = { yieldTo: async () => {} };
+
+  it('paints the overview a switch would look up, and the switch then paints nothing', async () => {
+    const mem = memoryCache();
+    const scene = createSceneSystem({ ...opts, cache: mem.cache });
+    await scene.init!(context());
+    const before = mem.puts.length;
+    const r = await scene.prepaint(waterfall, idle);
+    expect(r.status).toBe('painted');
+    expect(mem.puts.slice(before).sort()).toEqual([`${SCENE_CACHE.overview}:${paintingKey(waterfall.art, view, 'normal')}`, `${SCENE_CACHE.sprites}:${spritesKey(waterfall.art, view.scale, 'normal')}`].sort());
+    expect(scene.prepaintStats()).toMatchObject({ painted: 1, cached: 0, painting: null });
+    await scene.init!({ ...context(), scenery: waterfall } as SystemContext);
+    expect(scene.stats()).toMatchObject({ paints: 1, cacheHits: 1 });
+  });
+
+  it('paints nothing when the garden is stored already, unless asked for the painting', async () => {
+    const mem = memoryCache();
+    const scene = createSceneSystem({ ...opts, cache: mem.cache });
+    await scene.init!(context());
+    await scene.prepaint(waterfall, idle);
+    const puts = mem.puts.length;
+    expect(await scene.prepaint(waterfall, idle)).toEqual({ status: 'cached', painting: null });
+    const again = await scene.prepaint(waterfall, { ...idle, painting: true });
+    expect(again.status).toBe('cached');
+    expect(again.painting?.view).toEqual(view);
+    expect(mem.puts.length).toBe(puts);
+    expect(scene.prepaintStats()).toMatchObject({ painted: 1, cached: 2 });
+  });
+
+  it('skips the garden on view, and everything without a paint cache', async () => {
+    const mem = memoryCache();
+    const scene = createSceneSystem({ ...opts, cache: mem.cache });
+    expect((await scene.prepaint(waterfall, idle)).status).toBe('off');
+    await scene.init!(context());
+    expect((await scene.prepaint(getScenery('japanese-garden'), idle)).status).toBe('shown');
+    const plain = createSceneSystem({ ...opts, cache: createNullPaintCache('dev') });
+    await plain.init!(context());
+    expect((await plain.prepaint(waterfall, idle)).status).toBe('off');
+  });
+
+  it('stops when cancelled and stores nothing', async () => {
+    const mem = memoryCache();
+    const scene = createSceneSystem({ ...opts, cache: mem.cache });
+    await scene.init!(context());
+    const puts = mem.puts.length;
+    let n = 0;
+    const r = await scene.prepaint(waterfall, { yieldTo: async () => {}, cancelled: () => ++n > 3, sliceMs: -1 });
+    expect(r.status).toBe('cancelled');
+    expect(mem.puts.length).toBe(puts);
+    expect(scene.prepaintStats()).toMatchObject({ painted: 0, cancelled: 1 });
   });
 });
