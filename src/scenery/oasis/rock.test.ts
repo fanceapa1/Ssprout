@@ -10,7 +10,12 @@ import { PaintRecorder, type RecordedCost } from '../../scene/paint-record';
 import { OASIS_ART, OASIS_ELEMENTS } from '.';
 import { blockShape, KSAR, KSAR_SHAPES, windows } from './ksar';
 import { BLUFF } from './layout';
-import { ROCK_SHAPES, roughOutline, SEAT_LINE } from './paint-rocks';
+import { BLUFF_FORM, ROCK_SHAPES, roughOutline, SEAT_LINE } from './paint-rocks';
+
+const seatBase = (x: number): number | null => {
+  const over = KSAR.filter((b) => x >= b.x - 2 && x <= b.x + b.w + b.side + 2);
+  return over.length ? Math.max(...over.map((b) => b.base)) : null;
+};
 
 const OVERVIEW: PaintView = { rect: { x: 0, y: 0, w: 1600, h: 1000 }, scale: 0.6 };
 // a resting close view on the middle tower and the seat under it
@@ -53,7 +58,7 @@ describe('oasis rock painting (O2)', () => {
 
   it('is deterministic: the same marks every time, and the same crumbling for each block', () => {
     // quantised hashes from a fresh process, pinned as the waterfall's (paint caches warm up across runs)
-    expect({ overview: runs.overview!.hash, detail: runs.detail!.hash }).toEqual({ overview: 'f1596bec', detail: 'fe2353de' });
+    expect({ overview: runs.overview!.hash, detail: runs.detail!.hash }).toEqual({ overview: 'd4aa4d70', detail: '0e4b8aa9' });
     expect(runs.again!.chunks.map((c) => c.name)).toEqual(runs.overview!.chunks.map((c) => c.name));
     for (const b of KSAR) expect(blockShape(b)).toEqual(blockShape(b));
   });
@@ -142,15 +147,44 @@ describe('the ksar finished (O9)', () => {
   });
 
   it('seats the walls in the rock: the seat line runs just above each base and rises into the walls in places', () => {
+    const x0 = SEAT_LINE[0]!.x;
+    const x1 = SEAT_LINE[SEAT_LINE.length - 1]!.x;
     let rises = 0;
     for (const q of SEAT_LINE) {
       const over = KSAR.filter((b) => q.x >= b.x - 2 && q.x <= b.x + b.w + b.side + 2);
       if (!over.length) continue;
       const base = Math.max(...over.map((b) => b.base));
+      // the two ends carry the rock higher (O10); between them it stays low
+      const end = q.x < x0 + 50 || q.x > x1 - 60;
       expect(q.y, `${q.x}`).toBeLessThanOrEqual(base);
-      expect(q.y, `${q.x}`).toBeGreaterThan(base - 24);
+      expect(q.y, `${q.x}`).toBeGreaterThan(base - (end ? 56 : 24));
       if (q.y < base - 10) rises++;
     }
     expect(rises).toBeGreaterThan(5);
+  });
+});
+
+describe('the bluff finished (O10)', () => {
+  it('carries the rock well up into the ksar at both ends', () => {
+    const x0 = SEAT_LINE[0]!.x;
+    const x1 = SEAT_LINE[SEAT_LINE.length - 1]!.x;
+    const rise = (from: number, to: number) => Math.max(...SEAT_LINE.filter((q) => q.x >= from && q.x <= to).map((q) => (seatBase(q.x) ?? q.y) - q.y));
+    expect(rise(x0, x0 + 40)).toBeGreaterThan(26);
+    expect(rise(x1 - 50, x1)).toBeGreaterThan(26);
+  });
+
+  it('cuts the face into buttresses and gullies, with harder beds as ledges, all inside the bluff', () => {
+    const { gullies, hard } = BLUFF_FORM;
+    expect(gullies.length).toBeGreaterThanOrEqual(6);
+    for (let i = 1; i < gullies.length; i++) expect(gullies[i]!.x - gullies[i - 1]!.x).toBeGreaterThanOrEqual(80);
+    for (const g of gullies) {
+      // a funnel at the rim narrowing to a chute: wider at the top than half way down
+      expect(g.right[0]!.x - g.left[0]!.x, `${g.x}`).toBeGreaterThan(g.right[5]!.x - g.left[5]!.x);
+      expect(pointInPolygon({ x: g.x, y: (g.top + g.foot) / 2 }, BLUFF), `${g.x}`).toBe(true);
+    }
+    // the shoulder's prow stays whole
+    expect(Math.max(...gullies.map((g) => g.x))).toBeLessThan(900);
+    expect(hard.length).toBeGreaterThanOrEqual(3);
+    expect(new Set(hard.slice(1).map((y, i) => y - hard[i]!)).size).toBeGreaterThan(1);
   });
 });

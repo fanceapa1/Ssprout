@@ -538,14 +538,25 @@ there. `talus-2` stands at the shoulder's foot, right of the basin, on the basin
 ### Rock (O2, `paint-rocks.ts`)
 Two steps, `bluff` then `ksar`, painted in parts (ADR 0226, 0238). Both use the same golden-red
 earth (`EARTH`), so the building grows out of the rock. The sun is on the right (ADR 0300).
-- **Bluff**: a hand-cut outline (noise ≤ 1.8, inside the sky's hang). A body wash runs from
-  violet-rose on the left to golden on the right. The left ridge's crown is lit and its face
-  shaded. The shoulder has a lit band turned to the sun, with a soft core shade further in.
-  Sandstone beds (a lit lip over a dark undercut) dip as they wrap round the shoulder. Two
-  conglomerate beds are drawn as lenses of pebbles close in tone to the matrix. Vertical erosion
-  runnels have their left (east-facing) wall lit. A warm bounce of light from the sand lies along
-  the foot, there is a lit rim where the skyline turns to the sun, and talus fans spill onto the
-  terrace.
+- **Bluff** (O10, devlog 131): a hand-cut outline (noise ≤ 1.8, inside the sky's hang), painted
+  as a Draa sandstone and conglomerate cliff. Its form is fixed (`BLUFF_FORM`, seeded by name, so
+  only the brushwork follows the art seed): eight gullies, each a funnel notched into the rim that
+  narrows to a chute and opens onto the scree (the shoulder's prow has none), and four hard beds.
+  - A red-ochre body, rosier on the left and golden toward the shoulder; the left ridge's west
+    face in cool shade with its crown and stepped east side lit; the prow's face to the sun with
+    a core shade further in.
+  - Buttresses between the gullies: the west face of each in cool violet-brown shade along the
+    gully wall, the east face catching the sun, a joint or two. The shade is laid as three
+    stacked, narrower bands so it is strongest at the wall and lost away from it.
+  - Beds per buttress, each at its own small offset: soft ones as faint broken lines, hard ones as
+    caprock ledges (a lit lip, a pale face, a dark undercut, the odd weathered recess), sometimes
+    weathered away. Gullies in shade, deeper on their east wall, the west wall lit, a dark cleft
+    down the deep ones. Desert varnish hangs from the lips in loose curtains of tapering stains.
+  - A scree apron at the foot: a granulating wash, a cone at each gully mouth (pale on its sun
+    side, shaded on the west), pebbles, a few fallen blocks; the scree spills onto the terrace.
+    A warm bounce along the foot and a lit rim where the skyline turns to the sun.
+  - Cost: marks of a kind are filled into one wet layer and dried once (`wetBatch`), not glazed
+    one by one, so the step costs about half of O2's.
 - **Ksar** (`ksar.ts`, deterministic shapes; O9, devlog 130): two courtyard palms, then six
   houses (three far ones stepping up behind three near ones), three pisé towers tapering 9 % a
   side, and three ruined curtain walls. No edge is ruled: the sides carry a slow bulge and a
@@ -567,7 +578,8 @@ earth (`EARTH`), so the building grows out of the rock. The sun is on the right 
   windows, darkest at the top, some with a palm-wood lintel, with a lit sill. Curtain walls get
   a lit crest, a shade under it, rain gullies and a couple of holes (`paintRuin`).
 - **Seat**: `SEAT_LINE` runs just above each block's base, with the rock swelling up into the
-  walls in outcrops. Every block is clipped above it, so no wall foot is painted over the rock
+  walls in outcrops, and carried about 30 higher at the two ends (under the west curtain wall and
+  the east tower's foot), where `paintEndOutcrops` models it as the bluff: shade west, sun east, two ledges. Every block is clipped above it, so no wall foot is painted over the rock
   and the bluff's own texture (beds, runnels) runs right up to the walls. The outcrops above the
   bluff's top get an underlayer and a granulating wash in the bluff's tone that is lost down
   into the bluff. Over it: the rock's tone creeping up the wall feet, shaded outcrop faces,
