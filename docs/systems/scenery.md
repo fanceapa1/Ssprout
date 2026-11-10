@@ -521,19 +521,27 @@ Composition map: studio `oasis-map/map`. Rock: studio `oasis-rock`. Water: studi
   basin, and its own golden grades (`OASIS_GRADES`, `LightArt.grades`, ADR 0301). Plants take
   the sky's sun side (right at both low suns). Studio `oasis-daylight`.
 
-### Slots (48)
+### Slots (55)
 | Habitat ("words") | Count | Where | Sizes |
 |---|---|---|---|
 | water ("in the shallows") | 8 | `basin-1…5` (with `basin-5` in the overflow corner by the sluice, for the cattail), `shallows-1/2` in the oued, `shallows-3` (medium) mid-river above the big bar's head, clear of every bar (O1b) | 2 large, 4 medium, 2 small |
 | shore ("by the water") | 13 | `rim-1…5` before the basin's near face and by the sluice, `seguia-1…3`, `oued-1…4` (`oued-1` and `oued-3` large, for the oleander on the oued bank), `bar-1` | 2 large, 4 medium, 7 small |
-| meadow ("in the plots") | 9 | `plot-1…7` on the basin terrace, `plot-8/9` on the middle terrace | 3 large, 3 medium, 3 small |
+| meadow ("in the plots") | 13 | `plot-1…7` on the basin terrace, `plot-8/9` on the middle terrace, `bed-1…4` in the beds behind the basin (O12) | 3 large, 5 medium, 5 small |
 | path ("on the sand") | 6 | `walk-1…6` either side of the footpath; `walk-3` and `walk-4` (medium, one each side, for the desert hyacinth) stand off the line of `walk-5/6` behind them (O1b) | 2 medium, 4 small |
-| back ("under the palms") | 5 | `high-1` (tree, the left edge under the bluff), `high-2`, `grove-1` behind the grove's wall, `palm-1` (tree, among the big palms), `palm-2` | 2 trees, 2 medium, 1 small |
-| rock ("on the walls") | 7 | `wall-1…5` on the copings, `talus-1/2` at the bluff's foot | 7 small |
+| back ("under the palms") | 7 | `high-1` (tree, the left edge under the bluff), `high-2`, `grove-1` behind the grove's wall, `palm-1` (tree, among the big palms), `palm-2`, `foot-1` (large) and `foot-2` at the bluff's foot behind the beds (O12) | 2 trees, 1 large, 3 medium, 1 small |
+| rock ("on the walls") | 8 | `wall-1…5` on the copings, `talus-1…3` at the bluff's foot | 8 small |
 
 No plant stands over the base of a slot on a terrace or wall behind it, and no tree hides a slot
-behind it. The basin's water plants hide the ground behind the far rim, so nothing is planted
-there. `talus-2` stands at the shoulder's foot, right of the basin, on the basin terrace.
+behind it. `talus-2` stands at the shoulder's foot, right of the basin, on the basin terrace.
+
+**Behind the basin** (O12, devlog 137): the band between the basin's far rim (y 562) and the
+bluff's foot (y 460–478) holds four irrigated beds (`BACK_BEDS`, fronts at y 552, backs at 514,
+sides running to `BASIN_VP`) fed by a head ditch (`BACK_RUNNEL`) from the pool at the first
+fall's foot. `bed-1…4` (meadow, small and medium) stand in the beds; `foot-1` (the band's one
+large) and `foot-2` (back) stand above the ditch, and `talus-3` under the bluff between them. The
+1.25× box of every slot there stays under the ksar's seat (y 318) and above the far rim, so no
+plant covers a tower or the basin. The basin's water plants stand in front of the beds and hide
+part of them; the slots sit between the basin slots' x where they can.
 
 ### Rock (O2, `paint-rocks.ts`)
 Two steps, `bluff` then `ksar`, painted in parts (ADR 0226, 0238). Both use the same golden-red
@@ -641,7 +649,10 @@ Steps `ranges`, `dunes` (soft), `ground`, `terraces`, `plots`, `footpath`, `wall
   sand, so on wide screens the band holds against the sunset sky instead of reading as a pale strip.
 - **Ground**: gold sand with warm and cool passages, the pale basin terrace, damp sand along the
   seguia's last run and along both oued banks (a dark band, a cut-bank shade, a lit lip), wind
-  ripples on open sand. **Terraces**: worked soil along the walls' curves, contour furrows,
+  ripples on open sand. **Beds behind the basin** (O12): damp tilled earth inside low lit bunds
+(front and sides; the head opens to the ditch), broken furrows toward `BASIN_VP`, two beds
+greened by a young crop, one dry and one just watered; a head ditch (a dark cut, a broken
+sky-teal glint, a lit far lip) and a faint worked strip at the bluff's foot. **Terraces**: worked soil along the walls' curves, contour furrows,
   faint cross-bunds, greener toward the seguia. **Plots**: soft outlines, furrows toward a
   vanishing point, seedling rows, a watered side. **Footpath**: lifted and paled, footprints.
 - **Walls**: pisé faces hung from the layout's copings (the grove wall runs 44 further left,

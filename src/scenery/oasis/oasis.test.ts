@@ -5,8 +5,9 @@ import { exportState, importState, validateState } from '../../core/persistence'
 import { createDefaultState } from '../../core/state';
 import { makePlant, T0 } from '../../core/testing';
 import { bounds, pointInPolygon } from '../../paint/geometry';
+import { compatibleSlots, isCompatible } from '../../core/placement';
 import { floraOf } from '../../plants/flora';
-import { allSpecies } from '../../plants/registry';
+import { allSpecies, getSpecies } from '../../plants/registry';
 import { HABITATS, SIZE_CLASSES } from '../../plants/types';
 import { MIN_VISIBLE_W, WORLD_H, WORLD_W, type Pt } from '../../render/viewport';
 import type { Slot } from '../../scene/geometry';
@@ -14,7 +15,7 @@ import { FAR_SCALE, NEAR_SCALE, PLANT_SIZES, perspectiveScale, plantScale } from
 import { faunaTable } from '../fauna';
 import { OASIS, OASIS_ELEMENTS, oasisAvailable } from '.';
 import { BAR, BASIN_STONE, BASIN_WATER, OUED_WATER, oasisScene, SEGUIA, SLUICE_WATER } from './geometry';
-import { BLUFF, copingAt, FOOTPATH, LIFT, OASIS_HABITAT_WORDS, OASIS_SKY_LAYOUT, openSky, silhouetteAt, skylineAt, terraceScale, towardVp, WALLS } from './layout';
+import { BACK_BEDS, BACK_RUNNEL, BASIN, BLUFF, copingAt, FOOTPATH, LIFT, OASIS_HABITAT_WORDS, OASIS_SKY_LAYOUT, openSky, silhouetteAt, skylineAt, SEGUIA_FALLS, terraceScale, towardVp, WALLS } from './layout';
 import { KSAR_SHAPES } from './ksar';
 import { OUED_BARS } from './paint-water';
 import { SLOT_TERRACE } from './slots';
@@ -141,11 +142,11 @@ describe('oasis water', () => {
 });
 
 describe('oasis slots', () => {
-  it('has 40–49 slots with unique, place-prefixed ids', () => {
-    expect(slots.length).toBeGreaterThanOrEqual(40);
-    expect(slots.length).toBeLessThanOrEqual(49);
+  it('has 50–60 slots with unique, place-prefixed ids (SPEC §3)', () => {
+    expect(slots.length).toBeGreaterThanOrEqual(50);
+    expect(slots.length).toBeLessThanOrEqual(60);
     expect(new Set(slots.map((s) => s.id)).size).toBe(slots.length);
-    for (const s of slots) expect(s.id).toMatch(/^(basin|shallows|rim|seguia|oued|bar|plot|walk|high|grove|palm|wall|talus)-\d+$/);
+    for (const s of slots) expect(s.id).toMatch(/^(basin|shallows|rim|seguia|oued|bar|plot|bed|walk|high|grove|palm|foot|wall|talus)-\d+$/);
   });
 
   it('uses known habitats and sizes and offers every habitat (at least four slots each) and every size', () => {
@@ -250,6 +251,75 @@ describe('oasis slots', () => {
         expect(edgeDistance(s, bar), s.id).toBeGreaterThanOrEqual(30);
       }
     }
+  });
+});
+
+describe('the ground between the basin and the ksar (O12)', () => {
+  const beds = slots.filter((s) => s.id.startsWith('bed-'));
+  const foot = slots.filter((s) => s.id.startsWith('foot-'));
+  const band = slots.filter((s) => s.y < BASIN[0]!.y && s.x > 480 && s.x < 1030);
+  // the ksar's seat on the bluff: its blocks' feet run on into the rock below it
+  const KSAR_SEAT = 318;
+  const runnelAt = (x: number) => {
+    const k = BACK_RUNNEL.findIndex((q) => q.x >= x);
+    const i = k < 0 ? BACK_RUNNEL.length - 1 : k;
+    const a = BACK_RUNNEL[Math.max(0, i - 1)]!;
+    const b = BACK_RUNNEL[i]!;
+    return b.x === a.x ? b.y : a.y + ((b.y - a.y) * (x - a.x)) / (b.x - a.x);
+  };
+
+  it('offers plots in the beds behind the basin and back ground at the bluff’s foot, at most one large', () => {
+    expect(beds.length).toBeGreaterThanOrEqual(3);
+    expect(foot.length).toBeGreaterThanOrEqual(1);
+    for (const s of beds) {
+      expect(s.habitat, s.id).toBe('meadow');
+      expect(['small', 'medium'], s.id).toContain(s.maxSize);
+      expect(BACK_BEDS.some((b) => pointInPolygon(s, b)), `${s.id} in a bed`).toBe(true);
+    }
+    for (const s of foot) {
+      expect(s.habitat, s.id).toBe('back');
+      expect(s.y, `${s.id} behind the head ditch`).toBeLessThan(runnelAt(s.x) - 6);
+    }
+    expect(band.length).toBeGreaterThanOrEqual(7);
+    expect(band.filter((s) => s.maxSize === 'large' || s.maxSize === 'tree').length).toBeLessThanOrEqual(1);
+  });
+
+  it('keeps the largest plants there under the ksar’s seat and off the basin', () => {
+    expect(Math.max(...KSAR_SHAPES.map((q) => bounds(q.front).y))).toBeLessThan(KSAR_SEAT);
+    for (const s of band) {
+      expect(box(s).y, s.id).toBeGreaterThanOrEqual(KSAR_SEAT);
+      expect(box(s).y + box(s).h, s.id).toBeLessThan(BASIN[0]!.y);
+    }
+  });
+
+  it('lets a session’s seedling land there: the oasis species that fit take the new slots', () => {
+    const fits = (id: string) => compatibleSlots(getSpecies(id)!, slots, []).map((o) => o.slot.id);
+    expect(fits('barley')).toEqual(expect.arrayContaining(['bed-1', 'bed-3']));
+    expect(fits('alfalfa')).toEqual(expect.arrayContaining(['bed-1', 'bed-2', 'bed-3', 'bed-4']));
+    expect(fits('pomegranate')).toContain('foot-1');
+    expect(fits('henna')).toEqual(expect.arrayContaining(['foot-1', 'foot-2', 'bed-1', 'bed-3']));
+    expect(fits('caper')).toContain('talus-3');
+    for (const id of ['bed-1', 'bed-2', 'bed-3', 'bed-4', 'foot-1', 'foot-2', 'talus-3']) {
+      expect(floraOf(allSpecies(), OASIS.flora).some((sp) => isCompatible(sp, slots.find((s) => s.id === id)!)), id).toBe(true);
+    }
+  });
+
+  it('keeps them clear of the seguia, its falls and the head ditch’s start', () => {
+    for (const s of band) {
+      for (const c of SEGUIA) expect(edgeDistance(s, c), s.id).toBeGreaterThanOrEqual(60);
+      for (const f of SEGUIA_FALLS) expect(Math.hypot(s.x - f.top.x, s.y - f.top.y - f.drop / 2), s.id).toBeGreaterThanOrEqual(80);
+    }
+  });
+
+  it('paints the beds in front of the head ditch, inside the band and apart', () => {
+    for (const b of BACK_BEDS) {
+      for (const q of b) {
+        expect(q.y, `${q.x} behind the head ditch`).toBeGreaterThan(runnelAt(q.x) + 4);
+        expect(q.y).toBeLessThan(BASIN[0]!.y);
+        expect(pointInPolygon({ x: q.x, y: q.y - 6 }, BLUFF)).toBe(false);
+      }
+    }
+    for (let i = 1; i < BACK_BEDS.length; i++) expect(BACK_BEDS[i]![0]!.x).toBeGreaterThan(BACK_BEDS[i - 1]![1]!.x);
   });
 });
 

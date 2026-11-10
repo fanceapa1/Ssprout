@@ -14,7 +14,7 @@ import type { StudioEntry, StudioSection } from '../../studio/types';
 import { OASIS } from '.';
 import { BASIN_STONE, BASIN_WATER } from './geometry';
 import { KSAR_SHAPES } from './ksar';
-import { BLUFF, BUNDS, FOOTPATH, NEAR_PLOTS, openSky, OASIS_SKY_LAYOUT, WALLS } from './layout';
+import { BACK_BEDS, BACK_RUNNEL, BLUFF, BUNDS, FOOTPATH, NEAR_PLOTS, openSky, OASIS_SKY_LAYOUT, WALLS } from './layout';
 
 const scene = OASIS.geometry;
 
@@ -72,6 +72,9 @@ function drawMap(ctx: CanvasRenderingContext2D): void {
   for (const s of KSAR_SHAPES) for (const q of [s.front, s.flank]) if (q.length) poly(ctx, q, null, '#8f4a3e');
   for (const plot of NEAR_PLOTS) poly(ctx, plot, null, '#8a6a3a');
   for (const b of BUNDS) poly(ctx, b, null, '#8a6a3a', false);
+  // the beds behind the basin and their head ditch (O12)
+  for (const bed of BACK_BEDS) poly(ctx, bed, null, '#8a6a3a');
+  poly(ctx, BACK_RUNNEL, null, '#2b5d66', false);
   poly(ctx, BASIN_STONE, null, '#6d5a44');
   poly(ctx, BASIN_WATER, 'rgba(80,150,170,0.2)', '#2b5d66');
   for (const s of scene.streams) poly(ctx, s, 'rgba(80,150,170,0.25)', '#3f7f8f');
@@ -119,7 +122,7 @@ function drawMap(ctx: CanvasRenderingContext2D): void {
   ctx.moveTo(focus.x, focus.y - 16);
   ctx.lineTo(focus.x, focus.y + 16);
   ctx.stroke();
-  label(ctx, 'basin', 770, 520, '#2b5d66');
+  label(ctx, 'basin', 770, 604, '#2b5d66');
   label(ctx, 'oued', 1420, 700, '#2b5d66');
   label(ctx, 'footpath', 850, 990, '#8a6a3a');
   label(ctx, 'ksar', 610, 120, '#8f4a3e');
@@ -130,7 +133,7 @@ function drawMap(ctx: CanvasRenderingContext2D): void {
 
 const map: StudioEntry = {
   id: 'map',
-  label: 'composition map over the painting: shapes, walls, footpath, slots (habitat · id · max size, 1.25× boxes), sun, moon, stars, portrait crop',
+  label: 'composition map over the painting: shapes, walls, footpath, the beds behind the basin, slots (habitat · id · max size, 1.25× boxes), sun, moon, stars, portrait crop',
   w: 1200,
   h: 750,
   render(canvas, { seed }) {

@@ -49,6 +49,11 @@ const SPECS: Record<Habitat, SlotSpec[]> = {
     ['plot-7', 1080, 960, 'medium'],
     ['plot-8', 130, 556, 'small', 'middle'],
     ['plot-9', 320, 552, 'medium', 'middle'],
+    // the irrigated beds behind the basin (O12)
+    ['bed-1', 608, 536, 'medium'],
+    ['bed-2', 735, 538, 'small'],
+    ['bed-3', 866, 536, 'medium'],
+    ['bed-4', 966, 538, 'small'],
   ],
   // the foreground sand either side of the footpath to the basin
   path: [
@@ -66,6 +71,9 @@ const SPECS: Record<Habitat, SlotSpec[]> = {
     ['grove-1', 1490, 466, 'medium', 'grove'],
     ['palm-1', 1300, 560, 'tree'],
     ['palm-2', 1540, 552, 'small'],
+    // the ground at the bluff's foot behind the beds, above their head ditch (O12)
+    ['foot-1', 668, 494, 'large'],
+    ['foot-2', 918, 492, 'medium'],
   ],
   // the terrace walls' copings, and the talus at the bluff's foot
   rock: [
@@ -76,6 +84,7 @@ const SPECS: Record<Habitat, SlotSpec[]> = {
     ['wall-5', 1560, 472, 'small', 'grove'],
     ['talus-1', 250, 470, 'small', 'high'],
     ['talus-2', 1040, 472, 'small'],
+    ['talus-3', 790, 482, 'small'],
   ],
 };
 

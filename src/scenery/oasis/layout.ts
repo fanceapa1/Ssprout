@@ -87,6 +87,25 @@ export const BASIN: readonly Pt[] = [
   { x: BASIN_NEAR.x1, y: BASIN_NEAR.y },
   { x: BASIN_NEAR.x0, y: BASIN_NEAR.y },
 ];
+/**
+ * The irrigated beds behind the basin (O12), on the basin terrace between its far rim and the
+ * bluff's foot: front left, front right, back right, back left, their sides running to `BASIN_VP`.
+ */
+export const BED_DEPTH = { front: 552, back: 514 } as const;
+export const BACK_BEDS: readonly (readonly Pt[])[] = [
+  [534, 646],
+  [664, 798],
+  [814, 930],
+  [948, 1004],
+].map(([x0, x1]) => {
+  const { front, back } = BED_DEPTH;
+  return [{ x: x0!, y: front }, { x: x1!, y: front }, { x: towardVp(x1!, back, front), y: back }, { x: towardVp(x0!, back, front), y: back }];
+});
+/** The head ditch feeding the beds: from the pool at the first fall's foot, along their back edge. */
+export const BACK_RUNNEL: readonly Pt[] = [
+  { x: 466, y: 532 }, { x: 510, y: 528 }, { x: 545, y: 516 }, { x: 590, y: 508 }, { x: 700, y: 505 }, { x: 840, y: 504 }, { x: 968, y: 505 },
+];
+
 /** The rim: far and near coping depths (the far a sliver), the side coping's width at the near rim, the near face's height. */
 export const BASIN_RIM = { far: 6, near: 10, side: 22, face: 24 };
 
