@@ -22,13 +22,14 @@ async function shownSeedlings(page: Page): Promise<string[]> {
 test.describe('gardens · choosing the garden on view (ADR 0244)', () => {
   test.beforeEach(({ page }) => page.setViewportSize({ width: 1440, height: 900 }));
 
-  test('released: without ?dev the Gardens section offers both, a new garden opens on the Japanese garden, and the choice is kept', async ({ page }) => {
+  test('released: without ?dev the Gardens section offers all three, a new garden opens on the Japanese garden, and the choice is kept', async ({ page }) => {
     // no `?dev`: no debug API, only what a visitor sees
     await page.goto('./');
-    await expect(section(page).locator('button.garden-card')).toHaveCount(2, { timeout: 30_000 });
+    await expect(section(page).locator('button.garden-card')).toHaveCount(3, { timeout: 30_000 });
     expect(await page.evaluate(() => 'sprout' in window)).toBe(false);
     await expect(card(page, 'japanese-garden')).toHaveAttribute('aria-pressed', 'true');
     await expect(card(page, 'waterfall')).toContainText('Rocky waterfall');
+    await expect(card(page, 'oasis')).toContainText('Ksar oasis');
     await card(page, 'waterfall').click();
     await expect(card(page, 'waterfall')).toHaveAttribute('aria-pressed', 'true');
     // saved with the garden: a reload opens on the waterfall
@@ -38,10 +39,10 @@ test.describe('gardens · choosing the garden on view (ADR 0244)', () => {
     await expect(card(page, 'japanese-garden')).toHaveAttribute('aria-pressed', 'false');
   });
 
-  test('lists both gardens, the one on view marked; choosing the waterfall switches', async ({ page }) => {
+  test('lists the three gardens, the one on view marked; choosing the waterfall switches', async ({ page }) => {
     await openUi(page);
     await expect(section(page).getByRole('heading', { name: 'Gardens' })).toBeVisible();
-    await expect(section(page).locator('button.garden-card')).toHaveCount(2);
+    await expect(section(page).locator('button.garden-card')).toHaveCount(3);
     await expect(card(page, 'japanese-garden')).toHaveAttribute('aria-pressed', 'true');
     await expect(card(page, 'japanese-garden')).toContainText('Japanese garden');
     await expect(card(page, 'waterfall')).toContainText('Rocky waterfall');
@@ -56,6 +57,7 @@ test.describe('gardens · choosing the garden on view (ADR 0244)', () => {
     expect(await page.evaluate(() => window.sprout!.ui.gardenThumbs())).toEqual([
       { id: 'japanese-garden', source: 'live' },
       { id: 'waterfall', source: 'live' },
+      { id: 'oasis', source: 'painted' },
     ]);
   });
 
@@ -117,12 +119,12 @@ test.describe('gardens · choosing the garden on view (ADR 0244)', () => {
     await openUi(page);
     await page.evaluate(() => window.sprout!.ui.dockReady());
     const boxes = await section(page).locator('button.garden-card').evaluateAll((els) => els.map((e) => e.getBoundingClientRect().toJSON() as DOMRect));
-    expect(boxes).toHaveLength(2);
+    expect(boxes).toHaveLength(3);
     for (const b of boxes) {
       expect(b.left).toBeGreaterThanOrEqual(0);
       expect(b.right).toBeLessThanOrEqual(390);
     }
-    expect(boxes[1]!.top).toBeGreaterThanOrEqual(boxes[0]!.bottom - 1);
+    for (let i = 1; i < boxes.length; i++) expect(boxes[i]!.top).toBeGreaterThanOrEqual(boxes[i - 1]!.bottom - 1);
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
     await card(page, 'waterfall').click();
     await ready(page);

@@ -13,7 +13,7 @@ import { MIN_VISIBLE_W, WORLD_H, WORLD_W, type Pt } from '../../render/viewport'
 import type { Slot } from '../../scene/geometry';
 import { FAR_SCALE, NEAR_SCALE, PLANT_SIZES, perspectiveScale, plantScale } from '../../scene/slots';
 import { faunaTable } from '../fauna';
-import { OASIS, OASIS_ELEMENTS, oasisAvailable } from '.';
+import { OASIS, OASIS_ELEMENTS } from '.';
 import { BAR, BASIN_STONE, BASIN_WATER, OUED_WATER, oasisScene, SEGUIA, SLUICE_WATER } from './geometry';
 import { BACK_BEDS, BACK_RUNNEL, BASIN, BLUFF, copingAt, FOOTPATH, LIFT, OASIS_HABITAT_WORDS, OASIS_SKY_LAYOUT, openSky, silhouetteAt, skylineAt, SEGUIA_FALLS, terraceScale, towardVp, WALLS } from './layout';
 import { KSAR_SHAPES } from './ksar';
@@ -59,12 +59,8 @@ const sky = (alt: number, rising: boolean, moon = 0) =>
   ({ sunAltitude: alt, sunRising: rising, moonProgress: moon, weights: { sunrise: 1, sunset: 1, midday: 0, night: 1 } }) as unknown as DaylightState;
 
 describe('the oasis scenery', () => {
-  it('is hidden unless asked for with ?dev&scenery=oasis', () => {
-    expect(oasisAvailable(new URLSearchParams())).toBe(false);
-    expect(oasisAvailable(new URLSearchParams('scenery=oasis'))).toBe(false);
-    expect(oasisAvailable(new URLSearchParams('dev&scenery=waterfall'))).toBe(false);
-    expect(oasisAvailable(new URLSearchParams('dev&scenery=oasis'))).toBe(true);
-    expect(OASIS.available).toBe(oasisAvailable);
+  it('is offered to everyone (released, O8)', () => {
+    for (const q of ['', 'dev', 'scenery=oasis']) expect(OASIS.available(new URLSearchParams(q)), q).toBe(true);
   });
 
   it('is consistent with itself, has no building, lantern, eave or falls, and its water moves (O6)', () => {
@@ -445,10 +441,10 @@ describe('the oasis’s flora and wildlife (skeleton)', () => {
     expect([...OASIS.flora.biomes].sort()).toEqual(['desert', 'wetland']);
   });
 
-  // why it stays behind the dev flag: the flora invariants (src/scenery/flora.test.ts) hold for released sceneries only
-  it('offers only its own species so far (none is shared by biology), so it stays behind the dev flag', () => {
+  // released (O8): the flora invariants in src/scenery/flora.test.ts now hold for it too
+  it('offers only its own species (none is shared by biology) and is released', () => {
     expect(floraOf(allSpecies(), OASIS.flora).every((sp) => [...sp.range.realms, ...(sp.range.cultivatedIn ?? [])].includes('n-africa-arabia'))).toBe(true);
-    expect(OASIS.available(new URLSearchParams())).toBe(false);
+    expect(OASIS.available(new URLSearchParams())).toBe(true);
   });
 
   it('shares only the creatures biology allows (O0), the basin as still water', () => {

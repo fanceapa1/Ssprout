@@ -321,7 +321,7 @@ export type SceneryId = (typeof SCENERY_IDS)[number];
 export const DEFAULT_SCENERY: SceneryId = 'japanese-garden';
 export interface Scenery {                    // types.ts
   id: SceneryId; name: string; blurb: string; order: number;
-  available(flags: URLSearchParams): boolean;  // both registered sceneries: always (S17); a scenery in progress hides behind a dev flag
+  available(flags: URLSearchParams): boolean;  // all three registered sceneries: always (S17, O8); a scenery in progress hides behind a dev flag
   geometry: SceneGeometry;
   art: SceneArt;                              // seed, painting layout, steps(art, only?) (art.scene = geometry), rockSprites?
   sky: ScenerySky;                            // layout (SkyLayout, with its sunSide: ADR 0284), rect, shape(below?), paint, paintWater

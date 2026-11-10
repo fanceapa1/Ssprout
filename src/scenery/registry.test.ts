@@ -25,20 +25,19 @@ describe('scenery ids', () => {
 describe('the registry', () => {
   const none = new URLSearchParams();
 
-  it('offers the Japanese garden first and the waterfall, without any flag', () => {
-    expect(sceneries().map((s) => s.id)).toEqual(['japanese-garden', 'waterfall']);
-    expect(sceneries(new URLSearchParams('dev')).map((s) => s.id)).toEqual(['japanese-garden', 'waterfall']);
+  it('offers the Japanese garden first, then the waterfall and the oasis, without any flag', () => {
+    expect(sceneries().map((s) => s.id)).toEqual(['japanese-garden', 'waterfall', 'oasis']);
+    expect(sceneries(new URLSearchParams('dev')).map((s) => s.id)).toEqual(['japanese-garden', 'waterfall', 'oasis']);
     expect(sceneries()[0]!.id).toBe(DEFAULT_SCENERY);
     expect(getScenery('japanese-garden')).toBe(JAPANESE_GARDEN);
     expect(getScenery('waterfall')).toBe(WATERFALL);
     expect(hasScenery('waterfall')).toBe(true);
   });
 
-  it('holds the oasis, offered only with ?dev&scenery=oasis while it is painted (phase 13)', () => {
+  it('holds the oasis, offered to everyone since its release (phase 13)', () => {
     expect(getScenery('oasis')).toBe(OASIS);
     expect(hasScenery('oasis')).toBe(true);
-    expect(sceneries(new URLSearchParams('dev&scenery=oasis')).map((s) => s.id)).toEqual(['japanese-garden', 'waterfall', 'oasis']);
-    for (const q of ['', 'dev', 'scenery=oasis', 'dev&scenery=waterfall']) expect(sceneries(new URLSearchParams(q)).map((s) => s.id), q).not.toContain('oasis');
+    for (const q of ['', 'dev', 'scenery=oasis']) expect(sceneries(new URLSearchParams(q)).map((s) => s.id), q).toEqual(['japanese-garden', 'waterfall', 'oasis']);
   });
 
   it('falls back to the default scenery for one not registered', () => {
@@ -53,7 +52,7 @@ describe('the registry', () => {
       expect(s.light.sky, s.id).toBe(s.sky.layout);
       // every scenery says where its low sun stands (ADR 0284)
       expect(s.sky.layout.sunSide, s.id).toBeDefined();
-      expect(s.available(none), s.id).toBe(s.id !== 'oasis');
+      expect(s.available(none), s.id).toBe(true);
       expect(Object.keys(SCENERIES), s.id).toContain(s.sound);
     }
   });

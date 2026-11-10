@@ -1,7 +1,7 @@
 /**
  * The Ksar oasis as a scenery (phase 13): its painters (O2–O4) on the scenery contract, with its
  * slots, flora, wildlife and placeholder sky and light. Daylight (O5), motion (O6) and sound (O7)
- * replace the seams below. Hidden behind `?dev&scenery=oasis`.
+ * replace the seams below. Offered to everyone since its release (O8).
  * docs/systems/scenery.md › Oasis.
  */
 import { createRng } from '../../core/rng';
@@ -21,11 +21,6 @@ import { paintMargins } from '../../scene/paint-land';
 import { OASIS_SKY } from './sky';
 
 export { OASIS_LIGHT_ART, OASIS_SKY };
-
-/** Is the oasis offered under these URL flags? Only to developers until it is painted. */
-export function oasisAvailable(flags: URLSearchParams): boolean {
-  return flags.has('dev') && flags.get('scenery') === 'oasis';
-}
 
 /**
  * The painting's elements and the steps each one runs, back to front: the land's (O4,
@@ -96,7 +91,7 @@ export const OASIS: Scenery = {
   name: 'Ksar oasis',
   blurb: 'Palm terraces under a mud-brick ksar, a stone basin fed by a seguia, and the oued bending past.',
   order: 2,
-  available: oasisAvailable,
+  available: () => true,
   geometry: oasisScene,
   art: OASIS_ART,
   sky: OASIS_SKY,

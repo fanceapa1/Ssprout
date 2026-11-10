@@ -151,7 +151,7 @@ p.x)` and at `p.depth` on `entities`. Walkers pick a `w.ground` spot and stay in
 at `w.perspective(y, x)` and depth = feet y. The gecko picks a `w.walls` face, clings inside its
 `outline` below `wallTopAt(face, x)`, sized by `w.perspective(y, x)` (constant down the face) and
 drawn at depth `wallFootAt(face, x)`. The Sahara frog uses `w.pond` (the basin) and the rim.
-`?dev&scenery=oasis` shows them in the garden; `stage: 'oasis'` in the def's `show` puts the
+The oasis (released in O8) shows them in the garden; `stage: 'oasis'` in the def's `show` puts the
 creature on the oasis stage, `spec: { x, y, w, h }` choosing the crop (default `OASIS_STAGE`:
 x 360, y 120, 880 × 790).
 

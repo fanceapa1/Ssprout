@@ -13,7 +13,7 @@ wildlife progress belong to a scenery; the timeline, the weather and the dayligh
 | `types.ts` | the `Scenery` contract and its parts: `ScenerySky`, `SceneryAmbience`, `SceneryView`, `SceneryMotion` (and `SceneryFauna` from `src/fauna/habitat.ts`) |
 | `fauna.ts` | `faunaTable(id)`: every scenery's unlock table without loading its painting (the quiet line's arrival lines) |
 | `japanese-garden/fauna.ts` | `JAPANESE_FAUNA`: the garden's unlock table (SPEC §4, ADR 0248) |
-| `registry.ts` | `getScenery(id)` (the default for an id not registered yet), `hasScenery(id)`, `sceneries(flags?)` (available ones, in `order`: the garden and the waterfall without any flag, the oasis only with `?dev&scenery=oasis`) |
+| `registry.ts` | `getScenery(id)` (the default for an id not registered yet), `hasScenery(id)`, `sceneries(flags?)` (available ones, in `order`: the garden, the waterfall and the oasis without any flag (the oasis was behind `?dev&scenery=oasis` until O8, devlog 140)) |
 | `host.ts` | `createSceneryHost({ store, renderer, getScenery })`: follows `state.scenery` and calls `renderer.setScenery` (see Switching) |
 | `host.test.ts` | the host follows the store; a session from another garden brings its garden into view first |
 | `japanese-garden/fauna.test.ts` | the garden's table is SPEC §4's plus the silent leaf |
@@ -56,7 +56,7 @@ wildlife progress belong to a scenery; the timeline, the weather and the dayligh
 
 The Japanese garden's painters stay in `src/scene/` (docs/systems/scene.md): its geometry
 (`gardenScene`), its painting (`GARDEN_ART`, `gardenSteps`) and its sky (`GARDEN_SKY`).
-| `oasis/index.ts` | `OASIS` ("Ksar oasis", behind `?dev&scenery=oasis`: `oasisAvailable`), `OASIS_ELEMENTS` (the elements and the draft steps each runs: the seams O2–O4 swap), `oasisSteps`, `OASIS_ART` (seed 13), `OASIS_VIEW` |
+| `oasis/index.ts` | `OASIS` ("Ksar oasis", offered to everyone since O8), `OASIS_ELEMENTS` (the elements and the draft steps each runs: the seams O2–O4 swap), `oasisSteps`, `OASIS_ART` (seed 13), `OASIS_VIEW` |
 | `oasis/layout.ts` | draft A's shapes re-exported, `SKYLINE`/`skylineAt`/`openSky`, `LIFT` and `terraceScale` (ADR 0300), `copingAt`, `FOOTPATH`, `OASIS_SKY_LAYOUT` (both low suns on the right), `FOCUS`, `OASIS_AMBIENCE`, `OASIS_HABITAT_WORDS` |
 | `oasis/geometry.ts` | `BASIN_WATER` (the pond), `BASIN_STONE`, `WATERLINE`, `SEGUIA`, `SLUICE_WATER`, `OUED_WATER`, `BAR`, `oasisScene` |
 | `oasis/slots.ts` | `OASIS_SLOTS`: 47 slots, terrace lift in scale; `SLOT_TERRACE` |
@@ -456,7 +456,7 @@ Studio: `waterfall-falls-motion/falls-sheet`, `/falls-foot`, `/falls-sprites`.
 A tended palm grove in the Draa valley, from draft A ("Ksar & palmeraie", devlog 102): the red
 bluff with its ksar on the left, terraces stepping down to a stone basin fed by a seguia, big
 palms on the right and the oued bending past the viewer's right foot. O1 (devlog 105) made it a
-scenery behind `?dev&scenery=oasis`. O2 (devlog 107) reframed it and paints its rock; O3 (devlog 110)
+scenery behind `?dev&scenery=oasis`; O8 (devlog 140) released it to everyone. O2 (devlog 107) reframed it and paints its rock; O3 (devlog 110)
 paints its water, O4 (devlog 112) its land and vegetation; no draft step runs any more (`drafts/a` is a record). O5 (devlog 114, ADR 0301)
 paints its daylight. O6 (devlog 117) adds `motion`, and O7 adds its own `sound` (it borrows `pond` for now).
 O1b (devlog 119) adds medium sand and river slots, lowers the moon, deepens the far range and stills the basin.
@@ -732,7 +732,7 @@ waterfall's pace. Each element is clipped to its own water.
   the water and the gate across the coping, each fall off a wall's coping inside its box, each
   fall spilling from its run's end as wide as the channel onto the next run or the inlet (O11), the
   bars in the oued, the big one the layout's bar and none on the shallows' slots, the exported boxes.
-- `src/scenery/oasis/oasis.test.ts` (O1): hidden unless `?dev&scenery=oasis`; self-consistency
+- `src/scenery/oasis/oasis.test.ts` (O1, O8): offered to everyone; self-consistency
   with no building, lantern, eave, falls or motion; its own steps in order, by element; habitat words; the portrait crop and `pathOut`; the basin inside its stone and the
   streams to the bottom edge; 40–49 slots with prefixed ids, every habitat (4+) and size (2+); in
   the world at 1.25×, out of the sky and off the bluff; water, land and shore slots against the

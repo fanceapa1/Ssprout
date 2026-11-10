@@ -61,9 +61,9 @@ async function frameHash(page: Page): Promise<string> {
 test.describe('sceneries · switching the garden on view (ADR 0243)', () => {
   test.beforeEach(({ page }) => page.setViewportSize({ width: 1440, height: 900 }));
 
-  test('both gardens are offered without a flag; a new garden opens on the Japanese garden', async ({ page }) => {
+  test('the three gardens are offered without a flag; a new garden opens on the Japanese garden', async ({ page }) => {
     await openDev(page);
-    expect(await page.evaluate(() => window.sprout!.scenery())).toMatchObject({ viewed: 'japanese-garden', available: ['japanese-garden', 'waterfall'] });
+    expect(await page.evaluate(() => window.sprout!.scenery())).toMatchObject({ viewed: 'japanese-garden', available: ['japanese-garden', 'waterfall', 'oasis'] });
     await expect(show(page, 'coast')).rejects.toThrow(/not available/);
   });
 

@@ -1,6 +1,6 @@
 /**
- * The registered sceneries: the Japanese garden (the default) and the rocky waterfall, offered to
- * everyone, and the Ksar oasis behind a dev flag until it is painted (`?dev&scenery=oasis`).
+ * The registered sceneries, all offered to everyone: the Japanese garden (the default), the rocky
+ * waterfall and the Ksar oasis.
  * docs/systems/scenery.md.
  */
 import { DEFAULT_SCENERY, type SceneryId } from './ids';

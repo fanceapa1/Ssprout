@@ -129,8 +129,7 @@ describe('each garden’s flora', () => {
     ]);
   });
 
-  // the invariants below hold for released sceneries; the oasis is not released until they hold for it
-  it('the oasis offers only its own species so far (none is shared by biology), so it stays behind ?dev&scenery=oasis', () => {
+  it('the oasis offers only its own species (none is shared by biology)', () => {
     // one id per line, sorted: each phase 13 species task adds its own
     expect(offered(getScenery('oasis')).map((sp) => sp.id).sort()).toEqual([
       'alfalfa',
@@ -151,8 +150,7 @@ describe('each garden’s flora', () => {
       'spearmint',
       'white-water-lily',
     ]);
-    expect(RELEASED.map((s) => s.id)).not.toContain('oasis');
-    expect(getScenery('oasis').available(new URLSearchParams('dev&scenery=oasis'))).toBe(true);
+    expect(RELEASED.map((s) => s.id)).toContain('oasis');
   });
 
   describe.each(RELEASED.map((s) => [s.id, s] as const))('released: %s', (_, s) => {
