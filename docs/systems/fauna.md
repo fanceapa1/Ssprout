@@ -270,6 +270,10 @@ dragonfly, 2 butterflies, 3 bees, 2 birds, 3 swallows, heron, leaves): **update 
 first appearance (a few ms per kind). **The budget is for all creatures together:** a new creature
 has to fit in what is left, measured with everything its garden can show at once
 (`fauna-waterfall › a busy pool…` spawns the waterfall's whole roster; its CI ceiling is 8 ms).
+**`needs(w)` runs every frame for every resident, in every garden** (resident upkeep), so keep it
+cheap or cached: the kajika's (`kajikaHasSeats`) caches its seat search until the scene or the view
+changes; it cost the oasis ~27 ms/s before (devlog 142). Prefer `distanceToPolygon` over
+`closestOnPolygon(...).d`: it allocates nothing.
 
 ## Adding a creature
 A checklist for the art tasks (S12, S13, …), following the drawing-assets loop: write → render →
