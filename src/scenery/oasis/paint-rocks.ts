@@ -102,22 +102,24 @@ function shoulderAt(y: number): number {
 
 // ── the bluff ───────────────────────────────────────────────────────────────────────────────
 
-/** The hard beds that stand out as ledges (caprock), by height; the softer beds between them. */
+/** The hard beds that stand out as caprock ledges, by height. */
 const HARD_BEDS = [236, 290, 342, 386] as const;
-const SOFT_BEDS = [254, 270, 314, 364, 404] as const;
 const SHADOW = mix(EARTH.shade, EARTH.cool, 0.42);
 const RECESS = mix(EARTH.shade, EARTH.deep, 0.45);
-const VARNISH = mix(EARTH.dark, EARTH.shade, 0.35);
+const VARNISH = mix(EARTH.dark, EARTH.shade, 0.2);
 const SCREE = mix(EARTH.sand, EARTH.body, 0.3);
+/** The shade on the planes turned from the sun: violet-brown, warmer than the cast shadow. */
+const PLANE = mix(SHADOW, EARTH.deep, 0.3);
 
 type Noise = (a: number, b: number) => number;
+type Mark = { poly: Pt[]; alpha: number };
 
-/** A gully: a funnel notched into the rim, narrowing to a chute, opening onto the scree. */
+/** A gully: a V notched into the rim, tapering down to a point over its scree cone. */
 interface Gully {
   x: number;
   top: number;
   foot: number;
-  /** how deeply it is cut, 0..1 */
+  /** how deeply it is cut, 0..1; the shallow ones are creases where two buttresses have merged */
   depth: number;
   /** its west wall (turned to the sun) and east wall (in shade), top → foot */
   left: Pt[];
@@ -129,32 +131,47 @@ function screeAt(x: number, noise: Noise): number {
   return bluffFootAt(x) - 40 - noise(x / 80, 5) * 9;
 }
 
-/** The gullies left → right, cut between buttresses; the shoulder's prow stays whole. */
+/** The gullies left → right, cut between buttresses of uneven width; the shoulder's prow stays whole. */
 function layGullies(rng: Rng, noise: Noise): Gully[] {
   const out: Gully[] = [];
-  for (let x = rng.range(30, 70); x < 880; x += rng.range(80, 165)) {
-    const top = bluffTopAt(x) + (x > 424 ? 16 : 0) + rng.range(-2, 8);
-    const foot = screeAt(x, noise) + 4;
-    const depth = rng.range(0.35, 1);
-    const w = rng.range(18, 34) + depth * 10;
-    const lean = rng.range(-6, 6);
+  for (let x = rng.range(30, 60); x < 880; x += rng.range(80, 170)) {
+    const under = x > 424;
+    const top = bluffTopAt(x) + (under ? 14 : 0) + rng.range(-2, 6);
+    const depth = rng.range(0.2, 1);
+    const foot = screeAt(x, noise) + 12 - (depth < 0.45 ? rng.range(24, 50) : 0);
+    const w = rng.range(14, 28) + depth * 18;
+    const lean = rng.range(-5, 5);
     const left: Pt[] = [];
     const right: Pt[] = [];
     for (let t = 0; t <= 1.001; t += 0.1) {
       const y = top + t * (foot - top);
-      const cx = x + lean * t + noise(x / 20, t * 3) * 3;
-      const half = w * ((x > 424 ? 0.4 : 0.75) * (1 - t) ** 2.2 + 0.11 + 0.14 * t * t);
-      left.push({ x: cx - half * (1 + 0.3 * noise(t * 4, x)), y });
-      right.push({ x: cx + half * (0.9 + 0.3 * noise(x, t * 4)), y });
+      const cx = x + lean * t + noise(x / 20, t * 3) * 2.5;
+      const half = w * (under ? 0.55 : 0.6) * (1 - t) ** 1.25 + 0.8;
+      left.push({ x: cx - half * (1 + 0.25 * noise(t * 4, x)), y });
+      right.push({ x: cx + half * (0.9 + 0.25 * noise(x, t * 4)), y });
     }
     out.push({ x, top, foot, depth, left, right });
   }
   return out;
 }
 
-/** The bluff's fixed form (the brushwork varies with the seed, the cliff does not): its gullies and hard beds. */
 const FORM_NOISE = createSimplex2D(createRng('bluff-form'));
-export const BLUFF_FORM = { gullies: layGullies(createRng('bluff-gullies'), FORM_NOISE), hard: HARD_BEDS } as const;
+
+/** The softer beds between the hard ones, shared by the whole face at uneven spacing. */
+const SOFT_BEDS: readonly { y: number; weight: number }[] = (() => {
+  const rng = createRng('bluff-beds');
+  const out: { y: number; weight: number }[] = [];
+  for (let y = 222; y < 446; y += rng.range(6, 17)) {
+    if (!HARD_BEDS.some((h) => Math.abs(h - y) < 6)) out.push({ y, weight: rng.range(0.3, 1) });
+  }
+  return out;
+})();
+
+/** The bluff's fixed form (the brushwork varies with the seed, the cliff does not): its gullies and beds. */
+export const BLUFF_FORM = { gullies: layGullies(createRng('bluff-gullies'), FORM_NOISE), hard: HARD_BEDS, soft: SOFT_BEDS } as const;
+
+/** The beds' slow sway, the same across the face, dipping round the shoulder. */
+const sway = (x: number): number => FORM_NOISE(x / 160, 11) * 2.2 + Math.max(0, x - 900) * 0.05;
 
 /** A gully wall's x at height y (its ends held beyond them). */
 function wallAt(edge: readonly Pt[], y: number): number {
@@ -165,6 +182,43 @@ function wallAt(edge: readonly Pt[], y: number): number {
     if (y <= b.y) return a.x + ((b.x - a.x) * (y - a.y)) / Math.max(1e-6, b.y - a.y);
   }
   return edge[edge.length - 1]!.x;
+}
+
+function inGully(gullies: readonly Gully[], x: number, y: number, pad: number): boolean {
+  return gullies.some((g) => y >= g.top - 2 && y <= g.foot && x > wallAt(g.left, y) - pad && x < wallAt(g.right, y) + pad);
+}
+
+/** The stretches of a bed's line from a to c that lie on the face, cut where a gully crosses (pad < 0 runs into it). */
+function pieces(line: (x: number) => number, a: number, c: number, gullies: readonly Gully[] | null, noise: Noise, pad = 0): [number, number][] {
+  const out: [number, number][] = [];
+  let s: number | null = null;
+  let last = a;
+  for (let x = a; x <= c; x += 3) {
+    const y = line(x);
+    const ok = y > bluffTopAt(x) + 5 && y < screeAt(x, noise) + 2 && !(gullies && inGully(gullies, x, y, pad));
+    if (ok && s === null) s = x;
+    if (ok) last = x;
+    if (!ok && s !== null) {
+      if (last - s > 8) out.push([s, last]);
+      s = null;
+    }
+  }
+  if (s !== null && last - s > 8) out.push([s, last]);
+  return out;
+}
+
+/** A band from x0 to x1 between two lines, its depth pinched in at the ends over `ends`. */
+function band(x0: number, x1: number, top: (x: number) => number, low: (x: number) => number, ends = 10): Pt[] {
+  const up: Pt[] = [];
+  const down: Pt[] = [];
+  const step = Math.max(3, Math.min(8, (x1 - x0) / 6));
+  for (let x = x0; x <= x1 + 0.01; x += step) {
+    const k = Math.min(1, (x - x0) / ends, (x1 - x) / ends, 1);
+    const t = top(x);
+    up.push({ x, y: t });
+    down.push({ x, y: t + Math.max(0.8, (low(x) - t) * (0.25 + 0.75 * Math.max(0, k))) });
+  }
+  return [...up, ...down.reverse()];
 }
 
 /** The buttresses: the rock between two gullies, as [west edge, east edge] at a height. */
@@ -178,23 +232,10 @@ function buttresses(gullies: readonly Gully[]): ((y: number) => [number, number]
   return out;
 }
 
-/** A band from x0 to x1, d0..d1 below height y, with a slow sway. */
-function bedBand(y: number, x0: number, x1: number, d0: number, d1: number, sway: (x: number) => number, ragged = 0): Pt[] {
-  const top: Pt[] = [];
-  const low: Pt[] = [];
-  for (let x = x0; x <= x1 + 0.01; x += Math.max(3, (x1 - x0) / 12)) {
-    const s = sway(x);
-    top.push({ x, y: y + d0 + s });
-    const ends = ragged ? Math.min(1, (x - x0) / 14, (x1 - x) / 14) : 1;
-    low.push({ x, y: y + d0 + s + Math.max(1, (d1 - d0) * ends + ragged * Math.sin(x * 0.21 + y) * Math.sin(x * 0.067 + d1)) });
-  }
-  return [...top, ...low.reverse()];
-}
-
 /**
- * The bluff: a Draa sandstone and conglomerate cliff. Buttresses between eroded gullies, each lit
- * on its sun side (right) and turned into cool shade on the other; horizontal beds with harder
- * caprock ledges over dark undercuts; desert varnish hanging from the lips; scree fans at the foot.
+ * The bluff: a Draa sandstone cliff. Horizontal beds shared by the whole face, harder caprock bands
+ * overhanging softer rock, buttresses of uneven width with flat planes lit on the sun side (right)
+ * and turned into shade on the other, V gullies tapering onto scree cones, varnish under the lips.
  */
 export function* paintBluff(p: Painter, rng: Rng): Strokes {
   const body = roughOutline(BLUFF, rng, 1.8);
@@ -205,15 +246,16 @@ export function* paintBluff(p: Painter, rng: Rng): Strokes {
   clipTo(p, body);
   yield;
   // a red-ochre body, rosier on the left, golden toward the shoulder: the shade is glazed over it
-  yield* p.parts.wetInWet(box(b.x - 20, b.y - 20, b.x + b.w + 20, b.y + b.h + 20), mix(mix(EARTH.body, EARTH.gold, 0.25), EARTH.shade, 0.2), mix(EARTH.gold, EARTH.body, 0.3), {
-    rng, angle: -0.2, split: 0.55, softness: 0.7, opacity: 0.78, deform: 0.04, spread: 0.03, edge: 0, granulation: 0.6, granules: 0.18, flow: 0.55, flowScale: 90,
-    drops: [{ pigment: EARTH.deep, at: { x: 260, y: 400 }, size: 0.25, alpha: 0.3 }, { pigment: EARTH.body, at: { x: 640, y: 380 }, size: 0.25, alpha: 0.3 }, { pigment: EARTH.lit, at: { x: 960, y: 370 }, size: 0.2, alpha: 0.4 }],
+  yield* p.parts.wetInWet(box(b.x - 20, b.y - 20, b.x + b.w + 20, b.y + b.h + 20), mix(mix(EARTH.body, EARTH.gold, 0.2), EARTH.shade, 0.24), mix(EARTH.gold, EARTH.body, 0.3), {
+    rng, angle: -0.2, split: 0.55, softness: 0.7, opacity: 0.8, deform: 0.04, spread: 0.03, edge: 0, granulation: 0.6, granules: 0.18, flow: 0.55, flowScale: 90,
+    drops: [{ pigment: EARTH.deep, at: { x: 200, y: 400 }, size: 0.3, alpha: 0.36 }, { pigment: EARTH.body, at: { x: 640, y: 380 }, size: 0.25, alpha: 0.3 }, { pigment: EARTH.lit, at: { x: 960, y: 370 }, size: 0.2, alpha: 0.4 }],
   });
   yield;
+  yield* paintStrata(p, gullies, noise, rng.fork('strata'));
   // the left end: the ridge's west face turned away in cool shade, its crown and stepped east side to the sun
-  yield* p.parts.glaze({ cx: 20, cy: 340, rx: 150, ry: 150 }, SHADOW, { rng, opacity: 0.45, deform: 0.2, spread: 0.3, fade: { angle: 0, start: 0.3, amount: 1, ragged: 0.6 } });
+  yield* p.parts.glaze([{ x: -40, y: 250 }, { x: 60, y: 226 }, { x: 96, y: 232 }, { x: 120, y: 300 }, { x: 150, y: 470 }, { x: -40, y: 470 }], SHADOW, { rng, opacity: 0.5, deform: 0.08, spread: 0.12, edge: 0.15, sharpness: 0.5, fade: { angle: 0, start: 0.55, amount: 1, ragged: 0.6 } });
   yield;
-  yield* p.parts.glaze([{ x: 120, y: 214 }, { x: 206, y: 228 }, { x: 262, y: 266 }, { x: 330, y: 290 }, { x: 410, y: 316 }, { x: 380, y: 340 }, { x: 300, y: 320 }, { x: 200, y: 280 }, { x: 130, y: 250 }], EARTH.lit, { rng, opacity: 0.35, deform: 0.15, spread: 0.2, blend: 'source-over', fade: { angle: Math.PI * 0.7, start: 0.3, amount: 1, ragged: 0.7 } });
+  yield* p.parts.glaze([{ x: 120, y: 214 }, { x: 206, y: 228 }, { x: 262, y: 266 }, { x: 330, y: 290 }, { x: 410, y: 316 }, { x: 380, y: 340 }, { x: 300, y: 320 }, { x: 200, y: 280 }, { x: 130, y: 250 }], EARTH.lit, { rng, opacity: 0.42, deform: 0.15, spread: 0.2, blend: 'source-over', fade: { angle: Math.PI * 0.7, start: 0.3, amount: 1, ragged: 0.7 } });
   yield;
   // the right end: the prow's face to the sun, a core shade further in
   const rim: Pt[] = [];
@@ -228,8 +270,8 @@ export function* paintBluff(p: Painter, rng: Rng): Strokes {
   yield* p.parts.glaze([...core.map((q) => ({ x: q.x + 16, y: q.y })), ...core.slice().reverse().map((q) => ({ x: q.x - 34, y: q.y }))], SHADOW, { rng, opacity: 0.3, deform: 0.25, spread: 0.35, fade: { angle: Math.PI, start: 0.25, amount: 1, ragged: 0.8 } });
   yield;
   yield* paintButtresses(p, gullies, rng.fork('buttresses'));
-  yield* paintLedges(p, gullies, noise, rng.fork('ledges'));
   yield* paintGullies(p, gullies, rng.fork('gully'));
+  yield* paintCaprock(p, gullies, noise, rng.fork('ledges'));
   yield* paintVarnish(p, gullies, rng.fork('varnish'));
   yield* paintScree(p, gullies, noise, rng.fork('scree'));
   p.ctx.restore();
@@ -256,7 +298,7 @@ export function* paintBluff(p: Painter, rng: Rng): Strokes {
 }
 
 /** Marks wet together and dried in one pass: a glaze each would pay a drying pass each. */
-function* wetBatch(p: Painter, marks: readonly { poly: readonly Pt[]; alpha: number }[], pigment: Pigment, dry: DryOptions): Strokes {
+function* wetBatch(p: Painter, marks: readonly Mark[], pigment: Pigment, dry: DryOptions): Strokes {
   if (!marks.length) return;
   const r = bounds(marks.flatMap((m) => m.poly));
   const L = p.layer({ x: r.x - 6, y: r.y - 6, w: r.w + 12, h: r.h + 12 });
@@ -267,154 +309,248 @@ function* wetBatch(p: Painter, marks: readonly { poly: readonly Pt[]; alpha: num
   yield;
 }
 
-/** A band beside a wall, stacked three times narrower toward it: soft away from the wall, strongest at it. */
-function graded(wall: readonly Pt[], width: number, alpha: number, rng: Rng): { poly: Pt[]; alpha: number }[] {
-  return [1, 0.62, 0.3].map((k) => ({
-    poly: roughOutline([...wall, ...wall.slice().reverse().map((q) => ({ x: q.x + width * k, y: q.y }))], rng, 2.2 + 2 * k, 5),
-    alpha: alpha / 3,
-  }));
-}
-
-/** Each buttress: its west face in cool shade along the gully's wall, its east face catching the sun. */
-function* paintButtresses(p: Painter, gullies: readonly Gully[], rng: Rng): Strokes {
-  const all = buttresses(gullies);
-  const shade: { poly: Pt[]; alpha: number }[] = [];
-  const lit: { poly: Pt[]; alpha: number }[] = [];
-  for (let i = 0; i < all.length; i++) {
-    const edges = all[i]!;
-    const [m0, m1] = edges(380);
-    const w = m1 - m0;
-    const top = Math.min(bluffTopAt(Math.max(-20, m0)), bluffTopAt(Math.min(1020, m1)), bluffTopAt((m0 + m1) / 2)) - 6;
-    const foot = 486;
-    const ys: number[] = [];
-    for (let y = top; y <= foot; y += (foot - top) / 8) ys.push(y);
-    if (i > 0) shade.push(...graded(ys.map((y) => ({ x: edges(y)[0] - 2, y })), w * rng.range(0.3, 0.5), rng.range(0.45, 0.62), rng));
-    if (i < all.length - 1) lit.push(...graded(ys.map((y) => ({ x: edges(y)[1] - 1, y })), -w * rng.range(0.2, 0.36), rng.range(0.26, 0.38), rng));
-    // a vertical joint or two splitting the buttress, broken by the beds
-    for (let k = 0; k < (w > 95 ? 2 : 1); k++) {
-      if (!rng.chance(0.6)) continue;
-      const jx = m0 + w * rng.range(0.4, 0.75);
-      const y0 = Math.max(bluffTopAt(jx) + 16, rng.pick(HARD_BEDS) + 14);
-      const y1 = Math.min(bluffFootAt(jx) - 46, y0 + rng.range(26, 70));
-      if (y1 - y0 < 18) continue;
-      const pts = [{ x: jx, y: y0 }, { x: jx + rng.range(-1.5, 1.5), y: (y0 + y1) / 2 }, { x: jx + rng.range(-2, 2), y: y1 }];
-      p.stroke(pts, { rng, pigment: RECESS, width: rng.range(1.4, 2.2), taper: [0.2, 0.5], opacity: 0.32, wetness: 0.35, dryness: 0.4, wobble: 0.15 });
-      p.dryBrush(pts.map((q) => ({ x: q.x + 2, y: q.y })), { rng, pigment: EARTH.lit, width: 1.4, opacity: 0.3, dryness: 0.55, blend: 'source-over' });
+/**
+ * The bedding, the same across the whole face: soft beds as thin broken lines that run on over
+ * several buttresses and fade out, and broad bands of redder or paler sandstone between them.
+ */
+function* paintStrata(p: Painter, gullies: readonly Gully[], noise: Noise, rng: Rng): Strokes {
+  const lines: Mark[] = [];
+  const lits: Pt[][] = [];
+  const red: Mark[] = [];
+  const pale: Mark[] = [];
+  for (const bed of SOFT_BEDS) {
+    const line = (x: number) => bed.y + sway(x);
+    for (let x = -20 + rng.range(0, 60); x < 1022; ) {
+      const len = rng.range(50, 300) * (0.5 + bed.weight);
+      for (const [a, c] of rng.chance(0.65) ? pieces(line, x, Math.min(1022, x + len), gullies, noise) : []) {
+        const th = rng.range(1.2, 2.4) * (0.6 + bed.weight * 0.6);
+        lines.push({ poly: roughOutline(band(a, c, line, (q) => line(q) + th + noise(q / 30, bed.y) * 0.6, 16), rng, 0.6, 3), alpha: 0.06 + 0.16 * bed.weight });
+        if (rng.chance(0.3)) lits.push([0, 0.5, 1].map((t) => ({ x: a + (c - a) * t, y: line(a + (c - a) * t) - 1 })));
+      }
+      x += len + rng.range(10, 90);
+    }
+  }
+  const ys = [...SOFT_BEDS.map((q) => q.y), ...HARD_BEDS].sort((a, c) => a - c);
+  for (let i = 1; i < ys.length; i++) {
+    if (!rng.chance(0.5)) continue;
+    const y0 = ys[i - 1]!;
+    const y1 = ys[i]!;
+    const into = rng.chance(0.55) ? red : pale;
+    for (let x = -20 + rng.range(0, 120); x < 1022; ) {
+      const len = rng.range(120, 480);
+      for (const [a, c] of pieces((q) => y0 + sway(q) + 1, x, Math.min(1022, x + len), null, noise)) {
+        into.push({ poly: roughOutline(band(a, c, (q) => y0 + sway(q) + 1, (q) => y1 + sway(q), 30), rng, 1.2, 4), alpha: rng.range(0.08, 0.15) });
+      }
+      x += len + rng.range(20, 140);
     }
   }
   yield;
-  yield* wetBatch(p, shade, SHADOW, { edge: 0.12, sharpness: 0.4, granulation: 0.4 });
-  yield* wetBatch(p, lit, mix(EARTH.lit, EARTH.gold, 0.3), { edge: 0, granulation: 0.3, blend: 'source-over' });
+  yield* wetBatch(p, red, mix(EARTH.body, EARTH.deep, 0.45), { edge: 0.08, sharpness: 0.3, granulation: 0.5 });
+  yield* wetBatch(p, pale, mix(EARTH.lit, EARTH.gold, 0.3), { edge: 0, granulation: 0.3, blend: 'source-over' });
+  yield* wetBatch(p, lines, mix(EARTH.shade, EARTH.deep, 0.4), { edge: 0.1, sharpness: 0.4, granulation: 0.3 });
+  for (const l of lits) p.dryBrush(l, { rng, pigment: EARTH.lit, width: rng.range(1, 1.6), opacity: 0.24, dryness: 0.6, blend: 'source-over' });
+  yield;
+}
+
+type Face = 'flat' | 'angular' | 'fluted';
+
+/**
+ * Each buttress by planes, not rounded: its west side a flat face in cool shade with a hard arris
+ * that jogs where the hard beds step it back; its sun side a narrow lit plane; some faces broken
+ * into two facets, some fluted by rain.
+ */
+function* paintButtresses(p: Painter, gullies: readonly Gully[], rng: Rng): Strokes {
+  const all = buttresses(gullies);
+  const shade: Mark[] = [];
+  const facets: Mark[] = [];
+  const lit: Mark[] = [];
+  const flutes: Mark[] = [];
+  const edges: Pt[][] = [];
+  for (let i = 0; i < all.length; i++) {
+    const at = all[i]!;
+    const [m0, m1] = at(400);
+    const w = m1 - m0;
+    const top = Math.min(bluffTopAt(Math.max(-20, m0)), bluffTopAt(Math.min(1020, m1)), bluffTopAt((m0 + m1) / 2)) - 6;
+    const foot = 486;
+    const cuts = [top, ...HARD_BEDS.filter((h) => h > top + 10), foot];
+    const kind: Face = rng.pick<Face>(w < 80 ? ['flat', 'fluted', 'flat'] : ['flat', 'angular', 'fluted', 'angular']);
+    const d = w * rng.range(0.1, 0.4);
+    const e = w * rng.range(0.08, 0.22);
+    const wall: Pt[] = [];
+    const arris: Pt[] = [];
+    const sun: Pt[] = [];
+    const rimEdge: Pt[] = [];
+    let dk = d;
+    let ek = e;
+    for (let k = 1; k < cuts.length; k++) {
+      // the planes step back at some beds, not all, so the face doesn't read as boxes
+      if (rng.chance(0.5)) dk = d * rng.range(0.6, 1.4);
+      if (rng.chance(0.5)) ek = e * rng.range(0.5, 1.6);
+      const lean = rng.range(-6, 6);
+      for (let j = 0; j <= 3; j++) {
+        const y = Math.min(cuts[k - 1]! + ((cuts[k]! - cuts[k - 1]!) * j) / 3, screeAt(at(400)[0], FORM_NOISE) + 8);
+        const [l, r] = at(y);
+        wall.push({ x: l - 2, y });
+        arris.push({ x: l + dk + lean * (j / 3 - 0.5), y });
+        rimEdge.push({ x: r + 1, y });
+        sun.push({ x: r - ek, y });
+      }
+    }
+    if (i > 0) {
+      const a = rng.range(0.42, 0.6);
+      const n = Math.round(wall.length * rng.range(0.55, 0.8));
+      shade.push({ poly: roughOutline([...wall, ...arris.slice().reverse()], rng, 0.9, 4), alpha: a * 0.55 });
+      shade.push({ poly: roughOutline([...wall.slice(0, n), ...arris.slice(0, n).reverse()], rng, 0.9, 4), alpha: a * 0.45 });
+      edges.push(arris.filter((q) => q.y > top + 8 && q.y < foot - 30));
+    }
+    if (i < all.length - 1) lit.push({ poly: roughOutline([...sun, ...rimEdge.slice().reverse()], rng, 0.8, 4), alpha: rng.range(0.4, 0.55) });
+    const x0 = m0 + d * 1.3;
+    const x1 = m1 - e * 1.5;
+    if (kind === 'angular' && x1 - x0 > 30) {
+      // the face turns through two facets: the west one half in shade, a slanting arris between
+      const ax = x0 + (x1 - x0) * rng.range(0.3, 0.55);
+      const slant = rng.range(-12, 12);
+      const y0 = rng.pick(cuts.slice(0, -2));
+      facets.push({ poly: roughOutline([{ x: x0 - 6, y: y0 }, { x: ax, y: y0 }, { x: ax + slant, y: foot }, { x: x0 - 6, y: foot }], rng, 1, 4), alpha: rng.range(0.12, 0.2) });
+      edges.push([{ x: ax, y: y0 + 4 }, { x: ax + slant * 0.5, y: (y0 + foot) / 2 }, { x: ax + slant * 0.8, y: foot - 40 }]);
+    }
+    if (kind === 'fluted' && x1 - x0 > 20) {
+      // rain has fluted the face between two beds: grooves shaded on their east side, lit on the west
+      const n = Math.min(3, Math.max(1, Math.round((x1 - x0) / 30)));
+      const ya = cuts[rng.int(0, Math.max(0, cuts.length - 3))]! + 4;
+      const yb = screeAt((x0 + x1) / 2, FORM_NOISE);
+      for (let f = 0; f < n; f++) {
+        const fx = x0 + ((x1 - x0) * (f + 0.5)) / n + rng.range(-3, 3);
+        const fw = rng.range(6, 12);
+        const drift = rng.range(-2, 2);
+        const end = ya + (yb - ya) * rng.range(0.7, 1);
+        flutes.push({ poly: roughOutline([{ x: fx, y: ya }, { x: fx + fw, y: ya }, { x: fx + fw * 0.4 + drift, y: end }, { x: fx + drift, y: end }], rng, 1.2, 4), alpha: rng.range(0.08, 0.13) });
+        flutes.push({ poly: roughOutline([{ x: fx + fw * 0.3, y: ya + 6 }, { x: fx + fw * 0.9, y: ya + 6 }, { x: fx + fw * 0.5 + drift, y: (ya + end) / 2 }, { x: fx + fw * 0.3 + drift, y: (ya + end) / 2 }], rng, 0.8, 3), alpha: rng.range(0.06, 0.1) });
+        p.dryBrush([{ x: fx - 1, y: ya + 8 }, { x: fx - 1 + drift * 0.5, y: (ya + end) / 2 }], { rng, pigment: EARTH.lit, width: 1.3, opacity: 0.24, dryness: 0.5, blend: 'source-over' });
+      }
+    }
+  }
+  yield;
+  yield* wetBatch(p, shade, PLANE, { edge: 0.2, sharpness: 0.6, granulation: 0.4 });
+  yield* wetBatch(p, facets, PLANE, { edge: 0.15, sharpness: 0.55, granulation: 0.3 });
+  yield* wetBatch(p, flutes, PLANE, { edge: 0.05, sharpness: 0.3 });
+  yield* wetBatch(p, lit, lighten(mix(EARTH.lit, EARTH.gold, 0.15), 0.04), { edge: 0, granulation: 0.3, blend: 'source-over' });
+  // the arrises catch a broken lit line where the planes meet
+  for (const run of edges) if (run.length > 1) p.dryBrush(run.map((q) => ({ x: q.x + 1.2, y: q.y })), { rng, pigment: lighten(EARTH.lit, 0.06), width: 1.4, opacity: 0.32, dryness: 0.65, blend: 'source-over' });
+  yield;
 }
 
 /**
- * The beds across each buttress: soft ones as faint broken lines; hard caprock as a ledge, a lit
- * lip and a pale face over a dark undercut that deepens into recesses here and there. Each
- * buttress carries them at its own small offset, and now and then one has weathered away.
+ * The hard beds as caprock, running on across the buttresses: a lit top over a dark undercut where
+ * the softer rock under it has weathered back, the lip proud of each gully wall; broken in stretches
+ * where it has fallen, with a few deeper alcoves. A cap just under the rim squares off the tops.
  */
-function* paintLedges(p: Painter, gullies: readonly Gully[], noise: Noise, rng: Rng): Strokes {
-  const sway = (x: number) => noise(x / 120, 11) * 2.5 + Math.max(0, x - 900) * 0.05;
-  const span = (y: number, edges: (y: number) => [number, number]): [number, number] | null => {
-    const [e0, e1] = edges(y);
-    let x0: number | null = null;
-    let x1 = e0;
-    for (let x = e0 + 3; x <= e1 - 3; x += 3) {
-      const ok = y + sway(x) > bluffTopAt(x) + 5 && y + sway(x) < screeAt(x, noise) + 4;
-      if (ok && x0 === null) x0 = x;
-      if (ok) x1 = x;
-      else if (x0 !== null) break;
-    }
-    return x0 !== null && x1 - x0 > 10 ? [x0, x1] : null;
-  };
-  const faces: { poly: Pt[]; alpha: number }[] = [];
-  const cuts: { poly: Pt[]; alpha: number }[] = [];
-  const holes: { poly: Pt[]; alpha: number }[] = [];
-  for (const edges of buttresses(gullies)) {
-    const dy = rng.range(-4, 4);
-    for (const y0 of SOFT_BEDS) {
-      const s = span(y0 + dy, edges);
-      if (!s || !rng.chance(0.5)) continue;
-      const [x0, x1] = s;
-      const a = x0 + rng.range(0, (x1 - x0) * 0.3);
-      const c = x1 - rng.range(0, (x1 - x0) * 0.3);
-      const pts = [0, 0.5, 1].map((t) => ({ x: a + (c - a) * t, y: y0 + dy + sway(a + (c - a) * t) + rng.range(-0.8, 0.8) }));
-      p.dryBrush(pts.map((q) => ({ x: q.x, y: q.y + 2 })), { rng, pigment: mix(EARTH.shade, EARTH.deep, 0.3), width: rng.range(1.4, 2.4), opacity: 0.24, dryness: 0.6 });
-      if (rng.chance(0.5)) p.dryBrush(pts, { rng, pigment: EARTH.lit, width: rng.range(1, 1.8), opacity: 0.26, dryness: 0.6, blend: 'source-over' });
-    }
-    for (const y0 of HARD_BEDS) {
-      const y = y0 + dy + rng.range(-1.5, 1.5);
-      const s = span(y, edges);
-      if (!s || !rng.chance(0.9)) continue;
-      const x0 = s[0] + rng.range(0, 0.18) * (s[1] - s[0]);
-      const x1 = s[1] - rng.range(0, 0.18) * (s[1] - s[0]);
-      const th = rng.range(4, 9);
-      const cut = th + rng.range(5, 9);
-      faces.push({ poly: roughOutline(bedBand(y, x0, x1, 0, th, sway), rng, 0.8, 3), alpha: 0.42 });
-      cuts.push({ poly: roughOutline(bedBand(y, x0 - 2, x1 + 2, th, cut, sway, 3), rng, 1, 3), alpha: 0.4 });
-      cuts.push({ poly: bedBand(y, x0 + 4, x1 - 4, th, th + (cut - th) * 0.5, sway, 1.5), alpha: 0.22 });
-      for (let x = x0; x < x1 - 4; ) {
-        const len = Math.min(x1 - x, rng.range(24, 70));
-        const pts = [0, 0.5, 1].map((t) => ({ x: x + len * t, y: y + sway(x + len * t) + 0.5 }));
-        p.dryBrush(pts, { rng, pigment: lighten(EARTH.lit, 0.12), width: rng.range(1.8, 2.8), opacity: 0.55, dryness: 0.45, blend: 'source-over' });
-        if (rng.chance(0.5)) p.dryBrush(pts.map((q) => ({ x: q.x, y: q.y + th + 0.5 })), { rng, pigment: mix(EARTH.dark, EARTH.shade, 0.4), width: rng.range(1.2, 2.6), opacity: 0.32, dryness: 0.5 });
-        x += len + rng.range(3, 16);
+function* paintCaprock(p: Painter, gullies: readonly Gully[], noise: Noise, rng: Rng): Strokes {
+  const faces: Mark[] = [];
+  const cuts: Mark[] = [];
+  const alcoves: Mark[] = [];
+  const lips: Pt[][] = [];
+  const floors: Pt[][] = [];
+  const beds = [
+    ...HARD_BEDS.map((h, i) => ({ line: (x: number) => h + sway(x), heavy: 1, seed: i * 7, to: 1022 })),
+    { line: (x: number) => bluffTopAt(x) + (x > 424 && x < 900 ? 20 : 10) + noise(x / 50, 31) * 1.5, heavy: 0.75, seed: 40, to: 900 },
+  ];
+  let alcoveCount = 0;
+  for (const bed of beds) {
+    const { line, heavy, seed, to } = bed;
+    const th = (x: number) => (2.5 + 3.5 * (0.5 + 0.5 * noise(x / 45, seed))) * heavy;
+    const ov = (x: number) => (4 + 7 * (0.5 + 0.5 * noise(x / 70, seed + 9))) * heavy;
+    for (let x = -20 + rng.range(0, 40); x < to; ) {
+      const len = rng.range(140, 560) * heavy;
+      for (const [a, c] of pieces(line, x, Math.min(to, x + len), gullies, noise, -2.5)) {
+        faces.push({ poly: band(a - 1, c + 1, line, (q) => line(q) + th(q), 4), alpha: 0.42 });
+        cuts.push({ poly: band(a, c, (q) => line(q) + th(q), (q) => line(q) + th(q) + ov(q), 10), alpha: 0.34 });
+        cuts.push({ poly: band(a + 2, c - 2, (q) => line(q) + th(q), (q) => line(q) + th(q) + ov(q) * 0.45, 8), alpha: 0.24 });
+        for (let s = a; s < c - 4; ) {
+          const l = Math.min(c - s, rng.range(30, 110));
+          lips.push([0, 0.5, 1].map((t) => ({ x: s + l * t, y: line(s + l * t) + 0.6 })));
+          s += l + rng.range(4, 20);
+        }
+        // an alcove where the soft rock under the cap has weathered far back
+        if (c - a > 70 && alcoveCount < 5 && heavy === 1 && rng.chance(0.3)) {
+          alcoveCount++;
+          const cx = rng.range(a + 25, c - 25);
+          const ww = rng.range(26, 50);
+          const dd = rng.range(6, 11);
+          const y = line(cx) + th(cx);
+          const arc: Pt[] = [];
+          for (let t = 0; t <= 1.001; t += 0.125) arc.push({ x: cx - ww / 2 + ww * t, y: y + dd * Math.sin(Math.PI * t) ** 0.3 });
+          const poly = roughOutline([{ x: cx - ww / 2, y }, ...arc, { x: cx + ww / 2, y }], rng, 0.8, 3);
+          alcoves.push({ poly, alpha: 0.32 }, { poly: band(cx - ww / 2 + 2, cx + ww / 2 - 2, () => y, () => y + dd * 0.45, 4), alpha: 0.3 });
+          floors.push([{ x: cx - ww * 0.4, y: y + dd * 0.9 }, { x: cx + ww * 0.4, y: y + dd * 0.85 }]);
+        }
       }
-      // a recess where the soft rock under the ledge has weathered back
-      if (x1 - x0 > 40 && rng.chance(0.45)) {
-        const cx = rng.range(x0 + 12, x1 - 12);
-        holes.push({ poly: blob(cx, y + sway(cx) + th + 4, rng.range(7, 15), rng.range(3, 5), rng, { irregularity: 0.3, points: 12 }), alpha: 0.55 });
-      }
+      x += len + rng.range(12, 70);
     }
     yield;
   }
   yield* wetBatch(p, faces, lighten(EARTH.lit, 0.04), { edge: 0, granulation: 0.3, blend: 'source-over' });
-  yield* wetBatch(p, cuts, RECESS, { edge: 0.25, sharpness: 0.5, granulation: 0.4 });
-  yield* wetBatch(p, holes, mix(RECESS, EARTH.dark, 0.35), { edge: 0.3, sharpness: 0.5 });
+  yield* wetBatch(p, cuts, RECESS, { edge: 0.2, sharpness: 0.5, granulation: 0.4 });
+  yield* wetBatch(p, alcoves, mix(RECESS, EARTH.dark, 0.3), { edge: 0.25, sharpness: 0.5 });
+  for (const l of lips) p.dryBrush(l, { rng, pigment: lighten(EARTH.lit, 0.12), width: rng.range(1.6, 2.6), opacity: 0.5, dryness: 0.45, blend: 'source-over' });
+  for (const f of floors) p.dryBrush(f, { rng, pigment: EARTH.lit, width: 1.6, opacity: 0.4, dryness: 0.4, blend: 'source-over' });
+  yield;
 }
 
-/** The gullies: a funnel in shade, its sun-facing west wall catching the light, a dark cleft down its chute. */
+/** The gullies: a V in shade, darkest high up where it bites deepest, its sun-facing west wall lit. */
 function* paintGullies(p: Painter, gullies: readonly Gully[], rng: Rng): Strokes {
-  const funnels: { poly: Pt[]; alpha: number }[] = [];
-  const walls: { poly: Pt[]; alpha: number }[] = [];
+  const funnels: Mark[] = [];
+  const walls: Mark[] = [];
   for (const g of gullies) {
     const axis = g.left.map((q, i) => ({ x: (q.x + g.right[i]!.x) / 2, y: q.y }));
     const d = g.depth;
-    funnels.push({ poly: roughOutline([...g.left, ...g.right.slice().reverse()], rng, 1.5, 4), alpha: 0.18 + 0.26 * d });
-    walls.push({ poly: roughOutline([...axis.map((q) => ({ x: q.x - 1, y: q.y })), ...g.right.slice().reverse()], rng, 1.2, 4), alpha: 0.14 + 0.3 * d });
-    const chute = axis.slice(3);
-    if (d > 0.55) p.stroke(chute.map((q, i) => ({ x: q.x + Math.sin(i * 1.7 + g.x) * 0.8, y: q.y })), { rng, pigment: mix(EARTH.dark, RECESS, 0.4), width: rng.range(1.8, 2.8), taper: [0.2, 0.5], opacity: 0.42, wetness: 0.45, dryness: 0.3, wobble: 0.2 });
-    p.dryBrush(g.left.slice(1, -1).map((q) => ({ x: q.x + 2.2, y: q.y })), { rng, pigment: lighten(EARTH.lit, 0.08), width: 2.4, opacity: 0.45, dryness: 0.5, blend: 'source-over' });
+    funnels.push({ poly: roughOutline([...g.left, ...g.right.slice().reverse()], rng, 1.2, 4), alpha: 0.1 + 0.2 * d });
+    walls.push({ poly: roughOutline([...axis.map((q) => ({ x: q.x - 0.5, y: q.y })), ...g.right.slice().reverse()], rng, 1, 4), alpha: 0.12 + 0.28 * d });
+    const n = Math.round(4 + 3 * d);
+    const back = axis.slice(0, n);
+    walls.push({ poly: roughOutline([...back.map((q) => ({ x: q.x - 1.5, y: q.y })), axis[n]!, ...back.slice().reverse().map((q, i) => ({ x: (q.x + g.right[n - 1 - i]!.x) / 2, y: q.y }))], rng, 0.8, 3), alpha: 0.14 * d });
+    p.dryBrush(g.left.slice(1, -2).map((q) => ({ x: q.x + 2, y: q.y })), { rng, pigment: lighten(EARTH.lit, 0.1), width: 3, opacity: 0.55, dryness: 0.4, blend: 'source-over' });
   }
   yield;
   yield* wetBatch(p, funnels, SHADOW, { edge: 0.2, sharpness: 0.45, granulation: 0.4 });
-  yield* wetBatch(p, walls, RECESS, { edge: 0.3, sharpness: 0.5 });
+  yield* wetBatch(p, walls, RECESS, { edge: 0.15, sharpness: 0.4 });
 }
 
-/** Desert varnish: dark stains hanging from the lips in loose curtains, long and short, never a row of drips. */
+/** Desert varnish: dark sheets hanging from the lips and the rim, streaked, of uneven length, never a row of drips. */
 function* paintVarnish(p: Painter, gullies: readonly Gully[], rng: Rng): Strokes {
-  const stains: { poly: Pt[]; alpha: number }[] = [];
+  const stains: Mark[] = [];
+  const sheets: Mark[] = [];
   for (const y of [...HARD_BEDS, 0]) {
-    for (let cx = rng.range(-10, 80); cx < 1000; cx += rng.range(90, 200)) {
-      const from = y === 0 ? bluffTopAt(cx) + 4 : y + 12;
+    for (let cx = rng.range(-10, 80); cx < 1000; cx += rng.range(70, 180)) {
+      const from = y === 0 ? bluffTopAt(cx) + 4 : y + sway(cx) + 10;
       if (from < bluffTopAt(cx) + 2 || from > bluffFootAt(cx) - 60) continue;
-      if (gullies.some((g) => Math.abs(g.x - cx) < 10)) continue;
-      const n = rng.int(2, 5);
+      if (inGully(gullies, cx, from + 6, 6)) continue;
+      // a faint sheet, then streaks through it
+      const sw = rng.range(18, 44);
+      const sl = rng.range(22, 70);
+      const sEnd = Math.min(from + sl, bluffFootAt(cx) - 44);
+      const sa = rng.range(0.18, 0.3);
+      for (const k of sEnd - from > 8 ? [1, 0.55] : []) {
+        const e = from + (sEnd - from) * k;
+        sheets.push({ poly: roughOutline([{ x: cx - (sw / 2) * k, y: from }, { x: cx + (sw / 2) * k, y: from }, { x: cx + sw * 0.12, y: e }, { x: cx - sw * 0.15, y: e }], rng, 2, 4), alpha: sa / 2 });
+      }
+      const n = rng.int(1, 4);
       for (let i = 0; i < n; i++) {
-        const x = cx + rng.range(-24, 24);
-        const len = rng.range(10, 50) * (rng.chance(0.25) ? 1.8 : 1);
-        const w = rng.range(2.5, 9);
+        const x = cx + rng.range(-sw / 2, sw / 2);
+        const len = rng.range(10, 46) * (rng.chance(0.25) ? 1.7 : 1);
+        const w = rng.range(4, 10);
         const end = Math.min(from + len, bluffFootAt(x) - 44);
         if (end - from < 8) continue;
         const drift = rng.range(-2, 2);
-        const a = rng.range(0.14, 0.3);
-        // stacked shorter toward the lip: darkest where it hangs from, lost toward its end
-        for (const k of [1, 0.65, 0.35]) {
+        const a = rng.range(0.12, 0.24);
+        for (const k of [1, 0.6, 0.3]) {
           const e = from + (end - from) * k;
           stains.push({ poly: roughOutline([{ x: x - w / 2, y: from }, { x: x + w / 2, y: from }, { x: x + w * 0.2 + drift * k, y: e }, { x: x - w * 0.15 + drift * k, y: e }], rng, 0.8, 3), alpha: a / 3 });
         }
       }
     }
   }
+  yield* wetBatch(p, sheets, VARNISH, { edge: 0, granulation: 0.6 });
   yield* wetBatch(p, stains, VARNISH, { edge: 0.15, sharpness: 0.4, granulation: 0.5 });
 }
 
@@ -422,6 +558,8 @@ function* paintVarnish(p: Painter, gullies: readonly Gully[], rng: Rng): Strokes
 function* paintScree(p: Painter, gullies: readonly Gully[], noise: Noise, rng: Rng): Strokes {
   const top: Pt[] = [];
   for (let x = -30; x <= 1040; x += 10) top.push({ x, y: screeAt(Math.min(1022, x), noise) });
+  yield* p.parts.glaze([...top.map((q) => ({ x: q.x, y: q.y + 6 })), { x: 1040, y: 490 }, { x: -30, y: 490 }], mix(EARTH.sand, EARTH.lit, 0.3), { rng, opacity: 0.4, deform: 0.04, spread: 0.08, edge: 0, granulation: 0.5, blend: 'source-over', fade: { angle: -Math.PI / 2, start: 0.4, amount: 1, ragged: 0.8 } });
+  yield;
   yield* p.parts.wash([...top, { x: 1040, y: 490 }, { x: -30, y: 490 }], SCREE, { rng, layers: 8, opacity: 0.5, deform: 0.03, spread: 0.06, edge: 0.1, granulation: 0.8, granules: 0.25, fade: { angle: -Math.PI / 2, start: 0.55, amount: 1, ragged: 0.8 } });
   yield;
   const pale: { poly: Pt[]; alpha: number }[] = [];
@@ -436,7 +574,7 @@ function* paintScree(p: Painter, gullies: readonly Gully[], noise: Noise, rng: R
     const crest = gx + rng.range(-0.15, 0.15) * fw;
     for (const k of [1, 0.7]) {
       const yk = foot - (foot - y0) * k;
-      pale.push({ poly: roughOutline([{ x: gx - 8 * k, y: yk }, { x: gx + 8 * k, y: yk }, { x: gx + fw * k, y: foot }, { x: gx - fw * 0.9 * k, y: foot }], rng, 2.5, 5), alpha: 0.17 });
+      pale.push({ poly: roughOutline([{ x: gx - 8 * k, y: yk }, { x: gx + 8 * k, y: yk }, { x: gx + fw * k, y: foot }, { x: gx - fw * 0.9 * k, y: foot }], rng, 2.5, 5), alpha: 0.24 });
     }
     dim.push({ poly: roughOutline([{ x: gx - 3, y: y0 + 2 }, { x: gx + 1, y: y0 }, { x: crest, y: foot }, { x: gx - fw * 0.9, y: foot }], rng, 2.5, 5), alpha: 0.13 });
     dim.push({ poly: roughOutline([{ x: gx - 3, y: y0 + 2 }, { x: gx, y: y0 + 2 }, { x: crest - fw * 0.15, y: foot }, { x: gx - fw * 0.5, y: foot }], rng, 2, 5), alpha: 0.13 });

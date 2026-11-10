@@ -58,7 +58,7 @@ describe('oasis rock painting (O2)', () => {
 
   it('is deterministic: the same marks every time, and the same crumbling for each block', () => {
     // quantised hashes from a fresh process, pinned as the waterfall's (paint caches warm up across runs)
-    expect({ overview: runs.overview!.hash, detail: runs.detail!.hash }).toEqual({ overview: 'd4aa4d70', detail: '0e4b8aa9' });
+    expect({ overview: runs.overview!.hash, detail: runs.detail!.hash }).toEqual({ overview: '59fcb2af', detail: '94c1b4e4' });
     expect(runs.again!.chunks.map((c) => c.name)).toEqual(runs.overview!.chunks.map((c) => c.name));
     for (const b of KSAR) expect(blockShape(b)).toEqual(blockShape(b));
   });
