@@ -9,7 +9,8 @@ import type { GardenChoice } from './types';
 /**
  * The dock's Gardens section (ADR 0244): a card per garden to choose from, the one on view
  * marked. Choosing dispatches `scenery/view`. Thumbnails are small overviews of each garden
- * (ADR 0285, `scenery/thumbnail.ts`): live, stored, or painted small. docs/systems/ui.md › Gardens.
+ * (ADR 0285, `scenery/thumbnail.ts`): live, stored, or from the garden's pre-painted overview
+ * (ADR 0339). docs/systems/ui.md › Gardens.
  */
 export interface GardensSection {
   readonly el: HTMLElement;
@@ -206,7 +207,7 @@ export function createGardensSection(ctx: UIContext, choices: readonly GardenCho
     seen = next;
     if (!started) return;
     if (next.scenery !== prev.scenery || next.plants !== prev.plants) takeSoon();
-    // a garden left before its live take: painted small, like one never seen
+    // a garden left before its live take: from its painting, like one never seen
     if (next.scenery !== prev.scenery && filling) idle(() => void fillAll());
   });
 
@@ -214,7 +215,7 @@ export function createGardensSection(ctx: UIContext, choices: readonly GardenCho
     if (started || disposed) return;
     started = true;
     takeSoon();
-    // the stored or small painted thumbnails of the other gardens: once the cards near the window
+    // pre-paint the other gardens and fill their thumbnails once the cards near the window (ADR 0339)
     if (typeof IntersectionObserver === 'undefined') {
       filling = true;
       return idle(() => void fillAll());
