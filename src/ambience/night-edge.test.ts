@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { fadeHeight, featherWidth } from '../ui/stage-edge';
 import { blendWeights, only, pinnedState } from './daylight';
-import { edgeBand, edgeStrength, nightEdgeFields } from './night-edge';
+import { edgeBand, edgeStrength, nightEdgeFields, nightEdgeFor } from './night-edge';
 
 describe('night edge (ADR 0184)', () => {
   it('uses the same bands as the stage mask it sits inside', () => {
@@ -62,5 +62,10 @@ describe('night edge (ADR 0184)', () => {
     const a = nightEdgeFields({ w: 120, h: 80, cssPerPx: 2, seed: 'x' });
     const b = nightEdgeFields({ w: 120, h: 80, cssPerPx: 2, seed: 'x' });
     expect(a.lift).toEqual(b.lift);
+  });
+
+  it('is one edge per seed for the page, so a garden switch never builds it again (ADR 0337)', () => {
+    expect(nightEdgeFor('switch-edge')).toBe(nightEdgeFor('switch-edge'));
+    expect(nightEdgeFor('other-edge')).not.toBe(nightEdgeFor('switch-edge'));
   });
 });

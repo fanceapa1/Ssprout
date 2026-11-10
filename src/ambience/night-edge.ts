@@ -113,10 +113,20 @@ export interface NightEdge {
 /** Rim pigment: the night's indigo where it pooled (multiplied). */
 const RIM = [58, 64, 110] as const;
 
+/** Canvas sizes an edge keeps built at once. */
+const EDGE_SIZES = 3;
+const shared = new Map<string, NightEdge>();
+
+/** One edge per seed for the page: it depends only on the canvas size, so another garden reuses it. */
+export function nightEdgeFor(seed = 'night-edge'): NightEdge {
+  let e = shared.get(seed);
+  if (!e) shared.set(seed, (e = createNightEdge(seed)));
+  return e;
+}
+
 export function createNightEdge(seed = 'night-edge'): NightEdge {
-  let key = '';
-  let liftCanvas: AnyCanvas | null = null;
-  let rimCanvas: AnyCanvas | null = null;
+  /** the built canvases by size, the last few kept (the studio draws several sizes) */
+  const builds = new Map<string, { lift: AnyCanvas; rim: AnyCanvas } | null>();
 
   const make = (w: number, h: number): AnyCanvas | null => {
     if (typeof OffscreenCanvas !== 'undefined') return new OffscreenCanvas(w, h);
@@ -129,7 +139,7 @@ export function createNightEdge(seed = 'night-edge'): NightEdge {
     return null;
   };
 
-  function build(pw: number, ph: number, cssPerPx: number): void {
+  function build(pw: number, ph: number, cssPerPx: number): { lift: AnyCanvas; rim: AnyCanvas } | null {
     // fields at about one CSS px per pixel (crisp enough for the break, cheap to build once)
     const fw = Math.max(1, Math.round(pw / cssPerPx));
     const fh = Math.max(1, Math.round(ph / cssPerPx));
@@ -138,7 +148,7 @@ export function createNightEdge(seed = 'night-edge'): NightEdge {
     const rc = make(fw, fh);
     const lctx = lc?.getContext('2d') as CanvasRenderingContext2D | null;
     const rctx = rc?.getContext('2d') as CanvasRenderingContext2D | null;
-    if (!lc || !rc || !lctx || !rctx) return;
+    if (!lc || !rc || !lctx || !rctx) return null;
     const li = lctx.createImageData(fw, fh);
     const ri = rctx.createImageData(fw, fh);
     for (let i = 0; i < f.lift.length; i++) {
@@ -154,8 +164,7 @@ export function createNightEdge(seed = 'night-edge'): NightEdge {
     }
     lctx.putImageData(li, 0, 0);
     rctx.putImageData(ri, 0, 0);
-    liftCanvas = lc;
-    rimCanvas = rc;
+    return { lift: lc, rim: rc };
   }
 
   return {
@@ -168,22 +177,22 @@ export function createNightEdge(seed = 'night-edge'): NightEdge {
       const cssW = canvas.clientWidth || pw;
       const cssPerPx = Math.max(0.5, pw / Math.max(1, cssW));
       const k = `${pw}x${ph}@${cssPerPx.toFixed(3)}`;
-      if (k !== key) {
-        key = k;
-        liftCanvas = null;
-        rimCanvas = null;
-        build(pw, ph, cssPerPx);
+      let b = builds.get(k);
+      if (b === undefined) {
+        b = build(pw, ph, cssPerPx);
+        builds.set(k, b);
+        if (builds.size > EDGE_SIZES) builds.delete(builds.keys().next().value!);
       }
-      if (!liftCanvas || !rimCanvas) return;
+      if (!b) return;
       ctx.save();
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.imageSmoothingEnabled = true;
       ctx.globalCompositeOperation = 'multiply';
       ctx.globalAlpha = 0.2 * strength;
-      ctx.drawImage(rimCanvas as CanvasImageSource, 0, 0, pw, ph);
+      ctx.drawImage(b.rim as CanvasImageSource, 0, 0, pw, ph);
       ctx.globalCompositeOperation = 'source-over';
       ctx.globalAlpha = strength;
-      ctx.drawImage(liftCanvas as CanvasImageSource, 0, 0, pw, ph);
+      ctx.drawImage(b.lift as CanvasImageSource, 0, 0, pw, ph);
       ctx.restore();
     },
   };
