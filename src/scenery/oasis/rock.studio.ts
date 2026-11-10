@@ -1,7 +1,6 @@
 /**
- * Studio: the oasis's rock (O2, O9): the whole rock element (bluff and ksar), the ksar close up
- * (horns, carved bands, openings), its tallest tower and the seat in the rock, the bluff's
- * shoulder, and the painting so far.
+ * Studio: the oasis's rock (O2, O9, O10): the whole rock element (bluff and ksar), the ksar close
+ * up, its tallest tower and the seat in the rock, the bluff's two ends, and the painting so far.
  */
 import { paperTexture } from '../../paint';
 import { WORLD_H, WORLD_W, type Rect } from '../../render/viewport';
@@ -34,10 +33,11 @@ const section: StudioSection = {
   title: 'Scenery · oasis rock',
   order: 142,
   entries: [
-    region('rock', 'the rock element: the bluff (conglomerate, sandstone beds, runnels) and the ksar on it', { x: -20, y: 120, w: 1060, h: 380 }, ['rock']),
+    region('rock', 'the rock element: the bluff (buttresses between gullies, caprock ledges, varnish, scree fans) and the ksar on it', { x: -20, y: 120, w: 1060, h: 380 }, ['rock']),
     region('ksar', 'the ksar close up: tapering pisé towers with rounded horns and worn merlons, houses stepping back, ruined curtain walls, all growing out of the rock', { x: 420, y: 130, w: 490, h: 240 }, ['rock']),
     region('tower', 'the tallest tower and its seat: wet-in-wet pisé, lit flank, carved band in loose brush marks, openings with palm-wood lintels, the rock rising into its foot', { x: 590, y: 140, w: 200, h: 220 }, ['rock'], 600),
-    region('shoulder', 'the bluff’s rounded, broken shoulder: lit face to the sun, core shade, beds wrapping round', { x: 820, y: 290, w: 240, h: 200 }, ['rock']),
+    region('shoulder', 'the bluff’s right end: the prow lit to the sun, core shade, ledges, the rock carried up into the east tower, scree at the foot', { x: 800, y: 280, w: 260, h: 210 }, ['rock']),
+    region('ridge', 'the bluff’s left end: the ridge’s crown and stepped ledges, gullies notching the rim, the west face in cool shade', { x: -20, y: 200, w: 460, h: 290 }, ['rock']),
     region('scene', 'the painting so far, with the rock in it', { x: 0, y: 0, w: WORLD_W, h: WORLD_H }, undefined),
   ],
 };
