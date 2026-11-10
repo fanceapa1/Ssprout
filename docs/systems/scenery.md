@@ -546,25 +546,38 @@ part of them; the slots sit between the basin slots' x where they can.
 ### Rock (O2, `paint-rocks.ts`)
 Two steps, `bluff` then `ksar`, painted in parts (ADR 0226, 0238). Both use the same golden-red
 earth (`EARTH`), so the building grows out of the rock. The sun is on the right (ADR 0300).
-- **Bluff** (O10, devlog 131): a hand-cut outline (noise ≤ 1.8, inside the sky's hang), painted
-  as a Draa sandstone and conglomerate cliff. Its form is fixed (`BLUFF_FORM`, seeded by name, so
-  only the brushwork follows the art seed): eight gullies, each a funnel notched into the rim that
-  narrows to a chute and opens onto the scree (the shoulder's prow has none), and four hard beds.
-  - A red-ochre body, rosier on the left and golden toward the shoulder; the left ridge's west
-    face in cool shade with its crown and stepped east side lit; the prow's face to the sun with
-    a core shade further in.
-  - Buttresses between the gullies: the west face of each in cool violet-brown shade along the
-    gully wall, the east face catching the sun, a joint or two. The shade is laid as three
-    stacked, narrower bands so it is strongest at the wall and lost away from it.
-  - Beds per buttress, each at its own small offset: soft ones as faint broken lines, hard ones as
-    caprock ledges (a lit lip, a pale face, a dark undercut, the odd weathered recess), sometimes
-    weathered away. Gullies in shade, deeper on their east wall, the west wall lit, a dark cleft
-    down the deep ones. Desert varnish hangs from the lips in loose curtains of tapering stains.
-  - A scree apron at the foot: a granulating wash, a cone at each gully mouth (pale on its sun
-    side, shaded on the west), pebbles, a few fallen blocks; the scree spills onto the terrace.
-    A warm bounce along the foot and a lit rim where the skyline turns to the sun.
+- **Bluff** (O10, devlog 131; second pass O13, devlog 138): a hand-cut outline (noise ≤ 1.8,
+  inside the sky's hang), painted as a Draa sandstone cliff. Its form is fixed (`BLUFF_FORM`,
+  seeded by name, so only the brushwork follows the art seed): seven V gullies (two of them
+  shallow creases where buttresses have merged, stopping short of the scree), buttresses 89–162
+  wide between them, four hard beds and seventeen soft ones at uneven spacing. The shoulder's
+  prow has no gully.
+  - A red-ochre body, rosier and deeper on the left, golden toward the shoulder; the left ridge's
+    west face a cool shade plane with its crown and stepped east side lit; the prow's face to the
+    sun with a core shade further in.
+  - **Strata** (`paintStrata`), shared by the whole face, never per buttress: the soft beds as thin
+    broken lines that run on over several buttresses and fade, and broad faint bands of redder or
+    paler sandstone between beds.
+  - **Buttresses by plane** (`paintButtresses`), not rounded: the west side of each a flat
+    violet-brown shade plane (`PLANE`) with a crisp arris that leans and jogs back at some hard
+    beds, lost toward the foot; the east side a narrow lit plane. Some faces turn through two
+    facets (a slanting arris, the west facet half in shade), some are fluted by long soft grooves.
+    The arrises catch a broken lit line.
+  - **Gullies** (`paintGullies`): a V in shade that tapers to a point over its scree cone, darkest
+    high up where it bites deepest, the east wall in shade and the west wall lit. No cleft hangs
+    below.
+  - **Caprock** (`paintCaprock`): each hard bed, and a cap just under the rim (left of the
+    shoulder), runs as long bands across the buttresses, broken where a stretch has fallen: a lit
+    top of varying thickness over a dark undercut that is lost downward. The lip stands 2.5 proud
+    of each gully wall. Up to five flat-topped alcoves sit under the hard beds, with a lit floor.
+  - **Varnish** (`paintVarnish`): soft sheets under the lips and the rim, tapering and lost
+    downward, with a few streaks through them.
+  - A scree apron at the foot: a pale granulating wash laid over the face's foot, a cone at each
+    gully's tip (pale on its sun side, shaded on the west), pebbles, a few fallen blocks; the scree
+    spills onto the terrace. A warm bounce along the foot and a lit rim where the skyline turns to
+    the sun.
   - Cost: marks of a kind are filled into one wet layer and dried once (`wetBatch`), not glazed
-    one by one, so the step costs about half of O2's.
+    one by one.
 - **Ksar** (`ksar.ts`, deterministic shapes; O9, devlog 130): two courtyard palms, then six
   houses (three far ones stepping up behind three near ones), three pisé towers tapering 9 % a
   side, and three ruined curtain walls. No edge is ruled: the sides carry a slow bulge and a
