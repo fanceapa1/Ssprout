@@ -111,8 +111,11 @@ export interface UIDeps {
   sceneryFade?(): number;
   /** draw the garden on view at the overview framing for a Gardens thumbnail (`renderer.drawOverview`, ADR 0285) */
   drawOverview?(target: HTMLCanvasElement): boolean;
-  /** paint a garden's overview small, in slices that await `yieldTo` (`paintThumbnail`, ADR 0285) */
-  paintOverview?(id: SceneryId, w: number, h: number, yieldTo: () => Promise<void>): Promise<AnyCanvas | null>;
+  /**
+   * pre-paint a garden not on view into the paint cache, in slices that await `yieldTo`, and with
+   * `thumb` hand back its thumbnail (`prepaintThumbnail`, ADRs 0285, 0339)
+   */
+  paintOverview?(id: SceneryId, w: number, h: number, yieldTo: () => Promise<void>, thumb: boolean): Promise<AnyCanvas | null>;
   /** the renderer's current viewport (`() => renderer.viewport`); re-read on every reposition */
   viewport(): Viewport;
   audio?: AudioIntegration;
@@ -222,7 +225,13 @@ export interface UI {
   /** sections below the garden: `ui.dock.addSection({ id, title, order, span, mount })` */
   readonly dock: Dock;
   /** the Gardens section (null with one garden): where each thumbnail comes from, and its readiness */
-  readonly gardens: { thumbs(): Array<{ id: SceneryId; source: ThumbSource }>; settle(): Promise<void> } | null;
+  readonly gardens: {
+    thumbs(): Array<{ id: SceneryId; source: ThumbSource }>;
+    settle(): Promise<void>;
+    /** the pre-paint of the gardens not on view (ADR 0339) */
+    prepaint(): { state: string; reason: string | null };
+    prepaintReady(): Promise<void>;
+  } | null;
   readonly stage: UIStage;
   readonly scroll: UIScroll;
   /** the dock's live plant view: `water()` plays the watering animation (automatic watering hook) */

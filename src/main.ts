@@ -28,7 +28,7 @@ import { createSceneryHost } from './scenery/host';
 import { installSceneryDebug } from './dev/scenery-debug';
 import { gardenScene } from './scene/geometry';
 import { createUI } from './ui';
-import { paintThumbnail } from './scenery/thumbnail';
+import { prepaintThumbnail } from './scenery/thumbnail';
 import { applyUiLight } from './ui/ambient-light';
 import { createTimerSurfaces } from './widget';
 import { installServiceWorkerDebug, installWidgetDebug } from './widget/dev';
@@ -167,7 +167,7 @@ async function boot(): Promise<void> {
     sceneryFade: () => renderer.sceneryFade(),
     // a phone's first painting is a strip: wait until the scene has extended it to the world
     drawOverview: (target) => sceneSystem.detailStats().world && renderer.drawOverview(target),
-    paintOverview: (id, w, h, yieldTo) => paintThumbnail(pickScenery(id).art, w, h, yieldTo),
+    paintOverview: (id, w, h, yieldTo, thumb) => prepaintThumbnail(sceneSystem, pickScenery(id), w, h, yieldTo, thumb),
     viewport: () => renderer.viewport,
     audio,
     widget: fakeWidget ?? surfaces.widget,

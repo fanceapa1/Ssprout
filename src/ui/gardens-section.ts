@@ -21,7 +21,34 @@ export interface GardensSection {
   thumbs(): Array<{ id: SceneryId; source: ThumbSource }>;
   /** resolves once the garden on view has its live thumbnail and the others theirs (dev and tests) */
   settle(): Promise<void>;
+  /** the pre-paint of the gardens not on view (ADR 0339): its state, why it was skipped, what it is on */
+  prepaint(): PrepaintState;
+  /** resolves once the pre-paint has gone over every garden, or was skipped (dev and tests) */
+  prepaintReady(): Promise<void>;
   dispose(): void;
+}
+
+export interface PrepaintState {
+  /** `waiting`: the cards have not come near the window yet; `paused`: a session, a hidden tab */
+  state: 'waiting' | 'running' | 'paused' | 'done' | 'skipped';
+  /** why it was skipped: `save-data`, `battery` */
+  reason: string | null;
+}
+
+/** below this battery level, unplugged, nothing is pre-painted */
+const LOW_BATTERY = 0.2;
+
+/** Why the pre-paint should not run on this device, or null (`navigator.connection.saveData`, a low battery). */
+export async function prepaintSkip(nav: Navigator | undefined = typeof navigator === 'undefined' ? undefined : navigator): Promise<string | null> {
+  const n = nav as (Navigator & { connection?: { saveData?: boolean }; getBattery?: () => Promise<{ level: number; charging: boolean }> }) | undefined;
+  if (n?.connection?.saveData) return 'save-data';
+  try {
+    const b = n?.getBattery ? await n.getBattery() : null;
+    if (b && !b.charging && b.level <= LOW_BATTERY) return 'battery';
+  } catch {
+    // no battery information: go on
+  }
+  return null;
 }
 
 /** CSS px of the card's still (8:5, the world's shape); the canvas holds it at up to 2× */
@@ -39,8 +66,9 @@ const idle = (fn: () => void, timeout = 2000) => {
   if (ric) ric(fn, { timeout });
   else setTimeout(fn, 0);
 };
-/** between the small paint's slices: an idle moment, but never a long wait on a busy page */
-const idleSlice = () => new Promise<void>((done) => idle(done, 60));
+/** between the pre-paint's slices: an idle moment (a busy page still gets a few slices a second) */
+const idleSlice = () => new Promise<void>((done) => idle(done, 250));
+const hidden = () => typeof document !== 'undefined' && document.hidden;
 
 export function createGardensSection(ctx: UIContext, choices: readonly GardenChoice[]): GardensSection {
   const { store, controller } = ctx.deps;
@@ -71,8 +99,36 @@ export function createGardensSection(ctx: UIContext, choices: readonly GardenCho
       // a stored one is already in the cache
       if (typeof ImageBitmap === 'undefined' || !(img instanceof ImageBitmap)) cache.store(id, img as AnyCanvas);
     },
-    paint: async (id) => (ctx.deps.paintOverview ? ((await ctx.deps.paintOverview(id, W, H, idleSlice)) as CanvasImageSource | null) : null),
+    paint: async (id, thumb) => {
+      const paint = ctx.deps.paintOverview;
+      if (!paint || (await skipped) !== null) return null;
+      pre.state = 'running';
+      return (await paint(id, W, H, background, thumb)) as CanvasImageSource | null;
+    },
   });
+
+  // the pre-paint (ADR 0339): skipped on save-data or a low battery, paused during a session or in a hidden tab
+  const pre: PrepaintState = { state: 'waiting', reason: null };
+  const skipped = prepaintSkip().then((why) => {
+    if (why) Object.assign(pre, { state: 'skipped', reason: why });
+    return why;
+  });
+  const pausing = () => hidden() || store.get().session !== null;
+  async function background(): Promise<void> {
+    await idleSlice();
+    while (pausing() && !disposed) {
+      pre.state = 'paused';
+      await idleSlice();
+    }
+    pre.state = 'running';
+  }
+  let prepainted: () => void = () => {};
+  const firstFill = new Promise<void>((done) => (prepainted = done));
+  const fillAll = async () => {
+    await thumbs.fill();
+    if (pre.state !== 'skipped') pre.state = 'done';
+    prepainted();
+  };
 
   for (const c of choices) {
     const thumb = h('canvas.garden-thumb', { width: W, height: H, 'aria-hidden': 'true', 'data-still': 'waiting' });
@@ -151,7 +207,7 @@ export function createGardensSection(ctx: UIContext, choices: readonly GardenCho
     if (!started) return;
     if (next.scenery !== prev.scenery || next.plants !== prev.plants) takeSoon();
     // a garden left before its live take: painted small, like one never seen
-    if (next.scenery !== prev.scenery && filling) idle(() => void thumbs.fill());
+    if (next.scenery !== prev.scenery && filling) idle(() => void fillAll());
   });
 
   function start(): void {
@@ -161,7 +217,7 @@ export function createGardensSection(ctx: UIContext, choices: readonly GardenCho
     // the stored or small painted thumbnails of the other gardens: once the cards near the window
     if (typeof IntersectionObserver === 'undefined') {
       filling = true;
-      return idle(() => void thumbs.fill());
+      return idle(() => void fillAll());
     }
     near = new IntersectionObserver(
       (entries) => {
@@ -169,7 +225,7 @@ export function createGardensSection(ctx: UIContext, choices: readonly GardenCho
         near?.disconnect();
         near = null;
         filling = true;
-        idle(() => void thumbs.fill());
+        idle(() => void fillAll());
       },
       { rootMargin: '400px 0px' },
     );
@@ -181,7 +237,7 @@ export function createGardensSection(ctx: UIContext, choices: readonly GardenCho
     filling = true;
     for (let i = 0; i < 3; i++) {
       await pending;
-      await thumbs.fill();
+      await fillAll();
       if (!taken) return;
     }
   }
@@ -202,9 +258,15 @@ export function createGardensSection(ctx: UIContext, choices: readonly GardenCho
     refresh,
     start,
     settle,
+    prepaint: () => ({ ...pre }),
+    async prepaintReady() {
+      await Promise.race([firstFill, skipped.then((why) => (why ? undefined : firstFill))]);
+      if (pre.state !== 'skipped') await fillAll();
+    },
     thumbs: () => choices.map((c) => ({ id: c.id, source: thumbs.source(c.id) })),
     dispose() {
       disposed = true;
+      prepainted();
       if (timer !== null) clearTimeout(timer);
       offChange();
       offStore();

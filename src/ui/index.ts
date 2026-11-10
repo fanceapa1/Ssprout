@@ -567,7 +567,7 @@ export function createUI(deps: UIDeps): UI {
 
   return {
     dock,
-    gardens: gardens ? { thumbs: () => gardens.thumbs(), settle: () => gardens.settle() } : null,
+    gardens: gardens ? { thumbs: () => gardens.thumbs(), settle: () => gardens.settle(), prepaint: () => gardens.prepaint(), prepaintReady: () => gardens.prepaintReady() } : null,
     stage: { el: stage.el, onZoomGesture: (fn) => stage.onZoomGesture(fn) },
     scroll: {
       state: () => scroller.state(),

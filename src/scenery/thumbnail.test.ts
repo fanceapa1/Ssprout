@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { SceneryId } from './ids';
-import { cacheStore, createThumbnails, replaces, thumbKey, THUMB_KIND, type ThumbnailsOptions } from './thumbnail';
+import { cacheStore, createThumbnails, prepaintThumbnail, replaces, thumbKey, THUMB_KIND, type Prepainter, type ThumbnailsOptions } from './thumbnail';
+import { getScenery } from './registry';
 import type { PaintCache } from '../paint/persist';
 
 type Img = { from: string };
@@ -8,7 +9,7 @@ type Img = { from: string };
 function setup(over: Partial<ThumbnailsOptions<Img>> = {}) {
   let viewed: SceneryId = 'japanese-garden';
   const stored = new Map<SceneryId, Img>();
-  const calls = { paint: [] as SceneryId[], store: [] as Array<[SceneryId, string]> };
+  const calls = { paint: [] as Array<SceneryId | string>, store: [] as Array<[SceneryId, string]> };
   let liveOk = true;
   const t = createThumbnails<Img>({
     ids: ['japanese-garden', 'waterfall'],
@@ -16,9 +17,9 @@ function setup(over: Partial<ThumbnailsOptions<Img>> = {}) {
     live: () => (liveOk ? { from: `live:${viewed}` } : null),
     stored: async (id) => stored.get(id) ?? null,
     store: (id, img) => void calls.store.push([id, img.from]),
-    paint: async (id) => {
-      calls.paint.push(id);
-      return { from: `painted:${id}` };
+    paint: async (id, thumb) => {
+      calls.paint.push(thumb ? id : `${id} (pre-paint only)`);
+      return thumb ? { from: `painted:${id}` } : null;
     },
     ...over,
   });
@@ -45,13 +46,14 @@ describe('garden thumbnails: where each comes from (ADR 0285)', () => {
     expect(replaces('stored', 'painted')).toBe(false);
   });
 
-  it('a cache hit: the stored thumbnail, nothing painted', async () => {
+  it('a cache hit: the stored thumbnail; the garden is still pre-painted, without a thumbnail (ADR 0339)', async () => {
     const s = setup();
     s.stored.set('waterfall', { from: 'stored:waterfall' });
     await s.t.fill();
     expect(s.t.source('waterfall')).toBe('stored');
     expect(s.t.image('waterfall')).toEqual({ from: 'stored:waterfall' });
-    expect(s.calls.paint).toEqual([]);
+    expect(s.calls.paint).toEqual(['waterfall (pre-paint only)']);
+    expect(s.calls.store).toEqual([]);
   });
 
   it('a cache miss: a garden not on view is painted small and stored; the one on view waits for its live take', async () => {
@@ -122,5 +124,30 @@ describe('garden thumbnails: where each comes from (ADR 0285)', () => {
     expect(gets).toEqual([`${THUMB_KIND}:waterfall|448x280`]);
     expect(puts).toEqual(['scenery-thumb:japanese-garden|448x280']);
     expect(thumbKey('waterfall', 1, 2)).toBe('waterfall|1x2');
+  });
+});
+
+describe('thumbnails from the pre-painted overview (ADR 0339)', () => {
+  const fake = (status: string) => {
+    const asked: boolean[] = [];
+    const scene: Prepainter = {
+      prepaint: async (_s, o) => (asked.push(!!o.painting), { status, painting: null }),
+    };
+    return { scene, asked };
+  };
+  const yieldTo = async () => {};
+
+  it('asks for the painting only when the card needs a thumbnail', async () => {
+    const f = fake('cached');
+    expect(await prepaintThumbnail(f.scene, getScenery('oasis'), 448, 280, yieldTo, false)).toBeNull();
+    expect(f.asked).toEqual([false]);
+  });
+
+  it('gives no thumbnail when the pre-paint was cancelled or the garden is on view', async () => {
+    for (const status of ['cancelled', 'shown']) {
+      const f = fake(status);
+      expect(await prepaintThumbnail(f.scene, getScenery('oasis'), 448, 280, yieldTo, true)).toBeNull();
+      expect(f.asked).toEqual([true]);
+    }
   });
 });

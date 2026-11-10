@@ -7,7 +7,9 @@
  *   with its plants and the sky of the hour; taken once the garden settles, after its plants
  *   change and just before you leave it, then kept for the rest of the visit;
  * - `stored`: the last live (or painted) thumbnail, from the paint cache (`scenery-thumb`);
- * - `painted`: a garden never seen here: its painting painted small in idle slices (no plants);
+ * - `painted`: a garden never seen here: made from its overview painting, which the Gardens section
+ *   pre-paints into the paint cache in idle time (ADR 0339; no plants, no sky), or painted small
+ *   when there is no paint cache;
  * - `waiting`: nothing yet; the card shows a pale wash.
  */
 import { paintScene, type PaintResult, type PaintView, type SceneArt } from '../scene/background';
@@ -15,6 +17,7 @@ import { makeCanvas, paperTexture, type AnyCanvas } from '../paint';
 import type { PaintCache } from '../paint/persist';
 import { WORLD_H, WORLD_W } from '../render/viewport';
 import type { SceneryId } from './ids';
+import type { Scenery } from './types';
 
 /** The paint-cache kind of a garden's thumbnail; its key is `thumbKey` (ADR 0242: the scenery first). */
 export const THUMB_KIND = 'scenery-thumb';
@@ -42,8 +45,11 @@ export interface ThumbnailsOptions<Img> {
   stored(id: SceneryId): Promise<Img | null>;
   /** keep a thumbnail for the next visit */
   store(id: SceneryId, img: Img): void;
-  /** paint a garden's overview small (its painting only), or null */
-  paint(id: SceneryId): Promise<Img | null>;
+  /**
+   * pre-paint a garden not on view (ADR 0339); with `thumb`, also hand back its thumbnail (its
+   * painting only), or null
+   */
+  paint(id: SceneryId, thumb: boolean): Promise<Img | null>;
 }
 
 export interface Thumbnails<Img> {
@@ -51,7 +57,10 @@ export interface Thumbnails<Img> {
   source(id: SceneryId): ThumbSource;
   /** take the garden on view now; false when the renderer cannot draw it yet */
   takeLive(): boolean;
-  /** give every garden without a thumbnail its stored one, else paint it (not the one on view) */
+  /**
+   * pre-paint every garden not on view and give each without a thumbnail its stored one, else one
+   * made from its painting
+   */
   fill(): Promise<void>;
   onChange(fn: (id: SceneryId) => void): () => void;
 }
@@ -70,12 +79,13 @@ export function createThumbnails<Img>(opts: ThumbnailsOptions<Img>): Thumbnails<
   };
 
   const fillOne = async (id: SceneryId) => {
-    if (source(id) !== 'waiting') return;
-    const stored = await opts.stored(id);
-    if (stored && set(id, stored, 'stored')) return;
-    // the garden on view gets its live thumbnail instead
-    if (source(id) !== 'waiting' || opts.viewed() === id) return;
-    const painted = await opts.paint(id);
+    if (source(id) === 'waiting') {
+      const stored = await opts.stored(id);
+      if (stored) set(id, stored, 'stored');
+    }
+    // the garden on view gets its live thumbnail instead (and is painted already)
+    if (opts.viewed() === id) return;
+    const painted = await opts.paint(id, source(id) === 'waiting');
     if (painted && set(id, painted, 'painted')) opts.store(id, painted);
   };
 
@@ -119,15 +129,21 @@ export function thumbnailView(w: number, h: number): PaintView {
   return { rect: { x: (WORLD_W - w / scale) / 2, y: (WORLD_H - h / scale) / 2, w: w / scale, h: h / scale }, scale };
 }
 
-/** A small painting made a thumbnail: on white, its boulders and tufts on it, the paper multiplied last. */
+/**
+ * A painting made a thumbnail at the `thumbnailView` framing: on white, its boulders and tufts on
+ * it, the paper multiplied last. The painting may be the small one or a garden's overview.
+ */
 export function composeThumbnail(res: PaintResult, w: number, h: number): AnyCanvas {
-  const { rect, scale } = res.view;
+  const { rect } = res.view;
+  const t = thumbnailView(w, h);
   const out = makeCanvas(w, h);
   const g = out.getContext('2d') as Ctx;
   g.fillStyle = '#ffffff';
   g.fillRect(0, 0, w, h);
-  g.drawImage(res.canvas as CanvasImageSource, 0, 0, w, h);
-  g.setTransform(scale, 0, 0, scale, -rect.x * scale, -rect.y * scale);
+  g.setTransform(t.scale, 0, 0, t.scale, -t.rect.x * t.scale, -t.rect.y * t.scale);
+  g.imageSmoothingEnabled = true;
+  g.imageSmoothingQuality = 'high';
+  g.drawImage(res.canvas as CanvasImageSource, rect.x, rect.y, rect.w, rect.h);
   for (const s of [...res.sprites].sort((a, b) => a.depth - b.depth)) g.drawImage(s.canvas as CanvasImageSource, s.box.x, s.box.y, s.box.w, s.box.h);
   g.setTransform(1, 0, 0, 1, 0, 0);
   g.globalCompositeOperation = 'multiply';
@@ -145,4 +161,21 @@ export async function paintThumbnail(art: SceneArt, w: number, h: number, yieldT
   const res = await paintScene(art, thumbnailView(w, h), { quality: 'draft', yieldTo, sliceMs });
   await yieldTo();
   return composeThumbnail(res, w, h);
+}
+
+/** The scene system's pre-paint, as the thumbnails use it (`SceneSystem.prepaint`, ADR 0339). */
+export interface Prepainter {
+  prepaint(scenery: Scenery, opts: { yieldTo: () => Promise<void>; cancelled?: () => boolean; painting?: boolean }): Promise<{ status: string; painting: PaintResult | null }>;
+}
+
+/**
+ * Pre-paint a garden not on view into the paint cache and, with `thumb`, make its thumbnail from
+ * that painting. Without a paint cache nothing is pre-painted, and a thumbnail is painted small.
+ */
+export async function prepaintThumbnail(scene: Prepainter, scenery: Scenery, w: number, h: number, yieldTo: () => Promise<void>, thumb: boolean, cancelled?: () => boolean): Promise<AnyCanvas | null> {
+  const r = await scene.prepaint(scenery, { yieldTo, cancelled, painting: thumb });
+  if (!thumb || r.status === 'cancelled' || r.status === 'shown') return null;
+  if (!r.painting) return r.status === 'off' ? paintThumbnail(scenery.art, w, h, yieldTo) : null;
+  await yieldTo();
+  return composeThumbnail(r.painting, w, h);
 }
