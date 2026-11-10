@@ -69,6 +69,13 @@ describe('oasis vegetation painting (O4)', () => {
     for (const step of ['grove', 'big-palms']) expect(runs.overview!.chunks.filter((c) => c.name === step).length, step).toBeGreaterThan(10);
   });
 
+  it('plans each grove palm’s crown in a part of its own: parts with no canvas call (ADR 0330)', () => {
+    const planning = runs.overview!.chunks.filter((c) => c.name === 'grove' && c.calls === 0);
+    // 287 drying bands and pauses with no call, and one more after each of the 19 palms' crowns
+    expect(GROVE_PALMS).toHaveLength(19);
+    expect(planning).toHaveLength(287 + 19);
+  });
+
   it('plans the big palms from the layout, their crowns round their tops and within the sheet’s sides', () => {
     expect(BIG_PALM_SHAPES).toHaveLength(BIG_PALMS.length);
     for (const [i, s] of BIG_PALM_SHAPES.entries()) {
