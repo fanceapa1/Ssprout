@@ -52,9 +52,18 @@ A warm repeat visit to the Japanese garden (the default) loads −92.5 kB of JS 
 none of the garden's painter chunk. A cold first visit adds the 34 kB chunk back, so it loads
 −58 kB.
 
-**Timings.** 1440×900, median of 5 runs, the load average above 30 (another agent's suites):
+**Timings.** Production builds served by `vite preview`, the Japanese garden, 1440×900. Each value
+is the median of 6 runs (two alternating rounds of 3), measured at a load average of 20–30 (other
+work on the machine). A first visit has a fresh context; the repeat visit comes 6 s later, with the
+paint cache and the service worker warm. `landscape` is the `sprout:boot:landscape` mark.
 
-TIMINGS
+| | before | after |
+|---|---|---|
+| First visit: FCP / landscape | 386 / 3,439 ms | 376 / 3,149 ms |
+| Repeat visit: FCP / landscape | 272 / 473 ms | 288 / 467 ms |
+
+No regression: the differences are inside the spread between runs (FCP 240–332 ms on a repeat
+visit).
 
 ## Why not −150 kB
 The oasis's `paint-land`, `paint-water`, `paint-veg` and `paint-rocks` (about 76 kB) are still in
