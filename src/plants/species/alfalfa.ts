@@ -1,8 +1,8 @@
 import type { Rng } from '../../core/rng';
 import { PIGMENTS, jitter, lighten, mix, type Painter, type Pigment } from '../../paint';
-import { coiledPod, plotSoil, racemes, trefoils, type Floret, type Raceme, type Trefoil } from '../lib/alfalfa-paint';
+import { coiledPod, plotSoil, racemes, trefoils, type Floret, type Raceme, type StemMark, type Trefoil } from '../lib/alfalfa-paint';
 import { clamp01, ease, lerp, smooth, stagger, visible } from '../lib/small-growth';
-import { groundShadow, paintStem, plantFrame } from '../lib/small-paint';
+import { groundShadow, plantFrame } from '../lib/small-paint';
 import { SMALL_DESIGN, SMALL_SIZE } from '../lib/small-size';
 import { UP, add, lerpAngle, makeStem, pointAt, stemPoints, subPath, type StemPlan } from '../lib/small-structure';
 import type { SpeciesDef } from '../types';
@@ -157,6 +157,7 @@ export function planAlfalfa(rng: Rng): AlfalfaPlan {
 }
 
 interface Marks {
+  stems: StemMark[];
   leaves: Trefoil[];
   racemes: Raceme[];
   later: (() => void)[];
@@ -169,7 +170,7 @@ function drawShoot(p: Painter, rng: Rng, sh: Shoot, i: number, g: number, out: M
   const head = lerp(0.03, 1, ext);
   const pts = subPath(full, head);
   const back = 1 - sh.depth;
-  paintStem(p, rng.fork('stem'), pts, { width: 0.48, pigment: mix(STEM, PIGMENTS.sageLight, 0.25 + back * 0.2), opacity: 0.62, ink: 0.025 * ext, inkReach: 0.6, inkPigment: mix(LEAF_DEEP, PIGMENTS.sumi, 0.3) });
+  out.stems.push({ rng: rng.fork('stem'), pts, width: 0.48, pigment: mix(STEM, PIGMENTS.sageLight, 0.25 + back * 0.2), opacity: 0.62 });
   sh.leaves.forEach((lf, j) => {
     const lk = smooth((head * 1.12 - lf.t) / 0.3);
     if (!visible(lk)) return;
@@ -182,7 +183,7 @@ function drawShoot(p: Painter, rng: Rng, sh: Shoot, i: number, g: number, out: M
     const q = pointAt(full, rc.t * head);
     const angle = q.angle + rc.turn * smooth(rk);
     const stalk = subPath([q, add(q, angle, rc.stalk * 0.5), add(q, angle + rc.turn * 0.3, rc.stalk)], rk);
-    paintStem(p, rng.fork(`stalk-${j}`), stalk, { width: 0.4, pigment: STEM, opacity: 0.7 });
+    out.stems.push({ rng: rng.fork(`stalk-${j}`), pts: stalk, width: 0.4, pigment: STEM, opacity: 0.7 });
     const end = stalk[stalk.length - 1]!;
     const op = rc.open;
     out.racemes.push({
@@ -203,7 +204,7 @@ function drawShoot(p: Painter, rng: Rng, sh: Shoot, i: number, g: number, out: M
     const q = pointAt(full, pd.t * head);
     const a = q.angle + pd.side * 0.9;
     const stalk = subPath([q, add(q, a, pd.stalk)], pk);
-    paintStem(p, rng.fork('pod-stalk'), stalk, { width: 0.3, pigment: STEM, opacity: 0.6 });
+    out.stems.push({ rng: rng.fork('pod-stalk'), pts: stalk, width: 0.3, pigment: STEM, opacity: 0.6 });
     out.later.push(() => coiledPod(p, rng.fork('pod'), add(q, a, pd.stalk * pk + pd.r * 0.8 * pk), { r: pd.r, turns: pd.turns, rot: pd.rot, k: pk, pigment: lighten(POD, 0.12), line: mix(POD, PIGMENTS.wood, 0.5) }));
   }
 }
@@ -233,17 +234,20 @@ const alfalfa: SpeciesDef = {
       const r = rng.fork('paint');
       plotSoil(p, r.fork('soil'), { rx: 22, k: ease(g, 0.03, 0.5) });
       groundShadow(p, r, { rx: 18, ry: 3.6, k: ease(g, 0.15, 0.7), opacity: 0.07, pigment: mix(PIGMENTS.shadow, PIGMENTS.stoneWarm, 0.4) });
-      // back to front in depth bands: each band's stems, then its leaves and its flowers in one layer each
+      // back to front in depth bands, each band's stems and leaves in one layer; the flowers over all in one
       const order = plan.shoots.map((sh, i) => [sh, i] as const).sort((a, b) => a[0].depth - b[0].depth);
+      const flowers: Raceme[] = [];
       for (let b = 0; b < BANDS; b++) {
         const band = order.filter(([sh]) => Math.min(BANDS - 1, Math.floor(sh.depth * BANDS)) === b);
-        const marks: Marks = { leaves: [], racemes: [], later: [] };
+        const marks: Marks = { stems: [], leaves: [], racemes: [], later: [] };
         for (const [sh, i] of band) drawShoot(p, r.fork(`shoot-${i}`), sh, i, g, marks);
         const k = b / (BANDS - 1);
-        trefoils(p, r.fork(`leaves-${b}`), marks.leaves, { deep: LEAF_DEEP, stalk: STEM, opacity: lerp(0.78, 0.9, k) });
-        racemes(p, r.fork(`flowers-${b}`), marks.racemes, { bud: BUD, bloom: BLOOM, pale: lighten(LILAC, 0.05), old: OLD, keel: KEEL, opacity: lerp(0.82, 0.92, k) });
+        trefoils(p, r.fork(`leaves-${b}`), marks.leaves, { deep: LEAF_DEEP, stalk: STEM, opacity: lerp(0.78, 0.9, k), stems: marks.stems });
+        const fr = r.fork(`flowers-${b}`);
+        for (const rc of marks.racemes) flowers.push({ ...rc, rng: fr.fork(rc.key), alpha: lerp(0.82, 0.92, k) / 0.92 });
         for (const f of marks.later) f();
       }
+      racemes(p, r.fork('flowers'), flowers, { bud: BUD, bloom: BLOOM, pale: lighten(LILAC, 0.05), old: OLD, keel: KEEL, opacity: 0.92 });
     } finally {
       end();
     }
