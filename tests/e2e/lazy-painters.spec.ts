@@ -6,6 +6,7 @@ import { storedOf } from './paint-store';
  * Each garden's painters are a lazy chunk (ADR 0341). A first visit loads the viewed garden's
  * chunk to paint it; a warm repeat visit takes the landscape and the plates from the paint cache
  * and never asks for it. The Japanese garden's chunk is the one with its `pond-reserve` step.
+ * Neither visit asks for any of the oasis's paint code (devlog 149), read from each script's source map.
  */
 
 /** Init script: `&e2eat=HH:MM` opens the page at that local time of today. */
@@ -38,6 +39,20 @@ function scripts(page: Page): string[] {
   return urls;
 }
 
+/** The oasis modules that only paint: none of them may reach a Japanese garden visit. */
+const OASIS_PAINT = /scenery\/oasis\/(paint-|painters|ksar-batch|sky|light|motion)/;
+
+async function oasisPaintIn(page: Page, urls: readonly string[]): Promise<string[]> {
+  const found: string[] = [];
+  for (const u of new Set(urls)) {
+    const map = await page.request.get(`${u}.map`);
+    if (!map.ok()) continue;
+    const sources = ((await map.json()) as { sources: string[] }).sources;
+    found.push(...sources.filter((s) => OASIS_PAINT.test(s)));
+  }
+  return found;
+}
+
 const PHASES = ['sunrise', 'midday', 'sunset', 'night'] as const;
 
 test.describe('lazy garden painters (ADR 0341)', () => {
@@ -62,6 +77,7 @@ test.describe('lazy garden painters (ADR 0341)', () => {
     const garden = bodies.filter((b) => b.text.includes('pond-reserve')).map((b) => b.u);
     expect(garden).toHaveLength(1);
 
+    expect(await oasisPaintIn(page, first)).toEqual([]);
     const repeat = scripts(page);
     await openDev(page, 'e2eat=12:00');
     await page.evaluate(async () => {
@@ -74,5 +90,6 @@ test.describe('lazy garden painters (ADR 0341)', () => {
     expect(await page.evaluate(() => window.sprout!.skyStats()!.painted)).toBe(0);
     expect(repeat.some((u) => u.includes('/assets/main-'))).toBe(true);
     expect(repeat).not.toContain(garden[0]);
+    expect(await oasisPaintIn(page, repeat)).toEqual([]);
   });
 });
