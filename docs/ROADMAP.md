@@ -218,7 +218,7 @@ Phase 13 art queue (after O0 and O1): one plant (OP1–OP12) or creature (OK1–
 | OK1 | House bunting (*Emberiza sahari*): tame, hops the copings and rim, always | `src/fauna/creatures/bunting.ts` | done (devlog 128; a resident pair by day on walls, rim and stones; 0.90 ms with the whole roster) |
 | OK2 | Laughing dove (*Spilopelia senegalensis*): fronds, wall tops, walks the plots, drinks at the rim; 2 plants | `src/fauna/creatures/dove.ts` | done (devlog 160; a pair by day on fronds, walls and the rim, walks the plots, drinks at the rims; 0.39–0.46 ms with the whole roster) |
 | OK3 | Violet dropwing: perch-and-sally dragonfly over the basin; 3 plants | `src/fauna/creatures/dropwing.ts` | in progress |
-| OK4 | Sahara frog: in the basin and on the rim; 5 plants | `src/fauna/creatures/sahara-frog.ts` | queued |
+| OK4 | Sahara frog: in the basin and on the rim; 5 plants | `src/fauna/creatures/sahara-frog.ts` | in progress |
 | OK5 | Hoopoe: walks the damp plots, fans its crest; 8 plants | `src/fauna/creatures/hoopoe.ts` | queued |
 | OK6 | Böhme's gecko: on the warm walls at night; 10 plants | `src/fauna/creatures/gecko.ts` | queued |
 | OK7 | Blue-cheeked bee-eater: sallies from frond tips; 14 plants | `src/fauna/creatures/bee-eater.ts` | queued |
