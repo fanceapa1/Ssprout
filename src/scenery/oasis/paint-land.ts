@@ -5,12 +5,13 @@
  * world units, in parts (ADR 0226, 0238). docs/systems/scenery.md › Oasis › Land.
  */
 import type { Rng } from '../../core/rng';
-import { blob, closedResample, createSimplex2D, lighten, mix, resample, ribbon, smoothPath, type Painter, type Pigment } from '../../paint';
+import { blob, bounds, closedResample, createSimplex2D, dabDry, lighten, mix, padRect, resample, ribbon, smoothPath, type Painter, type Pigment, type StrokeOptions } from '../../paint';
 import type { Pt } from '../../render/viewport';
 import type { Strokes } from '../../scene/paint-land';
 import { perspectiveScale } from '../../scene/slots';
 import { BACK_BEDS, BACK_RUNNEL, BASIN_VP, BLUFF, BUNDS, copingAt, DUNE_BASE, DUNE_CRESTS, FAR_RANGE, FOOTPATH, NEAR_PLOTS, OUED, PATH_HALF_WIDTH, SEGUIA_RUNS, WALLS, WET_SAND_HALF_WIDTH, type Wall } from './layout';
 import { EARTH } from './paint-rocks';
+import { batchLayer, dryBrushDry, dryBrushInto } from './paint-batch';
 import { MARKS_PER_PART, pacer } from './paint-pace';
 
 /** The land's palette: gold sand, worked soil, pisé, and the lilac of the far ranges. */
@@ -233,7 +234,10 @@ export function* paintTerraces(p: Painter, rng: Rng): Strokes {
   }
 }
 
-/** Soft furrows over a plot toward a vanishing point on the horizon, and rows of seedlings in some. */
+/**
+ * Soft furrows over a plot toward a vanishing point on the horizon, and rows of seedlings in some.
+ * A plot's dark troughs, its lit ridges and its seedlings each dry as one layer (ADR 0343).
+ */
 export function* paintPlots(p: Painter, rng: Rng): Strokes {
   const vp = { x: 820, y: 360 };
   for (const [i, plot] of NEAR_PLOTS.entries()) {
@@ -245,40 +249,49 @@ export function* paintPlots(p: Painter, rng: Rng): Strokes {
     // greener where the seguia waters it (the plots beside it)
     const wetSide = i === 2 ? { x: x1 - 60, y: (y0 + y1) / 2 } : i === 0 ? { x: x1 - 70, y: y0 + 90 } : { x: x0 + 90, y: y0 + 80 };
     yield* p.parts.glaze(blob(wetSide.x, wetSide.y, 110, 60, rng, { irregularity: 0.35 }), mix(LAND.sprout, LAND.soil, 0.3), { rng, opacity: 0.26, deform: 0.4, spread: 0.4, edge: 0.04, granulation: 0.35 });
-    const clip = () => {
-      p.ctx.save();
-      p.ctx.beginPath();
-      shape.forEach((q, k) => (k ? p.ctx.lineTo(q.x, q.y) : p.ctx.moveTo(q.x, q.y)));
-      p.ctx.closePath();
-      p.ctx.clip();
-    };
-    clip();
+    p.ctx.save();
+    p.ctx.beginPath();
+    shape.forEach((q, k) => (k ? p.ctx.lineTo(q.x, q.y) : p.ctx.moveTo(q.x, q.y)));
+    p.ctx.closePath();
+    p.ctx.clip();
     // furrows run away from the viewer: lines toward the vanishing point, spaced by perspective
-    const seedlings = i !== 1;
-    for (let x = x0 - 120, n = 0; x < x1 + 120; x += 22, n++) {
-      if (n > 0) {
-        p.ctx.restore();
-        yield;
-        clip();
-      }
+    const lines: Pt[][] = [];
+    for (let x = x0 - 120; x < x1 + 120; x += 22) {
       const foot = { x, y: y1 + 20 };
       const dir = { x: vp.x - foot.x, y: vp.y - foot.y };
       const len = (y1 - y0 + 40) / -dir.y;
       const line: Pt[] = [];
       for (let k = 0; k <= 6; k++) line.push({ x: foot.x + dir.x * len * (k / 6) + Math.sin(k + x) * 1.2, y: foot.y + dir.y * len * (k / 6) });
-      p.dryBrush(line, { rng, pigment: LAND.soilDamp, width: 3.2, taper: [0.4, 0], opacity: 0.2, dryness: 0.65 });
-      yield;
-      p.dryBrush(line.map((q) => ({ x: q.x + 4, y: q.y })), { rng, pigment: LAND.sandLight, width: 2, opacity: 0.35, dryness: 0.6, blend: 'source-over' });
-      yield;
+      lines.push(line);
+    }
+    const trough: StrokeOptions = { rng, pigment: LAND.soilDamp, width: 3.2, taper: [0.4, 0], opacity: 0.2, dryness: 0.65 };
+    const ridge: StrokeOptions = { rng, pigment: LAND.sandLight, width: 2, opacity: 0.35, dryness: 0.6, blend: 'source-over' };
+    const area = padRect(bounds(shape), 8);
+    const one = bounds(lines[lines.length >> 1]!);
+    const dark = batchLayer(p, area, one, 3.2 * 2 + 4);
+    const lit = batchLayer(p, area, one, 2 * 2 + 4);
+    const seedlings = i !== 1 ? batchLayer(p, area, { x: 0, y: 0, w: 1, h: 1 }, 8) : null;
+    const pace = pacer(MARKS_PER_PART / 2);
+    for (const line of lines) {
+      dryBrushInto(dark, p, line, trough);
+      dryBrushInto(lit, p, line.map((q) => ({ x: q.x + 4, y: q.y })), ridge);
       if (seedlings && rng.chance(0.55)) {
         for (let k = 1; k <= 6; k++) {
           const q = line[k]!;
           const s = perspectiveScale(q.y);
           if (rng.chance(0.35)) continue;
-          p.dab({ x: q.x + 2 * s, y: q.y }, mix(LAND.sprout, '#7f9268', rng.range(0, 0.6)), { rng, variant: 'blade', angle: -Math.PI / 2 + rng.range(-0.5, 0.5), length: 7 * s, width: 2.2 * s, opacity: 0.55, layers: 2 });
+          p.dabInto(seedlings, { x: q.x + 2 * s, y: q.y }, mix(LAND.sprout, '#7f9268', rng.range(0, 0.6)), { rng, variant: 'blade', angle: -Math.PI / 2 + rng.range(-0.5, 0.5), length: 7 * s, width: 2.2 * s, opacity: 0.55, layers: 2 });
         }
       }
+      if (pace()) {
+        for (const L of [dark, lit, seedlings]) L?.flush();
+        yield;
+      }
     }
+    yield* dark.dryParts(dryBrushDry(trough));
+    yield* lit.dryParts(dryBrushDry(ridge));
+    const s = perspectiveScale((y0 + y1) / 2);
+    if (seedlings) yield* seedlings.dryParts({ opacity: 0.55 }, dabDry(7 * s, 2.2 * s));
     p.ctx.restore();
     yield;
   }
