@@ -4,11 +4,12 @@
  * white in world units, in parts (ADR 0226, 0238). docs/systems/scenery.md › Oasis › Rock.
  */
 import { createRng, type Rng } from '../../core/rng';
-import { PAPER_WHITE, blob, bounds, closedResample, insetPolygon, createSimplex2D, lighten, mix, rgba, shade, smoothPath, type DryOptions, type Painter, type Pigment } from '../../paint';
+import { PAPER_WHITE, blob, bounds, closedResample, dabDry, padRect, insetPolygon, createSimplex2D, layersFor, lighten, mix, rgba, shade, smoothPath, type DryOptions, type Painter, type Pigment, type StrokeOptions } from '../../paint';
 import type { Pt } from '../../render/viewport';
 import type { Strokes } from '../../scene/paint-land';
 import { FOOTING, KSAR_PALMS, KSAR_SHAPES, taper, windows, type BlockShape } from './ksar';
 import { BLUFF } from './layout';
+import { batchLayer, DRY_BRUSH, GLAZE_DRY, strokeDry, strokeInto, WASH_DRY, washInto } from './ksar-batch';
 import { MARKS_PER_PART, pacer } from './paint-pace';
 
 /** The earth both are made of: golden where the sun strikes, red-ochre in the body, deep in the cuts. */
@@ -665,11 +666,14 @@ function* ksarPalm(p: Painter, top: Pt, base: Pt, size: number, rng: Rng): Strok
     for (let t = 0; t <= 1.001; t += 0.125) pts.push({ x: top.x + Math.cos(a0) * len * t, y: top.y + Math.sin(a0) * len * t * 0.85 + droop * len * t * t * 0.55 });
     const pig = lower ? PALM.shade : Math.cos(a0) > 0.1 ? PALM.lit : PALM.frond;
     p.stroke(pts, { rng, pigment: pig, width: size * 2.6, taper: [0.05, 0.75], opacity: 0.7, wetness: 0.3, dryness: 0.3 });
+    // a frond's blades dry together (ADR 0345)
+    const blades = batchLayer(p, padRect(bounds(pts), size * 14), 6);
     for (let k = 2; k < pts.length; k++) {
       const q = pts[k]!;
       const dir = Math.atan2(q.y - pts[k - 1]!.y, q.x - pts[k - 1]!.x);
-      for (const sgn of [-1, 1]) p.dab(q, pig, { rng, variant: 'blade', angle: dir + sgn * 0.75, length: size * rng.range(8, 12) * (1.2 - k / pts.length), width: size * 1.6, opacity: 0.42, layers: 1 });
+      for (const sgn of [-1, 1]) p.dabInto(blades, q, pig, { rng, variant: 'blade', angle: dir + sgn * 0.75, length: size * rng.range(8, 12) * (1.2 - k / pts.length), width: size * 1.6, layers: 1 });
     }
+    blades.dry({ opacity: 0.42 }, dabDry(size * 6.4, size * 1.6));
     yield;
   }
   p.dab(top, PALM.shade, { rng, variant: 'round', length: size * 8, width: size * 7, opacity: 0.6 });
@@ -725,13 +729,13 @@ function* paintBlock(p: Painter, s: BlockShape, index: number, rng: Rng): Stroke
   if (flank.length) {
     fillUnder(p, insetPolygon(flank, 1), mix(PAPER_WHITE, tint.lit, 0.6));
     // the flank turned to the sun: the palest wash, pooling darker at its far edge
-    yield* p.parts.wetInWet(flank, tint.lit, mix(tint.lit, tint.body, 0.6), { rng, angle: Math.PI / 2, split: 0.6, opacity: 0.85 - tint.far * 0.3, deform: 0.03, spread: 0.02, edge: 0.45, sharpness: 0.75, granulation: 0.55, granules: 0.2 });
+    yield* p.parts.wetInWet(flank, tint.lit, mix(tint.lit, tint.body, 0.6), { rng, layers: 6, angle: Math.PI / 2, split: 0.6, opacity: 0.85 - tint.far * 0.3, deform: 0.03, spread: 0.02, edge: 0.45, sharpness: 0.75, granulation: 0.55, granules: 0.2 });
     yield;
   }
   fillUnder(p, insetPolygon(front, 1.2), mix(PAPER_WHITE, tint.lit, 0.35));
   // the front: warm where the light strikes high on the right, cooling down and to the left
   yield* p.parts.wetInWet(front, mix(tint.lit, tint.body, 0.45), mix(tint.body, tint.shade, 0.2), {
-    rng, angle: Math.PI / 2 + 0.55, split: 0.5, softness: 0.7, opacity: 0.8 - tint.far * 0.35, deform: 0.03, spread: 0.02, edge: 0.3, sharpness: 0.65,
+    rng, layers: 9, angle: Math.PI / 2 + 0.55, split: 0.5, softness: 0.7, opacity: 0.8 - tint.far * 0.35, deform: 0.03, spread: 0.02, edge: 0.3, sharpness: 0.65,
     granulation: 0.45, granules: 0.2, flow: 0.5, flowScale: 40,
   });
   yield;
@@ -742,64 +746,83 @@ function* paintBlock(p: Painter, s: BlockShape, index: number, rng: Rng): Stroke
   clipTo(p, front);
   const x0 = b.x;
   const x1 = b.x + b.w;
-  const pace = pacer();
-  // pisé is patchy: newer mud in pale patches, damp darker ones, soft and overlapping
+  const pace = pacer(3 * MARKS_PER_PART);
+  // pisé is patchy: newer mud in pale patches, damp darker ones, soft and overlapping. From here on
+  // each kind of small mark on a block dries as one layer (ADR 0345)
+  const area = bounds(front);
+  const patch = { layers: layersFor(p.env, 7), deform: 0.5, spread: 0.5, coverage: 0.85, jitter: 0.015 };
+  const pale = batchLayer(p, area, 30);
+  const damp = batchLayer(p, area, 30);
   for (let i = 0; i < Math.max(2, Math.round((b.w * b.h) / 2600)); i++) {
     const dark = rng.chance(0.5);
-    p.glaze({ cx: rng.range(x0, x1), cy: rng.range(top + 8, b.base), rx: rng.range(8, 20), ry: rng.range(6, 16) }, dark ? mix(tint.body, EARTH.deep, 0.5) : tint.lit, { rng, opacity: dark ? 0.16 : 0.22, deform: 0.5, spread: 0.5, edge: 0.15, granulation: 0.5 });
-    if (pace()) yield;
+    washInto(dark ? damp : pale, { cx: rng.range(x0, x1), cy: rng.range(top + 8, b.base), rx: rng.range(8, 20), ry: rng.range(6, 16) }, dark ? mix(tint.body, EARTH.deep, 0.5) : tint.lit, rng, patch);
   }
+  yield* damp.dryParts({ opacity: 0.16, edge: 0.15, granulation: 0.5 }, GLAZE_DRY);
+  yield* pale.dryParts({ opacity: 0.22, edge: 0.15, granulation: 0.5 }, GLAZE_DRY);
   yield;
   // the face turns from the sun toward its left edge; a cool shade gathers there and at the foot
   yield* p.parts.glaze(box(x0 - 4, top - 20, x0 + Math.max(10, b.w * 0.38), foot), mix(EARTH.shade, EARTH.cool, 0.3 + tint.far * 0.3), { rng, opacity: b.kind === 'tower' ? 0.5 : 0.4, deform: 0.14, spread: 0.2, edge: 0.05, fade: { angle: 0, start: 0.15, amount: 1, ragged: 0.7 } });
   yield* p.parts.glaze(box(x0 - 4, b.base - 30, x1 + 4, foot), mix(tint.shade, EARTH.deep, 0.3), { rng, opacity: 0.28, deform: 0.2, spread: 0.3, edge: 0, fade: { angle: -Math.PI / 2, start: 0.2, amount: 1, ragged: 0.7 } });
   yield;
   // the lifts of the formwork: short broken courses, never a ruled line across
+  const course: StrokeOptions = { ...DRY_BRUSH, rng, pigment: mix(tint.shade, EARTH.deep, 0.4), opacity: 0.2, dryness: 0.7 };
+  const courses = batchLayer(p, area, 30);
+  const putlogs = tower ? batchLayer(p, area, 4) : null;
   for (let y = top + rng.range(12, 18); y < b.base - 6; y += rng.range(10, 14)) {
     for (let x = x0 + rng.range(-2, 10); x < x1; ) {
       const len = rng.range(12, 34);
       if (rng.chance(0.6)) {
-        p.dryBrush([{ x, y: y + rng.range(-0.6, 0.6) }, { x: x + len * 0.5, y: y + rng.range(-0.8, 0.8) }, { x: x + len, y: y + rng.range(-0.6, 0.6) }], { rng, pigment: mix(tint.shade, EARTH.deep, 0.4), width: rng.range(1, 1.6), opacity: 0.2, dryness: 0.7 });
-        if (pace()) yield;
+        strokeInto(courses, p, [{ x, y: y + rng.range(-0.6, 0.6) }, { x: x + len * 0.5, y: y + rng.range(-0.8, 0.8) }, { x: x + len, y: y + rng.range(-0.6, 0.6) }], { ...course, width: rng.range(1, 1.6) });
+        if (pace()) {
+          courses.flush();
+          yield;
+        }
       }
       x += len + rng.range(4, 16);
     }
-    if (tower && rng.chance(0.25)) {
+    if (putlogs && rng.chance(0.25)) {
       // the putlog holes of one lift, a short run of them
       const hx = rng.range(x0 + 8, x1 - 24);
-      for (let k = 0; k < 3; k++) p.dab({ x: hx + k * rng.range(6, 9), y: y - 2 }, mix(EARTH.dark, tint.shade, 0.3), { rng, variant: 'round', length: 1.5, width: 1.3, opacity: 0.35, layers: 1 });
+      for (let k = 0; k < 3; k++) p.dabInto(putlogs, { x: hx + k * rng.range(6, 9), y: y - 2 }, mix(EARTH.dark, tint.shade, 0.3), { rng, variant: 'round', length: 1.5, width: 1.3, layers: 1 });
     }
   }
+  yield* courses.dryParts(strokeDry({ ...course, width: 1.3 }));
+  if (putlogs) yield* putlogs.dryParts({ opacity: 0.35 }, dabDry(1.5, 1.3));
   yield;
   if (tower) yield* paintBands(p, s, tint, rng.fork('bands'));
   if (b.kind === 'curtain') yield* paintRuin(p, s, tint, rng.fork('ruin'));
   yield* paintOpenings(p, b, tint, rng.fork('openings'));
   yield;
   // rain has washed down from the merlons and gullied the corners
+  const streak: StrokeOptions = { rng, pigment: mix(tint.shade, EARTH.deep, 0.35), taper: [0.2, 0.9], opacity: 0.18, wetness: 0.6, dryness: 0.3 };
+  const rain = batchLayer(p, area, 20);
   for (let i = 0; i < Math.round(b.w / 14); i++) {
     const x = rng.range(x0 + 4, x1 - 4);
     const len = rng.range(10, b.h * (tower ? 0.55 : 0.4));
     const y = top + rng.range(0, 6);
-    p.stroke([{ x, y }, { x: x + rng.range(-1, 1), y: y + len * 0.5 }, { x: x + rng.range(-1.5, 1.5), y: y + len }], { rng, pigment: mix(tint.shade, EARTH.deep, 0.35), width: rng.range(1.4, 2.8), taper: [0.2, 0.9], opacity: 0.18, wetness: 0.6, dryness: 0.3 });
-    if (pace()) yield;
+    strokeInto(rain, p, [{ x, y }, { x: x + rng.range(-1, 1), y: y + len * 0.5 }, { x: x + rng.range(-1.5, 1.5), y: y + len }], { ...streak, width: rng.range(1.4, 2.8) });
   }
+  yield* rain.dryParts(strokeDry({ ...streak, width: 2.1 }));
+  // and blotted the corners pale
+  const blotted = batchLayer(p, area, 8);
   for (let i = 0; i < Math.round(b.h / 34) + 1; i++) {
     const left = rng.chance(0.8);
     const x = left ? x0 + rng.range(-1, 3) : x1 - rng.range(-1, 3);
-    p.lift({ cx: x, cy: rng.range(top + 4, b.base - 4), rx: rng.range(2, 4), ry: rng.range(3, 7) }, { rng, amount: 0.25, layers: 3, deform: 0.5 });
-    if (pace()) yield;
+    washInto(blotted, { cx: x, cy: rng.range(top + 4, b.base - 4), rx: rng.range(2, 4), ry: rng.range(3, 7) }, PAPER_WHITE, rng, { layers: layersFor(p.env, 3), deform: 0.5, spread: 0.15, jitter: 0 });
   }
+  yield* blotted.dryParts({ opacity: 0.25, edge: 0.05, sharpness: 0.35, centreLift: 0, granulation: 0, flow: 0.3, blend: 'source-over' }, WASH_DRY);
+  yield;
   // the light catches the worn tops: broken, loose touches along the parapet
   const lit = smoothPath(s.top.map((q) => ({ x: q.x, y: q.y + 1.6 })), 3);
+  const touch: StrokeOptions = { ...DRY_BRUSH, rng, pigment: lighten(tint.lit, 0.08), opacity: 0.36 - tint.far * 0.3, dryness: 0.5, blend: 'source-over' };
+  const shine = batchLayer(p, bounds(lit), 12);
   for (let i = 0; i < lit.length; ) {
     const n = Math.round(rng.range(4, 9));
     const run = lit.slice(i, i + n);
-    if (run.length > 1 && rng.chance(0.5)) {
-      p.dryBrush(run, { rng, pigment: lighten(tint.lit, 0.08), width: rng.range(1.4, 2.2), opacity: 0.36 - tint.far * 0.3, dryness: 0.5, blend: 'source-over' });
-      if (pace()) yield;
-    }
+    if (run.length > 1 && rng.chance(0.5)) strokeInto(shine, p, run, { ...touch, width: rng.range(1.4, 2.2) });
     i += n + Math.round(rng.range(1, 4));
   }
+  yield* shine.dryParts(strokeDry({ ...touch, width: 1.8 }));
   p.ctx.restore();
   p.ctx.restore();
   yield;
@@ -808,6 +831,7 @@ function* paintBlock(p: Painter, s: BlockShape, index: number, rng: Rng): Stroke
 /**
  * A tower's carved band near the top, done as quick loose brushwork: a broken fillet, a running
  * zigzag of uneven teeth, a row of lozenges flicked in two strokes each, some faint or missing.
+ * The fillets dry as one layer and the flicks as another, each flick at its own strength.
  */
 function* paintBands(p: Painter, s: BlockShape, tint: Tint, rng: Rng): Strokes {
   const b = s.block;
@@ -818,19 +842,21 @@ function* paintBands(p: Painter, s: BlockShape, tint: Tint, rng: Rng): Strokes {
   const incise = mix(EARTH.deep, tint.shade, 0.35);
   // the band stands proud of the wall: a touch lighter, with a soft shade under its lower fillet
   p.glaze(box(x0 - 3, top + 6, x1 + 3, top + 32), tint.lit, { rng, opacity: 0.18, deform: 0.2, spread: 0.3, edge: 0 });
+  const area = { x: x0 - 6, y: top + 2, w: x1 - x0 + 12, h: 40 };
+  const fillet: StrokeOptions = { ...DRY_BRUSH, rng, pigment: incise, opacity: 0.38, dryness: 0.5 };
+  const fillets = batchLayer(p, area, 20);
+  const flicks = batchLayer(p, area, 6);
   const broken = (y: number, width: number, op: number) => {
     for (let x = x0 - 3; x < x1 + 2; ) {
       const len = rng.range(10, 26);
-      p.dryBrush([{ x, y: y + rng.range(-0.5, 0.5) }, { x: Math.min(x1 + 3, x + len), y: y + rng.range(-0.7, 0.7) }], { rng, pigment: incise, width, opacity: op, dryness: 0.5 });
+      strokeInto(fillets, p, [{ x, y: y + rng.range(-0.5, 0.5) }, { x: Math.min(x1 + 3, x + len), y: y + rng.range(-0.7, 0.7) }], { ...fillet, width }, op / 0.38);
       x += len + rng.range(1, 5);
     }
   };
   const y1 = top + 11 + rng.range(-1, 1);
   broken(y1 - 3, 1.3, 0.38);
-  yield;
   // the zigzag: one flick of the brush per tooth edge, heavy where it lands, now and then skipped
-  const pace = pacer(2 * MARKS_PER_PART);
-  const flick = (a: Pt, c: Pt, op: number) => p.stroke([a, c], { rng, pigment: incise, width: rng.range(1.1, 1.6), taper: [0.05, 0.6], opacity: op, wetness: 0.3, wobble: 0.2 });
+  const flick = (a: Pt, c: Pt, op: number) => strokeInto(flicks, p, [a, c], { rng, pigment: incise, width: rng.range(1.1, 1.6), taper: [0.05, 0.6], wetness: 0.3, wobble: 0.2 }, op / 0.5);
   let up = true;
   for (let x = x0; x < x1 - 3; x += rng.range(4.2, 5.4), up = !up) {
     if (rng.chance(0.08)) continue;
@@ -838,8 +864,9 @@ function* paintBands(p: Painter, s: BlockShape, tint: Tint, rng: Rng): Strokes {
     const hi = y1 + rng.range(0, 1);
     const nx = Math.min(x1, x + rng.range(4.2, 5.4));
     flick({ x, y: up ? lo : hi }, { x: nx, y: up ? hi : lo }, rng.range(0.3, 0.5));
-    if (pace()) yield;
   }
+  flicks.flush();
+  yield;
   const y2 = y1 + 13;
   const n = Math.max(2, Math.floor((x1 - x0) / 10.5));
   const dx = (x1 - x0) / n;
@@ -858,18 +885,21 @@ function* paintBands(p: Painter, s: BlockShape, tint: Tint, rng: Rng): Strokes {
     flick(l, bt, op * 0.9);
     flick({ x: t.x + 0.4, y: t.y }, r, op * 0.85);
     if (rng.chance(0.85)) flick(r, { x: bt.x + 0.5, y: bt.y - 0.3 }, op * 0.8);
-    yield;
   }
   const y3 = y2 + 8 + rng.range(-0.5, 0.5);
   broken(y3, 1.4, 0.36);
+  yield* fillets.dryParts(strokeDry({ ...fillet, width: 1.35 }));
+  yield* flicks.dryParts(strokeDry({ opacity: 0.5, width: 1.35, wetness: 0.3 }));
   yield;
   p.glaze(box(x0 - 3, y3 + 1, x1 + 3, y3 + 6), tint.shade, { rng, opacity: 0.22, deform: 0.2, spread: 0.2, edge: 0, fade: { angle: Math.PI / 2, start: 0.1, amount: 1, ragged: 0.5 } });
   // on the tallest towers, two blind niches under the band
   if (b.h > 125) {
+    const niches = batchLayer(p, { x: x0, y: y3 + 6, w: x1 - x0, h: 16 }, 8);
     for (const f of [0.34, 0.66]) {
       const cx = x0 + (x1 - x0) * f + rng.range(-1.5, 1.5);
-      p.wash(arch(cx - 2.6, y3 + 9, 5.2, 9), mix(tint.shade, EARTH.deep, 0.35), { rng, layers: 3, opacity: 0.4, deform: 0.08, edge: 0.4, sharpness: 0.6 });
+      washInto(niches, arch(cx - 2.6, y3 + 9, 5.2, 9), mix(tint.shade, EARTH.deep, 0.35), rng, { layers: layersFor(p.env, 3), deform: 0.08, spread: 0.15 });
     }
+    yield* niches.dryParts({ opacity: 0.4, edge: 0.4, sharpness: 0.6 }, WASH_DRY);
   }
 }
 
@@ -880,20 +910,29 @@ function* paintRuin(p: Painter, s: BlockShape, tint: Tint, rng: Rng): Strokes {
   const band = (d0: number, d1: number) => [...crest.map((q) => ({ x: q.x, y: q.y + d0 })), ...crest.slice().reverse().map((q) => ({ x: q.x, y: q.y + d1 }))];
   yield* p.parts.glaze(band(-2, 9), tint.lit, { rng, opacity: 0.4, deform: 0.15, spread: 0.2, edge: 0, fade: { angle: Math.PI / 2, start: 0.3, amount: 1, ragged: 0.6 } });
   yield* p.parts.glaze(band(8, 16), mix(tint.shade, EARTH.deep, 0.3), { rng, opacity: 0.22, deform: 0.25, spread: 0.3, edge: 0, fade: { angle: Math.PI / 2, start: 0.2, amount: 1, ragged: 0.8 } });
+  const area = bounds(s.front);
+  const gully: StrokeOptions = { rng, pigment: mix(tint.shade, EARTH.deep, 0.4), taper: [0.15, 0.85], opacity: 0.3, wetness: 0.45, dryness: 0.3 };
+  const edge: StrokeOptions = { ...DRY_BRUSH, rng, pigment: tint.lit, width: 1.1, opacity: 0.35, dryness: 0.6, blend: 'source-over' };
+  const gullies = batchLayer(p, area, 20);
+  const edges = batchLayer(p, area, 12);
   for (let x = b.x + rng.range(6, 14); x < b.x + b.w - 6; x += rng.range(14, 26)) {
     const i = crest.findIndex((q) => q.x >= x);
     const y0 = (crest[Math.max(0, i)]?.y ?? b.base - b.h) + rng.range(1, 4);
     const len = rng.range(0.35, 0.8) * (b.base - y0);
     const pts: Pt[] = [];
     for (let t = 0; t <= 1.001; t += 0.25) pts.push({ x: x + Math.sin(t * 2.6 + x) * 1.2, y: y0 + t * len });
-    p.stroke(pts, { rng, pigment: mix(tint.shade, EARTH.deep, 0.4), width: rng.range(2, 3.2), taper: [0.15, 0.85], opacity: 0.3, wetness: 0.45, dryness: 0.3 });
-    p.dryBrush(pts.slice(0, 4).map((q) => ({ x: q.x - 1.8, y: q.y })), { rng, pigment: tint.lit, width: 1.1, opacity: 0.35, dryness: 0.6, blend: 'source-over' });
+    strokeInto(gullies, p, pts, { ...gully, width: rng.range(2, 3.2) });
+    strokeInto(edges, p, pts.slice(0, 4).map((q) => ({ x: q.x - 1.8, y: q.y })), edge);
   }
+  yield* gullies.dryParts(strokeDry({ ...gully, width: 2.6 }));
+  yield* edges.dryParts(strokeDry(edge));
+  const holes = batchLayer(p, area, 6);
   for (let i = 0; i < 2; i++) {
     const x = rng.range(b.x + 10, b.x + b.w - 10);
     const y = rng.range(b.base - b.h * 0.6, b.base - 8);
-    p.wash(blob(x, y, rng.range(1.5, 2.6), rng.range(1.2, 2), rng, { irregularity: 0.35, points: 8 }), mix(EARTH.dark, tint.shade, 0.35), { rng, layers: 3, opacity: 0.5, deform: 0.1, edge: 0.4, sharpness: 0.6 });
+    washInto(holes, blob(x, y, rng.range(1.5, 2.6), rng.range(1.2, 2), rng, { irregularity: 0.35, points: 8 }), mix(EARTH.dark, tint.shade, 0.35), rng, { layers: layersFor(p.env, 3), deform: 0.1, spread: 0.15 });
   }
+  yield* holes.dryParts({ opacity: 0.5, edge: 0.4, sharpness: 0.6 }, WASH_DRY);
   yield;
 }
 
@@ -909,19 +948,32 @@ function arch(x: number, y: number, w: number, h: number): Pt[] {
   return out;
 }
 
-/** The openings: soft dark washes darkest at their top, a palm-wood lintel and a lit sill on some. */
+/**
+ * The openings: soft dark washes darkest at their top, a palm-wood lintel and a lit sill on some.
+ * A block's holes, its lintels and its sills each dry as one layer.
+ */
 function* paintOpenings(p: Painter, b: BlockShape['block'], tint: Tint, rng: Rng): Strokes {
+  const ws = windows(b);
+  if (!ws.length) return;
   const hole = mix(mix(EARTH.dark, EARTH.deep, 0.35), tint.shade, 0.2 + tint.far);
-  for (const w of windows(b)) {
+  const area = bounds(ws.flatMap((w) => [{ x: w.x - 4, y: w.y - 3 }, { x: w.x + w.w + 4, y: w.y + w.h + 3 }]));
+  const beam: StrokeOptions = { rng, pigment: mix('#7a5a40', EARTH.dark, 0.25), width: 1.5, opacity: 0.6 - tint.far * 0.3, wetness: 0.15, wobble: 0.2 };
+  const sill: StrokeOptions = { ...DRY_BRUSH, rng, pigment: tint.lit, width: 1.2, opacity: 0.4, dryness: 0.4, blend: 'source-over' };
+  const holes = batchLayer(p, area, 6);
+  const lintels = batchLayer(p, area, 6);
+  const sills = batchLayer(p, area, 6);
+  for (const w of ws) {
     const shape = w.kind === 'arch' ? arch(w.x, w.y, w.w, w.h) : roughOutline(box(w.x, w.y, w.x + w.w, w.y + w.h), rng, 0.3, 1.5);
-    p.wash(shape, hole, { rng, layers: 4, opacity: 0.66 - tint.far * 0.4, deform: 0.06, spread: 0.05, edge: 0.45, sharpness: 0.7, fade: { angle: Math.PI / 2, start: 0.4, amount: 0.35 } });
+    washInto(holes, shape, hole, rng, { layers: layersFor(p.env, 4), deform: 0.06, spread: 0.05, fade: { angle: Math.PI / 2, start: 0.4, amount: 0.3 } });
     if (w.lintel) {
       const over = rng.range(1.5, 3);
-      p.stroke([{ x: w.x - over, y: w.y - 1.3 }, { x: w.x + w.w + over, y: w.y - 1.1 + rng.range(-0.4, 0.4) }], { rng, pigment: mix('#7a5a40', EARTH.dark, 0.25), width: 1.5, opacity: 0.6 - tint.far * 0.3, wetness: 0.15, wobble: 0.2 });
+      strokeInto(lintels, p, [{ x: w.x - over, y: w.y - 1.3 }, { x: w.x + w.w + over, y: w.y - 1.1 + rng.range(-0.4, 0.4) }], beam);
     }
-    p.dryBrush([{ x: w.x - 0.5, y: w.y + w.h + 1.2 }, { x: w.x + w.w + 1, y: w.y + w.h + 1.4 }], { rng, pigment: tint.lit, width: 1.2, opacity: 0.4, dryness: 0.4, blend: 'source-over' });
-    yield;
+    strokeInto(sills, p, [{ x: w.x - 0.5, y: w.y + w.h + 1.2 }, { x: w.x + w.w + 1, y: w.y + w.h + 1.4 }], sill);
   }
+  yield* holes.dryParts({ opacity: 0.66 - tint.far * 0.4, edge: 0.45, sharpness: 0.7 }, WASH_DRY);
+  yield* lintels.dryParts(strokeDry(beam));
+  yield* sills.dryParts(strokeDry(sill));
 }
 
 /** The ksar's span over the rock, with a little room either side. */
@@ -998,16 +1050,29 @@ function* paintSeat(p: Painter, rng: Rng): Strokes {
   yield;
   // the join, in broken touches: a dark crack here, the rock's lit edge there
   const seam = smoothPath(top.map((q) => ({ x: q.x, y: q.y - 0.3 })), 3);
+  // its cracks dry as one layer and its lit edges as another (ADR 0345)
+  const crack: StrokeOptions = { ...DRY_BRUSH, rng, pigment: mix(EARTH.dark, EARTH.shade, 0.45), opacity: 0.34, dryness: 0.5 };
+  const edge: StrokeOptions = { ...DRY_BRUSH, rng, pigment: EARTH.lit, width: 1.6, opacity: 0.34, dryness: 0.6, blend: 'source-over' };
+  const strip = padRect(bounds(seam), 4);
+  const cracks = batchLayer(p, strip, 20);
+  const edges = batchLayer(p, strip, 20);
+  const runs = pacer(3 * MARKS_PER_PART);
   for (let i = 0; i < seam.length; ) {
     const n = Math.round(rng.range(4, 12));
     const run = seam.slice(i, i + n);
     if (run.length > 1) {
-      if (rng.chance(0.55)) p.dryBrush(run, { rng, pigment: mix(EARTH.dark, EARTH.shade, 0.45), width: rng.range(1.2, 2.2), opacity: 0.34, dryness: 0.5 });
-      if (rng.chance(0.55)) p.dryBrush(run.map((q) => ({ x: q.x, y: q.y + 2.4 })), { rng, pigment: EARTH.lit, width: 1.6, opacity: 0.34, dryness: 0.6, blend: 'source-over' });
-      if (pace()) yield;
+      if (rng.chance(0.55)) strokeInto(cracks, p, run, { ...crack, width: rng.range(1.2, 2.2) });
+      if (rng.chance(0.55)) strokeInto(edges, p, run.map((q) => ({ x: q.x, y: q.y + 2.4 })), edge);
+      if (runs()) {
+        cracks.flush();
+        edges.flush();
+        yield;
+      }
     }
     i += n + Math.round(rng.range(0, 5));
   }
+  yield* cracks.dryParts(strokeDry({ ...crack, width: 1.7 }));
+  yield* edges.dryParts(strokeDry(edge));
   // fallen pisé slumped below the ruined stretches, in the walls' own colour
   for (const s of KSAR_SHAPES.filter((q) => q.block.kind === 'curtain')) {
     const b = s.block;
