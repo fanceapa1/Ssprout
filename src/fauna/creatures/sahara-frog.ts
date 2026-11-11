@@ -146,12 +146,12 @@ function paintSit(p: Painter, c: Tone): void {
 function paintFloat(p: Painter, c: Tone): void {
   const rng = p.rng;
   const head = smoothPolygon([P(0.52, 0.01), P(0.47, -0.04), P(0.38, -0.075), P(0.3, -0.115), P(0.22, -0.1), P(0.1, -0.075), P(-0.02, -0.045), P(-0.12, -0.015), P(-0.15, 0.012)], 2);
-  p.wetInWet(head, c.back, c.flank, { rng, angle: Math.PI / 2, split: 0.6, softness: 0.5, opacity: 0.93, edge: 0.45, edgeWidth: L * 0.02, deform: 0.05, granulation: 0.25, blend: 'source-over', fade: { angle: Math.PI, start: 0.8, amount: 0.6 } });
+  p.wetInWet(head, mix(c.back, c.blotch, 0.4), c.back, { rng, angle: Math.PI / 2, split: 0.55, softness: 0.5, opacity: 0.96, edge: 0.55, edgeWidth: L * 0.02, deform: 0.05, granulation: 0.25, blend: 'source-over', fade: { angle: Math.PI, start: 0.8, amount: 0.6 } });
   blotches(p, head, c.blotch, 3, [-0.1, 0.1], [-0.05, -0.02], 0.025);
   mark(p, pt(0.2, -0.1), pt(-0.1, -0.03), c.stripe, 0.018, 0.75);
   mark(p, pt(0.5, -0.02), pt(0.36, -0.005), c.ridge, 0.016, 0.5);
   // the far eye, then the near one: gold, the pupil level
-  for (const [x, y, s, a] of [[0.24, -0.105, 0.75, 0.7], [0.3, -0.11, 1, 0.95]] as const) {
+  for (const [x, y, s, a] of [[0.24, -0.11, 0.85, 0.75], [0.3, -0.115, 1.15, 1]] as const) {
     p.dab(P(x, y), mix(c.back, c.belly, 0.2), { rng, variant: 'round', angle: 0, length: L * 0.11 * s, width: L * 0.09 * s, opacity: 0.85 * a, layers: 3, blend: 'source-over' });
     p.dab(P(x, y - 0.006), EYE, { rng, variant: 'round', angle: 0, length: L * 0.08 * s, width: L * 0.075 * s, opacity: a, layers: 3, blend: 'source-over' });
     p.dab(P(x + 0.004, y - 0.006), PUPIL, { rng, variant: 'round', angle: 0, length: L * 0.05 * s, width: L * 0.018 * s, opacity: 0.9 * a, layers: 2 });
@@ -220,7 +220,7 @@ export function paintSaharaFrog(res: number, seed: number, tone: FrogTone = 'gre
   const hang = paintSprite(res, { w: L * 1.4, h: L * 0.56, ox: L * 0.9, oy: L * 0.28 }, seed + 2, (p) => paintHang(p, c));
   return {
     sit: paintSprite(res, { w: L * 1.08, h: L * 0.56, ox: L * 0.48, oy: L * 0.52 }, seed, (p) => paintSit(p, c)),
-    float: paintSprite(res, { w: L * 0.78, h: L * 0.17, ox: L * 0.24, oy: L * 0.14 }, seed + 1, (p) => paintFloat(p, c)),
+    float: paintSprite(res, { w: L * 0.78, h: L * 0.23, ox: L * 0.24, oy: L * 0.2 }, seed + 1, (p) => paintFloat(p, c)),
     hang: deepCopy(hang, res, '#5b9a91', 0.35, 3),
     leap: paintSprite(res, { w: L * 1.6, h: L * 0.36, ox: L * 1.05, oy: L * 0.18 }, seed + 3, (p) => paintLeap(p, c)),
     sac: paintSprite(res, { w: L * 0.21, h: L * 0.18, ox: L * 0.02, oy: L * 0.09 }, seed + 4, (p) => paintSac(p)),
