@@ -280,7 +280,7 @@ Up to 3 agents at a time for this phase, beside the phase 14 queue's agents. Sce
 | # | Task | Area | Status |
 |---|---|---|---|
 | D-b | Draft B: an olive on the top tier, three dry-stone tiers down to a pebble beach and rock pools, a temple promontory, the village across the bay | `src/scenery/coast/drafts/b/**` | done, chosen (lands with G1) |
-| G0 | Biome research (web, read-only): region, 14–16 plants over four tiers with two per habitat, the owner's four creatures plus about 8 wild ones, species shared by biology, sound notes, pitfalls | `docs/research/coast-biome.md` | in progress |
+| G0 | Biome research (web, read-only): region, 14–16 plants over four tiers with two per habitat, the owner's four creatures plus about 8 wild ones, species shared by biology, sound notes, pitfalls | `docs/research/coast-biome.md` | done (Ionian islands; 16 plants, 14 new creatures in two waves, 5 plants and 7 creatures shared by biology; orchestrator defaults until the owner says otherwise: the blue-domed chapel stays, the ice plant is a cultivated *Lampranthus* on the terrace only, the cypress stays, algae are labelled as algae, common dolphins, the cat is always there) |
 | G1 | Coast scenery skeleton from draft B: id, registry, geometry and about 50 slots, habitat words, view focus, sky numbers, flora profile, an empty wildlife table, placeholder sky, light and painting; a broken natural shoreline and a phone crop that holds a landmark; behind `?dev&scenery=coast` | `src/scenery/coast/**`, `src/core/sceneries.ts`, `src/scenery/{registry,ids}.ts` | in progress (devlog 170; ADR 0360) |
 | G2 | Coast painters: the limestone promontory, the temple columns, the far hill with the village and chapel, the rock shelf and boulders | `src/scenery/coast/paint-rocks.ts` | queued (after G1) |
 | G3 | Coast painters: the sea, the shallows, the pebble beach, the rock pools, the caique | `src/scenery/coast/paint-water.ts` | queued (after G1) |
@@ -292,3 +292,36 @@ Up to 3 agents at a time for this phase, beside the phase 14 queue's agents. Sce
 | G8 | Acceptance and docs; release at the owner's word | `docs/**`, `tests/**` | queued |
 
 Phase 15 art queue (after G0): one plant (GP…) or creature (GK…) per task, from the G0 brief. Rows are added when G0 lands.
+
+| # | Task | Area | Status |
+|---|---|---|---|
+| GP1 | Olive (*Olea europaea*): T4 tree, the signature; a fat fluted trunk and a broken silver crown | `src/plants/species/olive.ts` | in progress (devlog 171) |
+| GP2 | Ice plant (*Lampranthus*): T1, magenta and red mats on the terrace, walls and path | `src/plants/species/ice-plant.ts` | queued |
+| GP3 | Lavender (*Lavandula*): T2, grey-green humps with violet spikes, terrace and path | `src/plants/species/lavender.ts` | queued |
+| GP4 | Sea daffodil (*Pancratium maritimum*): T2, white trumpets on the beach sand | `src/plants/species/sea-daffodil.ts` | queued |
+| GP5 | Posidonia (*Posidonia oceanica*): T3, a seagrass meadow in the shallows | `src/plants/species/posidonia.ts` | queued |
+| GP6 | Rock samphire (*Crithmum maritimum*): T1, fleshy lime umbels on splash rocks and shingle | `src/plants/species/rock-samphire.ts` | queued |
+| GP7 | Peacock's tail (*Padina pavonica*): T1, pale banded fans in the rock pools (an alga) | `src/plants/species/peacocks-tail.ts` | queued |
+| GP8 | Cyclamen (*Cyclamen hederifolium*): T1, pink swept-back flowers over marbled leaves, walls and scrub | `src/plants/species/cyclamen.ts` | queued |
+| GP9 | Sea holly (*Eryngium maritimum*): T2, steel-blue spiny bracts on the beach | `src/plants/species/sea-holly.ts` | queued |
+| GP10 | Cystoseira: T2, an amber-brown algal bush in the pools and shallows | `src/plants/species/cystoseira.ts` | queued |
+| GP11 | Sea lavender (*Limonium*): T2, a lilac haze on wiry stems, rock and wall | `src/plants/species/sea-lavender.ts` | queued |
+| GP12 | Pink rock rose (*Cistus creticus*): T2, crumpled pink flowers, scrub and path | `src/plants/species/rock-rose.ts` | queued |
+| GP13 | Tree spurge (*Euphorbia dendroides*): T3, a lime-yellow dome on the cliff and rocks | `src/plants/species/tree-spurge.ts` | queued |
+| GP14 | Jerusalem sage (*Phlomis fruticosa*): T3, whorls of yellow hooded flowers over grey felt leaves | `src/plants/species/jerusalem-sage.ts` | queued |
+| GP15 | Aleppo pine (*Pinus halepensis*): T4 tree, a leaning trunk and a light open crown | `src/plants/species/aleppo-pine.ts` | queued |
+| GP16 | Mediterranean cypress (*Cupressus sempervirens*): T4, the dark spire | `src/plants/species/cypress.ts` | queued |
+| GK1 | Island cat: sleeps on the copings, strolls the path; always there | `src/fauna/creatures/cat.ts` | queued (after GK0) |
+| GK2 | Yellow-legged gull: the caique's mast, a splash rock, the cove; 1 plant | `src/fauna/creatures/gull.ts` | queued (after GK0) |
+| GK3 | Cicada: on the olive and pine trunks by day; 2 plants | `src/fauna/creatures/cicada.ts` | queued (after GK0) |
+| GK4 | Marbled rock crab: splash rocks and the pool edge; 5 plants | `src/fauna/creatures/rock-crab.ts` | queued (after GK0) |
+| GK5 | Blue rock thrush: wall tops, the temple, ledges; 8 plants | `src/fauna/creatures/rock-thrush.ts` | queued (after GK0) |
+| GK6 | Goats on the far cliff ledges; 9 plants | `src/fauna/creatures/goat.ts` | queued (after GK0) |
+| GK7 | Hermann's tortoise: scrub, terrace foot and path; 10 plants | `src/fauna/creatures/tortoise.ts` | queued (after GK0) |
+| GK8 | Scops owl: the olive, a wall top, a pine; night only; 12 plants | `src/fauna/creatures/scops-owl.ts` | queued (after GK0) |
+| GK9 | Common dolphins far out in the bay; rare; 20 plants | `src/fauna/creatures/dolphin.ts` | queued (after GK0) |
+| GK10 | Balkan green lizard on the sunlit wall; 3 plants | `src/fauna/creatures/green-lizard.ts` | queued (second wave) |
+| GK11 | Damselfish shoal in the shallows; 11 plants | `src/fauna/creatures/damselfish.ts` | queued (second wave) |
+| GK12 | Common octopus in the rock pool; rare; 16 plants | `src/fauna/creatures/octopus.ts` | queued (second wave) |
+
+Shared by biology, no art task: caper, oleander, grapevine, pomegranate and southern maidenhair (checked against the coast's flora profile in G1); cabbage white, bees, swallows, swallowtail, heron, and the hoopoe and gecko once OK5 and OK6 exist (rows in GK0). Left for later, if the owner wants them: hummingbird hawk-moth, Scopoli's shearwater, loggerhead turtle.
