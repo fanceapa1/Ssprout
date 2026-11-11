@@ -199,10 +199,13 @@ run. With a warm paint cache they are never requested.
   modules these import, or it lands in the first view again.
 - Sync painting (`paintSceneSync`, `paintJob`, `backgroundSteps`, the studio, unit tests) needs
   `await scenery.painters.load()` first; `paintScene` loads them itself.
-- **Not yet lazy:** the oasis's `paint-land`, `paint-water`, `paint-veg` and `paint-rocks`. Its
-  wildlife data reads shapes from the first three (`WALL_FACES`, `BASIN_STEPS`, `GROVE_PALMS`, …),
-  and `paint-land` and `paint-water` take `EARTH` from `paint-rocks`. Only its steps, sky and light
-  marks, and its motion are in lazy chunks.
+- **The oasis's shared shapes** live in `oasis/shapes.ts` (devlog 149): `WALL_FACES` and
+  `copingLine`, `FALLEN_STONES`, `NEAR_STONES`, `BASIN_STEPS`, `SLUICE_GATE`, `planPalm`,
+  `BIG_PALM_SHAPES`, `GROVE_PALMS` and the `PalmShape` type. The wildlife data, daylight, the
+  motion and the painters read them from there, so the oasis's `paint-*` modules are only in its
+  lazy chunks. A shape eager code needs goes into `shapes.ts` (or `layout.ts`, `geometry.ts`),
+  never into a `paint-*` module. `lazy-painters.spec.ts` checks that a Japanese garden visit,
+  first or warm, loads none of the oasis's paint code.
 
 ## Adding a scenery
 1. A folder `src/scenery/<id>/` with its geometry, painting data (`SceneArt`), `ScenerySky`,
@@ -653,6 +656,7 @@ The shapes are the layout's (`geometry.ts`); the big sand bar is the layout's `B
   `BASIN_STEPS`: five short, foreshortened treads down the right wall from its far corner, two
   dry, the rest paler shapes under the water. `SLUICE_GATE`: a cut through the right coping at
   the near right corner, an upright post either side and a board in their slots with a thin spill over it.
+  Both shapes are in `shapes.ts`.
 - **Seguia** (O11, devlog 132): each run is a clay-lined cut: damp clay either side, the far
   bank's inner face in shade with a few lining joints, the water light-to-teal with the far bank
   mirrored dark under it, a lit, broken near lip lying over the water's edge (so the water sits
@@ -700,13 +704,13 @@ sky-teal glint, a lit far lip) and a faint worked strip at the bluff's foot. **T
   back beds' furrows still dry one stroke at a time. **Footpath**: lifted and paled, footprints.
 - **Walls**: pisé faces hung from the layout's copings (the grove wall runs 44 further left,
   under the basin's corner), formwork courses, streaks, a damp foot, a cast shade, a broken lit
-  cap, fallen lumps. `WALL_FACES` exports each face for daylight.
+  cap, fallen lumps. `WALL_FACES` (`shapes.ts`) is each face, for daylight and the wildlife.
 - **Foreground**: the bund, a stone channel where it meets the seguia, a broken jar, stones, dry
   halfa tufts, and earth fallen into the basin's near-left corner.
 
 ### Vegetation (O4, `paint-veg.ts`)
 Steps `grove` (after the ground) and `big-palms` (after the water), in parts. Every palm is the
-date-palm species' tree (devlog 106), planned by `planPalm` with its helpers: arching rachises,
+date-palm species' tree (devlog 106), planned by `planPalm` (`shapes.ts`): arching rachises,
 V-set leaflets, a wet crown wash, a few gold old fronds, the diamond leaf-base lattice.
 - **Grove**: a shaded floor, a hazy back row and a nearer row of palms (batched wet layers), fig,
   pomegranate and olive masses lit from the right, crops as soft green bands before the wall.
