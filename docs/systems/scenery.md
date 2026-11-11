@@ -688,7 +688,9 @@ Steps `ranges`, `dunes` (soft), `ground`, `terraces`, `plots`, `footpath`, `wall
 greened by a young crop, one dry and one just watered; a head ditch (a dark cut, a broken
 sky-teal glint, a lit far lip) and a faint worked strip at the bluff's foot. **Terraces**: worked soil along the walls' curves, contour furrows,
   faint cross-bunds, greener toward the seguia. **Plots**: soft outlines, furrows toward a
-  vanishing point, seedling rows, a watered side. **Footpath**: lifted and paled, footprints.
+  vanishing point, seedling rows, a watered side. Each plot lays its furrows' dark troughs, lit ridges and seedlings
+  into three wet layers over its outline and dries each once (`paint-batch.ts`, ADR 0343). The
+  back beds' furrows still dry one stroke at a time. **Footpath**: lifted and paled, footprints.
 - **Walls**: pisé faces hung from the layout's copings (the grove wall runs 44 further left,
   under the basin's corner), formwork courses, streaks, a damp foot, a cast shade, a broken lit
   cap, fallen lumps. `WALL_FACES` exports each face for daylight.
@@ -713,7 +715,9 @@ crown is planned in its own part. Runs of dry-brush strokes, flicks and small gl
 few marks (`pacer()`, `paint-pace.ts`), sometimes inside a clip. A pause adds no canvas call, so the
 recording hash pins hold. In the app the cold oasis's longest part is about 18 ms on a quiet
 laptop (it was 24–26). That part is Chromium rasterising the job canvas's queued composites, not
-oasis code. A new loop of small wet marks should take a `pacer()`.
+oasis code. A new loop of small wet marks should take a `pacer()`. A long run of like marks can instead share a
+layer and dry once (`dryBrushInto`, ADR 0343): the near plots pause every three furrows and flush their
+layers before each pause.
 
 ### Motion (O6, `motion.ts`, ADR 0282)
 `createOasisMotion` is `OASIS.motion`. Like the waterfall's (Waterfall › Motion), it goes over
