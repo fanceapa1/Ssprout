@@ -202,13 +202,16 @@ export const OASIS_PERCHES: Perch[] = [
 
 // ── ground, walls, stands ───────────────────────────────────────────────────────────────────
 
-/** Where the hoopoe walks: the watered side of each near plot, and a watered strip on each raised terrace. */
+/** Where the hoopoe walks: the watered side of each near plot, a strip on each raised terrace and the three wide beds behind the basin. */
 export const OASIS_GROUND: GroundSpot[] = [
   { id: 'plot-west', x: 190, y: 840, rx: 70, ry: 22 },
   { id: 'plot-mid', x: 560, y: 860, rx: 90, ry: 26 },
   { id: 'plot-east', x: 1080, y: 850, rx: 80, ry: 24 },
   { id: 'terrace-middle', x: 300, y: 560, rx: 60, ry: 10 },
   { id: 'terrace-high', x: 290, y: 478, rx: 50, ry: 7 },
+  { id: 'bed-west', x: 602, y: 536, rx: 36, ry: 8 },
+  { id: 'bed-mid', x: 731, y: 536, rx: 48, ry: 8 },
+  { id: 'bed-east', x: 872, y: 536, rx: 42, ry: 8 },
 ];
 
 /** The faces a gecko clings to: the three pisé terrace walls and the basin's near face (the ksar is too far: ADR 0304). */

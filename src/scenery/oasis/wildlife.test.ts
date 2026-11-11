@@ -7,7 +7,7 @@ import { perspectiveScale } from '../../scene/slots';
 import { OASIS } from '.';
 import { BASIN_STONE, BASIN_WATER, OUED_WATER, SEGUIA, SLUICE_WATER } from './geometry';
 import { HORN, KSAR_SHAPES } from './ksar';
-import { BASIN, BLUFF, FOOTPATH, LIFT, NEAR_PLOTS, PATH_HALF_WIDTH, SEGUIA_FALLS, WALLS } from './layout';
+import { BACK_BEDS, BASIN, BLUFF, FOOTPATH, LIFT, NEAR_PLOTS, PATH_HALF_WIDTH, SEGUIA_FALLS, WALLS } from './layout';
 import { FALLEN_STONES, NEAR_STONES, WALL_FACES } from './paint-land';
 import { BASIN_STEPS, SLUICE_GATE } from './paint-water';
 import { BIG_PALM_SHAPES, GROVE_PALMS } from './paint-veg';
@@ -117,10 +117,11 @@ describe('perches', () => {
 });
 
 describe('ground, walls and stands', () => {
-  it('the hoopoe’s spots lie on the plots or the raised terraces, off the water and the footpath', () => {
+  it('the hoopoe’s spots lie on the plots, the raised terraces or the beds behind the basin, off the water and the footpath', () => {
     for (const g of OASIS_GROUND) {
       for (const q of [{ x: g.x, y: g.y }, ...ellipse(g)]) {
         if (g.id.startsWith('plot-')) expect(NEAR_PLOTS.some((plot) => pointInPolygon(q, plot)), g.id).toBe(true);
+        if (g.id.startsWith('bed-')) expect(BACK_BEDS.some((bed) => pointInPolygon(q, bed)), g.id).toBe(true);
         for (const w of WATERS) expect(pointInPolygon(q, w), g.id).toBe(false);
         expect(lineDist(q, FOOTPATH), g.id).toBeGreaterThan(PATH_HALF_WIDTH.near);
         expect(pointInPolygon(q, BLUFF), g.id).toBe(false);
