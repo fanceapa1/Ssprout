@@ -42,7 +42,11 @@ src/
                           (japanese-garden/, waterfall/) — docs/systems/scenery.md
   plants/
     types.ts              SpeciesDef contract (below)
-    registry.ts           auto-discovers species via import.meta.glob('./species/*.ts') (not *.test/*.studio)
+    registry.ts           auto-discovers species via import.meta.glob('./species/*.ts') (not *.test/*.studio);
+                          main thread: metadata (`?meta`) + painters per species on demand (ADR 0348)
+    painter.ts            lazySpecies / painterReady / loadPainter: a main-thread species' painter chunk
+    painters.ts           every species with its painter, eager: the sprite worker's registry
+    build-registry.ts     buildRegistry (id = file name, sorted), shared by both
     species/<id>.ts       one file per species, default export SpeciesDef (25 real species)
     species/<id>.test.ts  the species' family suite (lib/suites.ts: smallSuite, shrubSuite, treeSuite)
     notes/<id>.ts         the species' plant-card note, default export { note, in? } (globbed by notes.ts)
@@ -237,6 +241,17 @@ in module workers; the garden cross-fades (and morphs) between the two nearest s
 continuous (ADRs 0110–0112). `draw` must be deterministic per (seed, growth, w, h), stay inside its box
 and not touch the DOM (it runs in a worker). Runtime sway = horizontal skew (a bend for large plants
 and trees) about the base, driven by the garden wind (ADR 0113). Details: `docs/systems/plants.md`.
+
+**Lazy painters (ADR 0348).** In a production build the main-thread registry imports each species as
+`species/<id>.ts?meta`: the build (`src/build/species-meta.ts`) answers with the definition minus
+`draw`, as JSON, so every field but `draw` must be plain data. Its `draw` runs the species' painter
+chunk once `loadPainter(def)` has landed (`painterReady(def)`); before that it throws. The worker
+(`painters.ts`), the dev server, Vitest and the `?fixtures` species hold full definitions (always
+ready). Main-thread paints wait or hand over: the sprite cache's idle fallback waits for the chunk,
+`ensureSync` queues the sprite in the worker (`renderPlantView` then returns false once), previews
+return null uncached. `loadPainters(ids)` / `loadAllPainters()` (registry) preload: main.ts loads the
+species of in-progress sessions and pressed flowers before the UI is made, and on every state change;
+the studio loads all of them.
 
 A species is only added files (ADR 0251, `docs/systems/species-recipe.md`): `species/<id>.ts`,
 `species/<id>.test.ts` and `notes/<id>.ts`. `speciesNote(id, sceneryId?)` (`notes.ts`, main thread

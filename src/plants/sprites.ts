@@ -1,5 +1,6 @@
 import { createRng } from '../core/rng';
 import { createPainter, makeCanvas } from '../paint';
+import { loadPainter, painterReady } from './painter';
 import type { SpeciesDef } from './types';
 
 /**
@@ -599,6 +600,23 @@ export function createSpriteCache(opts: SpriteCacheOptions): SpriteCache {
   }
   const othersBusy = () => [...peers].some((p) => p !== peer && p.busy());
 
+  /** species whose painter is loading for a main-thread job (ADR 0348) */
+  const loadingPainters = new Set<string>();
+  /** true when a main-thread job can paint now; else its species' painter starts loading */
+  function painterFor(job: Job): boolean {
+    const def = opts.getSpecies(job.spec.speciesId);
+    if (!def || painterReady(def)) return true;
+    if (!loadingPainters.has(def.id)) {
+      loadingPainters.add(def.id);
+      void loadPainter(def).then((ok) => {
+        loadingPainters.delete(def.id);
+        if (!ok) for (const [k, j] of [...queue]) if (j.spec.speciesId === def.id && (j.mainOnly || liveWorkers().length === 0)) (queue.delete(k), fail(k));
+        pump();
+      });
+    }
+    return false;
+  }
+
   function takeNext(filter: (j: Job) => boolean): Job | undefined {
     let best: Job | undefined;
     const hold = othersBusy();
@@ -625,7 +643,7 @@ export function createSpriteCache(opts: SpriteCacheOptions): SpriteCache {
       slot.worker.postMessage(msg);
     }
     const hold = othersBusy();
-    const needMain = [...queue.values()].some((j) => (j.mainOnly || liveWorkers().length === 0) && !(hold && j.priority >= PRIORITY.idle));
+    const needMain = [...queue.values()].some((j) => (j.mainOnly || liveWorkers().length === 0) && !(hold && j.priority >= PRIORITY.idle) && painterFor(j));
     if (needMain && !idleScheduled) {
       idleScheduled = true;
       scheduleIdle(runIdle);
@@ -641,7 +659,7 @@ export function createSpriteCache(opts: SpriteCacheOptions): SpriteCache {
     // one sprite per idle period (a sprite can take tens of ms); more if there is clearly time
     let budget = 1;
     while (budget-- > 0 || deadline.timeRemaining() > 12) {
-      const job = takeNext((j) => noWorkers || !!j.mainOnly);
+      const job = takeNext((j) => (noWorkers || !!j.mainOnly) && painterFor(j));
       if (!job) break;
       const def = opts.getSpecies(job.spec.speciesId);
       let r: RenderResult | null = null;
@@ -693,7 +711,7 @@ export function createSpriteCache(opts: SpriteCacheOptions): SpriteCache {
     return queue.has(key) || [...inFlight.values()].some((e) => e.job.key === key);
   }
 
-  return {
+  const api: SpriteCache = {
     get: (spec) => lru.get(spriteKey(spec)),
     best: (speciesId, seed, step, w) => lru.best(speciesId, seed, step, w),
     has: (spec) => lru.has(spriteKey(spec)),
@@ -736,6 +754,11 @@ export function createSpriteCache(opts: SpriteCacheOptions): SpriteCache {
       if (hit) return hit;
       const def = opts.getSpecies(spec.speciesId);
       if (!def) return undefined;
+      if (!painterReady(def)) {
+        // its painter is not on this thread yet: the worker paints it (ADR 0348)
+        api.request(spec, PRIORITY.now);
+        return undefined;
+      }
       const r = renderSync(def, spec);
       if (!r) return undefined;
       queue.delete(key);
@@ -795,4 +818,5 @@ export function createSpriteCache(opts: SpriteCacheOptions): SpriteCache {
       for (const fn of idleWaiters.splice(0)) fn();
     },
   };
+  return api;
 }

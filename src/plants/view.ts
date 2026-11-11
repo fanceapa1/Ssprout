@@ -132,7 +132,8 @@ function viewImages(cache: SpriteCache, base: Omit<SpriteSpec, 'step'>, growth: 
       syncPaints++;
       a = cache.ensureSync({ ...base, step: lo });
     }
-    if (!a && defer) return { weight: 0, missing: { ...base, step: lo } };
+    // a species whose painter is still loading is queued in the worker instead (ADR 0348)
+    if (!a && (defer || cache.pending({ ...base, step: lo }))) return { weight: 0, missing: { ...base, step: lo } };
   }
   let b: Sprite | undefined;
   if (weight > 0) {

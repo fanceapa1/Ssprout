@@ -8,7 +8,7 @@ import { createScheduler } from './core/schedule-controller';
 import { createEventBus } from './core/events';
 import { createSaver, loadState, type StorageLike } from './core/persistence';
 import { slotLookup, type SceneryId } from './core/sceneries';
-import { createReducer, createStore } from './core/state';
+import { createReducer, createStore, inProgressSessions, type GardenState } from './core/state';
 import { installCoreDebug } from './dev/core-debug';
 import { installDebug, isDev } from './dev/debug';
 import { installScheduleDebug } from './dev/schedule-debug';
@@ -18,7 +18,7 @@ import { installPlantsDebug } from './plants/debug';
 import { installCameraDebug } from './dev/camera-debug';
 import { plantWorldBounds } from './plants/bounds';
 import { floraLookup } from './plants/flora';
-import { allSpecies } from './plants/registry';
+import { allSpecies, loadPainters } from './plants/registry';
 import { createPlantSystem } from './plants/system';
 import { setPlantViewSpecies } from './plants/view';
 import { createFauna, installFaunaDebug } from './fauna';
@@ -105,6 +105,10 @@ async function boot(): Promise<void> {
   const slots = slotLookup((id) => (hasScenery(id) ? getScenery(id).geometry.slots : []));
   const reducer = createReducer({ getSpecies, getSlot: slots.get, grows: flora.grows });
   const store = createStore(loaded.state, reducer, (next) => saver?.schedule(next));
+  // painters load per species (ADR 0348): those the sessions and the herbarium show, during the first paint
+  const shown = (s: GardenState) => [...inProgressSessions(s).map((x) => x.speciesId), ...s.pressed.map((p) => p.speciesId)];
+  const paintersShown = loadPainters(shown(loaded.state));
+  store.subscribe((next) => void loadPainters(shown(next)));
   const bus = createEventBus();
   const controller = createSessionController({ store, clock, bus, species, speciesIn: flora.of, slots: slots.of });
   const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
@@ -132,6 +136,7 @@ async function boot(): Promise<void> {
 
   // plants: finished + growing sprites, wither, watering, reflections (docs/systems/plants.md);
   // made now for the UI, drawn from the third stage on
+  await paintersShown;
   setPlantViewSpecies(getSpecies);
   const plants = createPlantSystem({ getSpecies, daylight });
   /** every system registered and initialised: what the dock and the service worker wait for */

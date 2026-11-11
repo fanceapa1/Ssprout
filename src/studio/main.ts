@@ -1,6 +1,7 @@
 import '../ui/fonts.css';
 import './studio.css';
 import { createRng } from '../core/rng';
+import { loadAllPainters } from '../plants/registry';
 import { sceneries } from '../scenery/registry';
 import { collectSections, findEntry, fullId } from './registry';
 import type { StudioEntry, StudioModule, StudioSection } from './types';
@@ -401,8 +402,8 @@ function mount() {
   else mountGrid(root);
 }
 
-// the gardens' painters are lazy chunks in the app (ADR 0341): the studio's cards paint synchronously
-await Promise.all(sceneries().map((s) => s.painters.load()));
+// the gardens' and the species' painters are lazy chunks in the app (ADRs 0341, 0348): the studio's cards paint synchronously
+await Promise.all([...sceneries().map((s) => s.painters.load()), loadAllPainters()]);
 mount();
 window.addEventListener('hashchange', () => {
   if (!single) mountGrid(document.querySelector<HTMLElement>('#studio')!);

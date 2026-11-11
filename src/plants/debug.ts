@@ -1,6 +1,7 @@
 import { extendDebug } from '../dev/debug';
 import type { Rect } from '../render/viewport';
 import type { Pt } from '../render/viewport';
+import { loadPainters } from './registry';
 import type { SpriteCacheStats } from './sprites';
 import type { PlantDebugState, PlantHit, PlantPerf, PlantSystem } from './system';
 import { drawPlantView, plantViewStats, prewarmPlantView, renderPlantView, setPlantViewCacheOptions, whenPlantViewsReady } from './view';
@@ -79,6 +80,7 @@ async function viewParity(o: ViewParityOptions): Promise<ViewParity> {
   const canvas = () => Object.assign(document.createElement('canvas'), { width: o.width, height: o.height });
   const pixels = (c: HTMLCanvasElement) => c.getContext('2d')!.getImageData(0, 0, c.width, c.height).data;
   const main = canvas();
+  await loadPainters([o.speciesId]);
   setPlantViewCacheOptions({ createWorker: null, scheduleIdle: () => {} });
   renderPlantView(main, opts);
   setPlantViewCacheOptions(null);

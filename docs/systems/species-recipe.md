@@ -44,6 +44,9 @@ orchestrator.
   **`bloomColor`** (hex; UI swatch and bee targeting).
 - **`draw(p, rng, { w, h, growth })`**: deterministic for (seed, growth, w, h), inside its box, no
   DOM (it runs in a worker), all randomness from `rng`, growth continuous across the 24 steps.
+- **Everything but `draw` is plain data** (ADR 0348): a production build extracts it as JSON for the
+  main thread, whose painter loads later. No functions, `undefined`, `Infinity` or class instances in
+  the other fields; `registry.test.ts` checks the round trip.
 
 ## The test file
 Pick the suite of the family your painter follows (`src/plants/lib/suites.ts`):
