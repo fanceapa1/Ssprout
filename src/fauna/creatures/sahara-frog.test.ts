@@ -213,6 +213,12 @@ describe('a day and a night in the basin', () => {
     expect(calm).toBeLessThan(count(false));
   });
 
+  it('a frog spawned mid-session is in the basin from its first frame', () => {
+    const sim = oasisSim(6, { auto: false });
+    sim.world.t = 30;
+    for (const f of sim.spawn('sahara-frog', { count: 3 }) as SaharaFrog[]) expect(pointInPolygon(f, sim.world.pond.world)).toBe(true);
+  });
+
   it('lives on the studio’s oasis stage', () => {
     const stage = new Stage(saharaFrog.show!.spec, 1, 'sahara-frog', 'oasis');
     const states = new Set<string>();

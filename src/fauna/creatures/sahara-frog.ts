@@ -415,6 +415,8 @@ export class SaharaFrog extends BaseCreature {
     // it comes up from the bottom: a ring, then the eyes
     this.underFrom = at;
     this.underTo = at;
+    this.x = at.x;
+    this.y = at.y;
     this.underFor = 0.6;
     this.alpha = 0;
     this.layer = 'underwater';
