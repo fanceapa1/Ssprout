@@ -10,6 +10,7 @@ import type { Strokes } from '../../scene/paint-land';
 import { BASIN_STONE, BASIN_WATER, OUED_WATER, SEGUIA, SLUICE_WATER, WATERLINE } from './geometry';
 import { BAR, BASIN, BASIN_RIM, OUED, SEGUIA_FALLS, SEGUIA_RUNS, SLUICE, WALLS, copingAt, silhouetteAt, towardVp } from './layout';
 import { EARTH } from './paint-rocks';
+import { BASIN_STEPS, SLUICE_GATE } from './shapes';
 
 /** The water's palette: turquoise-teal shading to green-brown in the basin, milky in the oued. */
 export const WATER = {
@@ -63,60 +64,6 @@ export const RIM_WASHES = (() => {
     stone: [{ x: FL.x - run, y: FL.y - 8 }, { x: FR.x + run, y: FR.y - 8 }, { x: NR.x + run, y: NR.y - 4 }, { x: s3.x + run, y: s3.y + 6 }, { x: s4.x - run, y: s4.y + 6 }, { x: NL.x - run, y: NL.y - 4 }],
     face: [{ x: NL.x - run, y: NL.y - 5 }, { x: NR.x + run, y: NR.y - 5 }, { x: s3.x + run, y: s3.y + 5 }, { x: s4.x - run, y: s4.y + 5 }],
     water: BASIN_WATER.map((q, i) => ({ x: q.x + (i === 0 || i === 3 ? -run : run), y: q.y + (i < 2 ? -10 : 10) })),
-  };
-})();
-
-/** A point on the right wall's water edge, `t` from the far corner to the near one. */
-const rightWall = (t: number): Pt => lerp(WFR, WNR, t);
-
-/** The steps down into the water, against the right wall near its far corner: tread, riser, how deep. */
-export const BASIN_STEPS: readonly { tread: Pt[]; riser: Pt[]; depth: number }[] = (() => {
-  const out: { tread: Pt[]; riser: Pt[]; depth: number }[] = [];
-  const rise = 4;
-  for (let k = 0; k < 5; k++) {
-    const a = rightWall(0.07 + k * 0.085);
-    const b = rightWall(0.07 + (k + 1) * 0.085);
-    const d = 34 - k * 1.5;
-    const y = k * rise - 3;
-    out.push({
-      tread: [{ x: a.x + 3, y: a.y + y }, { x: b.x + 3, y: b.y + y }, { x: b.x - d, y: b.y + y }, { x: a.x - d, y: a.y + y }],
-      riser: [{ x: b.x + 3, y: b.y + y }, { x: b.x - d, y: b.y + y }, { x: b.x - d, y: b.y + y + rise }, { x: b.x + 3, y: b.y + y + rise }],
-      depth: k - 1.5,
-    });
-  }
-  return out;
-})();
-
-/** A point on the board's outer side carried `d` down the sluice's head. */
-const down = (q: Pt, d: number): Pt => {
-  const [a, b] = [SLUICE[0]!, SLUICE[1]!];
-  const n = Math.hypot(b.x - a.x, b.y - a.y);
-  return { x: q.x + 5 + ((b.x - a.x) / n) * d, y: q.y + ((b.y - a.y) / n) * d };
-};
-const FOAM_DOWN = 10;
-
-/**
- * The sluice gate near the overflow corner: a cut through the right coping between `t0` and `t1`
- * along the wall, an upright stone post either side, and the board standing in their slots.
- */
-export const SLUICE_GATE = (() => {
-  const [t0, t1] = [0.78, 0.955];
-  const inner = (t: number) => lerp(WFR, WNR, t);
-  const outer = (t: number) => lerp(FR, NR, t);
-  const mid = (t: number) => lerp(inner(t), outer(t), 0.55);
-  const post = (t: number): Pt[] => {
-    const c = mid(t);
-    return [{ x: c.x - 4, y: c.y - 10 }, { x: c.x + 4, y: c.y - 10 }, { x: c.x + 4.5, y: c.y + 3 }, { x: c.x - 4.5, y: c.y + 3 }];
-  };
-  const [b0, b1] = [mid(t0 + 0.005), mid(t1 - 0.005)];
-  return {
-    cut: [inner(t0), outer(t0), outer(t1), inner(t1)],
-    posts: [post(t0 - 0.025), post(t1 + 0.025)],
-    board: [{ x: b0.x - 1.5, y: b0.y - 4 }, { x: b0.x + 2, y: b0.y - 4 }, { x: b1.x + 2, y: b1.y + 1 }, { x: b1.x - 1.5, y: b1.y + 1 }],
-    /** the thin spill over the board, on its outer side */
-    spill: [{ x: b0.x + 2, y: b0.y - 3 }, { x: b0.x + 5, y: b0.y - 2 }, { x: b1.x + 5, y: b1.y + 2 }, { x: b1.x + 2, y: b1.y + 1 }],
-    /** where the spill's foam lies: across the sluice's head, a little downstream of the spill, clear of the posts */
-    foam: [down(lerp(b0, b1, 0.05), FOAM_DOWN), down(lerp(b0, b1, 0.8), FOAM_DOWN)] as [Pt, Pt],
   };
 })();
 

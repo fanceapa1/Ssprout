@@ -13,9 +13,7 @@ import { OASIS_FAUNA } from './fauna';
 import { BASIN_WATER, OUED_WATER, SEGUIA, SLUICE_WATER } from './geometry';
 import { FOOTING, KSAR_SHAPES } from './ksar';
 import { BAR, BASIN, BASIN_RIM, BASIN_VP, LIFT, SEGUIA_FALLS, towardVp, WALLS, type Terrace } from './layout';
-import { FALLEN_STONES, NEAR_STONES, WALL_FACES } from './paint-land';
-import { BASIN_STEPS, SLUICE_GATE } from './paint-water';
-import { BIG_PALM_SHAPES, GROVE_PALMS, type PalmShape } from './paint-veg';
+import { BASIN_STEPS, BIG_PALM_SHAPES, FALLEN_STONES, GROVE_PALMS, NEAR_STONES, SLUICE_GATE, WALL_FACES, type PalmShape } from './shapes';
 import { OASIS_SLOTS } from './slots';
 
 // ── perspective ─────────────────────────────────────────────────────────────────────────────

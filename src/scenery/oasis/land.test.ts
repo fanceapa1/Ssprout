@@ -9,7 +9,7 @@ import { paintJob, type PaintView } from '../../scene/background';
 import { PaintRecorder, type RecordedCost } from '../../scene/paint-record';
 import { OASIS_ART, OASIS_ELEMENTS } from '.';
 import { BUNDS, copingAt, FOOTPATH, NEAR_PLOTS, OUED, WALLS } from './layout';
-import { WALL_FACES } from './paint-land';
+import { WALL_FACES } from './shapes';
 import { OASIS_SLOTS } from './slots';
 import { oasisSteps } from './painters';
 

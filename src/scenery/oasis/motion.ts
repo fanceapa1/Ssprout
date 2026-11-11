@@ -11,7 +11,8 @@ import type { Strokes } from '../../scene/paint-land';
 import type { SceneryMotion } from '../types';
 import { SEGUIA, SLUICE_WATER } from './geometry';
 import { SEGUIA_FALLS } from './layout';
-import { BASIN_INLET, OUED_BARS, SLUICE_GATE, WATER, WATER_BOXES, WATER_SHAPES, fallHalf, ouedAt } from './paint-water';
+import { BASIN_INLET, OUED_BARS, WATER, WATER_BOXES, WATER_SHAPES, fallHalf, ouedAt } from './paint-water';
+import { SLUICE_GATE } from './shapes';
 
 /** Playback speed of the whole motion: the waterfall's pace (the owner's). */
 const TEMPO = 1.25;

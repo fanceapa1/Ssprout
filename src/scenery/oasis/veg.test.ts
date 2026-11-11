@@ -9,7 +9,8 @@ import { paintJob, type PaintView } from '../../scene/background';
 import { PaintRecorder, type RecordedCost } from '../../scene/paint-record';
 import { OASIS_ART, OASIS_ELEMENTS } from '.';
 import { BIG_PALMS, GROVE_FROM } from './layout';
-import { BIG_PALM_SHAPES, GROVE_PALMS, GROVE_TREES, VEG_SHAPES } from './paint-veg';
+import { GROVE_TREES, VEG_SHAPES } from './paint-veg';
+import { BIG_PALM_SHAPES, GROVE_PALMS } from './shapes';
 import { OASIS_SLOTS } from './slots';
 import { oasisSteps } from './painters';
 

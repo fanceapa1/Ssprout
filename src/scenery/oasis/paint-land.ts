@@ -13,6 +13,7 @@ import { BACK_BEDS, BACK_RUNNEL, BASIN_VP, BLUFF, BUNDS, copingAt, DUNE_BASE, DU
 import { EARTH } from './paint-rocks';
 import { batchLayer, dryBrushDry, dryBrushInto } from './paint-batch';
 import { MARKS_PER_PART, pacer } from './paint-pace';
+import { copingLine, FALLEN_STONES, NEAR_STONES } from './shapes';
 
 /** The land's palette: gold sand, worked soil, pisé, and the lilac of the far ranges. */
 export const LAND = {
@@ -404,24 +405,6 @@ export function* paintFootpath(p: Painter, rng: Rng): Strokes {
 
 // ── walls ─────────────────────────────────────────────────────────────────────────────────
 
-/** A wall's coping line, extended past its ends by `ext` (so it tucks under the basin or the margins). */
-function copingLine(w: Wall, ext: readonly [number, number]): Pt[] {
-  const e = poly(w.edge);
-  const a = e[0]!;
-  const b = e[1]!;
-  const y = e[e.length - 1]!;
-  const z = e[e.length - 2]!;
-  const pre = { x: a.x - ext[0], y: a.y - ((b.y - a.y) / (b.x - a.x)) * ext[0] };
-  const post = { x: y.x + ext[1], y: y.y + ((y.y - z.y) / (y.x - z.x)) * ext[1] };
-  return resample(smoothPath([...(ext[0] > 0 ? [pre] : []), ...e, ...(ext[1] > 0 ? [post] : [])], 8), 6);
-}
-
-/** The pisé walls' faces, for daylight (O5): each a closed outline, coping first. */
-export const WALL_FACES: readonly Pt[][] = WALLS.map((w, i) => {
-  const top = copingLine(w, i === 0 ? [44, 0] : [0, 18]);
-  return [...top, ...top.slice().reverse().map((q) => ({ x: q.x, y: q.y + w.h }))];
-});
-
 /**
  * The pisé terrace walls: warm rammed earth following the contour, its formwork courses, a lit,
  * crumbled cap with notches and fallen lumps, a dark damp foot and the shade it casts below.
@@ -475,10 +458,6 @@ export function* paintWalls(p: Painter, rng: Rng): Strokes {
 // ── the near foreground ───────────────────────────────────────────────────────────────────
 
 /** Where the bund meets the seguia: a small stone-lined channel letting water into the left plot. */
-/** Stones fallen with the earth into the basin's near-left corner, and the near ground's stones: foot x, y, width (h = 0.6 w, 0.52 w). */
-export const FALLEN_STONES: readonly (readonly [number, number, number])[] = [[500, 652, 12], [488, 640, 9], [509, 628, 8]];
-export const NEAR_STONES: readonly (readonly [number, number, number])[] = [[40, 1000, 64], [1160, 1004, 46], [470, 680, 22], [1000, 990, 22], [1230, 740, 18]];
-
 const CULVERT = { from: { x: 372, y: 794 }, to: { x: 324, y: 808 } };
 
 /** Pale dry grass (halfa): tufts along the bund, the plots' edges and the sheet's bottom. */

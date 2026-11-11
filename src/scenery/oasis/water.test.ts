@@ -11,7 +11,8 @@ import { PaintRecorder, type RecordedCost } from '../../scene/paint-record';
 import { OASIS_ART, OASIS_ELEMENTS } from '.';
 import { BASIN_STONE, BASIN_WATER, OUED_WATER } from './geometry';
 import { BAR, copingAt, SEGUIA_FALLS, SEGUIA_RUNS, WALLS } from './layout';
-import { BASIN_INLET, BASIN_STEPS, fallHalf, OUED_BARS, ouedAt, RIM_WASHES, SLUICE_GATE, WATER_BOXES, WATER_SHAPES } from './paint-water';
+import { BASIN_INLET, fallHalf, OUED_BARS, ouedAt, RIM_WASHES, WATER_BOXES, WATER_SHAPES } from './paint-water';
+import { BASIN_STEPS, SLUICE_GATE } from './shapes';
 import { OASIS_SLOTS } from './slots';
 import { oasisSteps } from './painters';
 

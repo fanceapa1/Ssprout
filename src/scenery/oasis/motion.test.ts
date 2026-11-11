@@ -10,7 +10,8 @@ import { PaintRecorder } from '../../scene/paint-record';
 import { OASIS } from '.';
 import { SEGUIA, SLUICE_WATER } from './geometry';
 import { BAR_HEADS, createOasisMotion, FALLS, fallDropAt, INLET, MOTION_BOUNDS, type OasisMotion } from './motion';
-import { OUED_BARS, SLUICE_GATE, WATER_SHAPES } from './paint-water';
+import { OUED_BARS, WATER_SHAPES } from './paint-water';
+import { SLUICE_GATE } from './shapes';
 
 /** A context that logs each blit with its alpha, transform and world area, and each clip. */
 function fakeCtx(transform = { a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 }) {

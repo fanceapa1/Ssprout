@@ -11,10 +11,10 @@ import type { Rng } from '../../core/rng';
 import { blob, type Painter, type Pt } from '../../paint';
 import type { SceneGeometry } from '../../scene/geometry';
 import { OASIS_GRADES, OASIS_SKY_LAYOUT, skylineAt } from './layout';
-import { WALL_FACES } from './paint-land';
 import { bluffTopAt, ROCK_SHAPES } from './paint-rocks';
 import { VEG_SHAPES } from './paint-veg';
 import { WATER_BOXES, WATER_SHAPES } from './paint-water';
+import { WALL_FACES } from './shapes';
 import { MILKY_WAY, OASIS_NIGHT_STARS } from './sky';
 
 export { OASIS_GRADES };

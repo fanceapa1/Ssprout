@@ -9,9 +9,7 @@ import { OASIS } from '.';
 import { BASIN_STONE, BASIN_WATER, OUED_WATER, SEGUIA, SLUICE_WATER } from './geometry';
 import { HORN, KSAR_SHAPES } from './ksar';
 import { BACK_BEDS, BASIN, BLUFF, FOOTPATH, LIFT, NEAR_PLOTS, PATH_HALF_WIDTH, SEGUIA_FALLS, WALLS } from './layout';
-import { FALLEN_STONES, NEAR_STONES, WALL_FACES } from './paint-land';
-import { BASIN_STEPS, SLUICE_GATE } from './paint-water';
-import { BIG_PALM_SHAPES, GROVE_PALMS } from './paint-veg';
+import { BASIN_STEPS, BIG_PALM_SHAPES, FALLEN_STONES, GROVE_PALMS, NEAR_STONES, SLUICE_GATE, WALL_FACES } from './shapes';
 import { OASIS_SLOTS } from './slots';
 import { inOued, intoBasin, KSAR_SCALE, NEST, OASIS_GROUND, OASIS_PERCHES, OASIS_STANDS, OASIS_WALLS, OASIS_WILDLIFE, oasisPerspective } from './wildlife';
 
