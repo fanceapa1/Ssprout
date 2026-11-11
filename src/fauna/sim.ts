@@ -10,6 +10,7 @@ import type { Drawable, LayerId } from '../render/types';
 import type { Pt, Rect } from '../render/viewport';
 import type { SceneGeometry } from '../scene/geometry';
 import { creatureDef, creatureDefs } from './creatures/registry';
+import type { CreatureDef } from './creatures/lib/def';
 import type { SceneryFauna } from './habitat';
 import { carveEllipse, clockwise, dist, easeOut, localHour, polygonBounds, polygonCentroid, rangeOf, toPlane } from './math';
 import { rosterFor, type Roster, type RosterRow } from './roster';
@@ -70,11 +71,20 @@ function watersOf(scene: SceneGeometry, habitat?: SceneryFauna): { still: Pt[]; 
   return { still, water: { moving, clip: all.length > 1 ? all.map(clockwise) : all } };
 }
 
-/** Resident kinds, in the order upkeep keeps them (`CreatureDef.rank`). */
-const RESIDENTS: readonly FaunaKind[] = creatureDefs()
-  .filter((d) => d.role === 'resident')
-  .sort((a, b) => (a.rank ?? 10) - (b.rank ?? 10) || a.kind.localeCompare(b.kind))
-  .map((d) => d.kind);
+let residentsOf: { defs: readonly CreatureDef[]; kinds: readonly FaunaKind[] } | null = null;
+
+/** Loaded resident kinds, in the order upkeep keeps them (`CreatureDef.rank`; not the load order). */
+function residentKinds(): readonly FaunaKind[] {
+  const defs = creatureDefs();
+  if (residentsOf?.defs !== defs) {
+    const kinds = defs
+      .filter((d) => d.role === 'resident')
+      .sort((a, b) => (a.rank ?? 10) - (b.rank ?? 10) || a.kind.localeCompare(b.kind))
+      .map((d) => d.kind);
+    residentsOf = { defs, kinds };
+  }
+  return residentsOf.kinds;
+}
 
 function pondInfo(still: readonly Pt[]): PondInfo {
   const world = still.map((p) => ({ x: p.x, y: p.y }));
@@ -287,7 +297,7 @@ export class FaunaSim {
 
   private upkeepResidents(): void {
     const w = this.world;
-    for (const kind of RESIDENTS) {
+    for (const kind of residentKinds()) {
       const def = creatureDef(kind)!;
       const live = this.creatures.filter((c) => c.kind === kind && !c.forced && !c.done && !(c as { leaving?: boolean }).leaving);
       const want = def.needs && !def.needs(w) ? 0 : residentTarget(kind, this.roster.residents.get(kind) ?? 0, w.mode);

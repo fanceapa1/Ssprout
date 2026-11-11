@@ -6,7 +6,7 @@ import { createRng } from '../core/rng';
 import { createPainter } from '../paint';
 import type { StudioEntry, StudioSection } from '../studio/types';
 import { drawKoiStraight, KOI_PATTERNS, paintKoi } from './creatures/koi';
-import { creatureDefs } from './creatures/registry';
+import { creatureDefs, loadAllCreatures } from './creatures/registry';
 import { multiplyPaper, OASIS_STAGE, Stage, type StageSpec } from './stage';
 import type { Sprite } from './sprite';
 import type { FaunaKind } from './tuning';
@@ -66,6 +66,9 @@ function sheetEntry(id: string, label: string, make: (res: number, seed: number)
     },
   };
 }
+
+// the studio lists every creature, whichever garden brings it (ADR 0346)
+await loadAllCreatures();
 
 const shown = creatureDefs()
   .filter((d) => d.show)

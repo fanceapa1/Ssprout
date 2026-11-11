@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { loadAllCreatures } from './registry';
 import { createRng } from '../../core/rng';
 import type { PlantInstance } from '../../core/state';
 import { gardenScene } from '../../scene/geometry';
@@ -19,6 +20,9 @@ function waterfallSim(seed = 4, opts: { reduced?: boolean; scheduled?: boolean; 
 }
 
 const martins = (sim: FaunaSim) => sim.creatures.filter((c): c is Martin => c instanceof Martin);
+
+// every garden's creatures (ADR 0346)
+await loadAllCreatures();
 
 describe('where the martins fly', () => {
   const w = waterfallSim().world;

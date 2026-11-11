@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { loadAllCreatures } from './registry';
 import { createRng } from '../../core/rng';
 import type { PlantInstance } from '../../core/state';
 import { FOAM, WATERFALL_FAUNA, WATERFALL_WILDLIFE } from '../../scenery/waterfall/fauna';
@@ -27,6 +28,9 @@ const frogs = (sim: FaunaSim) => sim.creatures.filter((c): c is Kajika => c inst
 function standIn(kind: string, x: number, y: number): Creature {
   return { id: 9999, kind, x, y, layer: 'entities', state: 'stand', done: false, visitor: false, forced: true, update() {}, draw() {}, depth: () => null, leave() {} };
 }
+
+// every garden's creatures (ADR 0346)
+await loadAllCreatures();
 
 describe('where the kajika sits', () => {
   const w = waterfallSim().world;

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { loadAllCreatures } from './registry';
 import { createRng } from '../../core/rng';
 import type { PlantInstance } from '../../core/state';
 import { FOAM, WATERFALL_FAUNA, WATERFALL_WILDLIFE } from '../../scenery/waterfall/fauna';
@@ -22,6 +23,9 @@ function waterfallSim(seed = 4, reduced = false, scheduled = false) {
 
 const damsels = (sim: FaunaSim) => sim.creatures.filter((c): c is Damselfly => c instanceof Damselfly);
 const len = (p: { x: number; y: number }) => Math.hypot(p.x, p.y);
+
+// every garden's creatures (ADR 0346)
+await loadAllCreatures();
 
 describe('the damselfly’s wings', () => {
   it('rest closed over the back, lying flat in the side view', () => {

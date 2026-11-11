@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { loadAllCreatures } from './registry';
 import type { PlantInstance } from '../../core/state';
 import { FOAM, WATERFALL_FAUNA, WATERFALL_WILDLIFE } from '../../scenery/waterfall/fauna';
 import { waterfallScene } from '../../scenery/waterfall/geometry';
@@ -33,6 +34,9 @@ const crabOnly = WATERFALL_FAUNA.filter((r) => r.kind === 'sawagani');
 function fakeBird(kind: string, x: number, y: number): Creature {
   return { id: 999, kind, x, y, layer: 'entities', state: 'stand', done: false, visitor: true, forced: true, update() {}, draw() {}, depth: () => null, leave() {} };
 }
+
+// every garden's creatures (ADR 0346)
+await loadAllCreatures();
 
 describe('where the sawagani lives', () => {
   const w = waterfallSim().world;

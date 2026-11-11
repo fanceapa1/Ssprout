@@ -21,7 +21,7 @@ import { floraLookup } from './plants/flora';
 import { allSpecies } from './plants/registry';
 import { createPlantSystem } from './plants/system';
 import { setPlantViewSpecies } from './plants/view';
-import { createFauna, installFaunaDebug } from './fauna';
+import { createFauna, installFaunaDebug, prefetchCreatures } from './fauna';
 import { createRenderer } from './render/renderer';
 import { getScenery, hasScenery, sceneries } from './scenery/registry';
 import { createSceneryHost } from './scenery/host';
@@ -167,7 +167,10 @@ async function boot(): Promise<void> {
     sceneryFade: () => renderer.sceneryFade(),
     // a phone's first painting is a strip: wait until the scene has extended it to the world
     drawOverview: (target) => sceneSystem.detailStats().world && renderer.drawOverview(target),
-    paintOverview: (id, w, h, yieldTo, thumb) => prepaintThumbnail(sceneSystem, pickScenery(id), w, h, yieldTo, thumb),
+    paintOverview: (id, w, h, yieldTo, thumb) => {
+      prefetchCreatures(id); // that garden's creatures come with its pre-paint (ADR 0346)
+      return prepaintThumbnail(sceneSystem, pickScenery(id), w, h, yieldTo, thumb);
+    },
     viewport: () => renderer.viewport,
     audio,
     widget: fakeWidget ?? surfaces.widget,

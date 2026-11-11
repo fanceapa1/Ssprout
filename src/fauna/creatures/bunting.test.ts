@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { loadAllCreatures } from './registry';
 import { createRng } from '../../core/rng';
 import type { PlantInstance } from '../../core/state';
 import { gardenScene } from '../../scene/geometry';
@@ -26,6 +27,9 @@ function oasisSim(seed = 4, { hour = 12, reduced = false, rows = ONLY, auto = tr
 
 const birds = (sim: FaunaSim) => sim.creatures.filter((c): c is Bunting => c instanceof Bunting);
 const inWater = (sim: FaunaSim, q: { x: number; y: number }) => intoBasin(q) > 0 || sim.world.water.moving.some((m) => pointInPolygon(q, m));
+
+// every garden's creatures (ADR 0346)
+await loadAllCreatures();
 
 describe('where the bunting goes', () => {
   const w = oasisSim().world;

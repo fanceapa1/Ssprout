@@ -3,6 +3,7 @@ import { hashString } from '../core/rng';
 import type { PlantInstance } from '../core/state';
 import { gardenScene } from '../scene/geometry';
 import { JAPANESE_FAUNA } from '../scenery/japanese-garden/fauna';
+import { creatureKinds, loadAllCreatures, loadCreatures } from './creatures/registry';
 import { FaunaSim } from './sim';
 import type { TargetSpecies } from './targets';
 
@@ -25,10 +26,20 @@ function fingerprint(seed: number, seconds: number, opts: { reduced?: boolean; h
   return `${hashString(marks.join('|')).toString(16)}:${sim.creatures.length}`;
 }
 
+const fingerprints = () => [fingerprint(7, 900), fingerprint(3, 600, { reduced: true }), fingerprint(11, 600, { hour: 23 }), fingerprint(5, 300, { ids: ['striders', 'dragonfly', 'koi-1', 'leaf'] })];
+const BEFORE = ['312b82a4:11', 'cc5b6199:6', '4123856:7', '95ae85e7:6'];
+
 /** Hashes of the creatures' positions and states, taken before the creature registry (ADR 0248). */
 describe('Japanese garden regression', () => {
-  it('the same table and seeds give the same garden as before wildlife went per scenery', () => {
-    const out = [fingerprint(7, 900), fingerprint(3, 600, { reduced: true }), fingerprint(11, 600, { hour: 23 }), fingerprint(5, 300, { ids: ['striders', 'dragonfly', 'koi-1', 'leaf'] })];
-    expect(out).toEqual(['312b82a4:11', 'cc5b6199:6', '4123856:7', '95ae85e7:6']);
+  it('the same table and seeds give the same garden as before wildlife went per scenery, with only its own creatures loaded', async () => {
+    await loadCreatures('japanese-garden');
+    expect(creatureKinds()).not.toContain('dipper');
+    expect(fingerprints()).toEqual(BEFORE);
+  }, 60_000);
+
+  it("the same once every garden's creatures are loaded: the load order changes nothing (ADR 0346)", async () => {
+    await loadAllCreatures();
+    expect(creatureKinds()).toContain('dipper');
+    expect(fingerprints()).toEqual(BEFORE);
   }, 60_000);
 });

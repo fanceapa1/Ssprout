@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { loadAllCreatures } from './registry';
 import { createRng } from '../../core/rng';
 import type { PlantInstance } from '../../core/state';
 import { FOAM, WATERFALL_FAUNA, WATERFALL_WILDLIFE } from '../../scenery/waterfall/fauna';
@@ -27,6 +28,9 @@ function body(sim: FaunaSim, f: Iwana) {
   const pts = f.spine(sim.world.t);
   return [0, Math.floor(pts.length / 2), pts.length - 1].map((i) => toWorld({ x: f.p.x + pts[i]!.x, y: f.p.y + pts[i]!.y }, cy, squash));
 }
+
+// every garden's creatures (ADR 0346)
+await loadAllCreatures();
 
 describe('the char’s shape and choices', () => {
   it('is a slim torpedo: narrow at the snout and the tail root, widest a third of the way back', () => {

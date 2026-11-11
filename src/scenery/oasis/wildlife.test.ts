@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { loadAllCreatures } from '../../fauna/creatures/registry';
 import { FaunaSim } from '../../fauna/sim';
 import { closestOnPolygon, pointInPolygon } from '../../fauna/math';
 import { perchY, wallFootAt, wallTopAt, type Perch } from '../../fauna/targets';
@@ -27,6 +28,9 @@ const lineDist = (q: Pt, line: readonly Pt[]) => Math.min(...line.slice(1).map((
 const ellipse = (g: { x: number; y: number; rx: number; ry: number }): Pt[] =>
   Array.from({ length: 16 }, (_, i) => ({ x: g.x + Math.cos((i / 16) * Math.PI * 2) * g.rx, y: g.y + Math.sin((i / 16) * Math.PI * 2) * g.ry }));
 const WATERS = [BASIN_STONE, ...SEGUIA, SLUICE_WATER, OUED_WATER];
+
+// every garden's creatures (ADR 0346)
+await loadAllCreatures();
 
 describe('the oasis’s wildlife data', () => {
   it('is the scenery’s, with the basin still and the channels and oued moving', () => {

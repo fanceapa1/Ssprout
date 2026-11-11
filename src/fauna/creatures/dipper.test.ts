@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { loadAllCreatures } from './registry';
 import { createRng } from '../../core/rng';
 import type { PlantInstance } from '../../core/state';
 import { FOAM, WATERFALL_FAUNA, WATERFALL_WILDLIFE } from '../../scenery/waterfall/fauna';
@@ -20,6 +21,9 @@ function waterfallSim(seed = 4, reduced = false) {
 }
 
 const dippers = (sim: FaunaSim) => sim.creatures.filter((c): c is Dipper => c instanceof Dipper);
+
+// every garden's creatures (ADR 0346)
+await loadAllCreatures();
 
 describe('where the dipper can go', () => {
   const w = waterfallSim().world;

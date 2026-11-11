@@ -5,12 +5,12 @@
  */
 import type { EventBus } from '../core/events';
 import { faunaSeenIn, faunaSeenKey, unlockedFauna, type FaunaUnlock } from '../core/fauna-unlocks';
-import type { SceneryId } from '../core/sceneries';
+import { DEFAULT_SCENERY, type SceneryId } from '../core/sceneries';
 import { plantsIn, type GardenState, type Store } from '../core/state';
 import type { Drawable, LayerId, System, SystemContext } from '../render/types';
 import type { Rect, Viewport } from '../render/viewport';
 import { JAPANESE_FAUNA } from '../scenery/japanese-garden/fauna';
-import { creatureDef } from './creatures/registry';
+import { creatureDef, creaturesLoaded, loadCreatures } from './creatures/registry';
 import type { SceneryFauna } from './habitat';
 import { FaunaSim } from './sim';
 import type { TargetLookup } from './targets';
@@ -141,6 +141,40 @@ export function createFaunaSystem(opts: FaunaSystemOptions): FaunaSystem {
     }
   };
 
+  let seed: number | undefined;
+  let inits = 0;
+  /** (re-)initialise with the garden in `ctx` once its creatures are loaded */
+  const apply = (ctx: SystemContext): void => {
+    const switched = !!ctx.scenery && ctx.scenery.id !== sceneryId;
+    if (ctx.scenery) {
+      sceneryId = ctx.scenery.id;
+      habitat = ctx.scenery.fauna;
+    }
+    if (!sim) {
+      sim = new FaunaSim({ scene: ctx.scene, seed: seed!, reducedMotion: ctx.reducedMotion, habitat });
+      const daylight = opts.daylight;
+      if (daylight) sim.nightSource = (now) => daylight.at(now).night >= 0.5;
+      store = ctx.store;
+      unsubscribe = ctx.store.subscribe((next, prev) => {
+        if (next.plants !== prev.plants) follow(next);
+      });
+      follow(ctx.store.get());
+    } else {
+      if (sim.world.scene !== ctx.scene || switched) sim.setScene(ctx.scene, habitat);
+      if (switched) {
+        sim.resetResidents();
+        if (store) follow(store.get());
+      }
+    }
+    viewport = ctx.viewport;
+    clock = ctx.clock;
+    bus = ctx.bus;
+    sim.setView(ctx.viewport.visible);
+    camera = ctx.camera ?? null;
+    seenDetail = -1;
+    sim.setResolution(ctx.viewport.pixelScale);
+  };
+
   return {
     id: 'fauna',
     get sim() {
@@ -154,34 +188,14 @@ export function createFaunaSystem(opts: FaunaSystemOptions): FaunaSystem {
     unlocked: () => unlocked,
     sceneryId: () => sceneryId ?? store?.get().scenery ?? 'japanese-garden',
     init(ctx: SystemContext) {
-      const switched = !!ctx.scenery && ctx.scenery.id !== sceneryId;
-      if (ctx.scenery) {
-        sceneryId = ctx.scenery.id;
-        habitat = ctx.scenery.fauna;
-      }
-      if (!sim) {
-        sim = new FaunaSim({ scene: ctx.scene, seed: opts.seed ?? ctx.clock.now(), reducedMotion: ctx.reducedMotion, habitat });
-        const daylight = opts.daylight;
-        if (daylight) sim.nightSource = (now) => daylight.at(now).night >= 0.5;
-        store = ctx.store;
-        unsubscribe = ctx.store.subscribe((next, prev) => {
-          if (next.plants !== prev.plants) follow(next);
-        });
-        follow(ctx.store.get());
-      } else {
-        if (sim.world.scene !== ctx.scene || switched) sim.setScene(ctx.scene, habitat);
-        if (switched) {
-          sim.resetResidents();
-          if (store) follow(store.get());
-        }
-      }
-      viewport = ctx.viewport;
-      clock = ctx.clock;
-      bus = ctx.bus;
-      sim.setView(ctx.viewport.visible);
-      camera = ctx.camera ?? null;
-      seenDetail = -1;
-      sim.setResolution(ctx.viewport.pixelScale);
+      seed ??= opts.seed ?? ctx.clock.now();
+      // each garden's creatures are a lazy chunk (ADR 0346): nothing of that garden runs before they are here
+      const garden = ctx.scenery?.id ?? DEFAULT_SCENERY;
+      const token = ++inits;
+      if (creaturesLoaded(garden)) return apply(ctx);
+      return loadCreatures(garden).then(() => {
+        if (token === inits) apply(ctx);
+      });
     },
     update(f) {
       if (!sim) return;

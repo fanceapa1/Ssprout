@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { loadAllCreatures } from '../../fauna/creatures/registry';
 import { unlockedFauna, type FaunaSpecies } from '../../core/fauna-unlocks';
 import { makePlant } from '../../core/testing';
 import { creatureDef } from '../../fauna/creatures/registry';
@@ -14,6 +15,9 @@ const garden = (n: number, speciesId = 'fern') => ({
   plants: Array.from({ length: n }, (_, i) => makePlant({ id: `p${i}`, speciesId, sceneryId: 'waterfall', slotId: `s${i}` })),
 });
 const unlocked = (n: number, speciesId?: string) => unlockedFauna(garden(n, speciesId), lookup, 'waterfall', WATERFALL_FAUNA).map((f) => f.id);
+
+// every garden's creatures (ADR 0346)
+await loadAllCreatures();
 
 describe('the waterfall’s unlock table', () => {
   it('has its own creatures and the shared ones, unique ids, a line each', () => {
