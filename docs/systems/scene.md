@@ -298,6 +298,17 @@ the detail repaint from 49–52 ms (water) to 11–14 ms. At 4× CPU throttle: 3
   close view's detail.
 - The daylight (skies, phases): docs/systems/daylight.md › Tests.
 
+## Lazy painters (ADR 0341)
+The Japanese garden's painters (`paint-land`, `paint-ground`, `paint-pond`, `paint-trees`,
+`paint-pavilion`, `paint-sky`, `sprites`) are reached only from `scenery/japanese-garden/painters.ts`,
+a lazy chunk (docs/systems/scenery.md › Lazy painters). `background.ts` keeps the data and the job
+runner: `paintScene` awaits `art.painters.load()`, `paintJob` takes the steps and sprites from
+`art.painters.get()`. `spriteAtlasLayout` needs only `sprite-boxes.ts`. The scene's cache lookup
+starts the load as soon as `PaintCache.has` reports the painting or its sprites missing. The sky
+plate starts it on a lookup miss, draws an empty plate until the painters land and then
+recomposes (`onPainters`). Measured (devlog 145): first-view JS 1,416 → 1,324 kB raw, 500 → 476 kB
+gzip; the garden's chunk is 34 kB. A warm repeat visit never requests it (e2e `lazy-painters`).
+
 ## Pre-painting a garden not on view (ADR 0339)
 `prepaint(scenery, { yieldTo, cancelled?, painting?, sliceMs? })` paints another garden's overview
 painting and sprite atlas into the paint cache at the view a switch to it would paint

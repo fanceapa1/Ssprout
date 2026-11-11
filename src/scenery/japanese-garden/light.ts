@@ -1,15 +1,13 @@
 /**
- * The Japanese garden's light art: the trees and shrubs the light plates throw shadows from, its
- * sky, and the engawa's own marks (its shadow, the lamp-lit shoji). docs/systems/daylight.md.
+ * The engawa's own marks on the Japanese garden's light plates: its shadow and the lamp-lit
+ * shoji. Painters only (ADR 0341); the light's data is `GARDEN_LIGHT_ART` in `art.ts`.
  */
-import type { LightArt } from '../../ambience/cast';
+import type { LightPainters } from '../../ambience/cast';
 import type { CastShadow } from '../../ambience/sky-layout';
 import type { Rng } from '../../core/rng';
 import type { Painter } from '../../paint';
 import { pavilionOf, type SceneGeometry } from '../../scene/geometry';
-import { SHRUBS, TREES } from '../../scene/layout';
 import { pavilionFrame } from '../../scene/paint-pavilion';
-import { GARDEN_SKY_LAYOUT } from './sky';
 
 /** The engawa: a long shadow onto the bank toward the pond at sunrise, a pool under the deck at midday. */
 function engawaShadow(p: Painter, rng: Rng, scene: SceneGeometry, sh: CastShadow, pig: string): void {
@@ -52,6 +50,4 @@ function shojiLight(p: Painter, rng: Rng, scene: SceneGeometry, phase: string): 
 }
 
 /** The engawa's marks alone (they paint nothing in a scene without one). */
-export const ENGAWA_LIGHT: Pick<LightArt, 'shadows' | 'lights'> = { shadows: engawaShadow, lights: shojiLight };
-
-export const GARDEN_LIGHT_ART: LightArt = { trees: TREES, shrubs: SHRUBS, sky: GARDEN_SKY_LAYOUT, ...ENGAWA_LIGHT };
+export const ENGAWA_LIGHT: LightPainters = { shadows: engawaShadow, lights: shojiLight };

@@ -11,6 +11,10 @@ import { OASIS_ART, OASIS_ELEMENTS } from '.';
 import { BUNDS, copingAt, FOOTPATH, NEAR_PLOTS, OUED, WALLS } from './layout';
 import { WALL_FACES } from './paint-land';
 import { OASIS_SLOTS } from './slots';
+import { oasisSteps } from './painters';
+
+// the painters are a lazy chunk (ADR 0341)
+beforeAll(() => OASIS_ART.painters.load());
 
 const OVERVIEW: PaintView = { rect: { x: 0, y: 0, w: 1600, h: 1000 }, scale: 0.6 };
 // a resting close view on the middle terrace wall, the basin's near-left corner and the near plots, at 1.6×
@@ -48,7 +52,7 @@ describe('oasis land painting (O4)', () => {
   }, 180_000);
 
   it('paints the land in its own steps, back to front', () => {
-    expect(OASIS_ART.steps(OASIS_ART, LAND_ELEMENTS).map((s) => s.name)).toEqual(['ranges', 'dunes', 'ground', 'terraces', 'plots', 'footpath', 'walls', 'foreground', 'margins']);
+    expect(oasisSteps(OASIS_ART, LAND_ELEMENTS).map((s) => s.name)).toEqual(['ranges', 'dunes', 'ground', 'terraces', 'plots', 'footpath', 'walls', 'foreground', 'margins']);
     expect(OASIS_ELEMENTS.near).toEqual(['foreground', 'margins']);
   });
 

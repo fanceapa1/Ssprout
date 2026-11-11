@@ -3,18 +3,16 @@
  * work in), plus a cooperative runner that paints a view of the world into a bitmap while
  * yielding to the browser between steps.
  */
-import { createRng } from '../core/rng';
 import { createPainter, makeCanvas, type AnyCanvas, type Painter, type Quality } from '../paint';
 import type { Rect } from '../render/viewport';
 import type { SceneryId } from '../scenery/ids';
-import { gardenScene, pavilionOf, type SceneGeometry } from './geometry';
+import { GARDEN_PAINTERS } from '../scenery/japanese-garden/art';
+import { loaded, type Painters } from '../scenery/painters';
+import { gardenScene, type Rock, type SceneGeometry } from './geometry';
 import { FOREGROUND_TUFTS, SHRUBS, TREES, TUFTS, type ShrubSpec, type TreeSpec, type TuftSpec } from './layout';
-import { PATH_GROUND, paintBanks, paintHills, paintMargins, paintPath, paintSky, paintStones, paintTufts, reservePond, type Strokes } from './paint-land';
-import { paintMeadow, paintMeadowGrass } from './paint-ground';
-import { paintPavilion } from './paint-pavilion';
-import { paintReflections, paintWater, paintWaterDetail } from './paint-pond';
-import { paintShrub, paintTree } from './paint-trees';
-import { GARDEN_ROCKS, paintTuftSprite, tuftBox, type RockSprites, type Sprite } from './sprites';
+import type { Strokes } from './paint-land';
+import { rockBox, tuftBox } from './sprite-boxes';
+import type { Sprite } from './sprites';
 
 /** Everything the scene paints: the shared geometry plus painting-only layout. */
 export interface SceneArt {
@@ -27,10 +25,18 @@ export interface SceneArt {
   foregroundTufts: readonly TuftSpec[];
   /** seed for every mark (same seed → same painting) */
   seed: number;
+  /** what paints it, loaded from the scenery's own chunk on the first paint (ADR 0341) */
+  painters: Painters<ArtPainters>;
+}
+
+/** How a scenery paints its landscape (in its painter chunk, ADR 0341). */
+export interface ArtPainters {
   /** the background's paint steps, back to front (`only`: just these elements, for the studio) */
   steps(art: SceneArt, only?: readonly string[]): PaintStep[];
-  /** the scenery's own boulder sprites for `scene.rocks` (default: the garden's, `GARDEN_ROCKS`) */
-  rockSprites?: RockSprites;
+  /** its boulder sprite for one of `scene.rocks`, in parts (each covers `rockBox(r)`) */
+  rock?(r: Rock, seed: number, scale: number, quality: Quality): Generator<void, Sprite, undefined>;
+  /** its foreground grass tuft sprite (covers `tuftBox(t)`) */
+  tuft?(t: TuftSpec, index: number, seed: number, scale: number, quality: Quality): Sprite;
 }
 
 export interface PaintStep {
@@ -49,49 +55,7 @@ export type ElementId = 'sky' | 'hills' | 'banks' | 'path' | 'pond' | 'reflectio
 
 /** The painting's steps, back to front: the scenery's own (`art.steps`). */
 export function backgroundSteps(art: SceneArt, only?: readonly string[]): PaintStep[] {
-  return art.steps(art, only);
-}
-
-/** No structure: nothing is kept off its ground. */
-const NO_STRUCTURE = { x: Infinity, y: 0, w: 0, h: 0 };
-
-/** The Japanese garden's paint steps (its painters are in this folder). */
-export function gardenSteps(art: SceneArt, only?: readonly string[]): PaintStep[] {
-  const root = createRng(art.seed);
-  const r = (label: string) => root.fork(label);
-  const { scene } = art;
-  const pavilion = pavilionOf(scene);
-  const ground = { pond: scene.pond, path: PATH_GROUND, pavilion: scene.structure ?? NO_STRUCTURE };
-  const steps: (PaintStep & { el: ElementId })[] = [
-    { el: 'sky', name: 'sky', soft: true, run: (p) => paintSky(p, r('sky')) },
-    { el: 'hills', name: 'hills', soft: true, run: (p) => paintHills(p, r('hills')) },
-    { el: 'banks', name: 'banks', soft: true, run: (p) => paintBanks(p, r('banks')) },
-    // the grass's close-up texture: only the cells near the painted rect (ADR 0186)
-    { el: 'banks', name: 'meadow', run: (p) => paintMeadow(p, r('meadow'), ground) },
-    { el: 'banks', name: 'grass', run: (p) => paintMeadowGrass(p, r('meadow'), ground) },
-    ...art.trees
-      .filter((t) => t.distance >= 0.4)
-      .map((t) => ({ el: 'trees' as const, name: t.id, run: (p: Painter) => paintTree(p, r(t.id), t) })),
-    { el: 'pond', name: 'pond-reserve', run: (p) => reservePond(p, r('reserve'), scene.pond) },
-    { el: 'pond', name: 'water', run: (p) => paintWater(p, r('water'), scene.pond) },
-    {
-      el: 'reflections',
-      name: 'reflections',
-      run: (p) => paintReflections(p, r('reflections'), { scene, trees: art.trees, shrubs: art.shrubs.filter((s) => s.y < 500 && s.x > 900), seed: art.seed }),
-    },
-    { el: 'pond', name: 'water-detail', run: (p) => paintWaterDetail(p, r('water-detail'), scene.pond) },
-    { el: 'path', name: 'path', run: (p) => paintPath(p, r('path'), scene.path) },
-    ...art.shrubs.map((s, i) => ({ el: 'shrubs' as const, name: `shrub-${i}`, run: (p: Painter) => paintShrub(p, r(`shrub-${i}`), s) })),
-    ...art.trees
-      .filter((t) => t.distance < 0.4)
-      .map((t) => ({ el: 'trees' as const, name: t.id, run: (p: Painter) => paintTree(p, r(t.id), t) })),
-    { el: 'tufts', name: 'tufts', run: (p) => paintTufts(p, r('tufts'), art.tufts) },
-    { el: 'margins', name: 'margins', soft: true, run: (p) => paintMargins(p, r('margins')) },
-    { el: 'path', name: 'stones', run: (p) => paintStones(p, r('stones'), scene.path) },
-    // after the margins: the engawa runs off the right edge of the sheet, crisp
-    ...(pavilion ? [{ el: 'pavilion' as const, name: 'pavilion', run: (p: Painter) => paintPavilion(p, r('pavilion'), pavilion) }] : []),
-  ];
-  return only ? steps.filter((s) => only.includes(s.el)) : steps;
+  return loaded(art.painters, art.scenery).steps(art, only);
 }
 
 /** The Japanese garden's painting. */
@@ -103,7 +67,7 @@ export const GARDEN_ART: SceneArt = {
   tufts: TUFTS,
   foregroundTufts: FOREGROUND_TUFTS,
   seed: 7,
-  steps: gardenSteps,
+  painters: GARDEN_PAINTERS,
 };
 
 /** What part of the world a bitmap shows, and at how many bitmap pixels per world unit. */
@@ -174,6 +138,7 @@ export function* paintJob(art: SceneArt, view: PaintView, opts: PaintRunOptions 
       longest.ms = ms;
     }
   };
+  const painters = loaded(art.painters, art.scenery);
   const canvas = makeCanvas(view.rect.w * view.scale, view.rect.h * view.scale);
   const p = createPainter(canvas, { seed: art.seed, quality });
   const soft = quality === 'high' ? p : createPainter(canvas, { seed: art.seed, quality: 'draft' });
@@ -196,10 +161,10 @@ export function* paintJob(art: SceneArt, view: PaintView, opts: PaintRunOptions 
   const sprites: Sprite[] = [];
   if (opts.sprites ?? true) {
     const t: StepTiming = { name: 'sprites', ms: 0, longestMs: 0, parts: 0 };
-    const rocks = art.rockSprites ?? GARDEN_ROCKS;
     for (const rock of art.scene.rocks) {
       let s = now();
-      const marks = rocks.paint(rock, art.seed, view.scale, quality);
+      if (!painters.rock) throw new Error(`${art.scenery}: rocks without a rock painter`);
+      const marks = painters.rock(rock, art.seed, view.scale, quality);
       for (let r = marks.next(); ; r = marks.next()) {
         part(t, now() - s);
         if (r.done) {
@@ -213,7 +178,8 @@ export function* paintJob(art: SceneArt, view: PaintView, opts: PaintRunOptions 
     }
     for (const [i, tuft] of art.foregroundTufts.entries()) {
       const s = now();
-      sprites.push(paintTuftSprite(tuft, i, art.seed, view.scale, quality));
+      if (!painters.tuft) throw new Error(`${art.scenery}: tufts without a tuft painter`);
+      sprites.push(painters.tuft(tuft, i, art.seed, view.scale, quality));
       part(t, now() - s);
       yield `tuft-${i}`;
     }
@@ -249,6 +215,8 @@ export interface CooperativeOptions extends PaintRunOptions {
 export async function paintScene(art: SceneArt, view: PaintView, opts: CooperativeOptions): Promise<PaintResult> {
   const now = opts.now ?? (() => performance.now());
   const slice = opts.sliceMs ?? 20;
+  // the scenery's painter chunk, the first time it paints (ADR 0341)
+  if (!art.painters.get()) await art.painters.load();
   const job = paintJob(art, view, opts);
   let sliceStart = now();
   for (;;) {
@@ -320,9 +288,8 @@ export interface AtlasLayout {
  * again without painting anything.
  */
 export function spriteAtlasLayout(art: SceneArt, scale: number): AtlasLayout {
-  const rocks = art.rockSprites ?? GARDEN_ROCKS;
   const specs = [
-    ...art.scene.rocks.map((r) => ({ id: r.id, box: rocks.box(r), depth: r.y })),
+    ...art.scene.rocks.map((r) => ({ id: r.id, box: rockBox(r), depth: r.y })),
     ...art.foregroundTufts.map((t, i) => ({ id: `tuft-${i}`, box: tuftBox(t), depth: t.y })),
   ];
   let y = 0;

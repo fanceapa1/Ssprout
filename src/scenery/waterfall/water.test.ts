@@ -7,6 +7,10 @@ import { paintJob, type PaintView } from '../../scene/background';
 import { PaintRecorder, type RecordedCost } from '../../scene/paint-record';
 import { WATERFALL_ART } from '.';
 import { sheetAt } from './paint-water';
+import { waterfallSteps } from './painters';
+
+// the painters are a lazy chunk (ADR 0341)
+beforeAll(() => WATERFALL_ART.painters.load());
 
 const WATER = ['water', 'falls'];
 const OVERVIEW: PaintView = { rect: { x: 0, y: 0, w: 1600, h: 1000 }, scale: 0.6 };
@@ -43,7 +47,7 @@ describe('waterfall water painting (S7)', () => {
   }, 120_000);
 
   it('paints the pool, the stream and then the falls', () => {
-    expect(WATERFALL_ART.steps(WATERFALL_ART, WATER).map((s) => s.name)).toEqual(['pool', 'stream', 'falls']);
+    expect(waterfallSteps(WATERFALL_ART, WATER).map((s) => s.name)).toEqual(['pool', 'stream', 'falls']);
   });
 
   it('maps the sheet between its edges, widening as it drops', () => {

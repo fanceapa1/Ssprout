@@ -8,12 +8,12 @@ import { reserveStar, stars, type Star } from '../../ambience/sky-layout';
 import type { Rng } from '../../core/rng';
 import { PIGMENTS, blob, lighten, mix, type Painter, type Pigment } from '../../paint';
 import { WORLD_W, type Pt, type Rect } from '../../render/viewport';
-import type { ScenerySky } from '../types';
-import { OASIS_SKY_LAYOUT, openSky, SKY_TOP, SKYLINE, skylineAt } from './layout';
+import type { SkyPainters } from '../types';
+import { OASIS_SKY_LAYOUT, OASIS_SKY_RECT, openSky, SKY_TOP, SKYLINE, skylineAt } from './layout';
 import { bluffTopAt } from './paint-rocks';
 
 /** The band the sky plates cover: from above the world down past the far range (y 340). */
-export const OASIS_SKY_RECT: Rect = { x: 0, y: SKY_TOP, w: WORLD_W, h: 620 };
+export { OASIS_SKY_RECT };
 
 /** The basin's turquoise, which every phase's mirrored sky keeps (the sunset plate greyed it, devlog 110). */
 export const TURQUOISE: Pigment = '#3fb3ad';
@@ -265,11 +265,5 @@ export function paintOasisWaterSky(p: Painter, rng: Rng, phase: DayPhase, box: R
   }
 }
 
-/** The oasis's sky (O5, ADR 0301): its layout with the sun on the right (ADR 0300), plates and open-sky shape. */
-export const OASIS_SKY: ScenerySky = {
-  layout: OASIS_SKY_LAYOUT,
-  rect: OASIS_SKY_RECT,
-  shape: openSky,
-  paint: paintOasisSky,
-  paintWater: paintOasisWaterSky,
-};
+/** The oasis's sky plates (its painter chunk, ADR 0341). */
+export const OASIS_SKY_PAINTERS: SkyPainters = { paint: paintOasisSky, paintWater: paintOasisWaterSky };

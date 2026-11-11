@@ -16,7 +16,8 @@ import type { PaintCache } from '../paint/persist';
 import type { Pt, Rect } from '../render/viewport';
 import { DEFAULT_SCENERY, type SceneryId } from '../scenery/ids';
 import type { ScenerySky } from '../scenery/types';
-import { GARDEN_SKY, SKY_SCALE } from './paint-sky';
+import { GARDEN_SKY } from '../scenery/japanese-garden/art';
+import { SKY_SCALE } from '../scenery/japanese-garden/sky';
 
 type Ctx = CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
 
@@ -128,6 +129,8 @@ export interface SkyLightOptions {
   scenery?: SceneryId;
   /** where the plates are looked up and stored (default: the app's paint cache; null: none) */
   cache?: PaintCache | null;
+  /** the sky's painters landed after a plate was drawn without them: the next update recomposes (ADR 0341) */
+  onPainters?: () => void;
 }
 
 export function createSkyLight(opts: SkyLightOptions): SkyLight {
@@ -161,6 +164,21 @@ export function createSkyLight(opts: SkyLightOptions): SkyLight {
   /** phases `prepare` asked for whose lookup has not answered yet */
   const preparing = new Set<DayPhase>();
   const now = () => (typeof performance !== 'undefined' ? performance.now() : 0);
+  let blank: Plate | null = null;
+  let fetching: Promise<void> | null = null;
+  /** load the sky's painters (ADR 0341); once they land, what was composed without them is redone */
+  const fetchPainters = (): Promise<void> =>
+    (fetching ??= spec.painters.load().then(
+      () => {
+        key = '';
+        detail = null;
+        opts.onPainters?.();
+      },
+      (err: unknown) => {
+        fetching = null;
+        console.warn('[sky] sky painters failed to load', err);
+      },
+    ));
 
   // the paint cache's copy: the sky plate on top, the water plate below it, in one image
   const atlasW = Math.max(sw, ww);
@@ -183,7 +201,8 @@ export function createSkyLight(opts: SkyLightOptions): SkyLight {
       return true;
     },
     answered(phase) {
-      if (preparing.delete(phase) && !plates.has(phase)) whenIdle(() => void paint(phase));
+      if (!plates.has(phase) && !spec.painters.get()) void fetchPainters();
+      if (preparing.delete(phase) && !plates.has(phase)) void fetchPainters().then(() => whenIdle(() => void paint(phase)));
       if (deferred && last && !waiting(last.state)) flush();
     },
   });
@@ -193,19 +212,25 @@ export function createSkyLight(opts: SkyLightOptions): SkyLight {
   const paint = (phase: DayPhase): Plate => {
     const known = plates.get(phase);
     if (known) return known;
+    const painters = spec.painters.get();
+    if (!painters) {
+      // until the painters land: empty plates (no tint), neither kept nor stored
+      void fetchPainters();
+      return (blank ??= { sky: makeCanvas(sw, sh), water: makeCanvas(ww, wh) });
+    }
     const t0 = now();
     const sky = makeCanvas(sw, sh);
     const sp = createPainter(sky, { seed: `${opts.seed}:sky:${phase}` });
     sp.ctx.fillStyle = '#ffffff';
     sp.ctx.fillRect(0, 0, sw, sh);
     sp.ctx.setTransform(SKY_SCALE, 0, 0, SKY_SCALE, -skyRect.x * SKY_SCALE, -skyRect.y * SKY_SCALE);
-    spec.paint(sp, createRng(`${opts.seed}:sky:${phase}`), phase);
+    painters.sky.paint(sp, createRng(`${opts.seed}:sky:${phase}`), phase);
     const water = makeCanvas(ww, wh);
     const wp = createPainter(water, { seed: `${opts.seed}:water-sky:${phase}` });
     wp.ctx.fillStyle = '#ffffff';
     wp.ctx.fillRect(0, 0, ww, wh);
     wp.ctx.setTransform(WATER_SCALE, 0, 0, WATER_SCALE, -waterRect.x * WATER_SCALE, -waterRect.y * WATER_SCALE);
-    spec.paintWater(wp, createRng(`${opts.seed}:water-sky:${phase}`), phase, pondBox);
+    painters.sky.paintWater(wp, createRng(`${opts.seed}:water-sky:${phase}`), phase, pondBox);
     const plate = { sky, water };
     plates.set(phase, plate);
     paintMs += now() - t0;

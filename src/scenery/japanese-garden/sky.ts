@@ -4,6 +4,9 @@
  * docs/systems/daylight.md › Sky layout.
  */
 import type { SkyLayout } from '../../ambience/sky-layout';
+import { smoothPath } from '../../paint';
+import { WORLD_W, type Pt, type Rect } from '../../render/viewport';
+import { HILLS } from '../../scene/layout';
 
 export const GARDEN_SKY_LAYOUT: SkyLayout = {
   // behind the far ridge (~y 300–352)
@@ -19,3 +22,19 @@ export const GARDEN_SKY_LAYOUT: SkyLayout = {
   // shadows fall left at sunrise and right at sunset; rims face the other way (ADR 0284)
   sunSide: { sunrise: 1, sunset: -1 },
 };
+
+/** The world band the sky plates cover (above the world's top for tall phones, down past the far bank). */
+export const SKY_RECT: Rect = { x: 0, y: -240, w: WORLD_W, h: 740 };
+/** Plate resolution, bitmap px per world unit (soft washes; the paper adds the grain). */
+export const SKY_SCALE = 0.7;
+
+/** The far ridge as a smooth line: the sun sets behind it. */
+export function farRidge(): Pt[] {
+  return smoothPath(HILLS[0]!.ridge, 16);
+}
+
+/** The open sky above the far ridge (with `below` extra units hanging under the ridge). */
+export function skyShape(below = 0): Pt[] {
+  const ridge = farRidge().map((q) => ({ x: q.x, y: q.y + below }));
+  return [{ x: -80, y: SKY_RECT.y - 40 }, { x: WORLD_W + 80, y: SKY_RECT.y - 40 }, { x: WORLD_W + 80, y: ridge[ridge.length - 1]!.y }, ...ridge.reverse()];
+}

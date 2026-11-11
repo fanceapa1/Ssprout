@@ -4,24 +4,14 @@
  * the paper is multiplied last. docs/systems/daylight.md › Waterfall.
  */
 import type { DayPhase } from '../../ambience/daylight';
-import { reserveStar, stars, type SkyLayout } from '../../ambience/sky-layout';
+import { reserveStar, stars } from '../../ambience/sky-layout';
 import type { Rng } from '../../core/rng';
 import { PIGMENTS, blob, lighten, mix, type Painter, type Pigment } from '../../paint';
 import { WORLD_W, type Pt, type Rect } from '../../render/viewport';
-import type { ScenerySky } from '../types';
-import { BUTTRESS_END, FAR_RIDGE, openSky, SKY_TOP, SKYLINE, skylineAt, WATERFALL_SKY_LAYOUT } from './layout';
+import type { SkyPainters } from '../types';
+import { BUTTRESS_END, FAR_RIDGE, openSky, SKY_TOP, SKYLINE, skylineAt, WATERFALL_SKY_LAYOUT, WATERFALL_SKY_RECT, WATERFALL_SUN_SKY, WATERFALL_SUNSET_X } from './layout';
 
-/** The setting sun's x at the horizon, left of the layout's 1040 so its disc stays inside a phone's crop. */
-export const WATERFALL_SUNSET_X = 980;
-
-/**
- * The waterfall's sky numbers with its sun side (ADR 0284): both low suns stand right of the
- * falls, so shadows fall left and rims face right at sunrise and at sunset.
- */
-export const WATERFALL_SUN_SKY: SkyLayout = { ...WATERFALL_SKY_LAYOUT, sunsetX: WATERFALL_SUNSET_X, sunSide: { sunrise: 1, sunset: 1 } };
-
-/** The band the sky plates cover: from above the world down past the far ridge's plain (y 470). */
-export const WATERFALL_SKY_RECT: Rect = { x: 0, y: SKY_TOP, w: WORLD_W, h: 740 };
+export { WATERFALL_SKY_RECT, WATERFALL_SUN_SKY, WATERFALL_SUNSET_X };
 
 /** An elliptical glow kept in the sky: nothing of it hangs more than a few units under the skyline. */
 function skyGlow(cx: number, cy: number, rx: number, ry: number): Pt[] {
@@ -272,11 +262,5 @@ export function paintWaterfallWaterSky(p: Painter, rng: Rng, phase: DayPhase, bo
   }
 }
 
-/** The waterfall's sky: its layout, plates and open-sky shape (ADR 0241, 0247). */
-export const WATERFALL_SKY: ScenerySky = {
-  layout: WATERFALL_SUN_SKY,
-  rect: WATERFALL_SKY_RECT,
-  shape: openSky,
-  paint: paintWaterfallSky,
-  paintWater: paintWaterfallWaterSky,
-};
+/** The waterfall's sky plates (its painter chunk, ADR 0341). */
+export const WATERFALL_SKY_PAINTERS: SkyPainters = { paint: paintWaterfallSky, paintWater: paintWaterfallWaterSky };

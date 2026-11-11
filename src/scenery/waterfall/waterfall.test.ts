@@ -12,6 +12,7 @@ import { WATERFALL } from '.';
 import { FALLS, POOL, ROCKS, STREAM, TRAIL, waterfallScene } from './geometry';
 import { CLIFF, CROWN_SCALE, LEDGES, openSky, skylineAt, WATERFALL_HABITAT_WORDS, WATERFALL_SKY_LAYOUT } from './layout';
 import { WATERFALL_SUN_SKY } from './sky';
+import { waterfallSteps } from './painters';
 
 const { slots } = waterfallScene;
 const byHabitat = (h: string) => slots.filter((s) => s.habitat === h);
@@ -69,11 +70,11 @@ describe('the waterfall scenery', () => {
   });
 
   it('paints its land, rock, vegetation and water steps back to front, and only the asked-for elements', () => {
-    const steps = WATERFALL.art.steps(WATERFALL.art);
+    const steps = waterfallSteps(WATERFALL.art);
     // the water over the rock (the falls over the cliff and the pool), the stepping stones over the water
     expect(steps.map((s) => s.name)).toEqual(['far-ridge', 'banks', 'meadow', 'grass', 'gorge', 'cliff', 'buttress', 'ledges', 'crown-woods', 'overhang', 'ferns', 'pool', 'stream', 'falls', 'foreground', 'margins', 'stones']);
-    expect(WATERFALL.art.steps(WATERFALL.art, ['water']).map((s) => s.name)).toEqual(['pool', 'stream']);
-    expect(WATERFALL.art.steps(WATERFALL.art, ['falls']).map((s) => s.name)).toEqual(['falls']);
+    expect(waterfallSteps(WATERFALL.art, ['water']).map((s) => s.name)).toEqual(['pool', 'stream']);
+    expect(waterfallSteps(WATERFALL.art, ['falls']).map((s) => s.name)).toEqual(['falls']);
   });
 
   it('records a habitat word for every habitat (for the planting sheet, S5)', () => {

@@ -9,29 +9,13 @@
  * laid over the water with a little opacity on the `waterSurface` layer.
  */
 import type { Rng } from '../core/rng';
-import { PIGMENTS, blob, createSimplex2D, lighten, mix, ribbon, smoothPath, type Painter, type Pigment } from '../paint';
+import { PIGMENTS, blob, createSimplex2D, lighten, mix, ribbon, type Painter, type Pigment } from '../paint';
 import type { DayPhase } from '../ambience/daylight';
 import { WORLD_W, type Pt, type Rect } from '../render/viewport';
-import { HILLS } from './layout';
 import { reserveStar, stars } from '../ambience/sky-layout';
-import { GARDEN_SKY_LAYOUT } from '../scenery/japanese-garden/sky';
-import type { ScenerySky } from '../scenery/types';
+import { GARDEN_SKY_LAYOUT, SKY_RECT, SKY_SCALE, farRidge, skyShape } from '../scenery/japanese-garden/sky';
 
-/** The world band the sky plates cover (above the world's top for tall phones, down past the far bank). */
-export const SKY_RECT: Rect = { x: 0, y: -240, w: WORLD_W, h: 740 };
-/** Plate resolution, bitmap px per world unit (soft washes; the paper adds the grain). */
-export const SKY_SCALE = 0.7;
-
-/** The far ridge as a smooth line: the sun sets behind it. */
-export function farRidge(): Pt[] {
-  return smoothPath(HILLS[0]!.ridge, 16);
-}
-
-/** The open sky above the far ridge (with `below` extra units hanging under the ridge). */
-export function skyShape(below = 0): Pt[] {
-  const ridge = farRidge().map((q) => ({ x: q.x, y: q.y + below }));
-  return [{ x: -80, y: SKY_RECT.y - 40 }, { x: WORLD_W + 80, y: SKY_RECT.y - 40 }, { x: WORLD_W + 80, y: ridge[ridge.length - 1]!.y }, ...ridge.reverse()];
-}
+export { SKY_RECT, SKY_SCALE, farRidge, skyShape };
 
 /** Both hill bands, from the far ridge down to the far bank. */
 function hillsShape(): Pt[] {
@@ -329,12 +313,3 @@ export function paintWaterSkyPlate(p: Painter, rng: Rng, phase: DayPhase, box: R
     p.lift({ cx: x, cy: y, rx: len / 2, ry: rng.range(1.2, 2.6) }, { rng, amount: rng.range(0.25, 0.5), deform: 0.25, spread: 0.3, layers: 5 });
   }
 }
-
-/** The Japanese garden's sky: its layout, plates and open-sky shape (ADR 0241). */
-export const GARDEN_SKY: ScenerySky = {
-  layout: GARDEN_SKY_LAYOUT,
-  rect: SKY_RECT,
-  shape: skyShape,
-  paint: paintSkyPlate,
-  paintWater: paintWaterSkyPlate,
-};

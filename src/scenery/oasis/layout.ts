@@ -3,9 +3,11 @@
  * places, the skyline traced from the painted silhouette, the terraces' lifts, the footpath and the
  * near ground's structure, the sky layout, the view and the ambience. docs/systems/scenery.md › Oasis.
  */
+import type { DayPhase } from '../../ambience/daylight';
 import type { SkyLayout } from '../../ambience/sky-layout';
+import type { Grade } from '../../ambience/timeofday';
 import type { Habitat } from '../../plants/types';
-import type { Pt } from '../../render/viewport';
+import { WORLD_W, type Pt, type Rect } from '../../render/viewport';
 import { perspectiveScale } from '../../scene/slots';
 import type { SceneryAmbience } from '../types';
 import { KSAR_SHAPES } from './ksar';
@@ -293,4 +295,19 @@ export const OASIS_HABITAT_WORDS: Readonly<Record<Habitat, string>> = {
   path: 'on the sand',
   back: 'under the palms',
   rock: 'on the walls',
+};
+
+/** The world band the oasis's sky plates cover. */
+export const OASIS_SKY_RECT: Rect = { x: 0, y: SKY_TOP, w: WORLD_W, h: 620 };
+
+/**
+ * The oasis's grades: warmer and more golden than the other gardens' (midday a thin gold rather
+ * than bare paper, sunset a deep amber), the glow standing over the notch; night a violet-indigo
+ * a touch lighter than the garden's so the sand stays readable.
+ */
+export const OASIS_GRADES: Record<DayPhase, Grade> = {
+  sunrise: { tint: [238, 204, 206], amount: 0.2, sky: 0, ground: 0.85, glow: 0.6, warm: [255, 214, 168], glowX: 0.62, glowY: 0.34, lantern: 0, mottle: 0.16 },
+  midday: { tint: [250, 230, 188], amount: 0.09, sky: -0.06, ground: 1, glow: 0, warm: [252, 240, 214], glowX: 0.5, glowY: 0.1, lantern: 0, mottle: 0.12 },
+  sunset: { tint: [244, 168, 104], amount: 0.36, sky: -0.06, ground: 1, glow: 0.62, warm: [255, 206, 128], glowX: 0.58, glowY: 0.34, lantern: 0, mottle: 0.16 },
+  night: { tint: [90, 98, 178], amount: 0.5, sky: 0.2, ground: 1.15, glow: 0, warm: [236, 214, 170], glowX: 0.5, glowY: 0.3, lantern: 0, mottle: 0.1 },
 };

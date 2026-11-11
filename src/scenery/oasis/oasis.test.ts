@@ -19,6 +19,7 @@ import { BACK_BEDS, BACK_RUNNEL, BASIN, BLUFF, copingAt, FOOTPATH, LIFT, OASIS_H
 import { KSAR_SHAPES } from './ksar';
 import { OUED_BARS } from './paint-water';
 import { SLOT_TERRACE } from './slots';
+import { oasisSteps } from './painters';
 
 const { slots } = oasisScene;
 const byHabitat = (h: string) => slots.filter((s) => s.habitat === h);
@@ -78,11 +79,11 @@ describe('the oasis scenery', () => {
   });
 
   it('paints its own steps by element, back to front, and only the asked-for elements', () => {
-    const names = OASIS.art.steps(OASIS.art).map((s) => s.name);
+    const names = oasisSteps(OASIS.art).map((s) => s.name);
     expect(names).toEqual(Object.values(OASIS_ELEMENTS).flat());
     expect(names).toEqual(['ranges', 'dunes', 'ground', 'terraces', 'plots', 'footpath', 'grove', 'bluff', 'ksar', 'walls', 'basin', 'seguia', 'oued', 'big-palms', 'foreground', 'margins']);
-    expect(OASIS.art.steps(OASIS.art, ['water']).map((s) => s.name)).toEqual([...OASIS_ELEMENTS.water]);
-    expect(OASIS.art.steps(OASIS.art, ['rock', 'palms']).map((s) => s.name)).toEqual(['bluff', 'ksar', 'big-palms']);
+    expect(oasisSteps(OASIS.art, ['water']).map((s) => s.name)).toEqual([...OASIS_ELEMENTS.water]);
+    expect(oasisSteps(OASIS.art, ['rock', 'palms']).map((s) => s.name)).toEqual(['bluff', 'ksar', 'big-palms']);
   });
 
   it('records a habitat word for every habitat', () => {

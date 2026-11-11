@@ -19,6 +19,7 @@ import type { ShrubSpec, TreeSpec } from '../scene/layout';
 import type { PaintCache } from '../paint/persist';
 import { DEFAULT_SCENERY, type SceneryId } from '../scenery/ids';
 import { GARDEN_SKY_LAYOUT } from '../scenery/japanese-garden/sky';
+import { loaded, type Painters } from '../scenery/painters';
 import { PHASES, only, pinnedState, whenIdle, type DayPhase, type DaylightState, type PhaseWeights } from './daylight';
 import { gradePlate, washField, type WashField } from './lighting';
 import { createPlateCache, cutImage, defaultPlateCache, fingerprint } from './plate-cache';
@@ -48,12 +49,18 @@ export interface LightArt {
   shrubs: readonly ShrubSpec[];
   /** where the sun and the moon are (default: the Japanese garden's sky) */
   sky?: SkyLayout;
+  /** the scenery's own marks, loaded with its painters when a plate has to be painted (ADR 0341) */
+  painters?: Painters<{ light: LightPainters }>;
+  /** the scenery's own phase grades (ADR 0301); a phase it leaves out takes `PHASE_GRADES` */
+  grades?: Partial<Record<DayPhase, Grade>>;
+}
+
+/** A scenery's own marks on the light plates (in its painter chunk, ADR 0341). */
+export interface LightPainters {
   /** the scenery's own shadows, painted after the others (the engawa's) */
   shadows?(p: Painter, rng: Rng, scene: SceneGeometry, shadow: CastShadow, pigment: string): void;
   /** the scenery's own lights on one phase's plate (the shoji's lamp light) */
   lights?(p: Painter, rng: Rng, scene: SceneGeometry, phase: DayPhase): void;
-  /** the scenery's own phase grades (ADR 0301); a phase it leaves out takes `PHASE_GRADES` */
-  grades?: Partial<Record<DayPhase, Grade>>;
 }
 
 /** The radius of the warm pool of light lifted round each of the scene's lights. */
@@ -127,11 +134,12 @@ const SHADOW = mix(PIGMENTS.shadow, PIGMENTS.ultramarine, 0.38);
 export function paintCastPlate(p: Painter, rng: Rng, phase: DayPhase, scene: SceneGeometry, art: LightArt): void {
   const state = pinnedState(only(phase));
   const sky = art.sky ?? GARDEN_SKY_LAYOUT;
+  const own = art.painters ? loaded(art.painters, 'light').light : {};
   const sh = castShadow(state, sky);
   const shadowPig = phase === 'sunset' ? mix(SHADOW, PIGMENTS.violet, 0.3) : phase === 'sunrise' ? mix(SHADOW, PIGMENTS.bellflower, 0.25) : SHADOW;
-  if (phase !== 'night') paintShadows(p, rng, scene, art, sh, shadowPig);
+  if (phase !== 'night') paintShadows(p, rng, scene, art, sh, shadowPig, own);
   if (phase === 'sunrise' || phase === 'sunset') paintCrownLights(p, rng, art, phase, sunSide(sky)[phase]);
-  art.lights?.(p, rng, scene, phase);
+  own.lights?.(p, rng, scene, phase);
   // (never on the plate's top rows: tall phones stretch row 0 over the paper above the world)
   if (phase === 'night') for (const s of stars(30, 'stars', sky)) if (s.y > 14) reserveStar(p.ctx, s, 0.9);
 }
@@ -155,7 +163,7 @@ export function rockShadow(r: { x: number; y: number; w: number; h: number }, sh
 }
 
 /** Cast shadows: a cool glaze from each thing's foot, away from the sun, fading toward its tip. */
-function paintShadows(p: Painter, rng: Rng, scene: SceneGeometry, art: LightArt, sh: CastShadow, pig: string): void {
+function paintShadows(p: Painter, rng: Rng, scene: SceneGeometry, art: LightArt, sh: CastShadow, pig: string, own: LightPainters): void {
   const long = Math.abs(sh.dx) > 0.6;
   const onWater = (q: Pt) => pointInPolygon(q, scene.pond);
   // boulders
@@ -222,7 +230,7 @@ function paintShadows(p: Painter, rng: Rng, scene: SceneGeometry, art: LightArt,
       fade: long ? { angle: dir > 0 ? 0 : Math.PI, start: 0.45, amount: 0.8, ragged: 0.7 } : undefined,
     });
   }
-  art.shadows?.(p, rng, scene, sh, pig);
+  own.shadows?.(p, rng, scene, sh, pig);
 }
 
 /** Paper reserved on the sun side of each crown: light caught by the leaves (`side` +1 = right). */
@@ -311,6 +319,21 @@ export function createCastLight(scene: SceneGeometry, art: LightArt, seed = 'cas
   /** phases `prepare` asked for whose lookup has not answered yet */
   const preparing = new Set<DayPhase>();
   const now = () => (typeof performance !== 'undefined' ? performance.now() : 0);
+  /** the scenery's painters are here (or it has none): a plate can be painted now */
+  const ready = () => !art.painters || art.painters.get() !== null;
+  let fetching: Promise<void> | null = null;
+  /** load the painters; once they land, the next update recomposes what was drawn without them */
+  const fetchPainters = (): Promise<void> =>
+    (fetching ??= art.painters!.load().then(
+      () => {
+        last = '';
+        version++;
+      },
+      (err: unknown) => {
+        fetching = null;
+        console.warn('[cast] light painters failed to load', err);
+      },
+    ));
 
   let print: string | null = null;
   const store = createPlateCache<DayPhase>({
@@ -325,7 +348,12 @@ export function createCastLight(scene: SceneGeometry, art: LightArt, seed = 'cas
     answered(phase, hit) {
       if (hit) totals.cacheHits++;
       else totals.cacheMisses++;
-      if (preparing.delete(phase) && !plates.has(phase)) whenIdle(() => void plate(phase));
+      // a miss is painted: its painters start loading now (ADR 0341)
+      if (!hit && !ready()) void fetchPainters();
+      if (preparing.delete(phase) && !plates.has(phase)) {
+        if (ready()) whenIdle(() => void plate(phase));
+        else void fetchPainters().then(() => whenIdle(() => void plate(phase)));
+      }
       if (deferred && !waiting(deferred.state)) flush();
     },
   });
@@ -333,6 +361,11 @@ export function createCastLight(scene: SceneGeometry, art: LightArt, seed = 'cas
   const plate = (phase: DayPhase): AnyCanvas => {
     const known = plates.get(phase);
     if (known) return known;
+    if (!ready()) {
+      // until the painters land: the grade wash alone, neither kept nor stored
+      void fetchPainters();
+      return gradeOf(phase);
+    }
     const t0 = now();
     const c = gradePlate(phaseGrade(phase), field());
     const g = makeCanvas(w, h);
@@ -515,6 +548,7 @@ export function createCastLight(scene: SceneGeometry, art: LightArt, seed = 'cas
     paintPart(p) {
       if (plates.has(p)) return;
       if (!washed) field();
+      else if (!ready()) void fetchPainters();
       else plate(p);
     },
     setDetail(visible, pixelScale) {
@@ -545,6 +579,10 @@ export function createCastLight(scene: SceneGeometry, art: LightArt, seed = 'cas
       const missing = phasesOf(lastState).filter((p) => detailPlates.get(p)?.key !== want!.key);
       const next = missing[0];
       if (!next) return false;
+      if (!ready()) {
+        void fetchPainters();
+        return true;
+      }
       detailPlates.set(next, { key: want.key, canvas: paintDetailPlate(next, want) });
       return missing.length > 1;
     },

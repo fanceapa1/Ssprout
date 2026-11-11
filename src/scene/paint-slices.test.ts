@@ -7,6 +7,9 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { GARDEN_ART, paintJob, paintScene, type PaintView } from './background';
 import { PaintRecorder, type RecordedCost } from './paint-record';
 
+// the painters are a lazy chunk (ADR 0341)
+beforeAll(() => GARDEN_ART.painters.load());
+
 const OVERVIEW: PaintView = { rect: { x: 0, y: 0, w: 1600, h: 1000 }, scale: 0.6 };
 // a resting close view over the near meadow, the big boulder and the left bank (ADR 0163)
 const DETAIL: PaintView = { rect: { x: 300, y: 380, w: 300, h: 200 }, scale: 2.8 };

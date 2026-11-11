@@ -8,6 +8,10 @@ import { PaintRecorder, type RecordedCost } from '../../scene/paint-record';
 import { WATERFALL_ART } from '.';
 import { WATERFALL_SLOTS } from './slots';
 import { FERN_SPOTS } from './paint-veg';
+import { waterfallSteps } from './painters';
+
+// the painters are a lazy chunk (ADR 0341)
+beforeAll(() => WATERFALL_ART.painters.load());
 
 const VEG = ['ridge', 'banks', 'woods', 'ferns', 'near'];
 const OVERVIEW: PaintView = { rect: { x: 0, y: 0, w: 1600, h: 1000 }, scale: 0.6 };
@@ -44,7 +48,7 @@ describe('waterfall vegetation painting (S8)', () => {
   }, 180_000);
 
   it('paints the land first, the vegetation on the rock next, and the foreground last', () => {
-    expect(WATERFALL_ART.steps(WATERFALL_ART, VEG).map((s) => s.name)).toEqual([
+    expect(waterfallSteps(WATERFALL_ART, VEG).map((s) => s.name)).toEqual([
       'far-ridge',
       'banks',
       'meadow',

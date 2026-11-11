@@ -3,15 +3,14 @@
  * buttress's shadows, warm light on the sun-facing rock at sunrise and sunset, and moonlight on
  * the falls and their spray at night (no lantern). docs/systems/daylight.md › Waterfall.
  */
-import type { LightArt } from '../../ambience/cast';
+import type { LightPainters } from '../../ambience/cast';
 import type { DayPhase } from '../../ambience/daylight';
 import type { CastShadow } from '../../ambience/sky-layout';
 import type { Rng } from '../../core/rng';
 import type { Painter } from '../../paint';
 import type { SceneGeometry } from '../../scene/geometry';
 import { FALLS } from './geometry';
-import { LEDGES, skylineAt } from './layout';
-import { WATERFALL_SUN_SKY } from './sky';
+import { LEDGES, skylineAt, WATERFALL_SUN_SKY } from './layout';
 
 /**
  * Shadows. Both low suns stand right of the buttress here, so the long shadows always fall left
@@ -94,4 +93,5 @@ function rockLights(p: Painter, rng: Rng, _scene: SceneGeometry, phase: DayPhase
   dab(p, FALLS.foot.x + 40, FALLS.foot.y + 40, 220, 24, 0.3, cool);
 }
 
-export const WATERFALL_LIGHT_ART: LightArt = { trees: [], shrubs: [], sky: WATERFALL_SUN_SKY, shadows: rockShadows, lights: rockLights };
+/** The waterfall's own marks on the light plates (its painter chunk, ADR 0341). */
+export const WATERFALL_LIGHT: LightPainters = { shadows: rockShadows, lights: rockLights };

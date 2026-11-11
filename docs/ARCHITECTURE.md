@@ -314,7 +314,7 @@ stays the ground's perspective. Creatures read `w.perspective(y, x)`: a scenery 
 (`Scenery.fauna.perspective`, the waterfall's knows the cliff); otherwise a line fitted through the
 slots' scales.
 
-### Sceneries (`src/scenery/`, ADRs 0240–0245, 0247, 0248, 0250, 0282, 0283, 0301; docs/systems/scenery.md)
+### Sceneries (`src/scenery/`, ADRs 0240–0245, 0247, 0248, 0250, 0282, 0283, 0301, 0341; docs/systems/scenery.md)
 ```ts
 export const SCENERY_IDS = ['japanese-garden', 'waterfall'] as const;  // core/sceneries.ts (ADR 0240); ids.ts re-exports
 export type SceneryId = (typeof SCENERY_IDS)[number];
@@ -323,21 +323,39 @@ export interface Scenery {                    // types.ts
   id: SceneryId; name: string; blurb: string; order: number;
   available(flags: URLSearchParams): boolean;  // all three registered sceneries: always (S17, O8); a scenery in progress hides behind a dev flag
   geometry: SceneGeometry;
-  art: SceneArt;                              // seed, painting layout, steps(art, only?) (art.scene = geometry), rockSprites?
-  sky: ScenerySky;                            // layout (SkyLayout, with its sunSide: ADR 0284), rect, shape(below?), paint, paintWater
-  light: LightArt;                            // trees, shrubs, sky, shadows?(…), lights?(…), grades? (its own phase grades, ADR 0301)
+  art: SceneArt;                              // seed, painting layout (art.scene = geometry), painters
+  sky: ScenerySky;                            // layout (SkyLayout, with its sunSide: ADR 0284), rect, shape(below?), painters
+  light: LightArt;                            // trees, shrubs, sky, grades? (its own phase grades, ADR 0301), painters?
+  painters: Painters<GardenPainters>;         // painters.ts (ADR 0341): { get(): T | null; load(): Promise<T> }, one lazy chunk per scenery
   ambience: SceneryAmbience;                  // dew: Rect[], mistBands, veilTo
   view: SceneryView;                          // focus (portrait crop), pathOut (guiding path origin)
   flora: SceneryBiome;                        // its place in the world: the species it offers (ADR 0250)
   habitatWords: Record<Habitat, string>;      // how the planting sheet and placement name each habitat
   fauna: SceneryFauna;                        // fauna/habitat.ts: unlocks (FaunaTable); water? { still, moving, avoid? }, perches?, stands?, ground?, walls?, perspective?(x, y)
   sound: SoundSceneryId;                      // the sound profile it plays (core/soundscape.ts SCENERIES; ADR 0283)
-  motion?: () => SceneryMotion;               // moving water over the painting (ADR 0282): { prepare(): Generator (sprites, in parts); draw(ctx, t) (world units, pure in t) }
+  motion?: () => Promise<SceneryMotion | undefined>; // moving water over the painting (ADR 0282), its own lazy chunk (ADR 0341): { prepare(): Generator (sprites, in parts); draw(ctx, t) (world units, pure in t) }
   pondSurface?: number;                       // how much of the generic water surface (water.ts: shimmer, rings, glints) plays on its pond: 1 when left out, 0 a still mirror (ADR 0302)
 }
 getScenery(id): Scenery /* the default when not registered */; hasScenery(id); sceneries(flags?)  // registry.ts
+interface GardenPainters {                    // a scenery's painters.ts, the chunk behind `painters` (ADR 0341)
+  steps(art, only?): PaintStep[];             // the landscape's paint steps, back to front
+  rock?(rock, seed, scale, quality): Generator<void, Sprite>; tuft?(tuft, i, seed, scale, quality): Sprite;
+  sky: { paint(p, rng, phase); paintWater(p, rng, phase, box) };
+  light: { shadows?(p, rng, scene, shadow, pigment); lights?(p, rng, scene, phase) };
+}
 ```
-The scene system creates `motion()` in `init` unless reduced motion is on, runs `prepare` between
+**Lazy painters (ADR 0341).** Everything that only paints sits in the scenery's `painters.ts`, a
+chunk of its own that nothing imports statically. `art.painters`, `sky.painters`, `light.painters`
+and `Scenery.painters` are the same handle. `paintScene` awaits `load()` before its first step;
+`paintJob`, `paintSceneSync` and `backgroundSteps` need the painters loaded (`get()` not null) and
+throw otherwise. The scene system starts the load as soon as the paint cache's index (`has`) says
+the landscape or its sprites are missing. The sky and light plates start it on a lookup miss. A
+plate drawn before the painters land is drawn without the scenery's marks (empty for the sky, the
+grade wash for the light), is neither kept nor stored, and is recomposed once they land. With a
+warm paint cache, none of this runs, and the chunk is never requested. The sprite atlas layout
+needs only `rockBox` and `tuftBox` (`scene/sprite-boxes.ts`). The studio loads every scenery's
+painters before its first card.
+The scene system calls `motion()` (it loads the motion's chunk) in `init` unless reduced motion is on, runs `prepare` between
 frames like a painting (the first `ready()` waits for it) and draws it on `waterSurface` after the
 water, under the light plate. A scenery switch drops it. Only the waterfall has one (its falls,
 foam and spray, S9).
@@ -350,11 +368,11 @@ are registered, in that order, and both are offered to everyone (S17): `scenerie
 without any flag, and a new garden opens on `DEFAULT_SCENERY`. The waterfall is complete: its land,
 rock, vegetation and water steps, its daylight plates (ADR 0247), its own boulders and its falls in
 motion.
-`SceneArt.rockSprites?: RockSprites` (`{ box(rock): Rect; paint(rock, seed, scale, quality) }`, a
-generator returning the `Sprite`) lets a scenery paint its own boulders for `geometry.rocks`. The
-sprite pass and the sprite atlas layout use it, and default to the garden's `GARDEN_ROCKS`
-(`scene/sprites.ts`). The garden's painters stay in `src/scene/`;
-its folder holds its numbers (`sky.ts`, `ambience.ts`, `view.ts`) and its light art (`light.ts`).
+`GardenPainters.rock` (a generator returning the `Sprite`, covering `rockBox(rock)`) paints a
+scenery's boulders for `geometry.rocks`, and `tuft` its foreground tufts; the sprite pass throws when
+a scenery has rocks or tufts and no painter for them. The garden's painters stay in `src/scene/`,
+gathered in `japanese-garden/painters.ts`; its folder holds its numbers (`sky.ts`, `ambience.ts`,
+`view.ts`), its sky and light data (`art.ts`) and the engawa's light marks (`light.ts`).
 The consumers take a scenery's data as an option and default to the Japanese garden's:
 `createSkyLight({ sky, scenery })`, `createCastLight(scene, art, seed, { scenery })`,
 `createAmbience({ scenery })` / `addAmbience(renderer, { scenery })`, `gradeFor(weights, art.grades)`, `sunDisc(s, sky)`,
