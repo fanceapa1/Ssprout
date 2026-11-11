@@ -113,7 +113,8 @@ export function paintLeaflets(p: Painter, leaves: readonly Leaflet[], dry: DryOp
     len += l.length;
   }
   const mean = blades.length ? len / blades.length : 6;
-  L.dry({ opacity: 0.88, edge: 0.45, edgeWidth: Math.max(0.3, Math.min(0.7, mean * 0.06)), sharpness: 0.7, centreLift: 0.12, granulation: 0.12, flow: 0.35, flowScale: Math.max(4, mean * 0.8), ...dry });
+  // no flow mottling: on leaflets this small it hardly showed, and its noise cost a third of the drying
+  L.dry({ opacity: 0.88, edge: 0.45, edgeWidth: Math.max(0.3, Math.min(0.7, mean * 0.06)), sharpness: 0.7, centreLift: 0.12, granulation: 0.12, flow: 0, ...dry });
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -185,7 +186,7 @@ export function paintCanes(p: Painter, canes: readonly CaneMark[], prickles: rea
       any = true;
     }
   }
-  if (any) A.dry({ opacity: 0.75, edge: 0.35, edgeWidth: 0.35, sharpness: 0.8, flowScale: 8 });
+  if (any) A.dry({ opacity: 0.75, edge: 0.35, edgeWidth: 0.35, sharpness: 0.8, flow: 0 });
   else A.discard();
 }
 
