@@ -58,7 +58,7 @@ test.describe('fauna · the oasis', () => {
     expect((await page.evaluate(() => window.sprout!.fauna.list())).filter((c) => c.kind === 'bunting')).toHaveLength(0);
   });
 
-  test('every creature on the roster can be spawned and stays in the world; the bunting and the dove keep out of the basin', async ({ page }) => {
+  test('every creature on the roster can be spawned and stays in the world; the bunting and the dove keep out of the basin, the Sahara frog keeps to it and its coping', async ({ page }) => {
     await openOasis(page);
     await page.evaluate(() => window.sprout!.freeze());
     await plantOasis(page, 25);
@@ -80,6 +80,17 @@ test.describe('fauna · the oasis', () => {
         }
         return c;
       };
+      const edge = (p: { x: number; y: number }, poly: { x: number; y: number }[]) => {
+        let d = Infinity;
+        for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+          const a = poly[j]!;
+          const b = poly[i]!;
+          const l = (b.x - a.x) ** 2 + (b.y - a.y) ** 2 || 1;
+          const t = Math.max(0, Math.min(1, ((p.x - a.x) * (b.x - a.x) + (p.y - a.y) * (b.y - a.y)) / l));
+          d = Math.min(d, Math.hypot(p.x - a.x - t * (b.x - a.x), p.y - a.y - t * (b.y - a.y)));
+        }
+        return d;
+      };
       const v = f.view();
       const bad: string[] = [];
       const seen = new Set<string>();
@@ -89,6 +100,13 @@ test.describe('fauna · the oasis', () => {
           const out = c.x < v.x - 400 || c.x > v.x + v.w + 400 || c.y < v.y - 400 || c.y > v.y + v.h + 200;
           if (out || !Number.isFinite(c.x) || !Number.isFinite(c.y)) bad.push(`${c.kind}#${c.id} out at ${c.x | 0},${c.y | 0}`);
           if ((c.kind === 'bunting' || c.kind === 'dove') && c.layer === 'entities' && (inside(c, water.still) || water.moving.some((m) => inside(c, m)))) bad.push(`${c.kind}#${c.id} in the water at ${c.x | 0},${c.y | 0}`);
+          // the frog: afloat or under only in the basin, sitting only on its coping or the stair, never in the channels
+          if (c.kind === 'sahara-frog') {
+            const wet = c.layer === 'waterSurface' || c.layer === 'underwater';
+            if (wet && !inside(c, water.still)) bad.push(`frog#${c.id} afloat outside the basin at ${c.x | 0},${c.y | 0}`);
+            if (c.layer === 'entities' && !inside(c, water.still) && edge(c, water.still) > 3) bad.push(`frog#${c.id} away from the basin at ${c.x | 0},${c.y | 0}`);
+            if (water.moving.some((m) => inside(c, m))) bad.push(`frog#${c.id} in a channel at ${c.x | 0},${c.y | 0}`);
+          }
         }
         f.step(2);
       }
