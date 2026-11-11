@@ -619,6 +619,13 @@ earth (`EARTH`), so the building grows out of the rock. The sun is on the right 
   ones. Openings (`windows`) are few and placed loosely: slits, small squares and round-headed
   windows, darkest at the top, some with a palm-wood lintel, with a lit sill. Curtain walls get
   a lit crest, a shade under it, rain gullies and a couple of holes (`paintRuin`).
+- **Ksar cost** (Z4, ADR 0345): a block's small marks dry per kind, one wet layer each (patches,
+  courses, putlogs, rain, blotted corners, lit tops; a band's fillets, flicks and niches; a
+  ruin's gullies, edges and holes; the openings' holes, lintels and sills), as do each palm
+  frond's blades and the seat's cracks and lit edges. `ksar-batch.ts` lays the marks
+  (`strokeInto`, `washInto`) and gives their drying (`strokeDry`). Most of the step's time is in
+  the blocks' big washes, so the fronts' `wetInWet` takes 9 layers and the flanks' 6 (their
+  `spread` is 0.02, so more layers added little).
 - **Seat**: `SEAT_LINE` runs just above each block's base, with the rock swelling up into the
   walls in outcrops, and carried about 30 higher at the two ends (under the west curtain wall and
   the east tower's foot), where `paintEndOutcrops` models it as the bluff: shade west, sun east, two ledges. Every block is clipped above it, so no wall foot is painted over the rock
