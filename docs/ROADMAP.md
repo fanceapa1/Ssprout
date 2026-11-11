@@ -217,7 +217,7 @@ Phase 13 art queue (after O0 and O1): one plant (OP1–OP12) or creature (OK1–
 | OK0 | Oasis wildlife infra: unlock rows for the 8 oasis creatures (rows skip until a module exists), perches (walls, basin rim, palm fronds, a ksar tower), hoopoe ground spots, gecko wall faces, heron stands, a studio stage | `src/scenery/oasis/fauna.ts`, `src/fauna/habitat.ts` | done (devlog 127; ADR 0304; 15 rows, 42 perches, 5 ground spots, 4 wall faces, 5 heron stands; dropwing its own kind; swallows moved to 17) |
 | OK1 | House bunting (*Emberiza sahari*): tame, hops the copings and rim, always | `src/fauna/creatures/bunting.ts` | done (devlog 128; a resident pair by day on walls, rim and stones; 0.90 ms with the whole roster) |
 | OK2 | Laughing dove (*Spilopelia senegalensis*): fronds, wall tops, walks the plots, drinks at the rim; 2 plants | `src/fauna/creatures/dove.ts` | in progress |
-| OK3 | Violet dropwing: perch-and-sally dragonfly over the basin; 3 plants | `src/fauna/creatures/dropwing.ts` | queued |
+| OK3 | Violet dropwing: perch-and-sally dragonfly over the basin; 3 plants | `src/fauna/creatures/dropwing.ts` | in progress |
 | OK4 | Sahara frog: in the basin and on the rim; 5 plants | `src/fauna/creatures/sahara-frog.ts` | queued |
 | OK5 | Hoopoe: walks the damp plots, fans its crest; 8 plants | `src/fauna/creatures/hoopoe.ts` | queued |
 | OK6 | Böhme's gecko: on the warm walls at night; 10 plants | `src/fauna/creatures/gecko.ts` | queued |
