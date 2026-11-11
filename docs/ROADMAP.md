@@ -10,7 +10,7 @@ ADR numbering ranges (to avoid collisions in parallel work):
 0100–0109 audio · 0110–0119 plant view/growth/watering · 0120–0129 integration/polish ·
 0130–0139 app shell & dock · 0140–0149 daylight & colour · 0150–0159 parallel sessions & watering ·
 0160–0169 camera & plant descriptions · 0170–0179 calendar & scheduling · 0180–0189 v2 polish 1 & close views ·
-0190–0194 v2 polish 2 · 0200–0204 dock wayfinding · 0205+ queue tasks (Q1 0205, Q2 0206, Q3 0207, Q11 0208–0209, Q13 0210) · 0220–0239 performance (phase 9, one block of numbers per task) · 0240–0259 sceneries (phase 10) · 0260–0279 accounts (phase 11, branch `feat/accounts`) · 0250–0259 per-scenery flora and fauna (phase 12; S11 keeps 0248) · 0280–0299 phase 12 art tasks (only for real decisions) · 0300–0329 phase 13 (the oasis) · 0330–0359 phase 14 (optimization pass).
+0190–0194 v2 polish 2 · 0200–0204 dock wayfinding · 0205+ queue tasks (Q1 0205, Q2 0206, Q3 0207, Q11 0208–0209, Q13 0210) · 0220–0239 performance (phase 9, one block of numbers per task) · 0240–0259 sceneries (phase 10) · 0260–0279 accounts (phase 11, branch `feat/accounts`) · 0250–0259 per-scenery flora and fauna (phase 12; S11 keeps 0248) · 0280–0299 phase 12 art tasks (only for real decisions) · 0300–0329 phase 13 (the oasis) · 0330–0359 phase 14 (optimization pass) · 0360–0389 phase 15 (the Greek coast; devlogs 170–219).
 
 | Phase | Task | Area (owned paths) | Status |
 |---|---|---|---|
@@ -266,3 +266,29 @@ Not done: a motion-sprite atlas (1.3 MB, not worth it) and shipping pre-painted 
 | Z23 | Garden switch at noon: each creature's first sprite (bunting, dipper, ~100 ms) and the waterfall falls' `prepare` built in parts or on idle before the switch | `src/fauna/sprite.ts`, `src/scenery/waterfall/falls.ts` | queued |
 | Z24 | Sky plate painted in parts (one 115–135 ms task today) and pre-painted with the Z6 garden pre-paint, so a switch after the pre-paint gets near the warm 0.10 s | `src/scene/sky-light.ts`, `src/scene/system.ts` | queued |
 | Z25 | Oasis shape data out of the painters: the constants `oasis/wildlife.ts` reads from `paint-land`/`paint-water`/`paint-veg` (and `EARTH` from `paint-rocks`) move to a data module, so about 76 kB of oasis paint code leaves the first view (after Z3, Z4) | `src/scenery/oasis/*` | done (devlog 149; first-view JS 1,132.8 → 1,051.6 kB raw, 413.1 → 386.4 kB gzip; no oasis paint code on a Japanese garden visit; pixels unchanged) |
+
+Phase 15 (owner request 2026-11-12): a fourth garden, the Greek coastline, in the same painted style as the other gardens, with its own Mediterranean plants and creatures. Owner decisions:
+- a tended clifftop terrace standing close, over a turquoise cove with limestone cliffs and pines (two reference photos)
+- all four structures: dry-stone walls and gravel, a far white village with a blue-domed chapel, ancient marble columns, a moored fishing caique
+- plantable water is the sea edge: shallows, rock pools and splash rocks
+- creatures wanted for sure: an island cat, a tortoise in the scrub, dolphins far out (rare), goats on the cliff; research picks about 8 more
+- finished tasks are merged and pushed in batches; the garden stays behind `?dev&scenery=coast` until the owner releases it
+- chosen: draft B, "Stepped terraces down to the shore" (two 10-minute drafts; draft A was dropped)
+
+Up to 3 agents at a time for this phase, beside the phase 14 queue's agents. Scenery id `coast`, folder `src/scenery/coast/`.
+
+| # | Task | Area | Status |
+|---|---|---|---|
+| D-b | Draft B: an olive on the top tier, three dry-stone tiers down to a pebble beach and rock pools, a temple promontory, the village across the bay | `src/scenery/coast/drafts/b/**` | done, chosen (lands with G1) |
+| G0 | Biome research (web, read-only): region, 14–16 plants over four tiers with two per habitat, the owner's four creatures plus about 8 wild ones, species shared by biology, sound notes, pitfalls | `docs/research/coast-biome.md` | in progress |
+| G1 | Coast scenery skeleton from draft B: id, registry, geometry and about 50 slots, habitat words, view focus, sky numbers, flora profile, an empty wildlife table, placeholder sky, light and painting; a broken natural shoreline and a phone crop that holds a landmark; behind `?dev&scenery=coast` | `src/scenery/coast/**`, `src/core/sceneries.ts`, `src/scenery/{registry,ids}.ts` | in progress (devlog 170; ADR 0360) |
+| G2 | Coast painters: the limestone promontory, the temple columns, the far hill with the village and chapel, the rock shelf and boulders | `src/scenery/coast/paint-rocks.ts` | queued (after G1) |
+| G3 | Coast painters: the sea, the shallows, the pebble beach, the rock pools, the caique | `src/scenery/coast/paint-water.ts` | queued (after G1) |
+| G4 | Coast painters: terraces, dry-stone walls, gravel and steps, the pines, the scrub, the foreground | `src/scenery/coast/{paint-land,paint-veg}.ts` | queued (after G1) |
+| G5 | Coast daylight: 4 sky plates, sea plate, light plates, grades | `src/scenery/coast/{sky,light}.ts` | queued (after G2–G4) |
+| G6 | Moving water: the swell, foam on the pebbles, glints, the caique rocking | `src/scenery/coast/motion.ts` | queued (after G3) |
+| G7 | Coast sound bed (waves on pebbles, cicadas, a Scops owl at night, goat bells, the boat's ropes) | `src/audio/**`, `src/core/soundscape.ts` | queued (after G1) |
+| GK0 | Coast wildlife infra: unlock rows, perches, ground spots, sea and rock-pool targets, far-cliff and bay stages, a studio stage | `src/scenery/coast/fauna.ts`, `src/fauna/habitat.ts` | queued (after G0, G1) |
+| G8 | Acceptance and docs; release at the owner's word | `docs/**`, `tests/**` | queued |
+
+Phase 15 art queue (after G0): one plant (GP…) or creature (GK…) per task, from the G0 brief. Rows are added when G0 lands.
