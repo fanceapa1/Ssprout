@@ -58,7 +58,7 @@ test.describe('fauna · the oasis', () => {
     expect((await page.evaluate(() => window.sprout!.fauna.list())).filter((c) => c.kind === 'bunting')).toHaveLength(0);
   });
 
-  test('every creature on the roster can be spawned and stays in the world; birds keep out of the basin', async ({ page }) => {
+  test('every creature on the roster can be spawned and stays in the world; the bunting and the dove keep out of the basin', async ({ page }) => {
     await openOasis(page);
     await page.evaluate(() => window.sprout!.freeze());
     await plantOasis(page, 25);
@@ -88,7 +88,7 @@ test.describe('fauna · the oasis', () => {
           seen.add(c.kind);
           const out = c.x < v.x - 400 || c.x > v.x + v.w + 400 || c.y < v.y - 400 || c.y > v.y + v.h + 200;
           if (out || !Number.isFinite(c.x) || !Number.isFinite(c.y)) bad.push(`${c.kind}#${c.id} out at ${c.x | 0},${c.y | 0}`);
-          if (c.kind === 'bunting' && c.layer === 'entities' && (inside(c, water.still) || water.moving.some((m) => inside(c, m)))) bad.push(`bunting#${c.id} in the water at ${c.x | 0},${c.y | 0}`);
+          if ((c.kind === 'bunting' || c.kind === 'dove') && c.layer === 'entities' && (inside(c, water.still) || water.moving.some((m) => inside(c, m)))) bad.push(`${c.kind}#${c.id} in the water at ${c.x | 0},${c.y | 0}`);
         }
         f.step(2);
       }
