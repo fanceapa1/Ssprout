@@ -99,6 +99,42 @@ test.describe('fauna · the oasis', () => {
     for (const k of roster.kinds) expect(result.seen, k).toContain(k);
   });
 
+  test('the violet dropwing comes with three plants by day, perches by the water and sallies over it', async ({ page }) => {
+    await openOasis(page);
+    await page.evaluate(() => window.sprout!.freeze());
+    await plantOasis(page, 3);
+    const roster = await page.evaluate(() => {
+      const f = window.sprout!.fauna;
+      f.setHour(12);
+      return f.roster();
+    });
+    expect(roster.ids).toContain('violet-dropwing');
+    expect(roster.visitors).toContain('dropwing');
+    const result = await page.evaluate(() => {
+      const f = window.sprout!.fauna;
+      f.clear();
+      f.spawn('dropwing', 2);
+      const v = f.view();
+      const states = new Set<string>();
+      const bad: string[] = [];
+      for (let s = 0; s < 240; s++) {
+        for (const c of f.list().filter((c) => c.kind === 'dropwing')) {
+          states.add(c.state);
+          if (c.state === 'perch' && c.layer !== 'entities') bad.push(`perched on ${c.layer}`);
+          if (c.state === 'perch' && c.inPond) bad.push(`perched in the basin at ${c.x | 0},${c.y | 0}`);
+          if (c.state === 'perch' && (c.x < v.x || c.x > v.x + v.w)) bad.push(`perched off the view at ${c.x | 0}`);
+        }
+        f.step(0.5);
+      }
+      f.setHour(23);
+      f.step(60);
+      return { states: [...states], bad, night: f.list().filter((c) => c.kind === 'dropwing').length };
+    });
+    expect(result.bad).toEqual([]);
+    expect(result.states).toEqual(expect.arrayContaining(['perch', 'fly']));
+    expect(result.night).toBe(0);
+  });
+
   test('a busy oasis renders cleanly and stays cheap', async ({ page }) => {
     await openOasis(page);
     await plantOasis(page, 25);
