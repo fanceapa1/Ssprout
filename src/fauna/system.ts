@@ -224,6 +224,7 @@ export function createFaunaSystem(opts: FaunaSystemOptions): FaunaSystem {
       unsubscribe?.();
       unsubscribe = null;
       sim = null;
+      inits++;
     },
   };
 }
