@@ -62,7 +62,7 @@ describe('oasis rock painting (O2)', () => {
 
   it('is deterministic: the same marks every time, and the same crumbling for each block', () => {
     // quantised hashes from a fresh process, pinned as the waterfall's (paint caches warm up across runs)
-    expect({ overview: runs.overview!.hash, detail: runs.detail!.hash }).toEqual({ overview: '59fcb2af', detail: '94c1b4e4' });
+    expect({ overview: runs.overview!.hash, detail: runs.detail!.hash }).toEqual({ overview: 'bce0f3ed', detail: '621f5c7d' });
     expect(runs.again!.chunks.map((c) => c.name)).toEqual(runs.overview!.chunks.map((c) => c.name));
     for (const b of KSAR) expect(blockShape(b)).toEqual(blockShape(b));
   });
@@ -87,6 +87,13 @@ describe('oasis rock painting (O2)', () => {
   it.each(['overview', 'detail'])('pauses inside the runs of small marks: no part lays more than 60 000 calls (%s, ADR 0330)', (view) => {
     const most = runs[view]!.chunks.reduce((a, c) => (c.calls > a.calls ? c : a));
     expect(most.calls, most.name).toBeLessThanOrEqual(60_000);
+  });
+
+  it('dries each block’s runs of small marks as shared layers: few pixel reads for the ksar (ADR 0345)', () => {
+    // one read per layer dried, plus the flushes: it was 1122 and 507 with a layer per mark
+    const reads = (view: string) => runs[view]!.chunks.filter((c) => c.name === 'ksar').reduce((a, c) => a + c.reads, 0);
+    expect(reads('overview')).toBeLessThanOrEqual(360);
+    expect(reads('detail')).toBeLessThanOrEqual(220);
   });
 
   it('pauses inside both steps: each comes in many parts', () => {
