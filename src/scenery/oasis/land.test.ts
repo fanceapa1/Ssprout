@@ -58,7 +58,7 @@ describe('oasis land painting (O4)', () => {
 
   // quantised hashes from a fresh process's first runs (paint caches warm up, so a later run differs)
   it('is deterministic: the same marks every time (recording hash pins)', () => {
-    expect({ overview: runs.overview!.hash, detail: runs.detail!.hash }).toEqual({ overview: '65c786eb', detail: '0dec365d' });
+    expect({ overview: runs.overview!.hash, detail: runs.detail!.hash }).toEqual({ overview: 'dc191439', detail: '33e5d4a6' });
     expect(runs.again!.chunks.map((c) => c.name)).toEqual(runs.overview!.chunks.map((c) => c.name));
   });
 
@@ -67,6 +67,12 @@ describe('oasis land painting (O4)', () => {
     const most = (k: 'calls' | 'pixels') => chunks.reduce((a, c) => (c[k] > a[k] ? c : a));
     expect(most('calls').calls, most('calls').name).toBeLessThanOrEqual(130_000);
     expect(most('pixels').pixels, most('pixels').name).toBeLessThanOrEqual(400_000);
+  });
+
+  it('dries each near plot’s furrows and seedlings as a few layers, not one per mark (ADR 0343)', () => {
+    const reads = runs.overview!.chunks.filter((c) => c.name === 'plots').reduce((a, c) => a + c.reads, 0);
+    // 463 when every furrow stroke and seedling dried alone; most of what is left is the back beds
+    expect(reads).toBeLessThanOrEqual(280);
   });
 
   it('pauses inside every land step: each comes in several parts', () => {
