@@ -237,7 +237,7 @@ Phase 14: optimization pass (owner request 2026-11-10). Optimize the whole app, 
 - unseen gardens are pre-painted on idle when the Gardens section nears
 - 30 fps at rest is built behind a flag, and the owner judges it
 
-Not done: a motion-sprite atlas (1.3 MB, not worth it) and shipping pre-painted landscapes. The phase 9 tasks still queued (P15, P17, P19–P22, P24) follow once this queue is done.
+Not done: a motion-sprite atlas (1.3 MB, not worth it) and shipping pre-painted landscapes. Owner decision 2026-11-11: this queue runs before the oasis creatures (OK5–OK8); creature agents already running finish first. The phase 9 tasks still queued (P15, P17, P19–P22, P24) follow once this queue is done.
 
 | # | Task | Area | Status |
 |---|---|---|---|
