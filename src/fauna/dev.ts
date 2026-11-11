@@ -10,7 +10,7 @@ import { closestOnPolygon, pointInPolygon, toPlane } from './math';
 import { faunaRow } from '../core/fauna-unlocks';
 import type { FaunaListing } from './sim';
 import type { FaunaSystem } from './system';
-import { creatureDef, creatureKinds } from './creatures/registry';
+import { creatureDef, creatureKinds, loadAllCreatures } from './creatures/registry';
 
 export interface FaunaDebugListing extends FaunaListing {
   /** inside the still water (the pond; a plunge pool minus its foam) */
@@ -29,8 +29,10 @@ export interface FaunaBench {
 }
 
 export interface FaunaDebug {
-  /** creature kinds with a module (`spawn` also takes the garden on view's unlock ids) */
+  /** creature kinds loaded so far: the gardens shown or pre-painted (`spawn` also takes the garden on view's unlock ids; ADR 0346) */
   kinds(): string[];
+  /** Load every garden's creatures, so `spawn` takes any kind in any garden. */
+  loadAll(): Promise<void>;
   /** Bring a creature in now (ignores schedule, cap and night), in this garden's variant. Returns the new ids. */
   spawn(id: string, count?: number): number[];
   list(): FaunaDebugListing[];
@@ -77,10 +79,11 @@ export function installFaunaDebug(system: FaunaSystem): void {
   };
   const api: FaunaDebug = {
     kinds: () => creatureKinds(),
+    loadAll: () => loadAllCreatures(),
     spawn(id, count) {
       const kind = creatureDef(id) ? id : (faunaRow(system.habitat().unlocks, id)?.kind ?? id);
       const def = creatureDef(kind);
-      if (!def) throw new Error(`unknown creature "${id}" (try ${creatureKinds().join(', ')})`);
+      if (!def) throw new Error(`unknown creature "${id}" (loaded: ${creatureKinds().join(', ')}; another garden's: await sprout.fauna.loadAll())`);
       return sim()
         .spawn(kind, { forced: true, count: count ?? def.spawnCount ?? 1 })
         .map((c) => c.id);

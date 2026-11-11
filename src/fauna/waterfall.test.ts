@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { loadAllCreatures } from './creatures/registry';
 import type { PlantInstance } from '../core/state';
 import { perspectiveScale } from '../scene/slots';
 import { FOAM, WATERFALL_FAUNA, WATERFALL_WILDLIFE, waterfallPerspective } from '../scenery/waterfall/fauna';
@@ -21,6 +22,9 @@ function waterfallSim(seed = 4) {
   sim.hourOverride = 12;
   return sim;
 }
+
+// every garden's creatures (ADR 0346)
+await loadAllCreatures();
 
 describe('carving an ellipse out of a polygon edge', () => {
   it('bites the foam out of the pool’s back edge and keeps the rest', () => {

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { loadAllCreatures } from './registry';
 import type { PlantInstance } from '../../core/state';
 import { WATERFALL_WILDLIFE } from '../../scenery/waterfall/fauna';
 import { waterfallScene } from '../../scenery/waterfall/geometry';
@@ -8,6 +9,9 @@ import birdDef, { Bird } from './bird';
 import { Yamasemi } from './yamasemi';
 
 const plants: PlantInstance[] = [];
+
+// every garden's creatures (ADR 0346)
+await loadAllCreatures();
 
 describe('the wagtail at the waterfall', () => {
   it('never picks a perch the yamasemi holds', () => {

@@ -54,8 +54,8 @@ src/
     draw.ts · watering.ts · wither.ts · reflection.ts · highlight.ts · bounds.ts · wind-adapter.ts
     view.ts               renderPlantView (widget, previews) — docs/systems/plants.md
     debug.ts              ?dev hooks (window.sprout.plants, plantsReady)
-  fauna/                  creatures (creatures/<kind>.ts, one default-exported def each, globbed by
-                          creatures/registry.ts) + FaunaSim + FaunaSystem — docs/systems/fauna.md
+  fauna/                  creatures (creatures/<kind>.ts, one default-exported def each; one lazy
+                          chunk per garden, creatures/sets/, ADR 0346) + FaunaSim + FaunaSystem — docs/systems/fauna.md
   ambience/               session weather (sun/rain/mist), motes, wind field, the daylight (sun times,
                           four phases, the shared source, light plates) — docs/systems/daylight.md
   render/                 Renderer, layers, viewport (world↔screen), camera (zoom/pan over it), System interface, frame loop
@@ -382,7 +382,8 @@ The consumers take a scenery's data as an option and default to the Japanese gar
 **Wildlife** (ADR 0248). A scenery's `fauna.unlocks` is its unlock table, data in
 `<id>/fauna.ts` (`JAPANESE_FAUNA`, `WATERFALL_FAUNA`; `scenery/fauna.ts › faunaTable(id)` without the
 painting). Rows name creature kinds (`src/fauna/creatures/<kind>.ts`); rows without a module are
-skipped. The optional `water`, `perches`, `stands` and `perspective` replace what the fauna sim
+skipped. Each garden's creatures load as one lazy chunk (`creatures/sets/creatures-<id>.ts`), and
+the fauna system applies a garden only once its set is loaded (ADR 0346). The optional `water`, `perches`, `stands` and `perspective` replace what the fauna sim
 would derive from `geometry` (the Japanese garden gives none; the waterfall and the oasis give all
 four). `ground` (open patches a walking bird forages over, `GroundSpot`: an ellipse) and `walls`
 (upright faces a lizard clings to, `WallFace`: outline, top edge, height) default to none and reach

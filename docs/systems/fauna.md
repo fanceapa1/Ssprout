@@ -29,10 +29,26 @@ so `main.ts` calls `installFaunaDebug` itself. The system takes the garden on vi
 it when the scenery switches (ADR 0243): new still water and targets, residents reset, that
 garden's rows.
 
+### Creatures per garden (ADR 0346)
+Each garden's creatures are a lazy chunk: `creatures/sets/creatures-<scenery id>.ts` imports the
+kinds of that garden's table that have a module. The registry only knows the sets loaded so far.
+- `init` loads the garden on view's set first (without a scenery, the Japanese garden's), then
+  applies the garden. Loaded already: synchronous, as before. An init overtaken by a later one is
+  dropped. The renderer awaits `init`, so `sprout.ready()` and `showScenery` resolve with the
+  creatures there. Until then nothing of that garden spawns or is announced.
+- The Gardens section's pre-paint fetches each garden's set with its painting (`prefetchCreatures`
+  in `main.ts`). Nothing else prefetches.
+- Determinism: the whole set is there before the sim sees the garden. Resident upkeep walks the
+  loaded residents by `rank` and kind, and a resident that is not on the roster wants 0, so loading
+  another garden's creatures changes nothing (`regression.test.ts` runs with one set, then all).
+- The studio (`fauna.studio.ts`) and the unit tests that use the registry await
+  `loadAllCreatures()` at top level. Tests that import a creature module directly need nothing.
+
 | File | What |
 |---|---|
 | `creatures/<kind>.ts` | one creature: art, behaviour and its default-exported `CreatureDef` (kind = file name) |
-| `creatures/registry.ts` | globs `./*.ts`: `creatureDef(kind)`, `creatureDefs()`, `creatureKinds()` |
+| `creatures/sets/creatures-<id>.ts` | a garden's creatures, one lazy chunk (ADR 0346) |
+| `creatures/registry.ts` | loads the sets (`loadCreatures(id)`, `creaturesLoaded(id)`, `loadAllCreatures()`) and answers from the loaded ones: `creatureDef(kind)`, `creatureDefs()`, `creatureKinds()` |
 | `creatures/lib/def.ts` | the contract: `CreatureDef`, `SpawnContext`, `Sheet`, `Show`, `variantOf` |
 | `creatures/lib/flight.ts` | shared flying-visitor helpers (entry/exit points off the view, flower choice) |
 | `habitat.ts` | `SceneryFauna`: what a scenery tells its wildlife (`Scenery.fauna`) |
@@ -254,7 +270,8 @@ resolutions are kept (current and previous): a return to the overview repaints n
 **Close view · creatures** (overview parts upscaled | close parts).
 
 ## Dev API (`window.sprout.fauna`, ?dev)
-`kinds()` (every kind with a module), `spawn(id, count?)` (a kind, or an unlock id of the garden on
+`kinds()` (the loaded kinds: the gardens shown or pre-painted so far), `loadAll()` (every garden's
+creatures, to spawn one outside its garden), `spawn(id, count?)` (a kind, or an unlock id of the garden on
 view; ignores schedule, cap and night; takes the garden's variant; the frog needs a pad), `list()`
 (`{ id, kind, variant, x, y, layer, state, visitor, inPond, edge }`: `inPond` inside the still
 water, `edge` the distance to its edge in the pond plane), `clear()`, `step(seconds, dt?)` (advance
@@ -284,12 +301,14 @@ changes; it cost the oasis ~27 ms/s before (devlog 142). Prefer `distanceToPolyg
 ## Adding a creature
 A checklist for the art tasks (S12, S13, …), following the drawing-assets loop: write → render →
 look → name what is wrong → change → repeat. The unlock row is already in the scenery's table; the
-creature appears in the game as soon as its file exists.
+creature appears in the game once its file exists and its gardens' sets list it.
 
-**Files to add** (nothing else changes):
+**Files to add** (and one line per garden):
 1. `src/fauna/creatures/<kind>.ts`, the kind exactly as the table row names it (`dipper`, `iwana`,
    `damselfly`, `sawagani`, `kajika`, `iwatsubame`, `firefly`, `yamasemi`). Helpers shared with
    other creatures go in `creatures/lib/`, never next to them (every `./*.ts` there is a creature).
+   Add it to `creatures/sets/creatures-<id>.ts` of every garden whose table names it; the registry
+   test fails until you do (ADR 0346).
 2. `src/fauna/creatures/<kind>.test.ts` for its pure parts (paths, choices, counts).
 3. A devlog, and its lines in this doc (Creatures and behaviour, Layers).
 
@@ -354,8 +373,10 @@ in the devlog.
 rows), `targets.test.ts` (flowers, pads, perches, perch choice, heron stands, perspective),
 `sim.test.ts` (long simulated afternoons: residents, pond containment, visitor cap, rarity,
 determinism, night, reduced motion), `regression.test.ts` (the Japanese garden's positions and
-states for four seeds and modes, hashed before the registry), `creatures/registry.test.ts` (file =
-kind, roles), `arrivals.test.ts` (`sightedFauna` by kind and variant, `fauna:arrived` on first sight,
+states for four seeds and modes, hashed before the registry; with only its set loaded, then with
+all), `creatures/registry.test.ts` (file = kind, roles, each set = its table's kinds with a module,
+loading), `lazy-creatures.test.ts` (the system waits for its garden's set; an overtaken init is
+dropped), `arrivals.test.ts` (`sightedFauna` by kind and variant, `fauna:arrived` on first sight,
 per garden), `waterfall.test.ts` (the foam carve, still water and clip, perches, stands, margin
 striders and nothing in the foam over 15 simulated minutes, gorge variants, perspective within
 0.02), `art-cache.test.ts`. Tables: `scenery/japanese-garden/fauna.test.ts`,
@@ -364,7 +385,9 @@ perspective: `scenery/oasis/wildlife.test.ts`. E2E `tests/e2e/fauna.spec.ts` (th
 start, koi with plants, roster and schedule, every creature in bounds, birds land and leave, night
 rest, cost) and `tests/e2e/fauna-waterfall.spec.ts` (the waterfall's roster from `roster()`, every
 kind spawned and in bounds, nothing on the water in the foam or the stream, striders at the edge,
-ledges and wet rocks, stands, cost). Simulation loops run in-page with the renderer frozen.
+ledges and wet rocks, stands, cost), and `tests/e2e/lazy-creatures.spec.ts` (a Japanese garden
+visit asks only for its own creature chunk; the oasis's comes with the switch, the others with the
+pre-paint). Simulation loops run in-page with the renderer frozen.
 
 ## Arrivals (ADR 0120, 0248)
 Every 0.5 s the system maps the creatures inside `viewport.visible` to the garden's unlocked rows

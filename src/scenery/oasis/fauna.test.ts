@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { loadAllCreatures } from '../../fauna/creatures/registry';
 import { unlockedFauna, type FaunaSpecies, type FaunaTable } from '../../core/fauna-unlocks';
 import { makePlant } from '../../core/testing';
 import { creatureDef } from '../../fauna/creatures/registry';
@@ -25,6 +26,9 @@ const OWN: Record<string, string> = {
   'bee-eater': 'bee-eater',
   'white-stork': 'stork',
 };
+
+// every garden's creatures (ADR 0346)
+await loadAllCreatures();
 
 describe('the oasis’s unlock table', () => {
   it('has its eight creatures under their module kinds, unique ids, a line each', () => {

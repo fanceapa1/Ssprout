@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { loadAllCreatures } from './registry';
 import { createRng } from '../../core/rng';
 import type { PlantInstance } from '../../core/state';
 import { gardenScene } from '../../scene/geometry';
@@ -23,6 +24,9 @@ function waterfallSim(seed = 4, { hour = 12, reduced = false, rows = [] as typeo
 }
 
 const birds = (sim: FaunaSim) => sim.creatures.filter((c): c is Yamasemi => c instanceof Yamasemi);
+
+// every garden's creatures (ADR 0346)
+await loadAllCreatures();
 
 describe('where the yamasemi perches and fishes', () => {
   const w = waterfallSim().world;

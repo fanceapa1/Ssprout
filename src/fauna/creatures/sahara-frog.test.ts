@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { loadAllCreatures } from './registry';
 import { createRng } from '../../core/rng';
 import type { PlantInstance } from '../../core/state';
 import { gardenScene } from '../../scene/geometry';
@@ -44,6 +45,9 @@ function problems(sim: FaunaSim, t: number): string[] {
   }
   return out;
 }
+
+// every garden's creatures (ADR 0346)
+await loadAllCreatures();
 
 describe('where the Sahara frog lives', () => {
   const w = oasisSim().world;

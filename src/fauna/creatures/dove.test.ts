@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { loadAllCreatures } from './registry';
 import { createRng } from '../../core/rng';
 import type { PlantInstance } from '../../core/state';
 import { gardenScene } from '../../scene/geometry';
@@ -47,6 +48,9 @@ function placeProblems(d: Dove, t: number): string[] {
   if (d.state === 'drink' && p.perch?.kind !== 'rim') out.push(`drinking off the rim at ${t.toFixed(1)}`);
   return out;
 }
+
+// every garden's creatures (ADR 0346)
+await loadAllCreatures();
 
 describe('where the dove goes', () => {
   const w = oasisSim().world;

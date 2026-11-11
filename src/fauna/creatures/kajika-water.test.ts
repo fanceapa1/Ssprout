@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { loadAllCreatures } from './registry';
 import { createRng } from '../../core/rng';
 import type { Pt } from '../../render/viewport';
 import { gardenScene } from '../../scene/geometry';
@@ -56,6 +57,9 @@ function probes(waters: readonly Pt[][], n: number, seed: number): Pt[] {
   }
   return out;
 }
+
+// every garden's creatures (ADR 0346)
+await loadAllCreatures();
 
 describe('the frog’s water checks give the same answers as before', () => {
   for (const [name, make] of Object.entries(sims)) {

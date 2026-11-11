@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { loadAllCreatures } from './creatures/registry';
 import { createEventBus } from '../core/events';
 import { createDefaultState, createStore, reducer, type PlantInstance } from '../core/state';
 import { gardenScene } from '../scene/geometry';
@@ -14,6 +15,9 @@ import type { Creature } from './types';
 
 const at = (kind: Creature['kind'], x: number, y: number, extra: Partial<Creature> = {}) => ({ kind, x, y, forced: false, done: false, ...extra }) as Creature;
 const view = { x: 0, y: 0, w: 1600, h: 1000 };
+
+// every garden's creatures (ADR 0346)
+await loadAllCreatures();
 
 describe('sightedFauna', () => {
   it('maps creatures in view to their unlock ids, counting koi', () => {

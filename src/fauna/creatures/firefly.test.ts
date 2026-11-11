@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { loadAllCreatures } from './registry';
 import { createRng } from '../../core/rng';
 import { WATERFALL_FAUNA, WATERFALL_WILDLIFE } from '../../scenery/waterfall/fauna';
 import { waterfallScene } from '../../scenery/waterfall/geometry';
@@ -24,6 +25,9 @@ function run(sim: FaunaSim, seconds: number, each?: (t: number) => void) {
     each?.(t);
   }
 }
+
+// every garden's creatures (ADR 0346)
+await loadAllCreatures();
 
 describe('the flash', () => {
   it('swells, fades and goes dark once a cycle', () => {

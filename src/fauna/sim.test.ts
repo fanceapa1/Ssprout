@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { loadAllCreatures } from './creatures/registry';
 import type { PlantInstance } from '../core/state';
 import { gardenScene } from '../scene/geometry';
 import { JAPANESE_FAUNA } from '../scenery/japanese-garden/fauna';
@@ -44,6 +45,9 @@ function run(opts: { seed?: number; seconds: number; reduced?: boolean; hour?: n
   }
   return { sim, spawnedKinds };
 }
+
+// every garden's creatures (ADR 0346)
+await loadAllCreatures();
 
 describe('FaunaSim', () => {
   it('keeps the residents the roster asks for: three koi, striders, a frog on the pad', () => {

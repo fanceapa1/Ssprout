@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { loadAllCreatures } from './creatures/registry';
 import { createRng } from '../core/rng';
 import { JAPANESE_FAUNA } from '../scenery/japanese-garden/fauna';
 import { creatureDef } from './creatures/registry';
@@ -19,6 +20,9 @@ import {
 import { FAUNA_TUNING, VISITS, type VisitorKind } from './tuning';
 
 const empty: Census = { byKind: {}, visitors: 0 };
+
+// every garden's creatures (ADR 0346)
+await loadAllCreatures();
 
 describe('visit delays', () => {
   it('stay inside the tuned ranges and the first visit is sooner', () => {

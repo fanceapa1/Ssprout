@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { loadAllCreatures } from './registry';
 import { createRng } from '../../core/rng';
 import type { PlantInstance } from '../../core/state';
 import { gardenScene } from '../../scene/geometry';
@@ -25,6 +26,9 @@ function oasisSim(seed = 4, { hour = 12, reduced = false, rows = ONLY, auto = tr
 
 const flies = (sim: FaunaSim) => sim.creatures.filter((c): c is Dropwing => c instanceof Dropwing);
 const toWater = (sim: FaunaSim, q: { x: number; y: number }) => Math.min(...dropWaters(sim.world).map((p) => (pointInPolygon(q, p) ? 0 : closestOnPolygon(q, p).d)));
+
+// every garden's creatures (ADR 0346)
+await loadAllCreatures();
 
 describe('where the dropwing goes', () => {
   const sim = oasisSim();
