@@ -9,11 +9,11 @@ wildlife progress belong to a scenery; the timeline, the weather and the dayligh
 ## Files
 | File | What |
 |---|---|
-| `ids.ts` | re-exports `SCENERY_IDS` (`japanese-garden`, `waterfall`, `oasis`), `SceneryId`, `DEFAULT_SCENERY`, `isSceneryId` from `src/core/sceneries.ts`, where core keys plants, sessions and slots by them (ADR 0240; docs/systems/core.md › Gardens) |
+| `ids.ts` | re-exports `SCENERY_IDS` (`japanese-garden`, `waterfall`, `oasis`, `coast`), `SceneryId`, `DEFAULT_SCENERY`, `isSceneryId` from `src/core/sceneries.ts`, where core keys plants, sessions and slots by them (ADR 0240; docs/systems/core.md › Gardens) |
 | `types.ts` | the `Scenery` contract and its parts: `ScenerySky`, `SceneryAmbience`, `SceneryView`, `SceneryMotion` (and `SceneryFauna` from `src/fauna/habitat.ts`) |
 | `fauna.ts` | `faunaTable(id)`: every scenery's unlock table without loading its painting (the quiet line's arrival lines) |
 | `japanese-garden/fauna.ts` | `JAPANESE_FAUNA`: the garden's unlock table (SPEC §4, ADR 0248) |
-| `registry.ts` | `getScenery(id)` (the default for an id not registered yet), `hasScenery(id)`, `sceneries(flags?)` (available ones, in `order`: the garden, the waterfall and the oasis without any flag (the oasis was behind `?dev&scenery=oasis` until O8, devlog 140)) |
+| `registry.ts` | `getScenery(id)` (the default for an id not registered yet), `hasScenery(id)`, `sceneries(flags?)` (available ones, in `order`: the garden, the waterfall and the oasis without any flag (the oasis was behind `?dev&scenery=oasis` until O8, devlog 140); the coast only with `?dev&scenery=coast` (phase 15)) |
 | `host.ts` | `createSceneryHost({ store, renderer, getScenery })`: follows `state.scenery` and calls `renderer.setScenery` (see Switching) |
 | `host.test.ts` | the host follows the store; a session from another garden brings its garden into view first |
 | `japanese-garden/fauna.test.ts` | the garden's table is SPEC §4's plus the silent leaf |
@@ -67,6 +67,15 @@ The Japanese garden's painters stay in `src/scene/` (docs/systems/scene.md): its
 | `oasis/sky.ts`, `oasis/light.ts` | placeholders until O5: one golden wash per phase cut to the skyline, a plain basin sky; a shade at the bluff's foot and warm light on the ksar |
 | `oasis/map.studio.ts` | studio `oasis-map` (141): the composition map over the painting, and the painting under the midday plate |
 | `oasis/oasis.test.ts` | see Tests |
+| `coast/index.ts` | `COAST` ("Greek coast", behind `?dev&scenery=coast`, `order` 3), `COAST_ELEMENTS` (the placeholder steps by element: the seams the painter tasks swap), `COAST_ART` (seed 15), `COAST_SKY`, `COAST_LIGHT_ART`, `COAST_VIEW`, `COAST_PAINTERS` |
+| `coast/layout.ts` | the composition (ADR 0360): `FAR_HILL`, `VILLAGE`, `CHAPEL`, `PROMONTORY`, `STYLOBATE`, `COLUMNS`, `ARCHITRAVE`, `DRUM`, `PROMONTORY_PINES`, `CAIQUE`, `SHORE_EDGE`, `WATERLINE_EDGE`, `BEACH`, `SHELF`, `POOLS`, `SPLASH_ROCKS`, `SHORE_BOULDERS`, `SHORE_SCRUB`, `WALLS`, `LAND`, `OLIVE`, `PINE`, `PATH`, `STEPS`; `TEMPLE_SHAPES`, `silhouetteAt`, `SKYLINE`/`skylineAt`/`openSky`, `COAST_SKY_RECT`, `LIFT`, `WALL_TERRACE`, `terraceScale`, `copingAt`, `COAST_SKY_LAYOUT` (both low suns on the left), `FOCUS`, `COAST_AMBIENCE`, `COAST_HABITAT_WORDS` |
+| `coast/geometry.ts` | `SEA_WATER` (the pond), `POOL_WATER`, `coastScene` |
+| `coast/slots.ts` | `COAST_SLOTS`: 48 slots, terrace lift in scale; `SLOT_TERRACE` |
+| `coast/flora.ts`, `coast/fauna.ts` | `COAST_FLORA` (ADR 0361; offers only the caper so far); `COAST_FAUNA` (empty) and `COAST_WILDLIFE` |
+| `coast/painters.ts`, `coast/paint-placeholder.ts` | the lazy chunk: `coastSteps` runs draft B's steps moved onto the final layout; `COAST_PAINTERS_LOADED` |
+| `coast/sky.ts`, `coast/light.ts` | placeholders: one wash per phase cut to the skyline with a low glow over the sea, a mirrored sea sky; a shade under the promontory and the walls, warm light on the temple at low suns |
+| `coast/map.studio.ts` | studio `coast-map` (152): the composition map over the placeholder painting (`map`), and the painting under the midday plate (`painting`) |
+| `coast/coast.test.ts` | see Tests |
 
 ## The contract
 ```ts
@@ -768,7 +777,104 @@ waterfall's pace. Each element is clipped to its own water.
   them readable. Studio: `oasis-motion/falls`, `/falls-frames`, `/oued`, `/oued-frames`, `/gate`,
   `/inlet`, `/inlet-frames`, `/oasis-motion-sprites`.
 
+## Coast (phase 15, ADR 0360)
+A tended clifftop garden stepping down to an Ionian cove, from draft B ("Stepped terraces down to
+the shore", the owner's choice; docs/research/coast-biome.md §1). G1 (devlog 170) made it a scenery
+behind `?dev&scenery=coast`. Its painting, sky and light are placeholders: draft B's steps moved
+onto the final layout (`paint-placeholder.ts`; `drafts/b` is a record). The rock, water, land and
+vegetation, daylight and motion tasks replace them. Composition map: studio `coast-map/map`.
+
+```
+y    0 ┌──────────────────────────────────────────────────────────────────────────────┐
+       │ · stars (y 20–150) ·      moon (450,266)→(610,196)→(760,252)                 │
+  200  │ leaning pine crown            ○ suns (8–16°)                olive crown      │
+  300  │ far hill, village, chapel ╲   ○  ┃┃┃┃ temple      ___ promontory, pines ___  │
+  400  │ ════ sea horizon ═══════════╲  ╱═══════╲ point 636 ‾‾‾ foot y 500 ‾‾‾‾‾‾‾‾‾‾ │
+       │      caique (430,500)          ╲ shelf ╲  top terrace · olive (1290,540)     │
+  580  │                                 ╲cove ═══ W1 (856→1620, y 578→560, h 40) ═══ │
+       │   shallows · splash rocks      bastion ╲  middle terrace                     │
+  716  │                                  ╲cove  ═══ W2 (772→1620, y 716→694, h 44) ═ │
+  760  │ ‾‾ beach waterline (y 742–812) ‾‾ steps ╲  lower terrace                     │
+  850  │   beach · rock shelf · pools (y 886–902)   ═ W3 (690→1620, y 855→834, h 48) ═ │
+ 1000  │   (paper margin)                 path ▒ foreground                          │
+       └──────────────────────────────────────────────────────────────────────────────┘
+```
+- **Light from the left** (ADR 0360): the sea and the open sky are on the left, and draft B is lit
+  from the upper left. `sunSide: { sunrise: -1, sunset: -1 }`; both suns stand over the sea's
+  horizon (y 400) between the far hill's foot (x 516) and the temple's point (x 636): sunset x 552,
+  sunrise x 636. The moon arcs (450, 266) → (610, 196) → (760, 252), left of the temple; the stars
+  (y 20–150) keep a gap round it.
+- **Skyline**: sampled every 2 units from the painted silhouette (`silhouetteAt`: the far hill, the
+  horizon, the promontory and each column), so the sky runs between the columns. The architrave,
+  the olive, the leaning pine and the promontory's pines cross it and take the sky's wash.
+- **The promontory** (x 636–1620, top y 393 at the temple to 294 at the right, foot y 500) carries
+  the temple on its point: a stylobate at y 393 (x 680–830), four columns (two tall under an
+  architrave fragment, two broken) and a fallen drum. Its foot is the top terrace's back.
+- **The shoreline** (`SHORE_EDGE`) is broken, not one diagonal: the top terrace ends in a rock shelf
+  (tip x 792), the sea cuts in under it, the middle terrace ends in a rock bastion (tip x 690) with
+  a second cove below, the lower terrace ends in scrub, and stone steps come down to the beach at
+  (684, 812). Boulders and scrub are painted over the edge.
+- **Terraces**: three dry-stone walls, each holding the terrace above it (`WALLS`, `WALL_TERRACE`).
+  Lifts as the oasis (ADR 0300): lower 48, middle 92, top 132. The big olive stands on the top
+  terrace at (1290, 540), right of the path; the gravel `PATH` climbs from the bottom edge (900,
+  1000) up the three walls by stone flights (`STEPS`) to the olive.
+- **The sea edge** sits above the paper margin (`paintMargins` lifts the bottom 166 units, and up
+  to 320 at the sides near the bottom): the beach's waterline runs y 742–812 and its back y
+  840–852, and three pools lie in the rock shelf at y 886–902. Splash rocks stand in the shallows.
+- **Water**: `SEA_WATER` (from the horizon to the promontory's foot, the shoreline and the waterline)
+  is the still `pond`, waterline y 400. No streams. The rock pools are `POOL_WATER` (not on the
+  geometry; their slots are water slots).
+- **View**: focus (760, 600). The phone crop (x 460–1060) holds the temple, open sea across more
+  than a third of its width, shallows, splash rocks, beach and pool slots, beds on all three
+  terraces and both low suns. A 16:9 screen shows y 100–1000: 190 units of sky above the temple.
+  `pathOut` is `PATH`.
+- **Flora** (ADR 0361): `{ realm: 'mediterranean', biomes: ['coast', 'scrub', 'garden', 'marine'],
+  climate: 'mediterranean', cultivated: true }`, the research's profile. By biology it offers only
+  the caper (`cultivatedIn: ['mediterranean']`); the phase 15 species and the shared species' new
+  tags bring the rest.
+- **Wildlife**: an empty table; the sea is its still water (the geometry's default).
+- **Sound**: `coast`, the seaside profile that was waiting for it.
+
+### Slots (48)
+| Habitat ("words") | Count | Where | Sizes |
+|---|---|---|---|
+| water ("in the shallows") | 9 | `shallows-1…6` in the cove's near shallows (y 590–706), `pool-1…3` in the rock pools | 1 large (`shallows-1`, the seagrass meadow), 4 medium, 4 small |
+| shore ("on the beach") | 5 | `beach-1…5` on the pebble beach | 1 large (`beach-2`), 1 medium, 3 small |
+| meadow ("in the terrace beds") | 12 | `top-1…3` on the top terrace, `mid-1…5` the middle, `low-1…4` the lower | 1 tree (`top-1`, the top terrace's left end), 1 large (`mid-1`), 3 medium, 7 small |
+| path ("along the path") | 5 | `path-1…3` on the foreground, `path-4` on the lower terrace, `path-5` on the top terrace | 5 small |
+| back ("in the scrub") | 6 | `scrub-1` (tree, the promontory's foot behind the top terrace's right end), `scrub-2` by the pine's rock, `scrub-3…6` the foreground's scrub | 1 tree, 1 medium, 4 small |
+| rock ("on the walls and rocks") | 11 | `wall-1…5` on the copings, `crack-1/2` in the wall faces, `splash-1…3` on the splash rocks, `shelf-1` on the bastion | 2 medium, 9 small |
+
+Raised slots (on a terrace, a coping or a face) take their terrace's lift; the rest take
+`perspectiveScale(y)`. Each terrace's slots stand in the gaps between those of the terraces
+behind, so no plant stands over the base of one higher up, and neither tree hides a slot. The
+tree slots' crowns keep clear of the temple and the sun's paths.
+
+### Left for later tasks
+- The rock painter: the promontory, the temple, the shoreline's shelf, bastion, boulders and steps,
+  the splash rocks, the beach's shingle and the rock shelf. The placeholder strokes a grey lip along
+  `SHORE_EDGE` and leaves a sliver of paper at the promontory's tip.
+- The water painter: the sea from deep turquoise to aquamarine shallows, the waterline's lap, the
+  pools, the caique. The placeholder sea's wash bleeds over the horizon in lobes that read as far hills.
+- Land and vegetation: the far hill and the village, the walls, gravel, beds, the olive, the
+  leaning pine, the promontory's pines and scrub.
+- Daylight: real plates lit from the left; the architrave and the crowns sit under the sky's wash.
+- Motion and the fauna's targets (perches on the copings, the caique's mast, the chapel; heron
+  stands on the splash rocks; a far sea band).
+
 ## Tests
+- `src/scenery/coast/coast.test.ts` (G1): offered only with `?dev&scenery=coast`; self-consistency
+  with no building, lantern, eave, falls, streams or motion; its placeholder steps by element;
+  habitat words; `pathOut` from the bottom edge up the terraces; the framing (the temple, open sea,
+  the sea edge's slots and beds on all three terraces in the portrait crop; sky above the temple at
+  16:9; both suns in the crop); the broken shoreline; land, beach and shelf against the sea; 45–56
+  slots with prefixed ids, every habitat (4+) and size (2+), beds on each terrace, wall, crack and
+  splash slots, a tree in the beds and one in the scrub; slots in the world, out of the sky, off the
+  promontory and the temple; water slots in the sea or a pool; rock slots on a coping, face, splash
+  rock or the bastion; terrace scales and bounds; path slots; spacing at 1.25×; the sun, moon and
+  stars in open sky, the sun side, the skyline down to the silhouette and between the columns, the
+  plate band; the flora profile and its one species; an empty wildlife table; a v4 garden with
+  coast plants validates and round-trips.
 - `src/scenery/oasis/motion.test.ts` (O6): the scenery's motion; sprites in small parts; pure in
   `t` and held while frozen; every element always moving and passes differing; every mark inside
   its water (the oued's off the bars); the rings spreading from the inlet; livelier at the bars'

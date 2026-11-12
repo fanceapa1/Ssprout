@@ -28,6 +28,8 @@ export const BIOMES = [
   'desert', // dry land and its oases
   'cloud-forest', // misty tropical mountain forest
   'grassland', // open sunny grassland, meadows and field margins
+  'scrub', // maquis and phrygana: evergreen and spiny aromatic scrub on dry stony ground
+  'marine', // the sea edge below the waterline: seagrass beds, rock pools, algae
 ] as const;
 export type Biome = (typeof BIOMES)[number];
 
@@ -37,6 +39,7 @@ export const CLIMATES = [
   'alpine', // short summers above the tree line
   'oceanic', // cool and wet all year (the Atlantic fringe)
   'arid', // little rain
+  'mediterranean', // hot dry summers, mild wet winters
   'tropical-montane', // cool, misty tropical highlands
 ] as const;
 export type Climate = (typeof CLIMATES)[number];

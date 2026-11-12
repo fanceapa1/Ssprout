@@ -1,8 +1,9 @@
 /**
- * The registered sceneries, all offered to everyone: the Japanese garden (the default), the rocky
- * waterfall and the Ksar oasis.
+ * The registered sceneries: the Japanese garden (the default), the rocky waterfall and the Ksar
+ * oasis, offered to everyone, and the Greek coast behind `?dev&scenery=coast` (phase 15).
  * docs/systems/scenery.md.
  */
+import { COAST } from './coast';
 import { DEFAULT_SCENERY, type SceneryId } from './ids';
 import { JAPANESE_GARDEN } from './japanese-garden';
 import { OASIS } from './oasis';
@@ -13,6 +14,7 @@ const SCENERIES: ReadonlyMap<SceneryId, Scenery> = new Map([
   [JAPANESE_GARDEN.id, JAPANESE_GARDEN],
   [WATERFALL.id, WATERFALL],
   [OASIS.id, OASIS],
+  [COAST.id, COAST],
 ]);
 
 /** The scenery with this id, or the default one when it is not registered (yet). */

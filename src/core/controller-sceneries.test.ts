@@ -34,10 +34,11 @@ const SLOTS: Record<SceneryId, Slot[]> = {
   'japanese-garden': [slot('meadow-1', 'meadow', 'large'), slot('shared-1', 'meadow', 'large')],
   waterfall: [slot('pool-1', 'water', 'medium'), slot('shared-1', 'rock', 'small'), slot('ledge-1', 'rock', 'small')],
   oasis: [],
+  coast: [],
 };
 
 /** each garden's flora (ADR 0250): the lily grows only in the Japanese garden */
-const FLORA: Record<SceneryId, string[]> = { 'japanese-garden': ['violet', 'lily'], waterfall: ['violet'], oasis: [] };
+const FLORA: Record<SceneryId, string[]> = { 'japanese-garden': ['violet', 'lily'], waterfall: ['violet'], oasis: [], coast: [] };
 const speciesIn = (id: SceneryId) => SPECIES.filter((s) => FLORA[id].includes(s.id));
 
 function setup(initial: GardenState = createDefaultState(T0), flora = false) {
@@ -85,7 +86,7 @@ describe('controller with per-scenery gardens', () => {
     expect(options('waterfall')).toEqual([['ledge-1', 'wf']]);
     expect(options('japanese-garden')).toEqual([['meadow-1', 'jp'], ['shared-1', null]]); // not held here
     expect(controller.placementOptions('lily', 'waterfall').map((o) => o.slot.id)).toEqual(['pool-1']);
-    expect(controller.placementOptions('violet', 'coast' as SceneryId)).toEqual([]);
+    expect(controller.placementOptions('violet', 'reef' as SceneryId)).toEqual([]);
   });
 
   it('showScenery changes the garden on view only', () => {
@@ -96,7 +97,7 @@ describe('controller with per-scenery gardens', () => {
     expect(store.get().scenery).toBe('waterfall');
     expect(store.get().session).toBe(session);
     expect(controller.showScenery('waterfall')).toBe(false);
-    expect(controller.showScenery('coast' as SceneryId)).toBe(false);
+    expect(controller.showScenery('reef' as SceneryId)).toBe(false);
   });
 
   it('a session keeps growing in its garden while another is on view, and blooms there', () => {

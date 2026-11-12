@@ -518,7 +518,7 @@ describe('per-scenery gardens (schema v4, ADR 0240)', () => {
   };
 
   it('a scenery id must be a known one, wherever it is stored', () => {
-    const bad = 'coast' as never;
+    const bad = 'reef' as never;
     const cases: Array<[Record<string, unknown>, string]> = [
       [{ scenery: bad }, 'scenery'],
       [{ plants: [makePlant({ sceneryId: bad })] }, 'plants[0].sceneryId'],
