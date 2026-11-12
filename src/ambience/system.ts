@@ -12,7 +12,7 @@ import type { SceneGeometry } from '../scene/geometry';
 import { createAmbience, type Ambience, type AmbienceDebug, type AmbienceScenery } from './ambience';
 import { moteEmitters, type Emitter } from './motes';
 import type { Grade } from './timeofday';
-import type { TimeOverride } from './daylight';
+import { atLocalHour, type TimeOverride } from './daylight';
 import { createDaylightSource, type DaylightSource } from './daylight-source';
 import { lightPlatesPending, type LightArt } from './cast';
 import type { SkyLayout } from './sky-layout';
@@ -170,6 +170,7 @@ export function createAmbienceSystem(opts: AmbienceSystemOptions = {}): Ambience
         emitters: phase === 'focus' || e.level('motes') > 0.001 ? moteEmitters(state, engineScene!.slots, f.now) : NO_EMITTERS,
         light: daylight.at(f.now),
         lightChanged: daylight.version !== seenVersion,
+        at: lightAt(daylight, f.now),
       }));
       seenVersion = daylight.version;
       lastNow = f.now;
@@ -250,4 +251,10 @@ export function createAmbienceSystem(opts: AmbienceSystemOptions = {}): Ambience
       store = null;
     },
   };
+}
+
+/** The clock time the light is for: the frame's, an hour override's, or null for a pinned light. */
+function lightAt(daylight: DaylightSource, now: number): number | null {
+  const o = daylight.override();
+  return !o ? now : o.kind === 'hour' ? atLocalHour(now, o.hour) : null;
 }
