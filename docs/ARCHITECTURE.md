@@ -760,7 +760,7 @@ ADR 0232). The boot stages are `performance.mark`s named `sprout:boot:*`.
 Foundation (`src/dev/debug.ts`): `state()`, `ready()` (resolves when all systems are initialised),
 `freeze()` (async; resolves after a stable frame is drawn), `unfreeze()`, `setSpeed(n)`, `now()`,
 `frameStats()` (`{ frames, workAvg, workP95, workMax, intervalAvg, intervalP95 }`: renderer main-thread
-ms per frame and rAF intervals over the last 600 frames), `resetFrameStats()`, `stageVisible()` (false
+ms per frame and rAF intervals over the last 600 frames; `cachePixels`: backing pixels of its layer caches), `resetFrameStats()`, `stageVisible()` (false
 while the stage is scrolled out of view and the garden draws nothing, ADR 0224), `mute({ systemId: layers[] | '*' })`
 (leave out what systems draw, to isolate a layer in a probe or a pixel test; `mute({})` restores).
 
@@ -780,7 +780,7 @@ Scene (`src/scene/debug.ts`): `slots()`, `sceneStats()` (paints, rescales, per-s
 each step's parts and longest part, the paint's `longest` uninterrupted part, ADR 0226; `cacheHits`, `cacheMisses`, `lastLookupMs`: overview paintings taken from the paint cache, ADR 0228),
 `scenePainted()` (resolves when no background repaint is pending and the sky's and the light's plates can be drawn, devlogs 152, 155), `skyStats()` (daylight sky plates painted,
 composites, paint ms, the detail composite), `sceneDetail()` (the camera's detail painting: view,
-painting, fade, its `longest` part, extension, `cacheHits`, `cacheMisses`), `scenePrepaint()` (gardens not on view
+painting, fade, its `longest` part, extension, `cacheHits`, `cacheMisses`, `pixels` still held and `freed`, devlog 158), `scenePrepaint()` (gardens not on view
 pre-painted into the paint cache: `painted`, `cached`, `cancelled`, `cpuMs`, `longest`, the garden `painting` now; ADR 0339).
 `?dev&slots` draws the slot overlay.
 

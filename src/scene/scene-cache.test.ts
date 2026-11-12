@@ -7,7 +7,8 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { AnyCanvas } from '../paint';
 import { createNullPaintCache, type PaintCache } from '../paint/persist';
 import { createManualClock } from '../core/clock';
-import { createViewport } from '../render/viewport';
+import { createViewport, type Viewport } from '../render/viewport';
+import { makeCanvas } from '../paint';
 import type { SystemContext } from '../render/types';
 import { GARDEN_ART, SCENE_CACHE, paintingKey, spriteAtlasLayout, spritesKey, type PaintView } from './background';
 import { gardenScene } from './geometry';
@@ -102,7 +103,10 @@ function memoryCache() {
     },
     async put(kind, key, canvas) {
       puts.push(`${kind}:${key}`);
-      stored.set(`${kind}:${key}`, canvas);
+      // a copy, like the real store's encoded image: the scene frees what it handed over once stored
+      const copy = makeCanvas(canvas.width, canvas.height);
+      copy.getContext('2d')!.drawImage(canvas as CanvasImageSource, 0, 0);
+      stored.set(`${kind}:${key}`, copy);
       return true;
     },
   };
@@ -270,5 +274,96 @@ describe('pre-painting a garden not on view (ADR 0339)', () => {
     expect(r.status).toBe('cancelled');
     expect(mem.puts.length).toBe(puts);
     expect(scene.prepaintStats()).toMatchObject({ painted: 0, cancelled: 1 });
+  });
+});
+
+describe('close-view buffers (devlog 158)', () => {
+  let uninstall: () => void = () => {};
+  beforeEach(() => {
+    uninstall = new PaintRecorder({ hash: false }).install();
+  });
+  afterEach(() => uninstall());
+
+  /** a camera that rests at the overview or at a close view the overview painting does not resolve */
+  function restingCamera(overview: Viewport) {
+    const close = { visible: { x: 300, y: 300, w: 160, h: 100 }, pixelScale: 1 } as unknown as Viewport;
+    let zoomed = false;
+    const cam = {
+      detailVersion: 0,
+      view: () => (zoomed ? close : overview),
+      detailView: () => (zoomed ? close : overview),
+      moving: () => false,
+      isOverview: () => !zoomed,
+    };
+    return {
+      cam,
+      rest(z: boolean) {
+        zoomed = z;
+        cam.detailVersion++;
+      },
+    };
+  }
+
+  it('frees the detail painting at the overview once it is stored, and takes it from the cache on the next rest', async () => {
+    const mem = memoryCache();
+    let stored = () => {};
+    const held = new Promise<void>((done) => (stored = done));
+    // a store that copies at once and finishes later, like the real one encoding in idle time
+    const cache: PaintCache = {
+      ...mem.cache,
+      put(kind, key, canvas) {
+        const copy = makeCanvas(canvas.width, canvas.height);
+        copy.getContext('2d')!.drawImage(canvas as CanvasImageSource, 0, 0);
+        return held.then(() => mem.cache.put(kind, key, copy));
+      },
+    };
+    const vp = createViewport(160, 100, 1);
+    const { cam, rest } = restingCamera(vp);
+    const scene = createSceneSystem({ yieldTo: async () => {}, extendDelayMs: -1, cache });
+    await scene.init!({ ...context(), viewport: vp, camera: cam } as unknown as SystemContext);
+    const frame = { t: 0, dt: 0, now: Date.UTC(2026, 5, 1, 12), view: vp };
+    const step = async () => {
+      scene.update!(frame);
+      await scene.whenPainted();
+    };
+
+    rest(true);
+    await step();
+    const first = scene.detailStats();
+    expect(first).toMatchObject({ paints: 1, cacheMisses: 1, freed: 0 });
+    expect(first.pixels).toBeGreaterThan(160 * 100);
+
+    rest(false);
+    await step();
+    // dropped at once, but its buffers wait for the store
+    expect(scene.detailStats()).toMatchObject({ view: null, freed: 0, pixels: first.pixels });
+    stored();
+    await held;
+    await new Promise((r) => setTimeout(r, 0));
+    expect(scene.detailStats()).toMatchObject({ view: null, freed: 1, pixels: 0 });
+
+    rest(true);
+    await step();
+    expect(scene.detailStats()).toMatchObject({ paints: 1, cacheHits: 1, view: first.view, pixels: first.pixels });
+
+    // a cached detail is a copy: back at the overview it is freed at once
+    rest(false);
+    await step();
+    await new Promise((r) => setTimeout(r, 0));
+    expect(scene.detailStats()).toMatchObject({ freed: 2, pixels: 0 });
+  });
+
+  it('frees the painting a cancelled detail job finished, and the detail on a switch', async () => {
+    const vp = createViewport(160, 100, 1);
+    const { cam, rest } = restingCamera(vp);
+    const scene = createSceneSystem({ yieldTo: async () => {}, extendDelayMs: -1, cache: createNullPaintCache('dev') });
+    await scene.init!({ ...context(), viewport: vp, camera: cam } as unknown as SystemContext);
+    rest(true);
+    scene.update!({ t: 0, dt: 0, now: 0, view: vp });
+    await scene.whenPainted();
+    expect(scene.detailStats().pixels).toBeGreaterThan(0);
+    scene.dispose!();
+    await new Promise((r) => setTimeout(r, 0));
+    expect(scene.detailStats()).toMatchObject({ freed: 1, pixels: 0 });
   });
 });

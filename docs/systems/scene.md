@@ -200,7 +200,14 @@ ADR 0227; docs/systems/paint.md › Persistence):
   rect (+40 units) is painted again at `min(view.pixelScale, maxDetailScale = 2.8)` by the same
   cooperative job and cross-fades in over the overview painting (`1−e`, `e`); its boulders and
   tufts replace the overview's while zoomed. A draw whose `f.view` the detail does not cover (the
-  overview cache) uses the overview painting. Back at the overview the detail is dropped. The
+  overview cache) uses the overview painting. Back at the overview the detail is dropped and its
+  canvases (painting and sprites) are freed at once (width 0), not at the next garbage collection:
+  a fresh one once the paint cache has stored it, a cached one (a copy) right away. The same goes
+  for a detail that another detail replaces or a finished one whose job was cancelled, the sprite
+  atlas once the cache has encoded it, the sky's detail composite (`SkyLight.setDetail(null)`) and
+  the renderer's resting-view background cache (one screen). A repeat rest takes the detail from
+  the cache. `sceneDetail()` has `pixels` (detail backing still held, 0 at the overview) and
+  `freed`; `frameStats().cachePixels` is the renderer's layer caches (devlog 158). The
   first time a view or a glide's destination leaves the painted rect (a phone's cropped sides),
   the overview painting is extended to the whole world in the background and swapped in at once
   (`detailStats().extending`, not counted in `paints`). A painting of a strip of the world (a

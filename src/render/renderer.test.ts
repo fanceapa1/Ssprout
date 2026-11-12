@@ -423,6 +423,30 @@ describe('renderer', () => {
       renderer.stop();
     });
 
+    it('frees the resting close view\'s background cache back at the overview, and builds it again on the next rest (devlog 158)', async () => {
+      const out: Array<{ layer: LayerId; scale: number | undefined }> = [];
+      const { renderer, offscreen } = setup();
+      await renderer.add(viewRecorder(out));
+      await renderer.resize();
+      renderer.renderOnce();
+      const overview = renderer.frameStats().cachePixels;
+      renderer.camera.zoomTo(2.5, undefined, { animate: false });
+      renderer.camera.settle();
+      renderer.renderOnce();
+      const view = offscreen.at(-1)!;
+      expect(renderer.frameStats().cachePixels).toBe(overview + 1600 * 1000);
+      renderer.camera.overview({ animate: false });
+      renderer.renderOnce();
+      expect([view.width, view.height]).toEqual([0, 0]);
+      expect(renderer.frameStats().cachePixels).toBe(overview);
+      renderer.camera.zoomTo(2.5, undefined, { animate: false });
+      renderer.camera.settle();
+      out.length = 0;
+      renderer.renderOnce();
+      expect(out.filter((o) => o.layer === 'background')).toHaveLength(1);
+      expect(renderer.frameStats().cachePixels).toBe(overview + 1600 * 1000);
+    });
+
     it('the paper layer stays screen-fixed (drawn once at the overview)', async () => {
       const out: Array<{ layer: LayerId; scale: number | undefined }> = [];
       const { renderer } = setup();

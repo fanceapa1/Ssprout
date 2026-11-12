@@ -162,6 +162,14 @@ export function createSkyLight(opts: SkyLightOptions): SkyLight {
   let last: { state: DaylightState; sun: Disc; moon: Disc } | null = null;
   let detailWant: { rect: Rect; scale: number } | null = null;
   let detail: { rect: Rect; scale: number; canvas: AnyCanvas; key: string } | null = null;
+  /** drop the detail composite and free its backing store now (back at the overview, devlog 158) */
+  const dropDetail = () => {
+    if (detail) {
+      detail.canvas.width = 0;
+      detail.canvas.height = 0;
+    }
+    detail = null;
+  };
   let composes = 0;
   let paintMs = 0;
   let painted = 0;
@@ -179,7 +187,7 @@ export function createSkyLight(opts: SkyLightOptions): SkyLight {
   /** what was composed without a plate is redone on the next update */
   const redo = () => {
     key = '';
-    detail = null;
+    dropDetail();
     opts.onPainters?.();
   };
   /** load the sky's painters (ADR 0341); once they land, what was composed without them is redone */
@@ -368,7 +376,7 @@ export function createSkyLight(opts: SkyLightOptions): SkyLight {
       const scale = Math.min(SKY_DETAIL_MAX, Math.max(SKY_SCALE, pixelScale));
       if (!rect || scale <= SKY_SCALE * 1.3) {
         detailWant = null;
-        detail = null;
+        dropDetail();
         return;
       }
       // whole units, a little margin: small pans reuse it

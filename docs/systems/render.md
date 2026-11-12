@@ -28,8 +28,8 @@
   (`view`, `detailView`, `detailVersion`, `moving`, `isOverview`) is live.
 - World layers are drawn through the view; the paper stays screen-fixed.
 - Background caches (ADR 0161): the overview cache (blitted as a sub-rect while the camera moves),
-  a resting-view cache (built once when it rests; reused until invalidated), and a direct draw
-  while moving outside the overview's crop.
+  a resting-view cache (built once when it rests; reused until invalidated; freed back at the
+  overview, devlog 158), and a direct draw while moving outside the overview's crop.
 
 ## Layers
 Back → front: `background`, `underwater`, `waterSurface`, `entities`, `air`, `ambience`,
@@ -83,7 +83,8 @@ Back → front: `background`, `underwater`, `waterSurface`, `entities`, `air`, `
 - `visible` (getter), `setVisible(bool)`, `pauseWhenOffscreen(target, margin = '160px 0px')` →
   disconnect (a no-op without IntersectionObserver; disconnecting makes it visible again).
 - `frameStats()` → `{ frames, workAvg, workP95, workMax, intervalAvg, intervalP95 }` in ms over
-  the last 600 frames (main-thread update + composite cost, and frame intervals);
+  the last 600 frames (main-thread update + composite cost, and frame intervals), plus
+  `cachePixels` (backing pixels of the layer caches);
   `resetFrameStats()`. With a CPU rasteriser (headless Chromium) the canvas is rasterised on the
   main thread wherever Chromium flushes it, often after the frame callback, so `workAvg` may
   include it or not; compare whole main-thread time (CDP `TaskDuration` per frame) instead
