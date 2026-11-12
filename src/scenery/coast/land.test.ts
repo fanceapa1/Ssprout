@@ -8,9 +8,9 @@ import { bounds, pointInPolygon } from '../../paint/geometry';
 import { paintJob, type PaintView } from '../../scene/background';
 import { PaintRecorder, type RecordedCost } from '../../scene/paint-record';
 import { COAST_ART, COAST_ELEMENTS } from '.';
-import { copingAt, LAND, PATH, STEPS, WALLS, WALL_TERRACE } from './layout';
+import { BEACH, copingAt, LAND, PATH, STEPS, WALLS, WALL_TERRACE } from './layout';
 import { coastSteps } from './painters';
-import { BEDS, FLIGHTS, JARS, WALL_FACES, WALL_TOPS } from './shapes';
+import { BEACH_FLIGHT, BEDS, FLIGHTS, JARS, WALL_FACES, WALL_TOPS } from './shapes';
 import { COAST_SLOTS, SLOT_TERRACE } from './slots';
 
 // the painters are a lazy chunk (ADR 0341)
@@ -57,7 +57,7 @@ describe('coast land painting (G4)', () => {
 
   // quantised hashes from a fresh process's first runs (paint caches warm up, so a later run differs)
   it('is deterministic: the same marks every time (recording hash pins)', () => {
-    expect({ overview: runs.overview!.hash, detail: runs.detail!.hash }).toEqual({ overview: '3c8e7e1b', detail: '803e7aaa' });
+    expect({ overview: runs.overview!.hash, detail: runs.detail!.hash }).toEqual({ overview: '69c7c750', detail: '286a7f6c' });
     expect(runs.again!.chunks.map((c) => c.name)).toEqual(runs.overview!.chunks.map((c) => c.name));
   });
 
@@ -108,7 +108,13 @@ describe('coast land painting (G4)', () => {
 
   it('puts a flight on each of the layout’s steps and the jars on the land, clear of every slot', () => {
     expect(FLIGHTS.map((f) => f.length)).toEqual(STEPS.map((s) => s.n));
-    for (const [i, f] of FLIGHTS.entries()) expect(Math.abs(bounds(f[0]!.tread).x + bounds(f[0]!.tread).w / 2 - STEPS[i]!.x)).toBeLessThan(4);
+    for (const [i, f] of FLIGHTS.entries()) if (i !== BEACH_FLIGHT) expect(Math.abs(bounds(f[0]!.tread).x + bounds(f[0]!.tread).w / 2 - STEPS[i]!.x)).toBeLessThan(4);
+    // the beach flight runs down to the left from the lower terrace onto the beach, every step on dry ground
+    const beach = FLIGHTS[BEACH_FLIGHT]!;
+    const mid = (s: (typeof beach)[number]) => ({ x: bounds(s.tread).x + bounds(s.tread).w / 2, y: bounds(s.tread).y + 3 });
+    expect(pointInPolygon(mid(beach[0]!), LAND)).toBe(true);
+    for (const s of beach) expect(pointInPolygon(mid(s), LAND) || pointInPolygon(mid(s), BEACH), `${mid(s).x}`).toBe(true);
+    for (let k = 1; k < beach.length; k++) expect(mid(beach[k]!).x).toBeLessThan(mid(beach[k - 1]!).x);
     for (const j of JARS) {
       expect(pointInPolygon({ x: j.x, y: j.y }, LAND)).toBe(true);
       for (const s of COAST_SLOTS) expect(Math.hypot(s.x - j.x, s.y - j.y), s.id).toBeGreaterThan(j.h);

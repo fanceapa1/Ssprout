@@ -39,7 +39,7 @@ export const COAST_ELEMENTS = {
   beach: ['beach', 'pools'],
   land: ['land', 'walls', 'beds'],
   // the shore's rock over the land's edge and the water: shelf, pool rims, boulders, splash rocks
-  stones: ['shore-rocks'],
+  stones: ['cliff-foot', 'shore-rocks'],
   trees: ['maquis', 'olive', 'pine'],
   near: ['margins'],
 } as const;

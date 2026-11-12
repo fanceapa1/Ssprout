@@ -6,12 +6,20 @@
  * Fixed seeds, so only the brushwork follows the art seed.
  */
 import { createRng, type Rng } from '../../core/rng';
-import { resample, smoothPath } from '../../paint/geometry';
+import { pointInPolygon, resample, smoothPath } from '../../paint/geometry';
 import type { Pt, Rect } from '../../render/viewport';
 import {
-  copingAt, OLIVE, PINE, PROMONTORY, PROMONTORY_PINES, SHORE_BOULDERS, SPLASH_ROCKS, STEPS, VILLAGE, WALLS, WALL_TERRACE, type Terrace, type Wall,
+  copingAt, LAND, OLIVE, PINE, PROMONTORY, PROMONTORY_PINES, SHORE_BOULDERS, SPLASH_ROCKS, STEPS, VILLAGE, WALLS, WALL_TERRACE, type Terrace, type Wall,
 } from './layout';
 import { COAST_SLOTS } from './slots';
+
+/** One column of a boulder's profile: its silhouette's top, the dry top's front edge, its foot. */
+export interface RockColumn {
+  x: number;
+  top: number;
+  front: number;
+  base: number;
+}
 
 export interface RockShape {
   /** base centre on the water or the ground */
@@ -20,72 +28,89 @@ export interface RockShape {
   w: number;
   /** the whole silhouette above the water */
   outline: Pt[];
-  /** the flat dry top, seen a little from above: where a plant or a heron stands */
+  /** the broad dry top, seen a little from above: where a plant or a heron stands */
   top: Pt[];
   /** the top's front edge at the rock's centre */
   topY: number;
-  /** the broken block on the top's back, if any: its x span and top */
-  block: { x0: number; x1: number; y: number } | null;
+  /** the profile left to right, every 2 units */
+  columns: RockColumn[];
+  /** standing on the land (a cast shadow) rather than in the water (a wet foot, foam, a reflection) */
+  ground?: boolean;
 }
 
 /**
- * A limestone ledge seen a little from above: a flat top foreshortened behind its front edge, a
- * low front face to the water, and on some a higher broken block standing on the top's back.
+ * A sea-worn limestone boulder seen a little from above: a squarish dome (rounded shoulders, a
+ * broad flattish crown) whose crown is the dry top, foreshortened behind its front edge. `lean`
+ * shifts the crown sideways. One shoulder is cut by a flat facet and the crown breaks in a small
+ * step, so no two read as the same loaf.
  */
-function rockShape(x: number, y: number, w: number, front: number, lift: number, rng: Rng): RockShape {
+export function boulderShape(x: number, y: number, w: number, front: number, rng: Rng, lean = 0): RockShape {
   const hw = w / 2 + 3;
-  const j = (k: number) => rng.range(-k, k);
   const pd = Math.max(5, w * 0.2);
-  const back = front - pd;
-  const edge: Pt[] = [
-    { x: x + hw + 1, y: front + j(1) },
-    { x: x + hw * 0.35 + j(4), y: front + 1.2 + j(0.6) },
-    { x: x - hw * 0.25 + j(4), y: front + 0.3 + j(0.6) },
-    { x: x - hw - 1, y: front + 1.5 + j(1) },
-  ];
-  const rear: Pt[] = [{ x: x - hw * 0.86, y: back + pd * 0.35 + j(1) }];
-  let block: RockShape['block'] = null;
-  if (lift > 0) {
-    // the block stands on the left or the right of the top's back
-    const bw = hw * rng.range(0.7, 1.05);
-    const b0 = rng.chance(0.5) ? x - hw * 0.7 + j(3) : x + hw * 0.8 - bw + j(3);
-    const b1 = b0 + bw;
-    const tilt = j(3);
-    rear.push(
-      { x: b0, y: back + j(1) }, { x: b0 + 1 + j(1), y: back - lift * 0.6 }, { x: b0 + 4, y: back - lift + tilt },
-      { x: b1 - 6, y: back - lift - tilt + j(1.5) }, { x: b1 - 1.5, y: back - lift * 0.7 - tilt }, { x: b1, y: back + j(1) },
-    );
-    block = { x0: b0, x1: b1, y: back - lift };
-  } else {
-    rear.push({ x: x - hw * 0.45, y: back + j(1.2) }, { x: x + hw * 0.1, y: back - 1 + j(1.2) });
+  const base0 = y + 3;
+  const H = base0 - front + pd;
+  const n = rng.range(2.2, 3.4);
+  const ph = rng.range(0, 6);
+  const amp = rng.range(0.6, 1.4);
+  const side = rng.chance(0.5) ? 1 : -1;
+  const chip = { from: rng.range(0.5, 0.7), depth: H * rng.range(0.12, 0.28) };
+  const brk = { at: (rng.chance(0.5) ? 1 : -1) * rng.range(0.4, 0.6), d: rng.range(-1.6, 1.6) };
+  const columns: RockColumn[] = [];
+  const steps = Math.max(8, Math.round((hw * 2) / 2));
+  for (let i = 0; i <= steps; i++) {
+    const u = -1 + (2 * i) / steps;
+    // the crown leans: its highest point moves off the centre, the far shoulder drops a little
+    const v = Math.max(-1, Math.min(1, u - lean * (1 - u * u) * 0.35));
+    const dome = Math.pow(Math.max(0, 1 - Math.pow(Math.abs(v), n)), 1 / n);
+    const wob = Math.sin(u * 4.1 + ph) * amp * dome;
+    const base = base0 + 1.6 * (1 - u * u);
+    const cut = u * side > chip.from ? ((u * side - chip.from) / (1 - chip.from)) * chip.depth : 0;
+    const step = (u > brk.at ? brk.d : 0) * dome * Math.min(1, Math.abs(u - brk.at) * 8);
+    const top = Math.min(base - 1, base0 - H * dome + wob + Math.min(cut, H * dome * 0.6) + step);
+    const lens = pd * Math.pow(Math.max(0, 1 - u * u), 0.7);
+    columns.push({ x: x + u * hw, top, front: Math.min(base - 1, top + lens), base });
   }
-  rear.push({ x: x + hw * 0.6, y: back + 1 + j(1) }, { x: x + hw * 0.92, y: back + pd * 0.45 + j(1) });
-  const outline: Pt[] = [
-    { x: x - hw + j(1), y: y + 3 },
-    { x: x - hw - 1, y: front + 1.5 },
-    ...rear,
-    { x: x + hw + 1, y: front },
-    { x: x + hw + j(1), y: y + 3 },
-    { x: x + hw * 0.35, y: y + 4 + j(1) },
-    { x: x - hw * 0.4, y: y + 3.5 + j(1) },
-  ];
-  const top: Pt[] = [{ x: x - hw * 0.86, y: back + pd * 0.35 }, { x: x - hw * 0.45, y: back }, { x: x + hw * 0.6, y: back + 1 }, { x: x + hw * 0.92, y: back + pd * 0.45 }, ...edge];
-  return { x, y, w, outline, top, topY: front, block };
+  const outline: Pt[] = [...columns.map((c) => ({ x: c.x, y: c.top })), ...columns.slice().reverse().map((c) => ({ x: c.x, y: c.base }))];
+  const top: Pt[] = [...columns.map((c) => ({ x: c.x, y: c.top })), ...columns.slice().reverse().map((c) => ({ x: c.x, y: c.front }))];
+  const mid = columns[Math.round(steps / 2)]!;
+  return { x, y, w, outline, top, topY: mid.front, columns };
 }
 
 const slotOver = (x: number): number | null => COAST_SLOTS.find((s) => s.habitat === 'rock' && Math.abs(s.x - x) < 4)?.y ?? null;
 
-/** The splash rocks: low limestone ledges, the slot on the flat top, a broken block behind on most. */
+/** The splash rocks: sea-worn boulders, the slot on the broad dry top. */
 export const SPLASH_ROCK_SHAPES: readonly RockShape[] = SPLASH_ROCKS.map((r, i) => {
   const rng = createRng(`coast-splash-${i}`);
   const front = (slotOver(r.x) ?? r.y - r.w * 0.2) + 2;
-  return rockShape(r.x, r.y, r.w, front, rng.chance(0.6) ? rng.range(5, 10) : 0, rng);
+  return boulderShape(r.x, r.y, r.w, front, rng, rng.range(-0.4, 0.4));
 });
 
-/** The blocks on the broken shoreline: taller ledges, each with a block on its back. */
-export const SHORE_BOULDER_SHAPES: readonly RockShape[] = SHORE_BOULDERS.map((b, i) => {
-  const rng = createRng(`coast-boulder-${i}`);
-  return rockShape(b.x, b.y, b.w, b.y - b.w * 0.24, rng.range(8, 16), rng);
+/** The beach flight's box: no boulder or stone of the shore's rock lies on it. */
+export const BEACH_FLIGHT_BOX = { x: 668, y: 786, w: 70, h: 62 } as const;
+const onFlight = (x: number, y: number, r: number): boolean =>
+  x + r > BEACH_FLIGHT_BOX.x && x - r < BEACH_FLIGHT_BOX.x + BEACH_FLIGHT_BOX.w && y + r > BEACH_FLIGHT_BOX.y && y - r * 0.6 < BEACH_FLIGHT_BOX.y + BEACH_FLIGHT_BOX.h;
+
+/**
+ * Boulders fallen from the shoreline's ledge: the layout's dropped into the water at the ledge's
+ * foot (or left on the ledge where the foot is land), and smaller ones out in the water.
+ */
+export const SHORE_BOULDER_SHAPES: readonly RockShape[] = [
+  ...SHORE_BOULDERS.map((b) => (pointInPolygon({ x: b.x, y: b.y + 14 }, LAND) ? { ...b, ground: true } : { ...b, y: b.y + 14, ground: false })),
+  ...[{ x: 784, y: 618, w: 16 }, { x: 670, y: 736, w: 20 }, { x: 728, y: 776, w: 14 }, { x: 812, y: 660, w: 12 },
+    { x: 864, y: 528, w: 12 }, { x: 838, y: 553, w: 16 }, { x: 801, y: 585, w: 10 }, { x: 762, y: 688, w: 16 }, { x: 720, y: 710, w: 12 }].map((b) => ({ ...b, ground: false })),
+]
+  .filter((b) => !onFlight(b.x, b.y, b.w / 2))
+  .map((b, i) => {
+    const rng = createRng(`coast-boulder-${i}`);
+    return { ...boulderShape(b.x, b.y, b.w, b.y - b.w * rng.range(0.2, 0.3), rng, rng.range(-0.6, 0.6)), ground: b.ground };
+  });
+
+/** Stones fallen from the cliff onto the top terrace: base x, y and width. */
+export const CLIFF_STONES: readonly RockShape[] = [
+  [946, 508, 14], [1012, 511, 9], [1088, 512, 18], [1176, 508, 11], [1352, 506, 16], [1418, 509, 8], [1530, 505, 13],
+].map(([x, y, w], i) => {
+  const rng = createRng(`coast-cliff-stone-${i}`);
+  return { ...boulderShape(x!, y!, w!, y! - w! * 0.12, rng, rng.range(-0.5, 0.5)), ground: true };
 });
 
 export interface Cube extends Rect {
@@ -203,9 +228,21 @@ export interface Step {
   riser: Pt[];
 }
 
+/** The flight down to the beach (`STEPS[3]`): it runs down to the left along the shoreline. */
+export const BEACH_FLIGHT = 3;
+
 /** Each flight in `STEPS` order, top step first: rough slabs widening downward, a little askew. */
 export const FLIGHTS: readonly Step[][] = STEPS.map((s, f) =>
   Array.from({ length: s.n }, (_, k) => {
+    if (f === BEACH_FLIGHT) {
+      // narrow slabs stepping down and to the left, from the lower terrace onto the beach's tip
+      const x = s.x + 58 - k * 15;
+      const y = s.y - 1 + k * 13;
+      const w = 13 + k;
+      const tread = [{ x: x - w + 1, y: y + k * 0.4 }, { x: x + w - 1, y: y - 0.5 }, { x: x + w + 1, y: y + 5 }, { x: x - w - 1, y: y + 5.4 }];
+      const riser = [tread[3]!, tread[2]!, { x: x + w + 0.5, y: y + 13 }, { x: x - w - 0.5, y: y + 13 }];
+      return { tread, riser };
+    }
     const y = s.y + k * 15;
     const w = 24 + k * 3;
     const skew = ((f * 7 + k * 3) % 5) - 2;
@@ -328,8 +365,7 @@ export const WALL_GRASS: readonly (readonly [number, number, number])[] = [
   [0, 960, 30], [0, 1200, 34], [0, 1560, 26], [1, 860, 36], [1, 1240, 30], [1, 1520, 38], [2, 800, 40], [2, 1290, 36], [2, 1540, 30],
 ];
 
-/** Scrub clumps softening the shoreline's edge (not on the slots): centre, radii. */
+/** Scrub clumps in pockets of soil behind the shoreline's ledge (not on it, not on the slots): centre, radii. */
 export const SHORE_CLUMPS: readonly { x: number; y: number; rx: number; ry: number }[] = [
-  { x: 884, y: 536, rx: 30, ry: 14 }, { x: 834, y: 568, rx: 22, ry: 10 }, { x: 806, y: 664, rx: 30, ry: 13 },
-  { x: 742, y: 786, rx: 30, ry: 13 },
+  { x: 866, y: 560, rx: 18, ry: 9 }, { x: 760, y: 742, rx: 12, ry: 6 },
 ];
