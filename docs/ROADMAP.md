@@ -257,7 +257,7 @@ Not done: a motion-sprite atlas (1.3 MB, not worth it) and shipping pre-painted 
 | Z14 | 30 fps while the camera rests, behind a flag, so the owner can compare | `src/render/renderer.ts` | queued (owner judges) |
 | Z15 | Free close-view buffers back at the overview (−33 MB) | `src/scene/system.ts`, `src/paint/wet.ts` scratch | done (devlog 158; after a close view the overview holds 128 MB instead of 174–178 MB at DPR 2: the renderer's rest cache, the detail painting and atlas, the sky detail freed; pooled wet-layer canvases shrink after 4 s idle) |
 | Z16 | Free the night-edge canvases by day, rebuilt on idle before dusk (−9.5 MB) | `src/ambience/night-edge.ts` | done (devlog 157; ADR 0350; 9.56 MB → 0 by day, rebuilt on idle in 10 parts (longest 19–29 ms) 30 min before the evening; night frame identical) |
-| Z17 | Paint-cache eviction at DPR 2: measure, then give priority to the viewed and base sets | `src/paint/persist.ts` | in progress (devlog 164) |
+| Z17 | Paint-cache eviction at DPR 2: measure, then give priority to the viewed and base sets | `src/paint/persist.ts` | done (devlog 164; ADR 0351; at DPR 2 eviction threw out the viewed garden first; now close views go first, then plates, landscapes last; a repeat visit still hits the cache) |
 | Z18 | `latin-ext` fonts out of the SW precache (−99 kB install) | `src/build/sw-manifest.ts` | queued |
 | Z19 | Oasis: skip the empty `scene-sprites` cache entry | `src/scene/system.ts` | queued |
 | Z20 | Oasis motion tidy: cached clip paths, no per-mark allocations, `drawFall` indexed | `src/scenery/oasis/motion.ts` | queued |
