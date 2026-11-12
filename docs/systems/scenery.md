@@ -931,8 +931,6 @@ layer and dry it once). Steps:
   - The foot: a cool shade low on the face; along the sea (x 636 to the shoreline's start) the
     sea-cut notch in runs of their own depth, broken where a buttress comes down, and a wet
     algae-dark band at the water; scree cones with a few pebbles where the face meets the terrace.
-- **`promontory-green`**: the placeholder's pines and scrub on the promontory, kept as their own
-  step for the vegetation painter.
 - **`temple`**: a krepis of three steps (the left ends broken away; shadows under the lips that come
   and go, a few joints, chipped arrises), the fallen drum (short, its fluted flat end to the light)
   and four blocks; the four shafts (`columnShapes()`: a slight taper and swell, hand-cut edges, the
@@ -959,14 +957,65 @@ layer and dry it once). Steps:
   (`CLIFF_REFLECTION`).
 - **Cost** (Chromium, DPR 1, the overview at scale 0.9, rock steps only, best of four): far hill
   20 ms, village 7, promontory 91, temple 20, shore rocks 153: about 0.3 s. The longest part is
-  6.4 ms (a promontory drying pass). The placeholder `promontory-green` is 265 ms in one part.
+  6.4 ms (a promontory drying pass). The placeholder `promontory-green` (265 ms in one part) is gone: the vegetation's `maquis` paints the promontory's pines and scrub (G4).
+
+### Land (G4, `paint-land.ts`)
+Steps `land`, `walls` and `beds` (element `land`), in parts. Palette `EARTH`, lit from the left
+over the sea. Shapes live in `coast/shapes.ts` (data only, devlog 149).
+- **Ground** (`land`): `LAND` is reserved, then pale limestone gravel bleeding into dry earth, a
+  few broad warm and cool glazes, the promontory's cool shade over the top terrace's back, darker
+  earth on the foreground. Raked gravel: broken dry-brush lines along each terrace's walk, between
+  the wall above and the beds (one batched layer per terrace, ADR 0343). About 900 grit specks in
+  one layer. **Path**: `PATH` lifted pale down its length, a warm glaze, a trodden middle, its
+  darker gritty edges in one batched layer.
+- **Walls** (`walls`): for each wall, its shade cast on the terrace below, the face reserved and
+  washed (warm up top, cool at the foot), then dry-stone work clipped to the face: a coping course
+  of broad slabs over rough courses of flat pieces (`wallStones`). Three batched layers: the
+  joints (the face dark with every stone lifted out, and a soil pocket at each crack slot), the
+  stones (each its own limestone), and each stone's shade on its lower right. Then ochre and grey
+  lichen and rain streaks, the coping's broken lit top and the shade line under it (batched), a
+  shaded foot, and dry grass tufts (`WALL_GRASS`, away from the wall and crack slots).
+  `WALL_FACES` steps down over its last 60 units at the seaward end (`wallDrop`), so a wall ends in
+  the slope instead of a cut. `WALL_TOPS` are the copings.
+- **Flights** (end of `walls`): `FLIGHTS` from `STEPS`, each step a rough slab with a lit tread
+  over a shaded riser, a worn lit nose, and the flight's shade cast right.
+- **Beds** (`beds`): `BEDS`, ten rounded strips of tilled soil along each terrace's front behind
+  its coping, under every bed slot. They share one soil layer (darker toward the coping), one layer
+  of raked furrows and one of lit grit lips on the gravel side. They hold no plants: the player
+  grows them. Then the two terracotta pithoi (`JARS`), off every slot.
+- Work whose box misses the canvas is skipped (`inView`): a close view paints only what it shows.
+  Each wall, bed, flight and jar has its own rng, so skipping one changes nothing else.
+
+### Vegetation (G4, `paint-veg.ts`)
+Steps `maquis`, `olive` and `pine` (element `trees`), in parts. Palette `VEG`, lit from the left.
+- **Maquis** (`maquis`): `MAQUIS` along the promontory's back (paler toward the temple),
+  `PROMONTORY_PINE_SHAPES` (thin trunks under flat broken umbrella crowns), `PHRYGANA` cushions
+  (grey-green or summer rust, a short shadow to the right, twiggy flicks), `SHORE_CLUMPS` softening
+  the shoreline's edge, and dry golden `GRASS` on the terrace ends and the foreground. Every clump
+  is a cloud of scalloped lobes in two batched layers: the lit body, then each lobe's shade on its
+  lower right.
+- **Olive** (`olive`, ADR 0367): the olive species' tree, `planOlive(OLIVE_TREE.seed)` at growth
+  1, at 1.12× its box with its base on `OLIVE.base`, painted with the species' helpers one layer
+  per part. The scenery adds paper under the trunk, its shadow on the gravel and a clip at its sole.
+- **Pine** (`pine`): the leaning Aleppo pine on `PINE_ROCK`: a reddish trunk on reserved paper
+  (`PINE_TRUNK`) with scaly plates and its left flank lit, crooked branches (`PINE_BRANCHES`), open
+  needle pads (`PINE_PADS`): a light wash of tufts, then dark, mid and lit fans of fine needles,
+  then cones.
+- Crowns above the skyline (olive, pine, promontory pines) take the sky's wash, as devlog 170
+  says. They reserve no paper there, so no white gaps show.
+- **Perches for the wildlife** (all in `shapes.ts`): `WALL_TOPS` (the copings), `OLIVE_LIMBS` (the
+  olive's trunk and scaffold limbs, checked against the plan), `PINE_BRANCHES` and `PINE_TRUNK`,
+  `JARS` (rim at `y - h`), and `PROMONTORY_PINE_SHAPES`.
+- **Cost** (headless Chromium, DPR 1, overview at 0.9, warm, load ≈ 5): land 155 ms, walls 235,
+  beds 62, maquis 96, olive 37, pine 48: about 640 ms (900 ms cold). The longest part is 9.6 ms
+  (a wall's batched layer).
 
 ### Left for later tasks
 - Water (devlog 176, Left open): the far hill's reflection is faint, the shingle's spatter still
   reads a little even, and the placeholder `paintSea` and `paintCaique` are unused until the
   placeholder file goes.
-- Land and vegetation: the walls, gravel, beds, the olive, the leaning pine, and the promontory's
-  pines and scrub (the `promontory-green` placeholder step).
+- Land and vegetation (devlog 177, Left open): the pine reads more Japanese than Aleppo; the
+  beds are even strips; the walls' seaward ends are a step down, not rubble.
 - Daylight: real plates lit from the left; the architrave, the capitals and the crowns sit under the
   sky's wash, and the skyline's 2-unit reach either side of each column leaves a pale sky-tinted
   band down the columns' sides.
