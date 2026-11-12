@@ -252,7 +252,7 @@ Not done: a motion-sprite atlas (1.3 MB, not worth it) and shipping pre-painted 
 | Z9 | Species painters out of the main bundle, spike then build (P16f, −433 kB raw) | `src/plants/{types,registry}.ts`, `src/ui/previews.ts`, `src/plants/sprites.ts` | done (devlog 150; ADR 0348; first-view JS 1,385 → 970 kB raw, 497 → 348 kB gzip at the time; species metadata extracted at build time, painters per species on demand) |
 | Z10 | Alfalfa sprite: batch wet layers (246 ms, the slowest), art review | `src/plants/species/alfalfa.ts` | done (devlog 151; 0.47× the old time, ≈110–115 ms against the audit's 246 (target <100 not quite met); now about the white clover's cost; art review passed) |
 | Z11 | Damask rose sprite: batch wet layers (125 ms), art review | `src/plants/species/damask-rose.ts` | done (devlog 153; 72 → 37 ms quiet (0.51×), ≈64–67 ms on the audit's scale; art review passed) |
-| Z12 | Oleander sprite: batch wet layers (103 ms), art review | `src/plants/species/oleander.ts` | queued |
+| Z12 | Oleander sprite: batch wet layers (103 ms), art review | `src/plants/species/oleander.ts` | done (devlog 154; 90 → 48 ms quiet (0.53×); art review passed, the stems a little softer at the base where they cross other bands) |
 | Z13 | Spike, then build if it pays: drying skips empty tiles, bit-identical (every garden, every sprite) | `src/paint/wet.ts` | queued |
 | Z14 | 30 fps while the camera rests, behind a flag, so the owner can compare | `src/render/renderer.ts` | queued (owner judges) |
 | Z15 | Free close-view buffers back at the overview (−33 MB) | `src/scene/system.ts`, `src/paint/wet.ts` scratch | queued |
