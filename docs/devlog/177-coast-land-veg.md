@@ -20,18 +20,22 @@ Files:
 The draft's flower mats and lavender humps on the beds are gone. The beds are tilled soil that
 waits for the player's plants.
 
-**The hook** (shared with the rock and water tasks), kept to adjacent lines:
-- `index.ts`: `trees: ['olive', 'pine']` became `trees: ['maquis', 'olive', 'pine']`.
+**The hook** (shared with the rock and water tasks; rebased onto both), kept to adjacent lines:
+- `index.ts`:
+  - `trees` became `['maquis', 'olive', 'pine']`;
+  - `rock` lost `promontory-green`, so it is now `['village', 'promontory', 'temple']`.
 - `painters.ts`:
-  - the placeholder import lost `paintBeds`, `paintLand`, `paintOlive`, `paintPine` and
-    `paintWalls`;
+  - the placeholder import is only `paintShore` now;
   - two imports were added, from `./paint-land` and `./paint-veg`;
-  - in `run`, `land`, `walls` and `beds` now call the new painters, and a `maquis` line was added
-    before `olive`.
-- `coast.test.ts`: the two step-name lists gained `maquis`.
-
-`paint-placeholder.ts` is unchanged. Its land and vegetation functions are now unused; whoever
-removes the placeholder last deletes them.
+  - in `run`, `land`, `walls` and `beds` call the new painters, a `maquis` line was added before
+    `olive`, and the `promontory-green` line is gone.
+- `coast.test.ts`: the full order is 17 steps, `maquis` after `shore-rocks`, with no
+  `promontory-green`. `rock.test.ts`: its `COAST_ELEMENTS.rock` pin dropped `promontory-green`.
+- `paint-placeholder.ts`: `paintPromontoryGreen` was deleted (G2 had moved the placeholder's
+  promontory pines and scrub into it, which doubled with `maquis`). The other land and vegetation
+  placeholder functions are unused now; whoever removes the placeholder last deletes them.
+- `shapes.ts` is shared with G2: the rock's shapes come first, then the land's and the
+  vegetation's.
 
 ## Decisions
 - **The big olive is scenery** (ADR 0367). No slot is there, and `top-1` is the tree slot.
@@ -55,9 +59,8 @@ removes the placeholder last deletes them.
 - **Work outside the canvas is skipped** (`inView`). Each wall, bed, flight, jar, phrygana and
   tuft has its own rng, so skipping one changes nothing else. A close view on the pine now paints
   no walls or beds (it spent 280 ms on them before).
-- **The land reserves `LAND`.** Anything a rock task paints over the shoreline's edge in the
-  `shore` step, before `land`, is covered on the land's side. Shore rocks that should overlap the
-  land belong in a step after `land`.
+- **The land reserves `LAND`.** So the shore's rock that overlaps the land is painted after it, in
+  G2's `stones` element (`shore-rocks`).
 
 ## Cost
 Measured with a probe in headless Chromium against the dev server (`paintJob` to the end, its
@@ -109,14 +112,31 @@ and `coast-veg/{veg,olive,pine,maquis}`. The app shots are at `?dev&scenery=coas
 - **Sunset and night** (placeholder light): nothing breaks. The gravel warms at sunset and turns
   blue-grey at night.
 
+## The meeting of land, rock and water (after the rebase onto G2 and G3)
+These shots have the real sea and rock in them. No new painting was done in this round.
+- **The cliff's foot against the top terrace is a ruler-straight line.** The land reserves `LAND`,
+  whose top edge runs flat at y 496–500. That reserve cuts the rock painter's scree cones and
+  notch shade off along that line. Below it, the promontory's cool shade glaze reads as a pale
+  band, not as shade. The cliff face and the gravel are also about the same pale cream, so the
+  top terrace and the cliff run together. The fix belongs to the land: a ragged top edge that
+  lets the scree show, and a darker, warmer foot.
+- **The beach flight (`STEPS[3]`, 664, 798) collides with the rock's shoreline blocks and shelf.**
+  - The shore-rocks step is painted after the land, so it covers part of the flight.
+  - What is left is a jumble of grey slabs next to the rock's ledges.
+  - A pale, paper-like vertical strip shows at about x 675–692, y 800–860, between the shelf and
+    the lower wall's seaward end.
+  - Either the rock painter takes the flight over, or the land moves it clear of the shelf.
+- **The shore clumps sit on the rock's ledges** at the shoreline. They read as dark green blobs
+  on the stone. Fewer of them, or moving them onto the land, would fit better.
+- **What works:** the shoreline faces, splash rocks and pools meet the water cleanly. The
+  shore-rocks step lies over the land's edge as planned. The promontory's pines and maquis are
+  no longer doubled now that `promontory-green` is gone.
+
 ## Left open
 - **The pine** reads more as a Japanese black pine's cloud pads than as an Aleppo pine. An Aleppo
   pine is lighter and more see-through, with long wisps. Its trunk sits in the paper margin's
   fade, so the red of its bark barely shows.
-- **The promontory placeholder** (the rock task's) still paints its own pines and scrub, so the
-  promontory's back shows two sets of crowns until the rock painter drops its own.
-- **The land meets the sea in a hard edge.** That edge is the rock task's lip. Shore rocks meant
-  to overlap the land must come after the `land` step, because the land reserves `LAND`.
+- **The meeting of land, rock and water**: see the section of that name below.
 - **The empty beds** are evenly shaped, rounded strips. They could break up more where they meet
   the gravel.
 - **Not tuned:** the walls' seaward ends (a step down, not real collapsed rubble); the path, which
@@ -124,5 +144,9 @@ and `coast-veg/{veg,olive,pine,maquis}`. The app shots are at `?dev&scenery=coas
 - **The olive's trunk part** is 514 k pixels at 1.6× (see Cost). Batching the species' trunk would
   fix it in both places.
 - **E2E was run one file at a time** (`E2E_WORKERS=1`, against the production build):
-  `sceneries` (8), `lazy-painters` (1), `paint-cache` (3), `switch-light` (2) and `prepaint` (3) all pass.
+  - first round: `sceneries` (8), `lazy-painters` (1), `paint-cache` (3), `switch-light` (2) and
+    `prepaint` (3) pass;
+  - after the rebase: the unit suite passes in full (2560), and so do `sceneries`,
+    `lazy-painters` and `paint-cache` (8, 1 and 3) pass.
+
   The rest of the e2e suite was not run (CPU rule).
