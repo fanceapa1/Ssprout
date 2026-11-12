@@ -251,7 +251,7 @@ Not done: a motion-sprite atlas (1.3 MB, not worth it) and shipping pre-painted 
 | Z8 | Creatures loaded per garden (P16a′, −190 kB at boot) | `src/fauna/creatures/registry.ts`, `src/fauna/{system,roster}.ts` | done (devlog 148; ADR 0346; first-view JS 1,385 → 1,129 kB raw, 497 → 412 kB gzip; no creature code at boot; each garden's set lazy, prefetched with the pre-paint) |
 | Z9 | Species painters out of the main bundle, spike then build (P16f, −433 kB raw) | `src/plants/{types,registry}.ts`, `src/ui/previews.ts`, `src/plants/sprites.ts` | in progress (devlog 150) |
 | Z10 | Alfalfa sprite: batch wet layers (246 ms, the slowest), art review | `src/plants/species/alfalfa.ts` | done (devlog 151; 0.47× the old time, ≈110–115 ms against the audit's 246 (target <100 not quite met); now about the white clover's cost; art review passed) |
-| Z11 | Damask rose sprite: batch wet layers (125 ms), art review | `src/plants/species/damask-rose.ts` | in progress (devlog 153) |
+| Z11 | Damask rose sprite: batch wet layers (125 ms), art review | `src/plants/species/damask-rose.ts` | done (devlog 153; 72 → 37 ms quiet (0.51×), ≈64–67 ms on the audit's scale; art review passed) |
 | Z12 | Oleander sprite: batch wet layers (103 ms), art review | `src/plants/species/oleander.ts` | queued |
 | Z13 | Spike, then build if it pays: drying skips empty tiles, bit-identical (every garden, every sprite) | `src/paint/wet.ts` | queued |
 | Z14 | 30 fps while the camera rests, behind a flag, so the owner can compare | `src/render/renderer.ts` | queued (owner judges) |
