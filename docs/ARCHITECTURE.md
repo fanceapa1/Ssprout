@@ -733,7 +733,9 @@ Blobs in IndexedDB `studysprout-paint`, stored under `version:kind:key`. The ver
 `notes` and `src/fauna/creatures` unless a cached painter imports them (`src/paint/paint-version.ts`, ADR 0251). It is
 `'dev'` on the dev server and in Vitest. Opening the store drops entries of other versions.
 `put` copies the canvas synchronously (unless `{ copy: false }`) and encodes it in idle time, one put
-at a time. Least recently used entries are evicted under a 48 MB cap. `get` decodes with no
+at a time. Entries are evicted under a 48 MB cap by tier, then least recently used (ADR 0351):
+close views first, then daylight plates, the gardens' landscapes last; a put never evicts a higher
+tier than its own (it is skipped instead). `get` decodes with no
 colour-space conversion and no premultiplication, and the round trip is bit-exact in Chromium.
 The cache is the null cache (`get` → null, `put` → false, `stats().off` says why) on the dev server,
 with `?nopaintcache`, without IndexedDB or when it fails to open. Keys must hold everything else the

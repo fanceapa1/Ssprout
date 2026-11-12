@@ -5,6 +5,7 @@ import {
   PAINT_VERSION,
   createNullPaintCache,
   createPaintCache,
+  devMaxBytes,
   entryId,
   paintCache,
   paintCacheOff,
@@ -185,6 +186,27 @@ describe('paint cache LRU and byte cap', () => {
     await cache.put('scene', 'a', canvas(250, 'new'));
     expect(await cache.stats()).toMatchObject({ entries: 1, bytes: 250, evictions: 0 });
     expect(text(await cache.get('scene', 'a'))).toBe('new+copy');
+  });
+
+  it('evicts close views before plates and plates before landscapes, and never a landscape for a close view (ADR 0351)', async () => {
+    const { cache, store } = harness(); // cap 300
+    await cache.put('scene', 'oasis|s1|normal|0,0,10,10@1|10x10', canvas(150));
+    await cache.put('sky-plate', 'oasis|s1|midday|10x10', canvas(50));
+    await cache.put('scene-detail', 'oasis|s1|normal|0,0,5,5@2|10x10', canvas(100));
+    await cache.get('scene-detail', 'oasis|s1|normal|0,0,5,5@2|10x10'); // the most recent, still first to go
+    await cache.put('light-plate', 'oasis|c|midday|10x10|g', canvas(60));
+    expect([...store.meta.keys()].map((id) => id.split(':')[1]).sort()).toEqual(['light-plate', 'scene', 'sky-plate']);
+    expect(await cache.put('scene-detail', 'oasis|s1|normal|5,5,5,5@2|10x10', canvas(120))).toBe(false);
+    expect(await cache.stats()).toMatchObject({ entries: 3, bytes: 260, evictions: 1, skipped: 1 });
+    await cache.put('light-plate', 'oasis|c|night|10x10|g', canvas(90));
+    expect([...store.meta.keys()].map((id) => id.split(':')[1]).sort()).toEqual(['light-plate', 'light-plate', 'scene']);
+  });
+
+  it('?dev&paintcachemb=N sets a smaller cap (e2e), only with ?dev', () => {
+    expect(devMaxBytes('?dev&paintcachemb=26')).toBe(26 * 1024 * 1024);
+    expect(devMaxBytes('?paintcachemb=26')).toBeUndefined();
+    expect(devMaxBytes('?dev&paintcachemb=x')).toBeUndefined();
+    expect(devMaxBytes('?dev')).toBeUndefined();
   });
 
   it('the default cap is 48 MB', async () => {
