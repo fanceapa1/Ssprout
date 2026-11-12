@@ -11,7 +11,7 @@ import { COAST_LIGHT } from './light';
 import { paintShore } from './paint-placeholder';
 import { paintCaique } from './boat';
 import { paintBeach, paintPools, paintSea } from './paint-water';
-import { paintPromontory, paintShoreRocks } from './paint-rocks';
+import { paintCliffFoot, paintPromontory, paintShoreRocks } from './paint-rocks';
 import { paintBeds, paintGround, paintWalls } from './paint-land';
 import { paintMaquis, paintOlive, paintPine } from './paint-veg';
 import { COAST_SKY_PAINTERS } from './sky';
@@ -31,6 +31,7 @@ export function coastSteps(art: SceneArt, only?: readonly string[]): PaintStep[]
     village: (p) => paintVillage(p, r('rock-village')),
     promontory: (p) => paintPromontory(p, r('rock-promontory')),
     temple: (p) => paintTemple(p, r('rock-temple')),
+    'cliff-foot': (p) => paintCliffFoot(p, r('rock-cliff-foot')),
     'shore-rocks': (p) => paintShoreRocks(p, r('rock-shore')),
     shore: (p) => paintShore(p, r('shore')),
     beach: (p) => paintBeach(p, r('beach')),

@@ -125,6 +125,24 @@ export function* wetBatch(p: Painter, marks: readonly Mark[], pigment: Pigment, 
   yield;
 }
 
+/** Marks kept inside their own shape (each group clipped to its `clip`), all wet in one layer and dried once. */
+export function* clipBatch(p: Painter, groups: readonly { clip: readonly Pt[]; marks: readonly Mark[] }[], pigment: Pigment, dry: DryOptions, lift = false): Strokes {
+  const live = groups.filter((g) => g.marks.length);
+  if (!live.length) return;
+  const r = bounds(live.flatMap((g) => g.clip));
+  const L = p.layer({ x: r.x - 6, y: r.y - 6, w: r.w + 12, h: r.h + 12 });
+  for (const g of live) {
+    L.ctx.save();
+    L.clip(g.clip);
+    for (const m of g.marks) L.fill(m.poly, pigment, m.alpha);
+    L.ctx.restore();
+  }
+  L.flush();
+  yield;
+  yield* L.dryParts(lift ? { edge: 0.1, granulation: 0.1, flow: 0.2, darken: 0, ...dry, blend: 'source-over' } : dry);
+  yield;
+}
+
 /** Lifts (paper put back) wet together and dried once, painted over what is there. */
 export function* liftBatch(p: Painter, marks: readonly Mark[], pigment: Pigment, dry: DryOptions = {}): Strokes {
   yield* wetBatch(p, marks, pigment, { edge: 0.1, granulation: 0.1, flow: 0.2, darken: 0, ...dry, blend: 'source-over' });
