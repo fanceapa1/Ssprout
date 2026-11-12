@@ -23,6 +23,8 @@ export interface PlateCache<P extends string> {
   request(p: P): void;
   /** whether the lookup of `p` is still waiting for its answer */
   pending(p: P): boolean;
+  /** resolves once the lookup of `p` has answered (at once when it is not waiting) */
+  whenAnswered(p: P): Promise<void>;
   /**
    * A plate was painted here: store `pack()` unless the cache holds it (once its lookup answers;
    * a plate never looked up is looked up first). `pack` runs only when the plate is stored.
@@ -50,6 +52,7 @@ export function defaultPlateCache(): PaintCache | null {
 export function createPlateCache<P extends string>(opts: PlateCacheOptions<P>): PlateCache<P> {
   const { cache, kind, key } = opts;
   const answers = new Map<P, Answer>();
+  const lookups = new Map<P, Promise<void>>();
   const waiting = new Map<P, () => AnyCanvas | null>();
   const counts = { hits: 0, misses: 0, puts: 0 };
 
@@ -67,7 +70,7 @@ export function createPlateCache<P extends string>(opts: PlateCacheOptions<P>): 
   const request = (p: P) => {
     if (!cache || answers.has(p)) return;
     answers.set(p, 'pending');
-    void cache.get(kind, key(p)).then((image) => {
+    const lookup = cache.get(kind, key(p)).then((image) => {
       let hit = false;
       if (image) {
         try {
@@ -85,12 +88,14 @@ export function createPlateCache<P extends string>(opts: PlateCacheOptions<P>): 
       if (pack && !hit) store(p, pack);
       opts.answered?.(p, hit);
     });
+    lookups.set(p, lookup.then(() => {}, () => {}));
   };
 
   return {
     enabled: cache !== null,
     request,
     pending: (p) => answers.get(p) === 'pending',
+    whenAnswered: (p) => (answers.get(p) === 'pending' ? lookups.get(p)! : Promise.resolve()),
     painted(p, pack) {
       if (!cache) return;
       const a = answers.get(p);

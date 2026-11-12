@@ -75,6 +75,21 @@ describe('daylight plates from the paint cache (ADR 0236)', () => {
     expect(store.stats()).toEqual({ hits: 1, misses: 0, puts: 0 });
   });
 
+  it('tells when a lookup has answered (at once for one never asked or already answered)', async () => {
+    const f = fakeCache();
+    const { store } = plates(f.cache);
+    let answered = false;
+    await store.whenAnswered('night');
+    store.request('midday');
+    const wait = store.whenAnswered('midday').then(() => (answered = true));
+    await Promise.resolve();
+    expect(answered).toBe(false);
+    await f.answer();
+    await wait;
+    expect(answered).toBe(true);
+    await store.whenAnswered('midday');
+  });
+
   it('stores a plate painted after its lookup missed, without a copy', async () => {
     const f = fakeCache();
     const { store, answers } = plates(f.cache);

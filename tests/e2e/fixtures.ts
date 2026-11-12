@@ -79,6 +79,27 @@ export const test = base.extend<{ errors: string[]; e2eClock: void }>({
 
 export { expect };
 
+/** Init script: `&e2eat=HH:MM` opens the page at that local time of today (the boot's daylight phase). */
+export function openAt(): void {
+  const m = /[?&]e2eat=(\d\d):(\d\d)/.exec(location.search);
+  if (!m) return;
+  const RealDate = Date;
+  const realNow = RealDate.now.bind(RealDate);
+  const at = new RealDate(realNow());
+  at.setHours(Number(m[1]), Number(m[2]), 0, 0);
+  const offset = at.getTime() - realNow();
+  class AtDate extends RealDate {
+    constructor(...args: unknown[]) {
+      if (args.length === 0) super(realNow() + offset);
+      else super(...(args as [number]));
+    }
+    static override now(): number {
+      return realNow() + offset;
+    }
+  }
+  globalThis.Date = AtDate as DateConstructor;
+}
+
 /** Open the app with the debug API and wait until every system has initialised. */
 export async function openDev(page: Page, query = ''): Promise<void> {
   await page.goto(`./?dev${query ? `&${query}` : ''}`);

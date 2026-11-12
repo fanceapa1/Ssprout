@@ -306,7 +306,9 @@ runner: `paintScene` awaits `art.painters.load()`, `paintJob` takes the steps an
 `art.painters.get()`. `spriteAtlasLayout` needs only `sprite-boxes.ts`. The scene's cache lookup
 starts the load as soon as `PaintCache.has` reports the painting or its sprites missing. The sky
 plate starts it on a lookup miss, draws an empty plate until the painters land and then
-recomposes (`onPainters`). Measured (devlog 145): first-view JS 1,416 → 1,324 kB raw, 500 → 476 kB
+recomposes (`onPainters`). `SkyLight.settled()` resolves once the plates the current light needs
+are looked up and, on a miss, the painters are in; `whenPainted` (so `scenePainted()` and
+`camera.settle()`) awaits it, so a still frame never shows that empty plate (devlog 152). Measured (devlog 145): first-view JS 1,416 → 1,324 kB raw, 500 → 476 kB
 gzip; the garden's chunk is 34 kB. A warm repeat visit never requests it (e2e `lazy-painters`).
 
 ## Pre-painting a garden not on view (ADR 0339)

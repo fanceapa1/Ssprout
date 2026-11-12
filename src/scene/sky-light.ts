@@ -51,6 +51,11 @@ export interface SkyLight {
    * painted (in idle time) when it does not hold them; painted now when the cache is off.
    */
   prepare(phases: readonly DayPhase[]): void;
+  /**
+   * Resolves once the plates the last light needs can be drawn for real: looked up, and on a
+   * miss the scenery's painters loaded (ADR 0341), so the next update composes them.
+   */
+  settled(): Promise<void>;
   stats(): SkyStats;
 }
 
@@ -404,6 +409,12 @@ export function createSkyLight(opts: SkyLightOptions): SkyLight {
       }
     },
     has: (p) => plates.has(p),
+    async settled() {
+      if (!last) return;
+      const missing = blendOrder(last.state.weights).map(({ phase }) => phase).filter((p) => !plates.has(p));
+      await Promise.all(missing.map((p) => store.whenAnswered(p)));
+      if (missing.some((p) => !plates.has(p)) && !spec.painters.get()) await fetchPainters();
+    },
     stats: () => {
       const c = store.stats();
       return { plates: plates.size, painted, composes, paintMs, cacheHits: c.hits, cacheMisses: c.misses, detail: detail ? { rect: { ...detail.rect }, scale: detail.scale } : null };
