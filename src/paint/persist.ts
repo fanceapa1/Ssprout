@@ -11,7 +11,8 @@
  *   (`scene`, `sky`, …; no `:`), `key` everything else it depends on (seed, view rect, scale…).
  * - `put` copies the canvas at once, then encodes it in idle time, one entry at a time, so it
  *   never blocks a frame. `get` decodes with no colour-space conversion and no premultiplication.
- * - Least recently used entries are evicted to stay under a byte cap (48 MB by default).
+ * - Entries are evicted to stay under a byte cap (48 MB by default): close views first, then
+ *   daylight plates, the gardens' landscapes last; least recently used first within each (`evict.ts`).
  * - Best-effort: no method throws or rejects. Without IndexedDB, when it fails, on the dev server
  *   (`__PAINT_VERSION__ === 'dev'`) or with `?nopaintcache`, the cache is the null cache: `get`
  *   gives null and `put` stores nothing. `stats()` says why (`off`) and counts errors.
@@ -19,6 +20,7 @@
  * Storage goes through a `PaintStoreAdapter`: IndexedDB in the browser, a Map in unit tests.
  */
 import { makeCanvas, type AnyCanvas } from './canvas';
+import { victims } from './evict';
 
 declare global {
   /** Build-time hash of the paint sources (vite.config.ts `define`); 'dev' on the dev server and in tests. */
@@ -76,7 +78,7 @@ export interface PaintCacheStats {
   misses: number;
   /** Entries written. */
   puts: number;
-  /** Puts not written: superseded by a later put of the same entry, or larger than the cap. */
+  /** Puts not written: superseded by a later put, larger than the cap, or no room below its tier. */
   skipped: number;
   /** Entries evicted for the byte cap. */
   evictions: number;
@@ -104,7 +106,7 @@ export interface PaintCache {
   has?(kind: string, key: string): Promise<boolean>;
   /**
    * Store a finished painting. Copies it now (see `PutOptions.copy`), encodes it to PNG in idle
-   * time and writes it, evicting the least recently used entries over the cap. Resolves true
+   * time and writes it, evicting entries over the cap (`evict.ts`). Resolves true
    * once written, false when not stored. Never rejects.
    */
   put(kind: string, key: string, canvas: AnyCanvas, opts?: PutOptions): Promise<boolean>;
@@ -219,20 +221,15 @@ export function createPaintCache(opts: PaintCacheOptions): PaintCache {
     return sum;
   };
 
-  /** Evict least recently used entries (never `keep`) until `extra` more bytes fit. */
-  const makeRoom = async (a: PaintStoreAdapter, extra: number, keep: string | null) => {
-    let total = usedBytes() - (keep ? (index.get(keep)?.bytes ?? 0) : 0);
-    if (total + extra <= maxBytes) return;
-    const victims: string[] = [];
-    for (const m of [...index.values()].sort((x, y) => x.used - y.used)) {
-      if (total + extra <= maxBytes) break;
-      if (m.id === keep) continue;
-      victims.push(m.id);
-      total -= m.bytes;
-    }
-    for (const id of victims) index.delete(id);
-    counts.evictions += victims.length;
-    await a.remove(victims);
+  /** Evict by tier, then recency, so `incoming` fits (ADR 0351). False when it cannot. */
+  const makeRoom = async (a: PaintStoreAdapter, incoming: EntryMeta | null): Promise<boolean> => {
+    const out = victims(index.values(), maxBytes, incoming);
+    if (!out) return false;
+    if (out.length === 0) return true;
+    for (const id of out) index.delete(id);
+    counts.evictions += out.length;
+    await a.remove(out);
+    return true;
   };
 
   const opened: Promise<PaintStoreAdapter | null> = (async () => {
@@ -249,7 +246,7 @@ export function createPaintCache(opts: PaintCacheOptions): PaintCache {
         counts.dropped += stale.length;
         await a.remove(stale.map((m) => m.id)).catch(note);
       }
-      await makeRoom(a, 0, null).catch(note);
+      await makeRoom(a, null).catch(note);
       return a;
     } catch (e) {
       note(e);
@@ -334,8 +331,11 @@ export function createPaintCache(opts: PaintCacheOptions): PaintCache {
           counts.skipped++;
           return false;
         }
-        await makeRoom(a, blob.size, id);
         const meta: EntryMeta = { id, version, kind, key, bytes: blob.size, used: ++seq };
+        if (!(await makeRoom(a, meta))) {
+          counts.skipped++;
+          return false;
+        }
         await a.write(meta, blob);
         index.set(id, meta);
         counts.puts++;
@@ -491,6 +491,13 @@ export async function openIndexedDbAdapter(name: string = PAINT_DB_NAME): Promis
 
 let shared: PaintCache | null = null;
 
+/** `?dev&paintcachemb=N`: a smaller cap, so e2e reaches eviction quickly (undefined otherwise). */
+export function devMaxBytes(search: string): number | undefined {
+  const q = new URLSearchParams(search);
+  const mb = Number(q.get('paintcachemb'));
+  return q.has('dev') && mb > 0 ? mb * 1024 * 1024 : undefined;
+}
+
 /**
  * The app's paint cache, created on first use: IndexedDB `studysprout-paint` at the default
  * cap, or the null cache when `paintCacheOff(location.search)` says so.
@@ -499,6 +506,6 @@ export function paintCache(): PaintCache {
   if (shared) return shared;
   const search = typeof location !== 'undefined' ? location.search : '';
   const off = paintCacheOff(search);
-  shared = off ? createNullPaintCache(off) : createPaintCache({ adapter: openIndexedDbAdapter() });
+  shared = off ? createNullPaintCache(off) : createPaintCache({ adapter: openIndexedDbAdapter(), maxBytes: devMaxBytes(search) });
   return shared;
 }
