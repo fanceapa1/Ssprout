@@ -283,9 +283,9 @@ Up to 3 agents at a time for this phase, beside the phase 14 queue's agents. Sce
 
 | # | Task | Area | Status |
 |---|---|---|---|
-| D-b | Draft B: an olive on the top tier, three dry-stone tiers down to a pebble beach and rock pools, a temple promontory, the village across the bay | `src/scenery/coast/drafts/b/**` | done, chosen (lands with G1) |
+| D-b | Draft B: an olive on the top tier, three dry-stone tiers down to a pebble beach and rock pools, a temple promontory, the village across the bay | `src/scenery/coast/drafts/b/**` | done, chosen (merged with G1) |
 | G0 | Biome research (web, read-only): region, 14–16 plants over four tiers with two per habitat, the owner's four creatures plus about 8 wild ones, species shared by biology, sound notes, pitfalls | `docs/research/coast-biome.md` | done (Ionian islands; 16 plants, 14 new creatures in two waves, 5 plants and 7 creatures shared by biology; orchestrator defaults until the owner says otherwise: the blue-domed chapel stays, the ice plant is a cultivated *Lampranthus* on the terrace only, the cypress stays, algae are labelled as algae, common dolphins, the cat is always there) |
-| G1 | Coast scenery skeleton from draft B: id, registry, geometry and about 50 slots, habitat words, view focus, sky numbers, flora profile, an empty wildlife table, placeholder sky, light and painting; a broken natural shoreline and a phone crop that holds a landmark; behind `?dev&scenery=coast` | `src/scenery/coast/**`, `src/core/sceneries.ts`, `src/scenery/{registry,ids}.ts` | in progress (devlog 170; ADR 0360) |
+| G1 | Coast scenery skeleton from draft B: id, registry, geometry and about 50 slots, habitat words, view focus, sky numbers, flora profile, an empty wildlife table, placeholder sky, light and painting; a broken natural shoreline and a phone crop that holds a landmark; behind `?dev&scenery=coast` | `src/scenery/coast/**`, `src/core/sceneries.ts`, `src/scenery/{registry,ids}.ts` | done (devlog 170; ADRs 0360–0361; 48 slots: 9 water, 5 shore, 12 meadow, 5 path, 6 back, 11 rock; focus (760, 600), the phone crop holds the temple, sea, shore and all three tiers; light from the left, both low suns over the sea; new range words: climate `mediterranean`, biomes `scrub` and `marine`; the painting is draft B on the final layout) |
 | G2 | Coast painters: the limestone promontory, the temple columns, the far hill with the village and chapel, the rock shelf and boulders | `src/scenery/coast/paint-rocks.ts` | queued (after G1) |
 | G3 | Coast painters: the sea, the shallows, the pebble beach, the rock pools, the caique | `src/scenery/coast/paint-water.ts` | queued (after G1) |
 | G4 | Coast painters: terraces, dry-stone walls, gravel and steps, the pines, the scrub, the foreground | `src/scenery/coast/{paint-land,paint-veg}.ts` | queued (after G1) |
@@ -300,8 +300,8 @@ Phase 15 art queue (after G0): one plant (GP…) or creature (GK…) per task, f
 | # | Task | Area | Status |
 |---|---|---|---|
 | GP1 | Olive (*Olea europaea*): T4 tree, the signature; a fat fluted trunk and a broken silver crown | `src/plants/species/olive.ts` | in progress (devlog 171) |
-| GP2 | Ice plant (*Lampranthus*): T1, magenta and red mats on the terrace, walls and path | `src/plants/species/ice-plant.ts` | in progress (devlog 172) |
-| GP3 | Lavender (*Lavandula*): T2, grey-green humps with violet spikes, terrace and path | `src/plants/species/lavender.ts` | queued |
+| GP2 | Ice plant (*Lampranthus*): T1, magenta and red mats on the terrace, walls and path | `src/plants/species/ice-plant.ts` | done (devlog 172; about 36 ms; cultivated only, `cultivatedIn: mediterranean`; the lobes read a little as separate heaps) |
+| GP3 | Lavender (*Lavandula*): T2, grey-green humps with violet spikes, terrace and path | `src/plants/species/lavender.ts` | in progress (devlog 173) |
 | GP4 | Sea daffodil (*Pancratium maritimum*): T2, white trumpets on the beach sand | `src/plants/species/sea-daffodil.ts` | queued |
 | GP5 | Posidonia (*Posidonia oceanica*): T3, a seagrass meadow in the shallows | `src/plants/species/posidonia.ts` | queued |
 | GP6 | Rock samphire (*Crithmum maritimum*): T1, fleshy lime umbels on splash rocks and shingle | `src/plants/species/rock-samphire.ts` | queued |
@@ -329,3 +329,9 @@ Phase 15 art queue (after G0): one plant (GP…) or creature (GK…) per task, f
 | GK12 | Common octopus in the rock pool; rare; 16 plants | `src/fauna/creatures/octopus.ts` | queued (second wave) |
 
 Shared by biology, no art task: caper, oleander, grapevine, pomegranate and southern maidenhair (checked against the coast's flora profile in G1); cabbage white, bees, swallows, swallowtail, heron, and the hoopoe and gecko once OK5 and OK6 exist (rows in GK0). Left for later, if the owner wants them: hummingbird hawk-moth, Scopoli's shearwater, loggerhead turtle.
+
+Phase 15 follow-ups:
+
+| # | Task | Area | Status |
+|---|---|---|---|
+| GF1 | Coast flora wiring: the coast test's pinned offer list becomes invariants (it breaks on every species merge), and the four species shared by biology (oleander, pomegranate, grapevine, southern maidenhair) get range lines the coast's profile offers | `src/scenery/coast/coast.test.ts`, four species' range lines | in progress (devlog 174) |
