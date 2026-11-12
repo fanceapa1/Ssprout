@@ -34,13 +34,13 @@ export const COAST_LIGHT_ART: LightArt = { trees: [], shrubs: [], sky: COAST_SKY
 export const COAST_ELEMENTS = {
   far: ['far-hill'],
   sea: ['sea', 'caique'],
-  rock: ['village', 'promontory', 'promontory-green', 'temple'],
+  rock: ['village', 'promontory', 'temple'],
   shore: ['shore'],
   beach: ['beach', 'pools'],
   land: ['land', 'walls', 'beds'],
   // the shore's rock over the land's edge and the water: shelf, pool rims, boulders, splash rocks
   stones: ['shore-rocks'],
-  trees: ['olive', 'pine'],
+  trees: ['maquis', 'olive', 'pine'],
   near: ['margins'],
 } as const;
 

@@ -8,8 +8,7 @@ import { PAPER_WHITE, blob, mix, resample, ribbon, rgba, smoothPath, type Painte
 import type { Pt } from '../../render/viewport';
 import { C } from './drafts/b/paint';
 import {
-  BEACH, CAIQUE, HORIZON, LAND, OLIVE, PATH, PINE, POOLS, PROMONTORY,
-  PROMONTORY_PINES, SHORE_SCRUB, STEPS, WALLS, WATERLINE_EDGE,
+  BEACH, CAIQUE, HORIZON, LAND, OLIVE, PATH, PINE, POOLS, SHORE_SCRUB, STEPS, WALLS, WATERLINE_EDGE,
 } from './layout';
 
 const poly = (pts: readonly Pt[]): Pt[] => pts.map((q) => ({ x: q.x, y: q.y }));
@@ -56,23 +55,6 @@ export function paintCaique(p: Painter, rng: Rng): void {
   p.wash([at(-10, -30), at(12, -30), at(12, -15), at(-10, -15)], C.marble, { rng, opacity: 0.6, layers: 2 });
   p.stroke([at(-4, -54), at(-4, -15)], { rng, pigment: '#5a4a3a', width: 1.6, opacity: 0.7 });
   p.glaze(blob(x, y + 6, 50, 5, rng), C.seaFar, { rng, opacity: 0.3, edge: 0 });
-}
-
-/** The pines and scrub on the promontory (G4's): over the rock painter's cliff. */
-export function paintPromontoryGreen(p: Painter, rng: Rng): void {
-  const rock = poly(PROMONTORY);
-  p.ctx.save();
-  fillPath(p, rock);
-  p.ctx.clip();
-  for (let x = 900; x < 1640; x += rng.range(30, 60)) {
-    const y = 360 - (x - 900) * 0.07 + rng.range(10, 60);
-    p.wetInWet(blob(x, y, rng.range(24, 44), rng.range(12, 20), rng, { irregularity: 0.4 }), C.scrub, C.pineDark, { rng, angle: Math.PI / 2, split: 0.5, opacity: 0.6, deform: 0.3, edge: 0.2, granulation: 0.3 });
-  }
-  p.ctx.restore();
-  for (const t of PROMONTORY_PINES) {
-    p.stroke([{ x: t.x - 4, y: t.y + t.ry * 2.6 }, { x: t.x + 2, y: t.y }], { rng, pigment: C.trunk, width: 3 + t.rx / 20, opacity: 0.7 });
-    p.wetInWet(blob(t.x, t.y, t.rx, t.ry, rng, { irregularity: 0.3, flatBottom: 0.6 }), C.pine, C.pineDark, { rng, angle: Math.PI / 2, split: 0.4, opacity: 0.8, deform: 0.15, edge: 0.3, granulation: 0.3 });
-  }
 }
 
 export function paintShore(p: Painter, rng: Rng): void {

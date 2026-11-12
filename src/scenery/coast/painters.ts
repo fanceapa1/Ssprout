@@ -8,10 +8,12 @@ import { paintMargins } from '../../scene/paint-land';
 import type { GardenPainters } from '../types';
 import { COAST_ELEMENTS } from './index';
 import { COAST_LIGHT } from './light';
-import { paintBeds, paintLand, paintOlive, paintPine, paintPromontoryGreen, paintShore, paintWalls } from './paint-placeholder';
+import { paintShore } from './paint-placeholder';
 import { paintCaique } from './boat';
 import { paintBeach, paintPools, paintSea } from './paint-water';
 import { paintPromontory, paintShoreRocks } from './paint-rocks';
+import { paintBeds, paintGround, paintWalls } from './paint-land';
+import { paintMaquis, paintOlive, paintPine } from './paint-veg';
 import { COAST_SKY_PAINTERS } from './sky';
 import { paintTemple } from './temple';
 import { paintFarHill, paintVillage } from './village';
@@ -28,15 +30,15 @@ export function coastSteps(art: SceneArt, only?: readonly string[]): PaintStep[]
     caique: (p) => paintCaique(p, r('caique')),
     village: (p) => paintVillage(p, r('rock-village')),
     promontory: (p) => paintPromontory(p, r('rock-promontory')),
-    'promontory-green': (p) => paintPromontoryGreen(p, r('promontory')),
     temple: (p) => paintTemple(p, r('rock-temple')),
     'shore-rocks': (p) => paintShoreRocks(p, r('rock-shore')),
     shore: (p) => paintShore(p, r('shore')),
     beach: (p) => paintBeach(p, r('beach')),
     pools: (p) => paintPools(p, r('pools')),
-    land: (p) => paintLand(p, r('land')),
+    land: (p) => paintGround(p, r('land')),
     walls: (p) => paintWalls(p, r('walls')),
     beds: (p) => paintBeds(p, r('beds')),
+    maquis: (p) => paintMaquis(p, r('maquis')),
     olive: (p) => paintOlive(p, r('olive')),
     pine: (p) => paintPine(p, r('pine')),
     margins: (p) => paintMargins(p, r('margins')),
