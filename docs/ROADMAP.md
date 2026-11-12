@@ -253,7 +253,7 @@ Not done: a motion-sprite atlas (1.3 MB, not worth it) and shipping pre-painted 
 | Z10 | Alfalfa sprite: batch wet layers (246 ms, the slowest), art review | `src/plants/species/alfalfa.ts` | done (devlog 151; 0.47× the old time, ≈110–115 ms against the audit's 246 (target <100 not quite met); now about the white clover's cost; art review passed) |
 | Z11 | Damask rose sprite: batch wet layers (125 ms), art review | `src/plants/species/damask-rose.ts` | done (devlog 153; 72 → 37 ms quiet (0.51×), ≈64–67 ms on the audit's scale; art review passed) |
 | Z12 | Oleander sprite: batch wet layers (103 ms), art review | `src/plants/species/oleander.ts` | done (devlog 154; 90 → 48 ms quiet (0.53×); art review passed, the stems a little softer at the base where they cross other bands) |
-| Z13 | Spike, then build if it pays: drying skips empty tiles, bit-identical (every garden, every sprite) | `src/paint/wet.ts` | in progress (devlog 156) |
+| Z13 | Spike, then build if it pays: drying skips empty tiles, bit-identical (every garden, every sprite) | `src/paint/wet.ts` | done (devlog 156; ADR 0349; drying only the painted box plus the blur's reach, bit-identical (8,671 real layers compared); drying 0.87× overall, ksar 0.73×, katsura 0.77×; a paint-version bump: caches repaint once to the same pixels) |
 | Z14 | 30 fps while the camera rests, behind a flag, so the owner can compare | `src/render/renderer.ts` | queued (owner judges) |
 | Z15 | Free close-view buffers back at the overview (−33 MB) | `src/scene/system.ts`, `src/paint/wet.ts` scratch | queued |
 | Z16 | Free the night-edge canvases by day, rebuilt on idle before dusk (−9.5 MB) | `src/ambience/night-edge.ts` | queued |

@@ -211,3 +211,4 @@ commit, and when it replaces or changes an earlier decision, update that ADR's S
 | [0345](0345-ksar-batched.md) | The ksar's small marks dry per kind and block; the blocks' wet-in-wet takes fewer layers | accepted |
 | [0346](0346-creatures-per-garden.md) | Each garden's creatures in a lazy chunk | accepted | creature sets per garden, loaded by the fauna system before it applies a garden; prefetched with the pre-paint |
 | [0348](0348-species-painters-lazy.md) | Species painters out of the main thread's first view | accepted | metadata extracted at build time for the main thread; each species' painter a lazy chunk, preloaded for sessions and pressed flowers |
+| [0349](0349-drying-skips-empty-paper.md) | The drying pass runs only over the painted box and the blur's reach, bit for bit | accepted | `dryPixelsParts` crops to the painted box plus the edge blur's reach on even pixels; same bytes; tiles rejected (running-sum residue) |
