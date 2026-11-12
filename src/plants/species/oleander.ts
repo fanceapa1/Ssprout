@@ -327,7 +327,7 @@ const oleander: SpeciesDef = {
   nativeName: 'Defla',
   nativeLang: 'ary-Latn',
   // the riparian scrub of wadis and seasonal riverbeds, from the Sahara's edge round the Mediterranean
-  range: { realms: ['n-africa-arabia', 'mediterranean'], biomes: ['desert', 'wetland'], climates: ['arid', 'warm-temperate'] },
+  range: { realms: ['n-africa-arabia', 'mediterranean'], biomes: ['desert', 'wetland', 'scrub'], climates: ['arid', 'warm-temperate', 'mediterranean'] },
   tier: 3,
   habitats: ['shore', 'back'],
   sizeClass: 'large',

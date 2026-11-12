@@ -12,6 +12,7 @@ import { MIN_VISIBLE_W, WORLD_H, WORLD_W, type Pt } from '../../render/viewport'
 import type { Slot } from '../../scene/geometry';
 import { FAR_SCALE, NEAR_SCALE, PLANT_SIZES, perspectiveScale, plantScale } from '../../scene/slots';
 import { faunaTable } from '../fauna';
+import { getScenery } from '../registry';
 import { COAST, COAST_ELEMENTS } from '.';
 import { coastScene, POOL_WATER, SEA_WATER } from './geometry';
 import {
@@ -409,8 +410,22 @@ describe('the coast’s flora and wildlife (skeleton)', () => {
   it('offers by biology only what grows or is planted round the Mediterranean, and stays behind the flag', () => {
     const offered = floraOf(allSpecies(), COAST.flora);
     for (const sp of offered) expect([...sp.range.realms, ...(sp.range.cultivatedIn ?? [])], sp.id).toContain('mediterranean');
-    expect(offered.map((sp) => sp.id).sort()).toEqual(['caper']);
+    const ids = offered.map((sp) => sp.id);
+    expect(ids).toEqual(expect.arrayContaining(['caper', 'ice-plant']));
+    const foreign = [...floraOf(allSpecies(), getScenery('japanese-garden').flora), ...floraOf(allSpecies(), getScenery('waterfall').flora)].map((sp) => sp.id);
+    for (const id of foreign) expect(ids, id).not.toContain(id);
     expect(COAST.available(new URLSearchParams())).toBe(false);
+  });
+
+  it('shares the caper, oleander, pomegranate, grapevine and southern maidenhair with the oasis, and the ice plant with no other garden', () => {
+    const SHARED = ['caper', 'grapevine', 'oleander', 'pomegranate', 'southern-maidenhair'];
+    const offeredIn = (id: 'coast' | 'oasis' | 'japanese-garden' | 'waterfall') => floraOf(allSpecies(), getScenery(id).flora).map((sp) => sp.id);
+    expect(offeredIn('coast')).toEqual(expect.arrayContaining(SHARED));
+    expect(offeredIn('oasis')).toEqual(expect.arrayContaining(SHARED));
+    for (const id of ['japanese-garden', 'waterfall'] as const) {
+      for (const sp of [...SHARED, 'ice-plant']) expect(offeredIn(id), `${id} ${sp}`).not.toContain(sp);
+    }
+    expect(offeredIn('oasis')).not.toContain('ice-plant');
   });
 
   it('has an empty wildlife table, the sea as its still water', () => {

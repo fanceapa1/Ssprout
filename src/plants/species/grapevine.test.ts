@@ -90,8 +90,8 @@ describe('grapevine', () => {
     expect(Math.max(...radii)).toBeGreaterThan(9);
   });
 
-  it('is cultivated in the oasis’s realm only', () => {
-    expect(grapevine.range.cultivatedIn).toEqual(['n-africa-arabia']);
+  it('is cultivated in the oasis’s and the Mediterranean’s realms only', () => {
+    expect(grapevine.range.cultivatedIn).toEqual(['n-africa-arabia', 'mediterranean']);
     expect(grapevine.range.realms).toEqual([]);
   });
 });

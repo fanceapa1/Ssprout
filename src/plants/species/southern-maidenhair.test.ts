@@ -76,7 +76,7 @@ describe('southern maidenhair plan', () => {
 });
 
 describe('southern maidenhair in the gardens', () => {
-  it('is offered by the oasis only: the Japanese gardens keep their own maidenhair', () => {
+  it('is offered by the oasis (and the coast), not the Japanese gardens: they keep their own maidenhair', () => {
     const offers = (s: 'oasis' | 'japanese-garden' | 'waterfall') => floraOf(allSpecies(), getScenery(s).flora).some((sp) => sp.id === 'southern-maidenhair');
     expect([offers('oasis'), offers('japanese-garden'), offers('waterfall')]).toEqual([true, false, false]);
   });
