@@ -8,7 +8,7 @@ import type { Pt, Rect } from '../render/viewport';
 import type { SceneGeometry } from '../scene/geometry';
 import type { FaunaMode } from './schedule';
 import type { ArtCache } from './sprite';
-import type { FlowerTarget, GroundSpot, Pad, Perch, Stand, WallFace } from './targets';
+import type { Carrier, FlowerTarget, GroundSpot, Pad, Perch, Region, Stand, WallFace } from './targets';
 import type { FaunaKind } from './tuning';
 
 export type Ctx = CanvasRenderingContext2D;
@@ -52,6 +52,10 @@ export interface FaunaWorld {
   ground: GroundSpot[];
   /** upright faces lizards cling to (`SceneryFauna.walls`) */
   walls: WallFace[];
+  /** areas to live in: shallows, pools, a far bay, the air, bark (`SceneryFauna.regions`) */
+  regions: Region[];
+  /** moving bodies under perches, by id (`SceneryFauna.carriers`, `Perch.carrier`) */
+  carriers: Readonly<Record<string, Carrier>>;
   pads: Pad[];
   art: ArtCache;
   /** where a heron could wade right now (cached) */

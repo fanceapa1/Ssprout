@@ -13,7 +13,7 @@ import { OASIS } from '.';
 import { OASIS_GROUND, OASIS_PERCHES, OASIS_STANDS, OASIS_WALLS, oasisPerspective } from './wildlife';
 
 /** Colour and the height (world units at scale 1) of the bird that would use each perch kind. */
-const KINDS: Record<Perch['kind'], { colour: string; size: number }> = {
+const KINDS: Partial<Record<Perch['kind'], { colour: string; size: number }>> = {
   wall: { colour: '#d0662a', size: 19 },
   rim: { colour: '#1f7f86', size: 19 },
   frond: { colour: '#3f7a2a', size: 28 },
@@ -78,7 +78,7 @@ function drawTargets(ctx: CanvasRenderingContext2D, unit: number): void {
     ctx.stroke();
   }
   for (const p of OASIS_PERCHES) {
-    const k = KINDS[p.kind];
+    const k = KINDS[p.kind] ?? KINDS.rock!;
     const slope = p.slope ?? 0;
     ctx.beginPath();
     ctx.moveTo(p.x - p.spread, p.y - slope * p.spread);

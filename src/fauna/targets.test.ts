@@ -4,7 +4,10 @@ import type { PlantInstance } from '../core/state';
 import { gardenScene, type Slot } from '../scene/geometry';
 import { pointInPolygon, polygonCentroid } from './math';
 import {
+  carried,
   choosePerch,
+  inRegion,
+  regionScale,
   flowerTargets,
   heronStands,
   lilyPads,
@@ -103,6 +106,28 @@ describe('perches', () => {
     expect(wallFootAt(face, 50)).toBeCloseTo(125);
     expect(wallTopAt(face, -20)).toBe(100);
     expect(wallTopAt(face, 300)).toBe(90);
+  });
+
+  it('a region is its outline minus its holes; a far stage has its own scale down its height (ADR 0373)', () => {
+    const square = (x: number, y: number, s: number) => [{ x, y }, { x: x + s, y }, { x: x + s, y: y + s }, { x, y: y + s }];
+    const r = { outline: square(0, 100, 100), holes: [square(40, 140, 20)], scale: { top: 0.02, bottom: 0.06 } };
+    expect(inRegion(r, { x: 10, y: 110 })).toBe(true);
+    expect(inRegion(r, { x: 50, y: 150 })).toBe(false);
+    expect(inRegion(r, { x: 150, y: 150 })).toBe(false);
+    expect(regionScale(r, 100)).toBeCloseTo(0.02);
+    expect(regionScale(r, 150)).toBeCloseTo(0.04);
+    expect(regionScale(r, 400)).toBeCloseTo(0.06);
+    expect(regionScale({ outline: r.outline }, 150)).toBeNull();
+  });
+
+  it('a point on a carrier follows its pose about the pivot; at rest or without one it stays', () => {
+    const c = { pivot: { x: 100, y: 100 }, pose: { dx: 0, dy: 0, angle: 0 } };
+    expect(carried({ x: 100, y: 60 }, c)).toEqual({ x: 100, y: 60 });
+    expect(carried({ x: 100, y: 60 }, undefined)).toEqual({ x: 100, y: 60 });
+    c.pose = { dx: 3, dy: -1, angle: Math.PI / 2 };
+    const q = carried({ x: 100, y: 60 }, c);
+    expect(q.x).toBeCloseTo(143);
+    expect(q.y).toBeCloseTo(99);
   });
 
   it('choosePerch avoids occupied perches and prefers the kind asked for', () => {
