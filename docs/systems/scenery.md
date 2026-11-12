@@ -74,6 +74,7 @@ The Japanese garden's painters stay in `src/scene/` (docs/systems/scene.md): its
 | `coast/flora.ts`, `coast/fauna.ts` | `COAST_FLORA` (ADR 0361; offers the five shared species and the ice plant so far); `COAST_FAUNA` (empty) and `COAST_WILDLIFE` |
 | `coast/painters.ts`, `coast/paint-placeholder.ts` | the lazy chunk: `coastSteps` runs draft B's steps moved onto the final layout; `COAST_PAINTERS_LOADED` |
 | `coast/sky.ts`, `coast/light.ts` | placeholders: one wash per phase cut to the skyline with a low glow over the sea, a mirrored sea sky; a shade under the promontory and the walls, warm light on the temple at low suns |
+| `coast/sea.ts`, `coast/paint-water.ts`, `coast/boat.ts`, `coast/water.studio.ts` | the water (G3, ADR 0366): its shapes (eager data: depth lines, seabed, reflections, the caique, foam and wrack lines), its painters (`paintSea`, `paintBeach`, `paintPools`, `paintCaique`), studio `coast-water` (153) |
 | `coast/map.studio.ts` | studio `coast-map` (152): the composition map over the placeholder painting (`map`), and the painting under the midday plate (`painting`) |
 | `coast/coast.test.ts` | see Tests |
 
@@ -856,12 +857,56 @@ Raised slots (on a terrace, a coping or a face) take their terrace's lift; the r
 behind, so no plant stands over the base of one higher up, and neither tree hides a slot. The
 tree slots' crowns keep clear of the temple and the sun's paths.
 
+### Water (G3, `paint-water.ts`, `boat.ts`, shapes in `sea.ts`, ADR 0366)
+Steps `sea` and `caique` (element `sea`, before the rock) and `beach` and `pools` (element
+`beach`, right after `shore`), in parts. Palettes `SEA`, `SAND` and `BOAT`; lit from the left.
+- **Depth** (ADR 0366): `shoreDistance` measures from the near shore (`SHORE_PATH`: the shoreline,
+  then the beach's waterline), the vertical stretched 2.4× and the rock's foot made steep.
+  `shoreContour(r)` finds, per 6-unit column, the first point down from the horizon nearer than
+  `r`, smoothed more the farther out, so the lines round the coves without looping. `DEPTH`:
+  shallows 150, turquoise 420, deep 640.
+- **Sea**, light to dark, every wash running from above the horizon (clipped to it) past both
+  sides, under the promontory, the land and the beach: glassy aquamarine everywhere; a paler
+  turquoise and then the strong turquoise out past the shallows' edge; ultramarine into deep teal
+  from the horizon, lost downward; ultramarine far out. Then the seabed (`SEAGRASS` meadows and
+  `SEABED_ROCKS`, granulating, one layer each; `SAND_WINDOWS` lifted behind the shallows' plants),
+  the horizon's haze, the far hill and the village's walls mirrored (`HILL_REFLECTION`), the pale
+  cliff mirrored under its foot (`CLIFF_REFLECTION`) with a dark line at the foot (`CLIFF_FOOT`),
+  level breaks across both, wind lanes as broken pale streaks in four uneven bands, a few short
+  dark ripples, and dry-brush sparkles on the left.
+- **Beach**: paper reserved from just above the waterline to the beach's back (`beachBody`; the
+  sand's wash runs 8 past it over the shelf's edge), wet sand graded to pale dry shingle, a warm
+  glaze up the beach; shingle by spatter in drifts, larger pebbles with a shade to the lower
+  right; the wrack line (`WRACK_LINE`) in broken dry brush with shells. At the water: an aquamarine film thinning over the sand, broken
+  wet dark sand, and the foam as lace along two scalloped reaches of `FOAM_LINE` with bubbles.
+- **Pools**: each `POOLS` outline reserved and washed aquamarine with a dark wet edge, a hinted
+  bottom, a soft darker middle, the far rim's shade with its pale reflection under it, and a sky
+  glint. The rims (the rock task) are painted before them (ADR 0366).
+- **Caique** (`CAIQUE_SHAPES`, about `CAIQUE`, scale 0.85, bow left): the white hull mirrored soft
+  and then in broken slices, the red and blue bands and the mast mirrored in pieces, the hull's
+  shade on the water; the hull reserved white with a cool shade low and at the stern, the far
+  gunwale's wooden inside, a blue sheer strake, a red band at the waterline, the dark gunwale cap,
+  blue stem and sternpost heads; the mast, the sail furled on its yard with ties, the mooring line
+  to a red buoy with a ring.
+- **The generic water surface** (`water.ts`) still plays on the whole sea (`pondSurface` left out):
+  slow shimmer, a ring every 9 s, glints. It is acceptable until the coast's own motion lands;
+  that task should set `pondSurface` (ADR 0302) when it replaces it.
+- **Seams for motion and daylight**: `shallowsEdge()` (the pale shallows' edge), `FOAM_LINE` (the
+  waterline's foam, left to right), `WRACK_LINE`, `CAIQUE_SHAPES` and `CAIQUE_BOX` (the boat, its
+  mast and its reflection: what a rocking sprite covers), `CLIFF_FOOT`, `CLIFF_REFLECTION`,
+  `HILL_REFLECTION`, `SEA_RECT`, the seabed patches; `POOL_WATER` (geometry).
+- **Cost** (dev server, 1440×900 at DPR 1, overview, `sceneStats().timings`): sea 174 ms in 446
+  parts (longest 12 ms), caique 11 ms (190 parts), beach 61 ms (171 parts, longest 6 ms), pools
+  19 ms (289 parts): about 265 ms in all.
+- Studio `coast-water` (153): `sea`, `cove`, `shoreline`, `beach`, `pool`, `caique`, `scene`.
+
 ### Left for later tasks
 - The rock painter: the promontory, the temple, the shoreline's shelf, bastion, boulders and steps,
   the splash rocks, the beach's shingle and the rock shelf. The placeholder strokes a grey lip along
   `SHORE_EDGE` and leaves a sliver of paper at the promontory's tip.
-- The water painter: the sea from deep turquoise to aquamarine shallows, the waterline's lap, the
-  pools, the caique. The placeholder sea's wash bleeds over the horizon in lobes that read as far hills.
+- Water (devlog 176, Left open): the far hill's reflection is faint, the shingle's spatter still
+  reads a little even, and the placeholder `paintSea` and `paintCaique` are unused until the
+  placeholder file goes.
 - Land and vegetation: the far hill and the village, the walls, gravel, beds, the olive, the
   leaning pine, the promontory's pines and scrub.
 - Daylight: real plates lit from the left; the architrave and the crowns sit under the sky's wash.
@@ -869,6 +914,13 @@ tree slots' crowns keep clear of the temple and the sun's paths.
   stands on the splash rocks; a far sea band).
 
 ## Tests
+- `src/scenery/coast/water.test.ts` (G3): the water's steps and their order; recording hash pins
+  (overview and a close view of the caique); no part over 130 k calls or 400 k pixels; every step
+  in many parts; the sea's washes cover the sea and the beach's runs under the shelf; depth lines
+  across the sea, deeper ones farther out, never looping; the shallows' slots in the water, out of
+  the deep and off the dark seabed, most on sandy windows; pool slots in a pool; beach slots on
+  the beach below the foam; the caique on open water, clear of every slot, the reflections below
+  the horizon.
 - `src/scenery/coast/coast.test.ts` (G1): offered only with `?dev&scenery=coast`; self-consistency
   with no building, lantern, eave, falls, streams or motion; its placeholder steps by element;
   habitat words; `pathOut` from the bottom edge up the terraces; the framing (the temple, open sea,
