@@ -1,6 +1,6 @@
 /**
  * The Greek coast as a scenery (phase 15, G1): draft B's clifftop terraces over an Ionian cove on
- * the scenery contract, with its slots, flora, an empty wildlife table, and placeholder painting,
+ * the scenery contract, with its slots, flora, its wildlife's table and places, and placeholder painting,
  * sky and light in a lazy chunk (ADR 0341). Hidden behind `?dev&scenery=coast`.
  * docs/systems/scenery.md › Coast.
  */
@@ -8,7 +8,7 @@ import type { LightArt } from '../../ambience/cast';
 import type { SceneArt } from '../../scene/background';
 import { lazyPainters } from '../painters';
 import type { GardenPainters, Scenery, ScenerySky, SceneryView } from '../types';
-import { COAST_WILDLIFE } from './fauna';
+import { COAST_WILDLIFE } from './wildlife';
 import { COAST_FLORA } from './flora';
 import { coastScene } from './geometry';
 import { COAST_AMBIENCE, COAST_HABITAT_WORDS, COAST_SKY_LAYOUT, COAST_SKY_RECT, FOCUS, PATH, openSky } from './layout';

@@ -428,10 +428,10 @@ describe('the coast’s flora and wildlife (skeleton)', () => {
     expect(offeredIn('oasis')).not.toContain('ice-plant');
   });
 
-  it('has an empty wildlife table, the sea as its still water', () => {
+  it('has its wildlife table and places, the sea as its still water (fauna.test.ts, wildlife.test.ts)', () => {
     expect(faunaTable('coast')).toBe(COAST.fauna.unlocks);
-    expect(COAST.fauna.unlocks).toEqual([]);
-    expect(COAST.fauna.water).toBeUndefined();
+    expect(COAST.fauna.unlocks.length).toBeGreaterThan(0);
+    expect(COAST.fauna.water!.still).toBe(COAST.geometry.pond);
   });
 });
 

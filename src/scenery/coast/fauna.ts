@@ -1,10 +1,167 @@
 /**
- * The Greek coast's wildlife (ADR 0248): an empty unlock table until the phase 15 creatures and the
- * shared ones land. The sea is its still water (the geometry's default). docs/systems/scenery.md › Coast.
+ * The Greek coast's unlock table (ADR 0248, 0373): its own twelve creatures, the ones it shares
+ * with the other gardens by biology, and the hoopoe and gecko once their modules exist
+ * (docs/research/coast-biome.md §3). Data only, so `scenery/fauna.ts` reads it without the painting;
+ * where they live is `./wildlife.ts`. Rows whose creature module does not exist yet are skipped.
+ * docs/systems/fauna.md › The coast.
  */
 import type { FaunaTable } from '../../core/fauna-unlocks';
-import type { SceneryFauna } from '../../fauna/habitat';
 
-export const COAST_FAUNA: FaunaTable = [];
-
-export const COAST_WILDLIFE: SceneryFauna = { unlocks: COAST_FAUNA };
+export const COAST_FAUNA: FaunaTable = [
+  {
+    id: 'island-cat',
+    kind: 'cat',
+    rule: 'always',
+    arrival: 'An island cat dozes on the warm wall.',
+    announce: false,
+    unlocked: () => true,
+  },
+  {
+    id: 'gull',
+    kind: 'gull',
+    rule: '1 plant',
+    arrival: "A yellow-legged gull stands on the caique's mast.",
+    announce: true,
+    unlocked: (c) => c.plants >= 1,
+  },
+  {
+    id: 'cicada',
+    kind: 'cicada',
+    rule: '2 plants',
+    arrival: "A cicada sings on the olive's trunk.",
+    announce: true,
+    unlocked: (c) => c.plants >= 2,
+  },
+  {
+    id: 'green-lizard',
+    kind: 'green-lizard',
+    rule: '3 plants',
+    arrival: 'A Balkan green lizard basks on the dry-stone wall.',
+    announce: true,
+    unlocked: (c) => c.plants >= 3,
+  },
+  {
+    id: 'butterflies',
+    kind: 'butterfly',
+    variant: 'white',
+    rule: '4 pollinator flowers',
+    arrival: 'A cabbage white flutters over the terrace beds.',
+    announce: true,
+    unlocked: (c) => c.pollinatorFlowers >= 4,
+  },
+  {
+    id: 'rock-crab',
+    kind: 'rock-crab',
+    rule: '5 plants',
+    arrival: 'A marbled rock crab sidles over a splash rock.',
+    announce: true,
+    unlocked: (c) => c.plants >= 5,
+  },
+  {
+    id: 'bees',
+    kind: 'bee',
+    rule: '6 pollinator flowers',
+    arrival: 'Honeybees have found the flowers on the terraces.',
+    announce: true,
+    unlocked: (c) => c.pollinatorFlowers >= 6,
+  },
+  {
+    id: 'swallows',
+    kind: 'swallow',
+    rule: '7 plants',
+    arrival: 'Swallows from the village skim over the cove.',
+    announce: true,
+    unlocked: (c) => c.plants >= 7,
+  },
+  {
+    id: 'blue-rock-thrush',
+    kind: 'rock-thrush',
+    rule: '8 plants',
+    arrival: "A blue rock thrush sings from the temple's columns.",
+    announce: true,
+    unlocked: (c) => c.plants >= 8,
+  },
+  {
+    id: 'swallowtail',
+    kind: 'butterfly',
+    variant: 'swallowtail',
+    rule: '8 pollinator flowers',
+    arrival: 'A swallowtail sails down the terraces.',
+    announce: true,
+    unlocked: (c) => c.pollinatorFlowers >= 8,
+  },
+  {
+    id: 'goats',
+    kind: 'goat',
+    rule: '9 plants',
+    arrival: 'Goats browse on the ledges of the far cliff.',
+    announce: true,
+    unlocked: (c) => c.plants >= 9,
+  },
+  {
+    id: 'tortoise',
+    kind: 'tortoise',
+    rule: '10 plants',
+    arrival: "A Hermann's tortoise plods out of the scrub.",
+    announce: true,
+    unlocked: (c) => c.plants >= 10,
+  },
+  {
+    id: 'damselfish',
+    kind: 'damselfish',
+    rule: '11 plants',
+    arrival: 'A shoal of blue damselfish hovers in the shallows.',
+    announce: true,
+    unlocked: (c) => c.plants >= 11,
+  },
+  {
+    id: 'scops-owl',
+    kind: 'scops-owl',
+    rule: '12 plants, at night',
+    arrival: 'A scops owl calls from the olive after dark.',
+    announce: true,
+    unlocked: (c) => c.plants >= 12,
+  },
+  {
+    id: 'hoopoe',
+    kind: 'hoopoe',
+    rule: '13 plants',
+    arrival: 'A hoopoe walks the terrace, its crest raised.',
+    announce: true,
+    unlocked: (c) => c.plants >= 13,
+  },
+  {
+    // the Mediterranean house gecko: the oasis's kind in a paler variant (docs/research/coast-biome.md §3)
+    id: 'gecko',
+    kind: 'gecko',
+    variant: 'house',
+    rule: '14 plants, at night',
+    arrival: 'A house gecko waits on the warm wall after dark.',
+    announce: true,
+    unlocked: (c) => c.plants >= 14,
+  },
+  {
+    id: 'octopus',
+    kind: 'octopus',
+    rule: '16 plants, rare',
+    arrival: 'An octopus ripples across the rock pool.',
+    announce: true,
+    unlocked: (c) => c.plants >= 16,
+  },
+  {
+    id: 'heron',
+    kind: 'heron',
+    rule: '18 plants, rare',
+    arrival: 'A grey heron stands at the edge of the cove.',
+    announce: true,
+    unlocked: (c) => c.plants >= 18,
+  },
+  {
+    id: 'dolphins',
+    kind: 'dolphin',
+    rule: '20 plants, rare',
+    arrival: 'Dolphins break the surface far out in the bay.',
+    announce: true,
+    unlocked: (c) => c.plants >= 20,
+  },
+];
