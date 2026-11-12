@@ -136,6 +136,40 @@ test.describe('scene · landscape from the paint cache (ADR 0228)', () => {
   });
 });
 
+test.describe('scene · close-view buffers freed at the overview (devlog 158)', () => {
+  test.use({ viewport: { width: 1440, height: 900 } });
+
+  test('back at the overview the close view frees its buffers; the next rest takes the same detail from the cache', async ({ page }) => {
+    const rest = async () => {
+      await page.evaluate(() => window.sprout!.camera.glideTo({ zoom: 3, x: 300, y: 300 }, { animate: false }));
+      const frame = await sceneFrame(page, true);
+      const s = await page.evaluate(() => ({ detail: window.sprout!.sceneDetail(), cache: window.sprout!.frameStats().cachePixels }));
+      await page.evaluate(() => window.sprout!.unfreeze());
+      return { frame, ...s };
+    };
+    await openDev(page);
+    await page.evaluate(() => window.sprout!.camera.autoFocus(false));
+    const overview = await page.evaluate(() => window.sprout!.frameStats().cachePixels);
+    const painted = await rest();
+    expect(painted.cache).toBeGreaterThan(overview);
+    expect(painted.detail).toMatchObject({ paints: 1, cacheMisses: 1, freed: 0 });
+    expect(painted.detail.pixels).toBeGreaterThan(0);
+    await page.evaluate(async () => {
+      await window.sprout!.paintCache.settle();
+      window.sprout!.camera.overview({ animate: false });
+      await window.sprout!.camera.settle();
+    });
+    await page.waitForFunction(() => window.sprout!.sceneDetail().freed === 1);
+    const back = await page.evaluate(() => ({ detail: window.sprout!.sceneDetail(), cache: window.sprout!.frameStats().cachePixels }));
+    expect(back.detail).toMatchObject({ view: null, pixels: 0 });
+    // the resting view's background cache is gone too
+    expect(back.cache).toBe(overview);
+    const again = await rest();
+    expect(again.detail).toMatchObject({ paints: 1, cacheHits: 1, view: painted.detail.view, pixels: painted.detail.pixels });
+    expect(again.frame).toEqual(painted.frame);
+  });
+});
+
 test.describe('scene · landscape from the paint cache at DPR 2 (ADR 0228)', () => {
   // the paint scale is capped at 1.5 there, so the painting is drawn upscaled
   test.use({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2 });
