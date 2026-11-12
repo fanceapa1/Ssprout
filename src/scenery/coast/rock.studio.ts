@@ -45,7 +45,7 @@ function region(id: string, label: string, rect: Rect, only?: readonly string[],
 const section: StudioSection = {
   id: 'coast-rock',
   title: 'Scenery · coast rock',
-  order: 153,
+  order: 154,
   entries: [
     region('promontory', 'the limestone promontory: blocks in light and shade planes, tilted beds with lit ledges over undercuts, fissures, rust stains, the sea-cut notch and wet band, scree onto the top terrace', { x: 600, y: 270, w: 1000, h: 260 }, undefined, 1400),
     region('point', 'the promontory’s point under the temple: the notch and wet band at the sea, ledges and planes', { x: 620, y: 300, w: 420, h: 220 }, undefined, 1200),

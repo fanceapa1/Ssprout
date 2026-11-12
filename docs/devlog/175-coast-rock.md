@@ -7,7 +7,7 @@
 - Files: `paint-rocks.ts` (the promontory and the shore's rock), `temple.ts`, `village.ts` (the far
   hill, the headlands and the village), `rock-kit.ts` (palette and helpers), `shapes.ts` (data:
   `SPLASH_ROCK_SHAPES`, `SHORE_BOULDER_SHAPES`, `VILLAGE_CUBES`), `rock.studio.ts` (studio
-  `coast-rock`, 153: promontory, point, temple, village, shore, the rock alone) and `rock.test.ts`.
+  `coast-rock`, 154: promontory, point, temple, village, shore, the rock alone) and `rock.test.ts`.
 - **The hook** (`painters.ts`, `index.ts`), kept together:
   - `COAST_ELEMENTS.rock` is now `['village', 'promontory', 'promontory-green', 'temple']`, and a new
     element `stones: ['shore-rocks']` sits between `land` and `trees`.
