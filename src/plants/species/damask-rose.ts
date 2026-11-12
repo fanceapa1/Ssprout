@@ -342,9 +342,10 @@ const damaskRose: SpeciesDef = {
       const roses = { petal: PINK, pale: PALE, deep: DEEP, gold: GOLD, sepal: SEPAL };
       for (const band of [0, 1, 2]) {
         const op = band === 0 ? 0.72 : 0.88;
-        paintCanes(p, pose.canes.filter((c) => c.band === band), pose.prickles.filter((k) => k.band === band), { opacity: op * 0.9, accent: mix(CANE, PIGMENTS.sumi, 0.2), young: YOUNG, prickle: mix(YOUNG, CANE, 0.4) });
-        for (const group of [0, 1]) paintLeaflets(p, pose.leaves.filter((l) => l.band === band && l.group === group), { opacity: op * 0.95 });
+        const canes = pose.canes.filter((c) => c.band === band);
+        for (const group of [0, 1]) paintLeaflets(p, pose.leaves.filter((l) => l.band === band && l.group === group), { opacity: op * 0.95 }, group === 0 ? canes : []);
       }
+      paintCanes(p, pose.canes, pose.prickles, { accent: mix(CANE, PIGMENTS.sumi, 0.2), young: YOUNG, prickle: mix(YOUNG, CANE, 0.4) });
       // the cups sit over the foliage: a leaf glazed over pink turns it brown
       paintRoses(p, pose.flowers, roses);
     });
