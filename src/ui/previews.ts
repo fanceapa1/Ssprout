@@ -1,6 +1,7 @@
 import { createRng } from '../core/rng';
 import { createPainter, mix, PIGMENTS } from '../paint';
 import { drawPlantView, prewarmPlantView, renderPlantView } from '../plants/view';
+import { loadPainter, painterReady } from '../plants/painter';
 import type { SpeciesDef } from '../plants/types';
 
 /**
@@ -164,6 +165,11 @@ export function renderPlantPreview(
 ): void {
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
+  if (!painterReady(species)) {
+    // its painter loads lazily (ADR 0348): nothing to paint on this thread yet
+    void loadPainter(species);
+    return;
+  }
   const { sw, sh, x, y } = fitSprite(species, canvas.width, canvas.height);
   const sprite = createCanvas(sw, sh);
   species.draw(createPainter(sprite), createRng(seed), { w: sw, h: sh, growth: Math.min(1, Math.max(0, growth)) });
@@ -261,6 +267,12 @@ export function createPreviewCache(
     return r.state === 'pending' ? { pending: r.ready } : { fallback: true };
   };
 
+  /** the species' painter on this thread, for what is painted here (ADR 0348) */
+  const withPainter = (speciesId: string): Promise<boolean> => {
+    const def = getSpecies(speciesId);
+    return def ? loadPainter(def) : Promise.resolve(false);
+  };
+
   const blit = (target: HTMLCanvasElement, src: HTMLCanvasElement): boolean => {
     if (target.width !== src.width) target.width = src.width;
     if (target.height !== src.height) target.height = src.height;
@@ -276,6 +288,11 @@ export function createPreviewCache(
       const key = previewKey(speciesId, opts);
       if (cache.has(key)) return cache.get(key) ?? null;
       const def = getSpecies(speciesId);
+      if (def && !painterReady(def)) {
+        // not cached either way: its painter loads lazily (ADR 0348), drawn on a later call
+        void loadPainter(def);
+        return null;
+      }
       let canvas: HTMLCanvasElement | null = null;
       if (def) {
         try {
@@ -338,7 +355,7 @@ export function createPreviewCache(
     whenReady(speciesId, opts) {
       const key = previewKey(speciesId, opts);
       if (cache.has(key)) return Promise.resolve(cache.get(key) !== null);
-      if (opts.pressed || warmed.get(key) === false) return Promise.resolve(api.get(speciesId, opts) !== null);
+      if (opts.pressed || warmed.get(key) === false) return withPainter(speciesId).then(() => api.get(speciesId, opts) !== null);
       const known = hurrying.get(key);
       if (known) return known;
       const hurry = async (): Promise<boolean> => {
@@ -351,6 +368,7 @@ export function createPreviewCache(
         }
         // the worker could not paint it: draw it the old way, now
         warmed.set(key, false);
+        await withPainter(speciesId);
         return api.get(speciesId, opts) !== null;
       };
       const p = hurry().finally(() => hurrying.delete(key));

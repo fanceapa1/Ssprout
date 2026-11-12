@@ -5,6 +5,7 @@ import { defineConfig } from 'vitest/config';
 import { fontPreloadHrefs } from './src/build/font-preload.ts';
 import { buildPrecacheManifest, describeBundle, injectPrecache, type OutputFileLike } from './src/build/sw-manifest.ts';
 import { computePaintVersion } from './src/paint/paint-version.ts';
+import { speciesMetaPlugin } from './src/build/species-meta.ts';
 
 const root = import.meta.dirname;
 
@@ -60,7 +61,7 @@ function fontPreload(): Plugin {
 // GitHub Pages serves the site from https://<user>.github.io/Ssprout/
 export default defineConfig(({ command }) => ({
   base: '/Ssprout/',
-  plugins: [swManifest(), fontPreload()],
+  plugins: [speciesMetaPlugin(), swManifest(), fontPreload()],
   define: {
     // A hash of every source that affects painted pixels, keying the persistent paint cache
     // (src/paint/persist.ts, ADR 0227). The dev server and Vitest get 'dev', which turns the

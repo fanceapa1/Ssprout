@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   contentBounds,
   INK_PAD,
@@ -23,6 +23,7 @@ import {
   type SpriteSpec,
   type WorkerLike,
 } from './sprites';
+import { lazySpecies } from './painter';
 import type { SpeciesDef } from './types';
 
 const def = { id: 'sp', size: { w: 100, h: 160 } } as unknown as SpeciesDef;
@@ -232,6 +233,29 @@ describe('sprite cache scheduling', () => {
     // already cached: no new work
     cache.request(spec(4), PRIORITY.now);
     expect(idle.pending).toBe(0);
+  });
+
+  it('a main-thread job waits for its lazy painter; ensureSync queues it instead (ADR 0348)', async () => {
+    const idle = manualIdle();
+    const painted: number[] = [];
+    let land!: (d: SpeciesDef) => void;
+    const lazy = lazySpecies({ ...(def as unknown as Omit<SpeciesDef, 'draw'>) }, () => new Promise<SpeciesDef>((r) => (land = r)));
+    const cache = createSpriteCache({
+      getSpecies: (id) => (id === 'sp' ? lazy : undefined),
+      createWorker: null,
+      scheduleIdle: idle.schedule,
+      renderSync: (_d, s) => (painted.push(s.step), { image: {} as CanvasImageSource, bounds: null }),
+    });
+    expect(cache.ensureSync(spec(2))).toBeUndefined();
+    expect(cache.pending(spec(2))).toBe(true);
+    cache.request(spec(5), PRIORITY.next);
+    expect(idle.pending).toBe(0);
+    land({ ...lazy, draw: () => {} });
+    await vi.waitFor(() => expect(idle.pending).toBe(1));
+    idle.run();
+    idle.run();
+    expect(painted).toEqual([2, 5]);
+    expect(cache.ensureSync(spec(7))).toBeDefined();
   });
 
   it('raises the priority of a queued request', () => {

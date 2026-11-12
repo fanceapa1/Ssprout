@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { EVERYWHERE } from './biomes';
-import { allSpecies, buildRegistry, getSpecies, speciesByTier } from './registry';
+import { speciesMeta } from '../build/species-meta';
+import { loadPainter, painterReady } from './painter';
+import { getPainter } from './painters';
+import { allSpecies, buildRegistry, fromMeta, getSpecies, speciesByTier } from './registry';
 import { fitsSize, reflects, TIERS, type SpeciesDef } from './types';
 
 const stub = (id: string, extra: Partial<SpeciesDef> = {}): { default: SpeciesDef } => ({
@@ -51,6 +54,28 @@ describe('species registry', () => {
     expect(() => buildRegistry({ './species/a.ts': stub('b') })).toThrow(/file name/);
     const reg = buildRegistry({ './species/z.ts': stub('z'), './species/a.ts': stub('a') });
     expect([...reg.keys()]).toEqual(['a', 'z']);
+  });
+
+  it('metadata without draw becomes a lazy species (ADR 0348)', async () => {
+    const { draw: _d, ...meta } = stub('a').default;
+    const full = stub('a').default;
+    const mods = fromMeta({ './species/a.ts': { default: meta as SpeciesDef }, './species/b.ts': stub('b') }, { './species/a.ts': () => Promise.resolve(full) });
+    const a = mods['./species/a.ts']!.default;
+    expect(painterReady(a)).toBe(false);
+    expect(await loadPainter(a)).toBe(true);
+    expect(painterReady(a)).toBe(true);
+    expect(painterReady(mods['./species/b.ts']!.default)).toBe(true);
+  });
+
+  it("every species' metadata survives the build's JSON extraction unchanged", () => {
+    for (const s of allSpecies()) {
+      const { draw: _d, ...meta } = s;
+      expect(speciesMeta(s as unknown as Record<string, unknown>)).toStrictEqual(meta);
+    }
+  });
+
+  it('the worker registry holds every species with its painter', () => {
+    for (const s of allSpecies()) expect(typeof getPainter(s.id)?.draw).toBe('function');
   });
 });
 

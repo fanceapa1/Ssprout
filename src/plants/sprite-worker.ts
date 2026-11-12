@@ -1,11 +1,12 @@
 /**
  * Plant sprite worker (docs/systems/plants.md › Sprites, ADR 0111): paints sprites off the main
  * thread into OffscreenCanvas with the same `paintSprite` the main thread uses, and transfers
- * the result back as an ImageBitmap. Species come from the registry plus the dev fixtures; a
- * species it does not know is answered with `unknown` and painted on the main thread instead.
+ * the result back as an ImageBitmap. Species come from every painter (`painters.ts`, ADR 0348)
+ * plus the dev fixtures; a species it does not know is answered with `unknown` and painted on
+ * the main thread instead.
  */
 import { FIXTURE_SPECIES } from '../dev/fixture-species';
-import { getSpecies } from './registry';
+import { getPainter as getSpecies } from './painters';
 import { paintSprite, type WorkerReply, type WorkerRequest } from './sprites';
 import type { SpeciesDef } from './types';
 
