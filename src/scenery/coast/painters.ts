@@ -8,10 +8,13 @@ import { paintMargins } from '../../scene/paint-land';
 import type { GardenPainters } from '../types';
 import { COAST_ELEMENTS } from './index';
 import { COAST_LIGHT } from './light';
-import { paintBeds, paintFarHill, paintLand, paintOlive, paintPine, paintPromontory, paintShore, paintTemple, paintWalls } from './paint-placeholder';
+import { paintBeds, paintLand, paintOlive, paintPine, paintPromontoryGreen, paintShore, paintWalls } from './paint-placeholder';
 import { paintCaique } from './boat';
 import { paintBeach, paintPools, paintSea } from './paint-water';
+import { paintPromontory, paintShoreRocks } from './paint-rocks';
 import { COAST_SKY_PAINTERS } from './sky';
+import { paintTemple } from './temple';
+import { paintFarHill, paintVillage } from './village';
 
 type Element = keyof typeof COAST_ELEMENTS;
 type Step = (typeof COAST_ELEMENTS)[Element][number];
@@ -20,11 +23,14 @@ type Step = (typeof COAST_ELEMENTS)[Element][number];
 export function coastSteps(art: SceneArt, only?: readonly string[]): PaintStep[] {
   const r = (label: string) => createRng(art.seed).fork(label);
   const run: Record<Step, PaintStep['run']> = {
-    'far-hill': (p) => paintFarHill(p, r('far-hill')),
+    'far-hill': (p) => paintFarHill(p, r('rock-far-hill')),
     sea: (p) => paintSea(p, r('sea')),
     caique: (p) => paintCaique(p, r('caique')),
-    promontory: (p) => paintPromontory(p, r('promontory')),
-    temple: (p) => paintTemple(p, r('temple')),
+    village: (p) => paintVillage(p, r('rock-village')),
+    promontory: (p) => paintPromontory(p, r('rock-promontory')),
+    'promontory-green': (p) => paintPromontoryGreen(p, r('promontory')),
+    temple: (p) => paintTemple(p, r('rock-temple')),
+    'shore-rocks': (p) => paintShoreRocks(p, r('rock-shore')),
     shore: (p) => paintShore(p, r('shore')),
     beach: (p) => paintBeach(p, r('beach')),
     pools: (p) => paintPools(p, r('pools')),

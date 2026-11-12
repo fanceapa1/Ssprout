@@ -8,8 +8,8 @@ import { PAPER_WHITE, blob, mix, resample, ribbon, rgba, smoothPath, type Painte
 import type { Pt } from '../../render/viewport';
 import { C } from './drafts/b/paint';
 import {
-  ARCHITRAVE, BEACH, CAIQUE, CHAPEL, COLUMNS, COLUMN_W, DRUM, FAR_HILL, HORIZON, LAND, OLIVE, PATH, PINE, POOLS, PROMONTORY,
-  PROMONTORY_PINES, SHELF, SHORE_BOULDERS, SHORE_EDGE, SHORE_SCRUB, SPLASH_ROCKS, STEPS, STYLOBATE, VILLAGE, WALLS, WATERLINE_EDGE,
+  BEACH, CAIQUE, HORIZON, LAND, OLIVE, PATH, PINE, POOLS, PROMONTORY,
+  PROMONTORY_PINES, SHORE_SCRUB, STEPS, WALLS, WATERLINE_EDGE,
 } from './layout';
 
 const poly = (pts: readonly Pt[]): Pt[] => pts.map((q) => ({ x: q.x, y: q.y }));
@@ -26,24 +26,6 @@ function reserve(p: Painter, shape: readonly Pt[]): void {
   p.ctx.fillStyle = rgba(PAPER_WHITE);
   p.ctx.fill();
   p.ctx.restore();
-}
-
-export function paintFarHill(p: Painter, rng: Rng): void {
-  const hill = poly(FAR_HILL);
-  p.wetInWet(hill, mix(C.hill, C.rockWarm, 0.3), C.hillShade, { rng, angle: Math.PI / 2, split: 0.5, opacity: 0.5, deform: 0.04, edge: 0.25, sharpness: 0.7, granulation: 0.35 });
-  for (let i = 0; i < 16; i++) {
-    p.dab({ x: rng.range(20, 460), y: rng.range(330, 396) }, mix(C.scrub, C.hillShade, 0.5), { rng, variant: 'round', length: rng.range(8, 16), width: rng.range(5, 9), opacity: 0.35 });
-  }
-  // whitewashed cubes reserved, a shade side on the right
-  for (const h of VILLAGE) {
-    reserve(p, [{ x: h.x, y: h.y }, { x: h.x + h.w, y: h.y }, { x: h.x + h.w, y: h.y + h.h }, { x: h.x, y: h.y + h.h }]);
-    p.wash([{ x: h.x + h.w * 0.65, y: h.y }, { x: h.x + h.w, y: h.y }, { x: h.x + h.w, y: h.y + h.h }, { x: h.x + h.w * 0.65, y: h.y + h.h }], C.hillShade, { rng, opacity: 0.4, edge: 0.2, layers: 3 });
-    p.stroke([{ x: h.x + 3, y: h.y + h.h * 0.5 }, { x: h.x + 6, y: h.y + h.h * 0.5 }], { rng, pigment: '#4a5468', width: 2, opacity: 0.6 });
-  }
-  const { x, y } = CHAPEL;
-  reserve(p, [{ x: x - 14, y }, { x: x + 14, y }, { x: x + 14, y: y + 22 }, { x: x - 14, y: y + 22 }]);
-  p.dab({ x, y: y - 2 }, C.boat, { rng, variant: 'round', length: 22, width: 18, opacity: 0.9 });
-  p.stroke([{ x, y: y - 18 }, { x, y: y - 10 }], { rng, pigment: '#4a5468', width: 1.6, opacity: 0.7 });
 }
 
 export function paintSea(p: Painter, rng: Rng): void {
@@ -76,23 +58,12 @@ export function paintCaique(p: Painter, rng: Rng): void {
   p.glaze(blob(x, y + 6, 50, 5, rng), C.seaFar, { rng, opacity: 0.3, edge: 0 });
 }
 
-export function paintPromontory(p: Painter, rng: Rng): void {
+/** The pines and scrub on the promontory (G4's): over the rock painter's cliff. */
+export function paintPromontoryGreen(p: Painter, rng: Rng): void {
   const rock = poly(PROMONTORY);
-  reserve(p, rock);
-  p.wetInWet(rock, C.rock, mix(C.rockShade, C.rockWarm, 0.3), { rng, angle: Math.PI / 2 + 0.3, split: 0.6, softness: 0.6, opacity: 0.6, deform: 0.04, spread: 0.03, edge: 0.4, sharpness: 0.75, granulation: 0.5, granules: 0.2 });
-  // the lit top edge, so the wash's ragged rim leaves no paper under the sky's short hang
-  const top = rock.slice(0, rock.findIndex((q) => q.x >= 1620) + 1);
-  p.stroke(top.map((q) => ({ x: q.x, y: q.y + 3 })), { rng, pigment: C.rock, width: 8, opacity: 0.7, wetness: 0.3 });
   p.ctx.save();
   fillPath(p, rock);
   p.ctx.clip();
-  // fissures down the cliff and a dark sea-worn foot where it meets the water
-  for (let i = 0; i < 26; i++) {
-    const x = rng.range(660, 1600);
-    const y = rng.range(400, 470);
-    p.stroke([{ x, y }, { x: x + rng.range(-6, 6), y: y + rng.range(30, 70) }], { rng, pigment: C.rockShade, width: rng.range(3, 8), taper: [0.1, 0.8], opacity: 0.45, wetness: 0.5 });
-  }
-  p.glaze([{ x: 630, y: 420 }, { x: 900, y: 480 }, { x: 900, y: 510 }, { x: 630, y: 440 }], mix(C.rockShade, C.seaFar, 0.3), { rng, opacity: 0.4, edge: 0.1 });
   for (let x = 900; x < 1640; x += rng.range(30, 60)) {
     const y = 360 - (x - 900) * 0.07 + rng.range(10, 60);
     p.wetInWet(blob(x, y, rng.range(24, 44), rng.range(12, 20), rng, { irregularity: 0.4 }), C.scrub, C.pineDark, { rng, angle: Math.PI / 2, split: 0.5, opacity: 0.6, deform: 0.3, edge: 0.2, granulation: 0.3 });
@@ -102,26 +73,6 @@ export function paintPromontory(p: Painter, rng: Rng): void {
     p.stroke([{ x: t.x - 4, y: t.y + t.ry * 2.6 }, { x: t.x + 2, y: t.y }], { rng, pigment: C.trunk, width: 3 + t.rx / 20, opacity: 0.7 });
     p.wetInWet(blob(t.x, t.y, t.rx, t.ry, rng, { irregularity: 0.3, flatBottom: 0.6 }), C.pine, C.pineDark, { rng, angle: Math.PI / 2, split: 0.4, opacity: 0.8, deform: 0.15, edge: 0.3, granulation: 0.3 });
   }
-}
-
-export function paintTemple(p: Painter, rng: Rng): void {
-  const { x0, x1, y: base } = STYLOBATE;
-  p.wash([{ x: x0, y: base - 6 }, { x: x1, y: base - 6 }, { x: x1 + 6, y: base + 6 }, { x: x0 - 6, y: base + 6 }], C.rockShade, { rng, opacity: 0.6, edge: 0.3 });
-  const w = COLUMN_W;
-  for (const c of COLUMNS) {
-    const top = base - c.h;
-    const col: Pt[] = [{ x: c.x - w / 2 + 1, y: top }, { x: c.x + w / 2 - 1, y: top + (c.h < 80 ? 6 : 0) }, { x: c.x + w / 2, y: base - 6 }, { x: c.x - w / 2, y: base - 6 }];
-    reserve(p, col);
-    p.wash(col, C.marble, { rng, opacity: 0.5, edge: 0.3, sharpness: 0.8, granulation: 0.4 });
-    // the shade side away from the sun (on the left)
-    p.wash([{ x: c.x + 2, y: top }, { x: c.x + w / 2, y: top }, { x: c.x + w / 2, y: base - 6 }, { x: c.x + 2, y: base - 6 }], C.rockShade, { rng, opacity: 0.45, edge: 0.2, layers: 3 });
-    for (let k = -1; k <= 1; k++) p.stroke([{ x: c.x + k * 4, y: top + 4 }, { x: c.x + k * 4, y: base - 8 }], { rng, pigment: C.rockShade, width: 1, opacity: 0.35 });
-  }
-  const t = base - Math.max(COLUMNS[0]!.h, COLUMNS[1]!.h);
-  p.wash([{ x: ARCHITRAVE.x0, y: t - ARCHITRAVE.h }, { x: ARCHITRAVE.x1, y: t - ARCHITRAVE.h }, { x: ARCHITRAVE.x1 - 2, y: t }, { x: ARCHITRAVE.x0 + 2, y: t }], mix(C.marble, C.rockShade, 0.4), { rng, opacity: 0.7, edge: 0.3 });
-  const d = blob(DRUM.x, DRUM.y - 6, 16, 9, rng, { irregularity: 0.1 });
-  reserve(p, d);
-  p.wash(d, mix(C.marble, C.rockShade, 0.3), { rng, opacity: 0.6, edge: 0.3 });
 }
 
 export function paintShore(p: Painter, rng: Rng): void {
@@ -134,14 +85,6 @@ export function paintShore(p: Painter, rng: Rng): void {
   const lap = resample(smoothPath(poly(WATERLINE_EDGE), 6), 10);
   p.stroke(lap.map((q) => ({ x: q.x, y: q.y + 6 })), { rng, pigment: C.sandShade, width: 8, opacity: 0.35, wetness: 0.6 });
   p.stroke(lap.map((q) => ({ x: q.x, y: q.y - 3 })), { rng, pigment: PAPER_WHITE, width: 5, opacity: 0.9, blend: 'source-over', wetness: 0.3 });
-  const shelf = poly(SHELF);
-  reserve(p, shelf);
-  p.wetInWet(shelf, C.rock, C.rockShade, { rng, angle: Math.PI / 2, split: 0.4, opacity: 0.65, deform: 0.05, edge: 0.3, sharpness: 0.6, granulation: 0.6, granules: 0.25 });
-  for (let i = 0; i < 12; i++) {
-    const x = rng.range(0, 560);
-    const y = rng.range(912, 1010);
-    p.dryBrush([{ x, y }, { x: x + rng.range(40, 100), y: y + rng.range(-6, 6) }], { rng, pigment: C.rockShade, width: rng.range(3, 6), opacity: 0.4, dryness: 0.6 });
-  }
   for (const pool of POOLS) {
     const b = blob(pool.cx, pool.cy, pool.rx, pool.ry, rng, { irregularity: 0.25 });
     p.wash(blob(pool.cx, pool.cy + 3, pool.rx + 6, pool.ry + 4, rng), C.rockShade, { rng, opacity: 0.5, edge: 0.2 });
@@ -149,19 +92,13 @@ export function paintShore(p: Painter, rng: Rng): void {
     p.wetInWet(b, C.shallows, C.seaMid, { rng, angle: Math.PI / 2, split: 0.5, opacity: 0.75, edge: 0.3, sharpness: 0.8 });
     p.lift({ cx: pool.cx - pool.rx * 0.3, cy: pool.cy - pool.ry * 0.3, rx: pool.rx * 0.4, ry: 1.5 }, { rng, amount: 0.5, layers: 3 });
   }
-  for (const { x, y, w } of SPLASH_ROCKS) {
-    p.stone({ x, y, w, h: w * 0.55 }, { rng, pigment: C.rock, warm: 0.3, moss: 0, ink: 0.2 });
-    p.stroke([{ x: x - w * 0.6, y: y + 4 }, { x: x + w * 0.6, y: y + 6 }], { rng, pigment: PAPER_WHITE, width: 4, opacity: 0.85, blend: 'source-over', wetness: 0.3 });
-  }
 }
 
 export function paintLand(p: Painter, rng: Rng): void {
   const land = poly(LAND);
   reserve(p, land);
   p.wetInWet(land, mix(C.gravel, C.rockWarm, 0.3), mix(C.scrub, C.gravel, 0.5), { rng, angle: Math.PI / 2, split: 0.5, softness: 0.5, opacity: 0.6, deform: 0.04, edge: 0.15, granulation: 0.5, granules: 0.2, flow: 0.5, flowScale: 160 });
-  // the broken shoreline: a grey rock lip along the edge, boulders at the water, scrub over them
-  p.stroke(smoothPath(poly(SHORE_EDGE), 4).map((q) => ({ x: q.x + 6, y: q.y })), { rng, pigment: C.rockShade, width: 14, opacity: 0.5, wetness: 0.4 });
-  for (const b of SHORE_BOULDERS) p.stone({ x: b.x, y: b.y, w: b.w, h: b.w * 0.6 }, { rng, pigment: C.rock, warm: 0.3, moss: 0.05, ink: 0.2 });
+  // scrub over the broken shoreline (its rock and boulders are the rock painter's `shore-rocks`)
   for (const s of SHORE_SCRUB) {
     p.wetInWet(blob(s.x, s.y, s.rx, s.ry, rng, { irregularity: 0.4, flatBottom: 0.5 }), C.scrub, C.pineDark, { rng, angle: Math.PI / 2, split: 0.5, opacity: 0.65, deform: 0.3, edge: 0.2, granulation: 0.3 });
   }
