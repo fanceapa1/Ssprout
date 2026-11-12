@@ -840,7 +840,7 @@ y    0 ┌───────────────────────�
     respectively `coast` and the climate `mediterranean` in their wild range. The oasis's and the
     Japanese gardens' offers did not change.
   - The olive and the lavender (paint tasks) add their own `cultivatedIn` or wild range.
-- **Wildlife**: an empty table; the sea is its still water (the geometry's default).
+- **Wildlife** (GK0, ADR 0373): see Wildlife below.
 - **Sound**: `coast`, the seaside profile that was waiting for it.
 
 ### Slots (48)
@@ -1044,6 +1044,31 @@ Steps `maquis`, `olive` and `pine` (element `trees`), in parts. Palette `VEG`, l
   beds 62, maquis 96, olive 37, pine 48: about 640 ms (900 ms cold). The longest part is 9.6 ms
   (a wall's batched layer).
 
+### Wildlife (GK0, ADR 0373)
+`fauna.ts` holds the whole table: the island cat from the start; then the gull, cicada, Balkan
+green lizard, cabbage whites, marbled rock crab, bees, swallows, blue rock thrush, swallowtails,
+goats, Hermann's tortoise, damselfish, scops owl (night only), hoopoe, house gecko (night only),
+octopus, heron and dolphins (the last three rare). Rows whose creature is not painted yet are
+skipped; the shared bees, butterflies, swallows and heron come now (docs/systems/fauna.md › The
+coast). `wildlife.ts` reads every place by name from `layout.ts`, `shapes.ts`, `sea.ts`, `slots.ts`
+and `geometry.ts`:
+- Still water is `SEA_WATER`; the rock pools (`POOL_WATER`) join the water layers' clip as `moving`.
+- Perches (54, none within 20 of a slot): the copings (`WALL_TOPS`), the olive's fork and limbs
+  (`OLIVE_LIMBS`), the pine's branches (`PINE_BRANCHES`), the jars' rims, the splash rocks' tops,
+  the architrave, the broken columns and the drum, the caique's mast top and rail (they ride its
+  carrier), the far pines' crowns and seven ledges across the promontory's face. Far ones carry
+  their own measure: `TEMPLE_SCALE` 0.13, `CAIQUE_MEASURE` 0.09.
+- Ground: each terrace's gravel walk (three per terrace), the path, the beach and the scrub at the
+  terraces' ends. Faces: the three walls where they stand full height, and the splash rocks' fronts.
+- Regions: the shallows (water minus rocks), the three pools, the bay far out under the far hill
+  (left of the low suns' glitter path; the sea plane's scale, 0.01 → 0.04), the sky over the cove,
+  the olive's and the pine's bark.
+- The heron wades at three stands off the beach's waterline. `coastPerspective(x, y)` gives the
+  terrace lifts and faces on the land and `perspectiveScale(y)` elsewhere; within 0.02 of every slot
+  but `crack-1` (0.03: a slot in a face takes its own y's lift, the face its coping's scale).
+- Studio `coast-wildlife` (`targets`, `targets-close`, `targets-far`) draws every place over the
+  painting; `fauna-coast/all` runs the table over the cove.
+
 ### Left for later tasks
 - Water (devlog 176, Left open): the far hill's reflection is faint, the shingle's spatter still
   reads a little even, and the placeholder `paintSea` and `paintCaique` are unused until the
@@ -1053,8 +1078,10 @@ Steps `maquis`, `olive` and `pine` (element `trees`), in parts. Palette `VEG`, l
 - Daylight: the white puff behind the temple's base between the first and second columns is the placeholder midday sky plate's (its wash leaves a rounded hole there; the background paints the sky as paper, devlog 180). Real plates lit from the left; the architrave, the capitals and the crowns sit under the
   sky's wash, and the skyline's 2-unit reach either side of each column leaves a pale sky-tinted
   band down the columns' sides.
-- Motion and the fauna's targets (perches on the copings, the caique's mast, the chapel; heron
-  stands on the splash rocks; a far sea band).
+- Motion: when the caique rocks, write its pose into `COAST_CARRIERS.caique.pose` each frame
+  (ADR 0373), so the gull on its mast and rail rides it.
+- Wildlife (devlog 183, Left open): no perch on the chapel or the village (too far for a bird to
+  read); the first splash rock's top is all slot.
 
 ## Tests
 - `src/scenery/coast/water.test.ts` (G3): the water's steps and their order; recording hash pins
@@ -1076,6 +1103,9 @@ Steps `maquis`, `olive` and `pine` (element `trees`), in parts. Palette `VEG`, l
   stars in open sky, the sun side, the skyline down to the silhouette and between the columns, the
   plate band; the flora profile and its one species; an empty wildlife table; a v4 garden with
   coast plants validates and round-trips.
+- `src/scenery/coast/fauna.test.ts` and `wildlife.test.ts` (GK0): the table (thresholds, one
+  arrival per count, shared rows, skipped rows) and every place against its shape, the regions,
+  the carrier and `coastPerspective` (docs/systems/fauna.md › The coast).
 - `src/scenery/coast/rock.test.ts` (G2): the rock's steps and where the shore's rock falls in the
   order; pinned recording hashes (overview and a close view of the temple); no part over 60 000
   calls or 400 000 pixels, every step in many parts, few pixel reads per step; the hand-cut outlines

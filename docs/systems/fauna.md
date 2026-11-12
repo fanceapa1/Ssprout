@@ -13,6 +13,8 @@ behaviour code on a small painted stage; `?t=` presimulates so stills show real 
 foam at the foot, a stream, a ledge and wet rocks. **Fauna · the oasis** (`fauna-oasis/all`) runs
 the oasis's table over a crop of its real painting with its real targets, and **Scenery · oasis
 wildlife targets** (`oasis-wildlife/targets`) marks every target with a creature of its size.
+**Fauna · the coast** (`fauna-coast/all`) and **Scenery · coast wildlife places**
+(`coast-wildlife/targets`, `/targets-close`, `/targets-far`) do the same for the coast.
 
 ## Wiring
 ```ts
@@ -52,6 +54,7 @@ kinds of that garden's table that have a module. The registry only knows the set
 | `creatures/lib/def.ts` | the contract: `CreatureDef`, `SpawnContext`, `Sheet`, `Show`, `variantOf` |
 | `creatures/lib/flight.ts` | shared flying-visitor helpers (entry/exit points off the view, flower choice) |
 | `habitat.ts` | `SceneryFauna`: what a scenery tells its wildlife (`Scenery.fauna`) |
+| `targets.ts` › regions, carriers | `Region` (`inRegion`, `regionScale`): areas and far stages; `Carrier` (`carried`): moving bodies under perches (ADR 0373) |
 | `tuning.ts` | pacing / size / speed constants of the garden's creatures (`VISITS`, `SIZES`, `SPEEDS`, `FAUNA_TUNING`) |
 | `schedule.ts` | pure visit scheduling: gaps, first visits, caps, night and night-only, reduced motion; `visitTuning(kind)` |
 | `roster.ts` | unlocked rows → resident counts, visiting kinds, variants, boosts (`rosterFor`) |
@@ -61,20 +64,21 @@ kinds of that garden's table that have a module. The registry only knows the set
 | `system.ts` | render System wrapper: store → that garden's rows and targets, scenery → its `fauna`, session → lively, clock → night; first sightings → `fauna:arrived` (`sightedFauna`, ADR 0120) |
 | `sprite.ts` | `paintSprite` (engine-painted parts), `deepCopy` (under-water copy), `ArtCache`, scratch canvas |
 | `types.ts` | shared shapes: the creature world (`PondInfo`, `WaterInfo`, targets, art cache, rng, noise); `Creature.drawLights?` is drawn on the `lights` layer (ADR 0280) |
-| `stage.ts`, `fauna.studio.ts`, `close-view.studio.ts` | studio stages (`pond`, `falls`, `oasis`) and entries (`close-view.studio.ts`: **Close view · creatures**, ADR 0188) |
+| `stage.ts`, `fauna.studio.ts`, `close-view.studio.ts` | studio stages (`pond`, `falls`, `oasis`, `coast`) and entries (`close-view.studio.ts`: **Close view · creatures**, ADR 0188) |
 | `dev.ts` | `window.sprout.fauna` |
 
 ## Sceneries (ADR 0248)
 Each `Scenery` carries `fauna: SceneryFauna`:
 
-| Field | Japanese garden | Waterfall | Oasis |
-|---|---|---|---|
-| `unlocks` | `JAPANESE_FAUNA` (`scenery/japanese-garden/fauna.ts`) | `WATERFALL_FAUNA` (`scenery/waterfall/fauna.ts`) | `OASIS_FAUNA` (`scenery/oasis/fauna.ts`) |
-| `water` | default: `geometry.pond` still, `geometry.streams` moving (none) | the pool still, minus a foam ellipse (84 × 30) at the falls' foot; the stream moving | the basin still; the seguia's runs, the sluice and the oued moving |
-| `perches` | default: rocks flagged `perch`, every stepping stone | the six ledge edges (`ledgePerch`) and the four wet rocks; no trail stones | wall copings, the basin's rim, palm fronds, a tower top, gate posts, stones (below) |
-| `stands` | default: `heronStands` along the pond's far edge | three on the pool's back edge right of the falls (x 830–940), clear of pads when it can | two on the basin's submerged steps, three in the oued |
-| `ground`, `walls` | none | none | five damp plots and terrace strips; three terrace wall faces and the basin's near face |
-| `perspective(x, y)` | default: a line fitted through the slots' scales | `perspectiveScale(y)` on the ground; inside the cliff, crown 0.6 under the skyline → the shelf scales 0.64/0.68/0.72 → the foot (within 0.02 of every slot; the fitted line was 7–15 % off) | `oasisPerspective`: terrace lifts (ADR 0300), wall faces at their coping's scale (within 0.02 of every slot, continuous down every column) |
+| Field | Japanese garden | Waterfall | Oasis | Coast |
+|---|---|---|---|---|
+| `unlocks` | `JAPANESE_FAUNA` (`scenery/japanese-garden/fauna.ts`) | `WATERFALL_FAUNA` (`scenery/waterfall/fauna.ts`) | `OASIS_FAUNA` (`scenery/oasis/fauna.ts`) | `COAST_FAUNA` (`scenery/coast/fauna.ts`) |
+| `water` | default: `geometry.pond` still, `geometry.streams` moving (none) | the pool still, minus a foam ellipse (84 × 30) at the falls' foot; the stream moving | the basin still; the seguia's runs, the sluice and the oued moving | the sea still; the rock pools as `moving`, so the water layers clip to them |
+| `perches` | default: rocks flagged `perch`, every stepping stone | the six ledge edges (`ledgePerch`) and the four wet rocks; no trail stones | wall copings, the basin's rim, palm fronds, a tower top, gate posts, stones (below) | copings, tree limbs, jars, splash rocks, the temple, the caique, far pines, cliff ledges (below) |
+| `stands` | default: `heronStands` along the pond's far edge | three on the pool's back edge right of the falls (x 830–940), clear of pads when it can | two on the basin's submerged steps, three in the oued | three in the shallows off the beach |
+| `ground`, `walls` | none | none | five damp plots and terrace strips; three terrace wall faces and the basin's near face | terrace walks, the path, the beach, scrub; three wall faces and four splash-rock faces |
+| `regions`, `carriers` | none | none | none | shallows, three pools, the bay, the sky over the cove, two barks; the caique |
+| `perspective(x, y)` | default: a line fitted through the slots' scales | `perspectiveScale(y)` on the ground; inside the cliff, crown 0.6 under the skyline → the shelf scales 0.64/0.68/0.72 → the foot (within 0.02 of every slot; the fitted line was 7–15 % off) | `oasisPerspective`: terrace lifts (ADR 0300), wall faces at their coping's scale (within 0.02 of every slot, continuous down every column) | `coastPerspective`: on the land the terrace lifts and faces as the oasis's (ADR 0360); the sea, beach and shelf `perspectiveScale(y)`; within 0.02 of every slot but `crack-1` (0.03) |
 
 The sim's still water (`w.pond`) is what the water creatures live on (striders, koi, the floating
 leaf; `pond.plane` for the plane maths). The water layers (`underwater`, `waterSurface`) clip to
@@ -170,6 +174,89 @@ drawn at depth `wallFootAt(face, x)`. The Sahara frog uses `w.pond` (the basin) 
 The oasis (released in O8) shows them in the garden; `stage: 'oasis'` in the def's `show` puts the
 creature on the oasis stage, `spec: { x, y, w, h }` choosing the crop (default `OASIS_STAGE`:
 x 360, y 120, 880 × 790).
+
+### The coast (GK0, ADR 0373)
+The table (`scenery/coast/fauna.ts`, data only) and where its creatures live
+(`scenery/coast/wildlife.ts`, studio `coast-wildlife`). The creature set
+(`creatures/sets/creatures-coast.ts`) holds the shared kinds with a module: bee, butterfly,
+heron, swallow. Each new creature adds its line there.
+
+| id | kind (variant) | rule | announced |
+|---|---|---|---|
+| island-cat | cat | always | no |
+| gull | gull | 1 plant | yes |
+| cicada | cicada | 2 plants | yes |
+| green-lizard | green-lizard | 3 plants | yes |
+| butterflies | butterfly (white) | 4 pollinator flowers | yes |
+| rock-crab | rock-crab | 5 plants | yes |
+| bees | bee | 6 pollinator flowers | yes |
+| swallows | swallow | 7 plants | yes |
+| blue-rock-thrush | rock-thrush | 8 plants | yes |
+| swallowtail | butterfly (swallowtail) | 8 pollinator flowers | yes |
+| goats | goat | 9 plants | yes |
+| tortoise | tortoise | 10 plants | yes |
+| damselfish | damselfish | 11 plants | yes |
+| scops-owl | scops-owl | 12 plants, night only | yes |
+| hoopoe | hoopoe | 13 plants (once OK5 exists) | yes |
+| gecko | gecko (house) | 14 plants, night only (once OK6 exists; it must offer the `house` variant) | yes |
+| octopus | octopus | 16 plants, rare | yes |
+| heron | heron | 18 plants, rare | yes |
+| dolphins | dolphin | 20 plants, rare | yes |
+
+No plant count brings two creatures. The pollinator rows sit at counts no plant row uses, except
+the swallowtail's 8, which is the thrush's: only a garden whose eight plants are all pollinator
+flowers gets both at once (the oasis's hoopoe and swallowtail share 8 the same way). Not in the
+table: the hummingbird hawk-moth, Scopoli's shearwater, the loggerhead turtle.
+
+**Places** (counts as built; read by name from `layout.ts`, `shapes.ts`, `sea.ts`, `slots.ts`
+and `geometry.ts`, never from a painter, and tested against those shapes, so a repaint moves them):
+- `w.perches` (54), none within 20 of a slot:
+  - `wall` ×26: along `WALL_TOPS` every 70 where the wall stands full height (60 in from its
+    seaward end), clear of the flights;
+  - `branch` ×6: the olive's fork and its flattest limb stretches (`OLIVE_LIMBS`), the pine's
+    branches (`PINE_BRANCHES`), each at its tree's foot scale (the pine's trunk is too steep to
+    stand on);
+  - `jar` ×2: the pithoi's rims (`JARS`);
+  - `rock` ×3: the splash rocks' dry tops (`SPLASH_ROCK_SHAPES`), the middle or an end clear of
+    the slot on it (the first rock has none clear);
+  - `ruin` ×4: the architrave's top, the two broken columns' slanted tops, the fallen drum, at
+    `TEMPLE_SCALE` 0.13;
+  - `boat` ×3: the mast top and two level rail stretches (`CAIQUE_SHAPES`), at `CAIQUE_MEASURE`
+    0.09, `carrier: 'caique'`;
+  - `crown` ×3: the far pines' crown tops (`PROMONTORY_PINE_SHAPES`) the olive does not hide, at
+    `TEMPLE_SCALE`;
+  - `ledge` ×7: the goats' ledges across the promontory's face, 45 % down from its top, clear of
+    the maquis, the far pines and the olive's crown, at `TEMPLE_SCALE`.
+- `w.ground` (24): `walk-{top,middle,lower}-{west,mid,east}` (each terrace's gravel walk between
+  the wall above and its beds, either side of the path, the olive and the jar); `path-foreground`,
+  `path-lower`, `path-middle` (on the path's middle); `beach-west`, `beach-east` (the shingle);
+  `scrub-shore-*` and `scrub-<x>` (under the shoreline's clumps and the phrygana, shrunk onto the
+  land).
+- `w.walls` (7): `wall-top`, `wall-middle`, `wall-lower` (where they stand full height) for the
+  lizard and the gecko; `splash-1…4` (each splash rock's front from its top's edge down to the
+  water) for the crab.
+- `w.regions` (8):
+  - `shallows`: the sea nearer the shore than the turquoise's edge, right of the pine and left of
+    the steps, below the caique, down to the foam; the splash rocks and shore boulders are holes;
+  - `pool-1…3`: `POOL_WATER` (the rim is the outline);
+  - `bay` (a far stage): far out under the far hill, left of the low suns' glitter path, above the
+    caique, right of the pine; scale 0.01 → 0.04, the sea plane's (`seaScale`);
+  - `sky-cove`: the open sky right of the pine, 14 above the skyline and the architrave;
+  - `bark-olive`, `bark-pine`: bands along the trunks, at each tree's scale.
+- `w.carriers`: `caique` (pivot `CAIQUE`, the waterline centre). At rest until the motion task
+  writes its pose (ADR 0373).
+- `w.stands()` (3): in the shallows a few units off the beach's waterline (x 130, 320, 545), 50
+  from every water and beach slot, off the splash rocks.
+
+**How a creature task uses them.** Perches by kind, as in the oasis; draw at `p.scale ??
+w.perspective(p.y, p.x)`, and on a carrier at `carried({ x, y }, w.carriers[p.carrier])`.
+Region dwellers pick a region by kind, stay `inRegion`, and draw at `regionScale(r, y) ??
+w.perspective(y, x)`. The cat: `wall` perches, `walk-*` and `path-*`; the gull: `boat`, `rock`,
+`sky-cove` and `w.pond`; the cicada: `bark-*`; the lizard and the gecko: the `wall-*` faces; the
+crab: the `splash-*` faces and the `pool-*` rims; the thrush: `ruin`, `wall`, `ledge`; the goats:
+`ledge`; the tortoise: `scrub-*`, `walk-*`, `path-*`; the damselfish: `shallows`; the owl: `branch`,
+`wall`, `crown`; the octopus: `pool-*`, `shallows`; the dolphins: `bay`. `stage: 'coast'` in the
+def's `show` puts the creature on the coast stage (default `COAST_STAGE`: x 120, y 220, 960 × 680).
 
 ## Layers and depth
 | Creature | Layer | Notes |
@@ -380,8 +467,9 @@ dropped), `arrivals.test.ts` (`sightedFauna` by kind and variant, `fauna:arrived
 per garden), `waterfall.test.ts` (the foam carve, still water and clip, perches, stands, margin
 striders and nothing in the foam over 15 simulated minutes, gorge variants, perspective within
 0.02), `art-cache.test.ts`. Tables: `scenery/japanese-garden/fauna.test.ts`,
-`scenery/waterfall/fauna.test.ts`, `scenery/oasis/fauna.test.ts`; the oasis's targets and
-perspective: `scenery/oasis/wildlife.test.ts`. E2E `tests/e2e/fauna.spec.ts` (the garden: striders from the
+`scenery/waterfall/fauna.test.ts`, `scenery/oasis/fauna.test.ts`, `scenery/coast/fauna.test.ts`;
+the oasis's targets and perspective: `scenery/oasis/wildlife.test.ts`; the coast's places:
+`scenery/coast/wildlife.test.ts`. E2E `tests/e2e/fauna.spec.ts` (the garden: striders from the
 start, koi with plants, roster and schedule, every creature in bounds, birds land and leave, night
 rest, cost) and `tests/e2e/fauna-waterfall.spec.ts` (the waterfall's roster from `roster()`, every
 kind spawned and in bounds, nothing on the water in the foam or the stream, striders at the edge,
