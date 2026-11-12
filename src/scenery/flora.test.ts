@@ -129,8 +129,8 @@ describe('each garden’s flora', () => {
     ]);
   });
 
-  it('the oasis offers only its own species (none is shared by biology)', () => {
-    // one id per line, sorted: each phase 13 species task adds its own
+  it('the oasis offers its own species and the olive, shared by biology (a regression pin)', () => {
+    // one id per line, sorted: each species task adds its own; the olive is the oasis's commonest fruit tree
     expect(offered(getScenery('oasis')).map((sp) => sp.id).sort()).toEqual([
       'alfalfa',
       'barley',
@@ -144,6 +144,7 @@ describe('each garden’s flora', () => {
       'henna',
       'jujube',
       'oleander',
+      'olive',
       'pomegranate',
       'retama',
       'southern-maidenhair',

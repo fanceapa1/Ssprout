@@ -531,8 +531,9 @@ Composition map: studio `oasis-map/map`. Rock: studio `oasis-rock`. Water: studi
 - **View**: the focus is (730, 520). The phone crop (x 430–1030) holds every tower and house, about
   90% of the basin's water, and both suns. `pathOut` is the `FOOTPATH` from the bottom edge to the basin's near rim. O4 paints it.
 - **Flora**: `{ realm: 'n-africa-arabia', biomes: ['desert', 'wetland'], climate: 'arid',
-  cultivated: true }`. No existing species is shared by biology (docs/research/oasis-biome.md),
-  so it offers none until the phase 13 art queue lands. That is why it stays behind the flag:
+  cultivated: true }`. None of the Japanese species is shared by biology (docs/research/oasis-biome.md),
+  so it offered none until the phase 13 art queue landed. The coast's olive is shared back: it is
+  the commonest fruit tree of the Moroccan oases (`cultivatedIn` names `n-africa-arabia`, GP1). That is why it stays behind the flag:
   `flora.test.ts` holds its invariants for released sceneries only.
 - **Wildlife** (OK0, ADR 0304; docs/systems/fauna.md › The oasis): `fauna.ts` is the table: the
   creatures it shares by biology (striders, a gold leaf, the cabbage white, bees, the swallowtail,
