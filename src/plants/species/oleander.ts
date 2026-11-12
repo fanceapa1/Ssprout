@@ -3,7 +3,7 @@ import { PIGMENTS, jitter, lighten, mix, shade, type Pigment, type Pt } from '..
 import { clamp01, lerp, ramp, smooth, stagger } from '../lib/shrub-growth';
 import { groundShadow, inPlantSpace, seedAndShoot } from '../lib/shrub-paint';
 import { UP, lerpAngle, makeStem, pointAt, stemPoints, type StemPlan } from '../lib/small-structure';
-import { paintKnifeLeaves, paintPinwheels, paintStems, type KnifeLeaf, type Pinwheel, type StemMark } from '../lib/oleander-paint';
+import { paintKnifeLeaves, paintPinwheels, type KnifeLeaf, type Pinwheel, type StemMark } from '../lib/oleander-paint';
 import type { SpeciesDef } from '../types';
 
 /**
@@ -17,6 +17,8 @@ const BARK = '#857c62';
 const PINK = '#d9708f';
 const PALE = '#efb2c2';
 const DEEP = mix('#a8405f', PINK, 0.35);
+/** the broken dark side of the stems, laid in the leaf layer over their wash */
+const ACCENT = { pigment: mix(BARK, PIGMENTS.sumi, 0.65), coverage: 0.85 };
 
 const BOX = { w: 200, h: 220, ax: 0.5, ay: 0.93 };
 /** stems stay this far inside the box, so their leaves and flowers clear the edges */
@@ -344,8 +346,11 @@ const oleander: SpeciesDef = {
       const style = { petal: PINK, reverse: PALE, deep: DEEP };
       for (const band of [0, 1, 2]) {
         const op = band === 0 ? 0.74 : 0.88;
-        paintStems(p, pose.stems.filter((c) => c.band === band), { opacity: op, accent: mix(BARK, PIGMENTS.sumi, 0.35), accentOpacity: 0.3 });
-        for (const group of [0, 1]) paintKnifeLeaves(p, pose.leaves.filter((l) => l.band === band && l.group === group), { opacity: op * 0.95, blend: 'source-over' });
+        const stems = pose.stems.filter((c) => c.band === band);
+        for (const group of [0, 1]) {
+          const leaves = pose.leaves.filter((l) => l.band === band && l.group === group);
+          paintKnifeLeaves(p, leaves, { opacity: op * 0.95, blend: 'source-over' }, group ? [] : stems, ACCENT);
+        }
         paintPinwheels(p, pose.flowers.filter((f) => f.band === band), { ...style, alpha: band === 0 ? 0.9 : 1 });
       }
     });
