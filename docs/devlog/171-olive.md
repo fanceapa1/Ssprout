@@ -138,8 +138,14 @@ scratchpad.
   a first light crown earlier.
 - Cost sits near the 85 ms aim at a quiet load, but some seeds with 12 clumps reach 125–134 ms.
   The trunk's body wash covers the scaffold limbs' whole box, so it is the next thing to batch.
-- Not run while iterating, per the task's CPU rules: `npx playwright test tests/e2e/studio.spec.ts`
-  on its own (it is in the final full run).
+- **Tests.** Typecheck passes, and all 2461 unit tests pass. The full e2e run stalled at load 30–130
+  with other runs alongside it, so it was stopped. Instead, the specs that touch species and gardens
+  were run one at a time against one build: daylight, garden-import, gardens, planting-previews,
+  plants, lotus, lazy-species-painters, ui-start-flow, ui-menu and studio. All pass. The ones that
+  failed first under that load (timeouts, and a 1 s clock drift in garden-import) pass on a second
+  run alone. The unit run also reports one unhandled error that the olive does not cause:
+  `sky-light.ts` prepares on an idle timeout (`scene/system.ts:665`) after `scene-cache.test.ts`
+  has ended, and finds no canvas in Node. That file passes alone.
 
 ## For the orchestrator
 - `src/scenery/oasis/flora.ts` still says in its comment that no species is shared by biology. The
