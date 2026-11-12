@@ -175,11 +175,26 @@ export interface SceneSystem extends System {
     /** detail paintings taken from the persistent paint cache, and lookups that missed (ADR 0228) */
     cacheHits: number;
     cacheMisses: number;
+    /** backing pixels held by detail paintings (the one on view and any not yet freed); 0 at the overview */
+    pixels: number;
+    /** detail paintings freed after the camera left them (devlog 158) */
+    freed: number;
   };
 }
 
-/** A painting on screen: painted now, or copied out of the paint cache (`cached`). */
-type Painting = PaintResult & { cached?: boolean };
+/** A painting on screen: painted now, or copied out of the paint cache (`cached`); `stored` settles once the cache has its copy. */
+type Painting = PaintResult & { cached?: boolean; stored?: Promise<unknown> };
+
+/** Backing pixels of a painting and its sprites. */
+export const paintingPixels = (p: PaintResult): number => p.canvas.width * p.canvas.height + p.sprites.reduce((n, s) => n + s.canvas.width * s.canvas.height, 0);
+
+/** Free a painting's backing stores at once (no wait for the garbage collector); it is never drawn again. */
+export function freePainting(p: PaintResult): void {
+  for (const c of [p.canvas, ...p.sprites.map((s) => s.canvas)]) {
+    c.width = 0;
+    c.height = 0;
+  }
+}
 
 /** The answer of a cache lookup: the painting when both parts were found, and which were. */
 interface Lookup {
@@ -267,7 +282,21 @@ export function createSceneSystem(opts: SceneSystemOptions = {}): SceneSystem {
   let detailFade = 1;
   let detailJobId = 0;
   let detailJob: Promise<void> | null = null;
-  const detailCounts = { paints: 0, lastPaintMs: 0, longest: { name: '', ms: 0 }, cacheHits: 0, cacheMisses: 0 };
+  const detailCounts = { paints: 0, lastPaintMs: 0, longest: { name: '', ms: 0 }, cacheHits: 0, cacheMisses: 0, freed: 0 };
+  /** detail paintings the camera left, freed once the cache has stored them */
+  const leaving = new Set<Painting>();
+  const retire = (d: Painting): void => {
+    leaving.add(d);
+    void (d.stored ?? Promise.resolve()).then(() => {
+      if (!leaving.delete(d)) return;
+      freePainting(d);
+      detailCounts.freed++;
+    });
+  };
+  const dropDetail = (): void => {
+    if (detail) retire(detail);
+    detail = null;
+  };
   const stats: SceneStats = {
     paints: 0,
     rescales: 0,
@@ -318,14 +347,17 @@ export function createSceneSystem(opts: SceneSystemOptions = {}): SceneSystem {
     return { painting, background, sprites: true };
   };
 
-  /** Store a fresh painting (and its sprites) in idle time: the parts the lookup did not find. */
-  const store = (kind: string, res: PaintResult, found: Omit<Lookup, 'painting'> | null, of: SceneArt = art): void => {
+  /** Store a fresh painting (and its sprites) in idle time: the parts the lookup did not find. Settles once stored. */
+  const store = (kind: string, res: PaintResult, found: Omit<Lookup, 'painting'> | null, of: SceneArt = art): Promise<unknown> => {
+    const puts: Promise<unknown>[] = [];
     // nothing draws on the painting again once it is finished (and faded), so the cache need not copy it
-    if (!found?.background) void cache.put(kind, paintingKey(of, res.view, quality), res.canvas, { copy: false });
+    if (!found?.background) puts.push(cache.put(kind, paintingKey(of, res.view, quality), res.canvas, { copy: false }));
     if (!found?.sprites) {
       const atlas = packSprites(res.sprites, spriteAtlasLayout(of, res.view.scale));
-      if (atlas) void cache.put(SCENE_CACHE.sprites, spritesKey(of, res.view.scale, quality), atlas, { copy: false });
+      // the atlas is only the store's: freed once encoded, not at the next garbage collection
+      if (atlas) puts.push(cache.put(SCENE_CACHE.sprites, spritesKey(of, res.view.scale, quality), atlas, { copy: false }).finally(() => ((atlas.width = 0), (atlas.height = 0))));
     }
+    return Promise.all(puts).catch(() => {});
   };
 
   /**
@@ -366,8 +398,7 @@ export function createSceneSystem(opts: SceneSystemOptions = {}): SceneSystem {
       const res = await paintScene(art, view, { quality, yieldTo, now, cancelled: () => cancelled() || lateHit !== null });
       counts.cacheMisses++;
       if (soften) softenCutEdges(res);
-      store(kind, res, answer);
-      return res;
+      return { ...res, stored: store(kind, res, answer) };
     } catch (err) {
       if (err instanceof PaintCancelled && lateHit && !cancelled()) {
         counts.cacheHits++;
@@ -450,7 +481,8 @@ export function createSceneSystem(opts: SceneSystemOptions = {}): SceneSystem {
       : paintScene(art, view, { quality, yieldTo, now, cancelled });
     detailJob = made
       .then((res) => {
-        if (cancelled()) return;
+        if (cancelled()) return retire(res);
+        dropDetail();
         detail = res;
         detailFade = 0;
         if (!res.cached) detailCounts.paints++;
@@ -475,11 +507,11 @@ export function createSceneSystem(opts: SceneSystemOptions = {}): SceneSystem {
     const want = detailFor(cam);
     detailWanted = want;
     if (!want) {
-      // back at the overview: drop the detail (and its memory)
+      // back at the overview: drop the detail and free its memory (a repeat rest takes it from the cache)
       detailJobId++;
       detailJob = null;
       if (detail) {
-        detail = null;
+        dropDetail();
         invalidate('background');
       }
       return;
@@ -530,7 +562,7 @@ export function createSceneSystem(opts: SceneSystemOptions = {}): SceneSystem {
     detailJob = null;
     current = null;
     previous = null;
-    detail = null;
+    dropDetail();
     detailWanted = null;
     sky = null;
     water = null;
@@ -707,7 +739,7 @@ export function createSceneSystem(opts: SceneSystemOptions = {}): SceneSystem {
       detailJobId++;
       current = null;
       previous = null;
-      detail = null;
+      dropDetail();
       motion = null;
     },
     whenPainted: async () => {
@@ -729,6 +761,8 @@ export function createSceneSystem(opts: SceneSystemOptions = {}): SceneSystem {
       world: !!current && contains(current.view.rect, WORLD),
       cacheHits: detailCounts.cacheHits,
       cacheMisses: detailCounts.cacheMisses,
+      pixels: [detail, ...leaving].reduce((n, p) => n + (p ? paintingPixels(p) : 0), 0),
+      freed: detailCounts.freed,
     }),
     async prepaint(s: Scenery, o: PrepaintOptions): Promise<PrepaintResult> {
       const a = s.art;
@@ -759,7 +793,7 @@ export function createSceneSystem(opts: SceneSystemOptions = {}): SceneSystem {
         if (cancelled()) throw new PaintCancelled();
         const res = await paintScene(a, view, { quality, yieldTo: gate, now, cancelled, sliceMs: o.sliceMs ?? 8 });
         softenCutEdges(res);
-        store(SCENE_CACHE.overview, res, { background, sprites }, a);
+        void store(SCENE_CACHE.overview, res, { background, sprites }, a);
         prepaints.painted++;
         prepaints.cpuMs += res.cpuMs;
         if (res.longest.ms > prepaints.longest.ms) prepaints.longest = { ...res.longest };
