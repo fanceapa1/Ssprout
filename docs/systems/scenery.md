@@ -784,7 +784,7 @@ A tended clifftop garden stepping down to an Ionian cove, from draft B ("Stepped
 the shore", the owner's choice; docs/research/coast-biome.md §1). G1 (devlog 170) made it a scenery
 behind `?dev&scenery=coast`. Its painting, sky and light were placeholders: draft B's steps moved
 onto the final layout (`paint-placeholder.ts`; `drafts/b` is a record). The rock, water, land and
-vegetation, daylight and motion tasks replace them; G2 (devlog 175) painted the rock (Rock below).
+vegetation, daylight and motion tasks replace them; G2 (devlog 175) painted the rock and G2b (devlog 180) gave it a second pass at its seams with the water and the land (Rock below).
 Composition map: studio `coast-map/map`; the rock: studio `coast-rock`.
 
 ```
@@ -901,7 +901,7 @@ Steps `sea` and `caique` (element `sea`, before the rock) and `beach` and `pools
   19 ms (289 parts): about 265 ms in all.
 - Studio `coast-water` (153): `sea`, `cove`, `shoreline`, `beach`, `pool`, `caique`, `scene`.
 
-### Rock (G2, `paint-rocks.ts`, `temple.ts`, `village.ts`)
+### Rock (G2 and G2b, `paint-rocks.ts`, `temple.ts`, `village.ts`)
 Ionian limestone, white-grey to warm cream, lit from the left over the sea; shade planes cool
 violet-grey; sunlit planes lifted back toward paper. Palette `LIME` and `MARBLE` (`rock-kit.ts`, with
 the shared helpers: `rough` outlines, `wetBatch` and `liftBatch`, which wet a kind of mark into one
@@ -918,19 +918,24 @@ layer and dry it once). Steps:
 - **`promontory`**: the layout's outline cut by hand (noise ≤ 1.1, inside the sky's hang), run on past
   the right edge and 16 below the foot where the top terrace overlaps it. An opaque pale underlayer
   first, so no paper shows at the point (the placeholder's sliver). Its form is fixed
-  (`PROMONTORY_FORM`, seeded by name): fissures 30–70 apart near the point and 60–190 further on
-  (about a third shallow cracks), and beds on a slight tilt (`SLOPE`, rising to the right), stepped
+  (`PROMONTORY_FORM`, seeded by name), irregular on purpose so it never reads as coursed masonry
+  (G2b, devlog 180): fissures at uneven spacing (a quarter of them in pairs 12–26 apart, the rest
+  34–95 near the point and 55–210 further on; about a third shallow cracks), leaning −0.22…0.3,
+  zigzagging at two scales, some opening below the rim and some with a side branch; beds 5–32
+  apart, each with its own tilt on the face's slope (`SLOPE` ± 0.04) and its own wander, stepped
   across the deep fissures, a third of them hard.
   - A cream-to-white-grey body wash; each block between deep fissures lit high on its left (a lift)
     and a shade plane on its right that eases in width, jogs at the hard beds and darkens into the
     fissure (three marks in one layer); a half-tone facet on some.
-  - Beds: short faint lines for the soft ones; the hard ones as short ledges, a lit lip over an
-    undercut lost downward; rarely a deeper overhang.
-  - Fissures as broken tapering darks with a lit hairline on the sunward wall, a few side cracks.
+  - Beds: short faint lines for the soft ones; the hard ones as ledges whose lit lip crumbles into
+    pieces over an undercut that thickens and thins; a fifth of them an overhang, its shadow deep
+    under one end and lost toward the other.
+  - Fissures as broken tapering darks with a lit hairline on the sunward wall, branches and a few
+    side cracks.
   - Ochre and rust stains under the rim and the ledges, long grey limestone streaks, fine runnels.
-  - The foot: a cool shade low on the face; along the sea (x 636 to the shoreline's start) the
-    sea-cut notch in runs of their own depth, broken where a buttress comes down, and a wet
-    algae-dark band at the water; scree cones with a few pebbles where the face meets the terrace.
+  - The foot: a cool shade low on the face; along the sea (x 636 to the shoreline's start) one soft
+    undercut graded darker downward, its depth wandering and pinched where a buttress comes down,
+    a lit overhang over it in places, and a dark wet algae band at the water.
 - **`temple`**: a krepis of three steps (the left ends broken away; shadows under the lips that come
   and go, a few joints, chipped arrises), the fallen drum (short, its fluted flat end to the light)
   and four blocks; the four shafts (`columnShapes()`: a slight taper and swell, hand-cut edges, the
@@ -938,32 +943,61 @@ layer and dry it once). Steps:
   a cool shade side turning toward the right rim, broken flute touches, drum joints that arch a
   little and come and go, rust runs; two Doric capitals (abacus, echinus, necking lines); the
   architrave slumped 2.5 to the left, two fasciae, its right end broken.
+- **`cliff-foot`** (`stones` element, before `shore-rocks`; ADR 0370): the cliff's foot over the top
+  terrace's back, which the land leaves ruler-straight (`LAND_BACK`, y 496–500). The face's lowest
+  35–60 units in a cool violet-grey glaze lost upward, so the lit gravel reads as ground in front
+  of a wall of rock; a toe of rock coming down 2–9 over the land's edge, unevenly; the shade at
+  the base on the gravel and a broken dark seam where rock meets it; low scree fans of pale grey
+  debris under the fissures (and five more places), shaded on the right, with stones on them and
+  spilling beyond; `CLIFF_STONES` (seven fallen stones, `shapes.ts`) as boulders on the ground.
+  It skips itself when the view does not reach the foot.
 - **`shore-rocks`** (a `stones` element after the land and the shore, before the trees):
-  - The rock shelf in front of the beach, with the pools cut out (`POOLS`, the water painter's): pale
-    slabs with broken crack lines, lit lips and shaded fronts, pits, the rock wet round each pool; a
-    wet rim over each pool's edge, the far inner wall in shade and a lit near lip.
-  - The broken shoreline (`SHORE_RUNS`): where it runs down-right it faces the viewer and shows a low
-    rock face (about 14–20) over the water, shaded and wet at its foot; where it runs down-left only
-    a rocky lip shows on the land, with a broken dark seam at the water.
-  - Stones at both beach ends (the `stone` recipe), then `SHORE_BOULDER_SHAPES` and
-    `SPLASH_ROCK_SHAPES` (`shapes.ts`): low ledges seen a little from above, a flat dry top whose
-    front edge sits 2 below the slot, a low shaded face to a dark wet foot, a broken block on the
-    top's back on most (lit on its left).
-- **Edges for the other painters**: the sea is under the promontory (its foot and notch end at the
-  layout's foot), under the shoreline faces (which hang 14–20 below `SHORE_EDGE` where it runs
-  down-right) and under the splash rocks (whose wet feet end 3–7 below each rock's `y`). The land is
-  painted over the promontory's foot (16 under it) and under the shore-rocks step. The pools' water
-  is cut out of the shelf; the rims reach 1.5 over it. The cliff's reflection is the water's
-  (`CLIFF_REFLECTION`).
-- **Cost** (Chromium, DPR 1, the overview at scale 0.9, rock steps only, best of four): far hill
-  20 ms, village 7, promontory 91, temple 20, shore rocks 153: about 0.3 s. The longest part is
-  6.4 ms (a promontory drying pass). The placeholder `promontory-green` (265 ms in one part) is gone: the vegetation's `maquis` paints the promontory's pines and scrub (G4).
+  - The rock shelf in front of the beach, with the pools cut out (`POOLS`, the water painter's).
+    Its top edge (`shelfTopAt`) is not a line: `SHELF_LOBES` run rock tongues up to 11 into the
+    sand and hollows down to 5 where the sand drifts in. Its right end meets the lower wall's
+    foot and the flight's landing, so no bare strip is left. Pale slabs with broken crack lines,
+    lit lips and shaded fronts, pits, the rock wet round each pool; sand drifted into the hollows
+    and the cracks near the beach; a lit arris where it rises out of the sand; pebbles gathered on
+    the sand at its foot, each with its shade. A wet rim over each pool's edge, the far inner wall
+    in shade and a lit near lip.
+  - The shoreline as one broken limestone ledge, down `SHORE_EDGE` to the head of the beach flight
+    (`LEDGE_EDGE`), where the rock yields to the steps: a pale grey top on the land behind the edge
+    (7–22 wide, ragged inside, cracked); under the runs that face the viewer, a face in blocks
+    12–30 long of their own height (11–22) with a small step at each top, a lit arris, joints,
+    shade toward each block's right end, pits, a dark wet foot with weed; along the runs that face
+    away, a wet lip under a lit arris. At the water: a contact shade and a broken reflection under
+    the faces, a contact shade along the lips, and broken foam along both.
+  - The beach flight (`FLIGHTS[BEACH_FLIGHT]`, the land's `paintFlight`): narrow slabs running down
+    to the left along the shoreline from the lower terrace onto the beach's tip (ADR 0370).
+  - Stones at both beach ends (the `stone` recipe), none on the flight.
+  - `SHORE_BOULDER_SHAPES` and `SPLASH_ROCK_SHAPES` (`shapes.ts`, `boulderShape`): sea-worn
+    boulders seen a little from above, all wet in shared layers each clipped to its own outline
+    (`clipBatch`). Each is a squarish dome with rounded shoulders, one shoulder cut by a flat
+    facet and a small step in the crown. Its crown is the broad dry top (`top`), whose front edge
+    sits 2 below the slot. The rock has a pale lit crown and left shoulder, the right flank and
+    the face below the crown turned from the sun, sea-worn pits and a crack. In the water, each
+    has a dark wet foot with a weed band and weed tongues, a broken reflection (dark under the
+    foot, pale slices further down) and a broken foam ring with a fainter lap mark. On land
+    (`ground`) it has a dark contact and a shadow cast right. The shore boulders are the layout's
+    four (`SHORE_BOULDERS`), dropped 14 into the water at the ledge's foot, or left on the ledge
+    where that is land. With them are nine small ones out in the water along the faces and lips.
+    The one on the beach flight is left out.
+- **Edges for the other painters**: the sea is under the promontory (its foot and undercut end at
+  the layout's foot), under the ledge's faces (which hang 11–26 below `SHORE_EDGE` where it runs
+  down-right) and under the boulders (whose wet feet end at each rock's `y` + 3–5). The land is
+  painted over the promontory's foot (16 under it) and under the cliff-foot and shore-rocks steps.
+  The pools' water is cut out of the shelf; the rims reach 1.5 over it. The cliff's reflection is
+  the water's (`CLIFF_REFLECTION`); the boulders' and the ledge's are the rock's.
+- **Cost** (headless Chromium, DPR 1, the overview at scale 0.9, cold then best of three warm, A/B
+  against `main` on the same machine): cliff-foot 21 / 19 ms (new), shore-rocks 127 / 117 ms
+  (main 160 / 151), promontory 102 / 95 ms (main 98 / 92). The whole coast is 1.40 s cold and
+  1.26 s warm, against 1.40 s and 1.28 s on `main`. The longest part of the rock's steps is 6.6 ms.
 
 ### Land (G4, `paint-land.ts`)
 Steps `land`, `walls` and `beds` (element `land`), in parts. Palette `EARTH`, lit from the left
 over the sea. Shapes live in `coast/shapes.ts` (data only, devlog 149).
 - **Ground** (`land`): `LAND` is reserved, then pale limestone gravel bleeding into dry earth, a
-  few broad warm and cool glazes, the promontory's cool shade over the top terrace's back, darker
+  few broad warm and cool glazes, the promontory's cool shade over the top terrace's back (a narrow band, 24 deep), darker
   earth on the foreground. Raked gravel: broken dry-brush lines along each terrace's walk, between
   the wall above and the beds (one batched layer per terrace, ADR 0343). About 900 grit specks in
   one layer. **Path**: `PATH` lifted pale down its length, a warm glaze, a trodden middle, its
@@ -977,7 +1011,7 @@ over the sea. Shapes live in `coast/shapes.ts` (data only, devlog 149).
   shaded foot, and dry grass tufts (`WALL_GRASS`, away from the wall and crack slots).
   `WALL_FACES` steps down over its last 60 units at the seaward end (`wallDrop`), so a wall ends in
   the slope instead of a cut. `WALL_TOPS` are the copings.
-- **Flights** (end of `walls`): `FLIGHTS` from `STEPS`, each step a rough slab with a lit tread
+- **Flights** (end of `walls`; the beach flight is painted by `shore-rocks`, ADR 0370): `FLIGHTS` from `STEPS`, each step a rough slab with a lit tread
   over a shaded riser, a worn lit nose, and the flight's shade cast right.
 - **Beds** (`beds`): `BEDS`, ten rounded strips of tilled soil along each terrace's front behind
   its coping, under every bed slot. They share one soil layer (darker toward the coping), one layer
@@ -990,7 +1024,7 @@ over the sea. Shapes live in `coast/shapes.ts` (data only, devlog 149).
 Steps `maquis`, `olive` and `pine` (element `trees`), in parts. Palette `VEG`, lit from the left.
 - **Maquis** (`maquis`): `MAQUIS` along the promontory's back (paler toward the temple),
   `PROMONTORY_PINE_SHAPES` (thin trunks under flat broken umbrella crowns), `PHRYGANA` cushions
-  (grey-green or summer rust, a short shadow to the right, twiggy flicks), `SHORE_CLUMPS` softening
+  (grey-green or summer rust, a short shadow to the right, twiggy flicks), `SHORE_CLUMPS` in pockets of soil behind the shoreline ledge (G2b moved them off the rock), softening
   the shoreline's edge, and dry golden `GRASS` on the terrace ends and the foreground. Every clump
   is a cloud of scalloped lobes in two batched layers: the lit body, then each lobe's shade on its
   lower right.
@@ -1016,7 +1050,7 @@ Steps `maquis`, `olive` and `pine` (element `trees`), in parts. Palette `VEG`, l
   placeholder file goes.
 - Land and vegetation (devlog 177, Left open): the pine reads more Japanese than Aleppo; the
   beds are even strips; the walls' seaward ends are a step down, not rubble.
-- Daylight: real plates lit from the left; the architrave, the capitals and the crowns sit under the
+- Daylight: the white puff behind the temple's base between the first and second columns is the placeholder midday sky plate's (its wash leaves a rounded hole there; the background paints the sky as paper, devlog 180). Real plates lit from the left; the architrave, the capitals and the crowns sit under the
   sky's wash, and the skyline's 2-unit reach either side of each column leaves a pale sky-tinted
   band down the columns' sides.
 - Motion and the fauna's targets (perches on the copings, the caique's mast, the chapel; heron
