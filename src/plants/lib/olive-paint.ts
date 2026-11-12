@@ -95,7 +95,8 @@ export function paintOliveTrunk(p: Painter, trunk: Branch, t: OliveTrunk, view: 
   const n = o.c.length;
   const edgeL = o.c.map((q, i) => ({ x: q.x - o.left[i]!, y: q.y }));
   const edgeR = o.c.map((q, i) => ({ x: q.x + o.right[i]!, y: q.y }));
-  const body = [...edgeL, ...edgeR.slice().reverse()];
+  const sole = o.c[0]!.y + 2.5 * age;
+  const body = [{ x: edgeL[0]!.x, y: sole }, ...edgeL, ...edgeR.slice().reverse(), { x: edgeR[0]!.x, y: sole }];
   const foot = o.c[0]!;
   const hw0 = (o.left[0]! + o.right[0]!) / 2;
   const roots = t.roots.map((r) => {
