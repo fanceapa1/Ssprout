@@ -3,7 +3,7 @@
  * depend on), the sprite atlas, and the scene system's lookup (hit, miss, a slow store, a hit that
  * arrives while painting). The system paints on recording canvases (jsdom has no canvas).
  */
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AnyCanvas } from '../paint';
 import { createNullPaintCache, type PaintCache } from '../paint/persist';
 import { createManualClock } from '../core/clock';
@@ -351,6 +351,7 @@ describe('close-view buffers (devlog 158)', () => {
     await step();
     await new Promise((r) => setTimeout(r, 0));
     expect(scene.detailStats()).toMatchObject({ freed: 2, pixels: 0 });
+    scene.dispose!();
   });
 
   it('frees the painting a cancelled detail job finished, and the detail on a switch', async () => {
@@ -365,5 +366,37 @@ describe('close-view buffers (devlog 158)', () => {
     scene.dispose!();
     await new Promise((r) => setTimeout(r, 0));
     expect(scene.detailStats()).toMatchObject({ freed: 1, pixels: 0 });
+  });
+});
+
+describe('idle sky preparation after dispose', () => {
+  let uninstall: () => void = () => {};
+  beforeEach(() => {
+    vi.useFakeTimers();
+    uninstall = new PaintRecorder({ hash: false }).install();
+  });
+  afterEach(() => {
+    uninstall();
+    vi.useRealTimers();
+  });
+
+  it('paints no sky plate once the system is disposed', async () => {
+    const vp = createViewport(160, 100, 1);
+    const scene = createSceneSystem({ yieldTo: async () => {}, extendDelayMs: -1, cache: createNullPaintCache('dev') });
+    await scene.init!(context());
+    scene.update!({ t: 0, dt: 0, now: Date.UTC(2026, 5, 1, 12), view: vp });
+    scene.dispose!();
+    const g = globalThis as { OffscreenCanvas: new (...a: never[]) => object };
+    const Base = g.OffscreenCanvas;
+    let made = 0;
+    g.OffscreenCanvas = class extends Base {
+      constructor(...a: never[]) {
+        super(...a);
+        made++;
+      }
+    };
+    vi.advanceTimersByTime(30_000);
+    g.OffscreenCanvas = Base;
+    expect(made).toBe(0);
   });
 });

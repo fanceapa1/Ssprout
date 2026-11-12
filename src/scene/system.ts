@@ -662,7 +662,7 @@ export function createSceneSystem(opts: SceneSystemOptions = {}): SceneSystem {
           preparing = true;
           const s = sky;
           whenIdle(() => {
-            s.prepare([next]);
+            if (sky === s) s.prepare([next]);
             preparing = false;
           });
         }
@@ -741,6 +741,7 @@ export function createSceneSystem(opts: SceneSystemOptions = {}): SceneSystem {
       previous = null;
       dropDetail();
       motion = null;
+      sky = null;
     },
     whenPainted: async () => {
       // a camera that just came to rest starts its detail painting on the next frame: let it
