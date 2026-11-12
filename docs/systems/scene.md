@@ -152,15 +152,18 @@ ADR 0227; docs/systems/paint.md › Persistence):
   The fade, `whenPainted`/`scenePainted()` and `ready()` work as before.
 - **A miss** paints as before, then stores the painting (`{ copy: false }`) and the atlas in idle time.
 - **Bounded wait:** the paint job waits for the lookup for at most `cacheWaitMs` (300 ms). A hit
-  that arrives later stops the paint job and replaces it. With the cache off (dev server,
-  `?nopaintcache`) the lookup answers at once with nothing.
+  that arrives later stops the paint job and replaces it. A painting the cache's index lists (or
+  whose index has not answered yet) is only reading and decoding, so it is waited for up to
+  `cacheHitWaitMs` (4 s): painting instead would load the garden's painters chunk on a warm visit
+  (the lookup alone measures about 285 ms, so a slow machine crossed 300 ms; devlog 155). With the
+  cache off (dev server, `?nopaintcache`) the lookup answers at once with nothing.
 - **Sizes** (1440×900 @2): the overview plus its sprites is 6.8 MB of PNG, and a detail view is
   3–6.6 MB, out of the cache's 48 MB.
 - **Measured** (production build, repeat visit, 1440×900 @2): the landscape shows at about
   494 ms instead of 1603 ms. Main-thread busy time before it is 518 ms instead of 1522 ms. The
   lookup (open, read, decode, copy) takes about 285 ms. On a first visit the miss costs about
   20 ms. A repeat rest on the same close view takes 115 ms instead of 740 ms.
-- `createSceneSystem({ cache?, cacheWaitMs?, cacheDetail? })`. `sceneStats()` has `cacheHits`,
+- `createSceneSystem({ cache?, cacheWaitMs?, cacheHitWaitMs?, cacheDetail? })`. `sceneStats()` has `cacheHits`,
   `cacheMisses` and `lastLookupMs`, and `sceneDetail()` has `cacheHits` and `cacheMisses`.
 
 ## Caching, repaint and fade (ADR 0041)
@@ -270,7 +273,8 @@ the detail repaint from 49–52 ms (water) to 11–14 ms. At 4× CPU throttle: 3
 - `scene-cache.test.ts` (ADR 0228): the keys (exact, changed by every ingredient, equal for a
   repeat visit, the sprites independent of the rect) and the atlas layout. It also runs the system
   on recording canvases with an in-memory cache: a miss paints and stores both parts, a hit
-  paints nothing, a store that never answers is waited for at most `cacheWaitMs`, and a hit that
+  paints nothing, a store that never answers is waited for at most `cacheWaitMs`, a hit the index
+  lists is waited for past it (up to `cacheHitWaitMs`) without starting a paint job, and a hit that
   arrives mid-paint stops the paint job.
 - `tests/e2e/scene-cache.spec.ts` (ADR 0228, production build): a repeat visit paints no step,
   has one hit and draws a frame with 0 differing pixels from a `?nopaintcache` load (1440×900 @1).

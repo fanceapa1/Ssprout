@@ -103,7 +103,8 @@ the `lighting` layer. Each phase's plate is painted once (on demand; the next ph
 or taken from the persistent paint cache on a repeat visit (`light-plate`, ADR 0236; the wash's
 noise fields are then never built; the boot reveal waits up to 0.3 s for the lookups). A plate the
 cache lacks while the garden's lazy painters (ADR 0341) are not loaded is drawn as its grade wash
-alone, and recomposed when they land. `CastLight.settled()` resolves once the last blend's plates
+alone, and recomposed when they land; a plate drawn while its lookup is still pending is drawn the
+same way, but loads the painters only if the lookup misses (a hit recomposes). `CastLight.settled()` resolves once the last blend's plates
 are looked up and, on a miss, the painters are in; `lightPlatesSettled()` does that for every light
 whose last blend lacked a plate, and the scene's `whenPainted` (so `scenePainted()` and
 `camera.settle()`) awaits it, so a still frame never shows the bare wash (devlog 155). It waits only
