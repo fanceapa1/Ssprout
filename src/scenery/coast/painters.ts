@@ -8,7 +8,9 @@ import { paintMargins } from '../../scene/paint-land';
 import type { GardenPainters } from '../types';
 import { COAST_ELEMENTS } from './index';
 import { COAST_LIGHT } from './light';
-import { paintBeds, paintCaique, paintFarHill, paintLand, paintOlive, paintPine, paintPromontory, paintSea, paintShore, paintTemple, paintWalls } from './paint-placeholder';
+import { paintBeds, paintFarHill, paintLand, paintOlive, paintPine, paintPromontory, paintShore, paintTemple, paintWalls } from './paint-placeholder';
+import { paintCaique } from './boat';
+import { paintBeach, paintPools, paintSea } from './paint-water';
 import { COAST_SKY_PAINTERS } from './sky';
 
 type Element = keyof typeof COAST_ELEMENTS;
@@ -24,6 +26,8 @@ export function coastSteps(art: SceneArt, only?: readonly string[]): PaintStep[]
     promontory: (p) => paintPromontory(p, r('promontory')),
     temple: (p) => paintTemple(p, r('temple')),
     shore: (p) => paintShore(p, r('shore')),
+    beach: (p) => paintBeach(p, r('beach')),
+    pools: (p) => paintPools(p, r('pools')),
     land: (p) => paintLand(p, r('land')),
     walls: (p) => paintWalls(p, r('walls')),
     beds: (p) => paintBeds(p, r('beds')),
