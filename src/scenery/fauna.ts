@@ -3,6 +3,7 @@
  * arrival lines). The sceneries carry the same tables in `Scenery.fauna.unlocks` (ADR 0248).
  */
 import type { FaunaTable } from '../core/fauna-unlocks';
+import { COAST_FAUNA } from './coast/fauna';
 import type { SceneryId } from './ids';
 import { JAPANESE_FAUNA } from './japanese-garden/fauna';
 import { OASIS_FAUNA } from './oasis/fauna';
@@ -12,6 +13,7 @@ const TABLES: Readonly<Record<SceneryId, FaunaTable>> = {
   'japanese-garden': JAPANESE_FAUNA,
   waterfall: WATERFALL_FAUNA,
   oasis: OASIS_FAUNA,
+  coast: COAST_FAUNA,
 };
 
 export function faunaTable(sceneryId: SceneryId): FaunaTable {

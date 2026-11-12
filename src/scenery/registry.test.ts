@@ -8,16 +8,18 @@ import { gardenScene, PATH } from '../scene/geometry';
 import { GARDEN_SKY } from './japanese-garden/art';
 import { DEFAULT_SCENERY, isSceneryId, SCENERY_IDS, type SceneryId } from './ids';
 import { JAPANESE_GARDEN } from './japanese-garden';
+import { COAST } from './coast';
 import { OASIS } from './oasis';
 import { getScenery, hasScenery, sceneries } from './registry';
 import { WATERFALL } from './waterfall';
 
 describe('scenery ids', () => {
-  it('lists the Japanese garden (the default), the waterfall and the oasis', () => {
-    expect(SCENERY_IDS).toEqual(['japanese-garden', 'waterfall', 'oasis']);
+  it('lists the Japanese garden (the default), the waterfall, the oasis and the coast', () => {
+    expect(SCENERY_IDS).toEqual(['japanese-garden', 'waterfall', 'oasis', 'coast']);
     expect(DEFAULT_SCENERY).toBe('japanese-garden');
     expect(isSceneryId('waterfall')).toBe(true);
-    expect(isSceneryId('coast')).toBe(false);
+    expect(isSceneryId('coast')).toBe(true);
+    expect(isSceneryId('reef')).toBe(false);
     expect(isSceneryId(3)).toBe(false);
   });
 });
@@ -40,27 +42,35 @@ describe('the registry', () => {
     for (const q of ['', 'dev', 'scenery=oasis']) expect(sceneries(new URLSearchParams(q)).map((s) => s.id), q).toEqual(['japanese-garden', 'waterfall', 'oasis']);
   });
 
+  it('holds the Greek coast, offered only with ?dev&scenery=coast until it is painted (phase 15)', () => {
+    expect(getScenery('coast')).toBe(COAST);
+    expect(hasScenery('coast')).toBe(true);
+    for (const q of ['', 'dev', 'scenery=coast', 'dev&scenery=oasis']) expect(sceneries(new URLSearchParams(q)).map((s) => s.id), q).not.toContain('coast');
+    expect(sceneries(new URLSearchParams('dev&scenery=coast')).map((s) => s.id)).toEqual(['japanese-garden', 'waterfall', 'oasis', 'coast']);
+  });
+
   it('falls back to the default scenery for one not registered', () => {
-    expect(getScenery('coast' as SceneryId)).toBe(JAPANESE_GARDEN);
-    expect(hasScenery('coast' as SceneryId)).toBe(false);
+    expect(getScenery('reef' as SceneryId)).toBe(JAPANESE_GARDEN);
+    expect(hasScenery('reef' as SceneryId)).toBe(false);
   });
 
   it('keeps each scenery consistent with itself', () => {
-    for (const s of sceneries(new URLSearchParams('dev&scenery=oasis'))) {
+    for (const s of sceneries(new URLSearchParams('dev&scenery=coast'))) {
       expect(s.art.scenery, s.id).toBe(s.id);
       expect(s.art.scene, s.id).toBe(s.geometry);
       expect(s.light.sky, s.id).toBe(s.sky.layout);
       // every scenery says where its low sun stands (ADR 0284)
       expect(s.sky.layout.sunSide, s.id).toBeDefined();
-      expect(s.available(none), s.id).toBe(true);
+      expect(s.available(none), s.id).toBe(s.id !== 'coast');
       expect(Object.keys(SCENERIES), s.id).toContain(s.sound);
     }
   });
 
-  it('plays its own sound profile: the pond garden, the falls (ADR 0283), the oasis (ADR 0303)', () => {
+  it('plays its own sound profile: the pond garden, the falls (ADR 0283), the oasis (ADR 0303), the seaside', () => {
     expect(JAPANESE_GARDEN.sound).toBe('pond');
     expect(WATERFALL.sound).toBe('waterfall');
     expect(OASIS.sound).toBe('oasis');
+    expect(COAST.sound).toBe('coast');
   });
 });
 

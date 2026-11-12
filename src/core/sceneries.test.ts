@@ -36,6 +36,7 @@ const SLOTS: Record<SceneryId, SlotDef[]> = {
     { id: 'shared-1', habitat: 'rock', maxSize: 'small' },
   ],
   oasis: [],
+  coast: [],
 };
 const slots = slotLookup<SlotDef>((id) => SLOTS[id]);
 const world: ReducerWorld = { getSpecies: (id) => SPECIES[id], getSlot: slots.get };
@@ -60,11 +61,12 @@ const start = (over: StartOver = {}): Action => ({
 const at = (min: number) => T0 + min * MIN;
 
 describe('scenery ids and slot lookups', () => {
-  it('lists the Japanese garden (the default), the waterfall and the oasis', () => {
-    expect(SCENERY_IDS).toEqual(['japanese-garden', 'waterfall', 'oasis']);
+  it('lists the Japanese garden (the default), the waterfall, the oasis and the coast', () => {
+    expect(SCENERY_IDS).toEqual(['japanese-garden', 'waterfall', 'oasis', 'coast']);
     expect(DEFAULT_SCENERY).toBe('japanese-garden');
     expect(isSceneryId('waterfall')).toBe(true);
     expect(isSceneryId('oasis')).toBe(true);
+    expect(isSceneryId('coast')).toBe(true);
     expect(isSceneryId('pond')).toBe(false); // an audio scenery, not a garden
   });
 
@@ -91,7 +93,7 @@ describe('scenery/view', () => {
 
   it('is a no-op for an unknown id or the garden already on view', () => {
     const s = fresh();
-    expect(reducer(s, { type: 'scenery/view', id: 'coast' as SceneryId })).toBe(s);
+    expect(reducer(s, { type: 'scenery/view', id: 'reef' as SceneryId })).toBe(s);
     expect(reducer(s, { type: 'scenery/view', id: 'japanese-garden' })).toBe(s);
   });
 });
@@ -109,7 +111,7 @@ describe('session/start in a scenery', () => {
     expect(run(s, start({ sceneryId: 'waterfall', speciesId: 'lily', slotId: 'pool-1' })).session).not.toBeNull();
     expect(reducer(s, start({ sceneryId: 'japanese-garden', speciesId: 'lily', slotId: 'pool-1' }))).toBe(s);
     expect(reducer(s, start({ sceneryId: 'waterfall', slotId: 'meadow-1' }))).toBe(s);
-    expect(reducer(s, start({ sceneryId: 'coast' as SceneryId }))).toBe(s);
+    expect(reducer(s, start({ sceneryId: 'reef' as SceneryId }))).toBe(s);
   });
 
   it('a slot is held only in its own garden: the same slot id is free in the other one', () => {
