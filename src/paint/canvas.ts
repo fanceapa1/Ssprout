@@ -59,6 +59,40 @@ export function acquireWork(w: number, h: number): PooledCanvas {
 
 export function releaseWork(item: PooledCanvas): void {
   if (pool.length < 4) pool.push(item);
+  releases++;
+  trimSoon();
+}
+
+/** ms without a wet layer after which the pooled work canvases shrink to 1×1 (devlog 158) */
+export const WORK_QUIET_MS = 4000;
+let releases = 0;
+let trimTimer: ReturnType<typeof setTimeout> | null = null;
+
+/** One timer per quiet period: the pool is trimmed once a whole period passes without a release. */
+function trimSoon(): void {
+  if (trimTimer !== null || typeof setTimeout === 'undefined') return;
+  const seen = releases;
+  trimTimer = setTimeout(() => {
+    trimTimer = null;
+    if (releases === seen) trimWork();
+    else trimSoon();
+  }, WORK_QUIET_MS);
+}
+
+/** Shrink the idle pooled work canvases to 1×1 (`acquireWork` sizes them again). Returns the pixels freed. */
+export function trimWork(): number {
+  let freed = 0;
+  for (const { canvas } of pool) {
+    freed += canvas.width * canvas.height - 1;
+    canvas.width = 1;
+    canvas.height = 1;
+  }
+  return freed;
+}
+
+/** Backing pixels of the idle pooled work canvases. */
+export function workPixels(): number {
+  return pool.reduce((n, { canvas }) => n + canvas.width * canvas.height, 0);
 }
 
 function createWork(): PooledCanvas {

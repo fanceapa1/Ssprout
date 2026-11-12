@@ -237,7 +237,10 @@ boulders (`k` = paint scale ÷ 1.5).
   but draws its lattice a row at a time when a row is first sampled: for noise read along a few
   fixed rows, like the dock sheets' torn edges (ADR 0223).
 - Canvases (`canvas.ts`): `makeCanvas(w, h)` (OffscreenCanvas when available), `context2d`, and a
-  pool of scratch canvases (`acquireWork` / `releaseWork`).
+  pool of scratch canvases (`acquireWork` / `releaseWork`, at most 4 kept). Once no wet layer was
+  released for `WORK_QUIET_MS` (4 s), the pooled canvases shrink to 1×1 (`trimWork`;
+  `workPixels()` reads what they hold); `acquireWork` sizes them again, so drying is unchanged
+  (devlog 158).
 - Pure geometry: `deformPolygon`, `organicOutline` / `outlineLayer`, `blob`, `stoneShape`,
   `dabOutline`, `smoothPath`, `ribbon`, `smoothPolygon`, `insetPolygon`, `bounds`, … — all
   deterministic for a given `Rng`, all unit-tested.
