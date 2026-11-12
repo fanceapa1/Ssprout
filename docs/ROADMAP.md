@@ -255,7 +255,7 @@ Not done: a motion-sprite atlas (1.3 MB, not worth it) and shipping pre-painted 
 | Z12 | Oleander sprite: batch wet layers (103 ms), art review | `src/plants/species/oleander.ts` | done (devlog 154; 90 → 48 ms quiet (0.53×); art review passed, the stems a little softer at the base where they cross other bands) |
 | Z13 | Spike, then build if it pays: drying skips empty tiles, bit-identical (every garden, every sprite) | `src/paint/wet.ts` | done (devlog 156; ADR 0349; drying only the painted box plus the blur's reach, bit-identical (8,671 real layers compared); drying 0.87× overall, ksar 0.73×, katsura 0.77×; a paint-version bump: caches repaint once to the same pixels) |
 | Z14 | 30 fps while the camera rests, behind a flag, so the owner can compare | `src/render/renderer.ts` | queued (owner judges) |
-| Z15 | Free close-view buffers back at the overview (−33 MB) | `src/scene/system.ts`, `src/paint/wet.ts` scratch | queued |
+| Z15 | Free close-view buffers back at the overview (−33 MB) | `src/scene/system.ts`, `src/paint/wet.ts` scratch | in progress (devlog 158) |
 | Z16 | Free the night-edge canvases by day, rebuilt on idle before dusk (−9.5 MB) | `src/ambience/night-edge.ts` | in progress (devlog 157) |
 | Z17 | Paint-cache eviction at DPR 2: measure, then give priority to the viewed and base sets | `src/paint/persist.ts` | queued |
 | Z18 | `latin-ext` fonts out of the SW precache (−99 kB install) | `src/build/sw-manifest.ts` | queued |
@@ -267,6 +267,7 @@ Not done: a motion-sprite atlas (1.3 MB, not worth it) and shipping pre-painted 
 | Z24 | Sky plate painted in parts (one 115–135 ms task today) and pre-painted with the Z6 garden pre-paint, so a switch after the pre-paint gets near the warm 0.10 s | `src/scene/sky-light.ts`, `src/scene/system.ts` | queued |
 | Z25 | Oasis shape data out of the painters: the constants `oasis/wildlife.ts` reads from `paint-land`/`paint-water`/`paint-veg` (and `EARTH` from `paint-rocks`) move to a data module, so about 76 kB of oasis paint code leaves the first view (after Z3, Z4) | `src/scenery/oasis/*` | done (devlog 149; first-view JS 1,132.8 → 1,051.6 kB raw, 413.1 → 386.4 kB gzip; no oasis paint code on a Japanese garden visit; pixels unchanged) |
 | Z26 | Light plates wait for the lazy painters like the sky does (devlog 152 left open): a missing daylight light plate draws without the garden's shadows and lights until the painters land; a still frame waits for it | `src/ambience/{cast,plate-cache}.ts`, `src/scene/system.ts` | done (devlog 155; a still frame waits for the light's lazy painters; a listed cache hit is waited for (cacheHitWaitMs 4 s) instead of painted over, which was CI's lazy-painters failure) |
+| Z27 | The sky's lookup race (devlog 155 left open): a sky draw before its plate's cache lookup answers starts the painters load; the same one-line check `cast.ts` got | `src/scene/sky-light.ts` | queued |
 
 Phase 15 (owner request 2026-11-12): a fourth garden, the Greek coastline, in the same painted style as the other gardens, with its own Mediterranean plants and creatures. Owner decisions:
 - a tended clifftop terrace standing close, over a turquoise cove with limestone cliffs and pines (two reference photos)
