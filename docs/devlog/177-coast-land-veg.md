@@ -123,4 +123,6 @@ and `coast-veg/{veg,olive,pine,maquis}`. The app shots are at `?dev&scenery=coas
   is quiet on the terraces; the jars, which are simple.
 - **The olive's trunk part** is 514 k pixels at 1.6× (see Cost). Batching the species' trunk would
   fix it in both places.
-- **E2E**: see the report. The full suite was not run (CPU rule).
+- **E2E was run one file at a time** (`E2E_WORKERS=1`, against the production build):
+  `sceneries` (8), `lazy-painters` (1), `paint-cache` (3), `switch-light` (2) and `prepaint` (3) all pass.
+  The rest of the e2e suite was not run (CPU rule).
