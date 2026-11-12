@@ -45,6 +45,19 @@ Inputs come only from the `SceneGeometry` contract (`pond`, `waterline`, `lights
 the scenery (`AmbienceScenery`: its id, light art and `SceneryAmbience` — the dew boxes, the dawn
 mist bands and the veil's end, ADR 0241; docs/systems/scenery.md) and the store (`session.weather`, phase via `sessionPhase`, `plants`, session slot + growth).
 
+### Time in a still frame
+Everything that moves in the ambience runs on its own time, which `settle()` (`sprout.settleAmbience()`)
+starts over: the sim (`sim.t`: rain, motes, dew twinkle, the sun's breath) is made again and warmed
+for a fixed 12 s, and the lantern flame's time (`flameT`, read as `sprout.ambience().flame`) goes back
+to 0. The settle frame itself does not step either, whatever its `dt`. So a settled, frozen frame is
+the same on every load, with normal motion too (devlog 163). The flame's brightness is
+`flameFlicker(t)` (0.88–1); under reduced motion its time stays at 0.
+
+Not the ambience's: the scene's pond shimmer, ripples and glints (`scene/water.ts`) run on the
+renderer's `f.t` (real frame time since the page opened), which nothing resets; specs that hash
+frames mute the `waterSurface` layers. The fauna (fireflies included) steps its creatures with real
+`dt` too; specs mute it.
+
 ## Effects
 - **Sun** (ADR 0193): a thin raw-sienna glaze over the garden, mottled, fading out above the hills
   so the sky is never striped, with four soft diagonal bands of light (≈ 0.62 rad, from the upper
@@ -189,7 +202,7 @@ moves the sky, light, shadows, rims and fauna — docs/systems/daylight.md), `sp
 `sprout.lightPlates()` (light plates painted, taken from the paint cache, looked up in vain; ADR 0236),
 `sprout.lightReady()` (resolves once a garden switch's light is in place; ADR 0337),
 `sprout.ambience()` → `{ phase, weather, preview, levels, time (daylight phase), weights, counts (rain, ripples, glints, leafGlints, motes, drips), lightingPaints,
-lightingMs, sprites (groups built so far), reducedMotion, nightEdge (`{ bytes, sizes, building, last: { parts, longestMs, totalMs, sync }, frees }`; ADR 0350), ms, timeOverride, location, sunTimes }` (`ms` = moving average of update + draw per frame).
+lightingMs, sprites (groups built so far), reducedMotion, flame (the flame's time since the last settle, s), nightEdge (`{ bytes, sizes, building, last: { parts, longestMs, totalMs, sync }, frees }`; ADR 0350), ms, timeOverride, location, sunTimes }` (`ms` = moving average of update + draw per frame).
 ```
 npm run shots -- --name night-rain --eval "sprout.setTime('night'); sprout.start(25); sprout.setWeather('rain')"
 ```
@@ -233,7 +246,10 @@ the painters landed; one the cache gives settles without loading them).
 `lazy-sprites.test.ts` (no sprite and no light plate when the engine is made; a group is built once
 and only when read; a night without sun weather builds no sun but the lantern's flame; sun weather
 builds the glaze).
-Playwright: `tests/e2e/light-plates-wait.spec.ts` (a repeat visit missing its midday light plate,
+`flame-flicker.test.ts` (the flicker's range; the flame's time runs with frame time live, starts over on
+settle, also on a settle frame with a real `dt`, and stays put under reduced motion).
+Playwright: `tests/e2e/lantern-flicker.spec.ts` (two fresh loads at night with motion, one run 30
+frames longer, freeze to the same settled frame; devlog 163); `tests/e2e/light-plates-wait.spec.ts` (a repeat visit missing its midday light plate,
 with a slow painters chunk, frames the same lit noon as a fresh paint, for every garden; devlog 155);
 `tests/e2e/switch-light.spec.ts` (a warm switch paints no light plate and its settled night
 frame is pixel for pixel a fresh load's; `switching` while the light gets ready, `lightReady` when it takes over);
