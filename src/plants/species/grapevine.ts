@@ -364,7 +364,7 @@ const grapevine: SpeciesDef = {
   nativeName: 'Dalia',
   nativeLang: 'ary-Latn',
   // grown in the palmeraie's middle storey; the wild vine is not of the oasis
-  range: { realms: [], biomes: [], climates: [], cultivatedIn: ['n-africa-arabia'] },
+  range: { realms: [], biomes: [], climates: [], cultivatedIn: ['n-africa-arabia', 'mediterranean'] },
   tier: 4,
   habitats: ['meadow', 'back'],
   sizeClass: 'large',

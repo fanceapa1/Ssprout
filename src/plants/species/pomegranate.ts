@@ -313,7 +313,7 @@ const pomegranate: SpeciesDef = {
   nativeName: 'Rremman',
   nativeLang: 'ary-Latn',
   // grown in every palmeraie; wild only from Iran to the Himalaya
-  range: { realms: [], biomes: [], climates: [], cultivatedIn: ['n-africa-arabia'] },
+  range: { realms: [], biomes: [], climates: [], cultivatedIn: ['n-africa-arabia', 'mediterranean'] },
   tier: 4,
   habitats: ['meadow', 'back'],
   sizeClass: 'large',

@@ -118,7 +118,7 @@ describe('oleander', () => {
 
   it('grows wild by the wadis of North Africa and the Mediterranean, and keeps bees away', () => {
     const def = getSpecies('oleander')!;
-    expect(def.range).toEqual({ realms: ['n-africa-arabia', 'mediterranean'], biomes: ['desert', 'wetland'], climates: ['arid', 'warm-temperate'] });
+    expect(def.range).toEqual({ realms: ['n-africa-arabia', 'mediterranean'], biomes: ['desert', 'wetland', 'scrub'], climates: ['arid', 'warm-temperate', 'mediterranean'] });
     expect(def.pollinators).toBe(false);
     expect(def.description.length).toBeLessThan(80);
   });

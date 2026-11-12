@@ -242,7 +242,7 @@ const southernMaidenhair: SpeciesDef = {
   nativeName: 'Qesbour l-bir',
   nativeLang: 'ary-Latn',
   // wild on wet walls, wells and springs round the Mediterranean and in the Saharan oases
-  range: { realms: ['n-africa-arabia', 'mediterranean'], biomes: ['wetland', 'wet-cliff'], climates: ['arid', 'warm-temperate'] },
+  range: { realms: ['n-africa-arabia', 'mediterranean'], biomes: ['wetland', 'wet-cliff', 'coast'], climates: ['arid', 'warm-temperate', 'mediterranean'] },
   tier: 1,
   habitats: ['rock', 'shore'],
   sizeClass: 'small',

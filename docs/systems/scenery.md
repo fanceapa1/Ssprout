@@ -71,7 +71,7 @@ The Japanese garden's painters stay in `src/scene/` (docs/systems/scene.md): its
 | `coast/layout.ts` | the composition (ADR 0360): `FAR_HILL`, `VILLAGE`, `CHAPEL`, `PROMONTORY`, `STYLOBATE`, `COLUMNS`, `ARCHITRAVE`, `DRUM`, `PROMONTORY_PINES`, `CAIQUE`, `SHORE_EDGE`, `WATERLINE_EDGE`, `BEACH`, `SHELF`, `POOLS`, `SPLASH_ROCKS`, `SHORE_BOULDERS`, `SHORE_SCRUB`, `WALLS`, `LAND`, `OLIVE`, `PINE`, `PATH`, `STEPS`; `TEMPLE_SHAPES`, `silhouetteAt`, `SKYLINE`/`skylineAt`/`openSky`, `COAST_SKY_RECT`, `LIFT`, `WALL_TERRACE`, `terraceScale`, `copingAt`, `COAST_SKY_LAYOUT` (both low suns on the left), `FOCUS`, `COAST_AMBIENCE`, `COAST_HABITAT_WORDS` |
 | `coast/geometry.ts` | `SEA_WATER` (the pond), `POOL_WATER`, `coastScene` |
 | `coast/slots.ts` | `COAST_SLOTS`: 48 slots, terrace lift in scale; `SLOT_TERRACE` |
-| `coast/flora.ts`, `coast/fauna.ts` | `COAST_FLORA` (ADR 0361; offers only the caper so far); `COAST_FAUNA` (empty) and `COAST_WILDLIFE` |
+| `coast/flora.ts`, `coast/fauna.ts` | `COAST_FLORA` (ADR 0361; offers the five shared species and the ice plant so far); `COAST_FAUNA` (empty) and `COAST_WILDLIFE` |
 | `coast/painters.ts`, `coast/paint-placeholder.ts` | the lazy chunk: `coastSteps` runs draft B's steps moved onto the final layout; `COAST_PAINTERS_LOADED` |
 | `coast/sky.ts`, `coast/light.ts` | placeholders: one wash per phase cut to the skyline with a low glow over the sea, a mirrored sea sky; a shade under the promontory and the walls, warm light on the temple at low suns |
 | `coast/map.studio.ts` | studio `coast-map` (152): the composition map over the placeholder painting (`map`), and the painting under the midday plate (`painting`) |
@@ -830,9 +830,14 @@ y    0 ┌───────────────────────�
   terraces and both low suns. A 16:9 screen shows y 100–1000: 190 units of sky above the temple.
   `pathOut` is `PATH`.
 - **Flora** (ADR 0361): `{ realm: 'mediterranean', biomes: ['coast', 'scrub', 'garden', 'marine'],
-  climate: 'mediterranean', cultivated: true }`, the research's profile. By biology it offers only
-  the caper (`cultivatedIn: ['mediterranean']`); the phase 15 species and the shared species' new
-  tags bring the rest.
+  climate: 'mediterranean', cultivated: true }`, the research's profile. By biology it offers the
+  species shared with the oasis and the ice plant so far; the phase 15 species bring the rest.
+  - **Shared** (GF1, devlog 174): the caper and the ice plant are `cultivatedIn: ['mediterranean']`;
+    the pomegranate and the grapevine gained `'mediterranean'` in `cultivatedIn`; the oleander (stream-beds
+    and scrub) and the southern maidenhair (seeps on wet sea cliffs) gained the biome `scrub`
+    respectively `coast` and the climate `mediterranean` in their wild range. The oasis's and the
+    Japanese gardens' offers did not change.
+  - The olive and the lavender (paint tasks) add their own `cultivatedIn` or wild range.
 - **Wildlife**: an empty table; the sea is its still water (the geometry's default).
 - **Sound**: `coast`, the seaside profile that was waiting for it.
 
