@@ -150,7 +150,7 @@ export interface SceneSystem extends System {
    */
   prepaint(scenery: Scenery, opts: PrepaintOptions): Promise<PrepaintResult>;
   prepaintStats(): PrepaintStats;
-  /** resolves when no paint job is pending (the current painting matches the viewport) */
+  /** resolves when no paint job is pending (the current painting matches the viewport, the sky can paint its plates) */
   whenPainted(): Promise<void>;
   stats(): SceneStats;
   /** sky plates painted, composites built, ms spent painting skies */
@@ -692,6 +692,8 @@ export function createSceneSystem(opts: SceneSystemOptions = {}): SceneSystem {
       await Promise.all([job, motionJob]);
       if (camera && camera.detailVersion !== seenDetail && !camera.moving()) followCamera();
       await (detailJob ?? Promise.resolve());
+      // a sky plate the cache lacked waits for the painters (ADR 0341); the next update composes it
+      await sky?.settled();
     },
     detailStats: () => ({
       view: detail?.view ?? detailWanted,
