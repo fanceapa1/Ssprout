@@ -760,7 +760,7 @@ ADR 0232). The boot stages are `performance.mark`s named `sprout:boot:*`.
 Foundation (`src/dev/debug.ts`): `state()`, `ready()` (resolves when all systems are initialised),
 `freeze()` (async; resolves after a stable frame is drawn), `unfreeze()`, `setSpeed(n)`, `now()`,
 `frameStats()` (`{ frames, workAvg, workP95, workMax, intervalAvg, intervalP95 }`: renderer main-thread
-ms per frame and rAF intervals over the last 600 frames), `resetFrameStats()`, `stageVisible()` (false
+ms per frame and rAF intervals over the last 600 frames; `cachePixels`: backing pixels of its layer caches), `resetFrameStats()`, `stageVisible()` (false
 while the stage is scrolled out of view and the garden draws nothing, ADR 0224), `mute({ systemId: layers[] | '*' })`
 (leave out what systems draw, to isolate a layer in a probe or a pixel test; `mute({})` restores).
 

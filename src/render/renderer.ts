@@ -107,6 +107,8 @@ export interface FrameStats {
   workMax: number;
   intervalAvg: number;
   intervalP95: number;
+  /** backing pixels of the layer caches (the resting close view's background is freed at the overview) */
+  cachePixels: number;
 }
 
 const STAT_FRAMES = 600;
@@ -260,6 +262,16 @@ export function createRenderer(opts: RendererOptions): Renderer {
     return c;
   };
 
+  /** back at the overview: free the close view's background now, not at the next garbage collection */
+  const releaseViewCache = () => {
+    const c = caches.get('background:view' as LayerId);
+    if (!c) return;
+    c.canvas.width = 0;
+    c.canvas.height = 0;
+    caches.delete('background:view' as LayerId);
+    viewCacheFor = null;
+  };
+
   const drawLayer = (cx: CanvasRenderingContext2D, layer: LayerId, f: FrameInfo, vp: Viewport = camera.view()) => {
     for (const e of entries) {
       const s = e.system;
@@ -307,6 +319,7 @@ export function createRenderer(opts: RendererOptions): Renderer {
       const c = caches.get('background');
       if (!c) return;
       if (view === viewport) {
+        releaseViewCache();
         ctx.drawImage(c.canvas, 0, 0);
         return;
       }
@@ -626,6 +639,7 @@ export function createRenderer(opts: RendererOptions): Renderer {
       workMax: r2(Math.max(0, ...work)),
       intervalAvg: r2(avg(intervals)),
       intervalP95: r2(percentile(intervals, 0.95)),
+      cachePixels: [...caches.values()].reduce((n, c) => n + c.canvas.width * c.canvas.height, 0),
     }),
     resetFrameStats() {
       work.length = 0;
