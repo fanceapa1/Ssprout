@@ -24,7 +24,11 @@ of the place** (ADR 0185): its noise is anchored at the layer's own area corner 
 with an offset drawn in noise units, so a layer cut by the canvas, or painted at another
 resolution, mottles exactly like the whole one; the two offsets are drawn from the painter's rng
 even for a layer that misses the canvas, so every later layer draws the same numbers whatever part
-of the world a painting covers (a camera's detail painting is the overview resolved).
+of the world a painting covers (a camera's detail painting is the overview resolved). **The drying
+skips empty paper** (ADR 0349): `dryPixelsParts` finds the box of pixels with any paint, grows it
+by the edge blur's whole reach (on even pixels, for the half-resolution grid) and runs the wet
+edge, the blur and the pigment pass only there. The output is the whole-buffer pass's, byte for
+byte; the pixel read and write-back stay whole-layer.
 
 ## Pipeline convention (important)
 Paint **on white** (or transparent) and multiply `paperTexture` over the finished frame last —
@@ -352,6 +356,8 @@ The real scene has fewer elements than the stress composition. Cost is roughly p
 to the wet-layer pixels processed (≈18 M px for the normal background); `quality` trades layer
 counts and wet-layer resolution (draft: half resolution; normal: 0.8 for layers > 250 k px,
 0.7 above 1.5 M px). Tips: batch marks into one `layer()`, keep shapes' bounding boxes tight.
+Since ADR 0349 the drying pass itself only pays for the painted box (plus the blur's reach), but
+the layer's pixel read and write-back still cost its whole area, so a loose `area` is not free.
 
 ## Tests
 `noise.test.ts`, `pigments.test.ts`, `geometry.test.ts` (determinism of deformation and
@@ -362,7 +368,10 @@ row, dries byte for byte like the whole buffer; the blurs in bands equal the who
 paints what `dry` paints, in many parts; `flush` is one one-pixel read; the long recipes' canvas
 calls pinned on a recording canvas (numbers quantised, so the pins hold on every platform), and
 each parts form recorded bit for bit equal to its one-call form in the same run, in more than 8
-parts with no part over a quarter of the calls or reading more than one wet layer), `primitives.test.ts` (jsdom-safe import, documented
+parts with no part over a quarter of the calls or reading more than one wet layer), `dry-crop.test.ts`
+(ADR 0349: the cropped drying equals the whole-buffer drying byte for byte on 120 random sparse
+layers and on marks at a 32-px tile edge, each side and corner of the layer and a single pixel;
+the crop's margin and even alignment), `primitives.test.ts` (jsdom-safe import, documented
 defaults, quality scaling, pure brush geometry), `rim.test.ts` (rim width, screen draw, faint rims skipped, one mask per image, side and colour), `persist.test.ts` (keys, versions
 and the drop of other versions, LRU and the byte cap, idle encoding, the null cache, swallowed
 storage, encode and decode failures; Map adapter), `paint-version.test.ts` (the hashed import
