@@ -327,8 +327,25 @@ else { paint(canvas); void cache.put('scene', key, canvas); } // copied now, enc
   `dev | opted-out | unavailable | failed`.
 - **Cost:** `put` copies the canvas synchronously. That is one `drawImage` of the full size: pass
   `{ copy: false }` for a canvas nothing will draw on again. The PNG encode runs in idle time, one
-  put at a time, and only the latest of queued puts of one entry is encoded. LRU eviction keeps the
-  store under 48 MB of PNG bytes (`maxBytes`). The landscape is about 6 MB at 1440×900 @2.
+  put at a time, and only the latest of queued puts of one entry is encoded. Eviction keeps the
+  store under 48 MB of PNG bytes (`maxBytes`; `?dev&paintcachemb=N` sets a smaller one for e2e).
+  The landscape is about 6 MB at 1440×900 @2.
+- **Eviction tiers (`evict.ts`, ADR 0351):** the lowest tier goes first, and the least recently
+  used entry first within a tier. The tier comes from the entry's kind and key alone:
+
+  | tier | entries |
+  |---|---|
+  | landscape (kept longest) | per garden, every overview (`scene`) at the scale of its most recently used one, the sprite atlas of that scale (`scene-sprites`), and the thumbnails (`scenery-thumb`) |
+  | plates | `sky-plate` and `light-plate`, every garden and phase: recency keeps the viewed garden's current phases over its far ones and over gardens not visited lately |
+  | detail (evicted first) | close views (`scene-detail`), sprite atlases of other scales, overviews at an older scale (another window size), any other kind |
+
+  The garden is the key's text before its first `|` (every key starts with the scenery id). A
+  phone keeps two overviews per garden at one scale (its strip and the full world it extends
+  to): both are landscape. A put may evict only entries of its own tier or lower; when that does
+  not make room it is skipped (`stats().skipped`), so a close view never pushes out a landscape.
+  Opening the store with a smaller cap evicts every tier, lowest first. A new kind is a detail
+  until `TIER_KINDS` names it (`evict.test.ts` checks the names and key shapes against the
+  modules that build them). Sizes at DPR 2 and 3 are in devlog 164.
 - **Exactness:** `get` decodes with `colorSpaceConversion: 'none'` and `premultiplyAlpha: 'none'`.
   In Chromium the round trip canvas → PNG → bitmap → `drawImage` reads back identical
   `getImageData`, opaque and with every alpha value (`tests/e2e/paint-cache.spec.ts`). Store the
@@ -373,8 +390,12 @@ parts with no part over a quarter of the calls or reading more than one wet laye
 layers and on marks at a 32-px tile edge, each side and corner of the layer and a single pixel;
 the crop's margin and even alignment), `primitives.test.ts` (jsdom-safe import, documented
 defaults, quality scaling, pure brush geometry), `rim.test.ts` (rim width, screen draw, faint rims skipped, one mask per image, side and colour), `persist.test.ts` (keys, versions
-and the drop of other versions, LRU and the byte cap, idle encoding, the null cache, swallowed
-storage, encode and decode failures; Map adapter), `paint-version.test.ts` (the hashed import
+and the drop of other versions, LRU and the byte cap, the eviction tiers, idle encoding, the null cache, swallowed
+storage, encode and decode failures; Map adapter), `evict.test.ts` (ADR 0351: the tiers from the
+app's real kinds and keys, the eviction order with sizes and caps as numbers, a put held to its
+tier), `paint-version.test.ts` (the hashed import
 closure, what changes the version, species, creatures and notes left out unless a cached painter imports them). E2E `paint-cache.spec.ts` (a bit-exact round trip across a
-reload, `?nopaintcache`, version drop and eviction in real IndexedDB). Visuals: the studio sections
+reload, `?nopaintcache`, version drop and eviction in real IndexedDB), `cache-eviction.spec.ts`
+(at DPR 2 over a small cap, after the pre-paint and a close view, a repeat visit still hits and
+loads no painters). Visuals: the studio sections
 above.
