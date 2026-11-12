@@ -36,6 +36,7 @@ export const COAST_ELEMENTS = {
   sea: ['sea', 'caique'],
   rock: ['promontory', 'temple'],
   shore: ['shore'],
+  beach: ['beach', 'pools'],
   land: ['land', 'walls', 'beds'],
   trees: ['olive', 'pine'],
   near: ['margins'],

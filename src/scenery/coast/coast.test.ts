@@ -93,7 +93,7 @@ describe('the coast scenery', () => {
   it('paints its placeholder steps by element, back to front, and only the asked-for elements', () => {
     const names = coastSteps(COAST.art).map((s) => s.name);
     expect(names).toEqual(Object.values(COAST_ELEMENTS).flat());
-    expect(names).toEqual(['far-hill', 'sea', 'caique', 'promontory', 'temple', 'shore', 'land', 'walls', 'beds', 'olive', 'pine', 'margins']);
+    expect(names).toEqual(['far-hill', 'sea', 'caique', 'promontory', 'temple', 'shore', 'beach', 'pools', 'land', 'walls', 'beds', 'olive', 'pine', 'margins']);
     expect(coastSteps(COAST.art, ['rock', 'trees']).map((s) => s.name)).toEqual(['promontory', 'temple', 'olive', 'pine']);
   });
 
