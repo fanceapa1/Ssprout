@@ -106,6 +106,9 @@ export interface AmbienceScenery {
 const PREPARE_LOOKUP_WAIT_MS = 1000;
 const clock = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
 
+/** The lantern flame's brightness (0.88–1) at `t` seconds of its own time. */
+export const flameFlicker = (t: number): number => 0.88 + 0.12 * (0.5 + 0.5 * Math.sin(t * 2.3) * Math.sin(t * 3.7 + 1));
+
 const NO_SCENERY: AmbienceScenery = { id: DEFAULT_SCENERY, light: { trees: [], shrubs: [], painters: GARDEN_PAINTERS }, ambience: GARDEN_AMBIENCE };
 
 export interface AmbienceDebug {
@@ -123,6 +126,8 @@ export interface AmbienceDebug {
   /** the sprite groups painted so far: each is built on its first use (ADR 0232) */
   sprites: SpriteGroup[];
   reducedMotion: boolean;
+  /** the lantern flame's time (s): frame time since the last settle, so a settled still frame is the same on every load */
+  flame: number;
   /** the night edge's canvases: bytes held, sizes built, a build under way (ADR 0350) */
   nightEdge: NightEdgeStats;
 }
@@ -287,6 +292,7 @@ export function createAmbience(opts: AmbienceOptions): Ambience {
         sim = createSim(createRng(seed).fork('sim'), sim.world);
         warmSim(sim, 12, input);
         staticKey = key;
+        flameT = 0;
       } else {
         env = stepEnvelope(env, targets, frame.dt);
         if (reducedMotion && key !== staticKey) {
@@ -296,8 +302,8 @@ export function createAmbience(opts: AmbienceOptions): Ambience {
           warmSim(sim, 3, input);
         }
         stepSim(sim, frame.dt, { levels: env.value, wind: windFn, emitters: frame.emitters });
+        if (!reducedMotion) flameT += frame.dt;
       }
-      if (!reducedMotion) flameT += frame.dt;
 
       // lighting: recompose on demand, else every few seconds if the light moved
       sinceLight += frame.dt;
@@ -532,7 +538,7 @@ export function createAmbience(opts: AmbienceOptions): Ambience {
       ctx.globalCompositeOperation = 'source-over';
       nightEdge.draw(ctx as CanvasRenderingContext2D, edgeStrength(light) * alpha);
       if (grade.lantern > 0.02 && scene.lights.length) {
-        const flicker = 0.88 + 0.12 * (0.5 + 0.5 * Math.sin(flameT * 2.3) * Math.sin(flameT * 3.7 + 1));
+        const flicker = flameFlicker(flameT);
         const s = LOOK.flameSize;
         ctx.globalCompositeOperation = 'screen';
         ctx.globalAlpha = LOOK.flameAlpha * grade.lantern * flicker * alpha;
@@ -574,6 +580,7 @@ export function createAmbience(opts: AmbienceOptions): Ambience {
         lightingMs: castLight?.stats().paintMs ?? 0,
         sprites: builtSprites(sprites),
         reducedMotion,
+        flame: flameT,
         nightEdge: nightEdge.stats(),
       };
     },
