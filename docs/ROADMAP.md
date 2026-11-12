@@ -297,7 +297,7 @@ Phase 15 art queue (after G0): one plant (GP…) or creature (GK…) per task, f
 | # | Task | Area | Status |
 |---|---|---|---|
 | GP1 | Olive (*Olea europaea*): T4 tree, the signature; a fat fluted trunk and a broken silver crown | `src/plants/species/olive.ts` | in progress (devlog 171) |
-| GP2 | Ice plant (*Lampranthus*): T1, magenta and red mats on the terrace, walls and path | `src/plants/species/ice-plant.ts` | queued |
+| GP2 | Ice plant (*Lampranthus*): T1, magenta and red mats on the terrace, walls and path | `src/plants/species/ice-plant.ts` | in progress (devlog 172) |
 | GP3 | Lavender (*Lavandula*): T2, grey-green humps with violet spikes, terrace and path | `src/plants/species/lavender.ts` | queued |
 | GP4 | Sea daffodil (*Pancratium maritimum*): T2, white trumpets on the beach sand | `src/plants/species/sea-daffodil.ts` | queued |
 | GP5 | Posidonia (*Posidonia oceanica*): T3, a seagrass meadow in the shallows | `src/plants/species/posidonia.ts` | queued |
