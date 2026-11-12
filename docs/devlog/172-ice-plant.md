@@ -69,6 +69,9 @@ view, the studio card and the tier-1 line-up (`plants-a-review/lineup-t1`).
 - The crimson reads slightly coral in the lit patches.
 - A few fingers float beside the young cushion at growth 0.2 before their lobe's body exists.
 - The sprite uses only the lower half of its box (a wide low mat).
+- `src/scenery/flora.test.ts › each species is offered by at least one scenery` fails until the
+  coast scenery exists: no existing garden offers a Mediterranean-only cultivated plant. The scenery
+  task must land a `mediterranean` cultivated profile (or this test needs the coast listed).
 - Greek name and the spring flowering months are unverified (research doc "verify").
 
 ## For the orchestrator to place

@@ -1,5 +1,5 @@
 import type { SpeciesNote } from '../notes';
 
 export default {
-  note: 'The ice plant of the terrace walls is a Lampranthus, a succulent from the dry south of Africa, planted in Greek gardens for the colour it gives in spring. Its fleshy finger leaves hold water through the summer, and the flowers open in sun and close at dusk and on dull days. It is a garden plant, not the invasive Carpobrotus edulis that spreads over wild cliffs.',
+  note: 'This Lampranthus is a succulent from the dry south of Africa, planted on Greek terrace walls for its spring colour. Its fleshy leaves hold water through the summer, and the flowers close at dusk. It is a garden plant, not the invasive Carpobrotus edulis of wild cliffs.',
 } satisfies SpeciesNote;
