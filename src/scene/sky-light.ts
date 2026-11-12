@@ -134,7 +134,10 @@ export interface SkyLightOptions {
   scenery?: SceneryId;
   /** where the plates are looked up and stored (default: the app's paint cache; null: none) */
   cache?: PaintCache | null;
-  /** the sky's painters landed after a plate was drawn without them: the next update recomposes (ADR 0341) */
+  /**
+   * A plate drawn empty can now be drawn for real (its painters landed, or its lookup hit): the
+   * next update recomposes (ADR 0341)
+   */
   onPainters?: () => void;
 }
 
@@ -171,14 +174,18 @@ export function createSkyLight(opts: SkyLightOptions): SkyLight {
   const now = () => (typeof performance !== 'undefined' ? performance.now() : 0);
   let blank: Plate | null = null;
   let fetching: Promise<void> | null = null;
+  /** phases drawn as the empty plate while their lookup was pending */
+  const drawnBlank = new Set<DayPhase>();
+  /** what was composed without a plate is redone on the next update */
+  const redo = () => {
+    key = '';
+    detail = null;
+    opts.onPainters?.();
+  };
   /** load the sky's painters (ADR 0341); once they land, what was composed without them is redone */
   const fetchPainters = (): Promise<void> =>
     (fetching ??= spec.painters.load().then(
-      () => {
-        key = '';
-        detail = null;
-        opts.onPainters?.();
-      },
+      redo,
       (err: unknown) => {
         fetching = null;
         console.warn('[sky] sky painters failed to load', err);
@@ -205,7 +212,9 @@ export function createSkyLight(opts: SkyLightOptions): SkyLight {
       if (!plates.has(phase)) plates.set(phase, { sky: cutImage(image, 0, 0, sw, sh), water: cutImage(image, 0, sh, ww, wh) });
       return true;
     },
-    answered(phase) {
+    answered(phase, hit) {
+      // drawn empty while looked up: a hit (or painters already in) recomposes, a miss loads them
+      if (drawnBlank.delete(phase) && (hit || spec.painters.get())) redo();
       if (!plates.has(phase) && !spec.painters.get()) void fetchPainters();
       if (preparing.delete(phase) && !plates.has(phase)) void fetchPainters().then(() => whenIdle(() => void paint(phase)));
       if (deferred && last && !waiting(last.state)) flush();
@@ -219,8 +228,10 @@ export function createSkyLight(opts: SkyLightOptions): SkyLight {
     if (known) return known;
     const painters = spec.painters.get();
     if (!painters) {
-      // until the painters land: empty plates (no tint), neither kept nor stored
-      void fetchPainters();
+      // until the painters land: empty plates (no tint), neither kept nor stored; a plate still
+      // being looked up loads them only on a miss (a warm visit never does, ADR 0341)
+      if (store.pending(phase)) drawnBlank.add(phase);
+      else void fetchPainters();
       return (blank ??= { sky: makeCanvas(sw, sh), water: makeCanvas(ww, wh) });
     }
     const t0 = now();

@@ -296,6 +296,8 @@ the detail repaint from 49–52 ms (water) to 11–14 ms. At 4× CPU throttle: 3
   no hard line where the sky plate ends (world y 500) at 3× on the meadow, at night and in the
   sunset→night and night→sunrise blends (ADR 0206).
 - `sky-light.test.ts`: blend order (exact convex mix), recompose key, sky band, water opacity.
+- `sky-settled.test.ts`: a sky drawn while its plate is looked up loads no painters; a miss loads
+  them and a still frame waits; a hit recomposes on the next update (devlog 159).
 - `tests/e2e/scene.spec.ts`: painted (a pale clear midday sky, celadon pond, many colours), 50–60
   slots across all habitats, `?dev&slots` overlay, rescale vs repaint on resize; paints in parts
   (the big tree, pavilion and stones each longest part under half the step, ADR 0226), at load and in a
@@ -310,7 +312,9 @@ runner: `paintScene` awaits `art.painters.load()`, `paintJob` takes the steps an
 `art.painters.get()`. `spriteAtlasLayout` needs only `sprite-boxes.ts`. The scene's cache lookup
 starts the load as soon as `PaintCache.has` reports the painting or its sprites missing. The sky
 plate starts it on a lookup miss, draws an empty plate until the painters land and then
-recomposes (`onPainters`). `SkyLight.settled()` resolves once the plates the current light needs
+recomposes (`onPainters`). A plate drawn while its lookup is still pending is drawn empty too, but
+loads nothing: a miss starts the load, a hit calls `onPainters` so the next update composes it
+(a warm visit whose sky answers late never asks for the chunk; devlog 159). `SkyLight.settled()` resolves once the plates the current light needs
 are looked up and, on a miss, the painters are in; `whenPainted` (so `scenePainted()` and
 `camera.settle()`) awaits it, so a still frame never shows that empty plate (devlog 152). The
 light plates have the same wait: `whenPainted` also awaits `lightPlatesSettled()` (`cast.ts`,
