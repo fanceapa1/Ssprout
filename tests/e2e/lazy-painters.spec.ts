@@ -30,6 +30,25 @@ function openAt(): void {
   globalThis.Date = AtDate as DateConstructor;
 }
 
+/** Init script: `&e2eslowsky=<ms>` answers the paint cache's sky-plate reads that much later. */
+function slowSkyReads(): void {
+  const m = /[?&]e2eslowsky=(\d+)/.exec(location.search);
+  if (!m) return;
+  const delay = Number(m[1]);
+  const get = IDBObjectStore.prototype.get;
+  IDBObjectStore.prototype.get = function (this: IDBObjectStore, query: IDBValidKey | IDBKeyRange) {
+    const req = get.call(this, query);
+    if (typeof query !== 'string' || !query.includes(':sky-plate:')) return req;
+    Object.defineProperty(req, 'onsuccess', {
+      configurable: true,
+      set(fn: ((ev: Event) => void) | null) {
+        Object.getOwnPropertyDescriptor(IDBRequest.prototype, 'onsuccess')!.set!.call(req, fn && ((ev: Event) => setTimeout(() => fn.call(req, ev), delay)));
+      },
+    });
+    return req;
+  };
+}
+
 /** Every script the page asks for from now on (served by the network or the service worker). */
 function scripts(page: Page): string[] {
   const urls: string[] = [];
@@ -57,7 +76,10 @@ const PHASES = ['sunrise', 'midday', 'sunset', 'night'] as const;
 
 test.describe('lazy garden painters (ADR 0341)', () => {
   test.use({ viewport: { width: 1440, height: 900 }, reducedMotion: 'reduce' });
-  test.beforeEach(({ context }) => context.addInitScript(openAt));
+  test.beforeEach(async ({ context }) => {
+    await context.addInitScript(openAt);
+    await context.addInitScript(slowSkyReads);
+  });
 
   test('a first visit loads the garden painters; a warm repeat visit never requests them', async ({ page }) => {
     test.slow();
@@ -91,5 +113,17 @@ test.describe('lazy garden painters (ADR 0341)', () => {
     expect(repeat.some((u) => u.includes('/assets/main-'))).toBe(true);
     expect(repeat).not.toContain(garden[0]);
     expect(await oasisPaintIn(page, repeat)).toEqual([]);
+
+    // the sky plate's lookup answers after the landscape is drawn: drawing meanwhile loads nothing (devlog 159)
+    const slow = scripts(page);
+    await openDev(page, 'e2eat=12:00&e2eslowsky=1500');
+    await page.evaluate(async () => {
+      const s = window.sprout!;
+      await s.camera.settle();
+      s.settleAmbience();
+    });
+    await waitFrames(page, 4);
+    expect(await page.evaluate(() => window.sprout!.skyStats())).toMatchObject({ painted: 0, cacheHits: 1, cacheMisses: 0 });
+    expect(slow).not.toContain(garden[0]);
   });
 });
