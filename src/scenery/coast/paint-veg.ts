@@ -14,7 +14,7 @@ import type { Pt, Rect } from '../../render/viewport';
 import type { Strokes } from '../../scene/paint-land';
 import { batchLayer } from '../oasis/paint-batch';
 import { pacer } from '../oasis/paint-pace';
-import { EARTH } from './paint-land';
+import { EARTH, inView } from './paint-land';
 import {
   GRASS, MAQUIS, OLIVE_SHADOW, OLIVE_TREE, PHRYGANA, PINE_BRANCHES, PINE_PADS, PINE_ROCK, PINE_TRUNK, PROMONTORY_PINE_SHAPES, SHORE_CLUMPS,
 } from './shapes';
@@ -74,8 +74,8 @@ function lobes(c: Clump, rng: Rng): Pt[][] {
 
 /** Clumps in two batched layers: the lobes' lit body, then each lobe's shade on its lower right. */
 function* clumps(p: Painter, list: readonly Clump[], rng: Rng, sample: Rect, dry: DryOptions): Strokes {
-  if (!list.length) return;
-  const all = list.map((c) => ({ c, lobes: lobes(c, rng) }));
+  const all = list.map((c) => ({ c, lobes: lobes(c, rng) })).filter((x) => inView(p, padRect(bounds(x.lobes.flat()), 6)));
+  if (!all.length) return;
   const area = padRect(bounds(all.flatMap((x) => x.lobes.flat())), 6);
   const B = batchLayer(p, area, sample, 4);
   if (B.empty) return;
@@ -124,18 +124,22 @@ export function* paintMaquis(p: Painter, rng: Rng): Strokes {
   yield* clumps(p, cushions, rng.fork('cushions'), { x: 0, y: 0, w: 30, h: 14 }, CLUMP_DRY);
   // their twiggy texture: short flicks out of each dome's top
   const pace = pacer(3);
-  for (const c of PHRYGANA) {
+  for (const [i, c] of PHRYGANA.entries()) {
+    if (!inView(p, { x: c.x - c.r * 2, y: c.y - c.r * 2, w: c.r * 4, h: c.r * 3 })) continue;
+    const rc = rng.fork(`flicks-${i}`);
     for (let k = 0; k < c.r * 0.7; k++) {
-      const a = UP + rng.range(-1.2, 1.2);
+      const a = UP + rc.range(-1.2, 1.2);
       const x = c.x + Math.cos(a) * c.r * 0.7;
       const y = c.y - c.r * 0.42 + Math.sin(a) * c.r * 0.45;
-      p.dab({ x, y }, c.rust ? VEG.rust : VEG.phryganaDark, { rng, variant: 'blade', angle: a, length: rng.range(3, 6), width: 1.2, opacity: 0.45, layers: 2 });
+      p.dab({ x, y }, c.rust ? VEG.rust : VEG.phryganaDark, { rng: rc, variant: 'blade', angle: a, length: rc.range(3, 6), width: 1.2, opacity: 0.45, layers: 2 });
     }
     if (pace()) yield;
   }
   // dry golden grass
-  for (const [x, y, h] of GRASS) {
-    p.grassTuft({ x, y }, { rng, height: h, blades: rng.int(8, 14), spread: h * 0.6, lean: rng.range(-0.15, 0.3), pigments: [lighten(EARTH.straw, 0.12), EARTH.straw, EARTH.strawDark, mix(EARTH.strawDark, VEG.phryganaDark, 0.4)], ground: false, opacity: 0.72 });
+  for (const [i, [x, y, h]] of GRASS.entries()) {
+    if (!inView(p, { x: x - h, y: y - h * 1.3, w: h * 2, h: h * 1.5 })) continue;
+    const rg = rng.fork(`grass-${i}`);
+    p.grassTuft({ x, y }, { rng: rg, height: h, blades: rg.int(8, 14), spread: h * 0.6, lean: rg.range(-0.15, 0.3), pigments: [lighten(EARTH.straw, 0.12), EARTH.straw, EARTH.strawDark, mix(EARTH.strawDark, VEG.phryganaDark, 0.4)], ground: false, opacity: 0.72 });
     if (pace()) yield;
   }
   yield;
@@ -143,6 +147,7 @@ export function* paintMaquis(p: Painter, rng: Rng): Strokes {
 
 /** The promontory's pines: thin dark trunks under flat, broken umbrella crowns, lit on the left. */
 function* paintPromontoryPines(p: Painter, rng: Rng): Strokes {
+  if (!inView(p, { x: 880, y: 230, w: 760, h: 140 })) return;
   for (const t of PROMONTORY_PINE_SHAPES) p.stroke(t.trunk, { rng, pigment: mix(VEG.barkDark, VEG.maquisDark, 0.4), width: 2 + t.rx / 24, taper: [0.05, 0.5], opacity: 0.75, wetness: 0.3 });
   yield;
   const pads = PROMONTORY_PINE_SHAPES.flatMap((t) =>
@@ -160,6 +165,9 @@ function* paintPromontoryPines(p: Painter, rng: Rng): Strokes {
 }
 
 // ── the olive ────────────────────────────────────────────────────────────────────────────
+
+/** Everything the olive paints, crown, trunk and shadow, with room to spare. */
+const OLIVE_BOX = { x: OLIVE_TREE.base.x - 260, y: OLIVE_TREE.base.y - 500, w: 560, h: 540 };
 
 /** The plan, planned once: the same tree as the species' sprite for `OLIVE_TREE.seed`. */
 let planned: { plan: OlivePlan; paint: Rng } | null = null;
@@ -190,6 +198,7 @@ function inOlive(p: Painter, plan: OlivePlan, fn: () => void): void {
  * fluted trunk, tuft washes, leaves, the silver leaves and olives), each in a part of its own.
  */
 export function* paintOlive(p: Painter, rng: Rng): Strokes {
+  if (!inView(p, OLIVE_BOX)) return;
   const s = OLIVE_SHADOW;
   yield* p.parts.glaze(blob(s.cx, s.cy, s.rx, s.ry, rng, { irregularity: 0.35 }), mix(EARTH.shadow, EARTH.gravelShade, 0.3), { rng, opacity: 0.4, deform: 0.3, spread: 0.3, edge: 0.04, fade: { angle: 0, start: 0.5, amount: 1, ragged: 0.7 } });
   const { plan, paint } = olivePlan();
@@ -258,6 +267,7 @@ export function* paintOlive(p: Painter, rng: Rng): Strokes {
 
 /** The Aleppo pine: its rock, a reddish scaly trunk lit on the left, crooked branches, open needle pads, cones. */
 export function* paintPine(p: Painter, rng: Rng): Strokes {
+  if (!inView(p, { x: -80, y: 140, w: 400, h: 740 })) return;
   yield* p.parts.stone(PINE_ROCK, { rng, pigment: mix(EARTH.stone, EARTH.stoneWarm, 0.3), warm: 0.4, moss: 0.05, ink: 0.2, light: LIGHT });
   const trunk = smoothPath(PINE_TRUNK.map((q) => ({ x: q.x, y: q.y })), 6);
   const hw = (t: number) => 13 * (1 - 0.66 * t) + (t < 0.05 ? (0.05 - t) * 100 : 0);

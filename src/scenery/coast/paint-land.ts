@@ -5,12 +5,11 @@
  * docs/systems/scenery.md › Coast › Land.
  */
 import type { Rng } from '../../core/rng';
-import { blob, bounds, jitter, lighten, mix, padRect, ribbon, shade, smoothPath, type Painter, type Pigment } from '../../paint';
+import { blob, bounds, jitter, lighten, mix, padRect, ribbon, shade, smoothPath, type DryOptions, type Painter, type Pigment, type StrokeOptions } from '../../paint';
 import type { Pt } from '../../render/viewport';
 import type { Strokes } from '../../scene/paint-land';
 import { perspectiveScale } from '../../scene/slots';
 import { batchLayer, dryBrushDry, dryBrushInto } from '../oasis/paint-batch';
-import { pacer } from '../oasis/paint-pace';
 import { LAND, PATH, WALLS } from './layout';
 import { BEDS, copingY, FLIGHTS, JARS, wallDrop, WALL_FACES, WALL_GRASS, WALL_TOPS } from './shapes';
 import { COAST_SLOTS } from './slots';
@@ -53,6 +52,16 @@ export function terraceBack(i: number, x: number): number {
   return copingY(i - 1, x) + WALLS[i - 1]!.h;
 }
 
+/** Does `r` (world units) reach the painter's canvas? Work outside it is skipped. */
+export function inView(p: Painter, r: { x: number; y: number; w: number; h: number }): boolean {
+  const m = p.ctx.getTransform();
+  const x0 = m.a * r.x + m.e;
+  const x1 = m.a * (r.x + r.w) + m.e;
+  const y0 = m.d * r.y + m.f;
+  const y1 = m.d * (r.y + r.h) + m.f;
+  return Math.max(x0, x1) > 0 && Math.min(x0, x1) < p.ctx.canvas.width && Math.max(y0, y1) > 0 && Math.min(y0, y1) < p.ctx.canvas.height;
+}
+
 function reserve(p: Painter, shape: readonly Pt[]): void {
   p.ctx.save();
   p.ctx.beginPath();
@@ -71,10 +80,10 @@ export function* paintGround(p: Painter, rng: Rng): Strokes {
   reserve(p, land);
   yield* p.parts.wetInWet(land, EARTH.gravel, mix(EARTH.gravelWarm, EARTH.earth, 0.4), { rng, angle: Math.PI / 2 - 0.3, split: 0.55, softness: 0.7, opacity: 0.55, deform: 0.03, spread: 0.04, edge: 0.08, granulation: 0.6, granules: 0.25, flow: 0.5, flowScale: 120 });
   // warm passages and cool ones across the gravel, so it is not one flat tone
-  for (let k = 0; k < 7; k++) {
+  for (let k = 0; k < 4; k++) {
     const x = rng.range(760, 1560);
     const y = rng.range(520, 980);
-    yield* p.parts.glaze(blob(x, y, rng.range(90, 180), rng.range(16, 34), rng, { irregularity: 0.4 }), k % 2 ? EARTH.gravelWarm : mix(EARTH.gravelShade, EARTH.stoneCool, 0.5), { rng, opacity: 0.18, deform: 0.3, spread: 0.3, edge: 0.03, granulation: 0.4 });
+    yield* p.parts.glaze(blob(x, y, rng.range(140, 240), rng.range(20, 40), rng, { irregularity: 0.4 }), k % 2 ? EARTH.gravelWarm : mix(EARTH.gravelShade, EARTH.stoneCool, 0.5), { rng, opacity: 0.18, deform: 0.3, spread: 0.3, edge: 0.03, granulation: 0.4 });
   }
   // the promontory's cool shade over the top terrace's back
   const back = line((x) => terraceBack(0, x) - 4, 880, 1640);
@@ -142,7 +151,7 @@ function* paintPath(p: Painter, rng: Rng): Strokes {
   yield* p.parts.glaze(body, mix(EARTH.gravel, EARTH.gravelWarm, 0.6), { rng, opacity: 0.35, deform: 0.15, spread: 0.15, edge: 0.15, granulation: 0.6, granules: 0.3 });
   // the trodden middle, a little compacted and warmer
   yield* p.parts.glaze(ribbon(walk, (t) => half(t) * 0.35, (t) => Math.sin(t * 9) * half(t) * 0.15), EARTH.gravelWarm, { rng, opacity: 0.2, deform: 0.3, spread: 0.3, edge: 0.02 });
-  const pace = pacer(4);
+  const edges: { pts: Pt[]; w: number }[] = [];
   for (const side of [-1, 1]) {
     for (let a = 0; a < walk.length - 3; ) {
       const n = rng.int(5, 12);
@@ -154,12 +163,23 @@ function* paintPath(p: Painter, rng: Rng): Strokes {
         const l = Math.hypot(d.x, d.y) || 1;
         return { x: q.x - (d.y / l) * half(ts[j]!) * side, y: q.y + (d.x / l) * half(ts[j]!) * side };
       });
-      if (edge.length > 1) p.dryBrush(edge, { rng, pigment: mix(EARTH.gravelShade, EARTH.earthDark, 0.4), width: 3 + 4 * ts[0]!, opacity: 0.6, dryness: 0.55 });
-      if (pace()) yield;
+      if (edge.length > 1) edges.push({ pts: edge, w: 3 + 4 * ts[0]! });
       a += n + rng.int(1, 4);
     }
   }
+  const opts = { rng, pigment: mix(EARTH.gravelShade, EARTH.earthDark, 0.4), dryness: 0.55, wetness: 0.15 };
+  const L = batchLayer(p, padRect(bounds(body), 8), { x: 0, y: 0, w: 60, h: 6 }, 4);
+  if (L.empty) return;
+  for (const [i, e] of edges.entries()) {
+    dryBrushInto(L, p, e.pts, { ...opts, width: e.w });
+    if (i % 8 === 7) {
+      L.flush();
+      yield;
+    }
+  }
+  L.flush();
   yield;
+  yield* L.dryParts({ ...dryBrushDry({ ...opts, width: 5 }), opacity: 0.6 });
 }
 
 // ── the walls ────────────────────────────────────────────────────────────────────────────
@@ -229,6 +249,7 @@ export function* paintWalls(p: Painter, rng: Rng): Strokes {
     const r = rng.fork(`wall-${i}`);
     const w = WALLS[i]!;
     const face = WALL_FACES[i]!;
+    if (!inView(p, padRect(bounds(face), 24))) continue;
     const top = WALL_TOPS[i]!;
     const foot = top.map((q) => ({ x: q.x, y: q.y + wallDrop(i, q.x) }));
     // its shade on the terrace below, soft and lost toward the viewer
@@ -296,16 +317,28 @@ export function* paintWalls(p: Painter, rng: Rng): Strokes {
     }
     p.ctx.restore();
     // the coping's lit top, broken, and the shade line under its course
-    const pace = pacer(4);
+    const lit: Pt[][] = [];
+    const under: Pt[][] = [];
     for (let k = 0; k < top.length - 1; ) {
       const n = r.int(4, 10);
       const seg = top.slice(k, k + n);
       if (seg.length > 1) {
-        p.stroke(seg.map((q) => ({ x: q.x, y: q.y - 0.6 })), { rng: r, pigment: lighten(EARTH.stone, 0.4), width: 3, opacity: 0.85, wetness: 0.2, dryness: 0.3, taper: [0.05, 0.05], blend: 'source-over' });
-        p.dryBrush(seg.map((q) => ({ x: q.x, y: q.y + 10 })), { rng: r, pigment: mix(EARTH.joint, EARTH.shadow, 0.4), width: 2, opacity: 0.3, dryness: 0.5 });
+        lit.push(seg.map((q) => ({ x: q.x, y: q.y - 0.6 })));
+        under.push(seg.map((q) => ({ x: q.x, y: q.y + 10 })));
       }
-      if (pace()) yield;
       k += n + r.int(0, 2);
+    }
+    const marks: [Pt[][], StrokeOptions, DryOptions][] = [
+      [under, { rng: r, pigment: mix(EARTH.joint, EARTH.shadow, 0.4), width: 2, dryness: 0.5, wetness: 0.15 }, { opacity: 0.3 }],
+      [lit, { rng: r, pigment: lighten(EARTH.stone, 0.4), width: 3, dryness: 0.3, wetness: 0.2 }, { opacity: 0.85, blend: 'source-over' }],
+    ];
+    for (const [list, opts, dry] of marks) {
+      const C = batchLayer(p, padRect(bounds(list.flat()), 4), { x: 0, y: 0, w: 60, h: 4 }, 3);
+      if (C.empty) continue;
+      for (const m of list) dryBrushInto(C, p, m, opts);
+      C.flush();
+      yield;
+      yield* C.dryParts({ ...dryBrushDry(opts), ...dry });
     }
     // the foot in the shade of its own bulge, and a fine lost edge where the terrace meets it
     yield* p.parts.glaze([...foot.map((q) => ({ x: q.x, y: q.y - w.h * 0.35 })), ...foot.slice().reverse()], mix(EARTH.shadow, EARTH.joint, 0.3), { rng: r, opacity: 0.25, edge: 0.03, deform: 0.1, fade: { angle: -Math.PI / 2, start: 0.2, amount: 1, ragged: 0.5 } });
@@ -320,25 +353,27 @@ export function* paintWalls(p: Painter, rng: Rng): Strokes {
 
 /** The stone flights: each step a rough slab, its lit tread over a shaded riser, casting a little shade right and below. */
 function* paintFlights(p: Painter, rng: Rng): Strokes {
-  for (const flight of FLIGHTS) {
+  for (const [f, flight] of FLIGHTS.entries()) {
+    const rf = rng.fork(`flight-${f}`);
     const slabs = flight.map((s) => [...s.tread.slice(0, 2), s.riser[2]!, s.riser[3]!]);
     const b = bounds(slabs.flat());
+    if (!inView(p, padRect(b, 12))) continue;
     // the shade the flight casts on the wall face and the ground to its right
-    yield* p.parts.glaze(slabs.flatMap((q) => [q[1]!, q[2]!]).concat(slabs.slice().reverse().flatMap((q) => [{ x: q[2]!.x + 7, y: q[2]!.y + 3 }, { x: q[1]!.x + 7, y: q[1]!.y + 4 }])), mix(EARTH.joint, EARTH.shadow, 0.5), { rng, opacity: 0.4, edge: 0.05, deform: 0.15 });
+    yield* p.parts.glaze(slabs.flatMap((q) => [q[1]!, q[2]!]).concat(slabs.slice().reverse().flatMap((q) => [{ x: q[2]!.x + 7, y: q[2]!.y + 3 }, { x: q[1]!.x + 7, y: q[1]!.y + 4 }])), mix(EARTH.joint, EARTH.shadow, 0.5), { rng: rf, opacity: 0.4, edge: 0.05, deform: 0.15 });
     for (const q of slabs) reserve(p, q);
     const T = batchLayer(p, padRect(b, 4), { x: 0, y: 0, w: 50, h: 10 }, 3);
     if (T.empty) continue;
     for (const s of flight) {
-      T.fill(s.riser, jitter(mix(EARTH.stoneCool, EARTH.joint, 0.4), rng, 0.05), 0.62);
-      T.fill(s.tread, jitter(mix(EARTH.stone, EARTH.stoneWarm, 0.5), rng, 0.06), 0.42);
+      T.fill(s.riser, jitter(mix(EARTH.stoneCool, EARTH.joint, 0.4), rf, 0.05), 0.62);
+      T.fill(s.tread, jitter(mix(EARTH.stone, EARTH.stoneWarm, 0.5), rf, 0.06), 0.42);
     }
     T.flush();
     yield;
     yield* T.dryParts({ opacity: 0.8, edge: 0.5, edgeWidth: 0.8, sharpness: 0.75, centreLift: 0.2, granulation: 0.5, granules: 0.25, flow: 0.3, flowScale: 10 });
     for (const s of flight) {
       // the worn, lit nose of each tread, and the dark line where the riser tucks under
-      p.dryBrush([s.tread[3]!, s.tread[2]!], { rng, pigment: lighten(EARTH.stone, 0.4), width: 2.2, opacity: 0.75, dryness: 0.45, blend: 'source-over' });
-      p.dryBrush([s.riser[3]!, s.riser[2]!].map((q) => ({ x: q.x, y: q.y - 0.5 })), { rng, pigment: EARTH.joint, width: 1.8, opacity: 0.5, dryness: 0.5 });
+      p.dryBrush([s.tread[3]!, s.tread[2]!], { rng: rf, pigment: lighten(EARTH.stone, 0.4), width: 2.2, opacity: 0.75, dryness: 0.45, blend: 'source-over' });
+      p.dryBrush([s.riser[3]!, s.riser[2]!].map((q) => ({ x: q.x, y: q.y - 0.5 })), { rng: rf, pigment: EARTH.joint, width: 1.8, opacity: 0.5, dryness: 0.5 });
     }
     yield;
   }
@@ -348,35 +383,49 @@ function* paintFlights(p: Painter, rng: Rng): Strokes {
 
 /** The tended beds: darker tilled soil, a raked surface, a lit rim on the gravel side; then the jars. */
 export function* paintBeds(p: Painter, rng: Rng): Strokes {
-  for (const [i, bed] of BEDS.entries()) {
-    const r = rng.fork(`bed-${i}`);
-    yield* p.parts.wetInWet(bed.poly, mix(EARTH.soil, EARTH.earth, 0.3), mix(EARTH.soil, EARTH.soilDark, 0.3), { rng: r, angle: Math.PI / 2, split: 0.55, softness: 0.5, opacity: 0.42, deform: 0.18, spread: 0.1, edge: 0.2, edgeWidth: 1.5, sharpness: 0.45, granulation: 0.6, granules: 0.3 });
-    const b = bounds(bed.poly);
-    const marks: Pt[][] = [];
-    const nFar = bed.poly.findIndex((q, j) => j > 0 && q.x < bed.poly[j - 1]!.x) - 3;
-    const farEdge = bed.poly.slice(0, Math.max(2, nFar));
-    for (let f = 0.18; f < 0.95; f += 0.16) {
-      const pts: Pt[] = [];
-      for (let x = b.x + 8; x < b.x + b.w - 8; x += 10) {
-        const yc = copingY(bed.wall, x);
-        const far = farEdge.find((q) => q.x >= x)?.y ?? b.y;
-        pts.push({ x, y: far + (yc - 5 - far) * f + r.range(-0.5, 0.5) });
+  const beds = BEDS.filter((bed) => inView(p, padRect(bounds(bed.poly), 12)));
+  if (beds.length) {
+    const area = padRect(bounds(beds.flatMap((b) => b.poly)), 8);
+    const B = batchLayer(p, area, { x: 0, y: 0, w: 120, h: 40 }, 6);
+    const furrows: { pts: Pt[]; rng: Rng }[] = [];
+    for (const bed of beds) {
+      const r = rng.fork(`bed-${BEDS.indexOf(bed)}`);
+      // a ragged outline, the soil darker toward the coping where it was last watered
+      const ragged = bed.poly.map((q, j) => ({ x: q.x + r.range(-1.5, 1.5), y: q.y + Math.sin(j * 1.7 + r.range(0, 6)) * 1.4 }));
+      B.fill(ragged, mix(EARTH.soil, EARTH.earth, 0.3), 0.42);
+      const nFar = bed.poly.findIndex((q, j) => j > 0 && q.x < bed.poly[j - 1]!.x) - 3;
+      const far = bed.poly.slice(0, Math.max(2, nFar));
+      const near = far.map((q) => ({ x: q.x, y: copingY(bed.wall, q.x) - 3 }));
+      B.fill([...far.map((q, j) => ({ x: q.x, y: q.y + (near[j]!.y - q.y) * 0.55 })), ...near.slice().reverse()], EARTH.soilDark, 0.12);
+      for (let f = 0.18; f < 0.95; f += 0.16) {
+        furrows.push({ pts: far.slice(1, -1).map((q, j) => ({ x: q.x, y: q.y + (near[j + 1]!.y - q.y) * f + r.range(-0.5, 0.5) })), rng: r });
       }
-      if (pts.length > 1) marks.push(pts);
     }
-    const opts = { rng: r, pigment: EARTH.soilDark, width: 1.8, dryness: 0.6, wetness: 0.1 };
-    const L = batchLayer(p, padRect(b, 4), { x: 0, y: 0, w: 80, h: 4 }, 3);
-    if (!L.empty) {
-      for (const m of marks) dryBrushInto(L, p, m, opts);
-      L.flush();
-      yield;
-      yield* L.dryParts({ ...dryBrushDry(opts), opacity: 0.45 });
-    }
-    // the back edge against the gravel: a fine lit lip of raked-up grit
-    if (farEdge.length > 1) p.dryBrush(farEdge.map((q) => ({ x: q.x, y: q.y - 1.2 })), { rng: r, pigment: lighten(EARTH.gravel, 0.35), width: 2.4, opacity: 0.7, dryness: 0.5, blend: 'source-over' });
+    B.flush();
     yield;
+    yield* B.dryParts({ opacity: 0.85, edge: 0.3, edgeWidth: 1.4, sharpness: 0.45, centreLift: 0.15, granulation: 0.6, granules: 0.3, flow: 0.45, flowScale: 16 });
+    const opts = { pigment: EARTH.soilDark, width: 1.8, dryness: 0.6, wetness: 0.1 };
+    const F = batchLayer(p, area, { x: 0, y: 0, w: 80, h: 4 }, 3);
+    for (const [i, m] of furrows.entries()) {
+      if (m.pts.length > 1) dryBrushInto(F, p, m.pts, { ...opts, rng: m.rng });
+      if (i % 12 === 11) {
+        F.flush();
+        yield;
+      }
+    }
+    F.flush();
+    yield;
+    yield* F.dryParts({ ...dryBrushDry(opts), opacity: 0.45 });
+    // the back edge against the gravel: a fine lit lip of raked-up grit
+    const lips = beds.map((bed) => bed.poly.slice(0, Math.max(2, bed.poly.findIndex((q, j) => j > 0 && q.x < bed.poly[j - 1]!.x) - 3)).map((q) => ({ x: q.x, y: q.y - 1.2 })));
+    const lipOpts = { rng, pigment: lighten(EARTH.gravel, 0.35), width: 2.4, dryness: 0.5, wetness: 0.15 };
+    const Lp = batchLayer(p, area, { x: 0, y: 0, w: 80, h: 4 }, 3);
+    for (const l of lips) dryBrushInto(Lp, p, l, lipOpts);
+    Lp.flush();
+    yield;
+    yield* Lp.dryParts({ ...dryBrushDry(lipOpts), opacity: 0.7, blend: 'source-over' });
   }
-  for (const [i, jar] of JARS.entries()) yield* paintJar(p, rng.fork(`jar-${i}`), jar);
+  for (const [i, jar] of JARS.entries()) if (inView(p, { x: jar.x - jar.h, y: jar.y - jar.h * 1.2, w: jar.h * 3, h: jar.h * 1.5 })) yield* paintJar(p, rng.fork(`jar-${i}`), jar);
 }
 
 /** A terracotta pithos: a round shoulder over a tapering foot, its rolled lip, lit on the left, its shadow cast right. */
