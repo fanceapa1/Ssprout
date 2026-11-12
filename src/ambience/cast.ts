@@ -92,6 +92,11 @@ export interface CastLight {
   paintPart(phase: DayPhase): void;
   /** bumps whenever the composite or the detail composite is repainted (caches of them key off it) */
   version(): number;
+  /**
+   * Resolves once the plates the last light needs can be drawn for real: looked up, and on a
+   * miss the scenery's painters loaded (ADR 0341), so the next update composes them.
+   */
+  settled(): Promise<void>;
   stats(): CastStats;
 }
 
@@ -280,6 +285,17 @@ export function lightPlatesPending(): boolean {
   return deferring.size > 0;
 }
 
+/** the lights whose last blend lacked a plate, with their `settled` */
+const unsettled = new Map<object, () => Promise<void>>();
+
+/**
+ * Resolves once every light whose last blend lacked a plate has it looked up and, on a miss, its
+ * painters loaded (devlog 155). At once when nothing is missing: a warm visit loads no painters.
+ */
+export async function lightPlatesSettled(): Promise<void> {
+  await Promise.all([...unsettled.values()].map((settled) => settled()));
+}
+
 /**
  * Light plates painted, taken from the paint cache and looked up in vain by every light in this
  * page so far (`sprout.lightPlates()`; the ambience shares one light per scene and seed).
@@ -456,6 +472,14 @@ export function createCastLight(scene: SceneGeometry, art: LightArt, seed = 'cas
     version++;
   };
 
+  const settled = async (): Promise<void> => {
+    if (!lastState) return;
+    const missing = phasesOf(lastState).filter((p) => !plates.has(p));
+    if (!missing.length) unsettled.delete(self);
+    await Promise.all(missing.map((p) => store.whenAnswered(p)));
+    if (missing.some((p) => !plates.has(p)) && !ready()) await fetchPainters();
+  };
+
   /** compose a deferred light change now (its missing plates painted) */
   const flush = () => {
     if (deferred) compose(deferred.state, deferred.sun, deferred.moon);
@@ -511,6 +535,8 @@ export function createCastLight(scene: SceneGeometry, art: LightArt, seed = 'cas
       if (!force && k === last) return false;
       last = k;
       lastState = state;
+      if (phasesOf(state).some((p) => !plates.has(p))) unsettled.set(self, settled);
+      else unsettled.delete(self);
       if (store.enabled) {
         // plates the blend lacks are looked up first; the composite follows their answers, or
         // the first draw, whichever comes first (a draw never shows a stale composite)
@@ -594,6 +620,7 @@ export function createCastLight(scene: SceneGeometry, art: LightArt, seed = 'cas
       flush();
       return version;
     },
+    settled,
     stats: () => ({
       plates: plates.size,
       painted,

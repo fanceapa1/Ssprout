@@ -37,6 +37,7 @@ import { drawSlotOverlay } from './overlay';
 import type { Sprite } from './sprites';
 import { createWaterSurface, type WaterSurface } from './water';
 import { pinnedSource, type DaylightSource } from '../ambience/daylight-source';
+import { lightPlatesSettled } from '../ambience/cast';
 import { nextPhase, whenIdle, type DaylightState } from '../ambience/daylight';
 import { covers, createSkyLight, intersect, type SkyLight } from './sky-light';
 import type { CameraView } from '../render/camera';
@@ -150,7 +151,7 @@ export interface SceneSystem extends System {
    */
   prepaint(scenery: Scenery, opts: PrepaintOptions): Promise<PrepaintResult>;
   prepaintStats(): PrepaintStats;
-  /** resolves when no paint job is pending (the current painting matches the viewport, the sky can paint its plates) */
+  /** resolves when no paint job is pending (the current painting matches the viewport, the sky and the light can paint their plates) */
   whenPainted(): Promise<void>;
   stats(): SceneStats;
   /** sky plates painted, composites built, ms spent painting skies */
@@ -692,8 +693,8 @@ export function createSceneSystem(opts: SceneSystemOptions = {}): SceneSystem {
       await Promise.all([job, motionJob]);
       if (camera && camera.detailVersion !== seenDetail && !camera.moving()) followCamera();
       await (detailJob ?? Promise.resolve());
-      // a sky plate the cache lacked waits for the painters (ADR 0341); the next update composes it
-      await sky?.settled();
+      // a sky or light plate the cache lacked waits for the painters (ADR 0341); the next update composes it
+      await Promise.all([sky?.settled(), lightPlatesSettled()]);
     },
     detailStats: () => ({
       view: detail?.view ?? detailWanted,

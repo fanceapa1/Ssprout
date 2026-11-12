@@ -101,7 +101,13 @@ The v1 hour keyframes are gone: the engine gets the shared `DaylightState` every
 `DaylightSource` main creates) and multiplies the **light plate** of the current phase blend in
 the `lighting` layer. Each phase's plate is painted once (on demand; the next phase in idle time),
 or taken from the persistent paint cache on a repeat visit (`light-plate`, ADR 0236; the wash's
-noise fields are then never built; the boot reveal waits up to 0.3 s for the lookups):
+noise fields are then never built; the boot reveal waits up to 0.3 s for the lookups). A plate the
+cache lacks while the garden's lazy painters (ADR 0341) are not loaded is drawn as its grade wash
+alone, and recomposed when they land. `CastLight.settled()` resolves once the last blend's plates
+are looked up and, on a miss, the painters are in; `lightPlatesSettled()` does that for every light
+whose last blend lacked a plate, and the scene's `whenPainted` (so `scenePainted()` and
+`camera.settle()`) awaits it, so a still frame never shows the bare wash (devlog 155). It waits only
+when a plate is missing, so a warm repeat visit still never requests the painters:
 
 | Phase | Grade (multiply) | Amount | Painted on top | Lantern |
 |---|---|---|---|---|
@@ -208,10 +214,14 @@ frame-rate independence), `timeofday.test.ts` (phase grades, blends, readability
 `night-edge.test.ts` (the mask's bands, dark light only, lift and broken rim, determinism, one edge per seed),
 `switch-parts.test.ts` (a switch's `prepare`: plates the cache gives paint nothing; after a miss one part
 per idle callback, the wash field then the plate; then the old engine's sprite groups, one per callback).
+`cast-settled.test.ts` (a light whose plate the cache lacks settles once the lookup answered and
+the painters landed; one the cache gives settles without loading them).
 `lazy-sprites.test.ts` (no sprite and no light plate when the engine is made; a group is built once
 and only when read; a night without sun weather builds no sun but the lantern's flame; sun weather
 builds the glaze).
-Playwright: `tests/e2e/switch-light.spec.ts` (a warm switch paints no light plate and its settled night
+Playwright: `tests/e2e/light-plates-wait.spec.ts` (a repeat visit missing its midday light plate,
+with a slow painters chunk, frames the same lit noon as a fresh paint, for every garden; devlog 155);
+`tests/e2e/switch-light.spec.ts` (a warm switch paints no light plate and its settled night
 frame is pixel for pixel a fresh load's; `switching` while the light gets ready, `lightReady` when it takes over);
 `tests/e2e/ambience.spec.ts` (session weather, each preview, night, pause/end fades, the
 sun's glaze warm in the garden but not the sky and a trace on pause,
