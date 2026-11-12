@@ -241,9 +241,23 @@ export function edgeBlur(src: Float32Array, w: number, h: number, radius: number
   return drain(edgeBlurParts(src, w, h, radius, open));
 }
 
-/** `edgeBlur` in parts: the halving, each blur pass and the upsampling pause after every band of rows (ADR 0238). */
-export function* edgeBlurParts(src: Float32Array, w: number, h: number, radius: number, open: OpenSides = CLOSED, band = DRY_BAND): PaintParts<Float32Array> {
-  if (radius < 2 || w < 8 || h < 8) return yield* boxBlurParts(src, w, h, radius, 2, open, band);
+/** Whether `edgeBlur` runs at half resolution for a `w`×`h` buffer. */
+const halvesEdge = (w: number, h: number, radius: number) => !(radius < 2 || w < 8 || h < 8);
+
+/**
+ * `edgeBlur` in parts: the halving, each blur pass and the upsampling pause after every band of
+ * rows (ADR 0238). `halve` lets a crop of a buffer blur the way the whole buffer would (ADR 0349).
+ */
+export function* edgeBlurParts(
+  src: Float32Array,
+  w: number,
+  h: number,
+  radius: number,
+  open: OpenSides = CLOSED,
+  band = DRY_BAND,
+  halve = halvesEdge(w, h, radius),
+): PaintParts<Float32Array> {
+  if (!halve) return yield* boxBlurParts(src, w, h, radius, 2, open, band);
   const bw = Math.ceil(w / 2);
   const bh = Math.ceil(h / 2);
   const half = new Float32Array(bw * bh);
@@ -331,6 +345,9 @@ export function dryPixels(
  * passes, the pigment) pauses after each band of `band` pixels. The passes are row loops, the
  * blur's running sums carry over from band to band, and no pass starts before the one it reads
  * has finished, so the result is the whole-buffer pass's, byte for byte.
+ *
+ * After finding the painted box, the passes run only over `dryCrop` of it (ADR 0349): the same
+ * bytes as the whole buffer (`crop = false`), without the empty paper around the marks.
  */
 export function* dryPixelsParts(
   data: Uint8ClampedArray,
@@ -342,42 +359,93 @@ export function* dryPixelsParts(
   flow: NoiseGrid | null,
   open: OpenSides = CLOSED,
   band = DRY_BAND,
+  crop = true,
 ): PaintParts {
-  const s = new Float32Array(w * h);
   const rows = bandRows(w, band);
-  let any = false;
+  const box = { x0: w, y0: h, x1: 0, y1: 0 };
   for (let y = 0; y < h; y += rows) {
-    if (wetEdgeRows(data, s, w, grain, o.sharpness, y, Math.min(h, y + rows))) any = true;
+    paintedBounds(data, w, y, Math.min(h, y + rows), box);
     yield;
   }
-  if (!any) return;
-  const blur = yield* edgeBlurParts(s, w, h, edgePx / 1.7, open, band);
+  if (box.x1 <= box.x0) return;
+  const radius = edgePx / 1.7;
+  const halve = halvesEdge(w, h, radius);
+  const c = crop ? dryCrop(box, w, h, radius, halve) : { x0: 0, y0: 0, x1: w, y1: h };
+  const cw = c.x1 - c.x0;
+  const ch = c.y1 - c.y0;
+  const s = new Float32Array(cw * ch);
+  const cRows = bandRows(cw, band);
+  for (let y = c.y0; y < c.y1; y += cRows) {
+    wetEdgeRows(data, s, w, c, grain, o.sharpness, y, Math.min(c.y1, y + cRows));
+    yield;
+  }
+  // a side of the crop inside the buffer is closed: the buffer is empty well beyond it
+  const cOpen = { l: open.l && c.x0 === 0, t: open.t && c.y0 === 0, r: open.r && c.x1 === w, b: open.b && c.y1 === h };
+  const blur = yield* edgeBlurParts(s, cw, ch, radius, cOpen, band, halve);
   const k = pigmentKernel(w, o, grain, flow);
-  for (let y = 0; y < h; y += rows) {
-    pigmentRows(data, s, blur, w, k, y, Math.min(h, y + rows));
+  for (let y = c.y0; y < c.y1; y += cRows) {
+    pigmentRows(data, s, blur, w, c, k, y, Math.min(c.y1, y + cRows));
     yield;
   }
 }
 
-/** The wet edge of rows `y0`…`y1 − 1`: shaped coverage into `s`. Whether any pixel is wet. */
-function wetEdgeRows(data: Uint8ClampedArray, s: Float32Array, w: number, grain: GrainLookup, sharpness: number, y0: number, y1: number): boolean {
-  let any = false;
+/** A rectangle of buffer pixels, `x1`/`y1` exclusive. */
+interface Box {
+  x0: number;
+  y0: number;
+  x1: number;
+  y1: number;
+}
+
+/** Grow `box` to every pixel of rows `y0`…`y1 − 1` with any paint (alpha > 0). */
+function paintedBounds(data: Uint8ClampedArray, w: number, y0: number, y1: number, box: Box): void {
+  for (let y = y0; y < y1; y++) {
+    const row = y * w * 4 + 3;
+    let x = 0;
+    while (x < w && data[row + x * 4] === 0) x++;
+    if (x === w) continue;
+    let e = w - 1;
+    while (data[row + e * 4] === 0) e--;
+    if (x < box.x0) box.x0 = x;
+    if (e + 1 > box.x1) box.x1 = e + 1;
+    if (y < box.y0) box.y0 = y;
+    box.y1 = y + 1;
+  }
+}
+
+/**
+ * The part of a buffer the drying must compute (ADR 0349): the painted box plus the edge blur's
+ * whole reach, on even pixels so the half-resolution grid lines up. Outside it the buffer is
+ * empty and stays so, and every blur value a painted pixel reads comes out bit for bit the same.
+ */
+export function dryCrop(box: Box, w: number, h: number, radius: number, halve: boolean): Box {
+  const r = Math.max(0, Math.round(halve ? radius / 2 : radius));
+  const m = halve ? 2 * (2 * r + 2) + 2 : 2 * r + 2;
+  return {
+    x0: Math.max(0, box.x0 - m) & ~1,
+    y0: Math.max(0, box.y0 - m) & ~1,
+    x1: Math.min(w, box.x1 + m),
+    y1: Math.min(h, box.y1 + m),
+  };
+}
+
+/** The wet edge of rows `y0`…`y1 − 1` of the crop `c`: shaped coverage into `s` (the crop's own buffer). */
+function wetEdgeRows(data: Uint8ClampedArray, s: Float32Array, w: number, c: Box, grain: GrainLookup, sharpness: number, y0: number, y1: number): void {
   const gd0 = grain.data;
+  const cw = c.x1 - c.x0;
   for (let y = y0; y < y1; y++) {
     const gRow = grain.rows[y]!;
-    for (let x = 0; x < w; x++) {
-      const i = y * w + x;
-      let a = data[i * 4 + 3]! / 255;
+    const so = (y - c.y0) * cw - c.x0;
+    for (let x = c.x0; x < c.x1; x++) {
+      let a = data[(y * w + x) * 4 + 3]! / 255;
       if (a > 0) {
         // the wet front creeps along paper fibres: perturb coverage by the grain where it is
         // partial, so dried edges get a fine, paper-driven irregularity
         a += (gd0[gRow + grain.cols[x]!]! - 0.5) * 0.25 * a * (1 - a);
-        s[i] = shapeAlpha(a, sharpness);
-        any = true;
+        s[so + x] = shapeAlpha(a, sharpness);
       }
     }
   }
-  return any;
 }
 
 /** What the pigment pass needs for every row: the options' amounts and the flow lookups per column. */
@@ -405,8 +473,8 @@ function pigmentKernel(w: number, o: ResolvedDry, grain: GrainLookup, flow: Nois
   return { o, grain, flow, fxi, fxu, colVal: new Float32Array(Math.max(2, fCols)) };
 }
 
-/** Pigment density, rim, flow, granulation and dry brush for rows `y0`…`y1 − 1`, in place. */
-function pigmentRows(data: Uint8ClampedArray, s: Float32Array, blur: Float32Array, w: number, k: PigmentKernel, y0: number, y1: number): void {
+/** Pigment density, rim, flow, granulation and dry brush for rows `y0`…`y1 − 1` of the crop `c`, in place. */
+function pigmentRows(data: Uint8ClampedArray, s: Float32Array, blur: Float32Array, w: number, c: Box, k: PigmentKernel, y0: number, y1: number): void {
   const { o, grain, flow, fxi, fxu, colVal } = k;
   const edge = o.edge * 0.95;
   const lift = o.centreLift;
@@ -422,6 +490,7 @@ function pigmentRows(data: Uint8ClampedArray, s: Float32Array, blur: Float32Arra
   const fCols = flow?.cols ?? 0;
   const fData = flow?.data;
   const fInv = flow ? 1 / flow.cell : 0;
+  const cw = c.x1 - c.x0;
   for (let y = y0; y < y1; y++) {
     const gRow = grain.rows[y]!;
     if (fData) {
@@ -432,10 +501,11 @@ function pigmentRows(data: Uint8ClampedArray, s: Float32Array, blur: Float32Arra
       const r1 = r0 + fCols;
       for (let q = 0; q < fCols; q++) colVal[q] = fData[r0 + q]! + (fData[r1 + q]! - fData[r0 + q]!) * fv;
     }
-    for (let x = 0; x < w; x++) {
-      const i = y * w + x;
+    const so = (y - c.y0) * cw - c.x0;
+    for (let x = c.x0; x < c.x1; x++) {
+      const i = so + x;
       const sv = s[i]!;
-      const j = i * 4;
+      const j = (y * w + x) * 4;
       if (sv < 0.003) {
         data[j + 3] = 0;
         continue;
