@@ -4,7 +4,7 @@
  * from twisted buds. Each mark carries its own seed; only size, angle and opacity change with growth.
  */
 import { createRng, type Rng } from '../../core/rng';
-import { bounds, deformPolygon, jitter, mix, padRect, ribbon, shade, smoothPath, type DryOptions, type Painter, type Pigment, type Pt } from '../../paint';
+import { bounds, deformPolygon, jitter, mix, padRect, rgba, ribbon, shade, smoothPath, type DryOptions, type Painter, type Pigment, type Pt, type WetLayer } from '../../paint';
 import { ribbonInto } from './shrub-paint';
 
 const clamp01 = (x: number) => (x < 0 ? 0 : x > 1 ? 1 : x);
@@ -76,34 +76,6 @@ export function knifeBlade(b: Pick<KnifeLeaf, 'at' | 'angle' | 'length' | 'width
   };
 }
 
-/** Leaves in one wet layer: blade twice, the shaded half flooded grey, the midrib lifted pale. */
-export function paintKnifeLeaves(p: Painter, leaves: readonly KnifeLeaf[], dry: DryOptions = {}): void {
-  const live = leaves.filter((l) => l.length > 0.6 && l.alpha > 0.02);
-  if (!live.length) return;
-  const blades = live.map((l) => {
-    const rng = createRng(l.seed);
-    return { l, rng, blade: knifeBlade(l, rng, l.shade) };
-  });
-  const L = p.layer(padRect(bounds(blades.flatMap((b) => b.blade.outline)), 4));
-  let len = 0;
-  for (const { l, rng, blade } of blades) {
-    const a = 0.85 * l.alpha;
-    L.fill(blade.outline, jitter(l.pigment, rng, 0.03), a);
-    L.fill(deformPolygon(blade.outline, rng, { depth: 1, variance: 0.04 }), jitter(l.pigment, rng, 0.03), a * 0.7);
-    L.fill(blade.shadow, shade(l.under, 0.3), a * 0.4);
-    if (l.length > 7) {
-      const vw = Math.max(0.16, l.width * 0.07);
-      L.lift(ribbon(blade.axis.slice(0, 8), (t) => vw * (1 - t * 0.75)), 0.42 * l.alpha);
-    }
-    len += l.length;
-  }
-  const mean = len / blades.length;
-  L.dry({ opacity: 0.9, edge: 0.3, edgeWidth: Math.max(0.3, Math.min(0.8, mean * 0.025)), sharpness: 0.8, centreLift: 0.08, granulation: 0.08, flow: 0.35, flowScale: Math.max(4, mean * 0.5), ...dry });
-}
-
-// ---------------------------------------------------------------------------------------------
-// stems
-
 export interface StemMark {
   pts: Pt[];
   width: number;
@@ -112,34 +84,57 @@ export interface StemMark {
   taper?: number;
 }
 
-/** Stems in one wet layer, with a broken darker line along one side. */
-export function paintStems(p: Painter, stems: readonly StemMark[], o: { opacity?: number; accent?: Pigment; accentOpacity?: number } = {}): void {
-  const live = stems.filter((c) => c.pts.length >= 2 && c.width > 0.08);
-  if (!live.length) return;
-  const maxW = Math.max(...live.map((c) => c.width));
-  const area = padRect(bounds(live.flatMap((c) => c.pts)), maxW * 2 + 3);
-  const L = p.layer(area);
-  for (const c of live) ribbonInto(L, c.pts, c.width, c.pigment, createRng(c.seed), { taper: [0.02, c.taper ?? 0.6], pressure: (t) => 1.1 - t * 0.5 });
-  L.dry({ opacity: o.opacity ?? 0.9, edge: 0.5, edgeWidth: Math.max(0.35, maxW * 0.25), sharpness: 0.75, centreLift: 0.18, granulation: 0.14, flow: 0.3, flowScale: 10 });
-  if (!o.accent) return;
-  const A = p.layer(area);
-  let any = false;
-  for (const c of live) {
-    if (c.pts.length < 4 || c.width < 0.8) continue;
-    const r = createRng(c.seed + 1);
-    const sp = smoothPath(c.pts, 2);
-    const pieces = r.int(2, 3);
-    for (let k = 0; k < pieces; k++) {
-      const a = Math.floor(sp.length * (k / pieces + r.range(0.02, 0.08)));
-      const b = Math.floor(sp.length * ((k + 1) / pieces - r.range(0.05, 0.2)));
-      const seg = sp.slice(a, b).map((q) => ({ x: q.x + c.width * 0.3, y: q.y }));
-      if (seg.length < 2) continue;
-      ribbonInto(A, seg, Math.max(0.25, c.width * 0.36), o.accent, r, { taper: [0.25, 0.35], fills: 1 });
-      any = true;
-    }
+/** The darker line along one side of the stems, broken into pieces */
+export interface StemAccent {
+  pigment: Pigment;
+  coverage: number;
+}
+
+/** A stem's wet stroke and its broken darker side laid into another layer. */
+function stemInto(L: WetLayer, c: StemMark, accent?: StemAccent): void {
+  // a shade deeper: laid under the leaves, a stem no longer darkens what it crosses
+  ribbonInto(L, c.pts, c.width, shade(c.pigment, 0.2), createRng(c.seed), { taper: [0.02, c.taper ?? 0.6], pressure: (t) => 1.1 - t * 0.5, fills: c.width < 1 ? 1 : 2 });
+  if (!accent || c.pts.length < 4 || c.width < 0.8) return;
+  const r = createRng(c.seed + 1);
+  const sp = smoothPath(c.pts, 2);
+  const pieces = r.int(2, 3);
+  for (let k = 0; k < pieces; k++) {
+    const a = Math.floor(sp.length * (k / pieces + r.range(0.02, 0.08)));
+    const b = Math.floor(sp.length * ((k + 1) / pieces - r.range(0.05, 0.2)));
+    const seg = sp.slice(a, b).map((q) => ({ x: q.x + c.width * 0.3, y: q.y }));
+    if (seg.length >= 2) ribbonInto(L, seg, Math.max(0.25, c.width * 0.36), accent.pigment, r, { taper: [0.25, 0.35], fills: 1, coverage: accent.coverage });
   }
-  if (any) A.dry({ opacity: o.accentOpacity ?? 0.4, edge: 0.3, edgeWidth: 0.4, sharpness: 0.8, flowScale: 8 });
-  else A.discard();
+}
+
+/**
+ * Leaves in one wet layer: the blade, the shaded half flooded grey, the midrib lifted pale.
+ * `stems` (and their dark side) are laid in first, so they dry with the band's leaves.
+ */
+export function paintKnifeLeaves(p: Painter, leaves: readonly KnifeLeaf[], dry: DryOptions = {}, stems: readonly StemMark[] = [], accent?: StemAccent): void {
+  const live = leaves.filter((l) => l.length > 0.6 && l.alpha > 0.02);
+  const sticks = stems.filter((c) => c.pts.length >= 2 && c.width > 0.08);
+  if (!live.length && !sticks.length) return;
+  const blades = live.map((l) => {
+    const rng = createRng(l.seed);
+    return { l, rng, blade: knifeBlade(l, rng, l.shade) };
+  });
+  const maxW = sticks.reduce((m, c) => Math.max(m, c.width), 0);
+  const L = p.layer(padRect(bounds([...blades.flatMap((b) => b.blade.outline), ...sticks.flatMap((c) => c.pts)]), Math.max(4, maxW + 3)));
+  for (const c of sticks) stemInto(L, c, accent);
+  let len = 0;
+  for (const { l, rng, blade } of blades) {
+    const a = 0.85 * l.alpha;
+    // one fill where there were a plain and a deformed one, at their combined strength
+    L.fill(blade.outline, jitter(l.pigment, rng, 0.03), 1 - (1 - a) * (1 - a * 0.7));
+    L.fill(blade.shadow, shade(l.under, 0.3), a * 0.4);
+    if (l.length > 7) {
+      const vw = Math.max(0.16, l.width * 0.07);
+      L.lift(ribbon(blade.axis.slice(0, 8), (t) => vw * (1 - t * 0.75)), 0.42 * l.alpha);
+    }
+    len += l.length;
+  }
+  const mean = blades.length ? len / blades.length : 20;
+  L.dry({ opacity: 0.9, edge: 0.3, edgeWidth: Math.max(0.3, Math.min(0.8, mean * 0.025)), sharpness: 0.8, centreLift: 0.08, granulation: 0.08, flow: 0, ...dry });
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -241,6 +236,20 @@ export function pinwheelShape(f: Pinwheel): PinwheelShape {
   return { petals, curls, throat, fringe, streaks, bud, twist };
 }
 
+/** Fine marks of one colour as one path, so they cost one fill (where they cross, they do not add). */
+function fillAll(L: WetLayer, polys: readonly Pt[][], pigment: Pigment, alpha: number): void {
+  const c = L.ctx;
+  c.beginPath();
+  for (const poly of polys) {
+    if (!poly.length) continue;
+    c.moveTo(poly[0]!.x, poly[0]!.y);
+    for (let i = 1; i < poly.length; i++) c.lineTo(poly[i]!.x, poly[i]!.y);
+    c.closePath();
+  }
+  c.fillStyle = rgba(pigment, alpha);
+  c.fill();
+}
+
 export interface PinwheelStyle {
   petal: Pigment;
   /** the paler reverse: buds, and the curled edge of each petal */
@@ -250,51 +259,49 @@ export interface PinwheelStyle {
 }
 
 /**
- * Flowers over the leaves: buds as twisted pale spindles that fade as the pinwheel opens; petals
- * in two wet layers so neighbours overlap, the reverse lifted along each curl, a deeper throat.
+ * Flowers over the leaves, each mark in a small wet layer of its own: buds as twisted pale
+ * spindles that fade as the pinwheel opens; petals with the reverse lifted along each curl, every
+ * other flower first so neighbours overlap; then the deeper throats.
  */
 export function paintPinwheels(p: Painter, items: readonly Pinwheel[], o: PinwheelStyle): void {
   const live = items.filter((f) => f.radius > 0.4 && f.alpha > 0.02);
   if (!live.length) return;
   const alpha = o.alpha ?? 1;
   const shapes = live.map((f) => ({ f, s: pinwheelShape(f), r: createRng(f.seed) }));
-  const buds = shapes.filter((x) => x.f.open < 0.6);
-  if (buds.length) {
-    const B = p.layer(padRect(bounds(buds.flatMap((x) => x.s.bud)), 3));
-    for (const { f, s, r } of buds) {
-      const k = f.alpha * (1 - smooth01(f.open / 0.6));
-      B.fill(deformPolygon(s.bud, r, { depth: 1, variance: 0.04 }), jitter(mix(o.reverse, o.petal, 0.3), r, 0.03), 0.75 * k);
-      B.fill(s.bud, o.reverse, 0.3 * k);
-      for (const tw of s.twist) B.fill(ribbon(tw, (u) => Math.max(0.1, f.radius * 0.045) * (1 - u * 0.6)), o.petal, 0.45 * k);
-    }
-    B.dry({ opacity: 0.94 * alpha, blend: 'source-over', edge: 0.4, edgeWidth: 0.3, darken: 0.08, sharpness: 0.75, centreLift: 0.12, granulation: 0.04, flow: 0.2, flowScale: 5 });
+  for (const { f, s, r } of shapes) {
+    if (f.open >= 0.6) continue;
+    const B = p.layer(padRect(bounds(s.bud), 3));
+    const k = f.alpha * (1 - smooth01(f.open / 0.6));
+    B.fill(deformPolygon(s.bud, r, { depth: 1, variance: 0.04 }), jitter(mix(o.reverse, o.petal, 0.3), r, 0.03), 0.75 * k);
+    B.fill(s.bud, o.reverse, 0.3 * k);
+    for (const tw of s.twist) B.fill(ribbon(tw, (u) => Math.max(0.1, f.radius * 0.045) * (1 - u * 0.6)), o.petal, 0.45 * k);
+    B.dry({ opacity: 0.94 * alpha, blend: 'source-over', edge: 0.4, edgeWidth: 0.3, darken: 0.08, sharpness: 0.75, centreLift: 0.12, granulation: 0.04, flow: 0 });
   }
   const open = shapes.filter((x) => x.f.open > 0.05);
-  if (!open.length) return;
   for (const gi of [0, 1]) {
-    const set = open.filter((_, i) => i % 2 === gi);
-    if (!set.length) continue;
-    const L = p.layer(padRect(bounds(set.flatMap((x) => x.s.petals.flat())), 3));
-    for (const { f, s, r } of set) {
+    open.forEach(({ f, s, r }, i) => {
+      if (i % 2 !== gi) return;
+      const L = p.layer(padRect(bounds(s.petals.flat()), 3));
       const k = f.alpha * smooth01((f.open - 0.05) / 0.45);
-      s.petals.forEach((pt, i) => {
+      s.petals.forEach((pt, j) => {
         L.fill(deformPolygon(pt, r, { depth: 1, variance: 0.04 }), jitter(f.petal ?? o.petal, r, 0.035), 0.6 * k);
         L.fill(pt, f.petal ?? o.petal, 0.3 * k);
-        L.lift(s.curls[i]!, 0.35 * k);
-        L.fill(s.curls[i]!, o.reverse, 0.55 * k);
+        L.lift(s.curls[j]!, 0.35 * k);
+        L.fill(s.curls[j]!, o.reverse, 0.55 * k);
       });
-    }
-    const mean = set.reduce((a, x) => a + x.f.radius, 0) / set.length;
-    L.dry({ opacity: 0.95 * alpha, blend: 'source-over', edge: 0.7, edgeWidth: Math.max(0.3, mean * 0.06), darken: 0.3, sharpness: 0.75, centreLift: 0.1, granulation: 0.04, flow: 0.25, flowScale: 6 });
+      L.dry({ opacity: 0.95 * alpha, blend: 'source-over', edge: 0.7, edgeWidth: Math.max(0.3, f.radius * 0.06), darken: 0.3, sharpness: 0.75, centreLift: 0.1, granulation: 0.04, flow: 0 });
+    });
   }
-  const T = p.layer(padRect(bounds(open.flatMap((x) => x.s.throat)), 4));
+  const mouth = mix(o.reverse, '#fbf4ef', 0.55);
+  const thread = mix(o.reverse, o.deep, 0.3);
   for (const { f, s, r } of open) {
     const k = f.alpha * smooth01((f.open - 0.3) / 0.5);
     if (k < 0.02) continue;
     // a pale mouth, deep streaks fanning onto the petals, and the fringe of the corona
-    T.fill(deformPolygon(s.throat, r, { depth: 1, variance: 0.06 }), mix(o.reverse, '#fbf4ef', 0.55), 0.85 * k);
-    for (const st of s.streaks) T.fill(ribbon(st, (u) => Math.max(0.12, f.radius * 0.05) * (1 - u * 0.8)), o.deep, 0.7 * k);
-    if (f.radius > 3) for (const fr of s.fringe) T.fill(ribbon(fr, (u) => Math.max(0.1, f.radius * 0.03) * (1 - u * 0.7)), mix(o.reverse, o.deep, 0.3), 0.6 * k);
+    const T = p.layer(padRect(bounds(s.throat), 4));
+    T.fill(deformPolygon(s.throat, r, { depth: 1, variance: 0.06 }), mouth, 0.85 * k);
+    fillAll(T, s.streaks.map((st) => ribbon(st, (u) => Math.max(0.12, f.radius * 0.05) * (1 - u * 0.8))), o.deep, 0.7 * k);
+    if (f.radius > 3) fillAll(T, s.fringe.map((fr) => ribbon(fr, (u) => Math.max(0.1, f.radius * 0.03) * (1 - u * 0.7))), thread, 0.6 * k);
+    T.dry({ opacity: 0.9 * alpha, blend: 'source-over', edge: 0.4, edgeWidth: 0.3, darken: 0.15, sharpness: 0.8, centreLift: 0.05, flow: 0 });
   }
-  T.dry({ opacity: 0.9 * alpha, blend: 'source-over', edge: 0.4, edgeWidth: 0.3, darken: 0.15, sharpness: 0.8, centreLift: 0.05, flowScale: 4 });
 }
