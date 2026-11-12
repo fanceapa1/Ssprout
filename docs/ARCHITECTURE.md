@@ -817,7 +817,8 @@ Ambience (`src/ambience/dev.ts`): `setTime('sunrise'|'midday'|'sunset'|'night'|{
 (v1 names `morning`, `noon`, `evening`, `dusk`, `dawn` kept as aliases), `daylight()` (phase weights, sun,
 moon, shadow, rim, location, sun times),
 `setWeather('sun'|'rain'|'mist'|null)` (preview without a session), `settleAmbience()` (jump
-transitions to steady state), `ambience()` (phase, levels, daylight phase and weights, particle counts, ms/frame),
+transitions to steady state), `ambience()` (phase, levels, daylight phase and weights, particle counts, ms/frame,
+the night edge's canvas bytes and last build; ADR 0350),
 `lightDetail()` (the light plate's detail for the camera's resting view: rect, scale, ready),
 `lightReady()` (resolves once a garden switch's light is in place, got ready in parts under the renderer's cover;
 `ambience().switching` is true until then; ADR 0337).

@@ -12,7 +12,7 @@ import type { SceneGeometry } from '../scene/geometry';
 import { createEnvelope, settleEnvelope, stepEnvelope, targetsFor, type Channel, type EnvelopeState, type Levels } from './envelope';
 import { createCastLight, type CastLight, type LightArt } from './cast';
 import { createDevicePlate } from './device-plate';
-import { edgeStrength, nightEdgeFor } from './night-edge';
+import { edgeStrength, edgeWanted, nightEdgeFor, type NightEdgeStats } from './night-edge';
 import { LIGHT } from './lighting';
 import { nextPhase, pinnedState, only, whenIdle, type DayPhase, type DaylightState } from './daylight';
 import { MOTE, type Emitter } from './motes';
@@ -75,6 +75,8 @@ export interface AmbienceFrame {
   light: DaylightState;
   /** force the light to recompose now (e.g. after `setTime`) */
   lightChanged?: boolean;
+  /** the clock time `light` is for (epoch ms; null for a pinned light): when the night edge is wanted next */
+  at?: number | null;
 }
 
 export interface AmbienceOptions {
@@ -121,6 +123,8 @@ export interface AmbienceDebug {
   /** the sprite groups painted so far: each is built on its first use (ADR 0232) */
   sprites: SpriteGroup[];
   reducedMotion: boolean;
+  /** the night edge's canvases: bytes held, sizes built, a build under way (ADR 0350) */
+  nightEdge: NightEdgeStats;
 }
 
 export interface Ambience {
@@ -203,6 +207,8 @@ export function createAmbience(opts: AmbienceOptions): Ambience {
   let flameT = 0;
   let pondPath: Path2D | null = null;
   let detailing = false;
+  /** whether the night edge should be kept built (null until the first update) */
+  let edgeWant: boolean | null = null;
   const idleSoon = (fn: () => void) => {
     const ric = (globalThis as { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number }).requestIdleCallback;
     if (ric) ric(fn, { timeout: 600 });
@@ -270,6 +276,7 @@ export function createAmbience(opts: AmbienceOptions): Ambience {
       phase = frame.phase;
       weather = frame.weather;
       light = frame.light;
+      edgeWant = edgeWanted(light, frame.at ?? null);
       if (frame.lightChanged) lightDirty = true;
       const targets = targetsFor(frame.phase, frame.weather, { preview: api.preview, reducedMotion });
       const input = { levels: targets, wind: windFn, emitters: frame.emitters };
@@ -480,6 +487,7 @@ export function createAmbience(opts: AmbienceOptions): Ambience {
       }
     },
     drawLighting(ctx, alpha = 1, visible) {
+      if (edgeWant !== null) nightEdge.keep(edgeWant, ctx.canvas as HTMLCanvasElement);
       if (alpha <= 0.002) return;
       // colours fade at night before they darken (the eye's night vision): a cool desaturating glaze
       const desat = LOOK.nightDesaturate * light.weights.night * alpha;
@@ -566,6 +574,7 @@ export function createAmbience(opts: AmbienceOptions): Ambience {
         lightingMs: castLight?.stats().paintMs ?? 0,
         sprites: builtSprites(sprites),
         reducedMotion,
+        nightEdge: nightEdge.stats(),
       };
     },
   };
