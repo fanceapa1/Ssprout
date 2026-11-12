@@ -288,7 +288,7 @@ Up to 3 agents at a time for this phase, beside the phase 14 queue's agents. Sce
 | G1 | Coast scenery skeleton from draft B: id, registry, geometry and about 50 slots, habitat words, view focus, sky numbers, flora profile, an empty wildlife table, placeholder sky, light and painting; a broken natural shoreline and a phone crop that holds a landmark; behind `?dev&scenery=coast` | `src/scenery/coast/**`, `src/core/sceneries.ts`, `src/scenery/{registry,ids}.ts` | done (devlog 170; ADRs 0360–0361; 48 slots: 9 water, 5 shore, 12 meadow, 5 path, 6 back, 11 rock; focus (760, 600), the phone crop holds the temple, sea, shore and all three tiers; light from the left, both low suns over the sea; new range words: climate `mediterranean`, biomes `scrub` and `marine`; the painting is draft B on the final layout) |
 | G2 | Coast painters: the limestone promontory, the temple columns, the far hill with the village and chapel, the rock shelf and boulders | `src/scenery/coast/paint-rocks.ts` | in progress (devlog 175) |
 | G3 | Coast painters: the sea, the shallows, the pebble beach, the rock pools, the caique | `src/scenery/coast/paint-water.ts` | in progress (devlog 176) |
-| G4 | Coast painters: terraces, dry-stone walls, gravel and steps, the pines, the scrub, the foreground | `src/scenery/coast/{paint-land,paint-veg}.ts` | queued (after G1) |
+| G4 | Coast painters: terraces, dry-stone walls, gravel and steps, the pines, the scrub, the foreground | `src/scenery/coast/{paint-land,paint-veg}.ts` | in progress (devlog 177) |
 | G5 | Coast daylight: 4 sky plates, sea plate, light plates, grades | `src/scenery/coast/{sky,light}.ts` | queued (after G2–G4) |
 | G6 | Moving water: the swell, foam on the pebbles, glints, the caique rocking | `src/scenery/coast/motion.ts` | queued (after G3) |
 | G7 | Coast sound bed (waves on pebbles, cicadas, a Scops owl at night, goat bells, the boat's ropes) | `src/audio/**`, `src/core/soundscape.ts` | queued (after G1) |
@@ -301,7 +301,7 @@ Phase 15 art queue (after G0): one plant (GP…) or creature (GK…) per task, f
 |---|---|---|---|
 | GP1 | Olive (*Olea europaea*): T4 tree, the signature; a fat fluted trunk and a broken silver crown | `src/plants/species/olive.ts` | done (devlog 171; 77 ms median, level with the date palm, 125–134 ms on 12-clump seeds; cultivated round the Mediterranean and offered by the oasis too; its wild range still says `coast` / `warm-temperate`, see GF2; the young stages are bare, the crown a little spotty up close) |
 | GP2 | Ice plant (*Lampranthus*): T1, magenta and red mats on the terrace, walls and path | `src/plants/species/ice-plant.ts` | done (devlog 172; about 36 ms; cultivated only, `cultivatedIn: mediterranean`; the lobes read a little as separate heaps) |
-| GP3 | Lavender (*Lavandula*): T2, grey-green humps with violet spikes, terrace and path | `src/plants/species/lavender.ts` | in progress (devlog 173) |
+| GP3 | Lavender (*Lavandula*): T2, grey-green humps with violet spikes, terrace and path | `src/plants/species/lavender.ts` | done (devlog 173; 27–33 ms; the dome rim is a little spiky and the stems stiff) |
 | GP4 | Sea daffodil (*Pancratium maritimum*): T2, white trumpets on the beach sand | `src/plants/species/sea-daffodil.ts` | queued |
 | GP5 | Posidonia (*Posidonia oceanica*): T3, a seagrass meadow in the shallows | `src/plants/species/posidonia.ts` | queued |
 | GP6 | Rock samphire (*Crithmum maritimum*): T1, fleshy lime umbels on splash rocks and shingle | `src/plants/species/rock-samphire.ts` | queued |
