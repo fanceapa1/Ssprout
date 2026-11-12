@@ -216,6 +216,8 @@ ADR 0227; docs/systems/paint.md › Persistence):
   cut sides fade to paper over `CUT_FADE` (36 units, inside its 60-unit margin) — ADR 0189. The sky composes its own detail
   (`SkyLight.setDetail`: plates upscaled, sun, moon and stars punched at ≤ 3 px/unit).
   `sprout.sceneDetail()`; docs/systems/camera.md.
+  `dispose()` (and a switch to another scenery) also drops the sky: an idle sky preparation already
+  queued then paints nothing. A test that updates a system disposes it (devlog 181).
 
 ### Performance (headless Chromium, Apple M3, machine shared with other jobs — load avg ≈ 4)
 | Viewport | paint view | painting (CPU) | wall incl. yields |
