@@ -14,7 +14,7 @@ import { FAR_HILL, PROMONTORY, SPLASH_ROCKS, TEMPLE_SHAPES } from './layout';
 import { PROMONTORY_FORM, SHORE_RUNS, footAt, topAt } from './paint-rocks';
 import { coastSteps } from './painters';
 import { rough } from './rock-kit';
-import { SHORE_BOULDER_SHAPES, SPLASH_ROCK_SHAPES } from './shapes';
+import { CLIFF_STONES, SHORE_BOULDER_SHAPES, SPLASH_ROCK_SHAPES } from './shapes';
 import { COAST_SLOTS } from './slots';
 import { columnShapes } from './temple';
 import { VILLAGE_CUBES } from './shapes';
@@ -23,7 +23,7 @@ import { VILLAGE_CUBES } from './shapes';
 beforeAll(() => COAST_ART.painters.load());
 
 /** The rock painter's own steps (the promontory's pines and scrub are the vegetation's). */
-const MINE = ['far-hill', 'village', 'promontory', 'temple', 'shore-rocks'];
+const MINE = ['far-hill', 'village', 'promontory', 'temple', 'cliff-foot', 'shore-rocks'];
 const OVERVIEW: PaintView = { rect: { x: 0, y: 0, w: 1600, h: 1000 }, scale: 0.6 };
 // a resting close view on the temple
 const DETAIL: PaintView = { rect: { x: 640, y: 270, w: 270, h: 150 }, scale: 3 };
@@ -79,9 +79,11 @@ describe('coast rock painting (G2)', () => {
   it('paints the far hill, the village, the promontory, the temple and the shore’s rock as their own steps', () => {
     expect(COAST_ELEMENTS.far).toEqual(['far-hill']);
     expect(COAST_ELEMENTS.rock).toEqual(['village', 'promontory', 'temple']);
-    expect(COAST_ELEMENTS.stones).toEqual(['shore-rocks']);
-    // the shore's rock goes over the land's edge and the water, before the trees
+    expect(COAST_ELEMENTS.stones).toEqual(['cliff-foot', 'shore-rocks']);
+    // the cliff's foot and the shore's rock go over the land's edge and the water, before the trees
     const names = coastSteps(COAST_ART).map((s) => s.name);
+    expect(names.indexOf('cliff-foot')).toBeGreaterThan(names.indexOf('beds'));
+    expect(names.indexOf('cliff-foot')).toBeLessThan(names.indexOf('olive'));
     expect(names.indexOf('shore-rocks')).toBeGreaterThan(names.indexOf('land'));
     expect(names.indexOf('shore-rocks')).toBeGreaterThan(names.indexOf('shore'));
     expect(names.indexOf('shore-rocks')).toBeLessThan(names.indexOf('pine'));
@@ -89,7 +91,7 @@ describe('coast rock painting (G2)', () => {
 
   it('is deterministic: the same marks every time', () => {
     // quantised hashes from a fresh process, pinned as the oasis's (paint caches warm up across runs)
-    expect({ overview: runs.overview!.hash, detail: runs.detail!.hash }).toEqual({ overview: '58649346', detail: '316ef42a' });
+    expect({ overview: runs.overview!.hash, detail: runs.detail!.hash }).toEqual({ overview: 'b0b96eed', detail: 'caa56e24' });
     expect(runs.again!.chunks.map((c) => c.name)).toEqual(runs.overview!.chunks.map((c) => c.name));
   });
 
@@ -98,7 +100,8 @@ describe('coast rock painting (G2)', () => {
     const most = (k: 'calls' | 'pixels') => chunks.reduce((a, c) => (c[k] > a[k] ? c : a));
     expect(most('calls').calls, most('calls').name).toBeLessThanOrEqual(60_000);
     expect(most('pixels').pixels, most('pixels').name).toBeLessThanOrEqual(400_000);
-    for (const step of MINE) expect(chunks.filter((c) => c.name === step).length, step).toBeGreaterThan(10);
+    // the cliff's foot skips itself when the view does not reach it (the detail view is the temple)
+    for (const step of MINE.filter((s) => view === 'overview' || s !== 'cliff-foot')) expect(chunks.filter((c) => c.name === step).length, step).toBeGreaterThan(10);
   });
 
   it('dries its runs of like marks as shared layers: few pixel reads per step', () => {
@@ -163,8 +166,18 @@ describe('the splash rocks and the shoreline’s blocks', () => {
     expect(SPLASH_ROCK_SHAPES.filter((r) => COAST_SLOTS.some((s) => s.id.startsWith('splash') && Math.abs(s.x - r.x) < 4)).length).toBe(3);
   });
 
+  it('stands the whole base of each splash rock’s plant on the rock’s dry top, not on the water', () => {
+    for (const s of COAST_SLOTS.filter((q) => q.habitat === 'rock')) {
+      const r = SPLASH_ROCK_SHAPES.find((q) => Math.abs(q.x - s.x) < 4);
+      if (!r) continue;
+      // a plant's base: as wide as the stem cluster of a small plant at the slot's scale, at its foot
+      const half = 8 * s.scale;
+      for (const dx of [-half, 0, half]) expect(pointInPolygon({ x: s.x + dx, y: s.y }, r.top), `${s.id} ${dx.toFixed(1)}`).toBe(true);
+    }
+  });
+
   it('keeps every rock wider than tall, its top inside its outline', () => {
-    for (const r of [...SPLASH_ROCK_SHAPES, ...SHORE_BOULDER_SHAPES]) {
+    for (const r of [...SPLASH_ROCK_SHAPES, ...SHORE_BOULDER_SHAPES, ...CLIFF_STONES]) {
       const xs = r.outline.map((q) => q.x);
       const ys = r.outline.map((q) => q.y);
       expect(Math.max(...xs) - Math.min(...xs)).toBeGreaterThan(Math.max(...ys) - Math.min(...ys));
