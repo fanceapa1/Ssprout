@@ -80,6 +80,9 @@ export function paintPromontory(p: Painter, rng: Rng): void {
   const rock = poly(PROMONTORY);
   reserve(p, rock);
   p.wetInWet(rock, C.rock, mix(C.rockShade, C.rockWarm, 0.3), { rng, angle: Math.PI / 2 + 0.3, split: 0.6, softness: 0.6, opacity: 0.6, deform: 0.04, spread: 0.03, edge: 0.4, sharpness: 0.75, granulation: 0.5, granules: 0.2 });
+  // the lit top edge, so the wash's ragged rim leaves no paper under the sky's short hang
+  const top = rock.slice(0, rock.findIndex((q) => q.x >= 1620) + 1);
+  p.stroke(top.map((q) => ({ x: q.x, y: q.y + 3 })), { rng, pigment: C.rock, width: 8, opacity: 0.7, wetness: 0.3 });
   p.ctx.save();
   fillPath(p, rock);
   p.ctx.clip();

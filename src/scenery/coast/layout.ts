@@ -154,11 +154,12 @@ export const TEMPLE_SHAPES: readonly (readonly Pt[])[] = [
 
 /**
  * The highest painted edge at x behind the garden: the far hill, the sea's horizon, the promontory
- * and its temple. Its pines are left out: the sky multiplies over their crowns (as over the oasis's palms).
+ * and the columns. The pines and the architrave are left out, so the sky runs between the columns
+ * under it and multiplies over them (as over the oasis's palms) instead of leaving paper.
  */
 export function silhouetteAt(x: number): number {
   let y = HORIZON;
-  for (const poly of [FAR_HILL, PROMONTORY, ...TEMPLE_SHAPES]) {
+  for (const poly of [FAR_HILL, PROMONTORY, ...TEMPLE_SHAPES.slice(0, COLUMNS.length)]) {
     const t = topAt(poly, x);
     if (t !== null && t < y) y = t;
   }
@@ -171,7 +172,7 @@ export function silhouetteAt(x: number): number {
 /**
  * The open sky's lower edge, left → right, sampled from the painted silhouette. Each sample takes
  * the lowest edge within a step either side, so the sky runs between the columns rather than
- * leaving paper. The olive, the leaning pine and the promontory's pines cross it, as the oasis's palms do.
+ * leaving paper. The olive, the leaning pine, the promontory's pines and the architrave cross it.
  */
 export const SKYLINE: readonly Pt[] = (() => {
   const step = 2;

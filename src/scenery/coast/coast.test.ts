@@ -390,6 +390,8 @@ describe('the coast sky (placeholder)', () => {
     for (let x = 0; x <= WORLD_W; x += 0.5) expect(skylineAt(x), `${x}`).toBeGreaterThanOrEqual(silhouetteAt(x) - 0.01);
     const low = (x: number) => Math.max(...[-3, -1.5, 0, 1.5, 3].map((d) => silhouetteAt(x + d)));
     for (let x = temple.x - 20; x <= temple.x + temple.w + 20; x += 0.5) expect(skylineAt(x) - low(x), `${x}`).toBeLessThanOrEqual(5);
+    // the sky runs down between the two tall columns under the architrave: no paper there
+    expect(skylineAt((COLUMNS[0]!.x + COLUMNS[1]!.x) / 2)).toBeGreaterThanOrEqual(STYLOBATE.y);
   });
 
   it('keeps the sky plates’ band over the sky: the skyline (+40) is above its lower edge', () => {
