@@ -80,10 +80,15 @@ export interface SceneSystemOptions {
   /** the persistent paint cache paintings are looked up in and stored to (default `paintCache()`, ADR 0228) */
   cache?: PaintCache;
   /**
-   * longest wait for the cache lookup before painting anyway (default 300 ms); a hit that
-   * arrives later still replaces the paint job
+   * longest wait for the cache lookup before painting anyway (default 300 ms) when the cache's
+   * index does not list the painting; a hit that arrives later still replaces the paint job
    */
   cacheWaitMs?: number;
+  /**
+   * longest wait for a lookup the cache's index lists (it is only reading and decoding; default
+   * 4000 ms): painting instead would load the garden's painters on a warm visit (devlog 155)
+   */
+  cacheHitWaitMs?: number;
   /** also cache the camera's detail paintings (default true, ADR 0228) */
   cacheDetail?: boolean;
 }
@@ -228,6 +233,7 @@ export function createSceneSystem(opts: SceneSystemOptions = {}): SceneSystem {
   // opened now, so the store is ready by the time init looks the first painting up
   const cache = opts.cache ?? paintCache();
   const cacheWaitMs = opts.cacheWaitMs ?? 300;
+  const cacheHitWaitMs = Math.max(cacheWaitMs, opts.cacheHitWaitMs ?? 4000);
   const cacheDetail = opts.cacheDetail ?? true;
 
   let current: Painting | null = null;
@@ -276,17 +282,22 @@ export function createSceneSystem(opts: SceneSystemOptions = {}): SceneSystem {
     lastLookupMs: 0,
   };
 
+  /** Whether the cache's index lists a painting and the sprites of its scale (false without an index). Never rejects. */
+  const listed = (kind: string, view: PaintView, of: SceneArt = art): Promise<boolean> =>
+    cache.has
+      ? Promise.all([cache.has(kind, paintingKey(of, view, quality)), cache.has(SCENE_CACHE.sprites, spritesKey(of, view.scale, quality))]).then(
+          ([a, b]) => a && b,
+          () => false,
+        )
+      : Promise.resolve(false);
+
   /** Look a painting and the sprites of its scale up in the paint cache. Never rejects. */
-  const lookup = async (kind: string, view: PaintView, of: SceneArt = art): Promise<Lookup> => {
+  const lookup = async (kind: string, view: PaintView, of: SceneArt = art, inIndex = listed(kind, view, of)): Promise<Lookup> => {
     const t0 = now();
     const layout = spriteAtlasLayout(of, view.scale);
     const keys = [paintingKey(of, view, quality), spritesKey(of, view.scale, quality)] as const;
     // the index answers before the images decode: on a miss, the painters start loading (ADR 0341)
-    if (cache.has && !of.painters.get())
-      void Promise.all([cache.has(kind, keys[0]), cache.has(SCENE_CACHE.sprites, keys[1])]).then(
-        ([a, b]) => void (a && b ? null : of.painters.load().catch(() => {})),
-        () => void of.painters.load().catch(() => {}),
-      );
+    if (cache.has && !of.painters.get()) void inIndex.then((both) => void (both ? null : of.painters.load().catch(() => {})));
     const [bitmap, atlas] = await Promise.all([cache.get(kind, keys[0]), cache.get(SCENE_CACHE.sprites, keys[1])]);
     const w = Math.max(1, Math.ceil(view.rect.w * view.scale));
     const h = Math.max(1, Math.ceil(view.rect.h * view.scale));
@@ -324,7 +335,10 @@ export function createSceneSystem(opts: SceneSystemOptions = {}): SceneSystem {
    */
   const produce = async (kind: string, view: PaintView, cancelled: () => boolean, soften: boolean, counts: { cacheHits: number; cacheMisses: number }, onLookup?: (ms: number) => void): Promise<Painting> => {
     const t0 = now();
-    const pending = lookup(kind, view);
+    const inIndex = listed(kind, view);
+    let indexed: boolean | null = null;
+    void inIndex.then((both) => (indexed = both));
+    const pending = lookup(kind, view, art, inIndex);
     let answer: Lookup | null = null;
     let lateHit: Painting | null = null;
     void pending.then((l) => {
@@ -332,7 +346,15 @@ export function createSceneSystem(opts: SceneSystemOptions = {}): SceneSystem {
       if (l.painting) lateHit = l.painting;
     });
     let timer: ReturnType<typeof setTimeout> | undefined;
-    const first = await Promise.race([pending, new Promise<typeof LATE>((done) => (timer = setTimeout(() => done(LATE), cacheWaitMs)))]);
+    // past `cacheWaitMs`, a painting the index lists (or may list) is waited for up to `cacheHitWaitMs`
+    const late = new Promise<typeof LATE>((done) => {
+      timer = setTimeout(() => {
+        if (indexed === false) return done(LATE);
+        timer = setTimeout(() => done(LATE), cacheHitWaitMs - cacheWaitMs);
+        void inIndex.then((both) => void (both ? null : done(LATE)));
+      }, cacheWaitMs);
+    });
+    const first = await Promise.race([pending, late]);
     clearTimeout(timer);
     onLookup?.(now() - t0);
     if (cancelled()) throw new PaintCancelled();

@@ -163,6 +163,27 @@ describe('scene system and the paint cache (ADR 0228)', () => {
     expect(scene.stats().lastLookupMs).toBeGreaterThanOrEqual(4);
   });
 
+  it('waits past cacheWaitMs for a painting the index lists, and never starts painting (devlog 155)', async () => {
+    const mem = memoryCache();
+    await createSceneSystem({ ...opts, cache: mem.cache }).init!(context());
+    mem.holdGets(new Promise<void>((done) => setTimeout(done, 40)));
+    let yields = 0;
+    const scene = createSceneSystem({ ...opts, cache: mem.cache, cacheWaitMs: 1, yieldTo: async () => void yields++ });
+    await scene.init!(context());
+    expect(yields).toBe(0);
+    expect(scene.stats()).toMatchObject({ paints: 0, cacheHits: 1, cacheMisses: 0 });
+  });
+
+  it('paints once a listed painting is later than cacheHitWaitMs', async () => {
+    const mem = memoryCache();
+    await createSceneSystem({ ...opts, cache: mem.cache }).init!(context());
+    mem.holdGets(new Promise(() => {}));
+    const scene = createSceneSystem({ ...opts, cache: mem.cache, cacheWaitMs: 1, cacheHitWaitMs: 20 });
+    await scene.init!(context());
+    expect(scene.stats()).toMatchObject({ paints: 1, cacheHits: 0, cacheMisses: 1 });
+    expect(scene.stats().lastLookupMs).toBeGreaterThanOrEqual(19);
+  });
+
   it('takes a hit that arrives while it paints, and stops painting', async () => {
     const mem = memoryCache();
     await createSceneSystem({ ...opts, cache: mem.cache }).init!(context());
@@ -174,6 +195,7 @@ describe('scene system and the paint cache (ADR 0228)', () => {
       ...opts,
       cache: mem.cache,
       cacheWaitMs: 1,
+      cacheHitWaitMs: 1,
       // every part of a step seems to take 50 ms, so the job yields after each
       now: () => (t += 50),
       // the store answers once the paint job is under way
