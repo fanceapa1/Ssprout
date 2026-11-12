@@ -352,6 +352,8 @@ export function createCastLight(scene: SceneGeometry, art: LightArt, seed = 'cas
     ));
 
   let print: string | null = null;
+  /** phases composed as their grade wash while their lookup was pending */
+  const washOnly = new Set<DayPhase>();
   const store = createPlateCache<DayPhase>({
     cache: opts.cache === undefined ? defaultPlateCache() : opts.cache,
     kind: LIGHT_PLATE_KIND,
@@ -362,6 +364,8 @@ export function createCastLight(scene: SceneGeometry, art: LightArt, seed = 'cas
       return true;
     },
     answered(phase, hit) {
+      // drawn as its wash while looked up: the next update recomposes with the plate
+      if (hit && washOnly.delete(phase)) last = '';
       if (hit) totals.cacheHits++;
       else totals.cacheMisses++;
       // a miss is painted: its painters start loading now (ADR 0341)
@@ -378,8 +382,10 @@ export function createCastLight(scene: SceneGeometry, art: LightArt, seed = 'cas
     const known = plates.get(phase);
     if (known) return known;
     if (!ready()) {
-      // until the painters land: the grade wash alone, neither kept nor stored
-      void fetchPainters();
+      // until the painters land: the grade wash alone, neither kept nor stored; a plate still
+      // being looked up loads them only on a miss (a warm visit never does, ADR 0341)
+      if (store.pending(phase)) washOnly.add(phase);
+      else void fetchPainters();
       return gradeOf(phase);
     }
     const t0 = now();

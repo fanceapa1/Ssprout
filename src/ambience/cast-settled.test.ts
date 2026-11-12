@@ -106,4 +106,21 @@ describe('light plates wait for the lazy painters (devlog 155)', () => {
     expect(light.has('midday')).toBe(true);
     expect(p.load).not.toHaveBeenCalled();
   });
+
+  it('a draw while its plate is looked up shows the wash without loading the painters; a hit then recomposes', async () => {
+    const art: LightArt = { trees: TREES, shrubs: SHRUBS };
+    const f = fakeCache();
+    const key = lightPlateKey('japanese-garden', 'drawn', 'midday', f.w, f.h, castPrint(gardenScene, art));
+    const hit = fakeCache(new Set([`${LIGHT_PLATE_KIND}:${key}`]));
+    const p = slowPainters();
+    const light = createCastLight(gardenScene, { ...art, painters: p.painters }, 'drawn', { cache: hit.cache, scenery: 'japanese-garden' });
+    light.update(noon);
+    void light.canvas;
+    const composes = light.stats().composes;
+    expect(composes).toBe(1);
+    await hit.answer();
+    expect(light.update(noon)).toBe(true);
+    expect(light.stats().composes).toBe(composes + 1);
+    expect(p.load).not.toHaveBeenCalled();
+  });
 });
