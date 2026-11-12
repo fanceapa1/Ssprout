@@ -17,7 +17,7 @@ weather**, **· photosynthesis motes & wind**, **· time of day**) or with `npm 
 | `cast.ts` | the painted light plate of each daylight phase and their blended composite (ADR 0147); `version()` bumps on every repaint; plates from the paint cache (ADR 0236) |
 | `plate-cache.ts` | the sky and light plates' lookups and stores in the persistent paint cache (ADR 0236; docs/systems/daylight.md › Caching and cost) |
 | `device-plate.ts` | the resting light plate at device resolution (ADR 0207) |
-| `night-edge.ts` | where a dark light stops: the wash lifted back to paper with a ragged, pooled edge just inside the stage's dissolve (ADR 0184); one per seed for the page (`nightEdgeFor`, ADR 0337) |
+| `night-edge.ts` | where a dark light stops: the wash lifted back to paper with a ragged, pooled edge just inside the stage's dissolve (ADR 0184); one per seed for the page (`nightEdgeFor`, ADR 0337); its canvases freed by day and built again on idle, in parts, before the evening (`keep`, `edgeWanted`, ADR 0350) |
 | `solar.ts`, `zones.ts`, `daylight.ts`, `daylight-source.ts`, `sky-layout.ts` | the daylight: sun times, location, phases, the shared source, where the light falls — docs/systems/daylight.md |
 | `sprites.ts` | pre-painted textures: the sun's lifted glaze (`sunBands`, `sunGround`, `sunGlazeAt`, pure), rain strokes, ripple rings, glints, leaf glints, motes, mist bands, flame |
 | `ambience.ts` | the engine: update + draw into world-unit contexts (no store, no renderer — ADR 0080) |
@@ -122,6 +122,17 @@ stage's dissolve with a watercolour edge instead of fading to a grey haze (`nigh
 `edgeStrength`: night 1, sunset 0.35, sunrise 0.15; ADR 0184). Details, the
 phase windows and the sky: docs/systems/daylight.md.
 
+**The night edge by day (ADR 0350).** Its two canvases are field-sized (one CSS px per pixel,
+about 9.6 MB at a 1412×846 stage, at any DPR). Only a dark light draws them, so the engine tells
+the shared edge each frame whether it is wanted (`edgeWanted(light, at)`): when the light has any
+sunset, sunrise or night weight, or when the evening's blend out of midday begins within
+`EDGE_LEAD_MS` (30 min) of the light's clock time (`AmbienceFrame.at`: the frame's time, an hour
+override's, or null for a pinned light). Not wanted: `keep(false)` frees the canvases (backing set to
+0×0). Wanted and missing: they are built on idle, a band of rows per callback (`EDGE_PART_PX`
+120,000 field pixels, ~10 parts of 5–25 ms at 1412×846, ~105 ms in all). A draw that finds the edge
+missing (the clock jumped to the dark, a new size) finishes the build in that frame, so no frame
+ever lacks the edge; the pixels are the same either way.
+
 ## Switching gardens (ADR 0337)
 A switch (ADR 0243) makes a new engine for the new garden, but the old one keeps updating and
 drawing until the new one is ready. The renderer's cover (the old garden's last frame) hides it.
@@ -171,7 +182,7 @@ moves the sky, light, shadows, rims and fauna — docs/systems/daylight.md), `sp
 `sprout.lightPlates()` (light plates painted, taken from the paint cache, looked up in vain; ADR 0236),
 `sprout.lightReady()` (resolves once a garden switch's light is in place; ADR 0337),
 `sprout.ambience()` → `{ phase, weather, preview, levels, time (daylight phase), weights, counts (rain, ripples, glints, leafGlints, motes, drips), lightingPaints,
-lightingMs, sprites (groups built so far), reducedMotion, ms, timeOverride, location, sunTimes }` (`ms` = moving average of update + draw per frame).
+lightingMs, sprites (groups built so far), reducedMotion, nightEdge (`{ bytes, sizes, building, last: { parts, longestMs, totalMs, sync }, frees }`; ADR 0350), ms, timeOverride, location, sunTimes }` (`ms` = moving average of update + draw per frame).
 ```
 npm run shots -- --name night-rain --eval "sprout.setTime('night'); sprout.start(25); sprout.setWeather('rain')"
 ```
@@ -206,6 +217,8 @@ frame-rate independence), `timeofday.test.ts` (phase grades, blends, readability
 `lighting.test.ts` (wash ordering, lantern reserve and reflection, mottling, glow),
 `device-plate.test.ts` (resample once at rest, same pixels, direct again on change),
 `night-edge.test.ts` (the mask's bands, dark light only, lift and broken rim, determinism, one edge per seed),
+`night-edge-schedule.test.ts` (the field the same in parts; when it is wanted, pinned and over a live day; a part per idle callback;
+freed when not wanted; a jump to night mid-build finishes it in that frame; a whole day with no build at once but the first frame),
 `switch-parts.test.ts` (a switch's `prepare`: plates the cache gives paint nothing; after a miss one part
 per idle callback, the wash field then the plate; then the old engine's sprite groups, one per callback).
 `lazy-sprites.test.ts` (no sprite and no light plate when the engine is made; a group is built once
@@ -213,6 +226,8 @@ and only when read; a night without sun weather builds no sun but the lantern's 
 builds the glaze).
 Playwright: `tests/e2e/switch-light.spec.ts` (a warm switch paints no light plate and its settled night
 frame is pixel for pixel a fresh load's; `switching` while the light gets ready, `lightReady` when it takes over);
+`tests/e2e/night-edge.spec.ts` (no edge at noon, freed again at noon, the night frame a fresh load's;
+built on idle before the evening blend, so the evening builds nothing at once);
 `tests/e2e/ambience.spec.ts` (session weather, each preview, night, pause/end fades, the
 sun's glaze warm in the garden but not the sky and a trace on pause,
 setTime phases, blends and aliases, frame budget, reduced-motion emulation); `tests/e2e/boot-order.spec.ts` (no sun sprites at night until sun weather shows; the
