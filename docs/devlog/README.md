@@ -155,6 +155,7 @@ never used.
 | 147 | [Z4: Ksar blocks batched](147-ksar-batched.md) | The ksar's small marks dry per kind and block, its fronts' wet-in-wet takes fewer layers: −0.1 s, short of target; the rest is the engine's big washes |
 | 148 | [Z8: Creatures per garden](148-creatures-per-garden.md) | each garden's creatures a lazy chunk, loaded before its sim starts and prefetched with the pre-paint; first-view JS 1,385 → 1,129 kB raw, 497 → 412 kB gzip |
 | 149 | [Z25: Oasis shape data out of the painters](149-oasis-shape-data.md) | the oasis's shared shapes in a data module (shapes.ts), so its paint code is only in lazy chunks; first-view JS 1,133 → 1,052 kB raw, 413 → 386 kB gzip |
+| 150 | [Z9: Species painters out of the first view](150-species-painters-lazy.md) | species metadata extracted at build time, painters per species on demand; first view 1,385 → 970 kB raw (497 → 348 kB gzip) |
 | 151 | [Z10: Alfalfa sprite batched](151-alfalfa-batched.md) | Stems dry with their band's leaves, one flower layer, teeth, midribs and keels as plain fills: 48 → 23 ms (0.47×), about the white clover's; art review passed |
 | 152 | [Fix: cached landscape matches a fresh paint again](152-cache-parity-fix.md) | Since Z7 the sky drew an empty plate while the lazy painters loaded and nothing waited; whenPainted now awaits SkyLight.settled() |
 | 153 | [Z11: Damask rose sprite batched](153-damask-rose-batched.md) | Each rose in small layers, canes dry with their band's leaves, one cane mark layer, no flow on leaflets: 72 → 37 ms (0.51×); art review passed |

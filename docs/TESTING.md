@@ -639,6 +639,8 @@ Legend: unit tests as `folder/file › test`, under `src/` (`.test.ts` omitted).
 | Z8.2 | The fauna system applies a garden only once its creatures are loaded; an overtaken init is dropped | lazy-creatures.test.ts |
 | Z8.3 | The Japanese garden's fauna fingerprints are unchanged with only its set loaded and with all sets | regression.test.ts |
 | Z8.4 | A Japanese garden visit loads only its creature chunk; a switch to the oasis loads the oasis's and its creatures appear; the pre-paint fetches the others | e2e lazy-creatures.spec.ts |
+| Z9.1 | Species metadata survives the build's JSON extraction; a lazy species loads its painter once, retries a failure; main-thread sprite jobs wait for it, ensureSync hands over to the worker | unit: src/plants/registry.test.ts, src/plants/painter.test.ts, src/plants/sprites.test.ts |
+| Z9.2 | A first visit requests no species painter chunk on the main thread; a started session loads only its own, and its main-thread paint matches the worker's | e2e: tests/e2e/lazy-species-painters.spec.ts |
 | Z25.1 | A Japanese garden visit, first or warm, requests none of the oasis's paint code (source maps of every requested script) | e2e lazy-painters.spec.ts |
 | Z10.1 | Alfalfa batched: deterministic, varies by seed, grows continuously (stems in the leaf layer, one flower layer) | unit: src/plants/species/alfalfa.test.ts | studio › species-alfalfa | ✔ |
 | Z11.1 | Damask rose batched: deterministic, varies by seed, grows continuously, stays in its box (roses in their own small layers, canes in the leaf layer) | unit: src/plants/species/damask-rose.test.ts | studio › species-damask-rose | ✔ |
