@@ -76,9 +76,10 @@ describe('oasis vegetation painting (O4)', () => {
 
   it('plans each grove palm’s crown in a part of its own: parts with no canvas call (ADR 0330)', () => {
     const planning = runs.overview!.chunks.filter((c) => c.name === 'grove' && c.calls === 0);
-    // 287 drying bands and pauses with no call, and one more after each of the 19 palms' crowns
+    // 334 drying bands and pauses with no call (bands over empty paper skip drying, ADR 0349),
+    // and one more after each of the 19 palms’ crowns
     expect(GROVE_PALMS).toHaveLength(19);
-    expect(planning).toHaveLength(287 + 19);
+    expect(planning).toHaveLength(334 + 19);
   });
 
   it('plans the big palms from the layout, their crowns round their tops and within the sheet’s sides', () => {
