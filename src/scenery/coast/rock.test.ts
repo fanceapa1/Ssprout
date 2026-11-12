@@ -78,7 +78,7 @@ describe('coast rock painting (G2)', () => {
 
   it('paints the far hill, the village, the promontory, the temple and the shore’s rock as their own steps', () => {
     expect(COAST_ELEMENTS.far).toEqual(['far-hill']);
-    expect(COAST_ELEMENTS.rock).toEqual(['village', 'promontory', 'promontory-green', 'temple']);
+    expect(COAST_ELEMENTS.rock).toEqual(['village', 'promontory', 'temple']);
     expect(COAST_ELEMENTS.stones).toEqual(['shore-rocks']);
     // the shore's rock goes over the land's edge and the water, before the trees
     const names = coastSteps(COAST_ART).map((s) => s.name);
