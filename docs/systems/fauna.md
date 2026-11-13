@@ -217,7 +217,7 @@ and `geometry.ts`, never from a painter, and tested against those shapes, so a r
     branches (`PINE_BRANCHES`), each at its tree's foot scale (the pine's trunk is too steep to
     stand on);
   - `jar` ×2: the pithoi's rims (`JARS`);
-  - `rock` ×3: the splash rocks' dry tops (`SPLASH_ROCK_SHAPES`), the middle or an end clear of
+  - `rock` ×3: the splash boulders' dry crowns (`SPLASH_ROCK_SHAPES`, its `columns`), the middle or a shoulder clear of
     the slot on it (the first rock has none clear);
   - `ruin` ×4: the architrave's top, the two broken columns' slanted tops, the fallen drum, at
     `TEMPLE_SCALE` 0.13;

@@ -121,9 +121,10 @@ What I saw:
 ## Tests
 - Unit: `scenery/coast/fauna.test.ts`, `scenery/coast/wildlife.test.ts`, and additions to
   `fauna/targets.test.ts`, `fauna/lazy-creatures.test.ts`, `fauna/creatures/registry.test.ts`
-  and `scenery/coast/coast.test.ts`. Full suite: 254 files, 2640 tests, all pass.
+  and `scenery/coast/coast.test.ts`. Full suite after the rebase on the coast rock second pass: 254 files, 2641 tests, all pass.
 - E2E (one file at a time, one worker): `lazy-creatures` 2, `fauna` 6, `fauna-waterfall` 4,
-  `fauna-oasis` 4, `sceneries` 8, `gardens` 7, all pass. The full e2e suite was not run.
+  `fauna-oasis` 4, `sceneries` 8, `gardens` 7, all pass (before the rebase; the rebase changed only
+  the splash rocks' shapes, and the unit tests cover the places on them). The full e2e suite was not run.
 - `fauna-coast/all` renders over the cove (studio shot at t 30).
 
 Status: done.
