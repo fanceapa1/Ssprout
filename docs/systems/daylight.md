@@ -59,7 +59,8 @@ pure phases with the blends between them: night until 03:36 · sunrise 04:16–0
 Each scenery's `SkyLayout.sunSide` says which side its low sun lights the scene from:
 `{ sunrise: -1 | 1, sunset: -1 | 1 }` (−1 left, +1 right). The Japanese garden is `{ sunrise: 1,
 sunset: -1 }` (it rises over the right-hand hills and sets over the left); the waterfall is
-`{ sunrise: 1, sunset: 1 }` (both low suns stand right of the falls). A sky without one gets the
+`{ sunrise: 1, sunset: 1 }` (both low suns stand right of the falls), and so is the oasis; the
+coast is `{ sunrise: -1, sunset: -1 }` (both over the sea on the left). A sky without one gets the
 garden's. Everything that is lit from the side reads it from the viewed scenery's sky:
 - `castShadow(s, sky)`: the low-sun terms of `dx` point away from the sun. Length, `dy`, alpha,
   midday's short pool and the moon's faint night shadow (`dx` −0.2) are the same everywhere.
@@ -90,7 +91,8 @@ invisible in a soft violet glaze and kept, so the moon's left-falling night shad
   paper. The sun (low, `SUN_R` 22) and the moon (`MOON_R` 17, lunar phase shown) are punched out;
   the sun only above the far ridge.
 - **Water plates**: the same skies as horizontal bands on the pond (source-over 0.22 midday …
-  0.42 sunset).
+  0.42 sunset, `WATER_SKY_ALPHA`; a scenery may set its own through `ScenerySky.waterAlpha`, ADR
+  0372, and its plate may carry its own alpha).
 - **Light plates** (ambience, ADR 0147): 0.4 px/unit over the world. Grade wash + long shadows of
   boulders, shrubs, trees and the engawa away from the sun (pools at midday) + light caught on the
   crowns at sunrise/sunset + lamp light in the shoji (sunset, night) + stars. Composite lifts the
@@ -125,6 +127,18 @@ invisible in a soft violet glaze and kept, so the moon's left-falling night shad
   coping and the pisé, the Milky Way's glow and the stars. **Its own grades** (`OASIS_GRADES`,
   through `LightArt.grades`): midday a thin gold, sunset a deeper amber, both glows over the
   notch, night a little lighter than the garden's, no lantern. Studio `oasis-daylight`.
+- **Coast** (G5, ADR 0372, `scenery/coast/{sky,light,daylight}.ts`): an Ionian summer sky, both low
+  suns over the sea on the left (ADR 0360). Midday a clear cerulean thinning to a warm haze, two
+  small soft clouds; sunrise lilac into peach with a pearly horizon; sunset violet, rose and
+  apricot with violet bars; night a deep blue with 170 extra small stars. The sky is cut round the
+  temple (`TEMPLE_CUT`), not traced round it. The sea plate goes from the horizon's colour to the
+  near water's (turquoise, pearl, apricot to dusky teal, ink) with a broken path under each low sun
+  and the moon, thins toward the viewer, and lies on the sea strongly (`waterAlpha` 0.34–0.78).
+  Light hooks: shadows to the right (the promontory's face, walls, columns, the olive, the pine);
+  warm paper on the temple, the village, the olive and the pine, the promontory rose, the near
+  cove kept teal; at night cool paper on the stone, seven lit windows and the chapel's lamp. **Its
+  own grades** (`COAST_GRADES`): glows over the sea at each sun, no lantern, a bluer night 0.5.
+  Studio `coast-daylight`.
 - **Close views** (ADR 0163): when the camera rests zoomed in, the sky composes a detail plate for
   the view (plates upscaled; sun, moon with its phase and stars punched at up to 3 px/unit) and
   the light plate repaints its marks for the view at up to 2 px/unit (`CAST_DETAIL_MAX`) over its

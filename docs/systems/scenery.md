@@ -784,12 +784,13 @@ A tended clifftop garden stepping down to an Ionian cove, from draft B ("Stepped
 the shore", the owner's choice; docs/research/coast-biome.md §1). G1 (devlog 170) made it a scenery
 behind `?dev&scenery=coast`. Its painting, sky and light were placeholders: draft B's steps moved
 onto the final layout (`paint-placeholder.ts`; `drafts/b` is a record). The rock, water, land and
-vegetation, daylight and motion tasks replace them; G2 (devlog 175) painted the rock and G2b (devlog 180) gave it a second pass at its seams with the water and the land (Rock below).
+vegetation, daylight and motion tasks replace them; G2 (devlog 175) painted the rock and G2b (devlog 180) gave it a second pass at its seams with the water and the land (Rock below);
+G5 (devlog 182) painted the skies and the light (Daylight below).
 Composition map: studio `coast-map/map`; the rock: studio `coast-rock`.
 
 ```
 y    0 ┌──────────────────────────────────────────────────────────────────────────────┐
-       │ · stars (y 20–150) ·      moon (450,266)→(610,196)→(760,252)                 │
+       │ · stars (y 20–150) ·      moon (524,268)→(640,198)→(770,254)                 │
   200  │ leaning pine crown            ○ suns (8–16°)                olive crown      │
   300  │ far hill, village, chapel ╲   ○  ┃┃┃┃ temple      ___ promontory, pines ___  │
   400  │ ════ sea horizon ═══════════╲  ╱═══════╲ point 636 ‾‾‾ foot y 500 ‾‾‾‾‾‾‾‾‾‾ │
@@ -805,8 +806,8 @@ y    0 ┌───────────────────────�
 - **Light from the left** (ADR 0360): the sea and the open sky are on the left, and draft B is lit
   from the upper left. `sunSide: { sunrise: -1, sunset: -1 }`; both suns stand over the sea's
   horizon (y 400) between the far hill's foot (x 516) and the temple's point (x 636): sunset x 552,
-  sunrise x 636. The moon arcs (450, 266) → (610, 196) → (760, 252), left of the temple; the stars
-  (y 20–150) keep a gap round it.
+  sunrise x 636. The moon arcs (524, 268) → (640, 198) → (770, 254), over the bay and the temple,
+  inside a phone's crop all night (G5); the stars (y 20–150) keep a gap round it.
 - **Skyline**: sampled every 2 units from the painted silhouette (`silhouetteAt`: the far hill, the
   horizon, the promontory and each column), so the sky runs between the columns. The architrave,
   the olive, the leaning pine and the promontory's pines cross it and take the sky's wash.
@@ -1068,6 +1069,45 @@ and `geometry.ts`:
   but `crack-1` (0.03: a slot in a face takes its own y's lift, the face its coping's scale).
 - Studio `coast-wildlife` (`targets`, `targets-close`, `targets-far`) draws every place over the
   painting; `fauna-coast/all` runs the table over the cove.
+### Daylight (G5, `sky.ts`, `light.ts`, `daylight.ts`, ADR 0372)
+The painting is on white with no sky step; the sky is the daylight's plates (docs/systems/daylight.md
+› Coast). Studio `coast-daylight` (158).
+- **Cut round the temple** (ADR 0372). `plateSky()` follows the ground without the columns
+  (`groundAt`: the far hill, the horizon, the promontory) with a 4-unit hang, 0.5 over the krepis.
+  A second clip takes out `TEMPLE_CUT`: each painted shaft (`columnShapes()`), the two capitals and
+  the architrave, 0.7 inside their edges. Each base wash covers `washSky()`, the same line 48 lower,
+  so no wet edge shows. The sky reaches every column's edge, runs under the architrave, and covers
+  the island behind the base. `SKYLINE` is unchanged (the sun's clip, the stars, the slots).
+- **Skies**: midday a clear cerulean overhead thinning to a warm haze on the horizon, two small
+  soft clouds lifted out (330, 176) and (940, 118); sunrise lilac into pale peach, a gold glow round
+  the sun, a pearly haze on the horizon, two quiet lilac bars; sunset violet over rose, an apricot
+  band low, an ember glow round the sun, three violet bars lit apricot underneath; night a deep
+  granulating blue paler over the horizon, the shared 30 stars and 170 smaller ones
+  (`COAST_NIGHT_STARS`, kept off the pine's pads, the olive and the temple). After the clip, the far
+  hill and the headlands are glazed in each phase's colour (`DISTANCE`).
+- **Sea plate** (`COAST_WATER_SKY`): the horizon's colour and the near water's as two washes lost
+  into each other: turquoise at noon, pearl and peach to a softened turquoise at sunrise, apricot
+  to dusky teal at sunset, night blue to ink. A broken path of light under each low sun (sheen plus
+  soft dashes, `sunPath`) and a moon path at night. The plate then thins toward the viewer
+  (`WATER_NEAR`, over `WATER_FALLOFF` 280 units), and lies on the sea at `COAST_WATER_ALPHA`
+  (`ScenerySky.waterAlpha`, 0.34–0.78): far water mirrors the sky, the shallows keep their floor.
+- **Light** (`light.ts`): shadows to the right and toward the viewer (both suns are over the sea on
+  the left): the promontory's face and foot, each wall's face and the strip below it, each column
+  along the krepis, the olive's trunk and crown on the top terrace, the leaning pine's on the
+  beach; short pools at midday. Sunrise and sunset: warm paper on the temple and each shaft's lit
+  flank, the village, the olive's sun side, the pine's trunk and the walls' seaward ends; the
+  promontory rose; the near cove lifted so the warm grade does not grey it (midday too). Night:
+  cool paper on the temple, the point, the village and the cove, seven lit windows
+  (`LIT_WINDOWS`, from the village's painted openings) and the chapel's lamp (`CHAPEL_LAMP`), small
+  and steady, and the extra stars.
+- **Grades** (`COAST_GRADES`): the low glows over the sea at each sun's x (glowY 0.4), no lantern,
+  sunset apricot 0.34, night a blue 0.5.
+- **The temple's shade** starts under the slanted break on the broken shafts, and the architrave's
+  is clipped to the fragment (`temple.ts`), so no dark wedge stands against the sky.
+- **Cost** (Chromium, dev build, laptop under load, `bench.mjs`-style timing of each plate's own
+  painting): sky plates 107–250 ms (night the cheapest, sunset the dearest), sea plates 44–64 ms,
+  light plates' marks 72–98 ms (night 1). The oasis's on the same run: sky 105–221, basin 41–70,
+  light 70–135. Each plate is one task, as in every garden.
 
 ### Left for later tasks
 - Water (devlog 176, Left open): the far hill's reflection is faint, the shingle's spatter still
@@ -1082,6 +1122,10 @@ and `geometry.ts`:
   (ADR 0373), so the gull on its mast and rail rides it.
 - Wildlife (devlog 183, Left open): no perch on the chapel or the village (too far for a bird to
   read); the first splash rock's top is all slot.
+- Daylight (devlog 182, Left open): the promontory's face reads cool grey rather than rose at
+  sunset; the plates paint in one task each, as every garden's; Posidonia stays teal at sunset.
+- Motion and the fauna's targets (perches on the copings, the caique's mast, the chapel; heron
+  stands on the splash rocks; a far sea band).
 
 ## Tests
 - `src/scenery/coast/water.test.ts` (G3): the water's steps and their order; recording hash pins

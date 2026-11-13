@@ -296,7 +296,7 @@ export function createSkyLight(opts: SkyLightOptions): SkyLight {
       cctx.drawImage(plate.sky as CanvasImageSource, 0, 0);
       wctx.globalAlpha = alpha;
       wctx.drawImage(plate.water as CanvasImageSource, 0, 0);
-      waterAlpha += state.weights[phase] * WATER_SKY_ALPHA[phase];
+      waterAlpha += state.weights[phase] * (spec.waterAlpha?.[phase] ?? WATER_SKY_ALPHA[phase]);
     }
     cctx.globalAlpha = 1;
     wctx.globalAlpha = 1;

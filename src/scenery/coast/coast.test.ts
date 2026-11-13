@@ -340,7 +340,7 @@ describe('coast spacing at the garden scale (1.25×)', () => {
   });
 });
 
-describe('the coast sky (placeholder)', () => {
+describe('the coast sky', () => {
   const open = openSky();
   const inSky = (p: Pt, r = 0) => [p, { x: p.x, y: p.y + r }, { x: p.x - r, y: p.y }, { x: p.x + r, y: p.y }].every((q) => pointInPolygon(q, open));
 

@@ -329,7 +329,7 @@ stays the ground's perspective. Creatures read `w.perspective(y, x)`: a scenery 
 (`Scenery.fauna.perspective`, the waterfall's knows the cliff); otherwise a line fitted through the
 slots' scales.
 
-### Sceneries (`src/scenery/`, ADRs 0240–0245, 0247, 0248, 0250, 0282, 0283, 0301, 0341; docs/systems/scenery.md)
+### Sceneries (`src/scenery/`, ADRs 0240–0245, 0247, 0248, 0250, 0282, 0283, 0301, 0341, 0372; docs/systems/scenery.md)
 ```ts
 export const SCENERY_IDS = ['japanese-garden', 'waterfall'] as const;  // core/sceneries.ts (ADR 0240); ids.ts re-exports
 export type SceneryId = (typeof SCENERY_IDS)[number];
@@ -339,7 +339,7 @@ export interface Scenery {                    // types.ts
   available(flags: URLSearchParams): boolean;  // all three registered sceneries: always (S17, O8); a scenery in progress hides behind a dev flag
   geometry: SceneGeometry;
   art: SceneArt;                              // seed, painting layout (art.scene = geometry), painters
-  sky: ScenerySky;                            // layout (SkyLayout, with its sunSide: ADR 0284), rect, shape(below?), painters
+  sky: ScenerySky;                            // layout (SkyLayout, with its sunSide: ADR 0284), rect, shape(below?), painters, waterAlpha? (per phase, ADR 0372)
   light: LightArt;                            // trees, shrubs, sky, grades? (its own phase grades, ADR 0301), painters?
   painters: Painters<GardenPainters>;         // painters.ts (ADR 0341): { get(): T | null; load(): Promise<T> }, one lazy chunk per scenery
   ambience: SceneryAmbience;                  // dew: Rect[], mistBands, veilTo
