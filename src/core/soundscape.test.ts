@@ -8,9 +8,9 @@ describe('sound collections', () => {
     const s = defaultSoundscape();
     s.standard = levelsWith({ cafe: 45, lofi: 30 });
     s.sceneries.pond = { mode: 'custom', levels: levelsWith({ water: 80, rain: 20 }) };
-    s.sceneries.coast = { mode: 'custom', levels: levelsWith({ waves: 60 }) };
+    s.sceneries.coast = { mode: 'custom', levels: levelsWith({ sea: 60 }) };
     expect(selectedMix(s, 'pond').levels.water).toBe(80);
-    expect(selectedMix(s, 'coast').levels.waves).toBe(60);
+    expect(selectedMix(s, 'coast').levels.sea).toBe(60);
     s.collection = 'standard';
     expect(selectedMix(s, 'pond')).toEqual(selectedMix(s, 'coast'));
     expect(selectedMix(s, 'pond').levels.cafe).toBe(45);
@@ -21,7 +21,7 @@ describe('sound collections', () => {
   it('follows the garden by default, with a distinct coastal profile', () => {
     const s = defaultSoundscape();
     expect(sceneryMix(s, 'pond').mode).toBe('garden');
-    expect(sceneryMix(s, 'coast').levels.waves).toBeGreaterThan(0);
+    expect(sceneryMix(s, 'coast').levels.sea).toBeGreaterThan(0);
     const copy = copySoundscape(s);
     copy.standard.rain = 1;
     expect(s.standard.rain).toBe(55);
@@ -83,6 +83,36 @@ describe('sound collections', () => {
     expect(isSoundscape(state.settings.soundscape)).toBe(true);
   });
 
+  it('the coast has its own palette, the sea and the cicadas, and its own two presets (ADR 0376)', () => {
+    const s = defaultSoundscape();
+    expect(sceneryMix(s, 'coast')).toEqual({ mode: 'garden', levels: levelsWith({ sea: 70, wind: 35, cicadas: 30, birds: 35, crickets: 30 }) });
+    expect(SCENERIES.coast.layers).toEqual(['sea', 'wind', 'cicadas', 'birds', 'crickets', 'rain']);
+    for (const id of ['pond', 'waterfall', 'oasis'] as const) {
+      expect(SCENERIES[id].layers).not.toContain('sea');
+      expect(SCENERIES[id].layers).not.toContain('cicadas');
+    }
+    expect(STANDARD_LAYERS).not.toContain('sea');
+    expect(STANDARD_LAYERS).not.toContain('cicadas');
+    const presets = SOUND_PRESETS.filter((p) => p.scenery === 'coast');
+    expect(presets.map((p) => p.name)).toEqual(['Along the shore', 'A still night on the cove']);
+    for (const p of presets) expect(p.levels.sea).toBeGreaterThan(0);
+  });
+
+  it('a coast mix saved before its sound bed loads with the sea and cicadas off (no schema change)', () => {
+    const { sea: _s, cicadas: _c, ...before } = levelsWith({ waves: 63, wind: 40, birds: 25 });
+    const saved = { collection: 'scenery', volume: 90, standard: before, sceneries: { coast: { mode: 'custom', levels: before } } };
+    const read = readSoundscape(saved)!;
+    expect(read).not.toBeNull();
+    expect(read.sceneries.coast!.levels).toEqual(levelsWith({ waves: 63, wind: 40, birds: 25 }));
+    expect(read.standard.sea + read.standard.cicadas).toBe(0);
+    const state = createDefaultState(1234);
+    const doc = JSON.parse(exportState(state, 1234)) as { state: { settings: Record<string, unknown> } };
+    doc.state.settings.soundscape = saved;
+    const imported = importState(JSON.stringify(doc));
+    expect(imported.ok).toBe(true);
+    if (imported.ok) expect(imported.state.settings.soundscape).toEqual(read);
+  });
+
   it('rejects invalid levels, collections, incomplete mixes and unknown scenery keys', () => {
     const s = defaultSoundscape();
     for (const value of [-1, 101, NaN, Infinity, '50', null]) {
@@ -112,7 +142,7 @@ describe('sound collections', () => {
     const state = createDefaultState(1234);
     expect(validateState(state).ok).toBe(true);
     state.settings.soundscape = defaultSoundscape();
-    state.settings.soundscape.sceneries.coast = { mode: 'custom', levels: levelsWith({ waves: 68 }) };
+    state.settings.soundscape.sceneries.coast = { mode: 'custom', levels: levelsWith({ sea: 68, cicadas: 12 }) };
     const result = importState(exportState(state, 1234));
     expect(result.ok).toBe(true);
     if (result.ok) expect(result.state.settings.soundscape).toEqual(state.settings.soundscape);

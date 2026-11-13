@@ -694,7 +694,7 @@ Each scenery's `sky.layout` (= its `light.sky`) states its sun side: the garden 
 the waterfall `{ sunrise: 1, sunset: 1 }`. The shadows (plants, the light plates' boulders, shrubs and
 trees), the crown lights and the rims (plants, boulders) all read the viewed scenery's sky (ADR 0284).
 
-### Audio (`src/audio/`, ADRs 0100–0103, 0213, 0283)
+### Audio (`src/audio/`, ADRs 0100–0103, 0213, 0283, 0303, 0376)
 `createGardenAudio({ bus, getState, clock, scenery? /* default pond */ })` → `{ unlock(), setMuted(), isMuted(), setWeather(),
 setActivity(), setFauna(), setTimeOfDay(), getScenery(), setScenery(id), onSceneryChange(fn),
 playBloom(), playComplete(), playPour(), dispose() }`. Muted by
@@ -702,7 +702,7 @@ default; it follows `settings:changed` and the session/plant/fauna events on the
 `unlock()` inside a user gesture. Details: `docs/systems/audio.md`.
 
 `core/soundscape.ts` owns `SoundLayer`, `SoundLevels` (0–100), `SoundSceneryId` (the audio sceneries
-`pond`/`coast`/`waterfall`/`oasis`, not a garden's `SceneryId`; ADR 0240, 0303), `SCENERIES` and
+`pond`/`coast`/`waterfall`/`oasis`, not a garden's `SceneryId`; ADR 0240, 0303, 0376), `SCENERIES` and
 `SoundscapeSettings = { collection: 'standard'|'scenery', volume: number, standard: SoundLevels,
 sceneries: Partial<Record<SoundSceneryId, { mode: 'garden'|'custom', levels: SoundLevels }>> }`.
 `readSoundscape(v)` reads a stored or patched mix as a complete copy, a missing layer as 0.
@@ -714,8 +714,8 @@ The controller also emits `settings:changed` when a whole garden is restored or 
 running audio gate and levels follow imported settings immediately.
 The viewed scenery is runtime context, not a preference: `main.ts` starts the audio on the viewed
 garden's `Scenery.sound` and calls `audio.setScenery(sound)` whenever `state.scenery` changes
-(a 2 s glide, ADR 0283); the mixer subscribes with `onSceneryChange`. The coast profile is an
-integration fixture for a future scene. `fauna:arrived` adds `faunaSeenKey(sceneryId, id)`, so
+(a 2 s glide, ADR 0283); the mixer subscribes with `onSceneryChange`. The `coast` profile is the
+Greek coast's (ADR 0376). `fauna:arrived` adds `faunaSeenKey(sceneryId, id)`, so
 a creature counts in the garden it was seen in.
 
 `MixParams` also carries `eventLevels: SoundLevels` and `extra: SoundLevels` for Standard beds.

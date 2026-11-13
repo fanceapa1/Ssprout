@@ -4,6 +4,7 @@ import { brownNoise, impulseResponse, makeLoopable, pinkNoise, whiteNoise } from
 import type { MixParams } from './params';
 import { FALLS_BLEND, FALLS_GAIN, fallsLoops } from './falls';
 import { PALMS_GAIN, SEGUIA_BLEND, SEGUIA_GAIN, palmsLoops, seguiaLoops } from './oasis-bed';
+import { CICADAS_GAIN, SEA_GAIN, SEA_SWELL, cicadaLoops, seaLoops } from './coast-bed';
 import { EPS, type Point, type SoundSpec, type Voice } from './recipes';
 import { standardLoop, type CraftedLoop } from './standard-loops';
 
@@ -15,7 +16,7 @@ import { standardLoop, type CraftedLoop } from './standard-loops';
  *   wind   (pink → BP, LFO-swept; gust swell)          ├─ bed (gain) → warmth (low-shelf) ─┐
  *   rain   (pink → HP 900 → LP 7k)                     ─┤                                  │
  *   extras (waves, fire, café, lo-fi, noise, falls,    ─┘                                  │
- *           seguia, palms; gusts swell the palms too)                                      │
+ *           seguia, palms, sea, cicadas; gusts swell the palms too)                        │
  *   events (plip/chirp/…/splash/dipper/kajika) → panner → layer bus → eventsBus ───────────┤
  *                                       └─ send ─→ convolver (procedural IR) → return ─────┤
  *                                                                                          ▼
@@ -48,7 +49,7 @@ export interface AudioBackend {
 export type BackendFactory = () => AudioBackend | null;
 
 /** Looping beds built on first use, each with its gain at 100 %. */
-const EXTRA_GAIN = { waves: 0.035, fire: 0.035, cafe: 0.035, lofi: 0.045, white: 0.012, brown: 0.035, falls: FALLS_GAIN, seguia: SEGUIA_GAIN, palms: PALMS_GAIN } as const;
+const EXTRA_GAIN = { waves: 0.035, fire: 0.035, cafe: 0.035, lofi: 0.045, white: 0.012, brown: 0.035, falls: FALLS_GAIN, seguia: SEGUIA_GAIN, palms: PALMS_GAIN, sea: SEA_GAIN, cicadas: CICADAS_GAIN } as const;
 const EXTRA_BEDS = Object.keys(EXTRA_GAIN) as (keyof typeof EXTRA_GAIN)[];
 
 /** Hard safety cap on simultaneously scheduled sounds (the planner normally stays far below). */
@@ -208,6 +209,15 @@ export function createWebAudioBackend(
       under.gain.value = SEGUIA_BLEND.murmur;
       loop(buffer(w.trickle.data, w.trickle.rate), 0).connect(gain);
       loop(murmur, 0).connect(under).connect(gain);
+    } else if (id === 'sea') {
+      // a slow swell over the loop, so its waves come back a little bigger or smaller each time
+      const swell = ctx.createGain();
+      const s = seaLoops(rng.fork('sea'), sr);
+      loop(buffer(s.data, s.rate), 0).connect(swell).connect(gain);
+      lfo(SEA_SWELL.hz, SEA_SWELL.depth, swell.gain);
+    } else if (id === 'cicadas') {
+      const c = cicadaLoops(rng.fork('cicadas'), sr);
+      loop(buffer(c.data, c.rate), 0).connect(gain);
     } else if (id === 'palms') {
       palmSwell = ctx.createGain();
       const p = palmsLoops(rng.fork('palms'), sr);

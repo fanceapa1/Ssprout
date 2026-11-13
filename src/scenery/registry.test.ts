@@ -66,7 +66,7 @@ describe('the registry', () => {
     }
   });
 
-  it('plays its own sound profile: the pond garden, the falls (ADR 0283), the oasis (ADR 0303), the seaside', () => {
+  it('plays its own sound profile: the pond garden, the falls (ADR 0283), the oasis (ADR 0303), the coast (ADR 0376)', () => {
     expect(JAPANESE_GARDEN.sound).toBe('pond');
     expect(WATERFALL.sound).toBe('waterfall');
     expect(OASIS.sound).toBe('oasis');

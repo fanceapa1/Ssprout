@@ -19,6 +19,8 @@ const SOUNDS: Record<SoundLayer, { name: string; note: string; icon: IconName }>
   falls: { name: 'The falls', note: 'Water pouring into the pool, a mist of spray.', icon: 'waves' },
   seguia: { name: 'The seguia', note: 'Water trickling over the walls into the basin.', icon: 'drops' },
   palms: { name: 'Wind in the palms', note: 'Dry fronds rustling in slow gusts.', icon: 'wind' },
+  sea: { name: 'The sea on the pebbles', note: 'Waves washing up the shingle and rattling back.', icon: 'waves' },
+  cicadas: { name: 'Cicadas', note: 'A dry chorus from the pines in the heat of the day.', icon: 'cricket' },
 };
 
 /** A place's own words for a shared layer, shown while its scenery mix is on view. */
@@ -26,6 +28,11 @@ const PLACE_SOUNDS: Partial<Record<SoundSceneryId, Partial<Record<SoundLayer, { 
   oasis: {
     birds: { name: 'Doves and buntings', note: 'A soft coo from the palms, a short song from the walls.' },
     crickets: { name: 'Insects and geckos', note: 'A midday shimmer; crickets and a gecko after dark.' },
+  },
+  coast: {
+    wind: { name: 'Breeze in the pines', note: 'A soft hush through the pine and the olive.' },
+    birds: { name: 'Gulls and goat bells', note: 'A gull far out, bells on the cliff, the chapel at sunset.' },
+    crickets: { name: 'The owl and crickets', note: 'A Scops owl’s soft note after dark, a few crickets.' },
   },
 };
 

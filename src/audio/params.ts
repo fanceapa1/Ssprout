@@ -1,5 +1,5 @@
 import type { Weather } from '../core/state';
-import { SCENERIES, selectedMix, levelsWith, SOUND_LAYERS, STANDARD_LAYERS, type SoundSceneryId, type SoundLayer, type SoundLevels, type SoundscapeSettings } from '../core/soundscape';
+import { SCENERIES, selectedMix, levelsWith, silentLevels, SOUND_LAYERS, STANDARD_LAYERS, type SoundSceneryId, type SoundLayer, type SoundLevels, type SoundscapeSettings } from '../core/soundscape';
 
 /**
  * Pure parameter mapping: garden situation (time of day, weather, session activity, unlocked
@@ -8,15 +8,15 @@ import { SCENERIES, selectedMix, levelsWith, SOUND_LAYERS, STANDARD_LAYERS, type
 
 /** Kinds of scheduled one-shot events in the soundscape. `gust` is a wind swell, not a voice. */
 export type EventKind = 'plip' | 'chirp' | 'warbler' | 'swallow' | 'cricket' | 'drip' | 'gust' | 'splash' | 'dipper' | 'kajika' |
-  'dove' | 'bunting' | 'beeeater' | 'cicada' | 'gecko' | 'frogs';
+  'dove' | 'bunting' | 'beeeater' | 'cicada' | 'gecko' | 'frogs' | 'caique' | 'gull' | 'goatbell' | 'chapel' | 'scops';
 
 export const EVENT_KINDS: readonly EventKind[] = ['plip', 'chirp', 'warbler', 'swallow', 'cricket', 'drip', 'gust', 'splash', 'dipper', 'kajika',
-  'dove', 'bunting', 'beeeater', 'cicada', 'gecko', 'frogs'];
+  'dove', 'bunting', 'beeeater', 'cicada', 'gecko', 'frogs', 'caique', 'gull', 'goatbell', 'chapel', 'scops'];
 
 /** The events that belong to each place; a custom mix never brings another place's voices. */
 export const PLACE_EVENTS: Readonly<Record<SoundSceneryId | 'standard', readonly EventKind[]>> = {
   pond: ['plip', 'chirp', 'warbler', 'swallow', 'cricket', 'drip', 'gust'],
-  coast: ['chirp', 'warbler', 'swallow', 'drip', 'gust'],
+  coast: ['caique', 'gull', 'goatbell', 'chapel', 'swallow', 'cricket', 'scops', 'drip', 'gust'],
   waterfall: ['splash', 'chirp', 'warbler', 'swallow', 'dipper', 'kajika', 'cricket', 'drip', 'gust'],
   oasis: ['dove', 'bunting', 'beeeater', 'chirp', 'swallow', 'cicada', 'cricket', 'gecko', 'frogs', 'drip', 'gust'],
   standard: ['chirp', 'warbler', 'drip', 'gust'],
@@ -62,6 +62,7 @@ export const EVENT_LAYER: Record<EventKind, SoundLayer> = {
   plip: 'water', gust: 'wind', chirp: 'birds', warbler: 'birds', swallow: 'birds', cricket: 'crickets', drip: 'rain',
   splash: 'falls', dipper: 'birds', kajika: 'crickets',
   dove: 'birds', bunting: 'birds', beeeater: 'birds', cicada: 'crickets', gecko: 'crickets', frogs: 'crickets',
+  caique: 'sea', gull: 'birds', goatbell: 'birds', chapel: 'birds', scops: 'crickets',
 };
 
 /** Where a place moves an event to another layer: the oasis's gusts blow through the palms. */
@@ -96,6 +97,11 @@ export const BASE_RATES: Readonly<Record<EventKind, number>> = {
   cicada: 1.6,
   gecko: 0.4,
   frogs: 0.35,
+  caique: 0.25,
+  gull: 0.35,
+  goatbell: 0.3,
+  chapel: 0.012,
+  scops: 0.25,
 };
 
 type Curve = readonly (readonly [hour: number, value: number])[];
@@ -152,6 +158,26 @@ export const FROG_CURVE: Curve = [
 /** The desert air: still at night, a breeze from late morning, strongest in the afternoon. */
 export const OASIS_WIND_CURVE: Curve = [
   [0, 0.5], [6, 0.45], [10, 0.8], [14, 1], [17, 0.95], [20, 0.7], [24, 0.5],
+];
+/** The coast's cicadas: up with the heat, loudest in the early afternoon, gone by dark (ADR 0376). */
+export const CHORUS_CURVE: Curve = [
+  [0, 0], [6.5, 0], [8, 0.15], [10, 0.55], [12.5, 0.9], [14.5, 1], [16.5, 0.85], [18.5, 0.4], [19.5, 0.12], [20.5, 0], [24, 0],
+];
+/** A gull's far call: by day, a little more in the morning and the late afternoon. */
+export const GULL_CURVE: Curve = [
+  [0, 0], [5.5, 0], [6.5, 0.6], [9, 1], [13, 0.7], [17, 0.9], [19.5, 0.4], [20.5, 0], [24, 0],
+];
+/** Goat bells on the far cliff: the goats browse in the morning and again before dusk, rest at noon. */
+export const GOAT_CURVE: Curve = [
+  [0, 0.1], [5, 0.1], [6.5, 0.6], [9, 1], [12.5, 0.5], [15, 0.6], [18, 1], [20, 0.4], [21.5, 0.1], [24, 0.1],
+];
+/** The chapel's bell: at sunset only. */
+export const CHAPEL_CURVE: Curve = [
+  [0, 0], [18.5, 0], [19.5, 1], [20.5, 1], [21.5, 0], [24, 0],
+];
+/** The Scops owl calls through the night, most in its first hours. */
+export const SCOPS_CURVE: Curve = [
+  [0, 0.9], [4, 0.7], [5.3, 0.15], [6, 0], [19.5, 0], [20.5, 0.4], [21.5, 1], [24, 0.9],
 ];
 /** Wind is a little livelier by day. */
 export const WIND_CURVE: Curve = [
@@ -221,13 +247,14 @@ export function mixParams({ hour, weather, activity, fauna, soundscape, scenery 
     airHz: mist ? 2400 : 16000,
     rates,
     eventLevels: levelsWith({ water: 100, wind: 100, birds: 100, crickets: 100, rain: 100 }),
-    extra: levelsWith(scenery === 'coast' ? { waves: 75 } : {}),
+    extra: silentLevels(),
   };
   const selected = soundscape ? selectedMix(soundscape, scenery) : null;
   if (selected?.mode !== 'custom') {
     if (scenery === 'waterfall') return waterfallMix(mix, { hour, rain, birdWeather, eventActivity, fauna });
     if (scenery === 'oasis') return oasisMix(mix, { hour, rain, mist, paused, birdWeather, eventActivity, fauna });
-    return scenery === 'coast' ? { ...mix, water: 0, rates: { ...rates, plip: 0, cricket: 0 } } : mix;
+    if (scenery === 'coast') return coastMix(mix, { hour, rain, mist, paused, birdWeather, eventActivity, fauna });
+    return mix;
   }
   // Chosen sounds are independent of visual weather, wildlife unlocks and the local hour.
   const standard = soundscape!.collection === 'standard';
@@ -318,6 +345,45 @@ function oasisMix(mix: MixParams, o: { hour: number; rain: boolean; mist: boolea
       cicada: BASE_RATES.cicada * sampleCurve(CICADA_CURVE, hour) * (rain ? 0 : mist ? 0.5 : 1) * eventActivity,
       gecko: BASE_RATES.gecko * sampleCurve(GECKO_CURVE, hour) * (seenAtOasis(fauna, 'gecko') ? 1.5 : 1) * eventActivity,
       frogs: BASE_RATES.frogs * sampleCurve(FROG_CURVE, hour) * (rain ? 1.3 : 1) * (seenAtOasis(fauna, 'sahara-frog') ? 1.5 : 1) * eventActivity,
+    },
+  };
+}
+
+/** `coast:<id>` creatures seen there (`faunaSeenKey`, ADR 0240). */
+const seenOnCoast = (fauna: ReadonlySet<string>, id: string) => fauna.has(`coast:${id}`);
+
+/**
+ * The Greek coast following the garden (ADR 0376): the sea on the pebbles for water, a light
+ * airy breeze in the pines, the cicadas' chorus in the heat; far gulls, goat bells and the
+ * caique's ropes by day, a chapel bell at sunset; a Scops owl and a few crickets at night.
+ */
+function coastMix(mix: MixParams, o: { hour: number; rain: boolean; mist: boolean; paused: boolean; birdWeather: number; eventActivity: number; fauna: ReadonlySet<string> }): MixParams {
+  const { hour, rain, mist, paused, birdWeather, eventActivity, fauna } = o;
+  const r = mix.rates;
+  const { sea, cicadas } = SCENERIES.coast.levels;
+  const chorus = sampleCurve(CHORUS_CURVE, hour) * (rain ? 0 : mist ? 0.5 : 1) * (paused ? 0.7 : 1);
+  const seen = (id: string, boost: number) => (seenOnCoast(fauna, id) ? boost : 1);
+  return {
+    ...mix,
+    water: 0,
+    // the pines' hush: lighter and airier than the leaves
+    wind: mix.wind * 0.75,
+    windHz: rain ? mix.windHz : mix.windHz + 450,
+    extra: levelsWith({ sea: sea * (rain ? 1.1 : 1), cicadas: cicadas * chorus * seen('cicada', 1.15) }),
+    eventLevels: { ...mix.eventLevels, sea: 100, cicadas: 100 },
+    rates: {
+      ...r,
+      plip: 0,
+      chirp: 0,
+      warbler: 0,
+      swallow: seenOnCoast(fauna, 'swallows') ? BASE_RATES.swallow * sampleCurve(SWALLOW_CURVE, hour) * (rain ? 0.2 : 1) * eventActivity : 0,
+      cricket: r.cricket * 0.35,
+      gust: r.gust * 0.8,
+      caique: BASE_RATES.caique * (rain ? 1.3 : 1) * eventActivity,
+      gull: BASE_RATES.gull * sampleCurve(GULL_CURVE, hour) * birdWeather * eventActivity * seen('gull', 1.4),
+      goatbell: BASE_RATES.goatbell * sampleCurve(GOAT_CURVE, hour) * (rain ? 0.3 : 1) * eventActivity * seen('goats', 1.5),
+      chapel: BASE_RATES.chapel * sampleCurve(CHAPEL_CURVE, hour) * eventActivity,
+      scops: BASE_RATES.scops * sampleCurve(SCOPS_CURVE, hour) * (rain ? 0.3 : 1) * eventActivity * seen('scops-owl', 1.3),
     },
   };
 }

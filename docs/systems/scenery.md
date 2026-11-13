@@ -842,7 +842,7 @@ y    0 ┌───────────────────────�
     Japanese gardens' offers did not change.
   - The olive and the lavender (paint tasks) add their own `cultivatedIn` or wild range.
 - **Wildlife** (GK0, ADR 0373): see Wildlife below.
-- **Sound**: `coast`, the seaside profile that was waiting for it.
+- **Sound** (G7, ADR 0376): `coast`, its own bed; see Sound below.
 
 ### Slots (48)
 | Habitat ("words") | Count | Where | Sizes |
@@ -1068,6 +1068,17 @@ and `geometry.ts`:
   but `crack-1` (0.03: a slot in a face takes its own y's lift, the face its coping's scale).
 - Studio `coast-wildlife` (`targets`, `targets-close`, `targets-far`) draws every place over the
   painting; `fauna-coast/all` runs the table over the cove.
+### Sound (G7, ADR 0376)
+`Scenery.sound` is `coast`, the coast's own bed (docs/systems/audio.md › Coast): the sea breathing
+on a pebble beach (a wash up the shingle every 6–10 s, then the hiss and rattle of stones drawing
+back, over a far surf and small laps at the rocks), a light breeze in the pines, and a far cicada
+chorus that swells toward the hot afternoon and stops at dusk and in rain. Rare voices sit where
+the painting puts them: the caique's rope and hull and the chapel's sunset bell to the left, goat
+bells on the promontory to the right, a far gull anywhere; at night a Scops owl's spell and a few
+crickets. The mixer reads The sea on the pebbles, Breeze in the pines, Cicadas, Gulls and goat
+bells, The owl and crickets. A `coast:gull`, `coast:goats`, `coast:scops-owl`, `coast:cicada` or
+`coast:swallows` sighting makes its sound more frequent (`fauna.ts` ids).
+
 ### Daylight (G5, `sky.ts`, `light.ts`, `daylight.ts`, ADR 0372)
 The painting is on white with no sky step; the sky is the daylight's plates (docs/systems/daylight.md
 › Coast). Studio `coast-daylight` (158).

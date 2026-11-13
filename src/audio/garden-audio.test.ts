@@ -140,7 +140,7 @@ describe('personal soundscapes', () => {
   it('switches scenery mixes, notifies the UI and keeps Standard sounds across scenery changes', () => {
     const prefs = defaultSoundscape();
     prefs.sceneries.pond = { mode: 'custom', levels: levelsWith({ water: 85 }) };
-    prefs.sceneries.coast = { mode: 'custom', levels: levelsWith({ waves: 60 }) };
+    prefs.sceneries.coast = { mode: 'custom', levels: levelsWith({ sea: 60 }) };
     const s = setup({}, { muted: false, soundscape: prefs });
     let changes = 0;
     const off = s.audio.onSceneryChange(() => changes++);
@@ -149,7 +149,7 @@ describe('personal soundscapes', () => {
     s.audio.setScenery('coast');
     expect(s.audio.getScenery()).toBe('coast');
     expect(s.fake.mixes.at(-1)!.water).toBe(0);
-    expect(s.fake.mixes.at(-1)!.extra.waves).toBe(60);
+    expect(s.fake.mixes.at(-1)!.extra.sea).toBe(60);
     prefs.collection = 'standard'; prefs.standard = levelsWith({ cafe: 40 });
     s.bus.emit('settings:changed', { settings: { ...s.garden.settings, soundscape: prefs } });
     s.audio.setScenery('pond');
@@ -410,6 +410,25 @@ describe('createGardenAudio soundscape', () => {
     s.audio.setScenery('pond');
     expect(s.fake.mixes.at(-1)!.rates.gecko).toBe(0);
     expect(s.fake.mixes.at(-1)!.extra.seguia).toBe(0);
+  });
+
+  it('the coast plays its own bed and voices, and an owl seen there calls there (ADR 0376)', () => {
+    const s = setup({}, { muted: false });
+    s.audio.unlock();
+    s.audio.setTimeOfDay(22);
+    s.audio.setScenery('coast');
+    const night = s.fake.mixes.at(-1)!;
+    expect(night.extra.sea).toBeGreaterThan(0);
+    expect(night.extra.cicadas).toBe(0);
+    expect(night.water).toBe(0);
+    expect(night.rates.scops).toBeGreaterThan(0);
+    s.bus.emit('fauna:arrived', { id: 'scops-owl', sceneryId: 'coast' });
+    expect(s.fake.mixes.at(-1)!.rates.scops).toBeGreaterThan(night.rates.scops);
+    s.audio.setTimeOfDay(14);
+    expect(s.fake.mixes.at(-1)!.extra.cicadas).toBeGreaterThan(0);
+    expect(s.fake.mixes.at(-1)!.rates.scops).toBe(0);
+    s.audio.setScenery('oasis');
+    expect(s.fake.mixes.at(-1)!.extra.sea + s.fake.mixes.at(-1)!.extra.cicadas).toBe(0);
   });
 
   it('caps the step after a long stall instead of bursting', () => {

@@ -82,13 +82,13 @@ test.describe('sound mixer', () => {
     const sheet = await openMixer(page);
     await level(sheet, 'Pond water volume', 88);
     await page.evaluate(() => window.sprout!.audio.setScenery('coast'));
-    await expect(sheet.locator('.sound-place')).toHaveText('The seaside garden');
+    await expect(sheet.locator('.sound-place')).toHaveText('The Greek coast');
     await expect(sheet.getByRole('slider', { name: 'Pond water volume' })).toBeHidden();
-    await level(sheet, 'Ocean waves volume', 63);
+    await level(sheet, 'The sea on the pebbles volume', 63);
     await page.evaluate(() => window.sprout!.audio.setScenery('pond'));
     await expect(sheet.getByRole('slider', { name: 'Pond water volume' })).toHaveValue('88');
     await page.evaluate(() => window.sprout!.audio.setScenery('coast'));
-    await expect(sheet.getByRole('slider', { name: 'Ocean waves volume' })).toHaveValue('63');
+    await expect(sheet.getByRole('slider', { name: 'The sea on the pebbles volume' })).toHaveValue('63');
     await sheet.getByRole('button', { name: 'Standard sounds', exact: true }).click();
     await level(sheet, 'Fireplace volume', 38);
     await page.evaluate(() => window.sprout!.audio.setScenery('pond'));
@@ -185,6 +185,29 @@ test.describe('sound mixer', () => {
     expect(saved.pond).toBeUndefined();
   });
 
+  test('viewing the coast brings its own sounds: the sea, the pines, the cicadas, its words and presets (ADR 0376)', async ({ page }) => {
+    await openUi(page, 'scenery=coast');
+    const sheet = await openMixer(page);
+    await page.evaluate(() => window.sprout!.showScenery('coast'));
+    expect(await page.evaluate(() => window.sprout!.audio.getScenery())).toBe('coast');
+    await expect(sheet.locator('.sound-place')).toHaveText('The Greek coast');
+    for (const name of ['The sea on the pebbles', 'Breeze in the pines', 'Cicadas', 'Gulls and goat bells', 'The owl and crickets', 'Soft rain']) {
+      await expect(sheet.getByRole('slider', { name: `${name} volume`, exact: true })).toBeVisible();
+    }
+    for (const name of ['Pond water', 'Ocean waves', 'The seguia', 'Wind in the leaves']) {
+      await expect(sheet.getByRole('slider', { name: `${name} volume`, exact: true })).toBeHidden();
+    }
+    await expect(sheet.getByRole('button', { name: 'A still night on the cove', exact: true })).toBeVisible();
+    await expect(sheet.getByRole('button', { name: 'In the palm grove', exact: true })).toBeHidden();
+    await level(sheet, 'Cicadas volume', 12);
+    await page.evaluate(() => window.sprout!.showScenery('japanese-garden'));
+    await expect(sheet.getByRole('slider', { name: 'Cicadas volume', exact: true })).toBeHidden();
+    await page.evaluate(() => window.sprout!.showScenery('coast'));
+    await expect(sheet.getByRole('slider', { name: 'Cicadas volume', exact: true })).toHaveValue('12');
+    const saved = await page.evaluate(() => window.sprout!.state().settings.soundscape!.sceneries);
+    expect(saved.coast!.levels.cicadas).toBe(12);
+  });
+
   test('real audio graph: every Standard layer is audible, quiet, and zero channels silence scheduled birds', async ({ page }) => {
     await openUi(page);
     await page.evaluate(() => window.sprout!.freeze());
@@ -266,6 +289,46 @@ test.describe('sound mixer', () => {
       for (let i = 1; i < w.length; i++) expect(Math.abs(w[i]! - w[i - 1]!)).toBeLessThan(2.5);
       expect(Math.min(...w)).toBeGreaterThan(Math.min(mean(from.windowsDb.slice(4)), mean(to.windowsDb.slice(4))) - 3);
       expect(Math.abs(mean(m.windowsDb.slice(-8)) - mean(to.windowsDb.slice(-8)))).toBeLessThan(1.5);
+    }
+  });
+
+  test('real audio graph: the coast sits between the pond and the falls, breathes without jumps, and the switch glides (ADR 0376)', async ({ page }) => {
+    await openUi(page);
+    await page.evaluate(() => window.sprout!.freeze());
+    const r = await page.evaluate(async () => {
+      const api = window.sprout!.audio;
+      return {
+        pond: await api.scene({ scenery: 'pond', seconds: 12 }),
+        falls: await api.scene({ scenery: 'waterfall', seconds: 12 }),
+        coast: await api.scene({ scenery: 'coast', seconds: 24 }),
+        night: await api.scene({ scenery: 'coast', seconds: 24, hour: 23 }),
+        voices: await api.scene({ scenery: 'coast', seconds: 30, hour: 20, events: true,
+          play: [[2, 'gull'], [7, 'goatbell'], [12, 'caique'], [16, 'chapel'], [21, 'scops']] as const }),
+        there: await api.scene({ scenery: 'pond', to: 'coast', switchAt: 4, seconds: 12 }),
+        back: await api.scene({ scenery: 'coast', to: 'pond', switchAt: 4, seconds: 12 }),
+      };
+    });
+    const mean = (w: number[]) => 10 * Math.log10(w.reduce((s, v) => s + 10 ** (v / 10), 0) / w.length);
+    const pond = mean(r.pond.windowsDb.slice(4)), falls = mean(r.falls.windowsDb.slice(4)), coast = mean(r.coast.windowsDb.slice(4));
+    // calm enough to study to: within a couple of dB of the pond, under the falls
+    expect(Math.abs(coast - pond)).toBeLessThan(2.5);
+    expect(coast).toBeLessThan(falls);
+    expect(r.coast.peak).toBeLessThan(0.08);
+    // the sea breathes: a few dB between the waves and their wash, never a jump (its own swell steps ~2.2 dB a quarter-second)
+    const sea = r.coast.windowsDb.slice(4);
+    expect(Math.max(...sea) - Math.min(...sea)).toBeGreaterThan(3);
+    for (let i = 1; i < sea.length; i++) expect(Math.abs(sea[i]! - sea[i - 1]!)).toBeLessThan(3);
+    expect(mean(r.night.windowsDb.slice(4))).toBeLessThan(coast + 0.5);
+    // the rare voices, packed close together, never stand out loudly
+    expect(Math.max(...r.voices.windowsDb.slice(4))).toBeLessThan(coast + 6);
+    expect(r.voices.peak).toBeLessThan(0.1);
+    const quietest = (m: { windowsDb: number[] }) => Math.min(...m.windowsDb.slice(4));
+    for (const [m, from, to] of [[r.there, r.pond, r.coast], [r.back, r.coast, r.pond]] as const) {
+      const w = m.windowsDb.slice(4);
+      for (let i = 1; i < w.length; i++) expect(Math.abs(w[i]! - w[i - 1]!)).toBeLessThan(3);
+      // never dips below the quieter garden's own lulls between waves
+      expect(Math.min(...w)).toBeGreaterThan(Math.min(quietest(from), quietest(to)) - 1.5);
+      expect(Math.abs(mean(w.slice(-8)) - mean(to.windowsDb.slice(4)))).toBeLessThan(3);
     }
   });
 });
