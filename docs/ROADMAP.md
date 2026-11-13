@@ -304,10 +304,10 @@ Phase 15 art queue (after G0): one plant (GP…) or creature (GK…) per task, f
 | GP3 | Lavender (*Lavandula*): T2, grey-green humps with violet spikes, terrace and path | `src/plants/species/lavender.ts` | done (devlog 173; 27–33 ms; the dome rim is a little spiky and the stems stiff) |
 | GP4 | Sea daffodil (*Pancratium maritimum*): T2, white trumpets on the beach sand | `src/plants/species/sea-daffodil.ts` | done (devlog 178; about 16 ms; `shore` only, fits beach-2 and beach-3; an opaque near-white under the flowers keeps them white over sand and sea; the flowers are small beside the leaf tuft at the overview) |
 | GP5 | Posidonia (*Posidonia oceanica*): T3, a seagrass meadow in the shallows | `src/plants/species/posidonia.ts` | done (devlog 179; 21 ms; large, fits only `shallows-1`, so one meadow per garden unless a second large shallows slot is added; teal-green at sunset) |
-| GP6 | Rock samphire (*Crithmum maritimum*): T1, fleshy lime umbels on splash rocks and shingle | `src/plants/species/rock-samphire.ts` | queued |
+| GP6 | Rock samphire (*Crithmum maritimum*): T1, fleshy lime umbels on splash rocks and shingle | `src/plants/species/rock-samphire.ts` | in progress (devlog 192) |
 | GP7 | Peacock's tail (*Padina pavonica*): T1, pale banded fans in the rock pools (an alga) | `src/plants/species/peacocks-tail.ts` | queued |
 | GP8 | Cyclamen (*Cyclamen hederifolium*): T1, pink swept-back flowers over marbled leaves, walls and scrub | `src/plants/species/cyclamen.ts` | queued |
-| GP9 | Sea holly (*Eryngium maritimum*): T2, steel-blue spiny bracts on the beach | `src/plants/species/sea-holly.ts` | in progress (devlog 191) |
+| GP9 | Sea holly (*Eryngium maritimum*): T2, steel-blue spiny bracts on the beach | `src/plants/species/sea-holly.ts` | done (devlog 191; 11 ms; small, fits all five beach slots, so the beach has a real choice beside the medium sea daffodil; the branching is a tidy, near-symmetrical candelabra) |
 | GP10 | Cystoseira: T2, an amber-brown algal bush in the pools and shallows | `src/plants/species/cystoseira.ts` | done (devlog 188; 21 ms; medium, fits four shallows slots and `pool-2`; cool olive at sunset; its tufts spill over the pool’s rim in the close view) |
 | GP11 | Sea lavender (*Limonium*): T2, a lilac haze on wiry stems, rock and wall | `src/plants/species/sea-lavender.ts` | queued |
 | GP12 | Pink rock rose (*Cistus creticus*): T2, crumpled pink flowers, scrub and path | `src/plants/species/rock-rose.ts` | queued |
