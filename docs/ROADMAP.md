@@ -292,7 +292,7 @@ Up to 3 agents at a time for this phase, beside the phase 14 queue's agents. Sce
 | G5 | Coast daylight: 4 sky plates, sea plate, light plates, grades | `src/scenery/coast/{sky,light}.ts` | in progress (devlog 182; ADR 0372) |
 | G6 | Moving water: the swell, foam on the pebbles, glints, the caique rocking | `src/scenery/coast/motion.ts` | in progress (devlog 184; ADR 0374) |
 | G7 | Coast sound bed (waves on pebbles, cicadas, a Scops owl at night, goat bells, the boat's ropes) | `src/audio/**`, `src/core/soundscape.ts` | queued (after G1) |
-| GK0 | Coast wildlife infra: unlock rows, perches, ground spots, sea and rock-pool targets, far-cliff and bay stages, a studio stage | `src/scenery/coast/fauna.ts`, `src/fauna/habitat.ts` | in progress (devlog 183; ADR 0373) |
+| GK0 | Coast wildlife infra: unlock rows, perches, ground spots, sea and rock-pool targets, far-cliff and bay stages, a studio stage | `src/scenery/coast/fauna.ts`, `src/fauna/habitat.ts` | done (devlog 183; ADR 0373; 19 rows, 54 perches, 24 ground areas, 7 faces, 4 water areas, 3 heron stands, 2 far stages; bees, cabbage whites, swallowtail, swallows and the heron already live on the coast; additive contract: areas, far stages and moving carriers; the goats’ ledges were placed without reading the painting, GK6 must check them; the gecko needs a `house` variant) |
 | G8 | Acceptance and docs; release at the owner's word | `docs/**`, `tests/**` | queued |
 
 Phase 15 art queue (after G0): one plant (GP…) or creature (GK…) per task, from the G0 brief. Rows are added when G0 lands.
@@ -315,7 +315,7 @@ Phase 15 art queue (after G0): one plant (GP…) or creature (GK…) per task, f
 | GP14 | Jerusalem sage (*Phlomis fruticosa*): T3, whorls of yellow hooded flowers over grey felt leaves | `src/plants/species/jerusalem-sage.ts` | queued |
 | GP15 | Aleppo pine (*Pinus halepensis*): T4 tree, a leaning trunk and a light open crown | `src/plants/species/aleppo-pine.ts` | queued |
 | GP16 | Mediterranean cypress (*Cupressus sempervirens*): T4, the dark spire | `src/plants/species/cypress.ts` | queued |
-| GK1 | Island cat: sleeps on the copings, strolls the path; always there | `src/fauna/creatures/cat.ts` | queued (after GK0) |
+| GK1 | Island cat: sleeps on the copings, strolls the path; always there | `src/fauna/creatures/cat.ts` | in progress (devlog 185) |
 | GK2 | Yellow-legged gull: the caique's mast, a splash rock, the cove; 1 plant | `src/fauna/creatures/gull.ts` | queued (after GK0) |
 | GK3 | Cicada: on the olive and pine trunks by day; 2 plants | `src/fauna/creatures/cicada.ts` | queued (after GK0) |
 | GK4 | Marbled rock crab: splash rocks and the pool edge; 5 plants | `src/fauna/creatures/rock-crab.ts` | queued (after GK0) |
