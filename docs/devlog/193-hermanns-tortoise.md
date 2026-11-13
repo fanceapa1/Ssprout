@@ -98,6 +98,10 @@ timed runs; `bench(60)` untimed, then `bench(120)` three times, three rounds):
 `src/fauna/creatures/tortoise.test.ts`, 16 tests (the map, ways, greenery, plods, coast only; a visit
 over six seeds; slowness; the shell and its threats; night; a pair; spot, fork and determinism;
 reduced motion; the studio stage; the gait's planted feet; cost).
+After the rebase on `main` (the gull, rock samphire, peacock's tail): typecheck clean; the full unit
+suite, 266 files, 2796 tests, all pass. E2E, one file at a time, one worker: `fauna` 6,
+`fauna-oasis` 4, `fauna-waterfall` 4, `lazy-creatures` 2, `sceneries` 8, all pass. The full e2e
+suite was not run, and there is no coast fauna e2e spec yet.
 
 ## Left open
 - **No hour:** morning and midday are relative to its visit (above).
