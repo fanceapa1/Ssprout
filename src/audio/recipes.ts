@@ -646,7 +646,7 @@ export function chapelBell(rng: Rng, pan = 0): SoundSpec {
       voices.push(delay({ kind: 'tone', wave: 'sine', freq: [[0, f], [decay, f]], env: pluck(0.015, decay, g * amp) }, at));
     }
   }
-  return finish({ name: 'chapel', gain: 0.016, pan: side(-0.55, pan), reverb: 0.6, lowpass: 1800, voices });
+  return finish({ name: 'chapel', gain: 0.011, pan: side(-0.55, pan), reverb: 0.6, lowpass: 1800, voices });
 }
 
 /**
