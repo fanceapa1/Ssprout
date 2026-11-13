@@ -125,7 +125,7 @@ that keep resolution-dependent caches watch `detailVersion` and repaint for the 
 |---|---|---|---|
 | 0 | `background` | the scenery's painting (the garden: sky, hills, far trees, pavilion, banks, pond base, path; the waterfall: far ridge, banks, cliff, ledges, woods, pool, stream, falls, trail); then the daylight sky plate multiplied over it, sun and moon left as paper (ADR 0145); zoomed in and at rest, the scene's detail painting and the sky's detail plate (ADR 0163) | cached twice (ADR 0161): at the overview (blitted as a sub-rect while the camera moves) and at the resting view; rebuilt per resize, when the sky moves, when detail fades in |
 | 1 | `underwater` | koi, the waterfall's iwana and yamame, a dipper under water — clipped to the still water | per frame |
-| 2 | `waterSurface` | the mirrored daylight sky, water shimmer and glints, reflections (trees, rocks, plants near shore), rain rings, eave drips, water striders, floating leaves; the scenery's motion over its painting (the waterfall's falls, foam and spray, ADR 0282) | per frame (reflections cached; motion sprites sealed once) |
+| 2 | `waterSurface` | first a motion's `under` (the coast's sea plate and the caique's reflection, ADR 0374); the mirrored daylight sky, water shimmer and glints, reflections (trees, rocks, plants near shore), rain rings, eave drips, water striders, floating leaves; the scenery's motion over its painting (the waterfall's falls, foam and spray, ADR 0282) | per frame (reflections cached; motion sprites sealed once) |
 | 3 | `entities` | depth-sorted (by base y): foreground rocks/tufts from scene (+ rim light), plants (cast shadow, plant, rim light — ADR 0146), ground fauna (birds on rocks, frog, heron) | per frame (sprites cached) |
 | 4 | `air` | bees, butterflies, dragonflies, flying birds, swallows, falling leaves, the watering can | per frame |
 | 5 | `ambience` | the sun's lifted glaze and leaf glints, rain strokes, mist, light motes | per frame |
@@ -348,7 +348,7 @@ export interface Scenery {                    // types.ts
   habitatWords: Record<Habitat, string>;      // how the planting sheet and placement name each habitat
   fauna: SceneryFauna;                        // fauna/habitat.ts: unlocks (FaunaTable); water? { still, moving, avoid? }, perches?, stands?, ground?, walls?, regions?, carriers?, perspective?(x, y)
   sound: SoundSceneryId;                      // the sound profile it plays (core/soundscape.ts SCENERIES; ADR 0283)
-  motion?: () => Promise<SceneryMotion | undefined>; // moving water over the painting (ADR 0282), its own lazy chunk (ADR 0341): { prepare(): Generator (sprites, in parts); draw(ctx, t) (world units, pure in t) }
+  motion?: () => Promise<SceneryMotion | undefined>; // moving water over the painting (ADR 0282), its own lazy chunk (ADR 0341): { prepare(): Generator (sprites, in parts); draw(ctx, t) (world units, pure in t); under?(ctx, t) (drawn before the mirrored sky and water.ts, ADR 0374) }
   pondSurface?: number;                       // how much of the generic water surface (water.ts: shimmer, rings, glints) plays on its pond: 1 when left out, 0 a still mirror (ADR 0302)
 }
 getScenery(id): Scenery /* the default when not registered */; hasScenery(id); sceneries(flags?)  // registry.ts
