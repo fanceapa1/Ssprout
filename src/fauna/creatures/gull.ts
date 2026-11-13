@@ -83,7 +83,7 @@ const HIP_NEAR = P(1.2, -LEG);
 const HIP_FAR = P(-1.4, -LEG - 0.4);
 const HEAD = P(15.4, -25);
 /** The neck's root on the breast (standing) and on the flying body. */
-const NECK = P(10.6, -19.4);
+const NECK = P(12, -18.4);
 const FLY_NECK = P(11, -1.6);
 const SHOULDER_STAND = P(6, -21);
 const BODY = pts([[14.4, -11], [15.8, -15.2], [15, -19.6], [12, -23.2], [6, -25], [-2, -24.6], [-10, -22.6], [-17, -19.6], [-24, -17.4], [-24.6, -15.8], [-17, -14.8], [-10, -11.8], [-3, -8.8], [5, -8.4], [11, -9.2]]);
@@ -100,11 +100,16 @@ const WRIST = P(3.6, -25.6);
 const HAND = pts([[1.4, 3], [0.6, -4], [-3.4, -11], [-9.6, -18.4], [-17, -24.6], [-23.4, -28.2], [-24.6, -26.6], [-21, -21], [-17, -14.4], [-13.4, -7.6], [-10.6, -1], [-9.4, 3]]);
 
 /** A white wash laid opaque (the paper must not let the sea through), the form turned with cool shade below. */
-function whiteForm(p: Painter, c: Colours, shape: Pt[], shadeAngle = -Math.PI / 2 - 0.2, shade = 0.22): void {
+function whiteForm(p: Painter, c: Colours, shape: Pt[], shadeAngle = -Math.PI / 2 - 0.2, shade = 0.28): void {
   const rng = p.rng;
-  p.wash(shape, c.white, { rng, opacity: 0.98, edge: 0.06, edgeWidth: 0.4, sharpness: 0.2, centreLift: 0.06, granulation: 0.08, deform: 0.04, spread: 0.03, layers: 6, blend: 'source-over' });
-  p.glaze(shape, c.shade, { rng, opacity: shade, edge: 0.04, darken: 0, deform: 0.1, spread: 0.05, fade: { angle: shadeAngle, start: 0.35, amount: 1, ragged: 0.75 } });
+  p.wash(shape, c.white, { rng, opacity: 0.98, edge: 0, edgeWidth: 0.4, sharpness: 0.2, centreLift: 0.06, granulation: 0.08, deform: 0.04, spread: 0.03, layers: 6, blend: 'source-over' });
+  if (shade > 0) p.glaze(shape, c.shade, { rng, opacity: shade, edge: 0, darken: 0, deform: 0.1, spread: 0.05, fade: { angle: shadeAngle, start: 0.35, amount: 1, ragged: 0.75 } });
   p.glaze(shape, c.warm, { rng, opacity: 0.12, edge: 0, darken: 0, deform: 0.14, fade: { angle: shadeAngle + Math.PI, start: 0.45, amount: 1, ragged: 0.8 } });
+}
+
+/** An opaque white ground under a wing's colour, so what lies behind it does not show through. */
+function opaque(p: Painter, c: Colours, shape: Pt[]): void {
+  p.wash(shape, c.white, { rng: p.rng, opacity: 1, edge: 0, darken: 0, deform: 0.02, spread: 0.01, layers: 3, blend: 'source-over' });
 }
 
 /** The standing body (no head, no legs), feet at the origin: white, the grey mantle and folded wing, the crossed black primaries. */
@@ -135,11 +140,11 @@ function paintBody(p: Painter, c: Colours): void {
 function paintHead(p: Painter, c: Colours, open: boolean): void {
   const rng = p.rng;
   const head = smoothPolygon(pts([[6, -2.4], [4.8, -4.6], [1.6, -5.8], [-2.4, -5.6], [-5.2, -3.6], [-6, 0], [-5.4, 3.4], [-2.4, 5], [2.4, 4.6], [5.2, 2.6], [6, 0.6]]), 2);
-  whiteForm(p, c, head, Math.PI * 0.85, 0.2);
+  whiteForm(p, c, head, -Math.PI / 2 + 0.5, 0.1);
   // the bill: stout, yellow, the hooked tip paler; the red gonys spot on the lower mandible
   const upper = smoothPolygon(pts([[5, -3.0], [9, -2.8], [12.6, -2.3], [14.3, -1.3], [13.8, -0.3], [12.4, -0.5], [9, -0.7], [5.4, -0.6]]), 1);
   const gape = open ? 0.32 : 0;
-  const lowerPts = pts([[5.4, -0.6], [9, -0.4], [12.4, -0.2], [11.8, 1.1], [9, 0.9], [5.8, 1.2]]).map((q) => {
+  const lowerPts = pts([[5.4, -1.0], [9, -0.9], [12.4, -0.6], [11.8, 0.7], [9, 0.5], [5.8, 0.8]]).map((q) => {
     const x = q.x - 5.4 * U;
     const y = q.y + 0.6 * U;
     return { x: 5.4 * U + x * Math.cos(gape) - y * Math.sin(gape), y: -0.6 * U + x * Math.sin(gape) + y * Math.cos(gape) };
@@ -149,7 +154,7 @@ function paintHead(p: Painter, c: Colours, open: boolean): void {
   p.dab(P(13.4, -1.2), c.billTip, { rng, variant: 'round', angle: 0, length: 1.4 * U, width: 1.0 * U, opacity: 0.6, layers: 2, edge: 0.1 });
   const spot = lowerPts[3]!;
   p.dab({ x: spot.x - 0.3 * U, y: spot.y - 0.5 * U }, c.red, { rng, variant: 'round', angle: gape, length: 1.6 * U, width: 1.1 * U, opacity: 0.9, layers: 3, edge: 0.3 });
-  p.inkLine(open ? [P(5.6, -0.6), P(12.8, -0.4)] : [P(5.6, -0.7), P(13.2, -0.6)], { rng, width: 0.22 * U, opacity: 0.45, breaks: 0.2, pigment: mix(c.bill, c.ink, 0.6), taper: [0.2, 0.6] });
+  p.inkLine(open ? [P(5.6, -0.6), P(12.8, -0.4)] : [P(5.6, -0.7), P(13.2, -0.6)], { rng, width: 0.16 * U, opacity: 0.28, breaks: 0.35, pigment: mix(c.bill, c.ink, 0.5), taper: [0.2, 0.6] });
   if (open) p.wash(smoothPolygon([P(6, -0.5), P(12, -0.4), lowerPts[2]!, P(6, 0)], 1), c.red, { rng, opacity: 0.5, edge: 0.2, deform: 0.05, layers: 3 });
   // the eye: pale iris in a red ring, a small pupil (only up close does it show)
   p.dab(P(2.2, -2.8), c.red, { rng, variant: 'round', angle: 0, length: 2.0 * U, width: 1.8 * U, opacity: 0.55, layers: 2, edge: 0.3 });
@@ -181,6 +186,7 @@ function paintFlyBody(p: Painter, c: Colours): void {
 function paintArm(p: Painter, c: Colours): void {
   const rng = p.rng;
   const arm = smoothPolygon(ARM, 1);
+  opaque(p, c, arm);
   p.wetInWet(arm, c.mantle, mix(c.mantle, c.white, 0.2), { rng, angle: Math.PI, split: 0.6, softness: 0.6, fingers: 0.4, opacity: 0.97, edge: 0.22, edgeWidth: 0.45, deform: 0.06, granulation: 0.3, blend: 'source-over' });
   p.inkLine(pts([[-10.6, 0], [-10, -9], [-8.8, -18], [-6.6, -26]]), { rng, width: 1.4 * U, opacity: 0.9, breaks: 0.2, wobble: 0.15, pigment: c.white, taper: [0.2, 0.3] });
   p.inkLine(pts([[2.6, -1], [3.8, -12], [4.2, -23]]), { rng, width: 0.3 * U, opacity: 0.22, breaks: 0.5, pigment: c.mantleDeep, taper: [0.3, 0.4] });
@@ -190,6 +196,7 @@ function paintArm(p: Painter, c: Colours): void {
 function paintHand(p: Painter, c: Colours): void {
   const rng = p.rng;
   const hand = smoothPolygon(HAND, 1);
+  opaque(p, c, hand);
   p.wetInWet(hand, c.mantle, c.black, { rng, angle: -Math.PI / 2 - 0.75, split: 0.5, softness: 0.25, fingers: 0.7, opacity: 0.97, edge: 0.4, edgeWidth: 0.4, deform: 0.04, granulation: 0.2, blend: 'source-over' });
   // primaries' separations in the black
   for (const k of [0, 1, 2, 3]) p.inkLine(pts([[-9 - k * 1.4, -12 - k * 0.4], [-19 - k * 0.6, -25 + k * 1.4]]), { rng, width: 0.2 * U, opacity: 0.25, breaks: 0.4, pigment: mix(c.black, c.mantle, 0.5) });
@@ -218,7 +225,7 @@ export function paintGull(res: number, seed: number): GullParts {
       p.wash(smoothPolygon(pts([[-15, 0], [-6, -1.4], [8, -1.5], [15, -0.2], [6, 1.3], [-8, 1.2]]), 1), PIGMENTS.shadow, { rng, opacity: 0.32, edge: 0, darken: 0, deform: 0.2, spread: 0.15, layers: 5, fade: { angle: Math.PI, start: 0.3, ragged: 0.6 } }),
     ),
     body: paintSprite(res, { w: 50 * U, h: 20 * U, ox: 33 * U, oy: 26.6 * U }, seed, (p) => paintBody(p, c)),
-    neck: paintSprite(res, { w: 12 * U, h: 16 * U, ox: 6 * U, oy: 13 * U }, seed + 9, (p) => whiteForm(p, c, smoothPolygon(pts([[4, 2], [4.4, -4], [3.6, -9], [0, -11.4], [-3.6, -9], [-4.4, -4], [-4, 2], [0, 2.6]]), 2), Math.PI, 0.16)),
+    neck: paintSprite(res, { w: 12 * U, h: 16 * U, ox: 6 * U, oy: 13 * U }, seed + 9, (p) => whiteForm(p, c, smoothPolygon(pts([[2.6, 2], [3, -4], [2.8, -9], [0, -11.4], [-2.8, -9], [-3, -4], [-2.6, 2], [0, 2.6]]), 2), Math.PI, 0)),
     head: paintSprite(res, { w: 23 * U, h: 18 * U, ox: 8 * U, oy: 8 * U }, seed + 1, (p) => paintHead(p, c, false)),
     headOpen: paintSprite(res, { w: 23 * U, h: 18 * U, ox: 8 * U, oy: 8 * U }, seed + 1, (p) => paintHead(p, c, true)),
     leg: paintSprite(res, { w: 8 * U, h: 11 * U, ox: 2.4 * U, oy: 1 * U }, seed + 4, (p) => paintLeg(p, c)),
@@ -311,9 +318,10 @@ function drawNeck(ctx: Ctx, parts: GullParts, from: Pt, to: Pt): void {
   ctx.restore();
 }
 
-function drawHead(ctx: Ctx, parts: GullParts, neck: Pt, at: Pt, q: GullPose): void {
-  const h = { x: at.x + q.headX * U, y: at.y + q.headY * U };
-  drawNeck(ctx, parts, neck, h);
+const headAt = (at: Pt, q: GullPose): Pt => ({ x: at.x + q.headX * U, y: at.y + q.headY * U });
+
+function drawHead(ctx: Ctx, parts: GullParts, at: Pt, q: GullPose): void {
+  const h = headAt(at, q);
   ctx.save();
   ctx.translate(h.x, h.y);
   if (q.back) ctx.scale(-1, 1);
@@ -349,14 +357,16 @@ export function drawGull(ctx: Ctx, parts: GullParts, q: GullPose): void {
   // afloat it sits low: the belly under the waterline
   ctx.translate(0, (float ? LEG + 2.4 : q.crouch) * U);
   ctx.rotate(q.pitch);
+  // preening, the head lies back over the mantle; the neck goes under the body, so the breast's shade runs on
+  const at = q.back ? P(4, -26) : HEAD;
+  drawNeck(ctx, parts, NECK, headAt(at, q));
   img(ctx, parts.body);
-  // preening, the head lies back over the mantle
-  drawHead(ctx, parts, NECK, q.back ? P(4, -26) : HEAD, q);
+  drawHead(ctx, parts, at, q);
   if (q.stretch > 0) {
     // one wing reached down and back past the tail, spread
     ctx.save();
     ctx.translate(SHOULDER_STAND.x, SHOULDER_STAND.y + 2 * U);
-    drawWing(ctx, parts, 0.95 * q.stretch, 0.9 * q.stretch, -1.95, Math.min(1, q.stretch * 1.6));
+    drawWing(ctx, parts, 0.7 * q.stretch, 0.75 * q.stretch, -1.66, Math.min(1, q.stretch * 1.6));
     ctx.restore();
   }
   ctx.restore();
@@ -379,10 +389,10 @@ function drawFlying(ctx: Ctx, parts: GullParts, q: GullPose): void {
       ctx.restore();
     }
   }
+  const h = headAt(FLY_HEAD, q);
+  drawNeck(ctx, parts, FLY_NECK, h);
   img(ctx, parts.flyBody);
   ctx.save();
-  const h = { x: FLY_HEAD.x + q.headX * U, y: FLY_HEAD.y + q.headY * U };
-  drawNeck(ctx, parts, FLY_NECK, h);
   ctx.translate(h.x, h.y);
   ctx.rotate(q.headRot);
   img(ctx, q.open ? parts.headOpen : parts.head);
@@ -808,7 +818,7 @@ export class Gull extends BaseCreature {
     if (this.act === 'preen' || this.act === 'preenBreast') this.did.preen++;
     if (this.act === 'stretch') this.did.stretch++;
     if (this.act === 'shift') this.did.shift++;
-    const heron = herons(w).some((h) => dist(h, this.pos) < GULL_TUNING.heronGap * 0.7);
+    const heron = herons(w).some((h) => dist(h, this.pos) < GULL_TUNING.heronGap);
     if (this.leaving || heron) {
       this.takeOff(w, null);
       return;
