@@ -316,7 +316,7 @@ Phase 15 art queue (after G0): one plant (GP…) or creature (GK…) per task, f
 | GP15 | Aleppo pine (*Pinus halepensis*): T4 tree, a leaning trunk and a light open crown | `src/plants/species/aleppo-pine.ts` | in progress (devlog 187) |
 | GP16 | Mediterranean cypress (*Cupressus sempervirens*): T4, the dark spire | `src/plants/species/cypress.ts` | queued |
 | GK1 | Island cat: sleeps on the copings, strolls the path; always there | `src/fauna/creatures/cat.ts` | done (devlog 185; dozes on a coping or curled in the olive’s shade, stretches, washes, watches birds, strolls and jumps a tier, sits facing the sea at nightfall; three coats by seed; 0.06 ms a frame for the roster; the walk rig is stiff and slides toward and away from the viewer, see GK1b) |
-| GK2 | Yellow-legged gull: the caique's mast, a splash rock, the cove; 1 plant | `src/fauna/creatures/gull.ts` | queued (after GK0) |
+| GK2 | Yellow-legged gull: the caique's mast, a splash rock, the cove; 1 plant | `src/fauna/creatures/gull.ts` | in progress (devlog 189) |
 | GK3 | Cicada: on the olive and pine trunks by day; 2 plants | `src/fauna/creatures/cicada.ts` | queued (after GK0) |
 | GK4 | Marbled rock crab: splash rocks and the pool edge; 5 plants | `src/fauna/creatures/rock-crab.ts` | queued (after GK0) |
 | GK5 | Blue rock thrush: wall tops, the temple, ledges; 8 plants | `src/fauna/creatures/rock-thrush.ts` | queued (after GK0) |
