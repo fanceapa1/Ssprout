@@ -82,16 +82,17 @@ does). One tortoise, now and then two, on one terrace for a whole visit.
    mat; the arrival line "A Hermann's tortoise plods out of the scrub." on the quiet line).
 
 **Bench** (production build, headless Chromium, 1440×900 at DPR 2, the coast at noon with 25
-plants; spawned: 2 butterflies, 3 bees, the heron, with the resident cat; the 3 swallows were
-spawned too but had flown through before the timed run; `bench(60)` untimed, then `bench(300)`):
-- without the tortoise: **0.44, 0.53, 0.57 ms** a frame; with two tortoises: **0.56, 0.57, 0.65 ms**.
-- Before the pose was composed into one canvas, two basking tortoises alone cost 0.23 ms over the
-  cat's 0.03 (ten `drawImage`s each); composed, 0.05–0.08 ms for the pair.
-- No unexplained jump: alone at DPR 2, every visible creature costs about 0.07–0.15 ms (the cat,
-  two butterflies, three bees, the heron and the pair each), and the roster is their sum. Runs of
-  the same roster differ by what the creatures are doing (a cat's pose cross-fade draws it twice). A
-  first run with a hand-spawned second cat, washing, read 1.18–1.28 ms: that was two cats, not a
-  regression. The gull is not on `main`, so its jump could not be bisected here.
+plants; the flushed bench of devlog 189 after the rebase; spawned: 2 butterflies, 3 bees, the heron,
+2 gulls, with the resident cat; the 3 swallows were spawned too but had flown through before the
+timed runs; `bench(60)` untimed, then `bench(120)` three times, three rounds):
+- without the tortoise: **0.57/0.66/0.59, 0.55/0.61/0.61, 0.47/0.49/0.50 ms** a frame;
+- with two tortoises: **0.55/0.58/0.61, 0.55/0.57/0.58, 0.52/0.61/0.52 ms**;
+- the two tortoises and the cat alone: 0.26–0.29 ms (the cat alone is 0.25, devlog 189): the pair
+  costs a few hundredths of a millisecond, inside the run-to-run spread. No jump; well inside the
+  1.5 ms budget.
+- Before the pose was composed into one canvas (ten `drawImage`s a tortoise a frame), the pair alone
+  measured 0.2 ms over the cat with the old, unflushed bench; composed it is one `drawImage`, redrawn
+  only when the quantised pose changes.
 
 ## Tests
 `src/fauna/creatures/tortoise.test.ts`, 16 tests (the map, ways, greenery, plods, coast only; a visit
