@@ -3,8 +3,9 @@
 `src/audio/` — a fully procedural Web Audio soundscape (no audio files): pond water, wind in
 leaves, distant birds, night crickets, rain during rain sessions, a bloom chime and a short
 completion phrase. The waterfall garden has its own bed instead of the pond's: the falls, the
-gorge's wind, stream birds and the kajika frog at dusk (› Waterfall), and the Ksar oasis has the
-seguia's trickle, palm fronds in the wind, doves, buntings and a gecko after dark (› Oasis). **Muted by default**; nothing is created or played until the user has
+gorge's wind, stream birds and the kajika frog at dusk (› Waterfall), the Ksar oasis has the
+seguia's trickle, palm fronds in the wind, doves, buntings and a gecko after dark (› Oasis), and
+the Greek coast has the sea on a pebble beach, pines, cicadas and a Scops owl at night (› Coast). **Muted by default**; nothing is created or played until the user has
 unmuted *and* a user gesture has unlocked audio. Master fades in/out over 2 s, never abruptly.
 
 ## Modules
@@ -17,6 +18,7 @@ unmuted *and* a user gesture has unlocked audio. Master fades in/out over 2 s, n
 | `noise.ts` | yes | seeded white/pink/brown noise loops (click-free) and the reverb impulse |
 | `falls.ts` | yes | the waterfall's bed as seeded PCM: plunge (rumble and roar) and stereo spray (ADR 0283) |
 | `oasis-bed.ts` | yes | the oasis's beds as seeded PCM: the seguia (trickle and murmur) and the palms (ADR 0303) |
+| `coast-bed.ts` | yes | the coast's beds as seeded PCM: the sea on the pebbles and the cicadas (ADR 0376) |
 | `standard-loops.ts` | yes | the fireplace, café and lo-fi PCM loops (ADR 0213) |
 | `backend.ts` | no | the only Web Audio code: graph, beds, generic `SoundSpec` renderer (`AudioBackend` facade) |
 | `garden-audio.ts` | — | controller: bus listeners, gate, planner tick, chimes (`createGardenAudio`) |
@@ -75,6 +77,12 @@ Everything above `backend.ts` is unit-tested against a fake backend and fake tim
 | insect shimmer | the oasis, midday, none in rain (≥8 s apart) | a faint 5–6.5 kHz rasp swelling in and out over 4–7 s; on `crickets` |
 | gecko | the oasis after dark, rare (≥40 s apart) | 3–8 dry clicks; on `crickets` |
 | frog chorus | the oasis on warm evenings (≥30 s apart) | 2–3 distant frogs rattling at ~12 pulses a second; ×1.3 in rain; on `crickets` |
+| sea and cicadas beds | the coast (the `sea` and `cicadas` layers) | seeded loops, › Coast; the cicadas follow `CHORUS_CURVE` |
+| caique | the coast, any hour (≥50 s apart) | 2–3 soft slaps on the hull and one creak of the mooring rope, to the left; on `sea` |
+| gull | the coast, by day (≥40 s apart) | 2–4 far mewing "kyow" notes; on `birds` |
+| goat bells | the coast, by day, most in the morning and before dusk (≥45 s apart) | 2–3 dull clanks from the cliff on the right; on `birds` |
+| chapel bell | the coast, around sunset only, at most once an hour (≥3600 s apart) | three slow distant strokes, to the left; on `birds` |
+| Scops owl | the coast after dark (≥150 s apart) | a spell of one soft ~1.2 kHz note every 2.3–2.9 s, 8–15 times; on `crickets` |
 | watering pour | every `session:water` (automatic in focus, tapped in a break), `playPour()` | ~2 s trickle: band-passed water noise swelling in over ≥ 0.25 s, an airy top, 10–15 rising bubbles under the stream; one at a time (ADR 0182) |
 
 ## API
@@ -177,11 +185,21 @@ gaps), `garden-audio.test.ts › the oasis plays its own bed…`, `core/soundsca
 palette, presets, a mix saved before the oasis, an export round trip), and
 `tests/e2e/sound-mixer.spec.ts › viewing the oasis…` and `› real audio graph: the oasis sits as calmly…`.
 
+The coast (ADR 0376): `coast-bed.test.ts` (determinism, rates and RMS, a wide image, the wave
+schedule and shapes, slow swells without jumps, the rattle after the wash, the sea low and the
+cicadas a narrow band, the chorus pulsing quickly and drifting slowly, click-free seams),
+`params.test.ts › the coast` (the sea instead of the water, the chorus by hour and weather, the
+day and night voices, the sunset bell, rain, sightings, a pause, custom mixes), `recipes.test.ts`
+(the owl, the gull, the goat bells, the caique, the chapel bell), `planner.test.ts › keeps the
+coast's rare voices rare…`, `garden-audio.test.ts › the coast plays its own bed…`,
+`core/soundscape.test.ts` (the palette, presets, a coast mix saved before its bed), and
+`tests/e2e/sound-mixer.spec.ts › viewing the coast…` and `› real audio graph: the coast sits…`.
+
 ## Personal sound mixer (ADR 0213)
 `core/soundscape.ts` is the shared, pure catalogue and preference model. **Standard** has nine
 layers: rain, ocean waves, wind, birds, fireplace, café, lo-fi, white and brown noise. **Scenery**
 uses a registered palette: pond water/leaves/birds/crickets/rain, the waterfall's falls/leaves/
-birds/crickets/rain, and a coastal waves/leaves/birds/rain profile reserved for future navigation.
+birds/crickets/rain, the oasis's (› Oasis) and the coast's (› Coast).
 `createGardenAudio({ scenery: 'pond' })` defaults to the pond; `main.ts` calls `setScenery(id)`
 with the viewed garden's `Scenery.sound`. That changes the mix with a 2 s glide and notifies
 `onSceneryChange`; it does not select or unlock visual art.
@@ -337,4 +355,90 @@ garden mix), `audio/dove`, `audio/bunting`, `audio/beeeater`, `audio/cicada`, `a
 **Not done**: no hoopoe "oop-oop-oop" or stork bill-clatter; no seasons (bee-eaters only from April
 to September, frogs mostly in spring and summer). The voices do not follow the creatures on screen.
 Nobody has listened yet: everything here is spectra, rates and offline levels.
+
+## Coast (ADR 0376)
+The Greek coast (`Scenery.sound: 'coast'`) plays its own profile: the `sea` and `cicadas` layers,
+the shared wind ("Breeze in the pines" there), birds ("Gulls and goat bells"), crickets ("The owl
+and crickets") and rain. Presets "Along the shore" and "A still night on the cove".
+
+**The beds** (`coast-bed.ts`) are seeded PCM at a third of the context rate (at least 8 kHz), built
+once per context the first time each is audible, and looped:
+```
+  sea (stereo, SEA_S 56 s, 7 waves 6–10 s apart, weights 0.55–1 in sets; SEA_GAIN 0.055 at 100 %)
+    wash     carrier (BP 650 → LP 2.2 k) × wash envelope: eased rise over 1.7–2.3 s, e^(−t/2 s) fall
+    foam     carrier (HP 1.8 k → LP 5 k) × wash^1.5, at 0.3
+    body     carrier (LP 160 ×2) × wash, at 0.4, the same in both channels
+    hiss     carrier (HP 2.2 k → LP 6.5 k) × backwash, at 0.35
+    rattle   grains: resonators at 1.6–5.5 kHz ringing 0.4–1.4 ms, up to 2600 a second × backwash,
+             each panned on its own, at 0.3
+    backwash from 0.9 s after the wash's peak: eased up over 1.3 s, down over 2.5–3.5 s (× weight^1.3)
+    surf     carrier (LP 380 ×2) × slow swell (1, 3, 7 cycles a loop), at 0.4: the far surf, always there
+    laps     ~0.9 a second: a short burst of BP 600 noise, 40–90 ms, at 0.5
+  backend: sea → swell (±15 % at 1/71 Hz, an LFO) → sea gain
+  cicadas (stereo, CICADAS_S 23 s; the right channel is the left half a loop on; CICADAS_GAIN 0.02)
+    9 singers: a band of noise at 3.6, 4.1 or 4.6 kHz (Q 3) × buzz (90–170 Hz) × pulse (3.5–7 a
+    second, duty 0.55–0.75, sin^1.5) × bout (1–3 slow cycles a loop, often silent) → HP 2.5 k → LP 5.8 k
+```
+The carriers are short loops of filtered noise (2.3–5.9 s, never whole seconds) read under the long
+envelopes; the right channel reads them 7919 samples on. The sea gets a soft knee at four times its
+RMS; both loops are normalised to RMS 0.16 with 0.4 s cross-faded seams.
+
+**The mix there** (`coastMix`, garden mode): sea 70 % (× 1.1 in rain), no pond water, plips,
+chirps or warbler; the shared wind × 0.75 and 450 Hz higher (an airy hush; not in rain); cicadas
+30 % × `CHORUS_CURVE` (0 before 6:30, 0.15 at 8 h, 0.9 at 12:30, 1 at 14:30, 0.4 at 18:30, 0 from
+20:30), 0 in rain, × 0.5 in mist, × 0.7 paused, × 1.15 once a cicada is seen there. Voices per
+minute at full activity: caique 0.25 (× 1.3 in rain), gull 0.35 (`GULL_CURVE`, × 1.4 once seen),
+goat bells 0.3 (`GOAT_CURVE`, × 0.3 in rain, × 1.5 once the goats are seen), chapel 0.012
+(`CHAPEL_CURVE`, 19–21 h), Scops owl 0.25 (`SCOPS_CURVE`, × 0.3 in rain, × 1.3 once seen),
+crickets × 0.35 of the garden's; swallows only once seen there. Gusts × 0.8.
+
+| hour | sound (idle, clear; voices per minute) |
+|---|---|
+| 7 | cicadas 1.5 %; caique 0.25, gull 0.24, goat bells 0.20, gust 0.35 |
+| 13 | cicadas 28 %; caique 0.25, gull 0.24, goat bells 0.16, gust 0.40 |
+| 20 | cicadas 1.8 %; crickets 1.2, caique 0.25, goat bells 0.12, gull 0.07, owl 0.05, chapel 0.01 |
+| 23 | no cicadas; crickets 2.4, caique 0.25, owl 0.24, goat bells 0.03 |
+
+Minimum gaps: caique 50 s, gull 40 s, goat bells 45 s, owl 150 s (a spell lasts at most 42 s),
+chapel 3600 s (at most once an hour of listening). Sides: the caique −0.45 and the chapel −0.55
+(left in the painting), the goats +0.45, each ± a little.
+
+**Measured** with `sprout.audio.scene` (offline, idle, beds only, 250 ms windows after the first
+second):
+
+| | 22.05 kHz | 44.1 kHz | loudest / quietest window (22.05 kHz) | largest step |
+|---|---|---|---|---|
+| pond, noon | −41.3 dBFS | −40.3 | −39.8 / −43.3 | 1.3 dB |
+| oasis, noon | −43.4 | −42.8 | −42.4 / −44.1 | 0.7 dB |
+| waterfall, noon | −39.2 | −39.2 | −37.5 / −41.2 | 1.6 dB |
+| coast, noon | −40.8 | −40.6 | −37.0 / −45.1 | 2.0 dB |
+| coast, 23 h | −41.0 | −40.8 | −37.1 / −45.4 | 2.1 dB |
+| coast, rain | −37.3 | −36.9 | −34.8 / −39.1 | 1.1 dB |
+
+The oasis reads quieter than devlog 126's −40.8 because its gains were lowered on the owner's ear
+since. The coast sits between the pond and the falls. Its swing of about 8 dB is the waves (the
+other beds hold within 3 dB), at most ~2.2 dB a quarter-second. At 22.05 kHz the loops render at
+8 kHz, which cuts the cicadas; at 44.1 kHz they add about 0.2 dB at their loudest: a texture about
+15 dB under the sea, alone in its 3–5 kHz band. With the planned voices (40 s, 44.1 kHz) the coast
+is −40.3 dBFS at noon and −40.5 at 23 h, the loudest window −36.3 (a wave). Pond → coast at 4 s:
+largest step 1.8 dB, lowest window −43.9; coast → pond 2.3 dB, −43.5. With the rare voices packed
+close together the owl's notes stand 2–4 dB over the bed between waves, the bell's strokes about 2.
+
+**Cost.** While audible the coast adds two looping buffer sources (the sea and, by day, the
+cicadas) and one LFO; the oasis adds three buffer sources. Build on the main thread (Node, 48 kHz
+context, the same machine and load): sea ~150–200 ms, cicadas ~90 ms (only once they are audible),
+against the oasis's seguia ~105 ms and palms ~80 ms. The sea's PCM is about 1.8 M samples (7 MB).
+
+**Studio**: `audio/coast` (the sea and the cicadas as level traces; click to play the coast's
+garden mix at 14 h), `audio/caique`, `audio/gull`, `audio/goatbell`, `audio/chapel`, `audio/scops`,
+and the cicada and owl curves on `audio/soundscape`.
+
+**Listening renders**: `artifacts/g7/` (gitignored), at the app's true level (about −40 dBFS):
+`coast-noon.wav`, `coast-sunset.wav`, `coast-night.wav`, `coast-rain.wav` (32 s, stereo, 22.05 kHz,
+with planned voices) and `coast-events.wav` (45 s, mono, at 19.8 h: gull 1 s, goat bells 5 s,
+caique 9.5 s, gull 14 s, chapel 17 s, goat bells 27 s, owl from 30 s). Rerender with
+`sprout.audio.scene({ scenery: 'coast', hour, seconds, events: true, wav: true, weather?, play? })`.
+
+**Not done**: no blue rock thrush, hoopoe or halyard tap on the mast; no seasons (cicadas sing
+June to September); the voices do not follow the creatures on screen. Nobody has listened yet.
 
