@@ -71,7 +71,10 @@ roster spawned: the cat, butterflies, bees, swallows, a swallowtail, the heron; 
 ## Tests
 `src/fauna/creatures/cat.test.ts`, 14 tests (the map, routes, choices, a long day, nightfall
 and morning, coats, spot, fork, determinism, reduced motion, the studio stage, cost).
-See the report for the suite and e2e runs.
+After the rebase on main (coast moving water): typecheck clean; the full unit suite, 257 files,
+2676 tests, all pass. E2E, one file at a time, one worker: `fauna` 6, `fauna-oasis` 4,
+`fauna-waterfall` 4, `lazy-creatures` 2, `sceneries` 8, all pass. The full e2e suite was not run,
+and there is no coast fauna e2e spec yet.
 
 ## Left open
 - **The walk rig is stiff:** the legs are single sprites rotated at the hip and shoulder, with no
