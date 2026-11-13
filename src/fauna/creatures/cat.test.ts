@@ -43,6 +43,11 @@ describe('where the cat goes', () => {
     // the olive's shade: the top walk either side of the trunk
     expect(map.nodes.filter((n) => n.shade).every((n) => n.id.startsWith('walk-top-'))).toBe(true);
     expect(map.nodes.some((n) => n.shade)).toBe(true);
+    // and plenty of places far enough from the plants to lie down, on every terrace
+    const rest = map.nodes.filter((n) => n.rest);
+    expect(rest.length).toBeGreaterThan(15);
+    expect(new Set(rest.map((n) => n.terrace)).size).toBeGreaterThanOrEqual(3);
+    expect(rest.some((n) => n.shade)).toBe(true);
   });
 
   it('strolls along a terrace and jumps one tier between a coping and the terrace below', () => {
@@ -119,7 +124,7 @@ describe('a day', () => {
         if (!k) continue;
         modes.add(k.doing());
         if (!Number.isFinite(k.x) || !Number.isFinite(k.y)) problems.push(`NaN at ${t.toFixed(1)}`);
-        if (['doze', 'sit', 'wash', 'stretch'].includes(k.doing()) && !clearAt(sim.world, k, CAT_TUNING.clear - 4)) problems.push(`${k.doing()} by a slot at ${t.toFixed(1)} (${k.x.toFixed(0)}, ${k.y.toFixed(0)})`);
+        if (['doze', 'sit', 'wash', 'stretch'].includes(k.doing()) && !clearAt(sim.world, k, CAT_TUNING.rest - 2)) problems.push(`${k.doing()} by a slot at ${t.toFixed(1)} (${k.x.toFixed(0)}, ${k.y.toFixed(0)})`);
         if (k.doing() === 'doze' && dist(k, map.nodes[k.node]!) > 25) problems.push(`dozing off its place at ${t.toFixed(1)}`);
       }
       const k = cats(sim)[0]!;

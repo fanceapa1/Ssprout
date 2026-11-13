@@ -11,6 +11,9 @@ import { BaseCreature, type Ctx, type FaunaWorld } from '../types';
 import { heldSpots } from './bird';
 import type { CreatureDef } from './lib/def';
 
+/** Drawn a little larger than life (about 55 cm nose to rump) so the outline reads at the overview. */
+export const CAT_K = 1.2;
+
 export const CAT_TUNING = {
   /** seconds asleep in one place; the first doze is shorter so a visitor soon sees it stir */
   doze: [50, 140] as const,
@@ -23,11 +26,13 @@ export const CAT_TUNING = {
   /** at nightfall: seconds sitting up facing the sea before it strolls away */
   dusk: [45, 90] as const,
   /** world units / s at perspective 1: an unhurried stroll */
-  walk: 24,
+  walk: 28,
   /** body travel per walk cycle (world units at perspective 1) */
-  stride: 18,
+  stride: 18 * CAT_K,
   /** keeps this far from a planting slot when it walks or settles */
   clear: 22,
+  /** where it lies down or sits: further off, so no plant spreads over it */
+  rest: 40,
   /** the furthest it strolls in one go (route length, world units) */
   reach: 520,
   /** seconds of a pose's cross-fade */
@@ -121,7 +126,7 @@ function fur(p: Painter, shape: Pt[], c: Coat, o: FurOpts): void {
   const box = { x: Math.min(...xs) - 2, y: Math.min(...ys) - 2, w: Math.max(...xs) - Math.min(...xs) + 4, h: Math.max(...ys) - Math.min(...ys) + 4 };
   p.wash(shape, c.white, { rng, opacity: 0.97, edge: 0.28, edgeWidth: 0.5, sharpness: 0.35, centreLift: 0.05, granulation: 0.12, deform: 0.05, spread: 0.04, layers: 6, blend: 'source-over' });
   // cool where the body turns under, a warm bounce off the stone along the belly's edge
-  p.glaze(shape, c.shade, { rng, opacity: 0.3, edge: 0.05, darken: 0, deform: 0.08, spread: 0.05, fade: { angle: -Math.PI / 2 - 0.25, start: 0.15, amount: 1, ragged: 0.7 } });
+  p.glaze(shape, c.shade, { rng, opacity: 0.24, edge: 0.05, darken: 0, deform: 0.08, spread: 0.05, fade: { angle: -Math.PI / 2 - 0.25, start: 0.15, amount: 1, ragged: 0.7 } });
   p.glaze(shape, c.warm, { rng, opacity: 0.22, edge: 0, darken: 0, deform: 0.12, fade: { angle: -Math.PI / 2, start: 0.05, amount: 1, ragged: 0.8 } });
   if (o.patches.length > 0 || o.allOver) {
     const M = p.layer(box);
@@ -519,6 +524,8 @@ export interface CatNode {
   kind: 'coping' | 'ground';
   /** in the olive's shade */
   shade: boolean;
+  /** far enough from the plants to lie down (`CAT_TUNING.rest`) */
+  rest: boolean;
   perch: Perch | null;
   ground: GroundSpot | null;
 }
@@ -575,7 +582,7 @@ export function catMap(w: MapWorld): CatMap {
     const t = p.kind === 'wall' ? terraceOf(p.id) : null;
     if (t === null) continue;
     const q = P(p.x, perchY(p, p.x));
-    if (clearAt(w, q)) nodes.push({ id: p.id, x: q.x, y: q.y, terrace: t, kind: 'coping', shade: false, perch: p, ground: null });
+    if (clearAt(w, q)) nodes.push({ id: p.id, x: q.x, y: q.y, terrace: t, kind: 'coping', shade: false, rest: clearAt(w, q, CAT_TUNING.rest), perch: p, ground: null });
   }
   for (const g of w.ground) {
     const t = terraceOf(g.id);
@@ -584,7 +591,7 @@ export function catMap(w: MapWorld): CatMap {
     xs.forEach((k, i) => {
       const q = P(g.x + k * g.rx, g.y);
       const shade = t === 0 && oliveX !== null && Math.abs(q.x - oliveX) < 180;
-      if (clearAt(w, q)) nodes.push({ id: `${g.id}${xs.length > 1 ? `-${i + 1}` : ''}`, x: q.x, y: q.y, terrace: t, kind: 'ground', shade, perch: null, ground: g });
+      if (clearAt(w, q)) nodes.push({ id: `${g.id}${xs.length > 1 ? `-${i + 1}` : ''}`, x: q.x, y: q.y, terrace: t, kind: 'ground', shade, rest: clearAt(w, q, CAT_TUNING.rest), perch: null, ground: g });
     });
   }
   const edges: CatEdge[][] = nodes.map(() => []);
@@ -659,7 +666,7 @@ const classOf = (n: CatNode): keyof typeof CAT_TUNING.weights => (n.kind === 'co
 export function chooseRest(map: CatMap, rng: Rng, view: Rect, from: number | null, held: readonly Pt[], route?: { cost: readonly number[]; jumps: readonly number[] }): number | null {
   const ok = (i: number) => {
     const n = map.nodes[i]!;
-    if (i === from || map.edges[i]!.length === 0) return false;
+    if (i === from || !n.rest || map.edges[i]!.length === 0) return false;
     if (route && !(route.cost[i]! <= CAT_TUNING.reach && route.jumps[i]! <= 1)) return false;
     return held.every((h) => dist(h, n) > 30);
   };
@@ -675,6 +682,17 @@ export function chooseRest(map: CatMap, rng: Rng, view: Rect, from: number | nul
     if (r < 0) return i;
   }
   return pool[pool.length - 1]!;
+}
+
+/** Where along a coping it lies: somewhere in its spread clear of the plants, else the middle. */
+export function restX(w: MapWorld, n: CatNode, rng: Rng): number {
+  const p = n.perch;
+  if (!p) return n.x;
+  for (let i = 0; i < 6; i++) {
+    const x = clamp(n.x + rng.range(-0.5, 0.5) * p.spread, p.x - p.spread, p.x + p.spread);
+    if (clearAt(w, P(x, perchY(p, x)), CAT_TUNING.rest)) return x;
+  }
+  return n.x;
 }
 
 /** The node nearest a point. */
@@ -778,7 +796,7 @@ export class Cat extends BaseCreature {
     let x = n.x;
     let y = n.y;
     if (n.perch) {
-      x = clamp(n.x + this.rng.range(-0.5, 0.5) * n.perch.spread, n.perch.x - n.perch.spread, n.perch.x + n.perch.spread);
+      x = restX(w, n, this.rng);
       y = perchY(n.perch, x);
     }
     this.pos = P(x, y);
@@ -917,7 +935,7 @@ export class Cat extends BaseCreature {
       const n = map.nodes[path[k]!]!;
       const e = map.edges[path[k - 1]!]!.find((x) => x.to === path[k])!;
       let x = n.x;
-      if (k === path.length - 1 && n.perch) x = clamp(n.x + this.rng.range(-0.5, 0.5) * n.perch.spread, n.perch.x - n.perch.spread, n.perch.x + n.perch.spread);
+      if (k === path.length - 1 && n.perch) x = restX(w, n, this.rng);
       const toPt = P(x, n.perch ? perchY(n.perch, x) : n.y);
       this.route.push({ kind: e.kind, from, to: toPt, node: path[k]! });
       from = toPt;
@@ -1094,7 +1112,7 @@ export class Cat extends BaseCreature {
     const parts = w.art.get(`cat:${this.coat}`, (res) => paintCat(res, 3700 + CAT_COATS.indexOf(this.coat) * 40, this.coat));
     ctx.save();
     ctx.translate(this.x, this.y);
-    ctx.scale(this.scale * this.facing, this.scale);
+    ctx.scale(this.scale * this.facing * CAT_K, this.scale * CAT_K);
     const now = this.pose();
     const b = clamp(this.blendT, 0, 1);
     if (this.prev && b < 1) {
