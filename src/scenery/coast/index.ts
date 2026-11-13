@@ -11,6 +11,7 @@ import type { GardenPainters, Scenery, ScenerySky, SceneryView } from '../types'
 import { COAST_WILDLIFE } from './fauna';
 import { COAST_FLORA } from './flora';
 import { coastScene } from './geometry';
+import { COAST_GRADES, COAST_WATER_ALPHA } from './daylight';
 import { COAST_AMBIENCE, COAST_HABITAT_WORDS, COAST_SKY_LAYOUT, COAST_SKY_RECT, FOCUS, PATH, openSky } from './layout';
 
 /** Is the coast offered under these URL flags? Only to developers until it is painted. */
@@ -21,11 +22,11 @@ export function coastAvailable(flags: URLSearchParams): boolean {
 /** Its painters (`painters.ts`), loaded the first time one of its paints has to run (ADR 0341). */
 export const COAST_PAINTERS = lazyPainters<GardenPainters>(() => import('./painters').then((m) => m?.COAST_PAINTERS_LOADED));
 
-/** The coast's sky: its layout with both low suns on the left over the sea (ADR 0360), and its open-sky shape. */
-export const COAST_SKY: ScenerySky = { layout: COAST_SKY_LAYOUT, rect: COAST_SKY_RECT, shape: openSky, painters: COAST_PAINTERS };
+/** The coast's sky: both low suns on the left over the sea (ADR 0360), its open-sky shape, and the sea mirroring it strongly (ADR 0372). */
+export const COAST_SKY: ScenerySky = { layout: COAST_SKY_LAYOUT, rect: COAST_SKY_RECT, shape: openSky, painters: COAST_PAINTERS, waterAlpha: COAST_WATER_ALPHA };
 
-/** No trees or shrubs of its own on the light plates yet; its own marks are placeholders. */
-export const COAST_LIGHT_ART: LightArt = { trees: [], shrubs: [], sky: COAST_SKY_LAYOUT, painters: COAST_PAINTERS };
+/** Its own marks and grades on the light plates (G5, ADR 0372); the olive and the pine are painted, not tree specs. */
+export const COAST_LIGHT_ART: LightArt = { trees: [], shrubs: [], sky: COAST_SKY_LAYOUT, grades: COAST_GRADES, painters: COAST_PAINTERS };
 
 /**
  * The painting's elements and the placeholder steps each one runs, back to front: the seams the
