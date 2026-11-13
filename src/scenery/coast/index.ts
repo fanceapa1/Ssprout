@@ -80,4 +80,8 @@ export const COAST: Scenery = {
   // waves, wind and birds: the seaside profile that waited for this scenery (ADR 0283)
   sound: 'coast',
   painters: COAST_PAINTERS,
+  // the swell, the waterline, the rocks' foam and the caique in motion (G6, ADRs 0282, 0374)
+  motion: () => import('./motion').then((m) => m?.createCoastMotion({ seed: COAST_ART.seed })),
+  // the motion paints the sea's own swell: the generic shimmer, rings and glints stay off it (ADR 0302)
+  pondSurface: 0,
 };
