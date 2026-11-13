@@ -46,10 +46,10 @@ export const COLUMNS: readonly { x: number; h: number }[] = [
 /** The architrave's fragment over the two tall columns, and the fallen drum. */
 export const ARCHITRAVE = { x0: 688, x1: 752, h: 12 } as const;
 export const DRUM: Pt = { x: 856, y: 388 };
-/** Pine crowns along the promontory's back. */
-export const PROMONTORY_PINES: readonly { x: number; y: number; rx: number; ry: number }[] = [
-  { x: 960, y: 330, rx: 34, ry: 14 }, { x: 1060, y: 300, rx: 48, ry: 17 }, { x: 1180, y: 284, rx: 58, ry: 19 },
-  { x: 1310, y: 272, rx: 54, ry: 18 }, { x: 1450, y: 268, rx: 62, ry: 20 }, { x: 1570, y: 272, rx: 50, ry: 18 },
+/** Small far Aleppo pines along the promontory's back: foot x, height and lean (rad, + to the right). */
+export const PROMONTORY_PINES: readonly { x: number; h: number; lean: number }[] = [
+  { x: 948, h: 30, lean: 0.14 }, { x: 1006, h: 44, lean: -0.2 }, { x: 1084, h: 58, lean: 0.26 }, { x: 1166, h: 36, lean: -0.08 },
+  { x: 1252, h: 50, lean: 0.3 }, { x: 1334, h: 64, lean: -0.22 }, { x: 1590, h: 46, lean: 0.12 },
 ];
 
 /** The moored caique, its hull's waterline centre. */
@@ -114,8 +114,8 @@ export const LAND: readonly Pt[] = [
 
 /** The big gnarled olive on the top terrace, right of the path. */
 export const OLIVE = { base: { x: 1290, y: 540 }, crown: { x: 1290, y: 330 }, rx: 210, ry: 120 } as const;
-/** The leaning pine framing the left edge, on its rock at the beach's end. */
-export const PINE = { base: { x: 30, y: 770 }, top: { x: 130, y: 250 } } as const;
+/** The leaning Aleppo pine framing the left edge, on its rock at the beach's west end: its foot and its trunk's top. */
+export const PINE = { base: { x: 166, y: 762 }, top: { x: 51, y: 218 } } as const;
 
 /** The gravel path from the viewer's feet up the terraces to the olive, nearest first, and where it climbs a wall. */
 export const PATH: readonly Pt[] = [

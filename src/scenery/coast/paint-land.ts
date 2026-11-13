@@ -395,13 +395,20 @@ export function* paintBeds(p: Painter, rng: Rng): Strokes {
       const r = rng.fork(`bed-${BEDS.indexOf(bed)}`);
       // a ragged outline, the soil darker toward the coping where it was last watered
       const ragged = bed.poly.map((q, j) => ({ x: q.x + r.range(-1.5, 1.5), y: q.y + Math.sin(j * 1.7 + r.range(0, 6)) * 1.4 }));
-      B.fill(ragged, mix(EARTH.soil, EARTH.earth, 0.3), 0.42);
+      // each bed its own soil: warmer or greyer, fresher or drier, all mid-toned
+      B.fill(ragged, mix(mix(EARTH.soil, EARTH.earth, r.range(0.15, 0.45)), EARTH.gravelShade, r.range(0, 0.25)), r.range(0.36, 0.46));
       const nFar = bed.poly.findIndex((q, j) => j > 0 && q.x < bed.poly[j - 1]!.x) - 3;
       const far = bed.poly.slice(0, Math.max(2, nFar));
       const near = far.map((q) => ({ x: q.x, y: copingY(bed.wall, q.x) - 3 }));
-      B.fill([...far.map((q, j) => ({ x: q.x, y: q.y + (near[j]!.y - q.y) * 0.55 })), ...near.slice().reverse()], EARTH.soilDark, 0.12);
-      for (let f = 0.18; f < 0.95; f += 0.16) {
-        furrows.push({ pts: far.slice(1, -1).map((q, j) => ({ x: q.x, y: q.y + (near[j + 1]!.y - q.y) * f + r.range(-0.5, 0.5) })), rng: r });
+      B.fill([...far.map((q, j) => ({ x: q.x, y: q.y + (near[j]!.y - q.y) * 0.55 })), ...near.slice().reverse()], EARTH.soilDark, r.range(0.08, 0.15));
+      // furrows at the bed's own spacing, some broken where the rake skipped
+      const step = r.range(0.13, 0.2);
+      const tilt = r.range(-0.012, 0.012);
+      for (let f = r.range(0.14, 0.22); f < 0.95; f += step) {
+        const line = far.slice(1, -1).map((q, j) => ({ x: q.x, y: q.y + (near[j + 1]!.y - q.y) * f + (q.x - far[0]!.x) * tilt + r.range(-0.5, 0.5) }));
+        const gap = r.chance(0.45) ? r.int(1, Math.max(1, line.length - 3)) : -1;
+        if (gap < 0) furrows.push({ pts: line, rng: r });
+        else furrows.push({ pts: line.slice(0, gap), rng: r }, { pts: line.slice(gap + 2), rng: r });
       }
     }
     B.flush();

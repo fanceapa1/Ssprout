@@ -5,10 +5,12 @@
  * units, in parts (ADR 0226, 0238). docs/systems/scenery.md › Coast › Vegetation.
  */
 import { createRng, type Rng } from '../../core/rng';
-import { blob, bounds, jitter, lighten, mix, padRect, ribbon, shade, smoothPath, type DryOptions, type Painter, type Pigment } from '../../paint';
+import { blob, bounds, lighten, mix, padRect, ribbon, type DryOptions, type Painter, type Pigment } from '../../paint';
 import { paintOliveLeaves, paintOliveTrunk, trunkOutline } from '../../plants/lib/olive-paint';
-import { paintSkeleton, softRes, stableLayer } from '../../plants/lib/tree-paint';
-import { branchProgress, treeView, viewPt } from '../../plants/lib/tree-structure';
+import { paintPineBark, paintPineCones, paintPineNeedles, paintPineWash, toneOf } from '../../plants/lib/aleppo-pine-paint';
+import { paintSkeleton, softRes, stableLayer, visibleBranches } from '../../plants/lib/tree-paint';
+import { branchProgress, treeView, viewPt, type Branch } from '../../plants/lib/tree-structure';
+import { ALEPPO_COLOURS, ALEPPO_TIMING, aleppoArrivals, planAleppoPine, type AleppoPinePlan } from '../../plants/species/aleppo-pine';
 import { oliveArrivals, planOlive, type OlivePlan } from '../../plants/species/olive';
 import type { Pt, Rect } from '../../render/viewport';
 import type { Strokes } from '../../scene/paint-land';
@@ -16,7 +18,7 @@ import { batchLayer } from '../oasis/paint-batch';
 import { pacer } from '../oasis/paint-pace';
 import { EARTH, inView } from './paint-land';
 import {
-  GRASS, MAQUIS, OLIVE_SHADOW, OLIVE_TREE, PHRYGANA, PINE_BRANCHES, PINE_PADS, PINE_ROCK, PINE_TRUNK, PROMONTORY_PINE_SHAPES, SHORE_CLUMPS,
+  CLIFF_TOP_SLOT, GRASS, MAQUIS, OLIVE_SHADOW, OLIVE_TREE, PHRYGANA, PINE_ROCK, PINE_TREE, PROMONTORY_PINE_SHAPES, SHORE_CLUMPS,
 } from './shapes';
 
 /** The vegetation's palette: dark maquis, Aleppo pine, phrygana, straw. */
@@ -102,6 +104,15 @@ const CLUMP_DRY: DryOptions = { opacity: 0.85, edge: 0.4, edgeWidth: 0.9, sharpn
 
 /** The promontory's pines and maquis, the phrygana and scrub on the slopes and the shoreline's edge, dry grass. */
 export function* paintMaquis(p: Painter, rng: Rng): Strokes {
+  // a pocket of soil on the cliff top where the tree slot stands, scrub either side of it
+  const s = CLIFF_TOP_SLOT;
+  if (inView(p, { x: s.x - 60, y: s.y - 20, w: 120, h: 40 })) {
+    const r = rng.fork('cliff-pocket');
+    yield* p.parts.glaze(blob(s.x + 3, s.y + 1, 36, 7, r, { irregularity: 0.35, flatBottom: 0.3 }), mix(EARTH.soil, EARTH.earth, 0.4), { rng: r, opacity: 0.55, deform: 0.3, spread: 0.25, edge: 0.15, sharpness: 0.4 });
+    for (const [dx, k] of [[-40, 1], [44, 0.8], [-22, 0.55], [26, 0.5]] as const) {
+      p.grassTuft({ x: s.x + dx, y: s.y + 3 }, { rng: r, height: 9 * k + 4, blades: 7, spread: 9, lean: r.range(-0.2, 0.3), pigments: [EARTH.straw, EARTH.strawDark, VEG.phryganaDark], ground: false, opacity: 0.7 });
+    }
+  }
   // the maquis over the promontory's back: dense dark rounded shrubs, hazier toward the temple
   const maquis = MAQUIS.map((m) => {
     const far = Math.max(0, Math.min(1, (1100 - m.x) / 300)) * 0.35;
@@ -145,23 +156,54 @@ export function* paintMaquis(p: Painter, rng: Rng): Strokes {
   yield;
 }
 
-/** The promontory's pines: thin dark trunks under flat, broken umbrella crowns, lit on the left. */
+/**
+ * The promontory's far Aleppo pines, a few strokes each: a slender stem and limbs, then pale soft
+ * needle clouds with sky between them, a lit fringe of needles on top; hazier toward the temple.
+ */
 function* paintPromontoryPines(p: Painter, rng: Rng): Strokes {
-  if (!inView(p, { x: 880, y: 230, w: 760, h: 140 })) return;
-  for (const t of PROMONTORY_PINE_SHAPES) p.stroke(t.trunk, { rng, pigment: mix(VEG.barkDark, VEG.maquisDark, 0.4), width: 2 + t.rx / 24, taper: [0.05, 0.5], opacity: 0.75, wetness: 0.3 });
+  const all = PROMONTORY_PINE_SHAPES.filter((t) => inView(p, { x: t.x - t.rx - 8, y: t.y - t.ry - 8, w: t.rx * 2 + 16, h: t.trunk[0]!.y - t.y + t.ry + 16 }));
+  if (!all.length) return;
+  const haze = (x: number) => Math.max(0, Math.min(1, (1120 - x) / 260)) * 0.4;
+  const far = (pig: Pigment, x: number) => lighten(mix(pig, '#b9c4c6', haze(x)), haze(x) * 0.4);
+  for (const t of all) {
+    const r = rng.fork(`far-pine-${Math.round(t.x)}`);
+    const bark = far(mix(ALEPPO_COLOURS.silver, ALEPPO_COLOURS.red, 0.35), t.x);
+    p.stroke(t.trunk, { rng: r, pigment: bark, width: 1.6 + t.rx / 30, taper: [0.1, 0.55], opacity: 0.8, wetness: 0.25, wobble: 0.3 });
+    for (const l of t.limbs) p.stroke(l, { rng: r, pigment: bark, width: 1 + t.rx / 50, taper: [0.2, 0.7], opacity: 0.75, wetness: 0.2, wobble: 0.4 });
+  }
   yield;
-  const pads = PROMONTORY_PINE_SHAPES.flatMap((t) =>
-    [[0, 0, 1], [-0.45, 0.25, 0.55], [0.5, 0.15, 0.6]].map(([dx, dy, k]) => ({
-      x: t.x + dx! * t.rx,
-      y: t.y + dy! * t.ry,
-      rx: t.rx * k!,
-      ry: t.ry * k! * 0.8,
-      lit: mix(VEG.pine, VEG.maquisDark, 0.2),
-      dark: shade(VEG.pineDark, 0.1),
-      a: 0.85,
-    })),
-  );
-  yield* clumps(p, pads, rng.fork('crowns'), { x: 0, y: 0, w: 40, h: 14 }, { ...CLUMP_DRY, opacity: 0.85 });
+  const clouds = all.flatMap((t) => t.clouds.map((c) => ({ c, x: t.x })));
+  const area = padRect(bounds(clouds.flatMap(({ c }) => [{ x: c.x - c.rx, y: c.y - c.ry }, { x: c.x + c.rx, y: c.y + c.ry }])), 8);
+  const W = batchLayer(p, area, { x: 0, y: 0, w: 20, h: 10 }, 4);
+  if (!W.empty) {
+    for (const { c, x } of clouds) {
+      const r = rng.fork(`far-cloud-${Math.round(c.x)}-${Math.round(c.y)}`);
+      W.fill(blob(c.x, c.y, c.rx, c.ry, r, { points: 12, irregularity: 0.35, scallop: 0.3, scallops: 6, flatBottom: 0.4 }), far(ALEPPO_COLOURS.wash[1], x), 0.5);
+      W.fill(blob(c.x + c.rx * 0.15, c.y + c.ry * 0.35, c.rx * 0.8, c.ry * 0.45, r, { points: 10, irregularity: 0.3 }), far(ALEPPO_COLOURS.wash[2], x), 0.4);
+      W.lift(blob(c.x - c.rx * 0.25, c.y - c.ry * 0.3, c.rx * 0.45, c.ry * 0.35, r, { points: 8, irregularity: 0.3 }), 0.5);
+    }
+    W.flush();
+    yield;
+    yield* W.dryParts({ opacity: 0.85, edge: 0.3, edgeWidth: 1, sharpness: 0.5, centreLift: 0.2, granulation: 0.3, flow: 0.45, flowScale: 8 });
+  }
+  // a fringe of needle flicks along each cloud's top, lit on the left
+  const N = batchLayer(p, area, { x: 0, y: 0, w: 10, h: 2 }, 3);
+  if (!N.empty) {
+    for (const { c, x } of clouds) {
+      const r = rng.fork(`far-flicks-${Math.round(c.x)}-${Math.round(c.y)}`);
+      const n = Math.round(c.rx * 0.45) + 2;
+      for (let k = 0; k < n; k++) {
+        const u = (k / (n - 1)) * 2 - 1;
+        const from = { x: c.x + u * c.rx * 0.85, y: c.y - c.ry * Math.sqrt(1 - u * u) * 0.7 };
+        const a = UP + u * 0.7 + r.range(-0.25, 0.25);
+        const len = c.ry * r.range(0.5, 0.9);
+        N.fill(ribbon([from, { x: from.x + Math.cos(a) * len, y: from.y + Math.sin(a) * len }], (v) => 0.45 * (1 - v * 0.7)), far(u < 0.2 ? ALEPPO_COLOURS.needle[0] : ALEPPO_COLOURS.needle[1], x), 0.55);
+      }
+    }
+    N.flush();
+    yield;
+    yield* N.dryParts({ opacity: 0.8, edge: 0.4, edgeWidth: 0.5, sharpness: 0.8, centreLift: 0.1, granulation: 0.1, flow: 0.2, flowScale: 6 });
+  }
 }
 
 // ── the olive ────────────────────────────────────────────────────────────────────────────
@@ -265,89 +307,163 @@ export function* paintOlive(p: Painter, rng: Rng): Strokes {
 
 // ── the leaning pine ─────────────────────────────────────────────────────────────────────
 
-/** The Aleppo pine: its rock, a reddish scaly trunk lit on the left, crooked branches, open needle pads, cones. */
-export function* paintPine(p: Painter, rng: Rng): Strokes {
-  if (!inView(p, { x: -80, y: 140, w: 400, h: 740 })) return;
-  yield* p.parts.stone(PINE_ROCK, { rng, pigment: mix(EARTH.stone, EARTH.stoneWarm, 0.3), warm: 0.4, moss: 0.05, ink: 0.2, light: LIGHT });
-  const trunk = smoothPath(PINE_TRUNK.map((q) => ({ x: q.x, y: q.y })), 6);
-  const hw = (t: number) => 13 * (1 - 0.66 * t) + (t < 0.05 ? (0.05 - t) * 100 : 0);
-  const body = ribbon(trunk, hw);
-  // paper under the trunk, so the hill and sea behind it do not show through
-  p.ctx.save();
-  p.ctx.beginPath();
-  body.forEach((q, i) => (i ? p.ctx.lineTo(q.x, q.y) : p.ctx.moveTo(q.x, q.y)));
-  p.ctx.closePath();
-  p.ctx.fillStyle = '#fffdf8';
-  p.ctx.fill();
-  p.ctx.restore();
-  const T = batchLayer(p, padRect(bounds(body), 6), { x: 0, y: 0, w: 22, h: 60 }, 4);
-  if (!T.empty) {
-    T.fill(body, VEG.bark, 0.78);
-    // shade on the right flank, away from the sea
-    T.fill(ribbon(trunk, (t) => hw(t) * 0.55, (t) => hw(t) * 0.45), VEG.barkDark, 0.45);
-    // the scaly plates: short dark fissures across the trunk
-    for (let k = 0; k < 90; k++) {
-      const i = rng.int(0, trunk.length - 2);
-      const q = trunk[i]!;
-      const w = hw(i / (trunk.length - 1));
-      const u = rng.range(-0.8, 0.8) * w;
-      T.fill(blob(q.x + u, q.y, rng.range(1.2, 3.2), rng.range(0.6, 1.3), rng, { points: 6, irregularity: 0.4, rotation: rng.range(-0.3, 0.3) }), VEG.barkDark, 0.6);
-    }
-    T.flush();
-    yield;
-    yield* T.dryParts({ opacity: 0.85, edge: 0.4, edgeWidth: 1, sharpness: 0.65, centreLift: 0.12, granulation: 0.5, granules: 0.2, flow: 0.4, flowScale: 9 });
+/** The pruned plan, planned once: the species' tree for `PINE_TREE.seed`, bare below its fork. */
+let pinePlanned: { plan: AleppoPinePlan; paint: Rng } | null = null;
+export function scenePine(): { plan: AleppoPinePlan; paint: Rng } {
+  if (!pinePlanned) {
+    const r = createRng(PINE_TREE.seed);
+    const plan = planAleppoPine(r, { lean: PINE_TREE.lean });
+    pinePlanned = { plan: pruneBelowFork(plan), paint: r.fork('paint') };
   }
-  // the sun on its left flank
-  yield* p.parts.glaze(ribbon(trunk, (t) => hw(t) * 0.25, (t) => -hw(t) * 0.55), VEG.barkLit, { rng, opacity: 0.35, deform: 0.05, spread: 0.1, edge: 0.1, blend: 'source-over' });
-  for (const b of PINE_BRANCHES) {
-    p.stroke(smoothPath(b.map((q) => ({ x: q.x, y: q.y })), 4), { rng, pigment: mix(VEG.bark, VEG.barkDark, 0.4), width: 6, taper: [0.1, 0.8], opacity: 0.85, wetness: 0.35, wobble: 0.4 });
-  }
-  yield;
-  yield* paintNeedles(p, rng.fork('needles'));
-  for (let k = 0; k < 9; k++) {
-    const pad = PINE_PADS[k % PINE_PADS.length]!;
-    const at = { x: pad.x + rng.range(-0.6, 0.6) * pad.rx, y: pad.y + pad.ry * rng.range(0.1, 0.6) };
-    p.wash(blob(at.x, at.y, 3.2, 4.4, rng, { points: 10, irregularity: 0.2, rotation: rng.range(-0.4, 0.4) }), VEG.cone, { rng, opacity: 0.8, layers: 3, edge: 0.4, sharpness: 0.7 });
-  }
-  yield;
+  return pinePlanned;
 }
 
-/** The pine's needle pads: a light, open wash broken into tufts, then fine needles radiating from each twig tip. */
-function* paintNeedles(p: Painter, rng: Rng): Strokes {
-  const tufts: { at: Pt; r: number; lit: boolean }[] = [];
-  for (const pad of PINE_PADS) {
-    const n = Math.round((pad.rx * pad.ry) / 26);
-    for (let k = 0; k < n; k++) {
-      const a = rng.range(0, Math.PI * 2);
-      const d = Math.sqrt(rng.next());
-      const y = pad.y + Math.sin(a) * pad.ry * d;
-      tufts.push({ at: { x: pad.x + Math.cos(a) * pad.rx * d, y: Math.min(pad.y + pad.ry * 0.5, y) }, r: rng.range(9, 14), lit: Math.sin(a) < 0.1 && Math.cos(a) < 0.4 });
-    }
-  }
-  const area = padRect(bounds(tufts.map((t) => t.at)), 18);
-  const W = batchLayer(p, area, { x: 0, y: 0, w: 20, h: 12 }, 4);
-  if (!W.empty) {
-    for (const t of tufts) W.fill(blob(t.at.x, t.at.y - t.r * 0.2, t.r * 1.1, t.r * 0.62, rng, { points: 12, irregularity: 0.4, scallop: 0.35, scallops: 7 }), t.lit ? mix(VEG.pine, VEG.pineLit, 0.6) : VEG.pine, 0.42);
-    W.flush();
-    yield;
-    yield* W.dryParts({ opacity: 0.75, edge: 0.2, edgeWidth: 1.5, sharpness: 0.4, centreLift: 0.15, granulation: 0.3, flow: 0.5, flowScale: 12 });
-  }
-  for (const [pass, pig, a] of [[0, VEG.pineDark, 0.3], [1, VEG.pine, 0.45], [2, VEG.pineLit, 0.7]] as const) {
-    const N = batchLayer(p, area, { x: 0, y: 0, w: 10, h: 2 }, 3);
-    if (N.empty) continue;
-    for (const t of tufts) {
-      if ((pass === 2 && !t.lit) || (pass === 0 && t.lit)) continue;
-      const n = pass === 1 ? 11 : 8;
-      for (let k = 0; k < n; k++) {
-        const ang = UP + (k / (n - 1) - 0.5) * 2.9 + rng.range(-0.12, 0.12) + (pass === 0 ? 0.35 : 0);
-        const len = t.r * rng.range(0.85, 1.35);
-        const from = { x: t.at.x, y: t.at.y + 1 };
-        const to = { x: from.x + Math.cos(ang) * len, y: from.y + Math.sin(ang) * len * 0.8 };
-        N.fill(ribbon([from, to], (u) => 0.6 * (1 - u * 0.7)), jitter(pig, rng, 0.05), a);
+/** Drop the side branches below the limbs' fork, with the needles and cones they carry: a cliff pine's bare stem. */
+function pruneBelowFork(plan: AleppoPinePlan): AleppoPinePlan {
+  const all = plan.tree.branches.filter((b) => b.tag !== 'whorl');
+  const byId = new Map(all.map((b) => [b.id, b]));
+  const fork = Math.min(...all.filter((b) => b.tag === 'limb').map((b) => b.attach));
+  const root = (b: Branch): Branch => (b.order > 1 ? root(byId.get(b.parent)!) : b);
+  const keep = (b: Branch) => b.order === 0 || root(b).attach >= fork - 0.02;
+  const owner = (q: Pt): Branch => {
+    let best = all[0]!;
+    let d = Infinity;
+    for (const b of all) {
+      for (const s of b.pts) {
+        const e = (s.x - q.x) ** 2 + (s.y - q.y) ** 2;
+        if (e < d) [d, best] = [e, b];
       }
     }
-    N.flush();
+    return best;
+  };
+  return { ...plan, tree: { base: plan.tree.base, branches: all.filter(keep) }, tufts: plan.tufts.filter((t) => keep(owner(t))), cones: plan.cones.filter((c) => keep(owner(c))) };
+}
+
+/** A point of the plan (box units) in the world: its base on `PINE_TREE.base`, `scale` × its units. */
+function pineWorld(plan: AleppoPinePlan, q: Pt): Pt {
+  const b = plan.tree.base;
+  return { x: PINE_TREE.base.x + (q.x - b.x) * PINE_TREE.scale, y: PINE_TREE.base.y + (q.y - b.y) * PINE_TREE.scale };
+}
+
+function inPine(p: Painter, plan: AleppoPinePlan, fn: () => void): void {
+  const k = PINE_TREE.scale;
+  const b = plan.tree.base;
+  p.ctx.save();
+  p.ctx.transform(k, 0, 0, k, PINE_TREE.base.x - b.x * k, PINE_TREE.base.y - b.y * k);
+  try {
+    fn();
+  } finally {
+    p.ctx.restore();
+  }
+}
+
+/**
+ * The shapes the eager code reads (`PINE_TRUNK`, `PINE_BRANCHES`, `PINE_PADS` in `shapes.ts`),
+ * from the plan: `veg.test.ts` checks the literals against this.
+ */
+export function pineShapes(): { trunk: Pt[]; branches: Pt[][]; pads: { x: number; y: number; rx: number; ry: number }[] } {
+  const { plan } = scenePine();
+  const view = treeView(1, plan.tree.base, ALEPPO_TIMING);
+  const w = (q: Pt) => {
+    const o = pineWorld(plan, q);
+    return { x: Math.round(o.x), y: Math.round(o.y) };
+  };
+  const sample = (path: readonly Pt[], n: number) => Array.from({ length: n }, (_, i) => w(path[Math.round((i * (path.length - 1)) / (n - 1))]!));
+  const vis = visibleBranches(plan.tree, view);
+  const trunk = sample(vis.find((v) => v.b.order === 0)!.path, 8);
+  const branches = vis.filter((v) => v.b.order === 1 || (v.b.order === 2 && v.b.len * PINE_TREE.scale > 60)).map((v) => sample(v.path, 5));
+  // the crown's clouds: tufts gathered round running centres
+  const groups: { x: number; y: number; m: { q: Pt; r: number }[] }[] = [];
+  for (const t of plan.tufts) {
+    const q = pineWorld(plan, t);
+    const r = t.r * PINE_TREE.scale;
+    const g = groups.find((c) => Math.hypot(c.x - q.x, (c.y - q.y) * 1.3) < 52);
+    if (!g) groups.push({ x: q.x, y: q.y, m: [{ q, r }] });
+    else {
+      g.m.push({ q, r });
+      g.x = g.m.reduce((a, o) => a + o.q.x, 0) / g.m.length;
+      g.y = g.m.reduce((a, o) => a + o.q.y, 0) / g.m.length;
+    }
+  }
+  const pads = groups
+    .filter((g) => g.m.length >= 3)
+    .map((g) => ({
+      x: Math.round(g.x),
+      y: Math.round(g.y),
+      rx: Math.round(Math.max(...g.m.map((o) => Math.abs(o.q.x - g.x) + o.r))),
+      ry: Math.round(Math.max(...g.m.map((o) => Math.abs(o.q.y - g.y) + o.r * 0.6))),
+    }))
+    .filter((d) => d.x + d.rx > 0);
+  return { trunk, branches, pads };
+}
+
+/** Everything the pine paints, crown, trunk, rock and shadow, with room to spare. */
+const PINE_BOX = { x: -240, y: 0, w: 620, h: 840 };
+
+/**
+ * The Aleppo pine on its rock at the beach's west end (ADR 0380): the species' own tree, bare
+ * below its fork, leaning out over the left edge. Its shadow and rock, then the species' layers
+ * (limbs, the reddish bark, cloud washes, cones, needles), each in parts of its own.
+ */
+export function* paintPine(p: Painter, rng: Rng): Strokes {
+  if (!inView(p, PINE_BOX)) return;
+  const foot = PINE_TREE.base;
+  yield* p.parts.glaze(blob(foot.x + 96, foot.y + 7, 120, 9, rng, { irregularity: 0.35 }), mix(EARTH.shadow, EARTH.gravelShade, 0.3), { rng, opacity: 0.38, deform: 0.3, spread: 0.3, edge: 0.04, fade: { angle: 0, start: 0.4, amount: 1, ragged: 0.7 } });
+  yield* p.parts.stone(PINE_ROCK, { rng, pigment: mix(EARTH.stone, EARTH.stoneWarm, 0.3), warm: 0.4, moss: 0.05, ink: 0.2, light: LIGHT });
+  const { plan, paint } = scenePine();
+  const pr = paint.fork('scenery');
+  const view = treeView(1, plan.tree.base, ALEPPO_TIMING);
+  const arrive = aleppoArrivals(1);
+  const style = { pigment: ALEPPO_COLOURS.silver, texture: 0.45, modelling: 0.5, textureMin: 4, flare: 0.3, wobble: 0.3, skipTags: ['whorl'] };
+  const trunk = visibleBranches(plan.tree, view, style).find((v) => v.b.order === 0)!;
+  // paper under the trunk, so the sea and the far hill do not show through its washes
+  inPine(p, plan, () => {
+    p.ctx.beginPath();
+    ribbon(trunk.path, (t) => trunk.hw(t) * 0.85).forEach((q, i) => (i ? p.ctx.lineTo(q.x, q.y) : p.ctx.moveTo(q.x, q.y)));
+    p.ctx.closePath();
+    p.ctx.fillStyle = '#fffdf8';
+    p.ctx.fill();
+  });
+  inPine(p, plan, () => paintSkeleton(p, plan.tree, view, pr.fork('limbs'), style));
+  yield;
+  inPine(p, plan, () => paintPineBark(p, trunk.path, trunk.hw, arrive.age, ALEPPO_COLOURS, pr.fork('bark'), 0.62));
+  yield;
+  // the scenery's accent through the margin's lift: the lower trunk warmer, its right flank shaded
+  const low = trunk.path.slice(0, Math.round(trunk.path.length * 0.62)).map((q) => pineWorld(plan, q));
+  const hw = (t: number) => trunk.hw(t * 0.62) * PINE_TREE.scale;
+  const A = batchLayer(p, padRect(bounds(low), hw(0) + 6), { x: 0, y: 0, w: 20, h: 40 }, 4);
+  if (!A.empty) {
+    // staggered washes, so the red fades up the stem without a band
+    for (let k = 0; k < 5; k++) A.fill(ribbon(low.slice(0, Math.max(3, Math.round(low.length * (0.4 + k * 0.15)))), (t) => hw(t) * 0.92), VEG.bark, 0.24);
+    A.fill(ribbon(low, (t) => -hw(t) * 0.15, (t) => hw(t) * 0.92), VEG.barkDark, 0.42);
+    // scaly plates: short dark fissures across the lower trunk
+    const r = rng.fork('plates');
+    for (let k = 0; k < 70; k++) {
+      const i = r.int(0, Math.round(low.length * 0.8));
+      const q = low[i]!;
+      const w = hw(i / (low.length - 1));
+      A.fill(blob(q.x + r.range(-0.75, 0.75) * w, q.y, r.range(1.4, 3.4), r.range(0.6, 1.2), r, { points: 6, irregularity: 0.4, rotation: r.range(-0.3, 0.3) }), VEG.barkDark, 0.55);
+    }
+    A.flush();
     yield;
-    yield* N.dryParts({ opacity: 0.85, edge: 0.4, edgeWidth: 0.5, sharpness: 0.8, centreLift: 0.1, granulation: 0.1, flow: 0.2, flowScale: 6 });
+    yield* A.dryParts({ opacity: 0.85, edge: 0.2, edgeWidth: 1, sharpness: 0.5, centreLift: 0.1, granulation: 0.45, granules: 0.2, flow: 0.4, flowScale: 9 });
+  }
+  // the crown's marks at `marks` × the species' size on the scaled tree: finer, with sky between the tufts
+  const m = PINE_TREE.marks;
+  const tufts = plan.tufts.map((t) => ({ t, k: arrive.tuft(t), at: pineWorld(plan, t) }));
+  const xs = tufts.map((x) => x.at.x).sort((a, b) => a - b);
+  const cut = [xs[Math.floor(xs.length / 3)]!, xs[Math.floor((xs.length * 2) / 3)]!] as const;
+  const thirds = [(x: { at: Pt }) => x.at.x < cut[0], (x: { at: Pt }) => x.at.x >= cut[0] && x.at.x < cut[1], (x: { at: Pt }) => x.at.x >= cut[1]];
+  for (const [i, third] of thirds.entries()) {
+    paintPineWash(p, tufts.filter(third), m, ALEPPO_COLOURS, pr.fork(`wash-${i}`), 0.85);
+    yield;
+  }
+  const cones = plan.cones.map((c) => ({ c, k: arrive.cone(c), at: pineWorld(plan, c) }));
+  paintPineCones(p, cones, m * 0.8, ALEPPO_COLOURS, pr.fork('cones'));
+  yield;
+  const dry = { opacity: 0.92, edge: 0.4, edgeWidth: 0.5, sharpness: 0.8, centreLift: 0.2, granulation: 0.12, flow: 0.35, flowScale: 10, darken: 0.25 };
+  for (const [i, third] of thirds.entries()) {
+    paintPineNeedles(p, tufts.filter(third), m, (t) => ALEPPO_COLOURS.needle[toneOf(t.lit)], pr.fork(`needles-${i}`), dry);
+    yield;
   }
 }

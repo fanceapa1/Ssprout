@@ -115,8 +115,10 @@ describe('perches', () => {
     expect(Math.abs(drum.x - DRUM.x)).toBeLessThan(2);
     for (const p of of('crown')) {
       const s = PROMONTORY_PINE_SHAPES.find((c) => p.id === `pine-crown-${Math.round(c.x)}`)!;
-      expect(((p.x - s.x) / s.rx) ** 2 + ((p.y - s.y) / s.ry) ** 2, p.id).toBeLessThan(1);
+      expect(Math.abs(p.x - s.x), p.id).toBeLessThanOrEqual(s.rx);
       expect(p.y).toBeLessThan(s.y);
+      // on one of its needle clouds, not in the sky between them
+      expect(s.clouds.some((c) => ((p.x - c.x) / c.rx) ** 2 + ((p.y - c.y) / c.ry) ** 2 < 1 && p.y < c.y), p.id).toBe(true);
     }
   });
 

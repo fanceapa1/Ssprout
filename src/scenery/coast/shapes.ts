@@ -200,24 +200,33 @@ const BED_SPECS: readonly [number, number, number, number, number][] = [
   [2, 750, 888, 44, 3], [2, 958, 1040, 40, 3], [2, 1140, 1262, 42, 3], [2, 1490, 1610, 42, 3],
 ];
 
-export const BEDS: readonly Bed[] = BED_SPECS.map(([wall, x0, x1, back, front]) => {
+export const BEDS: readonly Bed[] = BED_SPECS.map(([wall, x0, x1, back, front], b) => {
+  // each bed dug by hand: its back edge wanders, its ends are rounded unevenly
+  const rng = createRng(`coast-bed-${b}`);
+  const amp = rng.range(1.2, 3.2);
+  const period = rng.range(28, 52);
+  const phase = rng.range(0, 6);
+  const swell = rng.range(-2.5, 2.5);
   const r = (back - front) / 2;
   const n = Math.max(4, Math.round((x1 - x0 - 2 * r) / 12));
   const far: Pt[] = [];
   const near: Pt[] = [];
   for (let i = 0; i <= n; i++) {
-    const x = x0 + r + ((x1 - x0 - 2 * r) * i) / n;
-    far.push({ x, y: copingY(wall, x) - back });
+    const u = i / n;
+    const x = x0 + r + (x1 - x0 - 2 * r) * u;
+    const k = Math.sin(Math.PI * u);
+    far.push({ x, y: copingY(wall, x) - back + (amp * Math.sin(x / period + phase) + swell) * Math.sqrt(k) });
     near.push({ x, y: copingY(wall, x) - front });
   }
-  // rounded ends, squashed by the low view
-  const end = (cx: number, cy: number, from: number): Pt[] => Array.from({ length: 5 }, (_, k) => {
-    const a = from + (Math.PI * (k + 1)) / 6;
-    return { x: cx + Math.cos(a) * r, y: cy + Math.sin(a) * r };
+  // rounded ends, squashed by the low view, one fuller than the other
+  const end = (cx: number, cy: number, from: number, k: number): Pt[] => Array.from({ length: 5 }, (_, j) => {
+    const a = from + (Math.PI * (j + 1)) / 6;
+    return { x: cx + Math.cos(a) * r * k, y: cy + Math.sin(a) * r };
   });
   const y0 = copingY(wall, x0 + r) - front - r;
   const y1 = copingY(wall, x1 - r) - front - r;
-  return { terrace: WALL_TERRACE[wall]!, wall, poly: [...far, ...end(x1 - r, y1, -Math.PI / 2), ...near.reverse(), ...end(x0 + r, y0, Math.PI / 2)] };
+  const poly = [...far, ...end(x1 - r, y1, -Math.PI / 2, rng.range(0.7, 1.25)), ...near.reverse(), ...end(x0 + r, y0, Math.PI / 2, rng.range(0.7, 1.25))];
+  return { terrace: WALL_TERRACE[wall]!, wall, poly };
 });
 
 // ── stone flights and jars ───────────────────────────────────────────────────────────────
@@ -283,25 +292,38 @@ export const OLIVE_SHADOW = { cx: OLIVE.base.x + 70, cy: OLIVE.base.y + 8, rx: 1
 
 // ── the leaning pine ─────────────────────────────────────────────────────────────────────
 
-/** The Aleppo pine on its rock at the beach's west end: a crooked trunk leaning out over the sea. */
+/**
+ * The Aleppo pine at the beach's west end: the `aleppo-pine` species' tree planned from `seed`
+ * leaning `lean`, bare below its fork, drawn `scale` × its box units with its foot on `PINE.base`
+ * (ADR 0380). The literals below come from that plan; `veg.test.ts` checks them.
+ */
+export const PINE_TREE = { seed: 101, scale: 1.9, marks: 1.3, lean: -1, base: PINE.base } as const;
+/** Its trunk, foot to top (the cicada's bark). */
 export const PINE_TRUNK: readonly Pt[] = [
-  PINE.base, { x: 46, y: 700 }, { x: 72, y: 610 }, { x: 98, y: 520 }, { x: 108, y: 440 }, { x: 120, y: 360 }, { x: 126, y: 300 }, PINE.top,
+  PINE.base, { x: 152, y: 684 }, { x: 133, y: 607 }, { x: 116, y: 529 }, { x: 101, y: 451 }, { x: 87, y: 373 }, { x: 72, y: 295 }, PINE.top,
 ];
-/** Its branches (perches), each from the trunk out to a needle pad. */
+/** Its limbs and big branches (perches). */
 export const PINE_BRANCHES: readonly (readonly Pt[])[] = [
-  [{ x: 118, y: 372 }, { x: 80, y: 320 }, { x: 40, y: 290 }, { x: 8, y: 272 }],
-  [{ x: 124, y: 316 }, { x: 160, y: 290 }, { x: 204, y: 258 }, { x: 246, y: 236 }],
-  [{ x: 127, y: 296 }, { x: 108, y: 262 }, { x: 88, y: 230 }],
-  [{ x: 128, y: 270 }, { x: 150, y: 226 }, { x: 166, y: 192 }],
-  [{ x: 110, y: 450 }, { x: 140, y: 432 }, { x: 166, y: 424 }],
+  [{ x: 90, y: 392 }, { x: 65, y: 357 }, { x: 28, y: 334 }, { x: 0, y: 303 }, { x: -28, y: 269 }],
+  [{ x: 87, y: 374 }, { x: 82, y: 338 }, { x: 79, y: 302 }, { x: 72, y: 267 }, { x: 70, y: 230 }],
+  [{ x: 82, y: 344 }, { x: 94, y: 315 }, { x: 103, y: 288 }, { x: 109, y: 257 }, { x: 115, y: 229 }],
+  [{ x: 42, y: 344 }, { x: 34, y: 329 }, { x: 19, y: 317 }, { x: 3, y: 309 }, { x: -12, y: 301 }],
+  [{ x: 25, y: 331 }, { x: 10, y: 336 }, { x: -7, y: 335 }, { x: -23, y: 338 }, { x: -40, y: 339 }],
+  [{ x: -4, y: 298 }, { x: -15, y: 283 }, { x: -26, y: 270 }, { x: -36, y: 255 }, { x: -45, y: 241 }],
+  [{ x: 63, y: 259 }, { x: 95, y: 225 }, { x: 110, y: 178 }, { x: 133, y: 136 }, { x: 155, y: 95 }],
+  [{ x: 57, y: 239 }, { x: 23, y: 220 }, { x: -7, y: 190 }, { x: -29, y: 157 }, { x: -58, y: 128 }],
+  [{ x: 125, y: 150 }, { x: 140, y: 151 }, { x: 155, y: 152 }, { x: 171, y: 153 }, { x: 185, y: 156 }],
+  [{ x: 138, y: 126 }, { x: 142, y: 111 }, { x: 148, y: 96 }, { x: 155, y: 83 }, { x: 162, y: 70 }],
 ];
-/** Its needle pads: open, flat-bottomed clouds at the branch tips. */
+/** Its crown's needle clouds that reach into the frame. */
 export const PINE_PADS: readonly { x: number; y: number; rx: number; ry: number }[] = [
-  { x: 22, y: 270, rx: 52, ry: 17 }, { x: 236, y: 232, rx: 56, ry: 17 }, { x: 96, y: 222, rx: 46, ry: 16 },
-  { x: 164, y: 186, rx: 48, ry: 17 }, { x: 150, y: 262, rx: 34, ry: 12 }, { x: 64, y: 300, rx: 30, ry: 10 }, { x: 170, y: 420, rx: 22, ry: 8 },
+  { x: -55, y: 222, rx: 67, ry: 40 }, { x: 167, y: 244, rx: 56, ry: 38 }, { x: 83, y: 221, rx: 66, ry: 50 },
+  { x: 3, y: 202, rx: 61, ry: 41 }, { x: 46, y: 165, rx: 36, ry: 21 }, { x: -34, y: 331, rx: 61, ry: 37 },
+  { x: 155, y: 49, rx: 67, ry: 47 }, { x: 139, y: 69, rx: 47, ry: 23 }, { x: 22, y: 278, rx: 63, ry: 39 },
+  { x: 68, y: 281, rx: 35, ry: 41 }, { x: 177, y: 139, rx: 60, ry: 43 },
 ];
-/** The rock it grows from. */
-export const PINE_ROCK = { x: 34, y: 790, w: 130, h: 54 } as const;
+/** The low rock its foot grips (centre x, foot y, width, height). */
+export const PINE_ROCK = { x: 160, y: 778, w: 84, h: 26 } as const;
 
 // ── the promontory's back ────────────────────────────────────────────────────────────────
 
@@ -319,11 +341,46 @@ export function promontoryTop(x: number): number | null {
   return best;
 }
 
-/** The promontory's pines: their trunk (foot to crown) and crown, each leaning a little. */
-export const PROMONTORY_PINE_SHAPES = PROMONTORY_PINES.map((t, i) => {
-  const lean = ((i * 5) % 3) - 1;
-  return { ...t, trunk: [{ x: t.x - 3 + lean * 4, y: t.y + t.ry * 2.6 }, { x: t.x + lean * 2, y: t.y + t.ry * 0.4 }] as Pt[] };
+/** A far pine: its crown's centre and half extents, its trunk (foot to top), limbs and needle clouds. */
+export interface FarPine {
+  x: number;
+  y: number;
+  rx: number;
+  ry: number;
+  trunk: Pt[];
+  limbs: Pt[][];
+  clouds: { x: number; y: number; rx: number; ry: number }[];
+}
+
+/**
+ * The promontory's far Aleppo pines, a few strokes each: a slender leaning stem forking into two
+ * to four limbs, each ending in a small flat cloud, with sky between. The painter draws these.
+ */
+export const PROMONTORY_PINE_SHAPES: readonly FarPine[] = PROMONTORY_PINES.map(({ x, h, lean }, i) => {
+  const rng = createRng(`coast-far-pine-${i}`);
+  const foot = { x, y: (promontoryTop(x) ?? 300) + rng.range(7, 13) };
+  const at = (f: number, a: number, from: Pt) => ({ x: from.x + Math.sin(a) * h * f, y: from.y - Math.cos(a) * h * f });
+  const fork = at(rng.range(0.55, 0.7), lean, foot);
+  const top = at(0.3, lean * 1.3, fork);
+  const n = rng.int(2, 4);
+  const limbs = Array.from({ length: n }, (_, k) => {
+    const a = lean + (k / (n - 1) - 0.5) * rng.range(1.6, 2.2) + rng.range(-0.15, 0.15);
+    const from = k === 0 ? fork : at(rng.range(0, 0.25), lean, fork);
+    return [from, at(rng.range(0.28, 0.42), a, from)];
+  });
+  const clouds = [...limbs.map((l) => l[1]!), top].map((q, k) => {
+    const rx = h * rng.range(0.17, 0.26) * (k === limbs.length ? 1.15 : 1);
+    return { x: q.x, y: q.y - rx * 0.15, rx, ry: rx * rng.range(0.42, 0.58) };
+  });
+  const x0 = Math.min(...clouds.map((c) => c.x - c.rx));
+  const x1 = Math.max(...clouds.map((c) => c.x + c.rx));
+  const y0 = Math.min(...clouds.map((c) => c.y - c.ry));
+  const y1 = Math.max(...clouds.map((c) => c.y + c.ry));
+  return { x: (x0 + x1) / 2, y: (y0 + y1) / 2, rx: (x1 - x0) / 2, ry: (y1 - y0) / 2, trunk: [foot, fork, top], limbs, clouds };
 });
+
+/** The tree slot on the promontory's cliff top (`scrub-1`): a pocket of soil under it, no maquis on its foot. */
+export const CLIFF_TOP_SLOT = COAST_SLOTS.find((s) => s.id === 'scrub-1')!;
 
 /** Dark maquis (lentisk, kermes oak, myrtle) along the promontory's back: centre and radius. */
 export const MAQUIS: readonly { x: number; y: number; r: number }[] = (() => {
@@ -337,7 +394,8 @@ export const MAQUIS: readonly { x: number; y: number; r: number }[] = (() => {
     if (x > 960 && k % 2 === 0) out.push({ x: x + 14, y: top + 30 + ((k * 11) % 16), r: r * 0.8 });
     k++;
   }
-  return out;
+  // none on the cliff-top tree slot's foot: a pocket of soil is painted there instead
+  return out.filter((m) => Math.abs(m.x - CLIFF_TOP_SLOT.x) > m.r + 14 || Math.abs(m.y - CLIFF_TOP_SLOT.y) > m.r + 10);
 })();
 
 // ── phrygana, dry grass and the shoreline scrub ──────────────────────────────────────────

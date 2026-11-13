@@ -8,14 +8,18 @@ import { createRng } from '../../core/rng';
 import { bounds, pointInPolygon } from '../../paint/geometry';
 import { visibleBranches } from '../../plants/lib/tree-paint';
 import { treeView } from '../../plants/lib/tree-structure';
+import { planAleppoPine } from '../../plants/species/aleppo-pine';
 import { planOlive } from '../../plants/species/olive';
 import { paintJob, type PaintView } from '../../scene/background';
 import { PaintRecorder, type RecordedCost } from '../../scene/paint-record';
 import { PLANT_SIZES, plantScale } from '../../scene/slots';
 import { COAST_ART, COAST_ELEMENTS } from '.';
-import { LAND, OLIVE, PINE } from './layout';
+import { CHAPEL, LAND, OLIVE, PINE, VILLAGE } from './layout';
+import { pineShapes, scenePine } from './paint-veg';
 import { coastSteps } from './painters';
-import { copingY, GRASS, MAQUIS, OLIVE_LIMBS, OLIVE_TREE, PHRYGANA, PINE_BRANCHES, PINE_PADS, PINE_TRUNK, promontoryTop, SHORE_CLUMPS, WALL_GRASS } from './shapes';
+import {
+  CLIFF_TOP_SLOT, copingY, GRASS, MAQUIS, OLIVE_LIMBS, OLIVE_TREE, PHRYGANA, PINE_BRANCHES, PINE_PADS, PINE_ROCK, PINE_TREE, PINE_TRUNK, PROMONTORY_PINE_SHAPES, promontoryTop, SHORE_CLUMPS, WALL_GRASS,
+} from './shapes';
 import { COAST_SLOTS } from './slots';
 
 // the painters are a lazy chunk (ADR 0341)
@@ -62,7 +66,7 @@ describe('coast vegetation painting (G4)', () => {
 
   // quantised hashes from a fresh process's first runs (paint caches warm up, so a later run differs)
   it('is deterministic: the same marks every time (recording hash pins)', () => {
-    expect({ overview: runs.overview!.hash, detail: runs.detail!.hash }).toEqual({ overview: 'b502f5ec', detail: 'e440c3c1' });
+    expect({ overview: runs.overview!.hash, detail: runs.detail!.hash }).toEqual({ overview: '89982a9f', detail: '92bd176e' });
     expect(runs.again!.chunks.map((c) => c.name)).toEqual(runs.overview!.chunks.map((c) => c.name));
   });
 
@@ -93,15 +97,49 @@ describe('coast vegetation painting (G4)', () => {
     expect(world).toEqual(OLIVE_LIMBS);
   });
 
-  it('roots the pine on its rock, its branches on the trunk, its crown in the sky clear of the chapel', () => {
+  it('paints the scenery pine as the Aleppo pine species’ tree, its trunk, limbs and clouds where the shapes say (ADR 0380)', () => {
+    expect(PINE_TREE.base).toEqual(PINE.base);
+    expect(pineShapes()).toEqual({ trunk: PINE_TRUNK, branches: PINE_BRANCHES, pads: PINE_PADS });
+    // the species' own plan, only pruned below the fork: the same trunk
+    const plan = planAleppoPine(createRng(PINE_TREE.seed), { lean: PINE_TREE.lean });
+    expect(scenePine().plan.tree.branches[0]).toEqual(plan.tree.branches[0]);
+    expect(scenePine().plan.tufts.length).toBeGreaterThan(plan.tufts.length * 0.6);
+  });
+
+  it('roots the pine on its rock in the picture, its crown clear of the village and the chapel', () => {
     expect(PINE_TRUNK[0]).toEqual(PINE.base);
     expect(PINE_TRUNK.at(-1)).toEqual(PINE.top);
-    for (const br of PINE_BRANCHES) expect(Math.min(...PINE_TRUNK.map((q) => Math.hypot(q.x - br[0]!.x, q.y - br[0]!.y)))).toBeLessThan(40);
-    for (const pad of PINE_PADS) {
-      expect(pad.x - pad.rx).toBeGreaterThan(-40);
-      expect(pad.y - pad.ry).toBeGreaterThan(100);
-      expect(Math.hypot(pad.x - 232, (pad.y - 290) * 2) > pad.rx + 10, `${pad.x}`).toBe(true);
+    // its foot far enough in from the paper's margin for the bark to read, on its rock on the beach
+    expect(PINE.base.x).toBeGreaterThanOrEqual(110);
+    expect(Math.abs(PINE.base.x - PINE_ROCK.x)).toBeLessThan(PINE_ROCK.w / 2);
+    expect(PINE.base.y).toBeGreaterThan(PINE_ROCK.y - PINE_ROCK.h);
+    // every branch leaves the trunk or another branch
+    for (const br of PINE_BRANCHES) {
+      const others = [PINE_TRUNK, ...PINE_BRANCHES.filter((o) => o !== br)].flat();
+      expect(Math.min(...others.map((q) => Math.hypot(q.x - br[0]!.x, q.y - br[0]!.y)))).toBeLessThan(40);
     }
+    const houses = VILLAGE.filter((v) => v.x > 110);
+    for (const pad of PINE_PADS) {
+      expect(pad.y - pad.ry).toBeGreaterThan(0);
+      expect(Math.hypot(pad.x - CHAPEL.x, (pad.y - CHAPEL.y + 10) * 2) > pad.rx + 10, `${pad.x}`).toBe(true);
+      for (const h of houses) expect(pad.x + pad.rx * 0.8 < h.x || pad.y + pad.ry * 0.8 < h.y, `${pad.x},${pad.y} over ${h.x},${h.y}`).toBe(true);
+    }
+  });
+
+  it('gives the far pines varied sizes and leans, their feet on the promontory’s back and clear of the cliff-top slot (G4b)', () => {
+    const heights = PROMONTORY_PINE_SHAPES.map((t) => t.trunk[0]!.y - (t.y - t.ry));
+    expect(Math.max(...heights) / Math.min(...heights)).toBeGreaterThan(1.6);
+    const leans = PROMONTORY_PINE_SHAPES.map((t) => Math.sign(t.trunk[1]!.x - t.trunk[0]!.x));
+    expect(leans).toContain(1);
+    expect(leans).toContain(-1);
+    for (const t of PROMONTORY_PINE_SHAPES) {
+      const top = promontoryTop(t.trunk[0]!.x)!;
+      expect(t.trunk[0]!.y - top, `${t.x}`).toBeGreaterThan(4);
+      expect(t.trunk[0]!.y - top, `${t.x}`).toBeLessThan(16);
+      expect(t.clouds.length).toBeGreaterThanOrEqual(3);
+      expect(Math.abs(t.x - CLIFF_TOP_SLOT.x), `${t.x}`).toBeGreaterThan(100);
+    }
+    for (const m of MAQUIS) expect(Math.abs(m.x - CLIFF_TOP_SLOT.x) > m.r + 14 || Math.abs(m.y - CLIFF_TOP_SLOT.y) > m.r + 10, `${m.x}`).toBe(true);
   });
 
   it('keeps the maquis on the promontory’s back and the low plants on the land', () => {
