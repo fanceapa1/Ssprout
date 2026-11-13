@@ -41,12 +41,20 @@ const band = (line: readonly Pt[], w: number, side: 1 | -1): Pt[] => [...line, .
 
 /** The caique: its reflection and shade on the water first, then the hull, rig and mooring. */
 export function* paintCaique(p: Painter, rng: Rng): Strokes {
-  yield* paintReflection(p, rng.fork('reflection'));
+  const reflection = rng.fork('reflection');
+  yield* paintReflectionLight(p, reflection);
+  yield* paintReflectionDark(p, reflection);
+  paintMooringUnder(p, reflection);
+  yield;
   yield* paintHull(p, rng.fork('hull'));
-  yield* paintRig(p, rng.fork('rig'));
+  const rig = rng.fork('rig');
+  yield* paintRig(p, rig);
+  paintMooring(p, rig);
+  yield;
 }
 
-function* paintReflection(p: Painter, rng: Rng): Strokes {
+/** The reflection's lifts: the hull mirrored soft and in pale broken slices (the motion rocks them). */
+export function* paintReflectionLight(p: Painter, rng: Rng): Strokes {
   // the white hull mirrored soft, then broken into pieces pushed sideways by the swell, wider gaps deeper down
   const mirror = CAIQUE_SHAPES.hull.map((q) => ({ x: q.x, y: CAIQUE.y + (CAIQUE.y - q.y) * 0.6 }));
   yield* p.parts.lift(mirror, { rng, amount: 0.15, layers: 5, deform: 0.08, spread: 0.12, fade: { angle: Math.PI / 2, start: 0.3, amount: 1, ragged: 0.8 } });
@@ -62,6 +70,10 @@ function* paintReflection(p: Painter, rng: Rng): Strokes {
   }
   yield* pale.dryParts({ opacity: 0.65, edge: 0.05, sharpness: 0.5, centreLift: 0, granulation: 0, flow: 0.3, blend: 'source-over' });
   yield;
+}
+
+/** The reflection's colours: the bands and the mast mirrored, broken; the hull's shade on the water. */
+export function* paintReflectionDark(p: Painter, rng: Rng): Strokes {
   // the red and blue bands mirrored, broken; the mast's wavering line
   const col = p.layer({ x: CAIQUE.x - 60, y: CAIQUE.y - 4, w: 120, h: 70 });
   for (let j = 0; j < 5; j++) {
@@ -84,14 +96,16 @@ function* paintReflection(p: Painter, rng: Rng): Strokes {
   // the hull's shade where it sits in the water
   yield* p.parts.glaze(band(CAIQUE_SHAPES.waterline.map((q) => ({ x: q.x, y: q.y + 0.5 })), 2.2 * k, 1), BOAT.water, { rng, opacity: 0.55, layers: 6, deform: 0.1, spread: 0.15, edge: 0.1 });
   yield;
-  // the mooring line under the surface, and the buoy's ring
+}
+
+/** The mooring line under the surface, and the buoy's ring: they stay put while the boat rocks. */
+export function paintMooringUnder(p: Painter, rng: Rng): void {
   const { buoy } = CAIQUE_SHAPES;
   p.stroke([at(-80, 2.5), at(-90, 3.5), { x: buoy.x + 3, y: buoy.y + 1 }], { rng, pigment: mix(BOAT.rope, BOAT.water, 0.6), width: 0.7, opacity: 0.35, wetness: 0.4, wobble: 0.4, taper: [0.1, 0.3] });
   p.ripple({ x: buoy.x, y: buoy.y + 1.5 }, { rng, width: 14 * k, count: 2, squash: 0.18, pigment: BOAT.water, opacity: 0.35, light: 0.8, lineWidth: 0.6 });
-  yield;
 }
 
-function* paintHull(p: Painter, rng: Rng): Strokes {
+export function* paintHull(p: Painter, rng: Rng): Strokes {
   const S = CAIQUE_SHAPES;
   // the white hull reserved, a cool shade lower where it turns under, the stern turned from the light
   fillPaper(p, S.hull);
@@ -119,7 +133,8 @@ function* paintHull(p: Painter, rng: Rng): Strokes {
   yield;
 }
 
-function* paintRig(p: Painter, rng: Rng): Strokes {
+/** The mast, the yard and the furled sail with its ties. */
+export function* paintRig(p: Painter, rng: Rng): Strokes {
   const S = CAIQUE_SHAPES;
   // the mast, and the yard with the sail furled along it, lit on top
   p.stroke([...S.mast], { rng, pigment: BOAT.wood, width: 1.5 * k, opacity: 0.9, wetness: 0.15, wobble: 0.1, taper: [0, 0.35] });
@@ -134,10 +149,13 @@ function* paintRig(p: Painter, rng: Rng): Strokes {
     const q = { x: y0!.x + (y1!.x - y0!.x) * t, y: y0!.y + (y1!.y - y0!.y) * t + 0.6 };
     p.stroke([{ x: q.x - 0.6, y: q.y - 2 * k }, { x: q.x + 0.6, y: q.y + 2 * k }], { rng, pigment: BOAT.rope, width: 0.5 * k, opacity: 0.65, wetness: 0.1, taper: [0.1, 0.1] });
   }
-  // the halyard down the mast, the mooring line from the stem to the water, the buoy
-    p.stroke([...S.mooring], { rng, pigment: BOAT.rope, width: 0.45 * k, opacity: 0.6, wetness: 0.15, wobble: 0.2, taper: [0.05, 0.3] });
+}
+
+/** The mooring line from the stem to the water, and the buoy. */
+export function paintMooring(p: Painter, rng: Rng): void {
+  const S = CAIQUE_SHAPES;
+  p.stroke([...S.mooring], { rng, pigment: BOAT.rope, width: 0.45 * k, opacity: 0.6, wetness: 0.15, wobble: 0.2, taper: [0.05, 0.3] });
   const { buoy } = S;
   fillPaper(p, blob(buoy.x, buoy.y - 1.6, 2.6 * k, 2.1 * k, rng, { points: 12 }));
   p.dab({ x: buoy.x, y: buoy.y }, BOAT.red, { rng, variant: 'round', angle: -Math.PI / 2, length: 3.6 * k, width: 4 * k, opacity: 0.85, pool: 0.3 });
-  yield;
 }

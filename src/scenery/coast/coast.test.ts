@@ -72,7 +72,7 @@ describe('the coast scenery', () => {
     expect(COAST.available(new URLSearchParams('dev&scenery=coast'))).toBe(true);
   });
 
-  it('is consistent with itself, has no building, lantern, eave, falls, streams or motion yet', () => {
+  it('is consistent with itself, has no building, lantern, eave, falls or streams; its sea moves (G6)', () => {
     expect(COAST.id).toBe('coast');
     expect(COAST.art.scenery).toBe('coast');
     expect(COAST.art.scene).toBe(COAST.geometry);
@@ -85,7 +85,7 @@ describe('the coast scenery', () => {
     expect(coastScene.falls).toBeNull();
     expect(coastScene.streams).toEqual([]);
     expect(coastScene.pond).toBe(SEA_WATER);
-    expect(COAST.motion).toBeUndefined();
+    expect(COAST.motion).toBeTypeOf('function');
     expect(COAST.sound).toBe('coast');
     expect(COAST.blurb.length).toBeLessThanOrEqual(110);
   });

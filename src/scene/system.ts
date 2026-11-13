@@ -705,6 +705,7 @@ export function createSceneSystem(opts: SceneSystemOptions = {}): SceneSystem {
       } else if (layer === 'waterSurface') {
         if (current && water) {
           ctx.globalAlpha = easeInOut(fade);
+          if (motionReady) motion?.under?.(ctx, f.t);
           sky?.drawWater(ctx);
           water.draw(ctx, f.t, light);
           if (motionReady) motion?.draw(ctx, f.t);

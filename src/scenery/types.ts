@@ -64,6 +64,8 @@ export interface SceneryMotion {
   prepare(): Generator<void, void, undefined>;
   /** draw at animation time `t` (seconds) in world units: a pure function of `t` */
   draw(ctx: CanvasRenderingContext2D, t: number): void;
+  /** draw under the mirrored sky and the generic water surface, pure in `t` (ADR 0374) */
+  under?(ctx: CanvasRenderingContext2D, t: number): void;
 }
 
 /** How the stage frames the scenery. */
