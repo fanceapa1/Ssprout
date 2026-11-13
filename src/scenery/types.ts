@@ -27,6 +27,8 @@ export interface ScenerySky {
   shape(below?: number): Pt[];
   /** the plates' painters, loaded when a plate is not in the paint cache (ADR 0341) */
   painters: Painters<{ sky: SkyPainters }>;
+  /** how strongly each phase's mirrored sky lies on the water (ADR 0372); a phase left out takes `WATER_SKY_ALPHA` */
+  waterAlpha?: Partial<Record<DayPhase, number>>;
 }
 
 /** How a scenery paints its sky plates (in its painter chunk, ADR 0341). */
