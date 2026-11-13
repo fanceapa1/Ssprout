@@ -200,24 +200,33 @@ const BED_SPECS: readonly [number, number, number, number, number][] = [
   [2, 750, 888, 44, 3], [2, 958, 1040, 40, 3], [2, 1140, 1262, 42, 3], [2, 1490, 1610, 42, 3],
 ];
 
-export const BEDS: readonly Bed[] = BED_SPECS.map(([wall, x0, x1, back, front]) => {
+export const BEDS: readonly Bed[] = BED_SPECS.map(([wall, x0, x1, back, front], b) => {
+  // each bed dug by hand: its back edge wanders, its ends are rounded unevenly
+  const rng = createRng(`coast-bed-${b}`);
+  const amp = rng.range(1.2, 3.2);
+  const period = rng.range(28, 52);
+  const phase = rng.range(0, 6);
+  const swell = rng.range(-2.5, 2.5);
   const r = (back - front) / 2;
   const n = Math.max(4, Math.round((x1 - x0 - 2 * r) / 12));
   const far: Pt[] = [];
   const near: Pt[] = [];
   for (let i = 0; i <= n; i++) {
-    const x = x0 + r + ((x1 - x0 - 2 * r) * i) / n;
-    far.push({ x, y: copingY(wall, x) - back });
+    const u = i / n;
+    const x = x0 + r + (x1 - x0 - 2 * r) * u;
+    const k = Math.sin(Math.PI * u);
+    far.push({ x, y: copingY(wall, x) - back + (amp * Math.sin(x / period + phase) + swell) * Math.sqrt(k) });
     near.push({ x, y: copingY(wall, x) - front });
   }
-  // rounded ends, squashed by the low view
-  const end = (cx: number, cy: number, from: number): Pt[] => Array.from({ length: 5 }, (_, k) => {
-    const a = from + (Math.PI * (k + 1)) / 6;
-    return { x: cx + Math.cos(a) * r, y: cy + Math.sin(a) * r };
+  // rounded ends, squashed by the low view, one fuller than the other
+  const end = (cx: number, cy: number, from: number, k: number): Pt[] => Array.from({ length: 5 }, (_, j) => {
+    const a = from + (Math.PI * (j + 1)) / 6;
+    return { x: cx + Math.cos(a) * r * k, y: cy + Math.sin(a) * r };
   });
   const y0 = copingY(wall, x0 + r) - front - r;
   const y1 = copingY(wall, x1 - r) - front - r;
-  return { terrace: WALL_TERRACE[wall]!, wall, poly: [...far, ...end(x1 - r, y1, -Math.PI / 2), ...near.reverse(), ...end(x0 + r, y0, Math.PI / 2)] };
+  const poly = [...far, ...end(x1 - r, y1, -Math.PI / 2, rng.range(0.7, 1.25)), ...near.reverse(), ...end(x0 + r, y0, Math.PI / 2, rng.range(0.7, 1.25))];
+  return { terrace: WALL_TERRACE[wall]!, wall, poly };
 });
 
 // ── stone flights and jars ───────────────────────────────────────────────────────────────
