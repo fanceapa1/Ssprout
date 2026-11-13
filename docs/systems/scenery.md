@@ -890,9 +890,8 @@ Steps `sea` and `caique` (element `sea`, before the rock) and `beach` and `pools
   gunwale's wooden inside, a blue sheer strake, a red band at the waterline, the dark gunwale cap,
   blue stem and sternpost heads; the mast, the sail furled on its yard with ties, the mooring line
   to a red buoy with a ring.
-- **The generic water surface** (`water.ts`) still plays on the whole sea (`pondSurface` left out):
-  slow shimmer, a ring every 9 s, glints. It is acceptable until the coast's own motion lands;
-  that task should set `pondSurface` (ADR 0302) when it replaces it.
+- **The generic water surface** (`water.ts`) is off the sea: the coast sets `pondSurface: 0` (ADR
+  0302), and its own motion plays the swell (Motion below).
 - **Seams for motion and daylight**: `shallowsEdge()` (the pale shallows' edge), `FOAM_LINE` (the
   waterline's foam, left to right), `WRACK_LINE`, `CAIQUE_SHAPES` and `CAIQUE_BOX` (the boat, its
   mast and its reflection: what a rocking sprite covers), `CLIFF_FOOT`, `CLIFF_REFLECTION`,
@@ -1109,6 +1108,54 @@ The painting is on white with no sky step; the sky is the daylight's plates (doc
   light plates' marks 72–98 ms (night 1). The oasis's on the same run: sky 105–221, basin 41–70,
   light 70–135. Each plate is one task, as in every garden.
 
+### Motion (G6, `motion.ts`, `pose.ts`, ADRs 0282, 0374)
+`createCoastMotion` is `COAST.motion`, in the coast's lazy chunk. Like the oasis's (Oasis ›
+Motion) it goes over the still painting, about 60 sprites painted once in parts and sealed into
+`ImageBitmap`s; each frame blits them as a pure function of `t` (the renderer's animation time,
+which `freeze()` holds; tempo 1). All of it is slow and faint: nothing should pull the eye from the
+plants.
+- **Swell** (clip: `SEA_WATER` less every rock outline): 80 pale streaks (two or three soft lifted
+  pieces over a faint teal trough) and 22 longer troughs drift in toward the beach at 1.1 units/s
+  times `seaScale(y)` (nothing at the horizon, 1 by the beach), each living 7–13 s. 20 glints
+  (a white dash over a teal trough) flicker 1–2.6 s, mostly far out. Each mark draws its start from
+  29 places picked once (more toward the horizon, 0.3 as often over the pale shallows, 0.1 for
+  glints, none near rock or the boat, start and end in the sea), so a mark repeats a place after
+  29 passes (4–7 min) and no two share a cycle.
+- **Waterline** (clip: a band along `FOAM_LINE` less the rocks): nine overlapping reaches, each
+  with a lace (scalloped broken foam and bubbles), a wet band (`SAND.wetDark`) and a sheet of water
+  (`SEA.aqua`), their ends feathered. Every 7–11.5 s, out of phase, a reach runs 4–10 units up the
+  shingle in the first third (ease out), the lace brightening and the sheet following, then draws
+  back while the wet band left at the top dries.
+- **Rocks** (clip as the swell): a foam ring along each wet boulder's and splash rock's foot (from
+  their `columns`, curling up behind at both ends) swells out 2 units and 9 % wider and fades,
+  every 5.5–9 s. The ledge's lips (`SHORE_RUNS.lip` above the flight) and the cliff's foot
+  (`CLIFF_FOOT` in 45-unit stretches, feathered) lap the same way, 6–10 s.
+- **Pools** (clip: `POOL_WATER`): still mirrors; now and then (a 29–47 s cycle, about half the
+  passes) one small ring spreads over 9 s.
+- **Caique** (ADR 0374): `under` draws a plate of the sea painted without the boat (the painting's
+  own `sea` step over `CAIQUE_BOX`, 5 px a unit, feathered over 6 units) and the reflection, mirrored
+  to the pose (its lifts over the water, its colours multiplied in), before the mirrored sky. `draw`
+  then adds a ring spreading from the hull now and then (two cycles, 16–27 s), the mooring line as
+  a thin stroke from the posed stem to the water, the hull and rig carried by the pose and clipped
+  at the water line (the keel runs on under it), and the buoy bobbing on its own.
+- **The pose** (`pose.ts`, eager): `caiquePose(t, out?)` → `{ dx, dy, angle }` about `CAIQUE`, the
+  angle clockwise in radians: two bobs (6.7 and 3.9 s) and two rolls (8.3 and 4.7 s) and a slow
+  surge on the mooring (23.3 s), within `CAIQUE_SWING` (0.9, 1.15 units, 1.9°). `posePoint(q, pose)`
+  carries a point of the boat at rest. Each `draw` writes the pose into
+  `COAST_CARRIERS.caique.pose` (ADR 0373), so a perch on the mast or the rail rides the boat via
+  `carried`. Under reduced motion nothing writes it: it stays at rest, on the painted boat.
+- **Layers**: everything is on `waterSurface`, under `entities`: a plant in the shallows (the
+  Posidonia) or a pool is drawn over the marks, which pass under it as if it stood above the
+  surface; the marks never draw on a plant. The light plates are multiplied over the marks, so
+  noon, the low suns and night tint them like the painting (white lights go moonlit blue at night).
+- **The generic surface** is off (`pondSurface: 0`): its shimmer bands and rings landed anywhere on
+  the open sea and doubled the swell; with it off, reduced motion leaves the sea a still painting.
+- **Cost**: at most 160 blits, 6 clips and 1 stroke a frame (tested), every clip a cached
+  `Path2D`, no allocation per mark. `MOTION_BOXES` skip what the view misses and `MOTION_BOUNDS`
+  the whole draw. Bench numbers in devlog 184.
+- Studio `coast-motion` (159): `cove`, `cove-frames`, `beach`, `beach-frames`, `boat`,
+  `boat-frames`, `rocks`, `pools`, `coast-motion-sprites`.
+
 ### Left for later tasks
 - Water (devlog 176, Left open): the far hill's reflection is faint, the shingle's spatter still
   reads a little even, and the placeholder `paintSea` and `paintCaique` are unused until the
@@ -1118,8 +1165,8 @@ The painting is on white with no sky step; the sky is the daylight's plates (doc
 - Daylight: the white puff behind the temple's base between the first and second columns is the placeholder midday sky plate's (its wash leaves a rounded hole there; the background paints the sky as paper, devlog 180). Real plates lit from the left; the architrave, the capitals and the crowns sit under the
   sky's wash, and the skyline's 2-unit reach either side of each column leaves a pale sky-tinted
   band down the columns' sides.
-- Motion: when the caique rocks, write its pose into `COAST_CARRIERS.caique.pose` each frame
-  (ADR 0373), so the gull on its mast and rail rides it.
+- Motion (devlog 184, Left open): the bastion's ledge faces have no moving foam of their own
+  (only the lips, the cliff's foot and the boulders); `sprout.advance` does not move the water.
 - Wildlife (devlog 183, Left open): no perch on the chapel or the village (too far for a bird to
   read); the first splash rock's top is all slot.
 - Daylight (devlog 182, Left open): the promontory's face reads cool grey rather than rose at
@@ -1135,8 +1182,13 @@ The painting is on white with no sky step; the sky is the daylight's plates (doc
   the deep and off the dark seabed, most on sandy windows; pool slots in a pool; beach slots on
   the beach below the foam; the caique on open water, clear of every slot, the reflections below
   the horizon.
+- `src/scenery/coast/motion.test.ts` (G6): the motion is pure in `t`, holds when frozen, always has
+  swell, rock foam and wavelets, glints, rings and pool rings come and go; every mark in its water
+  and off rock and the boat; the pose bounded, continuous and inside the plate; the pose written
+  into the caique's carrier (a mast perch follows it), at rest under reduced motion, where nothing
+  is drawn; nothing off screen; at most 160 blits and 6 clips a frame.
 - `src/scenery/coast/coast.test.ts` (G1): offered only with `?dev&scenery=coast`; self-consistency
-  with no building, lantern, eave, falls, streams or motion; its placeholder steps by element;
+  with no building, lantern, eave, falls or streams, and its motion; its placeholder steps by element;
   habitat words; `pathOut` from the bottom edge up the terraces; the framing (the temple, open sea,
   the sea edge's slots and beds on all three terraces in the portrait crop; sky above the temple at
   16:9; both suns in the crop); the broken shoreline; land, beach and shelf against the sea; 45–56
