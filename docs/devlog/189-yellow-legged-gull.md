@@ -108,6 +108,9 @@ all pass (before the rebase on main; after it the fauna, coast and quiet-line fi
 E2E, one file at a time, one worker: `fauna` 6, `fauna-oasis` 4, `fauna-waterfall` 4,
 `lazy-creatures` 2, `sceneries` 8, all pass. The full e2e suite was not run, and there is no coast
 fauna e2e spec yet.
+After the bench fix and a second rebase: the full unit suite, 263 files, 2756 tests, all pass;
+`fauna` 6, `lazy-creatures` 2, `fauna-oasis` 4 and `fauna-waterfall` 4 (their cost checks use the
+bench) all pass.
 
 ## Left open
 - **The flying head and neck** still read as a ball on a collar close up; the inner wing is pale
