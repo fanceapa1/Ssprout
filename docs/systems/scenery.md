@@ -851,13 +851,17 @@ y    0 ┌───────────────────────�
 | shore ("on the beach") | 5 | `beach-1…5` on the pebble beach | 1 large (`beach-2`), 1 medium, 3 small |
 | meadow ("in the terrace beds") | 12 | `top-1…3` on the top terrace, `mid-1…5` the middle, `low-1…4` the lower | 1 tree (`top-1`, the top terrace's left end), 1 large (`mid-1`), 3 medium, 7 small |
 | path ("along the path") | 5 | `path-1…3` on the foreground, `path-4` on the lower terrace, `path-5` on the top terrace | 5 small |
-| back ("in the scrub") | 6 | `scrub-1` (tree, the promontory's foot behind the top terrace's right end), `scrub-2` by the pine's rock, `scrub-3…6` the foreground's scrub | 1 tree, 1 medium, 4 small |
+| back ("in the scrub") | 6 | `scrub-1` (tree, on the promontory's cliff top right of the olive, G4b), `scrub-2` by the pine's rock, `scrub-3…6` the foreground's scrub | 1 tree, 1 medium, 4 small |
 | rock ("on the walls and rocks") | 11 | `wall-1…5` on the copings, `crack-1/2` in the wall faces, `splash-1…3` on the splash rocks, `shelf-1` on the bastion | 2 medium, 9 small |
 
 Raised slots (on a terrace, a coping or a face) take their terrace's lift; the rest take
 `perspectiveScale(y)`. Each terrace's slots stand in the gaps between those of the terraces
 behind, so no plant stands over the base of one higher up, and neither tree hides a slot. The
-tree slots' crowns keep clear of the temple and the sun's paths.
+tree slots' crowns keep clear of the temple and the sun's paths. `scrub-1` (1468, 306) stands on the
+cliff top just under its edge (the one slot on the promontory, at `perspectiveScale`, no lift): its
+1.25× box lies inside the 16:9 frame, its trunk 60+ right of the scenery olive's limbs and its
+crown above them, on a pocket of soil with no maquis on it (`CLIFF_TOP_SLOT`). `shallows-5` (188,
+650) stands right of the leaning pine's trunk, on its sand window.
 
 ### Water (G3, `paint-water.ts`, `boat.ts`, shapes in `sea.ts`, ADR 0366)
 Steps `sea` and `caique` (element `sea`, before the rock) and `beach` and `pools` (element
@@ -1014,8 +1018,10 @@ over the sea. Shapes live in `coast/shapes.ts` (data only, devlog 149).
 - **Flights** (end of `walls`; the beach flight is painted by `shore-rocks`, ADR 0370): `FLIGHTS` from `STEPS`, each step a rough slab with a lit tread
   over a shaded riser, a worn lit nose, and the flight's shade cast right.
 - **Beds** (`beds`): `BEDS`, ten rounded strips of tilled soil along each terrace's front behind
-  its coping, under every bed slot. They share one soil layer (darker toward the coping), one layer
-  of raked furrows and one of lit grit lips on the gravel side. They hold no plants: the player
+  its coping, under every bed slot. Each is dug by hand (G4b): its back edge wanders, its ends are
+  rounded unevenly, its soil a little warmer or greyer, its furrows at its own spacing and tilt, some
+  broken. They share one soil layer (darker toward the coping), one layer of raked furrows and one of
+  lit grit lips on the gravel side. They hold no plants: the player
   grows them. Then the two terracotta pithoi (`JARS`), off every slot.
 - Work whose box misses the canvas is skipped (`inView`): a close view paints only what it shows.
   Each wall, bed, flight and jar has its own rng, so skipping one changes nothing else.
@@ -1023,7 +1029,9 @@ over the sea. Shapes live in `coast/shapes.ts` (data only, devlog 149).
 ### Vegetation (G4, `paint-veg.ts`)
 Steps `maquis`, `olive` and `pine` (element `trees`), in parts. Palette `VEG`, lit from the left.
 - **Maquis** (`maquis`): `MAQUIS` along the promontory's back (paler toward the temple),
-  `PROMONTORY_PINE_SHAPES` (thin trunks under flat broken umbrella crowns), `PHRYGANA` cushions
+  `PROMONTORY_PINE_SHAPES` (G4b: seven small far Aleppo pines of varied height and lean, a few
+  strokes each: a slender stem forking into two to four limbs, a pale flat needle cloud at each
+  tip with sky between, a lit fringe of needle flicks on top, hazier toward the temple), `PHRYGANA` cushions
   (grey-green or summer rust, a short shadow to the right, twiggy flicks), `SHORE_CLUMPS` in pockets of soil behind the shoreline ledge (G2b moved them off the rock), softening
   the shoreline's edge, and dry golden `GRASS` on the terrace ends and the foreground. Every clump
   is a cloud of scalloped lobes in two batched layers: the lit body, then each lobe's shade on its
@@ -1031,10 +1039,17 @@ Steps `maquis`, `olive` and `pine` (element `trees`), in parts. Palette `VEG`, l
 - **Olive** (`olive`, ADR 0367): the olive species' tree, `planOlive(OLIVE_TREE.seed)` at growth
   1, at 1.12× its box with its base on `OLIVE.base`, painted with the species' helpers one layer
   per part. The scenery adds paper under the trunk, its shadow on the gravel and a clip at its sole.
-- **Pine** (`pine`): the leaning Aleppo pine on `PINE_ROCK`: a reddish trunk on reserved paper
-  (`PINE_TRUNK`) with scaly plates and its left flank lit, crooked branches (`PINE_BRANCHES`), open
-  needle pads (`PINE_PADS`): a light wash of tufts, then dark, mid and lit fans of fine needles,
-  then cones.
+- **Pine** (`pine`, ADR 0380): the `aleppo-pine` species' tree, `planAleppoPine(PINE_TREE.seed,
+  { lean: -1 })` at growth 1, its side branches below the fork pruned with their needles and cones
+  (a cliff pine's bare stem), at 1.9× its box with its foot on `PINE.base` (166, 762) on a low rock
+  on the beach. It leans out over the left edge: the trunk passes left of the village, the crown
+  stays under the shared stars' band and off the chapel. Parts: its shadow cast right on the
+  shingle, the rock, paper under the trunk, the species' skeleton (silver), its red bark, a scenery
+  accent (staggered red washes, a shaded right flank and scaly plates on the lower trunk, so the bark
+  reads through the paper margin's lift), then the crown in thirds: cloud washes, cones, needles,
+  painted in world units at `marks` 1.3 × the species' mark size (finer than 1.9×, sky between
+  the tufts). `PINE_TRUNK`, `PINE_BRANCHES` and `PINE_PADS` are literals; `veg.test.ts` checks
+  them against `pineShapes()`.
 - Crowns above the skyline (olive, pine, promontory pines) take the sky's wash, as devlog 170
   says. They reserve no paper there, so no white gaps show.
 - **Perches for the wildlife** (all in `shapes.ts`): `WALL_TOPS` (the copings), `OLIVE_LIMBS` (the
@@ -1042,7 +1057,9 @@ Steps `maquis`, `olive` and `pine` (element `trees`), in parts. Palette `VEG`, l
   `JARS` (rim at `y - h`), and `PROMONTORY_PINE_SHAPES`.
 - **Cost** (headless Chromium, DPR 1, overview at 0.9, warm, load ≈ 5): land 155 ms, walls 235,
   beds 62, maquis 96, olive 37, pine 48: about 640 ms (900 ms cold). The longest part is 9.6 ms
-  (a wall's batched layer).
+  (a wall's batched layer). G4b (devlog 190) added nothing measurable; its pine's
+  longest part (the species' skeleton or bark, one call each) is the step's longest, about twice the
+  wall's at the same load.
 
 ### Wildlife (GK0, ADR 0373)
 `fauna.ts` holds the whole table: the island cat from the start; then the gull, cicada, Balkan
@@ -1053,10 +1070,10 @@ skipped; the shared bees, butterflies, swallows and heron come now (docs/systems
 coast). `wildlife.ts` reads every place by name from `layout.ts`, `shapes.ts`, `sea.ts`, `slots.ts`
 and `geometry.ts`:
 - Still water is `SEA_WATER`; the rock pools (`POOL_WATER`) join the water layers' clip as `moving`.
-- Perches (54, none within 20 of a slot): the copings (`WALL_TOPS`), the olive's fork and limbs
+- Perches (55, none within 20 of a slot): the copings (`WALL_TOPS`), the olive's fork and limbs
   (`OLIVE_LIMBS`), the pine's branches (`PINE_BRANCHES`), the jars' rims, the splash rocks' tops,
   the architrave, the broken columns and the drum, the caique's mast top and rail (they ride its
-  carrier), the far pines' crowns and seven ledges across the promontory's face. Far ones carry
+  carrier), the far pines' highest needle clouds (off the slots) and seven ledges across the promontory's face. Far ones carry
   their own measure: `TEMPLE_SCALE` 0.13, `CAIQUE_MEASURE` 0.09.
 - Ground: each terrace's gravel walk (three per terrace), the path, the beach and the scrub at the
   terraces' ends. Faces: the three walls where they stand full height, and the splash rocks' fronts.
