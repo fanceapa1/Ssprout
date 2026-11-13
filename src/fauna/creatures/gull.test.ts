@@ -261,7 +261,7 @@ describe('a day', () => {
 
 describe('cost', () => {
   const sprite = (): Sprite => ({ img: {} as never, w: 1, h: 1, ox: 0, oy: 0 });
-  const parts = Object.fromEntries(['body', 'head', 'neck', 'headOpen', 'leg', 'flyBody', 'arm', 'hand', 'shadow'].map((k) => [k, sprite()])) as unknown as GullParts;
+  const parts = Object.fromEntries(['body', 'floatBody', 'head', 'neck', 'headOpen', 'leg', 'flyBody', 'arm', 'hand', 'shadow'].map((k) => [k, sprite()])) as unknown as GullParts;
   const counting = () => {
     let n = 0;
     const ctx = new Proxy({} as Record<string, unknown>, {

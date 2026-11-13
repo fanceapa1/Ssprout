@@ -79,6 +79,8 @@ const pts = (a: readonly (readonly [number, number])[]): Pt[] => a.map(([x, y]) 
 
 /** Standing, feet at the origin: the legs' length, the neck's root, the head's centre (body coordinates). */
 const LEG = 8.2;
+/** Afloat, the waterline this far above the feet's point (design units). */
+const WATERLINE = LEG + 2.4;
 const HIP_NEAR = P(1.2, -LEG);
 const HIP_FAR = P(-1.4, -LEG - 0.4);
 const HEAD = P(15.4, -25);
@@ -208,6 +210,7 @@ function paintHand(p: Painter, c: Colours): void {
 
 export interface GullParts {
   body: Sprite; // standing body and folded wing, feet at the origin
+  floatBody: Sprite; // the body cut at the waterline (afloat), its reflection under it
   head: Sprite; // about its centre
   neck: Sprite; // from its root, up along −y, 10 design units
   headOpen: Sprite; // the long call
@@ -218,13 +221,40 @@ export interface GullParts {
   shadow: Sprite; // a soft cool glaze under the feet
 }
 
+/** Afloat: the standing body cut at the waterline, a faint squashed reflection under it (painted once, no clip per frame). */
+function floatOf(res: number, body: Sprite, seed: number): Sprite {
+  const line = -WATERLINE * U;
+  return paintSprite(res, { w: 50 * U, h: 24 * U, ox: 33 * U, oy: 26.6 * U }, seed, (p) => {
+    const g = p.ctx;
+    const draw = () => g.drawImage(body.img as CanvasImageSource, -body.ox, -body.oy, body.w, body.h);
+    g.save();
+    g.beginPath();
+    g.rect(-40 * U, -40 * U, 80 * U, 40 * U + line);
+    g.clip();
+    draw();
+    g.restore();
+    g.save();
+    g.beginPath();
+    g.rect(-40 * U, line, 80 * U, 12 * U);
+    g.clip();
+    g.globalAlpha = 0.16;
+    g.translate(0, line);
+    g.scale(1, -0.6);
+    g.translate(0, -line);
+    draw();
+    g.restore();
+  });
+}
+
 export function paintGull(res: number, seed: number): GullParts {
   const c = colours();
+  const body = paintSprite(res, { w: 50 * U, h: 20 * U, ox: 33 * U, oy: 26.6 * U }, seed, (p) => paintBody(p, c));
   return {
+    floatBody: floatOf(res, body, seed + 10),
     shadow: paintSprite(res, { w: 36 * U, h: 5 * U, ox: 18 * U, oy: 2.5 * U }, seed + 7, (p, rng) =>
       p.wash(smoothPolygon(pts([[-15, 0], [-6, -1.4], [8, -1.5], [15, -0.2], [6, 1.3], [-8, 1.2]]), 1), PIGMENTS.shadow, { rng, opacity: 0.32, edge: 0, darken: 0, deform: 0.2, spread: 0.15, layers: 5, fade: { angle: Math.PI, start: 0.3, ragged: 0.6 } }),
     ),
-    body: paintSprite(res, { w: 50 * U, h: 20 * U, ox: 33 * U, oy: 26.6 * U }, seed, (p) => paintBody(p, c)),
+    body,
     neck: paintSprite(res, { w: 12 * U, h: 16 * U, ox: 6 * U, oy: 13 * U }, seed + 9, (p) => whiteForm(p, c, smoothPolygon(pts([[2.6, 2], [3, -4], [2.8, -9], [0, -11.4], [-2.8, -9], [-3, -4], [-2.6, 2], [0, 2.6]]), 2), Math.PI, 0)),
     head: paintSprite(res, { w: 23 * U, h: 18 * U, ox: 8 * U, oy: 8 * U }, seed + 1, (p) => paintHead(p, c, false)),
     headOpen: paintSprite(res, { w: 23 * U, h: 18 * U, ox: 8 * U, oy: 8 * U }, seed + 1, (p) => paintHead(p, c, true)),
@@ -355,12 +385,12 @@ export function drawGull(ctx: Ctx, parts: GullParts, q: GullPose): void {
   if (!float) drawLeg(ctx, parts, HIP_FAR, q.liftFar, 0.75);
   ctx.save();
   // afloat it sits low: the belly under the waterline
-  ctx.translate(0, (float ? LEG + 2.4 : q.crouch) * U);
+  ctx.translate(0, (float ? WATERLINE : q.crouch) * U);
   ctx.rotate(q.pitch);
   // preening, the head lies back over the mantle; the neck goes under the body, so the breast's shade runs on
   const at = q.back ? P(4, -26) : HEAD;
   drawNeck(ctx, parts, NECK, headAt(at, q));
-  img(ctx, parts.body);
+  img(ctx, float ? parts.floatBody : parts.body);
   drawHead(ctx, parts, at, q);
   if (q.stretch > 0) {
     // one wing reached down and back past the tail, spread
@@ -1045,23 +1075,7 @@ export class Gull extends BaseCreature {
     ctx.translate(at.x, at.y);
     if (grounded && c) ctx.rotate(c.pose.angle);
     ctx.scale(s * fx, s);
-    if (q.shape === 'float') {
-      // the waterline: what is under it is hidden, a faint reflection below
-      ctx.save();
-      ctx.beginPath();
-      ctx.rect(-40 * U, -40 * U, 80 * U, 40 * U);
-      ctx.clip();
-      drawGull(ctx, parts, q);
-      ctx.restore();
-      ctx.save();
-      ctx.beginPath();
-      ctx.rect(-40 * U, 0, 80 * U, 14 * U);
-      ctx.clip();
-      ctx.globalAlpha *= 0.16;
-      ctx.scale(1, -0.6);
-      drawGull(ctx, parts, q);
-      ctx.restore();
-    } else drawGull(ctx, parts, q);
+    drawGull(ctx, parts, q);
     ctx.restore();
   }
 }
@@ -1102,7 +1116,7 @@ const gull: CreatureDef = {
     h: 200,
     make(res, seed) {
       const a = paintGull(res, seed);
-      return [a.body, a.head, a.neck, a.headOpen, a.leg, a.flyBody, a.arm, a.hand, a.shadow];
+      return [a.body, a.floatBody, a.head, a.neck, a.headOpen, a.leg, a.flyBody, a.arm, a.hand, a.shadow];
     },
   },
   show: { stage: 'coast', spec: { x: 280, y: 240, w: 620, h: 540 }, w: 840, h: 732, order: 41 },
