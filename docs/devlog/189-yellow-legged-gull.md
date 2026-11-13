@@ -88,7 +88,11 @@ next.
 `src/fauna/creatures/gull.test.ts`, 15 tests (places by name and clear of the slots, float spots,
 the soaring circle, choices off held spots and herons, only at the coast, three simulated hours,
 riding the caique, nightfall, spot, moving off for a heron, fork and determinism, reduced motion,
-the studio stage, draw calls, cost).
+the studio stage, draw calls, cost). Typecheck clean; the full unit suite, 259 files, 2715 tests,
+all pass (before the rebase on main; after it the fauna, coast and quiet-line files, 431 tests, pass).
+E2E, one file at a time, one worker: `fauna` 6, `fauna-oasis` 4, `fauna-waterfall` 4,
+`lazy-creatures` 2, `sceneries` 8, all pass. The full e2e suite was not run, and there is no coast
+fauna e2e spec yet.
 
 ## Left open
 - **The bench jump with the whole roster** (above).
