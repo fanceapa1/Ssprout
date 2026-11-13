@@ -38,6 +38,11 @@ export const EVENT_DURATION_S: Readonly<Record<EventKind, number>> = {
   cicada: 7.5,
   gecko: 1.3,
   frogs: 3,
+  caique: 3.4,
+  gull: 2.4,
+  goatbell: 3.6,
+  chapel: 12,
+  scops: 42,
 };
 
 /** Minimum seconds between two events of the same kind. */
@@ -58,9 +63,14 @@ export const MIN_GAP_S: Readonly<Record<EventKind, number>> = {
   cicada: 8,
   gecko: 40,
   frogs: 30,
+  caique: 50,
+  gull: 40,
+  goatbell: 45,
+  chapel: 3600,
+  scops: 150,
 };
 
-/** Stereo spread per kind: the pond, the plunge pool and the basin sit centre, birds and insects all around. */
+/** Stereo spread per kind: the pond, the plunge pool and the basin sit centre, birds and insects all around; the coast's far places set their own side. */
 export const PAN_SPREAD: Readonly<Record<EventKind, number>> = {
   plip: 0.3,
   drip: 0.7,
@@ -78,6 +88,11 @@ export const PAN_SPREAD: Readonly<Record<EventKind, number>> = {
   cicada: 0.9,
   gecko: 0.5,
   frogs: 0.4,
+  caique: 0.15,
+  gull: 0.8,
+  goatbell: 0.3,
+  chapel: 0.1,
+  scops: 0.6,
 };
 
 /** Voices (excluding gusts, which only move the wind bed) that may sound at once. */

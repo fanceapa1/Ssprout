@@ -91,6 +91,11 @@ export const RECIPE_FOR: Record<Exclude<PlannedEvent['kind'], 'gust'>, RecipeNam
   cicada: 'cicada',
   gecko: 'gecko',
   frogs: 'frogs',
+  caique: 'caique',
+  gull: 'gull',
+  goatbell: 'goatbell',
+  chapel: 'chapel',
+  scops: 'scops',
 };
 
 /** The weather bed belongs to the active session only; none active → a clear garden. */

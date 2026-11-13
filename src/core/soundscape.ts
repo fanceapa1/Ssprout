@@ -1,5 +1,5 @@
 /** Shared sound catalogue and browser-local mixes; no audio or DOM dependencies. */
-export const SOUND_LAYERS = ['water', 'wind', 'birds', 'crickets', 'rain', 'waves', 'fire', 'cafe', 'lofi', 'white', 'brown', 'falls', 'seguia', 'palms'] as const;
+export const SOUND_LAYERS = ['water', 'wind', 'birds', 'crickets', 'rain', 'waves', 'fire', 'cafe', 'lofi', 'white', 'brown', 'falls', 'seguia', 'palms', 'sea', 'cicadas'] as const;
 export type SoundLayer = (typeof SOUND_LAYERS)[number];
 export type SoundLevels = Record<SoundLayer, number>;
 export const silentLevels = (): SoundLevels => Object.fromEntries(SOUND_LAYERS.map((id) => [id, 0])) as SoundLevels;
@@ -15,10 +15,11 @@ export interface SoundscapeSettings {
   sceneries: Partial<Record<SoundSceneryId, SceneryMix>>;
 }
 export const STANDARD_LAYERS: readonly SoundLayer[] = ['rain', 'waves', 'wind', 'birds', 'fire', 'cafe', 'lofi', 'white', 'brown'];
-/** Sound profiles: the pond, the waterfall and the oasis each belong to a scenery (`Scenery.sound`); coast is ready for a future scene. */
+/** Sound profiles: the pond, the waterfall, the oasis and the coast each belong to a scenery (`Scenery.sound`). */
 export const SCENERIES = {
   pond: { name: 'The pond garden', layers: ['water', 'wind', 'birds', 'crickets', 'rain'], levels: levelsWith({ water: 70, wind: 45, birds: 40 }) },
-  coast: { name: 'The seaside garden', layers: ['waves', 'wind', 'birds', 'rain'], levels: levelsWith({ waves: 75, wind: 45, birds: 25 }) },
+  /** the Greek coast (ADR 0376): the sea on the pebbles, a breeze in the pines, cicadas, far gulls and goat bells, the owl at night */
+  coast: { name: 'The Greek coast', layers: ['sea', 'wind', 'cicadas', 'birds', 'crickets', 'rain'], levels: levelsWith({ sea: 70, wind: 35, cicadas: 30, birds: 35, crickets: 30 }) },
   /** the rocky waterfall's own bed (ADR 0283): the falls, the gorge's wind, stream birds, the kajika at dusk */
   waterfall: { name: 'The rocky waterfall', layers: ['falls', 'wind', 'birds', 'crickets', 'rain'], levels: levelsWith({ falls: 70, wind: 30, birds: 40 }) },
   /** the Ksar oasis (ADR 0303): the seguia's trickle, palm fronds in the wind, doves and buntings, insects and a gecko */
@@ -87,7 +88,8 @@ export const SOUND_PRESETS = [
   { id: 'pond', name: 'By the pond', scenery: 'pond', levels: levelsWith({ water: 85, wind: 35, birds: 40 }) },
   { id: 'rain', name: 'Rain on the eaves', scenery: 'pond', levels: levelsWith({ water: 35, wind: 20, rain: 80 }) },
   { id: 'night', name: 'After dusk', scenery: 'pond', levels: levelsWith({ water: 50, wind: 20, crickets: 65 }) },
-  { id: 'shore', name: 'Along the shore', scenery: 'coast', levels: levelsWith({ waves: 80, wind: 40, birds: 25 }) },
+  { id: 'shore', name: 'Along the shore', scenery: 'coast', levels: levelsWith({ sea: 80, wind: 30, cicadas: 20, birds: 35 }) },
+  { id: 'cove-night', name: 'A still night on the cove', scenery: 'coast', levels: levelsWith({ sea: 65, wind: 15, crickets: 50 }) },
   { id: 'falls', name: 'By the falls', scenery: 'waterfall', levels: levelsWith({ falls: 80, wind: 20, birds: 40 }) },
   { id: 'gorge-dusk', name: 'Dusk in the gorge', scenery: 'waterfall', levels: levelsWith({ falls: 55, wind: 15, crickets: 60 }) },
   { id: 'grove', name: 'In the palm grove', scenery: 'oasis', levels: levelsWith({ seguia: 55, palms: 55, birds: 45 }) },

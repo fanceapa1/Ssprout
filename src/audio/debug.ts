@@ -4,7 +4,8 @@ import { createRng } from '../core/rng';
 import { extendDebug } from '../dev/debug';
 import { createWebAudioBackend } from './backend';
 import { RECIPE_FOR, type GardenAudio } from './garden-audio';
-import { eventLayer, MASTER_LEVEL, mixParams } from './params';
+import type { Weather } from '../core/state';
+import { eventLayer, MASTER_LEVEL, mixParams, type EventKind } from './params';
 import { createPlanner } from './planner';
 import { chirp, cricket, drip, plip, RECIPES } from './recipes';
 
@@ -30,6 +31,9 @@ interface SceneRender {
   hour?: number;
   events?: boolean;
   wav?: boolean;
+  weather?: Weather | null;
+  /** voices to play at given seconds, besides any planned ones (to hear rare events close together) */
+  play?: readonly (readonly [seconds: number, kind: Exclude<EventKind, 'gust'>])[];
 }
 
 const SR = 22050;
@@ -55,7 +59,7 @@ async function renderScene(o: SceneRender) {
   const ctx = new OfflineAudioContext(2, rate * seconds, rate);
   const backend = createWebAudioBackend('measure-scene', { context: ctx })!;
   const mixFor = (scenery: SoundSceneryId) =>
-    mixParams({ hour: o.hour ?? 12, weather: null, activity: { sessionActive: false, paused: false }, fauna: new Set(), scenery });
+    mixParams({ hour: o.hour ?? 12, weather: o.weather ?? null, activity: { sessionActive: false, paused: false }, fauna: new Set(), scenery });
   backend.startBeds(); backend.applyMix(mixFor(o.scenery), 0); backend.setMaster(MASTER_LEVEL, 0);
   const to = o.to, switchAt = o.switchAt ?? seconds / 2;
   if (o.events) {
@@ -73,6 +77,10 @@ async function renderScene(o: SceneRender) {
     plan(0);
     for (let t = 1; t < seconds; t++) void ctx.suspend(t).then(() => { plan(t); return ctx.resume(); });
   } else if (to) void ctx.suspend(switchAt).then(() => { backend.applyMix(mixFor(to), 2); return ctx.resume(); });
+  for (const [k, [at, kind]] of (o.play ?? []).entries()) {
+    const g = createRng(`scene-play-${k}`);
+    backend.play(RECIPES[RECIPE_FOR[kind]](g, g.range(-0.5, 0.5)), at, 'events', eventLayer(kind, to && at >= switchAt ? to : o.scenery));
+  }
   const rendered = await ctx.startRendering();
   const [l, r] = [rendered.getChannelData(0), rendered.getChannelData(1)];
   const w = Math.floor(rate / 4), windowsDb: number[] = [];

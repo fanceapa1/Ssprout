@@ -238,5 +238,67 @@ describe('sound recipes', () => {
       expect(calls.length).toBeLessThanOrEqual(3);
     }
   });
+
+  it('the Scops owl: one soft clear note around 1.2 kHz every 2.3–2.9 s, 8–15 times, easing in and out (ADR 0376)', () => {
+    for (let seed = 1; seed <= 30; seed++) {
+      const spec = RECIPES.scops(createRng(seed));
+      const [note] = spec.voices as ToneVoice[];
+      const calls = notes(note!.env);
+      expect(calls.length).toBeGreaterThanOrEqual(8);
+      expect(calls.length).toBeLessThanOrEqual(15);
+      for (let i = 1; i < calls.length; i++) {
+        expect(calls[i]![0] - calls[i - 1]![0]).toBeGreaterThan(2.2);
+        expect(calls[i]![0] - calls[i - 1]![0]).toBeLessThan(3);
+      }
+      // soft onsets (no peck), the first and last notes quieter than the middle
+      for (const [, attack] of calls) expect(attack).toBeGreaterThanOrEqual(0.04);
+      expect(calls[0]![2]).toBeLessThan(calls[Math.floor(calls.length / 2)]![2]);
+      expect(calls[calls.length - 1]![2]).toBeLessThan(calls[Math.floor(calls.length / 2)]![2]);
+      for (const [, f] of note!.freq) {
+        expect(f).toBeGreaterThan(1000);
+        expect(f).toBeLessThan(1350);
+      }
+      expect(spec.lowpass).toBeLessThanOrEqual(2500);
+    }
+  });
+
+  it('the gull calls 2–4 mewing notes; the goat bells clank 2–3 times, dull and far; the caique slaps and creaks once', () => {
+    for (let seed = 1; seed <= 30; seed++) {
+      const gull = RECIPES.gull(createRng(seed));
+      const mews = notes((gull.voices[0] as ToneVoice).env);
+      expect(mews.length).toBeGreaterThanOrEqual(2);
+      expect(mews.length).toBeLessThanOrEqual(4);
+      expect(gull.gain).toBeLessThanOrEqual(0.025);
+      expect(gull.lowpass).toBeLessThanOrEqual(3000);
+      const bells = RECIPES.goatbell(createRng(seed), 0);
+      const clanks = bells.voices.filter((v) => v.kind === 'noise').length;
+      expect(clanks).toBeGreaterThanOrEqual(2);
+      expect(clanks).toBeLessThanOrEqual(3);
+      expect(bells.lowpass).toBeLessThanOrEqual(2400);
+      expect(bells.pan).toBeGreaterThan(0);
+      // dull: every partial dies within ~0.6 s
+      for (const v of bells.voices) expect(v.env[v.env.length - 1]![0] - v.env[0]![0]).toBeLessThan(0.65);
+      const boat = RECIPES.caique(createRng(seed), 0);
+      const creak = boat.voices.find((v) => v.kind === 'tone' && v.wave === 'triangle') as ToneVoice;
+      const ticks = notes(creak.env).length + creak.env.filter(([, x]) => x > 0.1).length;
+      expect(ticks).toBeGreaterThan(20);
+      expect(boat.voices.filter((v) => v.kind === 'noise').length).toBeGreaterThanOrEqual(2);
+      expect(boat.pan).toBeLessThan(0);
+      expect(boat.lowpass).toBeLessThanOrEqual(2000);
+    }
+  });
+
+  it('the chapel bell: three slow strokes, soft at the attack and far away, never above 1.8 kHz', () => {
+    for (let seed = 1; seed <= 30; seed++) {
+      const spec = RECIPES.chapel(createRng(seed), 0);
+      const onsets = [...new Set(spec.voices.map((v) => v.env[0]![0].toFixed(3)))];
+      expect(onsets).toHaveLength(3);
+      for (const v of spec.voices) expect(v.env[1]![0] - v.env[0]![0]).toBeGreaterThanOrEqual(0.01);
+      expect(spec.gain).toBeLessThanOrEqual(0.02);
+      expect(spec.lowpass).toBeLessThanOrEqual(1800);
+      expect(spec.reverb).toBeGreaterThanOrEqual(0.5);
+      expect(spec.pan).toBeLessThan(0);
+    }
+  });
 });
 

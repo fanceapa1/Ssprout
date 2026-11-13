@@ -552,6 +552,125 @@ export function frogs(rng: Rng, pan = 0): SoundSpec {
 }
 
 // ---------------------------------------------------------------------------------------------
+// The Greek coast (ADR 0376): the caique's ropes, a far gull, goat bells on the cliff, a chapel
+// bell at sunset, and the Scops owl's note through the night
+// ---------------------------------------------------------------------------------------------
+
+const side = (centre: number, pan: number) => Math.max(-1, Math.min(1, centre + pan));
+
+/**
+ * The moored caique (left of the cove): two or three soft slaps of water on the hull, and the
+ * mooring rope creaking once as the boat rides up: a slow stick-slip of a few dozen ticks.
+ */
+export function caique(rng: Rng, pan = 0): SoundSpec {
+  const voices: Voice[] = [];
+  const slaps = rng.int(2, 3);
+  let t = 0;
+  for (let i = 0; i < slaps; i++) {
+    const amp = i === 0 ? 1 : rng.range(0.55, 0.85), f = rng.range(150, 220);
+    voices.push(delay({ kind: 'noise', filter: { type: 'bandpass', freq: rng.range(320, 480), q: 1.2 }, env: [[0, EPS], [0.012, amp], [0.05, amp * 0.3], [0.18, EPS]] }, t));
+    voices.push(delay({ kind: 'tone', wave: 'sine', freq: [[0, f], [0.14, f * 0.7]], env: [[0, EPS], [0.015, amp * 0.5], [0.16, EPS]] }, t));
+    t += rng.range(0.6, 1.2);
+  }
+  const at = rng.range(0.3, 1.2), n = rng.int(22, 34), period = rng.range(0.022, 0.03), f = rng.range(190, 300);
+  const env: Point[] = [[0, EPS]];
+  const end = pulses(env, 0, n, period, (i) => 0.25 + 0.75 * Math.sin((Math.PI * (i + 0.5)) / n) ** 0.7, 0.12);
+  voices.push(delay({ kind: 'tone', wave: 'triangle', freq: [[0, f], [end * 0.6, f * 1.25], [end, f * 1.1]], env: env.map(([x, v]) => [x, v * 0.55] as const) }, at));
+  return finish({ name: 'caique', gain: 0.03, pan: side(-0.45, pan), reverb: 0.3, lowpass: 2000, voices });
+}
+
+/**
+ * A yellow-legged gull far over the water: two to four mewing "kyow" notes, each rising fast
+ * then falling, nasal (a triangle with a faint octave), the later ones a little lower and shorter.
+ */
+export function gull(rng: Rng, pan = 0): SoundSpec {
+  const n = rng.int(2, 4);
+  let f = rng.range(1150, 1350), t = 0;
+  const freq: Point[] = [];
+  const env: Point[] = [[0, EPS]];
+  for (let i = 0; i < n; i++) {
+    const dur = (i === 0 ? rng.range(0.32, 0.4) : rng.range(0.24, 0.32)) * (1 - 0.06 * i), amp = i === 0 ? 1 : 0.8 - 0.1 * i;
+    freq.push([t, f * 0.9], [t + dur * 0.25, f * 1.35], [t + dur, f * 0.95]);
+    if (t > 0) env.push([t, EPS]);
+    env.push([t + dur * 0.2, amp], [t + dur * 0.6, amp * 0.7], [t + dur, EPS]);
+    t += dur + rng.range(0.15, 0.3);
+    f *= rng.range(0.94, 0.98);
+  }
+  const body: ToneVoice = { kind: 'tone', wave: 'triangle', freq, env, fm: { ratio: 0.04, depth: f * 0.03 } };
+  const octave: ToneVoice = { kind: 'tone', wave: 'sine', freq: freq.map(([at, hz]) => [at, hz * 2] as const), env: env.map(([at, v]) => [at, Math.max(EPS, v * 0.2)] as const) };
+  return finish({ name: 'gull', gain: 0.016, pan, reverb: 0.5, lowpass: 3000, voices: [body, octave] });
+}
+
+/** A goat bell's partials (sheet metal: inharmonic, damped): [ratio, gain, decay s]. */
+export const GOAT_BELL_PARTIALS: readonly (readonly [number, number, number])[] = [
+  [1, 1, 0.5], [1.58, 0.6, 0.35], [2.31, 0.35, 0.25], [3.1, 0.18, 0.18],
+];
+
+/**
+ * Goat bells on the far cliff (right of the cove): two or three dull clanks at uneven gaps, from
+ * one or two goats, each a clapper tick and a handful of damped inharmonic partials.
+ */
+export function goatBells(rng: Rng, pan = 0): SoundSpec {
+  const bells = [rng.range(420, 620), rng.range(380, 560)];
+  const voices: Voice[] = [];
+  const n = rng.int(2, 3);
+  let t = 0;
+  for (let i = 0; i < n; i++) {
+    const f0 = bells[rng.chance(0.65) ? 0 : 1]!, amp = rng.range(0.6, 1), damp = rng.range(0.7, 1.2);
+    for (const [ratio, g, decay] of GOAT_BELL_PARTIALS) {
+      const f = f0 * ratio * rng.range(0.99, 1.01);
+      voices.push(delay({ kind: 'tone', wave: 'sine', freq: [[0, f], [decay * damp, f]], env: pluck(0.004, decay * damp, g * amp) }, t));
+    }
+    voices.push(delay({ kind: 'noise', filter: { type: 'bandpass', freq: 1800, q: 1.5 }, env: pluck(0.001, 0.02, 0.3 * amp) }, t));
+    t += rng.range(0.4, 1.4);
+  }
+  return finish({ name: 'goatbell', gain: 0.022, pan: side(0.45, pan), reverb: 0.55, lowpass: 2400, voices });
+}
+
+/** A small chapel bell's partials (hum, prime, minor third, fifth, nominal): [ratio, gain, decay s]. */
+export const CHAPEL_PARTIALS: readonly (readonly [number, number, number])[] = [
+  [0.5, 0.4, 5], [1, 0.65, 3.6], [1.19, 0.45, 2.6], [1.5, 0.25, 1.8], [2, 0.4, 1.6],
+];
+
+/**
+ * The village chapel's bell across the bay at sunset (far left): three slow, unhurried strokes,
+ * softened by the distance (a slow attack, nothing above 1.8 kHz).
+ */
+export function chapelBell(rng: Rng, pan = 0): SoundSpec {
+  const f0 = rng.range(520, 600);
+  const voices: Voice[] = [];
+  for (let i = 0; i < 3; i++) {
+    const at = i * rng.range(2.6, 3.2), amp = i === 2 ? 0.8 : 1;
+    for (const [ratio, g, decay] of CHAPEL_PARTIALS) {
+      const f = f0 * ratio * rng.range(0.998, 1.002);
+      voices.push(delay({ kind: 'tone', wave: 'sine', freq: [[0, f], [decay, f]], env: pluck(0.015, decay, g * amp) }, at));
+    }
+  }
+  return finish({ name: 'chapel', gain: 0.016, pan: side(-0.55, pan), reverb: 0.6, lowpass: 1800, voices });
+}
+
+/**
+ * The Scops owl: a spell of one soft, clear, slightly plaintive note ("tiu", ~1.2 kHz, a quarter
+ * second, easing down at its end) every 2.3–2.9 s, 8–15 times, easing in and out; distant.
+ */
+export function scops(rng: Rng, pan = 0): SoundSpec {
+  const f = rng.range(1120, 1300), period = rng.range(2.3, 2.9), n = rng.int(8, 15);
+  const freq: Point[] = [];
+  const env: Point[] = [[0, EPS]];
+  let t = 0;
+  for (let i = 0; i < n; i++, t += period * rng.range(0.98, 1.02)) {
+    const dur = rng.range(0.2, 0.26);
+    const amp = Math.min(1, 0.55 + 0.25 * i, 0.55 + 0.25 * (n - 1 - i));
+    freq.push([t, f * 0.96], [t + 0.05, f], [t + dur * 0.7, f * 0.995], [t + dur, f * 0.93]);
+    if (t > 0) env.push([t, EPS]);
+    env.push([t + 0.045, amp], [t + dur * 0.7, amp * 0.8], [t + dur, EPS]);
+  }
+  const note: ToneVoice = { kind: 'tone', wave: 'sine', freq, env };
+  const breath: ToneVoice = { kind: 'tone', wave: 'sine', freq: freq.map(([at, hz]) => [at, hz * 2] as const), env: env.map(([at, v]) => [at, Math.max(EPS, v * 0.08)] as const) };
+  return finish({ name: 'scops', gain: 0.014, pan, reverb: 0.5, lowpass: 2500, voices: [note, breath] });
+}
+
+// ---------------------------------------------------------------------------------------------
 // Chimes (never loud; long reverb tail)
 // ---------------------------------------------------------------------------------------------
 
@@ -618,7 +737,7 @@ export function completion(rng: Rng, pan = 0): SoundSpec {
 }
 
 export type RecipeName = 'plip' | 'drip' | 'pour' | 'chirp' | 'warbler' | 'swallow' | 'cricket' | 'splash' | 'dipper' | 'kajika' |
-  'dove' | 'bunting' | 'beeeater' | 'cicada' | 'gecko' | 'frogs' | 'rin' | 'completion';
+  'dove' | 'bunting' | 'beeeater' | 'cicada' | 'gecko' | 'frogs' | 'caique' | 'gull' | 'goatbell' | 'chapel' | 'scops' | 'rin' | 'completion';
 
 export const RECIPES: Readonly<Record<RecipeName, (rng: Rng, pan?: number) => SoundSpec>> = {
   plip,
@@ -637,6 +756,11 @@ export const RECIPES: Readonly<Record<RecipeName, (rng: Rng, pan?: number) => So
   cicada,
   gecko,
   frogs,
+  caique,
+  gull,
+  goatbell: goatBells,
+  chapel: chapelBell,
+  scops,
   rin: rinBowl,
   completion,
 };

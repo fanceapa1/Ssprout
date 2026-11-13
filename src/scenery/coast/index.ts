@@ -77,7 +77,7 @@ export const COAST: Scenery = {
   flora: COAST_FLORA,
   habitatWords: COAST_HABITAT_WORDS,
   fauna: COAST_WILDLIFE,
-  // waves, wind and birds: the seaside profile that waited for this scenery (ADR 0283)
+  // its own bed: the sea on the pebbles, pines, cicadas, far gulls and goat bells, the owl (ADR 0376)
   sound: 'coast',
   painters: COAST_PAINTERS,
   // the swell, the waterline, the rocks' foam and the caique in motion (G6, ADRs 0282, 0374)

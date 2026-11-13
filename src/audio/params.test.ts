@@ -162,13 +162,14 @@ describe('personal mixes', () => {
   it('uses the active scenery and excludes sounds from another scenery', () => {
     const s = defaultSoundscape();
     s.sceneries.pond = { mode: 'custom', levels: levelsWith({ water: 90, cafe: 100 }) };
-    s.sceneries.coast = { mode: 'custom', levels: levelsWith({ waves: 80, water: 100 }) };
+    s.sceneries.coast = { mode: 'custom', levels: levelsWith({ sea: 80, waves: 50, water: 100 }) };
     expect(at({ soundscape: s }).extra.cafe).toBe(0);
     const coast = at({ soundscape: s, scenery: 'coast' });
-    expect(coast.extra.waves).toBe(80);
+    expect(coast.extra.sea).toBe(80);
+    expect(coast.extra.waves).toBe(0);
     expect(coast.water).toBe(0);
     const automatic = at({ scenery: 'coast' });
-    expect(automatic.extra.waves).toBeGreaterThan(0);
+    expect(automatic.extra.sea).toBeGreaterThan(0);
     expect(automatic.rates.plip).toBe(0);
   });
 });
@@ -308,6 +309,102 @@ describe('the oasis (ADR 0303)', () => {
     const falls = at({ scenery: 'waterfall', soundscape: s });
     expect(falls.extra.seguia + falls.extra.palms).toBe(0);
     expect(sum(falls, ['dove', 'bunting', 'beeeater', 'cicada', 'gecko', 'frogs'])).toBe(0);
+  });
+});
+
+describe('the coast (ADR 0376)', () => {
+  const coast = (patch: Partial<MixInput> = {}) => at({ scenery: 'coast', ...patch });
+  type Mix = ReturnType<typeof at>;
+  const sum = (m: Mix, kinds: readonly (keyof Mix['rates'])[]) => kinds.reduce((s, k) => s + m.rates[k], 0);
+  const coastVoices = ['caique', 'gull', 'goatbell', 'chapel', 'scops'] as const;
+
+  it('the sea replaces the pond water; no plips, warbler or distant chirps; the breeze is lighter and airier', () => {
+    const m = coast();
+    expect(m.water).toBe(0);
+    expect(m.extra.sea).toBe(70);
+    expect(m.extra.waves + m.extra.falls + m.extra.seguia + m.extra.palms).toBe(0);
+    expect(m.rates.plip + m.rates.warbler + m.rates.chirp + m.rates.dove + m.rates.splash).toBe(0);
+    expect(m.wind).toBeGreaterThan(0);
+    expect(m.wind).toBeLessThan(at({}).wind);
+    expect(m.windHz).toBeGreaterThan(at({}).windHz);
+    const pond = at({});
+    expect(pond.extra.sea + pond.extra.cicadas).toBe(0);
+    expect(sum(pond, coastVoices)).toBe(0);
+  });
+
+  it('the cicadas swell toward the hot afternoon, thin at sunrise and sunset, stop at night and in rain', () => {
+    const level = (hour: number, patch: Partial<MixInput> = {}) => coast({ hour, ...patch }).extra.cicadas;
+    expect(level(14.5)).toBe(30);
+    expect(level(14.5)).toBeGreaterThan(level(8) * 4);
+    expect(level(14.5)).toBeGreaterThan(level(19) * 3);
+    for (const hour of [21, 23, 2, 5.5]) expect(level(hour)).toBe(0);
+    expect(level(14.5, { weather: 'rain' })).toBe(0);
+    expect(level(14.5, { weather: 'mist' })).toBeLessThan(level(14.5));
+    // well under the sea at their loudest
+    expect(level(14.5)).toBeLessThan(coast().extra.sea / 2);
+    expect(coast({ hour: 14.5, fauna: new Set(['coast:cicada']) }).extra.cicadas).toBeGreaterThan(level(14.5));
+  });
+
+  it('day voices by day: a far gull, goat bells, the caique; the chapel bell only at sunset', () => {
+    const noon = coast({ hour: 12 });
+    expect(noon.rates.gull).toBeGreaterThan(0);
+    expect(noon.rates.goatbell).toBeGreaterThan(0);
+    expect(noon.rates.caique).toBeGreaterThan(0);
+    expect(noon.rates.chapel).toBe(0);
+    expect(coast({ hour: 20 }).rates.chapel).toBeGreaterThan(0);
+    for (const hour of [8, 12, 16, 23, 3]) expect(coast({ hour }).rates.chapel).toBe(0);
+    for (const hour of [23, 2]) expect(coast({ hour }).rates.gull).toBe(0);
+    // every voice is rare: under one a minute, the bell far less
+    for (const hour of [7, 12, 20, 23]) for (const kind of coastVoices) expect(coast({ hour }).rates[kind]).toBeLessThan(0.6);
+    expect(coast({ hour: 20 }).rates.chapel).toBeLessThan(0.02);
+  });
+
+  it('night voices after dark: the Scops owl and a few crickets, fewer than in the pond garden', () => {
+    const night = coast({ hour: 22 });
+    expect(night.rates.scops).toBeGreaterThan(0);
+    expect(night.rates.cricket).toBeGreaterThan(0);
+    expect(night.rates.cricket).toBeLessThan(at({ hour: 22 }).rates.cricket / 2);
+    for (const hour of [9, 13, 17]) expect(coast({ hour }).rates.scops + coast({ hour }).rates.cricket).toBe(0);
+    expect(coast({ hour: 22, fauna: new Set(['coast:scops-owl']) }).rates.scops).toBeGreaterThan(night.rates.scops);
+    expect(coast({ hour: 22, fauna: new Set(['scops-owl']) }).rates.scops).toBe(night.rates.scops);
+  });
+
+  it('rain hushes the owl, the goats and the gulls, rocks the caique and lifts the sea; the garden’s unlocks stay in the garden', () => {
+    const wet = (hour: number) => coast({ hour, weather: 'rain' });
+    expect(wet(22).rates.scops).toBeLessThan(coast({ hour: 22 }).rates.scops);
+    expect(wet(9).rates.goatbell).toBeLessThan(coast({ hour: 9 }).rates.goatbell);
+    expect(wet(9).rates.gull).toBeLessThan(coast({ hour: 9 }).rates.gull);
+    expect(wet(9).rates.caique).toBeGreaterThan(coast({ hour: 9 }).rates.caique);
+    expect(wet(9).extra.sea).toBeGreaterThan(coast({ hour: 9 }).extra.sea);
+    expect(wet(9).rain).toBeGreaterThan(0);
+    expect(coast({ hour: 7, fauna: new Set(['small-birds', 'swallows']) }).rates).toEqual(coast({ hour: 7 }).rates);
+    expect(coast({ hour: 12, fauna: new Set(['coast:swallows']) }).rates.swallow).toBeGreaterThan(0);
+    expect(coast({ hour: 9, fauna: new Set(['coast:goats', 'coast:gull']) }).rates.goatbell).toBeGreaterThan(coast({ hour: 9 }).rates.goatbell);
+    // a pause holds the breath here too
+    const paused = coast({ hour: 14, activity: { sessionActive: true, paused: true } });
+    expect(paused.extra.cicadas).toBeLessThan(coast({ hour: 14 }).extra.cicadas);
+    expect(paused.rates.caique).toBeLessThan(coast({ hour: 14 }).rates.caique);
+  });
+
+  it('a custom mix there plays its own beds and voices, and the other places never bring them', () => {
+    const s = defaultSoundscape();
+    s.sceneries.coast = { mode: 'custom', levels: levelsWith({ sea: 60, cicadas: 25, birds: 40, crickets: 30, water: 90, seguia: 80 }) };
+    const m = coast({ soundscape: s });
+    expect(m.extra.sea).toBe(60);
+    expect(m.extra.cicadas).toBe(25);
+    expect(m.water + m.extra.seguia).toBe(0);
+    expect(m.rates.caique + m.rates.gull + m.rates.goatbell + m.rates.scops).toBeGreaterThan(0);
+    expect(m.rates.plip + m.rates.dove + m.rates.dipper + m.rates.chirp).toBe(0);
+    expect(eventLayer('caique', 'coast')).toBe('sea');
+    expect(eventLayer('scops', 'coast')).toBe('crickets');
+    s.sceneries.coast.levels.sea = 0;
+    expect(coast({ soundscape: s }).rates.caique).toBe(0);
+    s.sceneries.oasis = { mode: 'custom', levels: levelsWith({ seguia: 60, birds: 50, crickets: 50, sea: 80, cicadas: 80 }) };
+    const oasis = at({ scenery: 'oasis', soundscape: s });
+    expect(oasis.extra.sea + oasis.extra.cicadas).toBe(0);
+    expect(sum(oasis, coastVoices)).toBe(0);
+    expect(PLACE_EVENTS.coast).toEqual(expect.arrayContaining([...coastVoices]));
+    for (const kind of coastVoices) expect(EVENT_KINDS).toContain(kind);
   });
 });
 

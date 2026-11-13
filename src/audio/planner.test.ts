@@ -106,5 +106,17 @@ describe('planner', () => {
       for (let i = 1; i < at.length; i++) expect(at[i]! - at[i - 1]!).toBeGreaterThanOrEqual(MIN_GAP_S[kind] - 1e-9);
     }
   });
+  it('keeps the coast’s rare voices rare: an owl spell, then a long silence; the chapel bell at most once an hour (ADR 0376)', () => {
+    const { events } = simulate(rates({ scops: 30, chapel: 30, goatbell: 30, gull: 30, caique: 30 }), 3 * 3600, 'coast', 1);
+    const at = (kind: EventKind) => events.filter((e) => e.kind === kind).map((e) => e.abs);
+    expect(at('chapel').length).toBeLessThanOrEqual(3);
+    for (const kind of ['scops', 'chapel', 'goatbell', 'gull', 'caique'] as const) {
+      const times = at(kind);
+      expect(times.length).toBeGreaterThan(1);
+      for (let i = 1; i < times.length; i++) expect(times[i]! - times[i - 1]!).toBeGreaterThanOrEqual(MIN_GAP_S[kind] - 1e-9);
+    }
+    // between two owl spells there is always more silence than song
+    expect(MIN_GAP_S.scops).toBeGreaterThan(2 * EVENT_DURATION_S.scops);
+  });
 });
 
