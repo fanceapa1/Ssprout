@@ -117,4 +117,7 @@ Shots are in `artifacts/gp15/` (gitignored); probe sheets in the session scratch
 - Not looked at: the phone view and night.
 
 ## Tests
-- Typecheck passes. Unit suite: see the final run below.
+- Typecheck passes. The full unit suite after the rebase on `main`: 259 files, 2713 tests, all pass.
+- E2E (the full run was replaced, to spare the laptop): `planting-previews`, `plants`,
+  `plant-card-phone` and `lazy-species-painters`, one file at a time against one production
+  build (`E2E_WORKERS=1`, `--trace off`): all pass (2, 8, 5 and 1 tests). The studio spec was not run.
