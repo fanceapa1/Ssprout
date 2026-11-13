@@ -31,8 +31,8 @@ export interface Sheet {
 
 /** Studio show: the creature alive on its own stage. */
 export interface Show {
-  /** the stage it lives on: the little pond (default), the waterfall's pool and stream, or a crop of the oasis's painting (`spec.x`, `spec.y`) */
-  stage?: 'pond' | 'falls' | 'oasis';
+  /** the stage it lives on: the little pond (default), the waterfall's pool and stream, or a crop of the oasis's or the coast's painting (`spec.x`, `spec.y`) */
+  stage?: 'pond' | 'falls' | 'oasis' | 'coast';
   spec: StageSpec;
   w: number;
   h: number;

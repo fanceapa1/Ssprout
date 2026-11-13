@@ -14,7 +14,7 @@ describe('creature registry', () => {
   });
 
   it("each garden's set is exactly the kinds of its table that have a module, and the sets cover every module", () => {
-    expect(creatureGardens().sort()).toEqual(['japanese-garden', 'oasis', 'waterfall']);
+    expect(creatureGardens().sort()).toEqual(['coast', 'japanese-garden', 'oasis', 'waterfall']);
     const covered = new Set<string>();
     for (const [path, m] of Object.entries(sets)) {
       const id = setIdFromPath(path) as Parameters<typeof faunaTable>[0];

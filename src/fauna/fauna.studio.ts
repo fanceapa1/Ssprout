@@ -7,7 +7,8 @@ import { createPainter } from '../paint';
 import type { StudioEntry, StudioSection } from '../studio/types';
 import { drawKoiStraight, KOI_PATTERNS, paintKoi } from './creatures/koi';
 import { creatureDefs, loadAllCreatures } from './creatures/registry';
-import { multiplyPaper, OASIS_STAGE, Stage, type StageSpec } from './stage';
+import { COAST } from '../scenery/coast';
+import { COAST_STAGE, multiplyPaper, OASIS_STAGE, Stage, type StageSpec } from './stage';
 import type { Sprite } from './sprite';
 import type { FaunaKind } from './tuning';
 
@@ -67,8 +68,8 @@ function sheetEntry(id: string, label: string, make: (res: number, seed: number)
   };
 }
 
-// the studio lists every creature, whichever garden brings it (ADR 0346)
-await loadAllCreatures();
+// the studio lists every creature, whichever garden brings it (ADR 0346); the coast's stage paints its garden
+await Promise.all([loadAllCreatures(), COAST.painters.load()]);
 
 const shown = creatureDefs()
   .filter((d) => d.show)
@@ -129,6 +130,13 @@ sections.splice(2, 0, {
   title: 'Fauna · the oasis (the oasis’s table over its painting, scheduled visits)',
   order: 302,
   entries: [aliveEntry('all', 'the oasis’s creatures that are painted so far, real pacing, over the middle of its painting: basin, walls, a tower, the grove’s edge, the plots', null, OASIS_STAGE, 720, Math.round((720 * OASIS_STAGE.h) / OASIS_STAGE.w), 'oasis')],
+});
+
+sections.splice(3, 0, {
+  id: 'fauna-coast',
+  title: 'Fauna · the coast (the coast’s table over its painting, scheduled visits)',
+  order: 303,
+  entries: [aliveEntry('all', 'the coast’s creatures that are painted so far, real pacing, over its cove: the temple, the caique, the splash rocks, the terraces’ seaward ends', null, COAST_STAGE, 720, Math.round((720 * COAST_STAGE.h) / COAST_STAGE.w), 'coast')],
 });
 
 export default sections;

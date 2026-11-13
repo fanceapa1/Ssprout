@@ -148,6 +148,8 @@ export class FaunaSim {
       perches: opts.habitat?.perches ?? perchesOf(scene),
       ground: opts.habitat?.ground ?? [],
       walls: opts.habitat?.walls ?? [],
+      regions: opts.habitat?.regions ?? [],
+      carriers: opts.habitat?.carriers ?? {},
       pads: [],
       art: new ArtCache(),
       perspective: perspectiveOf(scene, opts.habitat, pond),
@@ -170,6 +172,8 @@ export class FaunaSim {
     w.perches = habitat?.perches ?? perchesOf(scene);
     w.ground = habitat?.ground ?? [];
     w.walls = habitat?.walls ?? [];
+    w.regions = habitat?.regions ?? [];
+    w.carriers = habitat?.carriers ?? {};
     w.perspective = perspectiveOf(scene, habitat, w.pond);
     this.refreshTargets();
   }

@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { createEventBus } from '../core/events';
 import { createDefaultState, createStore, reducer } from '../core/state';
 import { gardenScene } from '../scene/geometry';
+import { COAST_WILDLIFE } from '../scenery/coast/wildlife';
+import { coastScene } from '../scenery/coast/geometry';
 import { OASIS_WILDLIFE } from '../scenery/oasis/wildlife';
 import { oasisScene } from '../scenery/oasis/geometry';
 import type { Scenery } from '../scenery/types';
@@ -35,5 +37,17 @@ describe('fauna system · creatures per garden', () => {
     // loaded now: a switch to the oasis is synchronous
     expect(system.init!(ctxFor({ id: 'oasis', fauna: OASIS_WILDLIFE }, oasisScene))).toBeUndefined();
     expect(system.sceneryId()).toBe('oasis');
+  });
+
+  it("the coast waits for its own set, which brings only the shared creatures painted so far (ADR 0373)", async () => {
+    expect(creaturesLoaded('coast')).toBe(false);
+    const system = createFaunaSystem({ species: () => flower, seed: 5 });
+    const coast = system.init!(ctxFor({ id: 'coast', fauna: COAST_WILDLIFE }, coastScene));
+    expect(coast).toBeInstanceOf(Promise);
+    await coast;
+    expect(creaturesLoaded('coast')).toBe(true);
+    expect(system.sceneryId()).toBe('coast');
+    for (const kind of ['bee', 'butterfly', 'heron', 'swallow']) expect(creatureDef(kind), kind).toBeDefined();
+    expect(system.sim!.world.regions).toBe(COAST_WILDLIFE.regions);
   });
 });

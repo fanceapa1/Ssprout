@@ -10,7 +10,7 @@ import type { Pt } from '../render/viewport';
 import type { SceneGeometry, Slot } from '../scene/geometry';
 import { plantScale } from '../scene/slots';
 import { plantWorldBounds } from '../plants/bounds';
-import { clamp, closestOnPolygon, dist, polygonBounds, polygonCentroid } from './math';
+import { clamp, closestOnPolygon, dist, pointInPolygon, polygonBounds, polygonCentroid } from './math';
 
 export type TargetSpecies = Pick<SpeciesDef, 'pollinators' | 'habitats' | 'size' | 'anchor' | 'bloomColor'>;
 export type TargetLookup = (id: string) => TargetSpecies | undefined;
@@ -78,8 +78,11 @@ export function lilyPads(plants: readonly PlantInstance[], slots: readonly Slot[
 
 export interface Perch {
   id: string;
-  /** a boulder's top, a stepping stone, a shelf on a cliff; the oasis's wall copings, basin rim, palm fronds, tower top and gate posts */
-  kind: 'rock' | 'stone' | 'ledge' | 'wall' | 'rim' | 'frond' | 'tower' | 'post';
+  /**
+   * a boulder's top, a stepping stone, a shelf on a cliff; the oasis's wall copings, basin rim, palm fronds, tower top and gate posts;
+   * the coast's tree limbs, jar rims, temple ruins, the caique and the far pines' crowns (ADR 0373)
+   */
+  kind: 'rock' | 'stone' | 'ledge' | 'wall' | 'rim' | 'frond' | 'tower' | 'post' | 'branch' | 'jar' | 'ruin' | 'boat' | 'crown';
   /** centre of the standing area; y is the surface there */
   x: number;
   y: number;
@@ -93,6 +96,56 @@ export interface Perch {
   slope?: number;
   /** the scale of what stands here when it is not the ground's (`w.perspective`): a palm crown, a far tower */
   scale?: number;
+  /** the moving body it is on (`w.carriers`, the coast's caique): its point now is `carried(p, w.carriers[id])` */
+  carrier?: string;
+}
+
+/**
+ * An area a creature lives in rather than on a perch (ADR 0373): the coast's shallows, rock pools,
+ * open bay, the air over the cove and the trees' bark. Inside: in `outline`, in none of `holes`.
+ */
+export interface Region {
+  id: string;
+  kind: 'shallows' | 'pool' | 'bay' | 'sky' | 'bark';
+  outline: Pt[];
+  /** carved out of it (the rocks standing in the shallows) */
+  holes?: Pt[][];
+  /** a far stage's own scale at the region's top and bottom y, linear between (not `w.perspective`) */
+  scale?: { top: number; bottom: number };
+}
+
+/** Is `q` inside the region (in its outline, in none of its holes)? */
+export function inRegion(r: Pick<Region, 'outline' | 'holes'>, q: Pt): boolean {
+  return pointInPolygon(q, r.outline) && !(r.holes ?? []).some((h) => pointInPolygon(q, h));
+}
+
+/** The scale of what moves in a far stage at `y` (its own), or null where the ground's perspective holds. */
+export function regionScale(r: Pick<Region, 'outline' | 'scale'>, y: number): number | null {
+  if (!r.scale) return null;
+  const b = polygonBounds(r.outline);
+  const u = clamp((y - b.y) / (b.h || 1), 0, 1);
+  return r.scale.top + (r.scale.bottom - r.scale.top) * u;
+}
+
+/**
+ * A body that moves under its perches (the coast's caique at its mooring, ADR 0373): the point it
+ * turns about at rest, and its pose now (offset, and tilt in radians, clockwise). Whatever animates
+ * the body writes `pose` each frame it draws; at rest it is all zero.
+ */
+export interface Carrier {
+  pivot: Pt;
+  pose: { dx: number; dy: number; angle: number };
+}
+
+/** Where a point on a carrier (given at rest) is now; unchanged without one. */
+export function carried(q: Pt, c: Carrier | undefined): Pt {
+  if (!c) return { x: q.x, y: q.y };
+  const { dx, dy, angle } = c.pose;
+  const cos = Math.cos(angle);
+  const sin = Math.sin(angle);
+  const x = q.x - c.pivot.x;
+  const y = q.y - c.pivot.y;
+  return { x: c.pivot.x + x * cos - y * sin + dx, y: c.pivot.y + x * sin + y * cos + dy };
 }
 
 /** Rocks flagged `perch` (birds stand on their top) and the stepping stones. */
