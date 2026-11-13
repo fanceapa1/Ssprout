@@ -6,7 +6,7 @@
  * the caique as a carrier, and the terrace-aware perspective. docs/systems/fauna.md › The coast.
  */
 import type { SceneryFauna } from '../../fauna/habitat';
-import { distanceToPolygon, pointInPolygon, polygonBounds, polygonCentroid } from '../../fauna/math';
+import { distanceToPolygon, pointInPolygon, polygonBounds } from '../../fauna/math';
 import { wallTopAt, type Carrier, type GroundSpot, type Perch, type Region, type Stand, type WallFace } from '../../fauna/targets';
 import type { Pt } from '../../render/viewport';
 import { perspectiveScale } from '../../scene/slots';
@@ -142,15 +142,18 @@ const jarPerches = (): Perch[] =>
     (p) => offSlots(p),
   );
 
-/** Each splash rock's dry top: its middle, or else either end, whichever is clear of the slot on it. */
+/** Each splash rock's dry crown (between its top and front edge): the middle, or else either shoulder, whichever is clear of the slot on it. */
 function splashPerches(): Perch[] {
   const out: Perch[] = [];
   SPLASH_ROCK_SHAPES.forEach((r, i) => {
-    const c = polygonCentroid(r.top);
-    const b = polygonBounds(r.top);
-    const at = [0, -0.3, 0.3].map((u) => ({ x: c.x + u * b.w, y: c.y })).find((q) => pointInPolygon(q, r.top) && offSlots(q));
-    if (!at) return;
-    out.push({ id: `rock-${i + 1}`, kind: 'rock', x: round(at.x), y: round(at.y), spread: round(b.w * 0.12), dome: 0, depth: r.y + 1, scale: coastPerspective(r.x, r.y) });
+    const cols = r.columns;
+    const mid = (k: number) => (cols[k]!.top + cols[k]!.front) / 2;
+    const n = cols.length - 1;
+    const k = [0.5, 0.3, 0.7, 0.2, 0.8].map((u) => Math.round(u * n)).find((j) => offSlots({ x: cols[j]!.x, y: mid(j) }));
+    if (k === undefined) return;
+    const [a, b] = [Math.max(0, k - 2), Math.min(n, k + 2)];
+    const slope = (mid(b) - mid(a)) / (cols[b]!.x - cols[a]!.x);
+    out.push({ id: `rock-${i + 1}`, kind: 'rock', x: round(cols[k]!.x), y: round(mid(k)), spread: round(r.w * 0.08), dome: 0, depth: r.y + 1, slope: round2(slope), scale: coastPerspective(r.x, r.y) });
   });
   return out;
 }
@@ -354,12 +357,12 @@ export const COAST_GROUND: GroundSpot[] = [
 
 /** The splash rocks' low front faces, from the top's front edge down to the water: the crab's waterline. */
 const SPLASH_FACES: WallFace[] = SPLASH_ROCK_SHAPES.map((r, i) => {
-  const h = round(r.y - r.topY);
-  const top = [
-    { x: r.x - r.w / 2, y: r.topY },
-    { x: r.x + r.w / 2, y: r.topY },
-  ];
-  return { id: `splash-${i + 1}`, outline: [...top, { x: r.x + r.w / 2, y: r.topY + h }, { x: r.x - r.w / 2, y: r.topY + h }], top, h };
+  // the front edge across the crown's middle, where the face is tallest
+  const cols = r.columns.filter((c) => Math.abs(c.x - r.x) <= r.w * 0.35);
+  const top = cols.map((c) => ({ x: c.x, y: round(c.front) }));
+  // the shortest drop, so the foot never runs below the rock
+  const h = Math.floor(Math.min(...cols.map((c) => c.base - round(c.front))) * 10) / 10;
+  return { id: `splash-${i + 1}`, outline: [...top, ...top.slice().reverse().map((q) => ({ x: q.x, y: q.y + h }))], top, h };
 });
 
 /** The faces a lizard or a gecko clings to (`wall-*`: the three dry-stone walls) and the crab's (`splash-*`). */

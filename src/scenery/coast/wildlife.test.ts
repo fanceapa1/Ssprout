@@ -200,9 +200,13 @@ describe('ground and faces', () => {
     expect(splash).toHaveLength(SPLASH_ROCK_SHAPES.length);
     splash.forEach((w, i) => {
       const r = SPLASH_ROCK_SHAPES[i]!;
-      expect(w.top[0]!.y).toBe(r.topY);
-      expect(w.top[0]!.y + w.h).toBeCloseTo(r.y, 0);
-      expect(pointInPolygon({ x: r.x, y: r.topY + w.h / 2 }, r.outline), w.id).toBe(true);
+      for (const q of w.top) {
+        const c = r.columns.find((k) => k.x === q.x)!;
+        expect(Math.abs(q.y - c.front), w.id).toBeLessThan(0.1);
+        expect(q.y + w.h, w.id).toBeLessThanOrEqual(c.base + 0.01);
+        expect(q.y + w.h, w.id).toBeGreaterThan(c.base - 4);
+        expect(pointInPolygon({ x: q.x, y: q.y + w.h / 2 }, r.outline), w.id).toBe(true);
+      }
     });
   });
 });
