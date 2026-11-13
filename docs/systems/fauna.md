@@ -382,7 +382,12 @@ sprout.fauna.setHour(12); sprout.fauna.spawn('heron'); sprout.fauna.step(25); aw
 `bench(300)` in headless Chromium (Apple M3), 1440×900 at DPR 2, 17 creatures (3 koi, 3 striders,
 dragonfly, 2 butterflies, 3 bees, 2 birds, 3 swallows, heron, leaves): **update 0.01–0.02 ms + draw
 0.87–1.18 ms per frame** (placeholder vs painted scene; budget 1.5 ms). Painting parts happens on
-first appearance (a few ms per kind). **The budget is for all creatures together:** a new creature
+first appearance (a few ms per kind). **The bench reads one pixel after each frame** (`benchFrame`):
+the browser defers a canvas's raster work until its op recorder fills (about 20–25 draw calls), so
+without the read a roster under that count measured only the recording (the coast's 0.06–0.07 ms
+before devlog 189) and one more creature looked like a twelvefold jump. Since then the numbers
+include the raster: the coast's whole roster 0.61–0.76 ms without the gulls, 0.67–0.93 ms with two.
+**The budget is for all creatures together:** a new creature
 has to fit in what is left, measured with everything its garden can show at once
 (`fauna-waterfall › a busy pool…` spawns the waterfall's whole roster; its CI ceiling is 8 ms).
 **`needs(w)` runs every frame for every resident, in every garden** (resident upkeep), so keep it

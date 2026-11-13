@@ -76,26 +76,40 @@ The coast's second own creature: the yellow-legged gull (*Larus michahellis*), k
    the neck moved under the body (it read as a bib).
 
 **Bench** (production build, headless Chromium, 1440×900 at DPR 2, the coast with 25 plants,
-`bench(120)` medians of five): the gull alone or two gulls with the cat 0.05–0.07 ms; two gulls
-with the heron, or with butterflies and bees 0.08 ms; the whole roster without a gull 0.07 ms; the
-whole roster with the gulls (cat ×2, gulls ×2, butterflies ×2, bee, heron) **0.83–0.97 ms**. A
-gull flying, standing or afloat costs the same alone; the jump only comes with the whole roster
-and was not pinned down (it looks like the canvas's image cache rather than a creature's work).
-Within the 1.5 ms budget, but ten times the roster's cost without it: the first thing to look at
-next.
+`bench(120)` three times each). First measured with the old bench: the whole roster without a gull
+0.07 ms, with the gulls 0.83–0.97 ms, the gulls alone 0.05–0.08 ms.
+
+**The jump was the bench, not a creature.** Bisecting the roster (removing one kind at a time)
+showed no pair: dropping the second cat brought it back to 0.07 ms, dropping the gulls did not
+(a scheduled gull came in). A CPU profile put all of it in native `drawImage`, spread over the
+gull's head, a butterfly, the heron and the cat, wherever the frame's draw count crossed a line. A
+micro-benchmark (K sprites drawn into an `OffscreenCanvas` of the bench's size) showed steps of
+0.57 ms every 20–25 draw calls without a read, and a smooth 0.02 ms a call with a one-pixel
+`getImageData` after each frame. The browser records canvas calls and rasterizes when its op
+buffer fills: below that count the bench timed only the recording, and the gull's ten draw calls
+pushed the coast's roster over it. In the app the layer is rasterized every frame anyway.
+
+**Fix:** `src/fauna/dev.ts`: the frame loop is `benchFrame` (exported), which reads one pixel after
+drawing every layer, so the time includes the raster work; `src/fauna/dev.test.ts` checks it draws
+the creatures and then reads once. No creature changed.
+
+**After** (flushed bench, three runs, each the three timed benches): the whole roster with the two
+gulls 0.87/0.87/0.74, 0.93/0.74/0.67, 0.81/0.78/0.71 ms; without the gulls 0.66/0.67/0.68,
+0.76/0.70/0.61, 0.69/0.69/0.63 ms; the cat alone 0.25 ms, the cat and two gulls 0.28–0.38 ms.
+Two gulls cost about 0.03–0.1 ms; the roster is inside the 1.5 ms budget. The cat's devlog
+(185) number, 0.06 ms, was the unflushed recording time.
 
 ## Tests
 `src/fauna/creatures/gull.test.ts`, 15 tests (places by name and clear of the slots, float spots,
 the soaring circle, choices off held spots and herons, only at the coast, three simulated hours,
 riding the caique, nightfall, spot, moving off for a heron, fork and determinism, reduced motion,
-the studio stage, draw calls, cost). Typecheck clean; the full unit suite, 259 files, 2715 tests,
+the studio stage, draw calls, cost); `src/fauna/dev.test.ts` (the bench's frame). Typecheck clean; the full unit suite, 259 files, 2715 tests,
 all pass (before the rebase on main; after it the fauna, coast and quiet-line files, 431 tests, pass).
 E2E, one file at a time, one worker: `fauna` 6, `fauna-oasis` 4, `fauna-waterfall` 4,
 `lazy-creatures` 2, `sceneries` 8, all pass. The full e2e suite was not run, and there is no coast
 fauna e2e spec yet.
 
 ## Left open
-- **The bench jump with the whole roster** (above).
 - **The flying head and neck** still read as a ball on a collar close up; the inner wing is pale
   and a little flat.
 - **The stretch** is one wing swung back as a whole; no fanned primaries.
