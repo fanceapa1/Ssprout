@@ -68,9 +68,9 @@ export function paintPineWash(p: Painter, tufts: readonly { t: PineTuft; at: Pt;
     const rad = t.r * 1.3 * scale * (0.45 + 0.55 * k);
     const cx = at.x + Math.cos(t.angle) * rad * 0.3;
     const cy = at.y + Math.sin(t.angle) * rad * 0.3;
-    W.fill(blob(cx, cy, rad, rad * 0.62, r, { points: 9, irregularity: 0.35, rotation: r.range(-0.4, 0.4) }), col.wash[toneOf(t.lit)], 0.38 * Math.min(1, k * 2));
+    W.fill(blob(cx, cy, rad, rad * 0.62, r, { points: 14, irregularity: 0.22, rotation: r.range(-0.4, 0.4) }), col.wash[toneOf(t.lit)], 0.38 * Math.min(1, k * 2));
   }
-  W.dry({ opacity, edge: 0.18, edgeWidth: 2, sharpness: 0.3, centreLift: 0.2, granulation: 0.22, flow: 0.55, flowScale: 12 });
+  W.dry({ opacity, edge: 0.12, edgeWidth: 2.5, sharpness: 0.22, centreLift: 0.2, granulation: 0.22, flow: 0.55, flowScale: 12 });
 }
 
 /**
@@ -93,7 +93,7 @@ export function paintPineNeedles(p: Painter, tufts: readonly { t: PineTuft; at: 
       const along = r.range(-0.35, 0.15) * reach;
       const a = t.angle + u * 1.5 + r.gaussian(0, 0.12);
       const len = reach * r.range(0.65, 1);
-      L.fill(dabOutline(at.x + dx * along, at.y + dy * along, { angle: a, length: len, width: Math.max(0.45, len * 0.06), variant: 'needle', curve: u * 0.3 + r.range(-0.08, 0.08) }, 5), pigment(t), 0.4 + 0.35 * k);
+      L.fill(dabOutline(at.x + dx * along, at.y + dy * along, { angle: a, length: len, width: Math.max(0.4, len * 0.05), variant: 'needle', curve: u * 0.3 + r.range(-0.08, 0.08) }, 5), pigment(t), 0.4 + 0.35 * k);
     }
   }
   L.dry(dry);
