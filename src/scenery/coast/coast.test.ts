@@ -20,6 +20,7 @@ import {
   silhouetteAt, skylineAt, SPLASH_ROCKS, STYLOBATE, TEMPLE_SHAPES, terraceScale, WALL_TERRACE, WALLS, WATERLINE_EDGE,
 } from './layout';
 import { coastSteps } from './painters';
+import { OLIVE_LIMBS, promontoryTop } from './shapes';
 import { SLOT_TERRACE } from './slots';
 
 const { slots } = coastScene;
@@ -191,12 +192,25 @@ describe('coast slots', () => {
     }
   });
 
-  it('keeps slots out of the sky, off the promontory and the temple', () => {
+  it('keeps slots out of the sky, off the promontory and the temple (but the cliff-top tree, just under its edge)', () => {
     for (const s of slots) {
       expect(s.y, `${s.id} below the skyline`).toBeGreaterThan(skylineAt(s.x) + 5);
-      expect(pointInPolygon({ x: s.x, y: s.y - 6 }, PROMONTORY), `${s.id} off the promontory`).toBe(false);
+      if (s.id === 'scrub-1') expect(s.y - promontoryTop(s.x)!, 'on the cliff top').toBeLessThan(16);
+      else expect(pointInPolygon({ x: s.x, y: s.y - 6 }, PROMONTORY), `${s.id} off the promontory`).toBe(false);
       expect(overlap(box(s), temple), `${s.id} hides the temple`).toBe(false);
     }
+  });
+
+  it('stands the scrub tree inside the 16:9 frame, clear of the scenery olive’s crown (G4b)', () => {
+    const s = slots.find((q) => q.id === 'scrub-1')!;
+    const b = box(s);
+    expect(b.x).toBeGreaterThanOrEqual(0);
+    expect(b.x + b.w).toBeLessThanOrEqual(WORLD_W);
+    expect(b.y).toBeGreaterThanOrEqual(0);
+    // its trunk stands right of the olive's crown, and its crown above the olive's right limbs
+    const olive = OLIVE_LIMBS.slice(1).flat();
+    expect(s.x).toBeGreaterThan(Math.max(...olive.map((q) => q.x)) + 60);
+    for (const q of olive.filter((o) => o.x > b.x)) expect(q.y, `${q.x}`).toBeGreaterThan(s.y - 40);
   });
 
   it('puts water slots in the sea clear of its edges, or in a rock pool; a large one for the seagrass', () => {

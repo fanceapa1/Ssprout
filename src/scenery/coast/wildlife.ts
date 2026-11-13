@@ -192,11 +192,12 @@ function boatPerches(): Perch[] {
   return out;
 }
 
-/** The far pines' crown tops on the promontory's back, those the olive does not hide. */
+/** The far pines' highest needle clouds on the promontory's back, those the olive does not hide and off the slots. */
 const crownPerches = (): Perch[] =>
-  PROMONTORY_PINE_SHAPES.map((s): Perch => ({ id: `pine-crown-${Math.round(s.x)}`, kind: 'crown', x: s.x, y: round(s.y - s.ry * 0.85), spread: round(s.rx * 0.25), dome: 0, depth: round(s.trunk[0]!.y + 1), scale: TEMPLE_SCALE })).filter(
-    (p) => inFrame(p) && !behindOlive(p),
-  );
+  PROMONTORY_PINE_SHAPES.map((s): Perch => {
+    const c = s.clouds.reduce((a, b) => (b.y - b.ry < a.y - a.ry ? b : a));
+    return { id: `pine-crown-${Math.round(s.x)}`, kind: 'crown', x: round(c.x), y: round(c.y - c.ry * 0.8), spread: round(c.rx * 0.4), dome: 0, depth: round(s.trunk[0]!.y + 1), scale: TEMPLE_SCALE };
+  }).filter((p) => inFrame(p) && !behindOlive(p) && offSlots(p));
 
 /** The promontory's lowest edge at x: the sea at its point, the top terrace's back further on. */
 function promontoryFoot(x: number): number | null {

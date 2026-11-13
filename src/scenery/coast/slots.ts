@@ -17,7 +17,7 @@ const SPECS: Record<Habitat, SlotSpec[]> = {
     ['shallows-2', 476, 706, 'medium'],
     ['shallows-3', 668, 696, 'small'],
     ['shallows-4', 520, 590, 'medium'],
-    ['shallows-5', 140, 640, 'small'],
+    ['shallows-5', 188, 650, 'small'],
     ['shallows-6', 370, 610, 'medium'],
     ['pool-1', 230, 894, 'small'],
     ['pool-2', 400, 904, 'medium'],
@@ -54,9 +54,9 @@ const SPECS: Record<Habitat, SlotSpec[]> = {
     ['path-4', 870, 792, 'small', 'lower'],
     ['path-5', 1170, 560, 'small', 'top'],
   ],
-  // the scrub: the promontory's foot behind the top terrace (a tree), the pine's rock, the foreground's corners
+  // the scrub: the promontory's cliff top right of the olive (a tree), the pine's rock, the foreground's corners
   back: [
-    ['scrub-1', 1580, 512, 'tree', 'top'],
+    ['scrub-1', 1468, 306, 'tree'],
     ['scrub-2', 80, 826, 'small'],
     ['scrub-3', 1300, 965, 'medium'],
     ['scrub-4', 1580, 960, 'small'],

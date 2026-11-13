@@ -10,6 +10,7 @@ import { pointInPolygon } from '../../paint/geometry';
 import { WORLD_W, type Pt, type Rect } from '../../render/viewport';
 import type { SkyPainters } from '../types';
 import { ARCHITRAVE, COLUMNS, COAST_SKY_LAYOUT, COAST_SKY_RECT, FAR_HILL, HORIZON, PROMONTORY, SKY_TOP, STYLOBATE, skylineAt } from './layout';
+import { PINE_PADS } from './shapes';
 import { columnShapes } from './temple';
 import { HEADLANDS } from './village';
 
@@ -185,6 +186,7 @@ export const COAST_NIGHT_STARS: readonly Star[] = stars(170, 'coast-stars', {
   stars: { top: -40, depth: 320, gap: { x: 610, halfW: 190, y0: 150, y1: 420 } },
 })
   .filter((s) => s.y < skylineAt(s.x) - 14 && !STARLESS.some((r) => s.x > r.x && s.x < r.x + r.w && s.y > r.y && s.y < r.y + r.h))
+  .filter((s) => !PINE_PADS.some((d) => ((s.x - d.x) / (d.rx + 12)) ** 2 + ((s.y - d.y) / (d.ry + 12)) ** 2 < 1))
   .map((s) => ({ ...s, r: s.r * 0.8, a: s.a * 0.85 }));
 
 /** The four phases' plates, cut to the open sky; then the far shore glazed in the light's colour. */

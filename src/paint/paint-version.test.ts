@@ -148,8 +148,9 @@ describe('paint version', () => {
       expect(files, f).toContain(f);
     }
     expect(files.some((f) => /\.(test|studio)\.ts$/.test(f))).toBe(false);
-    // from those folders only what the scene and the sceneries import (the coast's olive, ADR 0367) stays in
+    // from those folders only what the scene and the sceneries import (the coast's olive, ADR 0367, and its pine, ADR 0380) stays in
     const scene = paintSources(root, ['src/scene', 'src/scenery'], []);
+    for (const f of ['src/plants/species/olive.ts', 'src/plants/species/aleppo-pine.ts', 'src/plants/lib/aleppo-pine-paint.ts']) expect(scene, f).toContain(f);
     for (const dir of UNCACHED_DIRS) for (const f of files.filter((q) => q.startsWith(`${dir}/`))) expect(scene, f).toContain(f);
     expect(files).not.toContain('src/plants/species/lavender.ts');
     for (const f of scene) expect(files, f).toContain(f);
