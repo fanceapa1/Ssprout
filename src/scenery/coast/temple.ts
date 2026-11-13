@@ -170,10 +170,12 @@ function* paintShafts(p: Painter, cols: readonly Col[], rng: Rng): Strokes {
     const x = c.x;
     const hw = COLUMN_W / 2;
     body.push({ poly: c.outline, alpha: 0.4 });
-    // the light from the left: the shade side turns from a soft edge near the axis to the far rim
-    shade.push({ poly: rough(box(x + 0.5, t0 - 2, x + hw + 1, BASE + 1), rng, 0.8, 4), alpha: 0.24 });
-    shade.push({ poly: rough(box(x + 2.8, t0 - 2, x + hw + 1, BASE + 1), rng, 0.6, 4), alpha: 0.32 });
-    core.push({ poly: rough(box(x + 3.4, t0, x + 5.4, BASE), rng, 0.5, 4), alpha: 0.28 });
+    // the light from the left: the shade side turns from a soft edge near the axis to the far rim;
+    // on a broken shaft it starts under the slanted break, not above it against the sky
+    const from = (q: number) => (c.whole ? t0 - 2 : c.top + ((q - x + 8) / 16) * 6 + 1.6);
+    shade.push({ poly: rough(band(x + 0.5, x + hw + 1, from, () => BASE + 1, 4), rng, 0.8, 4), alpha: 0.24 });
+    shade.push({ poly: rough(band(x + 2.8, x + hw + 1, from, () => BASE + 1, 4), rng, 0.6, 4), alpha: 0.32 });
+    core.push({ poly: rough(band(x + 3.4, x + 5.4, (q) => (c.whole ? t0 : from(q) + 0.5), () => BASE, 2), rng, 0.5, 4), alpha: 0.28 });
     lit.push({ poly: rough(box(x - hw + 1.2, t0 + 2, x - hw + 3.4, BASE - 2), rng, 0.4, 4), alpha: 0.5 });
     for (const u of [-5.6, -3.1, -0.8, 1.6, 4, 6.2]) {
       for (let y = t0 + rng.range(1, 5); y < BASE - 3; ) {
@@ -262,7 +264,10 @@ function* paintArchitrave(p: Painter, rng: Rng): Strokes {
     const cx = x0 + 4 + rng.range(0, x1 - x0 - 16);
     shade.push({ poly: rough(ellipse(cx, ARCH_TOP(cx) + 0.5, rng.range(1.5, 3), rng.range(0.8, 1.6), 8), rng, 0.3, 1.5), alpha: 0.5 });
   }
+  // the shade kept inside the fragment, so none shows past its broken end against the sky
+  clipTo(p, outline);
   yield* wetBatch(p, shade, MARBLE.shade, { edge: 0.15, sharpness: 0.6, granulation: 0.5 });
+  p.ctx.restore();
   yield* wetBatch(p, ink, MARBLE.deep, { edge: 0.2, edgeWidth: 0.6, sharpness: 0.8 });
   yield* liftBatch(p, [{ poly: band(x0 + 1, x1 - 10, (x) => ARCH_TOP(x) + 0.4, (x) => ARCH_TOP(x) + 1.5, 3), alpha: 0.6 }], LIME.lit, { edge: 0 });
 }
