@@ -8,7 +8,8 @@ import { createWebAudioBackend, type AudioBackend, type SoundBus } from './backe
 import { createGardenAudio, type GardenAudio } from './garden-audio';
 import { fallsLoops } from './falls';
 import { palmsLoops, SEGUIA_BLEND, seguiaLoops } from './oasis-bed';
-import { BIRD_CURVE, CRICKET_CURVE, DIPPER_CURVE, DOVE_CURVE, GECKO_CURVE, KAJIKA_CURVE, MASTER_LEVEL, mixParams, sampleCurve, SWALLOW_CURVE, WARBLER_CURVE, type MixParams } from './params';
+import { CICADAS_S, cicadaLoops, SEA_S, seaLoops, WAVES_PER_LOOP } from './coast-bed';
+import { BIRD_CURVE, CHORUS_CURVE, CRICKET_CURVE, DIPPER_CURVE, DOVE_CURVE, GECKO_CURVE, KAJIKA_CURVE, MASTER_LEVEL, mixParams, sampleCurve, SCOPS_CURVE, SWALLOW_CURVE, WARBLER_CURVE, type MixParams } from './params';
 import { standardLoop } from './standard-loops';
 import { brownNoise, pinkNoise, whiteNoise } from './noise';
 import { EPS, RECIPES, type Point, type RecipeName, type SoundSpec, type Voice } from './recipes';
@@ -238,6 +239,8 @@ function drawCurves(canvas: HTMLCanvasElement, { pixelRatio }: StudioRenderConte
     { name: 'kajika (falls)', curve: KAJIKA_CURVE, w: 1, a: 0.45, dash: [1, 2], at: 20.5 },
     { name: 'dove (oasis)', curve: DOVE_CURVE, w: 1, a: 0.45, dash: [6, 2], at: 10 },
     { name: 'gecko (oasis)', curve: GECKO_CURVE, w: 1, a: 0.45, dash: [3, 3], at: 22.5 },
+    { name: 'cicadas (coast)', curve: CHORUS_CURVE, w: 1, a: 0.45, dash: [5, 3], at: 14.5 },
+    { name: 'owl (coast)', curve: SCOPS_CURVE, w: 1, a: 0.45, dash: [2, 2], at: 3 },
   ];
   ctx.font = '10px "Cormorant Garamond", serif';
   ctx.textBaseline = 'bottom';
@@ -310,9 +313,15 @@ const section: StudioSection = {
     soundEntry('cicada', 'Oasis: midday insect shimmer', 'events'),
     soundEntry('gecko', 'Oasis: gecko clicks after dark', 'events'),
     soundEntry('frogs', 'Oasis: distant frog chorus from the basin', 'events'),
+    soundEntry('caique', 'Coast: the caique’s hull and mooring rope', 'events'),
+    soundEntry('gull', 'Coast: a far gull', 'events'),
+    soundEntry('goatbell', 'Coast: goat bells on the far cliff', 'events'),
+    soundEntry('chapel', 'Coast: the chapel bell at sunset', 'events'),
+    soundEntry('scops', 'Coast: a Scops owl’s spell at night', 'events'),
     soundscape,
     fallsEntry(),
     oasisEntry(),
+    coastEntry(),
     ...(['waves', 'fire', 'cafe', 'lofi', 'white', 'brown'] as const).map(standardEntry),
   ],
 };
@@ -417,6 +426,30 @@ function oasisEntry(): StudioEntry {
       ctx.fillText('palms, 17 s loop', 12, H - 6);
       clickable(canvas, () => toggleBed('oasis', () =>
         mixParams({ hour: 12, weather: null, activity: idle, fauna: new Set(), scenery: 'oasis' })));
+    },
+  };
+}
+
+/** The coast's beds (ADR 0376): the sea on the pebbles and the cicadas; plays the garden mix there at 14 h. */
+function coastEntry(): StudioEntry {
+  return {
+    id: 'coast', label: 'Coast beds: the sea on the pebbles and the cicadas — click to play / stop', w: W, h: H,
+    render(canvas, rc) {
+      const rng = createRng(rc.seed);
+      const sea = seaLoops(rng.fork('sea'), 16000), cicadas = cicadaLoops(rng.fork('cicadas'), 16000);
+      const ctx = canvas.getContext('2d')!;
+      ctx.scale(rc.pixelRatio, rc.pixelRatio);
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = ink(0.75);
+      trace(ctx, sea.data[0], H * 0.28, 70);
+      ctx.strokeStyle = ink(0.5);
+      trace(ctx, cicadas.data[0], H * 0.75, 70);
+      ctx.fillStyle = ink(0.65);
+      ctx.font = 'italic 13px "Cormorant Garamond", serif';
+      ctx.fillText(`sea, ${SEA_S} s loop (${WAVES_PER_LOOP} waves)`, 12, H * 0.6);
+      ctx.fillText(`cicadas, ${CICADAS_S} s loop`, 12, H - 6);
+      clickable(canvas, () => toggleBed('coast', () =>
+        mixParams({ hour: 14, weather: null, activity: idle, fauna: new Set(), scenery: 'coast' })));
     },
   };
 }
