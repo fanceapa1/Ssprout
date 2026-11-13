@@ -1,7 +1,7 @@
 /** Hermann's tortoise: the coast's slow walker, plodding along one terrace and grazing by the scrub and the flower mats. Side view, facing right.
  * docs/devlog/193-hermanns-tortoise.md; docs/systems/fauna.md › Creatures and behaviour. */
 import type { Rng } from '../../core/rng';
-import { mix, PIGMENTS, smoothPolygon, type Painter } from '../../paint';
+import { makeCanvas, mix, PIGMENTS, smoothPolygon, type AnyCanvas, type Painter } from '../../paint';
 import type { LayerId } from '../../render/types';
 import type { Pt, Rect } from '../../render/viewport';
 import { clamp, dist, easeInOut, lerp, pointInPolygon, rangeOf, TAU } from '../math';
@@ -11,14 +11,17 @@ import { BaseCreature, type Ctx, type FaunaWorld } from '../types';
 import { heldSpots } from './bird';
 import type { CreatureDef } from './lib/def';
 
+/** Drawn a little larger than life (a 16 cm shell would be about 14 units) so the dome reads at the overview. */
+export const TORTOISE_K = 1.2;
+
 export const TORTOISE_TUNING = {
   /** world units / s at perspective 1 while plodding (about 0.2 body lengths a second) */
   walk: 4.2,
   /** body travel per gait cycle (world units at perspective 1) */
-  stride: 7,
+  stride: 7 * TORTOISE_K,
   /** a plod: this many body lengths of route */
   plod: [1.5, 3.5] as const,
-  bodyLength: 24,
+  bodyLength: 24 * TORTOISE_K,
   /** seconds standing still after a plod; grazing; basking after it comes out */
   pause: [30, 90] as const,
   graze: [14, 32] as const,
@@ -309,12 +312,14 @@ function paintFront(p: Painter): void {
   for (let i = 0; i <= 10; i++) hole.push(map(i / 10, 0.7));
   p.wash(smoothPolygon(hole, 1), mix(mix(SKIN, BLOTCH, 0.4), PIGMENTS.shadow, 0.35), { rng, opacity: 0.85, layers: 4, deform: 0.08, edge: 0.3, edgeWidth: 0.3 });
   const head = smoothPolygon(pts([[-1.7, -3.3], [-1.6, -5.3], [0, -6.0], [1.6, -5.3], [1.7, -3.3], [0, -2.6]]), 1);
-  skin(p, head, false, [], 0.4);
+  skin(p, head, false, [], 0);
+  p.glaze(head, mix(SKIN, BLOTCH, 0.35), { rng, opacity: 0.4, edge: 0, darken: 0, deform: 0.08, fade: { angle: Math.PI / 2, start: 0.3, amount: 1, ragged: 0.5 } });
+  // the eyes at the sides of the blunt head, the pale cheek patches under them, the beak's tip
   for (const s of [-1, 1]) {
-    p.dab(P(s * 1.15, -4.9), '#2f2822', { rng, variant: 'round', angle: 0, length: 0.6, width: 0.55, opacity: 0.85, layers: 2, edge: 0.3 });
-    p.dab(P(s * 1.25, -3.9), '#e6d488', { rng, variant: 'round', angle: 0, length: 0.8, width: 0.55, opacity: 0.6, layers: 2, edge: 0.3 });
+    p.dab(P(s * 1.35, -4.7), '#3a3026', { rng, variant: 'leaf', angle: s * 0.3, length: 0.55, width: 0.38, opacity: 0.8, layers: 2, edge: 0.4 });
+    p.dab(P(s * 1.3, -3.7), '#e6d488', { rng, variant: 'round', angle: 0, length: 0.7, width: 0.45, opacity: 0.45, layers: 2, edge: 0.3 });
   }
-  p.inkLine([P(-0.9, -3.1), P(0, -2.85), P(0.9, -3.1)], { rng, width: 0.15, opacity: 0.55, breaks: 0, pigment: INK });
+  p.inkLine([P(-0.35, -3.0), P(0, -2.75), P(0.35, -3.0)], { rng, width: 0.14, opacity: 0.35, breaks: 0.3, pigment: INK });
 }
 
 export interface TortoiseParts {
@@ -378,6 +383,9 @@ export interface TortoisePose {
   shadow: number;
 }
 
+/** The box (sprite units, facing +x) a composed pose is drawn into: the stretched neck, the tail, the shadow. */
+const COMPOSITE = { x: -17, y: -18, w: 40, h: 22 };
+
 export const STAND_POSE: TortoisePose = { neck: 1, neckAngle: 0.12, head: 0.05, legs: 1, walk: 0, gait: 0, drop: 0, sleep: false, shadow: 1 };
 
 const SHOULDER = P(6.0, -4.6);
@@ -400,7 +408,7 @@ function at(ctx: Ctx, s: Sprite, x: number, y: number, rot = 0, sx = 1, sy = 1):
 }
 
 /** Where a foot is relative to its joint's neutral point, in a gait cycle: planted and sweeping back, then lifted forward. */
-export function footAt(ph: number, stride = TORTOISE_TUNING.stride): { x: number; lift: number } {
+export function footAt(ph: number, stride = TORTOISE_TUNING.stride / TORTOISE_K): { x: number; lift: number } {
   const s = ((ph % 1) + 1) % 1;
   const half = (stride * GAIT.duty) / 2;
   if (s < GAIT.duty) return { x: lerp(half, -half, s / GAIT.duty), lift: 0 };
@@ -661,7 +669,7 @@ export function greeneryAt(map: TortoiseMap, flowers: FaunaWorld['flowers'], i: 
   for (const f of flowers) {
     const dx = f.x - n.x;
     if (f.baseY < n.y - 4 || f.baseY - n.y > 55) continue;
-    if (Math.abs(dx) >= 18 && Math.abs(dx) < f.r + TORTOISE_TUNING.reach * 0.7 && Math.abs(dx) < best) {
+    if (Math.abs(dx) >= 18 && Math.abs(dx) < f.r + 26 && Math.abs(dx) < best) {
       best = Math.abs(dx);
       dir = Math.sign(dx);
     }
@@ -1098,13 +1106,34 @@ export class Tortoise extends BaseCreature {
     ctx.save();
     ctx.globalAlpha *= this.alpha;
     ctx.translate(this.x, this.y);
-    ctx.scale(this.scale, this.scale);
+    ctx.scale(this.scale * TORTOISE_K, this.scale * TORTOISE_K);
     if (this.mode === 'turn') drawTurn(ctx, parts, this.pose(), this.facing, clamp(this.modeT / this.modeFor, 0, 1));
     else {
       ctx.scale(this.facing, 1);
-      drawTortoise(ctx, parts, this.pose(), this.facing > 0);
+      const c = this.composed(parts, Math.round(w.art.res * this.scale * TORTOISE_K * 10) / 10);
+      ctx.drawImage(c as CanvasImageSource, COMPOSITE.x, COMPOSITE.y, COMPOSITE.w, COMPOSITE.h);
     }
     ctx.restore();
+  }
+
+  private comp: { canvas: AnyCanvas; key: string } | null = null;
+
+  /** The pose composed once into its own canvas: it changes only every few frames, even plodding. */
+  private composed(parts: TortoiseParts, res: number): AnyCanvas {
+    const q = this.q;
+    const key = `${this.facing},${res},${[q.neck, q.neckAngle, q.head, q.legs, q.drop, q.gait, q.walk % 1].map((v) => Math.round(v * 40)).join(',')},${q.sleep}`;
+    if (this.comp?.key === key) return this.comp.canvas;
+    const pw = Math.ceil(COMPOSITE.w * res);
+    const ph = Math.ceil(COMPOSITE.h * res);
+    let canvas = this.comp?.canvas;
+    if (!canvas || canvas.width !== pw || canvas.height !== ph) canvas = makeCanvas(pw, ph);
+    const c = canvas.getContext('2d') as CanvasRenderingContext2D;
+    c.setTransform(1, 0, 0, 1, 0, 0);
+    c.clearRect(0, 0, pw, ph);
+    c.setTransform(pw / COMPOSITE.w, 0, 0, ph / COMPOSITE.h, -COMPOSITE.x * (pw / COMPOSITE.w), -COMPOSITE.y * (ph / COMPOSITE.h));
+    drawTortoise(c, parts, this.pose(), this.facing > 0);
+    this.comp = { canvas, key };
+    return canvas;
   }
 }
 

@@ -28,6 +28,7 @@ import tortoise, {
   sideOn,
   STAND_POSE,
   Tortoise,
+  TORTOISE_K,
   TORTOISE_TUNING,
   tortoiseMap,
   type TortoiseParts,
@@ -93,8 +94,8 @@ describe('where the tortoise goes', () => {
     // a flower in the bed just in front, to one side
     const i = map.nodes.findIndex((n) => n.rest && n.kind === 'walk' && greeneryAt(map, [], map.nodes.indexOf(n)) === 0);
     const n = map.nodes[i]!;
-    expect(greeneryAt(map, [{ plantId: 'p', x: n.x + 40, y: n.y + 10, baseY: n.y + 28, r: 14 }], i)).toBe(1);
-    expect(greeneryAt(map, [{ plantId: 'p', x: n.x - 40, y: n.y + 10, baseY: n.y + 28, r: 14 }], i)).toBe(-1);
+    expect(greeneryAt(map, [{ plantId: 'p', x: n.x + 34, y: n.y + 10, baseY: n.y + 28, r: 14 }], i)).toBe(1);
+    expect(greeneryAt(map, [{ plantId: 'p', x: n.x - 34, y: n.y + 10, baseY: n.y + 28, r: 14 }], i)).toBe(-1);
   });
 
   it('plods a few body lengths, onward likelier, never onto another creature’s spot', () => {
@@ -289,7 +290,7 @@ describe('a visit', () => {
 
 describe('the gait', () => {
   it('a foot planted sweeps back exactly as far as the body goes, so nothing slides', () => {
-    const S = TORTOISE_TUNING.stride;
+    const S = TORTOISE_TUNING.stride / TORTOISE_K;
     // during the stance the foot moves back by the body's travel: a planted foot stays put on the ground
     const a = footAt(0.1, S);
     const b = footAt(0.3, S);
