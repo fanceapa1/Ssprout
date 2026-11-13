@@ -8,7 +8,7 @@ import { LAYERS } from '../render/types';
 import type { Pt, Rect } from '../render/viewport';
 import { closestOnPolygon, pointInPolygon, toPlane } from './math';
 import { faunaRow } from '../core/fauna-unlocks';
-import type { FaunaListing } from './sim';
+import type { FaunaListing, FaunaSim } from './sim';
 import type { FaunaSystem } from './system';
 import { creatureDef, creatureKinds, loadAllCreatures } from './creatures/registry';
 
@@ -17,6 +17,27 @@ export interface FaunaDebugListing extends FaunaListing {
   inPond: boolean;
   /** distance to the still water's edge in the pond plane */
   edge: number;
+}
+
+/**
+ * Draw every layer of one frame, then read one pixel: the browser defers a canvas's raster work
+ * until its op recorder fills, so without the read a frame's draw time misses it (devlog 189).
+ */
+export function benchFrame(s: Pick<FaunaSim, 'entities' | 'draw' | 'time'>, ctx: CanvasRenderingContext2D): void {
+  for (const layer of LAYERS) {
+    if (layer === 'entities') {
+      for (const d of s.entities().sort((a, b) => a.depth - b.depth)) {
+        ctx.save();
+        d.draw(ctx, { t: s.time, dt: 1 / 60, now: 0 });
+        ctx.restore();
+      }
+    } else {
+      ctx.save();
+      s.draw(layer, ctx);
+      ctx.restore();
+    }
+  }
+  ctx.getImageData(0, 0, 1, 1);
 }
 
 export interface FaunaBench {
@@ -149,19 +170,7 @@ export function installFaunaDebug(system: FaunaSystem): void {
         s.update(1 / 60, system.now());
         const t1 = performance.now();
         if (vp) vp.applyTo(ctx);
-        for (const layer of LAYERS) {
-          if (layer === 'entities') {
-            for (const d of s.entities().sort((a, b) => a.depth - b.depth)) {
-              ctx.save();
-              d.draw(ctx, { t: s.time, dt: 1 / 60, now: 0 });
-              ctx.restore();
-            }
-          } else {
-            ctx.save();
-            s.draw(layer, ctx);
-            ctx.restore();
-          }
-        }
+        benchFrame(s, ctx);
         draw += performance.now() - t1;
         update += t1 - t0;
       }

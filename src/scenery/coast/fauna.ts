@@ -20,7 +20,7 @@ export const COAST_FAUNA: FaunaTable = [
     id: 'gull',
     kind: 'gull',
     rule: '1 plant',
-    arrival: "A yellow-legged gull stands on the caique's mast.",
+    arrival: 'A yellow-legged gull glides in over the cove.',
     announce: true,
     unlocked: (c) => c.plants >= 1,
   },
