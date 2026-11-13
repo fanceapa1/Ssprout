@@ -307,8 +307,8 @@ Phase 15 art queue (after G0): one plant (GP…) or creature (GK…) per task, f
 | GP6 | Rock samphire (*Crithmum maritimum*): T1, fleshy lime umbels on splash rocks and shingle | `src/plants/species/rock-samphire.ts` | queued |
 | GP7 | Peacock's tail (*Padina pavonica*): T1, pale banded fans in the rock pools (an alga) | `src/plants/species/peacocks-tail.ts` | queued |
 | GP8 | Cyclamen (*Cyclamen hederifolium*): T1, pink swept-back flowers over marbled leaves, walls and scrub | `src/plants/species/cyclamen.ts` | queued |
-| GP9 | Sea holly (*Eryngium maritimum*): T2, steel-blue spiny bracts on the beach | `src/plants/species/sea-holly.ts` | queued |
-| GP10 | Cystoseira: T2, an amber-brown algal bush in the pools and shallows | `src/plants/species/cystoseira.ts` | in progress (devlog 188) |
+| GP9 | Sea holly (*Eryngium maritimum*): T2, steel-blue spiny bracts on the beach | `src/plants/species/sea-holly.ts` | in progress (devlog 191) |
+| GP10 | Cystoseira: T2, an amber-brown algal bush in the pools and shallows | `src/plants/species/cystoseira.ts` | done (devlog 188; 21 ms; medium, fits four shallows slots and `pool-2`; cool olive at sunset; its tufts spill over the pool’s rim in the close view) |
 | GP11 | Sea lavender (*Limonium*): T2, a lilac haze on wiry stems, rock and wall | `src/plants/species/sea-lavender.ts` | queued |
 | GP12 | Pink rock rose (*Cistus creticus*): T2, crumpled pink flowers, scrub and path | `src/plants/species/rock-rose.ts` | queued |
 | GP13 | Tree spurge (*Euphorbia dendroides*): T3, a lime-yellow dome on the cliff and rocks | `src/plants/species/tree-spurge.ts` | queued |
