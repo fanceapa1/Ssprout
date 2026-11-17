@@ -2,6 +2,7 @@
 import bee from '../bee';
 import butterfly from '../butterfly';
 import cat from '../cat';
+import dolphin from '../dolphin';
 import goat from '../goat';
 import gull from '../gull';
 import heron from '../heron';
@@ -9,5 +10,5 @@ import type { CreatureDef } from '../lib/def';
 import swallow from '../swallow';
 import tortoise from '../tortoise';
 
-const defs: readonly CreatureDef[] = [bee, butterfly, cat, goat, gull, heron, swallow, tortoise];
+const defs: readonly CreatureDef[] = [bee, butterfly, cat, dolphin, goat, gull, heron, swallow, tortoise];
 export default defs;
