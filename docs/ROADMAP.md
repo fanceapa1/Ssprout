@@ -320,7 +320,7 @@ Phase 15 art queue (after G0): one plant (GP…) or creature (GK…) per task, f
 | GK3 | Cicada: on the olive and pine trunks by day; 2 plants | `src/fauna/creatures/cicada.ts` | queued (after GK0) |
 | GK4 | Marbled rock crab: splash rocks and the pool edge; 5 plants | `src/fauna/creatures/rock-crab.ts` | queued (after GK0) |
 | GK5 | Blue rock thrush: wall tops, the temple, ledges; 8 plants | `src/fauna/creatures/rock-thrush.ts` | queued (after GK0) |
-| GK6 | Goats on the far cliff ledges; 9 plants | `src/fauna/creatures/goat.ts` | in progress (devlog 195) |
+| GK6 | Goats on the far cliff ledges; 9 plants | `src/fauna/creatures/goat.ts` | done (devlog 195; a band of three on painted ledges under the temple and east of the olive and on the cliff top; walk in file, graze, rear into a far pine, lie down, one stands at the lookout; terrace trees draw over them; the band adds 0.05–0.12 ms; finished by a second agent after the weekly limit cut the first off; the east ledges sit in the right edge’s pale fade and a tree on the top terrace’s west slot hides the west ledges) |
 | GK7 | Hermann's tortoise: scrub, terrace foot and path; 10 plants | `src/fauna/creatures/tortoise.ts` | done (devlog 193; comes out of the scrub, basks, plods a few lengths and stands, grazes beside the mats, tucks in when the cat or a big bird comes near; one terrace per visit; side-on paths with a painted front view for turns; roster 0.5–0.6 ms with two; the cat can walk straight through a tortoise, see GK1b) |
 | GK8 | Scops owl: the olive, a wall top, a pine; night only; 12 plants | `src/fauna/creatures/scops-owl.ts` | queued (after GK0) |
 | GK9 | Common dolphins far out in the bay; rare; 20 plants | `src/fauna/creatures/dolphin.ts` | in progress (devlog 197) |
