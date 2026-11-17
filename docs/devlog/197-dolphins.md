@@ -104,6 +104,10 @@ leap; the bay: clear of slots, the size, coast only, every roll, splash and ring
 the mast top; a pass: pod sizes, a minute's crossing, the leader at once, own rhythms, leaps, mills,
 the calf, a hand spawn's size, rarity and night, nightfall, the arrival only in sight, determinism,
 reduced motion, the studio stage; cost: draw calls, update, the plan's fork).
+After the rebase on `main` (the goats, the cyclamen): typecheck clean; the full unit suite, 269 files,
+2840 tests, all pass. E2E, one file at a time, one worker: `fauna` 6, `fauna-oasis` 4,
+`fauna-waterfall` 4, `lazy-creatures` 2, `sceneries` 8, all pass. The full e2e suite was not run, and
+there is no coast fauna e2e spec yet.
 
 ## Left open
 - **No hour:** passes are as likely at noon as at the low suns (above).
