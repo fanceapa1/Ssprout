@@ -13,7 +13,7 @@ import { inView, paintFlight } from './paint-land';
 import { SAND, SEA } from './paint-water';
 import { LIME, band, box, clipBatch, clipTo, ellipse, fillUnder, lineAt, liftBatch, rough, streak, wetBatch, type Mark } from './rock-kit';
 import {
-  BEACH_FLIGHT, BEACH_FLIGHT_BOX, bedAt, CLIFF_STONES, type Fissure, fissureAt, fissureFoot, footAt, FORM_NOISE, PROMONTORY_FOOT_LINE, PROMONTORY_FORM, PROMONTORY_TOP_LINE, SHORE_BOULDER_SHAPES,
+  BEACH_FLIGHT, BEACH_FLIGHT_BOX, bedAt, CLIFF_STONES, type Fissure, GOAT_TRACKS, fissureAt, fissureFoot, footAt, FORM_NOISE, PROMONTORY_FOOT_LINE, PROMONTORY_FORM, PROMONTORY_TOP_LINE, SHORE_BOULDER_SHAPES,
   SPLASH_ROCK_SHAPES, topAt, type RockColumn, type RockShape,
 } from './shapes';
 
@@ -153,6 +153,21 @@ function* paintBeds(p: Painter, rng: Rng): Strokes {
         deep.push({ poly: rough(band(m, n, (x) => sag(x) + 0.4, (x) => sag(x) + 1 + th * 1.5 * Math.pow(k > 0 ? 1 - (x - m) / (n - m) : (x - m) / (n - m), 0.6), 3), rng, 0.8, 3), alpha: 0.3 });
       }
     }
+  }
+  // the goats' ledges: the lip unbroken (gaps a hoof can step), a broader shelf and its undercut
+  const g = rng.fork('goat-ledges');
+  for (const t of GOAT_TRACKS) {
+    if (t.bed === null) continue;
+    const bed = PROMONTORY_FORM.beds[t.bed]!;
+    const at = (x: number) => bedAt(bed, x);
+    for (let x = t.x0 - 4; x < t.x1 + 4; ) {
+      const e = Math.min(t.x1 + 4, x + g.range(8, 26));
+      lips.push({ poly: rough(band(x, e, (q) => at(q) - g.range(1.6, 3.4), (q) => at(q) - 0.3, 4), g, 0.5, 3), alpha: g.range(0.5, 0.8) });
+      const th = g.range(0.8, 2.6);
+      under.push({ poly: rough(band(x, e, at, (q) => at(q) + th * (0.5 + Math.abs(FORM_NOISE(q / 11, bed.y + 4))), 4), g, 0.5, 3), alpha: g.range(0.14, 0.26) });
+      x = e + g.range(0.6, 4);
+    }
+    under.push({ poly: rough(band(t.x0 + 2, t.x1 - 2, (x) => at(x) + 1, (x) => at(x) + 4 + 3 * FORM_NOISE(x / 20, bed.y + 6), 6), g, 1.1, 4), alpha: 0.1 });
   }
   yield;
   yield* wetBatch(p, lines, LIME.recess, { edge: 0.15, sharpness: 0.5, granulation: 0.3 });

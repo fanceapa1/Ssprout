@@ -412,6 +412,33 @@ export function fissureAt(f: Fissure, y: number): number {
 }
 export const fissureFoot = (f: Fissure): number => topAt(f.x) + (footAt(f.x) - topAt(f.x)) * f.depth;
 
+/** A way the goats walk on the promontory (GK6): the cliff top, or a hard bed's lip, between x0 and x1. */
+export interface GoatTrack {
+  id: string;
+  /** index into `PROMONTORY_FORM.beds` (a hard one), or null for the cliff top */
+  bed: number | null;
+  x0: number;
+  x1: number;
+}
+
+/**
+ * The goats' ground (GK6, devlog 195): west of the olive the cliff top and three hard beds a short
+ * hop apart, the lowest running out under the temple to the point above the sea's notch; east of the
+ * olive two hard beds running off the right edge. The rock painter lays a lip
+ * along each bed's span, so every ledge a goat walks is painted.
+ */
+export const GOAT_TRACKS: readonly GoatTrack[] = [
+  { id: 'cliff-top-west', bed: null, x0: 884, x1: 1040 },
+  { id: 'ledge-west-1', bed: 4, x0: 884, x1: 1050 },
+  { id: 'ledge-west-2', bed: 5, x0: 892, x1: 1056 },
+  { id: 'ledge-west-3', bed: 6, x0: 760, x1: 1060 },
+  { id: 'ledge-east-1', bed: 4, x0: 1524, x1: 1594 },
+  { id: 'ledge-east-2', bed: 5, x0: 1500, x1: 1594 },
+];
+
+/** Where a goat's feet go on a track at x: just inside the cliff top's edge, or on the bed's lip. */
+export const goatTrackY = (t: GoatTrack, x: number): number => (t.bed === null ? topAt(x) + 1.5 : bedAt(PROMONTORY_FORM.beds[t.bed]!, x) - 0.2);
+
 /** A far pine: its crown's centre and half extents, its trunk (foot to top), limbs and needle clouds. */
 export interface FarPine {
   x: number;

@@ -1,7 +1,7 @@
 /**
  * Where the coast's wildlife lives (ADR 0248, 0373), read by name from the coast's data modules:
  * perches (copings, the olive's and pine's limbs, the jars, the splash rocks, the temple, the
- * caique, the far pines and the cliff's ledges), walks and scrub, the wall and splash-rock faces,
+ * caique, the far pines and the goats' ledges), walks and scrub, the wall and splash-rock faces,
  * the shallows, the rock pools, the far bay, the air over the cove and the bark, the heron's stands,
  * the caique as a carrier, and the terrace-aware perspective. docs/systems/fauna.md › The coast.
  */
@@ -18,7 +18,7 @@ import {
 } from './layout';
 import { CAIQUE_BOX, CAIQUE_SHAPES, DEPTH, shoreContour } from './sea';
 import {
-  BEDS, copingY, FLIGHTS, JARS, MAQUIS, OLIVE_LIMBS, PHRYGANA, PINE_BRANCHES, PINE_PADS, PINE_ROCK, PINE_TRUNK, PROMONTORY_PINE_SHAPES, promontoryTop, SHORE_BOULDER_SHAPES,
+  BEDS, copingY, FLIGHTS, GOAT_TRACKS, goatTrackY, JARS, PROMONTORY_FORM, OLIVE_LIMBS, PHRYGANA, PINE_BRANCHES, PINE_PADS, PINE_ROCK, PINE_TRUNK, PROMONTORY_PINE_SHAPES, SHORE_BOULDER_SHAPES,
   SPLASH_ROCK_SHAPES, WALL_TOPS, wallDrop,
 } from './shapes';
 import { COAST_SLOTS } from './slots';
@@ -213,22 +213,29 @@ function promontoryFoot(x: number): number | null {
 }
 
 /**
- * Ledges across the promontory's face for the goats (ADR 0373): a little under mid-face, at the
- * temple's measure, clear of the maquis, the far pines, the olive's crown and the top terrace's lip.
+ * The goats' ledges (GK6, devlog 195): each track of `GOAT_TRACKS` (the cliff top west of the olive,
+ * hard beds' painted lips) cut into short level stretches, `<track>-<k>` west to east, at the
+ * temple's measure. The goats join a track's stretches by name.
  */
-function cliffLedges(): Perch[] {
+function goatLedges(): Perch[] {
   const out: Perch[] = [];
-  for (let x = 660; x <= 1590; x += 30) {
-    const top = promontoryTop(x);
-    const foot = promontoryFoot(x);
-    if (top === null || foot === null || foot - top < 40) continue;
-    const y = round(top + (foot - top) * 0.45);
-    const q = { x, y };
-    if (y > foot - 24 || behindOlive(q)) continue;
-    if (MAQUIS.some((m) => Math.hypot(m.x - x, m.y - y) < m.r + 8)) continue;
-    if (PROMONTORY_PINE_SHAPES.some((s) => Math.abs(s.trunk[0]!.x - x) < 12 && y < s.trunk[0]!.y + 4)) continue;
-    if (out.some((p) => Math.abs(p.x - x) < 70)) continue;
-    out.push({ id: `cliff-ledge-${x}`, kind: 'ledge', x, y, spread: 9, dome: 0, depth: y + 1, scale: TEMPLE_SCALE });
+  for (const t of GOAT_TRACKS) {
+    // stretches end either side of each deep fissure, where the beds step, and are about 10 long
+    const cuts = PROMONTORY_FORM.fissures.filter((f) => f.depth > 0.75 && f.x > t.x0 + 4 && f.x < t.x1 - 4).map((f) => f.x);
+    const ends = [t.x0, ...cuts, t.x1];
+    let k = 0;
+    for (let i = 1; i < ends.length; i++) {
+      const [x0, x1] = [ends[i - 1]! + (i > 1 ? 0.5 : 0), ends[i]! - (i < ends.length - 1 ? 0.5 : 0)];
+      const n = Math.max(1, Math.round((x1 - x0) / 10));
+      for (let j = 0; j < n; j++) {
+        const a = x0 + ((x1 - x0) * j) / n;
+        const b = x0 + ((x1 - x0) * (j + 1)) / n;
+        const ya = goatTrackY(t, a);
+        const yb = goatTrackY(t, b);
+        const y = round((ya + yb) / 2);
+        out.push({ id: `${t.id}-${++k}`, kind: 'ledge', x: round((a + b) / 2), y, spread: round((b - a) / 2), dome: 0, depth: round(y + 1), slope: round2((yb - ya) / (b - a)), scale: TEMPLE_SCALE });
+      }
+    }
   }
   return out;
 }
@@ -242,7 +249,7 @@ export const COAST_PERCHES: Perch[] = [
   ...templePerches(),
   ...boatPerches(),
   ...crownPerches(),
-  ...cliffLedges(),
+  ...goatLedges(),
 ];
 
 // ── carriers ────────────────────────────────────────────────────────────────────────────────

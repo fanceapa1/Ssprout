@@ -3,12 +3,14 @@ import { FaunaSim } from '../../fauna/sim';
 import { distanceToPolygon, pointInPolygon, polygonBounds, polygonCentroid } from '../../fauna/math';
 import { carried, inRegion, perchY, regionScale, wallTopAt, type Perch } from '../../fauna/targets';
 import type { Pt } from '../../render/viewport';
-import { perspectiveScale } from '../../scene/slots';
+import { perspectiveScale, PLANT_SIZES, plantScale } from '../../scene/slots';
 import { COAST } from '.';
 import { POOL_WATER, SEA_WATER } from './geometry';
-import { ARCHITRAVE, BEACH, CAIQUE, COAST_SKY_LAYOUT, COLUMNS, DRUM, HORIZON, LAND, LIFT, OLIVE, PATH, PINE, skylineAt, TEMPLE_SHAPES, WALLS, WATERLINE_EDGE } from './layout';
+import { ARCHITRAVE, BEACH, CAIQUE, COAST_SKY_LAYOUT, COLUMNS, DRUM, HORIZON, LAND, LIFT, OLIVE, PATH, PINE, skylineAt, STYLOBATE, TEMPLE_SHAPES, WALLS, WATERLINE_EDGE } from './layout';
 import { CAIQUE_BOX, CAIQUE_SHAPES, DEPTH, shoreDistance } from './sea';
-import { BEDS, FLIGHTS, JARS, OLIVE_LIMBS, PINE_BRANCHES, PINE_TRUNK, PROMONTORY_PINE_SHAPES, promontoryTop, SPLASH_ROCK_SHAPES, WALL_FACES, WALL_TOPS } from './shapes';
+import {
+  BEDS, FLIGHTS, footAt, GOAT_TRACKS, goatTrackY, JARS, OLIVE_LIMBS, PINE_BRANCHES, PINE_TRUNK, PROMONTORY_FORM, PROMONTORY_PINE_SHAPES, SPLASH_ROCK_SHAPES, topAt, WALL_FACES, WALL_TOPS,
+} from './shapes';
 import { COAST_SLOTS } from './slots';
 import {
   CAIQUE_MEASURE, COAST_CARRIERS, COAST_GROUND, COAST_PERCHES, COAST_REGIONS, COAST_STANDS, COAST_WALLS, COAST_WILDLIFE, coastPerspective, intoSea, seaScale, TEMPLE_SCALE,
@@ -137,13 +139,39 @@ describe('perches', () => {
     expect(carried(boat[0]!, COAST_CARRIERS.caique)).toEqual({ x: boat[0]!.x, y: boat[0]!.y });
   });
 
-  it('the goats’ ledges cross the promontory’s face, at the temple’s measure, out of the olive’s crown', () => {
-    for (const p of of('ledge')) {
-      const top = promontoryTop(p.x)!;
-      expect(p.y, p.id).toBeGreaterThan(top + 10);
-      expect(p.y, p.id).toBeLessThan(500);
-      expect(((p.x - OLIVE.crown.x) / OLIVE.rx) ** 2 + ((p.y - OLIVE.crown.y) / OLIVE.ry) ** 2, p.id).toBeGreaterThan(1);
-      expect(p.scale).toBe(TEMPLE_SCALE);
+  it('the goats’ ledges are the cliff top and painted hard beds, a goat’s height clear of the olive, under the temple’s platform, clear of the cliff-top tree (GK6)', () => {
+    const slot = COAST_SLOTS.find((s) => s.id === 'scrub-1')!;
+    const k = plantScale(slot);
+    const tree = { x0: slot.x - (PLANT_SIZES.tree.w * k) / 2, x1: slot.x + (PLANT_SIZES.tree.w * k) / 2, y0: slot.y - 0.95 * PLANT_SIZES.tree.h * k };
+    const goat = 14;
+    for (const t of GOAT_TRACKS) {
+      const ledges = of('ledge').filter((p) => p.id.startsWith(`${t.id}-`));
+      expect(ledges.length, t.id).toBeGreaterThanOrEqual(3);
+      if (t.bed !== null) expect(PROMONTORY_FORM.beds[t.bed]!.hard, t.id).toBe(true);
+      for (const p of ledges) {
+        expect(p.scale).toBe(TEMPLE_SCALE);
+        for (const q of along(p)) {
+          // on its track (the painted lip or the cliff top's edge) and on the face
+          expect(Math.abs(q.y - goatTrackY(t, q.x)), p.id).toBeLessThan(1.2);
+          if (t.bed === null) expect(Math.abs(q.y - topAt(q.x)), p.id).toBeLessThan(3);
+          else expect(q.y > topAt(q.x) + 12 && q.y < footAt(q.x) - 22, p.id).toBe(true); // above the sea's notch (≤ 12) and its wet band
+          // a standing goat (its height above its feet) clear of what the painting puts there
+          for (const y of [q.y, q.y - goat]) expect(((q.x - OLIVE.crown.x) / (OLIVE.rx * 1.1)) ** 2 + ((y - OLIVE.crown.y) / (OLIVE.ry * 1.1)) ** 2, p.id).toBeGreaterThan(1);
+          // under the temple's platform, never on it: a goat's height below the stylobate
+          if (q.x > STYLOBATE.x0 - 10 && q.x < DRUM.x + 12) expect(q.y - goat, p.id).toBeGreaterThan(STYLOBATE.y + 2);
+          expect(q.x, p.id).toBeLessThanOrEqual(1600);
+          expect(q.x < tree.x0 - 4 || q.x > tree.x1 + 4 || q.y - goat > slot.y + 2, p.id).toBe(true);
+        }
+      }
+    }
+    // the west side's ways are joined by short hops (≤ 30 units, about 1.9 m at the temple's measure)
+    const west = GOAT_TRACKS.filter((t) => t.id.endsWith('west') || t.id.includes('-west-'));
+    for (let i = 1; i < west.length; i++) {
+      const [a, b] = [west[i - 1]!, west[i]!];
+      let gap = Infinity;
+      for (let x = Math.max(a.x0, b.x0); x <= Math.min(a.x1, b.x1); x += 2) gap = Math.min(gap, goatTrackY(b, x) - goatTrackY(a, x));
+      expect(gap, `${a.id} → ${b.id}`).toBeGreaterThan(8);
+      expect(gap, `${a.id} → ${b.id}`).toBeLessThanOrEqual(30);
     }
   });
 
