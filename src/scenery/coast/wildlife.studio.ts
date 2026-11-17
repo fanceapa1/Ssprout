@@ -12,6 +12,7 @@ import { COAST_STAGE } from '../../fauna/stage';
 import { regionScale, type Perch, type Region } from '../../fauna/targets';
 import { COAST } from '.';
 import { COAST_GROUND, COAST_PERCHES, COAST_REGIONS, COAST_STANDS, COAST_WALLS, coastPerspective } from './wildlife';
+import { bedAt, fissureAt, fissureFoot, PROMONTORY_FORM, topAt } from './shapes';
 
 // the studio loads only the released gardens' painters; the coast is behind its flag
 await COAST.painters.load();
@@ -153,6 +154,47 @@ const whole: StudioEntry = {
   },
 };
 
+/** The promontory's face for the goats: its hard beds (red), soft beds (grey) and fissures (blue). */
+function drawFace(ctx: CanvasRenderingContext2D, unit: number): void {
+  for (const bed of PROMONTORY_FORM.beds) {
+    ctx.beginPath();
+    for (let x = 640; x <= 1640; x += 4) ctx.lineTo(x, bedAt(bed, x));
+    ctx.strokeStyle = bed.hard ? 'rgba(200,40,40,0.8)' : 'rgba(80,80,80,0.35)';
+    ctx.lineWidth = unit * (bed.hard ? 1 : 0.5);
+    ctx.stroke();
+  }
+  for (const f of PROMONTORY_FORM.fissures) {
+    ctx.beginPath();
+    for (let y = topAt(f.x); y <= fissureFoot(f); y += 3) ctx.lineTo(fissureAt(f, y), y);
+    ctx.strokeStyle = f.depth > 0.75 ? 'rgba(40,60,200,0.7)' : 'rgba(40,60,200,0.35)';
+    ctx.lineWidth = unit;
+    ctx.stroke();
+  }
+}
+
+const CLIFF: Rect = { x: 630, y: 260, w: 1000, h: 270 };
+const goats: StudioEntry = {
+  id: 'goats',
+  label: 'the promontory close at the garden’s own art seed, as painted (top) and with its face’s form (hard beds red, soft grey, fissures blue) and the goats’ ledges (violet, a goat’s height) (bottom)',
+  w: 2000,
+  h: 1088,
+  render(canvas) {
+    const half = document.createElement('canvas');
+    half.width = canvas.width;
+    half.height = Math.round((canvas.width * CLIFF.h) / CLIFF.w);
+    painting(half, CLIFF, COAST.art.seed);
+    const ctx = canvas.getContext('2d')!;
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(half, 0, 0);
+    ctx.drawImage(half, 0, half.height + 4);
+    const k = canvas.width / CLIFF.w;
+    ctx.setTransform(k, 0, 0, k, -CLIFF.x * k, -CLIFF.y * k + half.height + 4);
+    drawFace(ctx, 0.6);
+    drawTargets(ctx, 0.5);
+  },
+};
+
 const crop = (id: string, label: string, rect: Rect, w: number, unit: number): StudioEntry => ({
   id,
   label,
@@ -170,6 +212,7 @@ const section: StudioSection = {
   entries: [
     whole,
     crop('targets-close', 'the same, close on the fauna stage’s crop: the cove, the temple, the caique, the splash rocks, the terraces’ seaward ends', COAST_STAGE, 900, 0.8),
+    goats,
     crop('targets-far', 'the far stages close: the bay under the far hill, the caique, the temple and the cliff ledges', { x: 180, y: 240, w: 760, h: 300 }, 1000, 0.5),
   ],
 };

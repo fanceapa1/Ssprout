@@ -7,6 +7,7 @@
  */
 import { createRng, type Rng } from '../../core/rng';
 import { pointInPolygon, resample, smoothPath } from '../../paint/geometry';
+import { createSimplex2D } from '../../paint/noise';
 import type { Pt, Rect } from '../../render/viewport';
 import {
   copingAt, LAND, OLIVE, PINE, PROMONTORY, PROMONTORY_PINES, SHORE_BOULDERS, SPLASH_ROCKS, STEPS, VILLAGE, WALLS, WALL_TERRACE, type Terrace, type Wall,
@@ -340,6 +341,103 @@ export function promontoryTop(x: number): number | null {
   }
   return best;
 }
+
+// ── the promontory's face (G2b): its fissures and beds, read by the rock painter and the goats ──
+
+/** y on a polyline sorted by x, held flat beyond its ends. */
+function lineAt(line: readonly Pt[], x: number): number {
+  if (x <= line[0]!.x) return line[0]!.y;
+  for (let i = 1; i < line.length; i++) {
+    const a = line[i - 1]!;
+    const b = line[i]!;
+    if (b.x >= x) return b.x === a.x ? a.y : a.y + ((b.y - a.y) * (x - a.x)) / (b.x - a.x);
+  }
+  return line[line.length - 1]!.y;
+}
+
+const TIP = PROMONTORY.findIndex((q) => q.x >= 1620);
+/** The promontory's top (the skyline) and its foot (the sea, then the top terrace's back), by x. */
+export const PROMONTORY_TOP_LINE: readonly Pt[] = [...PROMONTORY.slice(0, TIP + 1), { x: 1680, y: PROMONTORY[TIP]!.y }];
+export const PROMONTORY_FOOT_LINE: readonly Pt[] = [PROMONTORY[0]!, ...PROMONTORY.slice(TIP + 1).reverse(), { x: 1680, y: 500 }].sort((a, b) => a.x - b.x);
+export const topAt = (x: number): number => lineAt(PROMONTORY_TOP_LINE, x);
+export const footAt = (x: number): number => lineAt(PROMONTORY_FOOT_LINE, x);
+
+export interface Fissure {
+  x: number;
+  lean: number;
+  /** how far down the face it runs, 0..1 */
+  depth: number;
+  /** how far the beds step down across it */
+  drop: number;
+  seed: number;
+  /** where it opens below the rim, 0..1 down the face (0: from the rim) */
+  start: number;
+  /** where a side branch leaves it, 0..1 down the face (0: none) */
+  branch: number;
+}
+export interface PromontoryBed {
+  y: number;
+  hard: boolean;
+  /** its own tilt on the face's slope, and how far it wanders */
+  tilt: number;
+  wander: number;
+}
+
+/** The face's noise, fixed by name. */
+export const FORM_NOISE = createSimplex2D(createRng('coast-promontory-noise'));
+/** The face's form, fixed (seeded by name): only the brushwork follows the art seed. */
+export const PROMONTORY_FORM = (() => {
+  const rng = createRng('coast-promontory-form');
+  const fissures: Fissure[] = [];
+  for (let x = 668; x < 1660; ) {
+    fissures.push({ x, lean: rng.range(-0.22, 0.3), depth: rng.chance(0.3) ? rng.range(0.3, 0.6) : rng.range(0.78, 1), drop: rng.range(-4.5, 4.5), seed: rng.range(0, 100), start: rng.chance(0.3) ? rng.range(0.15, 0.4) : 0, branch: rng.chance(0.4) ? rng.range(0.25, 0.6) : 0 });
+    // some fissures come in pairs a joint's width apart, the rest at uneven spacing
+    x += rng.chance(0.25) ? rng.range(12, 26) : x < 900 ? rng.range(34, 95) : rng.range(55, 210);
+  }
+  const beds: PromontoryBed[] = [];
+  for (let y = 336; y < 580; y += rng.chance(0.3) ? rng.range(5, 9) : rng.range(12, 32)) beds.push({ y, hard: rng.chance(0.38), tilt: rng.range(-0.04, 0.04), wander: rng.range(1.5, 6) });
+  return { fissures, beds };
+})();
+
+const SLOPE = -0.055;
+/** A bed's height at x: tilted (each bed its own way), stepped across the deep fissures, wandering. */
+export function bedAt(bed: PromontoryBed, x: number): number {
+  let drop = 0;
+  for (const f of PROMONTORY_FORM.fissures) if (f.depth > 0.75 && f.x < x) drop += f.drop;
+  return bed.y + (SLOPE + bed.tilt) * (x - 636) + drop + FORM_NOISE(x / 90, bed.y) * bed.wander + FORM_NOISE(x / 23, bed.y + 9) * 1.2;
+}
+/** A fissure's x at depth y: zigzagging at two scales. */
+export function fissureAt(f: Fissure, y: number): number {
+  return f.x + f.lean * (y - topAt(f.x)) + FORM_NOISE(y / 40, f.seed) * 4 + FORM_NOISE(y / 11, f.seed + 5) * 1.6;
+}
+export const fissureFoot = (f: Fissure): number => topAt(f.x) + (footAt(f.x) - topAt(f.x)) * f.depth;
+
+/** A way the goats walk on the promontory (GK6): the cliff top, or a hard bed's lip, between x0 and x1. */
+export interface GoatTrack {
+  id: string;
+  /** index into `PROMONTORY_FORM.beds` (a hard one), or null for the cliff top */
+  bed: number | null;
+  x0: number;
+  x1: number;
+}
+
+/**
+ * The goats' ground (GK6, devlog 195): west of the olive the cliff top and three hard beds a short
+ * hop apart, the lowest running out under the temple to the point above the sea's notch; east of the
+ * olive two hard beds running off the right edge. The rock painter lays a lip
+ * along each bed's span, so every ledge a goat walks is painted.
+ */
+export const GOAT_TRACKS: readonly GoatTrack[] = [
+  { id: 'cliff-top-west', bed: null, x0: 884, x1: 1040 },
+  { id: 'ledge-west-1', bed: 4, x0: 884, x1: 1050 },
+  { id: 'ledge-west-2', bed: 5, x0: 892, x1: 1056 },
+  { id: 'ledge-west-3', bed: 6, x0: 760, x1: 1060 },
+  { id: 'ledge-east-1', bed: 4, x0: 1524, x1: 1594 },
+  { id: 'ledge-east-2', bed: 5, x0: 1500, x1: 1594 },
+];
+
+/** Where a goat's feet go on a track at x: just inside the cliff top's edge, or on the bed's lip. */
+export const goatTrackY = (t: GoatTrack, x: number): number => (t.bed === null ? topAt(x) + 1.5 : bedAt(PROMONTORY_FORM.beds[t.bed]!, x) - 0.2);
 
 /** A far pine: its crown's centre and half extents, its trunk (foot to top), limbs and needle clouds. */
 export interface FarPine {

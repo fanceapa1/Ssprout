@@ -927,7 +927,10 @@ layer and dry it once). Steps:
   34–95 near the point and 55–210 further on; about a third shallow cracks), leaning −0.22…0.3,
   zigzagging at two scales, some opening below the rim and some with a side branch; beds 5–32
   apart, each with its own tilt on the face's slope (`SLOPE` ± 0.04) and its own wander, stepped
-  across the deep fissures, a third of them hard.
+  across the deep fissures, a third of them hard. The form, `bedAt`, `fissureAt`, `topAt` and
+  `footAt` live in `shapes.ts` (GK6), so the wildlife reads them by name; the painter imports them.
+  The goats' ways (`GOAT_TRACKS`) get an unbroken lip and a thin undercut on their hard beds
+  (gaps a hoof can step), painted with the beds' other lips.
   - A cream-to-white-grey body wash; each block between deep fissures lit high on its left (a lift)
     and a shade plane on its right that eases in width, jogs at the hard beds and darkens into the
     fissure (three marks in one layer); a half-tone facet on some.
@@ -1070,11 +1073,16 @@ skipped; the shared bees, butterflies, swallows and heron come now (docs/systems
 coast). `wildlife.ts` reads every place by name from `layout.ts`, `shapes.ts`, `sea.ts`, `slots.ts`
 and `geometry.ts`:
 - Still water is `SEA_WATER`; the rock pools (`POOL_WATER`) join the water layers' clip as `moving`.
-- Perches (55, none within 20 of a slot): the copings (`WALL_TOPS`), the olive's fork and limbs
+- Perches (140, none within 20 of a slot): the copings (`WALL_TOPS`), the olive's fork and limbs
   (`OLIVE_LIMBS`), the pine's branches (`PINE_BRANCHES`), the jars' rims, the splash rocks' tops,
   the architrave, the broken columns and the drum, the caique's mast top and rail (they ride its
-  carrier), the far pines' highest needle clouds (off the slots) and seven ledges across the promontory's face. Far ones carry
-  their own measure: `TEMPLE_SCALE` 0.13, `CAIQUE_MEASURE` 0.09.
+  carrier), the far pines' highest needle clouds (off the slots) and 92 ledge stretches on the
+  goats' six ways (`GOAT_TRACKS`, GK6, devlog 195): the cliff top west of the olive and three hard
+  beds under it, the lowest running out under the temple to the point above the sea's notch, and two
+  hard beds east of the olive to the right edge. Each way is cut into stretches about 10 long,
+  split at the deep fissures where the beds step (`<way>-<k>`), and the rock painter lays an
+  unbroken lip along every bed way. Far ones carry their own measure: `TEMPLE_SCALE` 0.13,
+  `CAIQUE_MEASURE` 0.09.
 - Ground: each terrace's gravel walk (three per terrace), the path, the beach and the scrub at the
   terraces' ends. Faces: the three walls where they stand full height, and the splash rocks' fronts.
 - Regions: the shallows (water minus rocks), the three pools, the bay far out under the far hill

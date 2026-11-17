@@ -3,83 +3,34 @@
  * shelf and its pools' rims, the shoreline's lips and faces, its boulders, the splash rocks and
  * the stones at the beach's ends). Lit from the left, over the sea. docs/systems/scenery.md › Coast › Rock.
  */
-import { createRng, type Rng } from '../../core/rng';
+import type { Rng } from '../../core/rng';
 import { bounds, createSimplex2D, mix, type Painter, type Pigment } from '../../paint';
 import { resample } from '../../paint/geometry';
 import type { Pt } from '../../render/viewport';
 import type { Strokes } from '../../scene/paint-land';
-import { POOLS, PROMONTORY, SHELF, SHORE_EDGE } from './layout';
+import { POOLS, SHELF, SHORE_EDGE } from './layout';
 import { inView, paintFlight } from './paint-land';
 import { SAND, SEA } from './paint-water';
 import { LIME, band, box, clipBatch, clipTo, ellipse, fillUnder, lineAt, liftBatch, rough, streak, wetBatch, type Mark } from './rock-kit';
-import { BEACH_FLIGHT, BEACH_FLIGHT_BOX, CLIFF_STONES, SHORE_BOULDER_SHAPES, SPLASH_ROCK_SHAPES, type RockColumn, type RockShape } from './shapes';
+import {
+  BEACH_FLIGHT, BEACH_FLIGHT_BOX, bedAt, CLIFF_STONES, type Fissure, GOAT_TRACKS, fissureAt, fissureFoot, footAt, FORM_NOISE, PROMONTORY_FOOT_LINE, PROMONTORY_FORM, PROMONTORY_TOP_LINE, SHORE_BOULDER_SHAPES,
+  SPLASH_ROCK_SHAPES, topAt, type RockColumn, type RockShape,
+} from './shapes';
 
-const TIP = PROMONTORY.findIndex((q) => q.x >= 1620);
-/** The promontory's top (the skyline) and its foot (the sea, then the top terrace's back), by x. */
-const TOP: readonly Pt[] = [...PROMONTORY.slice(0, TIP + 1), { x: 1680, y: PROMONTORY[TIP]!.y }];
-const FOOT: readonly Pt[] = [PROMONTORY[0]!, ...PROMONTORY.slice(TIP + 1).reverse(), { x: 1680, y: 500 }].sort((a, b) => a.x - b.x);
-export const topAt = (x: number): number => lineAt(TOP, x);
-export const footAt = (x: number): number => lineAt(FOOT, x);
+export { footAt, PROMONTORY_FORM, topAt };
+
 /** Where the foot leaves the sea for the top terrace (the shoreline's first point). */
 const LAND_FOOT = SHORE_EDGE[0]!.x;
 
 /** The painted outline: the layout's, run on past the right edge and under the top terrace (which overlaps it). */
 const OUTLINE: readonly Pt[] = [
-  ...TOP,
+  ...PROMONTORY_TOP_LINE,
   { x: 1680, y: 518 },
-  ...FOOT.filter((q) => q.x > LAND_FOOT + 4 && q.x < 1680).reverse().map((q) => ({ x: q.x, y: q.y + 16 })),
+  ...PROMONTORY_FOOT_LINE.filter((q) => q.x > LAND_FOOT + 4 && q.x < 1680).reverse().map((q) => ({ x: q.x, y: q.y + 16 })),
   { x: LAND_FOOT + 6, y: footAt(LAND_FOOT) + 12 },
-  ...FOOT.filter((q) => q.x <= LAND_FOOT).reverse(),
+  ...PROMONTORY_FOOT_LINE.filter((q) => q.x <= LAND_FOOT).reverse(),
 ];
 
-interface Fissure {
-  x: number;
-  lean: number;
-  /** how far down the face it runs, 0..1 */
-  depth: number;
-  /** how far the beds step down across it */
-  drop: number;
-  seed: number;
-  /** where it opens below the rim, 0..1 down the face (0: from the rim) */
-  start: number;
-  /** where a side branch leaves it, 0..1 down the face (0: none) */
-  branch: number;
-}
-interface Bed {
-  y: number;
-  hard: boolean;
-  /** its own tilt on the face's slope, and how far it wanders */
-  tilt: number;
-  wander: number;
-}
-
-const FORM_NOISE = createSimplex2D(createRng('coast-promontory-noise'));
-/** The face's form, fixed (seeded by name): only the brushwork follows the art seed. */
-export const PROMONTORY_FORM = (() => {
-  const rng = createRng('coast-promontory-form');
-  const fissures: Fissure[] = [];
-  for (let x = 668; x < 1660; ) {
-    fissures.push({ x, lean: rng.range(-0.22, 0.3), depth: rng.chance(0.3) ? rng.range(0.3, 0.6) : rng.range(0.78, 1), drop: rng.range(-4.5, 4.5), seed: rng.range(0, 100), start: rng.chance(0.3) ? rng.range(0.15, 0.4) : 0, branch: rng.chance(0.4) ? rng.range(0.25, 0.6) : 0 });
-    // some fissures come in pairs a joint's width apart, the rest at uneven spacing
-    x += rng.chance(0.25) ? rng.range(12, 26) : x < 900 ? rng.range(34, 95) : rng.range(55, 210);
-  }
-  const beds: Bed[] = [];
-  for (let y = 336; y < 580; y += rng.chance(0.3) ? rng.range(5, 9) : rng.range(12, 32)) beds.push({ y, hard: rng.chance(0.38), tilt: rng.range(-0.04, 0.04), wander: rng.range(1.5, 6) });
-  return { fissures, beds };
-})();
-
-const SLOPE = -0.055;
-/** A bed's height at x: tilted (each bed its own way), stepped across the deep fissures, wandering. */
-function bedAt(bed: Bed, x: number): number {
-  let drop = 0;
-  for (const f of PROMONTORY_FORM.fissures) if (f.depth > 0.75 && f.x < x) drop += f.drop;
-  return bed.y + (SLOPE + bed.tilt) * (x - 636) + drop + FORM_NOISE(x / 90, bed.y) * bed.wander + FORM_NOISE(x / 23, bed.y + 9) * 1.2;
-}
-/** A fissure's x at depth y: zigzagging at two scales. */
-function fissureAt(f: Fissure, y: number): number {
-  return f.x + f.lean * (y - topAt(f.x)) + FORM_NOISE(y / 40, f.seed) * 4 + FORM_NOISE(y / 11, f.seed + 5) * 1.6;
-}
-const fissureFoot = (f: Fissure): number => topAt(f.x) + (footAt(f.x) - topAt(f.x)) * f.depth;
 /** The notch height the sea has cut along the seaward foot. */
 const notchAt = (x: number): number => (x > LAND_FOOT + 4 ? 0 : Math.min(12, (footAt(x) - topAt(x)) * 0.28));
 
@@ -202,6 +153,21 @@ function* paintBeds(p: Painter, rng: Rng): Strokes {
         deep.push({ poly: rough(band(m, n, (x) => sag(x) + 0.4, (x) => sag(x) + 1 + th * 1.5 * Math.pow(k > 0 ? 1 - (x - m) / (n - m) : (x - m) / (n - m), 0.6), 3), rng, 0.8, 3), alpha: 0.3 });
       }
     }
+  }
+  // the goats' ledges: the lip unbroken (gaps a hoof can step), a broader shelf and its undercut
+  const g = rng.fork('goat-ledges');
+  for (const t of GOAT_TRACKS) {
+    if (t.bed === null) continue;
+    const bed = PROMONTORY_FORM.beds[t.bed]!;
+    const at = (x: number) => bedAt(bed, x);
+    for (let x = t.x0 - 4; x < t.x1 + 4; ) {
+      const e = Math.min(t.x1 + 4, x + g.range(8, 26));
+      lips.push({ poly: rough(band(x, e, (q) => at(q) - g.range(1.6, 3.4), (q) => at(q) - 0.3, 4), g, 0.5, 3), alpha: g.range(0.5, 0.8) });
+      const th = g.range(0.8, 2.6);
+      under.push({ poly: rough(band(x, e, at, (q) => at(q) + th * (0.5 + Math.abs(FORM_NOISE(q / 11, bed.y + 4))), 4), g, 0.5, 3), alpha: g.range(0.14, 0.26) });
+      x = e + g.range(0.6, 4);
+    }
+    under.push({ poly: rough(band(t.x0 + 2, t.x1 - 2, (x) => at(x) + 1, (x) => at(x) + 4 + 3 * FORM_NOISE(x / 20, bed.y + 6), 6), g, 1.1, 4), alpha: 0.1 });
   }
   yield;
   yield* wetBatch(p, lines, LIME.recess, { edge: 0.15, sharpness: 0.5, granulation: 0.3 });
