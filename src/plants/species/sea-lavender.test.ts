@@ -110,6 +110,10 @@ describe('sea lavender', () => {
     expect(rock.every((s) => fitsSize(seaLavender.sizeClass, s.maxSize))).toBe(true);
   });
 
+  it('grows wild on Mediterranean rocky coasts only (ADR 0361)', () => {
+    expect(seaLavender.range).toEqual({ realms: ['mediterranean'], biomes: ['coast'], climates: ['mediterranean'] });
+  });
+
   it('is offered by the Greek coast, not by the Japanese garden, the waterfall or the oasis', () => {
     expect(growsIn('sea-lavender', seaLavender.range, COAST_FLORA)).toBe(true);
     expect(growsIn('sea-lavender', seaLavender.range, { realm: 'japan', biomes: ['garden'], climate: 'warm-temperate', cultivated: true })).toBe(false);

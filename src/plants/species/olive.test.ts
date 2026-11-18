@@ -122,9 +122,12 @@ describe('olive', () => {
     }
   });
 
+  it('grows wild in Mediterranean scrub and is planted round the basin and in the oases (ADR 0361)', () => {
+    expect(olive.range).toEqual({ realms: ['mediterranean'], biomes: ['scrub', 'garden'], climates: ['mediterranean'], cultivatedIn: ['mediterranean', 'n-africa-arabia'] });
+  });
+
   it('is offered by a Mediterranean garden and the oasis, not by the Japanese garden or the waterfall', () => {
-    const coast = { realm: 'mediterranean', biomes: ['garden', 'coast'], climate: 'warm-temperate', cultivated: true } as const;
-    expect(growsIn('olive', olive.range, { ...coast, biomes: [...coast.biomes] })).toBe(true);
+    expect(growsIn('olive', olive.range, getScenery('coast').flora)).toBe(true);
     expect(growsIn('olive', olive.range, getScenery('oasis').flora)).toBe(true);
     expect(growsIn('olive', olive.range, getScenery('japanese-garden').flora)).toBe(false);
     expect(growsIn('olive', olive.range, getScenery('waterfall').flora)).toBe(false);

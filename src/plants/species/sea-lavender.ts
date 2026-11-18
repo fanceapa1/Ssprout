@@ -249,7 +249,7 @@ const seaLavender: SpeciesDef = {
   nativeName: 'Limonio',
   nativeLang: 'el-Latn',
   // wild on Mediterranean rocky coasts and salt flats
-  range: { realms: ['mediterranean'], biomes: ['scrub', 'marine', 'coast'], climates: ['mediterranean'] },
+  range: { realms: ['mediterranean'], biomes: ['coast'], climates: ['mediterranean'] },
   tier: 2,
   habitats: ['rock'],
   sizeClass: 'small',

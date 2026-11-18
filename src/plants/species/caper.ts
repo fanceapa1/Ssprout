@@ -263,7 +263,7 @@ const caper: SpeciesDef = {
   nativeName: 'Kebbar',
   nativeLang: 'ary-Latn',
   // wild round the Mediterranean and in the Saharan oases; grown as a crop on Mediterranean terraces
-  range: { realms: ['n-africa-arabia', 'mediterranean'], biomes: ['desert'], climates: ['arid'], cultivatedIn: ['mediterranean'] },
+  range: { realms: ['n-africa-arabia', 'mediterranean'], biomes: ['desert', 'coast', 'scrub'], climates: ['arid', 'mediterranean'], cultivatedIn: ['mediterranean'] },
   tier: 1,
   habitats: ['rock', 'path'],
   sizeClass: 'small',
