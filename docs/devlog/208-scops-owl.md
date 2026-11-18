@@ -41,7 +41,7 @@ not in the oasis; a night (in, feet on the perch line, call, turn, blink, a swoo
 one at a time; tall and thin while the cat is near and back after; gone by day, nocturnal;
 deterministic; the call's puffs.
 Typecheck clean. E2E, one file at a time, one worker: `lazy-creatures` 2, `fauna` 6, `sceneries` 8,
-all pass. The full unit suite was started after the last rebase; see the report for its totals.
+all pass. Full unit suite after the rebase: 278 files, 2937 tests, all pass.
 
 ## Left open
 - In the scene the owl was seen on a pine branch; not checked on the olive's boughs or a coping in
