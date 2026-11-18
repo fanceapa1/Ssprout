@@ -78,7 +78,11 @@ a busy machine with two other agents; `bench(60)` untimed, then `bench(120)` thr
 ## Tests
 `src/fauna/creatures/cicada.test.ts`, 11 tests (the bark and its spots, coast only; a visit: in,
 sing, shuffle, other tree, always on the bark; the shuffle; a bird near; night; two apart; fork
-and determinism; the studio stage; the shimmer; cost). Results: see the end of this entry.
+and determinism; the studio stage; the shimmer; cost).
+After the rebase on `main` (sea lavender): typecheck clean; the full unit suite, 272 files, 2875
+tests, all pass. E2E, one file at a time, one worker (before the rebase, which only added a plant):
+`fauna` 6, `lazy-creatures` 2, `sceneries` 8, `fauna-oasis` 4, `fauna-waterfall` 4, all pass. The
+full e2e suite was not run, and there is no coast fauna e2e spec yet.
 
 ## Left open
 - **No plant trunks:** a planted olive or Aleppo pine gets no cicada (contract).
