@@ -52,10 +52,10 @@ const poses: StudioEntry = {
   w: 1000,
   h: 220,
   render(canvas, { seed, pixelRatio }) {
-    sheet(canvas, pixelRatio, seed, 7, 110, [
-      { x: 170, q: LIZARD_REST },
-      { x: 420, q: lookPose(0.7) },
-      { x: 650, q: { ...LIZARD_REST, frame: 1, gap: { at: 2, keep: 'back' } } },
+    sheet(canvas, pixelRatio, seed, 6, 110, [
+      { x: 160, q: LIZARD_REST },
+      { x: 410, q: lookPose(0.7) },
+      { x: 680, q: { ...LIZARD_REST, frame: 1, gap: { at: 2, keep: 'back' } } },
       { x: 860, q: { ...LIZARD_REST, gap: { at: 4, keep: 'front' } } },
     ]);
   },
@@ -68,7 +68,7 @@ const run: StudioEntry = {
   h: 200,
   render(canvas, { seed, pixelRatio }) {
     const frames: (0 | 1 | 2)[] = [0, 1, 2];
-    sheet(canvas, pixelRatio, seed, 9, 100, frames.map((f, i) => ({ x: 220 + i * 320, q: { ...LIZARD_REST, frame: f } })));
+    sheet(canvas, pixelRatio, seed, 8, 100, frames.map((f, i) => ({ x: 250 + i * 320, q: { ...LIZARD_REST, frame: f } })));
   },
 };
 
