@@ -74,3 +74,8 @@ seven of its slots, and close views of `low-3` and `scrub-3` (rounds 4 and 5).
 - Not checked: sunset and night, the phone view, the plant card in the garden.
 - Not run: the full e2e suite (the task's CPU rules); only `planting-previews`, `plants`,
   `plant-card-phone` and `lazy-species-painters`.
+
+## Test results (after rebasing on `main`)
+Typecheck clean. Unit suite: 273 files, 2885 tests passing. E2E on the production build, one
+worker, one file at a time: `planting-previews` 2, `plants` 8, `plant-card-phone` 5,
+`lazy-species-painters` 1, all passing.
