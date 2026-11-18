@@ -70,7 +70,7 @@ const section: StudioSection = {
   id: 'fauna-rock-thrush-close',
   title: 'Fauna · blue rock thrush, close',
   order: 346,
-  entries: [poses, close('temple', 'the temple and the cliff top: perching, singing, dropping for an insect and back', { x: 660, y: 240, w: 320, h: 200 }, 640)],
+  entries: [poses, close('temple', 'the temple and the cliff top: perching, singing, dropping for an insect and back', { x: 670, y: 250, w: 240, h: 150 }, 640)],
 };
 
 export default section;

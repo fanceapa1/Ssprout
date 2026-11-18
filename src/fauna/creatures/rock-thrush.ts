@@ -42,6 +42,8 @@ export const THRUSH_TUNING = {
   /** world units / s at perspective 1, and the least perspective it flies at (far birds still cross the view briskly) */
   flight: 150,
   minScale: 0.4,
+  /** the least scale it is drawn at: on the far temple about 3.5 × life (as the cicada), so it reads close */
+  minDraw: 0.45,
   /** a cat, goat or heron this close (world units) sends it away low */
   alarm: 110,
 };
@@ -82,7 +84,7 @@ function paintBody(p: Painter, r: number, bill: 0 | 1 | 2, folded: boolean): voi
   const P = (x: number, y: number) => ({ x: x * r, y: y * r });
   const throat = bill === 2 ? 0.35 : 0;
   const sil = smoothPolygon(
-    [P(5.3, -14.3), P(4.6, -15.4), P(3.2, -15.9), P(1.6, -15.3), P(0.6, -14.2), P(-0.6, -12.0), P(-1.9, -9.2), P(-2.7, -6.4), P(-3.0, -4.4), P(-2.2, -2.9), P(-0.5, -2.0), P(1.6, -2.2), P(3.5, -3.4), P(4.9, -5.6), P(5.6 + throat * 0.4, -8.2), P(5.5 + throat, -10.8), P(5.4 + throat * 0.6, -12.8)],
+    [P(5.3, -14.3), P(4.6, -15.4), P(3.2, -15.9), P(1.8, -15.4), P(0.9, -14.2), P(0.0, -12.0), P(-1.2, -9.2), P(-2.1, -6.4), P(-2.6, -4.4), P(-2.0, -2.9), P(-0.4, -2.1), P(1.4, -2.4), P(2.9, -3.6), P(4.0, -5.8), P(4.6 + throat * 0.4, -8.4), P(4.8 + throat, -10.9), P(5.0 + throat * 0.6, -12.9)],
     2,
   );
   // one slate wash, a little lighter on the crown and breast, darker down the back and belly
@@ -127,8 +129,8 @@ function paintBody(p: Painter, r: number, bill: 0 | 1 | 2, folded: boolean): voi
   Lt.dry({ opacity: 0.4, edge: 0, sharpness: 0.12, centreLift: 0, granulation: 0.2, flow: 0.5, flowScale: 2 * r, blend: 'source-over' });
   // the long straight bill, parted for the song
   const gape = bill === 0 ? 0 : bill === 1 ? 0.22 : 0.48;
-  const upper = smoothPolygon([P(5.0, -14.6), P(7.0, -14.5 - gape * 1.4), P(9.3, -14.2 - gape * 2.4), P(7.0, -13.75 - gape * 1.2), P(5.1, -13.7)], 1);
-  const lower = smoothPolygon([P(5.1, -13.65), P(7.0, -13.6 + gape * 0.9), P(9.0, -13.55 + gape * 2.2), P(7.0, -13.2 + gape * 0.9), P(5.0, -13.0)], 1);
+  const upper = smoothPolygon([P(5.0, -14.6), P(7.0, -14.4 - gape * 1.4), P(9.3, -13.95 - gape * 2.4), P(7.0, -13.8 - gape * 1.2), P(5.1, -13.75)], 1);
+  const lower = smoothPolygon([P(5.1, -13.7), P(7.0, -13.75 + gape * 0.9), P(9.0, -13.85 + gape * 2.2), P(7.0, -13.35 + gape * 0.9), P(5.0, -13.0)], 1);
   p.wash(lower, '#34363e', { rng, opacity: 0.9, edge: 0.3, edgeWidth: 0.15 * r, sharpness: 0.5, deform: 0.03, spread: 0.03 });
   p.wash(upper, C.bill, { rng, opacity: 0.94, edge: 0.3, edgeWidth: 0.15 * r, sharpness: 0.5, deform: 0.03, spread: 0.03 });
   // the eye: a dark socket, the iris, a catch-light
@@ -142,13 +144,13 @@ function paintBody(p: Painter, r: number, bill: 0 | 1 | 2, folded: boolean): voi
 function paintFoldedWing(p: Painter, r: number): void {
   const rng = p.rng;
   const P = (x: number, y: number) => ({ x: x * r, y: y * r });
-  const wing = smoothPolygon([P(2.2, -11.4), P(0.4, -11.9), P(-1.2, -10.4), P(-2.4, -7.8), P(-3.3, -5.0), P(-3.6, -3.6), P(-2.6, -4.0), P(-1.2, -5.6), P(0.6, -7.6), P(2.0, -9.6)], 2);
+  const wing = smoothPolygon([P(2.2, -11.4), P(0.8, -11.9), P(-0.6, -10.4), P(-1.8, -7.8), P(-2.7, -5.0), P(-3.1, -3.4), P(-2.1, -3.9), P(-0.8, -5.6), P(0.9, -7.6), P(2.1, -9.6)], 2);
   p.wetInWet(wing, C.wing, C.wingDark, { rng, angle: Math.PI / 2 + 0.4, split: 0.55, softness: 0.55, fingers: 0.5, opacity: 0.85, edge: 0.18, edgeWidth: 0.3 * r, sharpness: 0.42, granulation: 0.35, flow: 0.45, flowScale: 2 * r, deform: 0.05, spread: 0.05, blend: 'source-over', fade: { angle: -0.6, start: 0.75, amount: 0.3 } });
   for (let k = 0; k < 3; k++) {
     const y = -10.4 + k * 1.3;
     p.inkLine([P(1.4 - k * 0.4, y), P(-0.2 - k * 0.5, y + 1.6), P(-1.4 - k * 0.5, y + 3.4)], { rng, width: 0.15 * r, opacity: 0.32, breaks: 0.45, pigment: C.edge, taper: [0.3, 0.6] });
   }
-  p.dab(P(-2.9, -4.6), C.wingDark, { rng, variant: 'leaf', angle: Math.PI / 2 + 0.45, length: 2.4 * r, width: 0.8 * r, opacity: 0.55 });
+  p.dab(P(-2.4, -4.4), C.wingDark, { rng, variant: 'leaf', angle: Math.PI / 2 + 0.45, length: 2.4 * r, width: 0.8 * r, opacity: 0.55 });
 }
 
 /** An open wing from its shoulder along angle `a` (flight frames). */
@@ -185,11 +187,23 @@ function paintOpenWing(p: Painter, r: number, a: number, len: number, wide: numb
 function paintTail(p: Painter, r: number, spread = 1): void {
   const w = spread;
   const tail = smoothPolygon(
-    [{ x: 1.0 * r, y: -0.75 * r * w }, { x: -3.5 * r, y: -0.95 * r * w }, { x: -7.0 * r, y: -1.15 * r * w }, { x: -7.4 * r, y: 0 }, { x: -7.0 * r, y: 1.15 * r * w }, { x: -3.5 * r, y: 0.95 * r * w }, { x: 1.0 * r, y: 0.75 * r * w }],
+    [{ x: 1.0 * r, y: -0.75 * r * w }, { x: -3.0 * r, y: -0.9 * r * w }, { x: -5.6 * r, y: -1.1 * r * w }, { x: -6.0 * r, y: 0 }, { x: -5.6 * r, y: 1.1 * r * w }, { x: -3.0 * r, y: 0.9 * r * w }, { x: 1.0 * r, y: 0.75 * r * w }],
     2,
   );
   p.wetInWet(tail, C.wing, C.tail, { rng: p.rng, angle: Math.PI, split: 0.3, softness: 0.5, opacity: 0.92, edge: 0.24, edgeWidth: 0.35 * r, sharpness: 0.4, granulation: 0.4, flow: 0.5, flowScale: 2 * r, deform: 0.05, blend: 'source-over', fade: { angle: 0, start: 0.75, amount: 0.55 } });
-  p.inkLine([{ x: 0.4 * r, y: 0.05 * r }, { x: -6.6 * r, y: 0.05 * r }], { rng: p.rng, width: 0.13 * r, opacity: 0.2, breaks: 0.5, pigment: C.edge });
+  p.inkLine([{ x: 0.4 * r, y: 0.05 * r }, { x: -5.3 * r, y: 0.05 * r }], { rng: p.rng, width: 0.13 * r, opacity: 0.2, breaks: 0.5, pigment: C.edge });
+}
+
+/** The body level in flight, the centre at the origin, the head and long bill forward (+x). */
+function paintFlightBody(p: Painter, r: number): void {
+  const rng = p.rng;
+  const P = (x: number, y: number) => ({ x: x * r, y: y * r });
+  const sil = smoothPolygon([P(6.6, -0.6), P(5.6, -1.9), P(3.8, -2.2), P(1.0, -1.9), P(-2.4, -1.5), P(-4.6, -0.7), P(-4.8, 0.4), P(-2.6, 1.4), P(0.6, 1.9), P(3.6, 1.5), P(5.6, 0.7), P(6.8, 0.2)], 2);
+  p.wetInWet(sil, C.light, C.body, { rng, angle: Math.PI / 2, split: 0.4, softness: 0.4, opacity: 0.95, edge: 0.3, edgeWidth: 0.4 * r, sharpness: 0.4, granulation: 0.35, flow: 0.45, flowScale: 3 * r, deform: 0.05, spread: 0.06, blend: 'source-over' });
+  p.granulate(sil, C.shade, { rng, strength: 0.18 });
+  p.wash(smoothPolygon([P(6.5, -0.55), P(8.6, -0.25), P(10.4, 0.05), P(8.6, 0.3), P(6.6, 0.45)], 1), C.bill, { rng, opacity: 0.94, edge: 0.3, edgeWidth: 0.15 * r, sharpness: 0.5, deform: 0.03, spread: 0.03 });
+  p.dab(P(5.3, -0.75), '#15161a', { rng, variant: 'round', angle: 0, length: 0.9 * r, width: 0.85 * r, opacity: 0.94, edge: 0.3 });
+  p.dab(P(5.45, -0.95), '#fbf7ef', { rng, variant: 'round', angle: 0, length: 0.24 * r, width: 0.22 * r, opacity: 0.85, blend: 'source-over' });
 }
 
 export function paintThrush(res: number, seed: number): ThrushParts {
@@ -220,20 +234,15 @@ export function paintThrush(res: number, seed: number): ThrushParts {
   const flyBox = { w: 30 * r, h: 30 * r, ox: 15 * r, oy: 16 * r };
   const fly = (wing: Wing, k: number) =>
     paintSprite(res, flyBox, seed + 3 + k, (p) => {
-      // level in flight: the upright body turned forward, the body centre at the origin
       p.ctx.save();
-      p.ctx.rotate(1.05);
-      p.ctx.translate(-1.2 * r, 8.5 * r);
-      p.ctx.save();
-      p.ctx.translate(-2.6 * r, -3.8 * r);
-      p.ctx.rotate(-1.15);
+      p.ctx.translate(-4.2 * r, 0.3 * r);
+      p.ctx.rotate(0.06);
       paintTail(p, r, wing === 'fold' ? 1 : 1.3);
       p.ctx.restore();
-      paintBody(p, r, 0, wing === 'fold');
-      p.ctx.restore();
+      paintFlightBody(p, r);
       if (wing === 'fold') return;
       p.ctx.save();
-      p.ctx.translate(1.5 * r, -2.2 * r);
+      p.ctx.translate(0.8 * r, -0.8 * r);
       if (wing === 'up') paintOpenWing(p, r, -Math.PI / 2 - 0.4, 11, 3.2, 0.92, -1);
       else if (wing === 'down') paintOpenWing(p, r, Math.PI / 2 + 0.55, 10, 3, 0.9, 1);
       else {
@@ -565,7 +574,8 @@ export class RockThrush extends BaseCreature {
     const parts = w.art.get('rock-thrush', (res) => paintThrush(res, 3910));
     ctx.save();
     ctx.translate(this.x, this.y);
-    ctx.scale(this.scale * this.facing, this.scale);
+    const k = Math.max(this.scale, THRUSH_TUNING.minDraw);
+    ctx.scale(k * this.facing, k);
     if (air) drawFlying(ctx, parts, this.flap, this.heading, glides(this.leg!, this.flap));
     else drawPerched(ctx, parts, this.pose());
     ctx.restore();
@@ -586,9 +596,9 @@ export function drawPerched(ctx: Ctx, parts: ThrushParts, q: ThrushPose): void {
   ctx.translate(0, DROP * r);
   const tail = parts.tail;
   ctx.save();
-  ctx.translate(-2.5 * r, -3.7 * r);
+  ctx.translate(-2.1 * r, -3.6 * r);
   // the tail hangs below the rump and flicks up
-  ctx.rotate(-1.15 - q.pitch * 0.4 + q.tail);
+  ctx.rotate(-1.25 - q.pitch * 0.4 + q.tail);
   ctx.drawImage(tail.img as CanvasImageSource, -tail.ox, -tail.oy, tail.w, tail.h);
   ctx.restore();
   const b = q.bill === 2 ? parts.open : q.bill === 1 ? parts.half : parts.body;
