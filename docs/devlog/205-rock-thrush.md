@@ -49,6 +49,11 @@ without the thrush; the cicada's run (devlog 201) read 1.1–1.4 with a smaller 
 perch, drop spots below on the same plane, not in the oasis; a visit (in, perch with feet on the
 line, sing, flick, drop, ground, back to the same perch); one at a time; flees low from the cat and
 is gone; leaves at night; deterministic; the song's bill pulses.
+After the rebase on `main` (rock crab merged; `creatures-coast.ts`, `fauna.md`, `TESTING.md` and
+the devlog index resolved keeping both): typecheck clean; the full unit suite, 276 files, 2920
+tests, all pass. E2E, one file at a time, one worker: `fauna` 6, `lazy-creatures` 2, `sceneries` 8, all pass.
+No shared bird file changed, so `fauna-oasis`/`fauna-waterfall` were not
+run; the full e2e suite was not run, and there is no coast fauna e2e spec.
 
 ## Left open
 - The song pose is small at the overview; the throat movement reads only in the studio.
