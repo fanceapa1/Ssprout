@@ -60,5 +60,6 @@ view in `crack-1` and the overview with six plants on wall and splash slots.
 - The rosette's overlapping leaves are a little regular, like a clover at overview size.
 - Not checked: night, the phone view, the plant card in the garden, slots other than `crack-1`,
   the wall slots and `splash-1`, `shelf-1` in the overview.
-- Not run: the full e2e suite (the task's CPU rules); only the planting specs listed in the
-  commit.
+- Not run: the full e2e suite (the task's CPU rules); only `planting-previews` (2 tests),
+  `plants` (8), `plant-card-phone` (5) and `lazy-species-painters` (1), all passing. Unit suite:
+  271 files, 2864 tests passing.
