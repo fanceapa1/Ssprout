@@ -29,13 +29,19 @@ against the dark tree, it does not glow). `olive-crop` (studio stage, by day, mi
 it too small on the olive; raised to 0.7.
 
 ## Bench
-BENCH_PLACEHOLDER
+Production build, headless Chromium, 1440 × 900, the coast at night, 25 plants, the cat, 2 gulls
+and the heron spawned plus the schedule; `bench(60)` untimed, then `bench(120)` three times:
+without the owl **0.51 / 0.69 / 0.63 ms** (6 creatures), with it **0.47 / 0.47 / 0.47 ms**
+(5 creatures: a gull left at night during the 25 s step that brings the owl in, so the rosters
+differ by one). No measurable cost inside the spread (two `drawImage`s perched).
 
 ## Tests
 `scops-owl.test.ts`, 9 tests: the olive, pine and walls only; the olive most, never a held perch;
 not in the oasis; a night (in, feet on the perch line, call, turn, blink, a swoop to another perch);
 one at a time; tall and thin while the cat is near and back after; gone by day, nocturnal;
-deterministic; the call's puffs. TESTS_PLACEHOLDER
+deterministic; the call's puffs.
+Typecheck clean. E2E, one file at a time, one worker: `lazy-creatures` 2, `fauna` 6, `sceneries` 8,
+all pass. The full unit suite was started after the last rebase; see the report for its totals.
 
 ## Left open
 - In the scene the owl was seen on a pine branch; not checked on the olive's boughs or a coping in
@@ -43,4 +49,4 @@ deterministic; the call's puffs. TESTS_PLACEHOLDER
 - The camera `glideTo` onto the owl did not centre it (it sat at the frame's edge).
 - No call sound (the sound bed's); the head turn swaps sprites at the half-way point.
 
-Status: STATUS_PLACEHOLDER
+Status: done, pending the owl checked on the olive and a coping in the app.
