@@ -76,3 +76,11 @@ Scratchpad `gp13-studio-stages.png`, `gp13-studio-seed3.png`, `gp13-close.png`, 
   the cliff top would be a scenery change.
 - Not checked: night, sunset, the phone view, the plant card in the garden.
 - Not run: the full e2e suite (the task's CPU rules); only the planting-related specs below.
+
+## Tests
+After the rebase on `main` (sea lavender merged): typecheck clean; the unit suite 272 files,
+2875 tests passed (2 workers); `tree-spurge.test.ts` 11 tests. E2E one file at a time, one worker:
+`planting-previews` 2 passed, `plants` 8 passed, `plant-card-phone` 5 passed,
+`lazy-species-painters` 1 passed, `studio` 13 of 14 passed on the first run: shard 1/6 found
+`species-posidonia/grow` blank once (the posidonia's grow loop, not this species) and passed when
+rerun alone.
