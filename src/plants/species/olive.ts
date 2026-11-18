@@ -277,7 +277,7 @@ const olive: SpeciesDef = {
   nativeName: 'Eliá',
   nativeLang: 'el-Latn',
   // wild in Mediterranean maquis; planted round the whole basin and in the Maghreb's oases
-  range: { realms: ['mediterranean'], biomes: ['coast'], climates: ['warm-temperate'], cultivatedIn: ['mediterranean', 'n-africa-arabia'] },
+  range: { realms: ['mediterranean'], biomes: ['scrub', 'garden'], climates: ['mediterranean'], cultivatedIn: ['mediterranean', 'n-africa-arabia'] },
   tier: 4,
   habitats: ['meadow', 'back'],
   sizeClass: 'tree',

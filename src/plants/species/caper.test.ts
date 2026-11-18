@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { createRng } from '../../core/rng';
 import { smallSuite } from '../lib/suites';
 import { pointAt, stemPoints } from '../lib/small-structure';
-import { planCaper } from './caper';
+import caper, { planCaper } from './caper';
 
 smallSuite('caper');
 
@@ -33,5 +33,11 @@ describe('caper plan', () => {
         }
       }
     }
+  });
+});
+
+describe('caper range', () => {
+  it('grows wild on the Mediterranean coast and scrub and in the oases, and is grown on its terraces (ADR 0361)', () => {
+    expect(caper.range).toEqual({ realms: ['n-africa-arabia', 'mediterranean'], biomes: ['desert', 'coast', 'scrub'], climates: ['arid', 'mediterranean'], cultivatedIn: ['mediterranean'] });
   });
 });
