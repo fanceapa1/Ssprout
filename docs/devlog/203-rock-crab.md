@@ -71,6 +71,9 @@ Production build, headless Chromium, 1440 × 900 at DPR 2, the coast at noon, 25
 crack, runs, stops, feeds, on its rows and `entities`; runs mostly sideways and never too fast; the
 claws in turn; a cat near: freeze, dart, hide, come back; the swell only at the waterline; one by
 day, two after dark; another rock now and then and determinism; the studio stage; cost).
+After the rebase on `main` (Jerusalem sage): typecheck clean; the full unit suite, 275 files, 2907
+tests, all pass. E2E, one file at a time, one worker: `lazy-creatures` 2, `fauna` 6, `sceneries` 8,
+`fauna-waterfall` 4, all pass. The full e2e suite was not run, and there is no coast fauna e2e spec.
 
 ## Left open
 - **The camera's close view** stops at about 2.5 ×, where the crab is about 25 px wide: legs and
