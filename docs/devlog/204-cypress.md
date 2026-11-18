@@ -67,7 +67,7 @@ Shots in the session scratchpad (`gp16shots/`):
 - Not run: the full e2e suite (the task's CPU rules); only the planting-related specs below.
 
 ## Tests
-After the rebase on `main` with the Jerusalem sage merged: typecheck clean; the unit suite 275
-files, 2904 tests passed (2 workers); `cypress.test.ts` 8 tests. E2E one file at a time, one
-worker: `planting-previews` 2 passed, `plants` 8 passed, `plant-card-phone` 5 passed,
+After the last rebase on `main` (the Jerusalem sage and the rock crab merged): typecheck clean;
+the unit suite 276 files, 2915 tests passed (2 workers); `cypress.test.ts` 8 tests. E2E one file
+at a time, one worker, after the Jerusalem sage's rebase (the rock crab only added fauna): `planting-previews` 2 passed, `plants` 8 passed, `plant-card-phone` 5 passed,
 `lazy-species-painters` 1 passed. Not run: the studio spec and the rest of the e2e suite.
