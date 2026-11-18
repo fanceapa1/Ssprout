@@ -47,9 +47,9 @@ const k = GREEN_LIZARD_SIZE / 30;
 const P = (x: number, y: number): Pt => ({ x: x * k, y: y * k });
 
 const COL = {
-  green: '#5fae3a',
-  bright: '#8cc83e',
-  deep: '#2f6a2a',
+  green: mix('#5fae3a', '#9a9060', 0.15),
+  bright: mix('#7cc832', '#9a9060', 0.18),
+  deep: '#2a6a1c',
   speck: mix(PIGMENTS.sumi, '#1f3a1c', 0.5),
   throat: '#e3cf52',
   belly: '#c9cf63',
@@ -63,7 +63,7 @@ const COL = {
 const SHOULDER = 6.5;
 const HIP = -0.5;
 const NECK = 8.6;
-const TAIL_TIP = -20;
+const TAIL_TIP = -24;
 
 /** The spine's sideways swing at x for a bend `b` (-1..1): an S through the trunk, carried down the tail. */
 function swing(x: number, b: number): number {
@@ -101,7 +101,7 @@ function paintLeg(p: Painter, rng: Rng, at: Pt, side: number, fore: boolean, rea
   const leg = (a: Pt, c: Pt, w: number, pig: string) =>
     p.dab(a, pig, { rng, variant: 'leaf', angle: Math.atan2(c.y - a.y, c.x - a.x), length: Math.hypot(c.x - a.x, c.y - a.y) * 1.1, width: w, opacity: 0.95, pool: 0.4, basePool: 0.2 });
   leg({ x: at.x, y: at.y }, knee, 1.25 * k, COL.green);
-  leg(knee, foot, 0.85 * k, mix(COL.green, COL.deep, 0.3));
+  leg(knee, foot, 0.6 * k, mix(COL.green, COL.deep, 0.3));
   // the toes: four or five fine splayed strokes
   const dir = Math.atan2(foot.y - knee.y, foot.x - knee.x);
   for (let i = 0; i < 5; i++) {
@@ -130,10 +130,10 @@ function paintBody(p: Painter, bend: number, gait: number): void {
   const spine: Pt[] = [];
   for (let x = NECK - 0.5; x >= -6; x -= 1) spine.push({ x: x * k, y: y(x) });
   p.inkLine(spine, { rng, width: 0.5 * k, opacity: 0.3, breaks: 0.3, wobble: 0.1, pigment: COL.deep });
-  for (let i = 0; i < 70; i++) {
+  for (let i = 0; i < 150; i++) {
     const x = rng.range(-6, NECK - 0.3);
     const w = halfWidth(x) * 0.85;
-    p.dab({ x: x * k, y: y(x) + rng.range(-w, w) * k }, COL.speck, { rng, variant: 'round', angle: 0, length: rng.range(0.18, 0.34) * k, width: rng.range(0.16, 0.3) * k, opacity: rng.range(0.5, 0.85) });
+    p.dab({ x: x * k, y: y(x) + rng.range(-w, w) * k }, COL.speck, { rng, variant: 'round', angle: 0, length: rng.range(0.1, 0.22) * k, width: rng.range(0.08, 0.18) * k, opacity: rng.range(0.35, 0.8) });
   }
   // a sunlit gloss along the back
   p.dab(P(2.5, swing(2.5, bend) - 0.5), PIGMENTS.petalWhite, { rng, variant: 'leaf', angle: 0, length: 5 * k, width: 0.6 * k, opacity: 0.28, blend: 'source-over' });
@@ -162,10 +162,10 @@ export interface GreenLizardParts {
 }
 
 export function paintGreenLizard(res: number, seed: number): GreenLizardParts {
-  const box = { w: 34 * k, h: 12 * k, ox: 23 * k, oy: 6 * k };
+  const box = { w: 39 * k, h: 12 * k, ox: 27 * k, oy: 6 * k };
   const headBox = { w: 6 * k, h: 4.4 * k, ox: 1.2 * k, oy: 2.2 * k };
   return {
-    shadow: paintSprite(res, { w: 34 * k, h: 8 * k, ox: 22 * k, oy: 4 * k }, seed + 8, (p, rng) => {
+    shadow: paintSprite(res, { w: 38 * k, h: 8 * k, ox: 26 * k, oy: 4 * k }, seed + 8, (p, rng) => {
       p.glaze(blob(-2 * k, 0, 13 * k, 2.4 * k, rng, { irregularity: 0.1 }), mix(PIGMENTS.shadow, PIGMENTS.sumi, 0.3), { rng, opacity: 0.3, edge: 0, sharpness: 0.1, deform: 0.1 });
     }),
     body: [
@@ -538,7 +538,7 @@ const greenLizard: CreatureDef = {
     h: 120,
     make(res, seed) {
       const parts = paintGreenLizard(res, seed);
-      const box = { w: 36 * k, h: 14 * k, ox: 24 * k, oy: 7 * k };
+      const box = { w: 40 * k, h: 14 * k, ox: 28 * k, oy: 7 * k };
       const pose = (q: GreenLizardPose) => paintSprite(res, box, seed + 11, (pt) => drawGreenLizard(pt.ctx, parts, q));
       return [pose(LIZARD_REST), pose(lookPose(0.7)), pose({ ...LIZARD_REST, frame: 1 }), pose({ ...LIZARD_REST, frame: 2 }), pose({ ...LIZARD_REST, gap: { at: 2 * k, keep: 'back' } }), parts.head[1]];
     },
