@@ -26,11 +26,11 @@ import type { SpeciesDef } from '../types';
  * golden-yellow flowers, one tier above another.
  */
 
-const LEAF = '#9fae94';
-const LEAF_WARM = '#a9ab8a';
-const UNDER = '#d4d8c2';
-const LEAF_DEEP = '#62755f';
-const MASS = '#a2ae96';
+const LEAF = '#a5ae9c';
+const LEAF_WARM = '#acad94';
+const UNDER = '#dadccb';
+const LEAF_DEEP = '#6a7668';
+const MASS = '#a9b09e';
 const MASS_SHADE = '#7a8a74';
 const STEM = '#aeb092';
 const STEM_DEEP = '#7c8468';
@@ -104,7 +104,7 @@ export function buildJerusalemSage(rng: Rng): JerusalemSage {
           spread: s * sp,
           len: rng.range(9.5, 12) * size,
           wid: rng.range(5.6, 6.8) * (0.75 + 0.25 * size),
-          under: rng.chance(0.28),
+          under: rng.chance(0.34),
           tone: rng.next(),
           wave: rng.range(0.05, 0.12),
           phase: rng.range(0, 6.28),
