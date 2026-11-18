@@ -34,7 +34,7 @@ export const OWL_TUNING = {
   flight: 120,
   minScale: 0.4,
   /** the least scale it is drawn at, so it reads at a distance */
-  minDraw: 0.5,
+  minDraw: 0.7,
   /** a cat, goat or heron this close (world units) makes it stretch tall and thin */
   alarm: 120,
 };
@@ -68,12 +68,12 @@ const C = {
   spot: '#e8e1d2',
 };
 
-const NECK = -12.2;
+const NECK = -10.6;
 
 function paintBody(p: Painter, r: number): void {
   const rng = p.rng;
   const P = (x: number, y: number) => ({ x: x * r, y: y * r });
-  const sil = smoothPolygon([P(0, 3.6), P(-1.6, 2.2), P(-3.4, -0.8), P(-4.1, -4.8), P(-3.9, -8.8), P(-3.2, -11.4), P(0, -12.6), P(3.2, -11.4), P(3.9, -8.8), P(4.1, -4.8), P(3.4, -0.8), P(1.6, 2.2)], 2);
+  const sil = smoothPolygon([P(0, 2.8), P(-1.3, 1.8), P(-2.9, -0.6), P(-3.7, -4.2), P(-4.0, -8.0), P(-3.8, -10.8), P(-2.6, -12.4), P(0, -12.8), P(2.6, -12.4), P(3.8, -10.8), P(4.0, -8.0), P(3.7, -4.2), P(2.9, -0.6), P(1.3, 1.8)], 2);
   p.wetInWet(sil, C.light, C.body, { rng, angle: 0, split: 0.5, softness: 0.4, fingers: 0.4, opacity: 0.95, edge: 0.3, edgeWidth: 0.45 * r, sharpness: 0.4, centreLift: 0.06, granulation: 0.45, flow: 0.45, flowScale: 3 * r, deform: 0.06, spread: 0.06, blend: 'source-over', drops: [{ pigment: C.shade, at: P(-3, -6), size: 2.6 * r, alpha: 0.45 }, { pigment: C.shade, at: P(3, -6), size: 2.6 * r, alpha: 0.45 }] });
   // the paler breast, streaked dark like bark
   const M = p.layer({ x: -5 * r, y: -13 * r, w: 10 * r, h: 17 * r });
@@ -81,8 +81,8 @@ function paintBody(p: Painter, r: number): void {
   M.fill(blob(0, -5.6 * r, 2.5 * r, 4.6 * r, rng, { irregularity: 0.25 }), C.breast, 0.75);
   M.dry({ opacity: 0.8, edge: 0.06, sharpness: 0.15, centreLift: 0, granulation: 0.35, flow: 0.4, flowScale: 2 * r, blend: 'source-over' });
   for (let i = 0; i < 16; i++) {
-    const x = rng.range(-3.2, 3.2);
-    const y = rng.range(-11, 0.5);
+    const x = rng.range(-2.8, 2.8);
+    const y = rng.range(-10.5, 0);
     p.inkLine([P(x, y), P(x + rng.range(-0.15, 0.15), y + rng.range(1.0, 1.9))], { rng, width: 0.22 * r, opacity: rng.range(0.4, 0.65), breaks: 0.2, pigment: C.streak, taper: [0.2, 0.6] });
     if (i % 2 === 0) p.inkLine([P(x - 0.5, y + 0.8), P(x + 0.5, y + 0.8)], { rng, width: 0.12 * r, opacity: 0.25, breaks: 0.4, pigment: C.streak });
   }
@@ -102,9 +102,9 @@ type Look = 'front' | 'side' | 'blink' | 'tall';
 function paintHead(p: Painter, r: number, look: Look): void {
   const rng = p.rng;
   const P = (x: number, y: number) => ({ x: x * r, y: y * r });
-  const tuft = look === 'tall' ? 2.0 : 0.9;
+  const tuft = look === 'tall' ? 1.5 : 0.45;
   const sh = look === 'side' ? 0.9 : 0;
-  const head = smoothPolygon([P(0, 0.4), P(-3.0, -0.3), P(-3.7, -2.6), P(-3.4, -4.6), P(-2.9, -5.6 - tuft), P(-1.8, -5.5), P(0, -5.3), P(1.8, -5.5), P(2.9, -5.6 - tuft), P(3.4, -4.6), P(3.7, -2.6), P(3.0, -0.3)], 2);
+  const head = smoothPolygon([P(0, 0.6), P(-3.4, -0.1), P(-3.9, -2.6), P(-3.6, -4.4), P(-2.6, -5.4 - tuft), P(-1.7, -5.3), P(0, -5.0), P(1.7, -5.3), P(2.6, -5.4 - tuft), P(3.6, -4.4), P(3.9, -2.6), P(3.4, -0.1)], 2);
   p.wetInWet(head, C.light, C.body, { rng, angle: Math.PI / 2, split: 0.45, softness: 0.4, opacity: 0.95, edge: 0.3, edgeWidth: 0.4 * r, sharpness: 0.4, granulation: 0.45, flow: 0.45, flowScale: 2.5 * r, deform: 0.05, spread: 0.05, blend: 'source-over' });
   for (let i = 0; i < 6; i++) {
     const x = rng.range(-2, 2);
