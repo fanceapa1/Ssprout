@@ -21,8 +21,9 @@ function coastSim(seed = 4, { hour = 12, auto = false, plants = [] as PlantInsta
 }
 
 const WATER: TargetSpecies = { habitats: ['water'], size: { w: 70, h: 50 }, anchor: { x: 0.5, y: 1 }, pollinators: false } as unknown as TargetSpecies;
-const lookup = (id: string) => (id === 'water-plant' ? WATER : undefined);
-const planted = (slotId: string): PlantInstance => ({ id: slotId, speciesId: 'water-plant', sceneryId: 'coast', slotId, seed: 1, plantedAt: 0, sessionMinutes: 25, taskName: '', completedAt: 0 });
+const MEADOW: TargetSpecies = { ...WATER, size: { w: 200, h: 80 } } as TargetSpecies;
+const lookup = (id: string) => (id === 'water-plant' ? WATER : id === 'meadow' ? MEADOW : undefined);
+const planted = (slotId: string, speciesId = 'water-plant'): PlantInstance => ({ id: slotId, speciesId, sceneryId: 'coast', slotId, seed: 1, plantedAt: 0, sessionMinutes: 25, taskName: '', completedAt: 0 });
 
 const shoals = (sim: FaunaSim) => sim.creatures.filter((c): c is Shoal => c instanceof Shoal);
 const run = (sim: FaunaSim, seconds: number, dt = 0.1) => {
@@ -61,7 +62,7 @@ describe('where the damselfish live', () => {
   });
 
   it('keeps off the planted water plants', () => {
-    const plants = ['shallows-4', 'shallows-6', 'shallows-1'].map(planted);
+    const plants = ['shallows-4', 'shallows-6', 'shallows-1'].map((id) => planted(id));
     const sim = coastSim(2, { plants });
     expect(sim.world.pads).toHaveLength(3);
     const open = openHomes(sim.world);
@@ -69,6 +70,16 @@ describe('where the damselfish live', () => {
     expect(open.length).toBeGreaterThan(0);
     expect(open.length).toBeLessThan(all.length);
     for (const q of open) for (const p of sim.world.pads) expect(Math.hypot(q.x - p.x, q.y - p.y)).toBeGreaterThan(p.r);
+  });
+
+  it('hangs over the water plants when they fill the shallows, as over a seagrass meadow', () => {
+    const plants = [1, 2, 3, 4, 5, 6].map((i) => planted(`shallows-${i}`, 'meadow'));
+    const sim = coastSim(3, { plants });
+    expect(openHomes(sim.world)).toBe(shoalHomes(sim.world)!.spots);
+    const [s] = sim.spawn('damselfish') as Shoal[];
+    expect(s).toBeDefined();
+    run(sim, 300);
+    expect(s!.drifts).toBeGreaterThan(2);
   });
 });
 
@@ -90,7 +101,7 @@ describe('a shoal in the shallows', () => {
   it('stays in clear water for a long day, drifting, turning, frightened, with water plants planted', () => {
     const problems: string[] = [];
     for (const seed of [1, 2, 3, 4, 5, 6]) {
-      const plants = seed % 2 ? [] : ['shallows-4', 'shallows-6', 'shallows-5'].map(planted);
+      const plants = seed % 2 ? [] : ['shallows-4', 'shallows-6', 'shallows-5'].map((id) => planted(id));
       const sim = coastSim(seed, { plants });
       const [s] = sim.spawn('damselfish') as Shoal[];
       for (let t = 0; t < 900; t += 0.1) {

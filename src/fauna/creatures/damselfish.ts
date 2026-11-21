@@ -19,8 +19,9 @@ export const DAMSELFISH_LEN = 16;
 /** The sea plane seen low: offsets across the view keep their size, offsets toward the horizon shrink. */
 export const SQUASH = 0.5;
 
-/** The spreads a shoal tries, loosest first: in a narrow stretch it hangs closer. */
-export const ROOM = [1, 0.86, 0.73, 0.6] as const;
+/** The spreads a shoal tries, loosest first: in a narrow stretch, or between water plants, it hangs closer. */
+export const ROOM = [1, 0.86, 0.73, 0.6, 0.48] as const;
+const TIGHTEST = ROOM[4];
 
 export const DAMSELFISH_TUNING = {
   /** fish in a shoal */
@@ -51,7 +52,7 @@ export const DAMSELFISH_TUNING = {
   band: [0.1, 0.55] as const,
   /** clear of the rocks (the region's holes) and planted water plants (world units) */
   rockGap: 6,
-  padGap: 10,
+  padGap: 4,
 };
 
 // ---------------------------------------------------------------------------------------------
@@ -247,7 +248,7 @@ export function shoalExtent(ps: number, spread = 1): { rx: number; ry: number } 
 const holeBoxes = new WeakMap<object, Rect[]>();
 
 /** Is a fish's bed point in clear water: in the shallows, off its rocks, off a planted water plant? */
-export function clearWater(r: Region, q: Pt, pads: readonly Pad[], gap = 0): boolean {
+export function clearWater(r: Region, q: Pt, pads: readonly Pad[], gap = 0, padGap = gap): boolean {
   if (!pointInPolygon(q, r.outline)) return false;
   const holes = r.holes ?? [];
   let boxes = holeBoxes.get(holes);
@@ -258,7 +259,7 @@ export function clearWater(r: Region, q: Pt, pads: readonly Pad[], gap = 0): boo
     const h = holes[i]!;
     if (pointInPolygon(q, h) || (gap > 0 && distanceToPolygon(q, h) < gap)) return false;
   }
-  for (const p of pads) if (Math.hypot(p.x - q.x, p.y - q.y) < p.r + gap) return false;
+  for (const p of pads) if (Math.hypot(p.x - q.x, p.y - q.y) < p.r + padGap) return false;
   return true;
 }
 
@@ -275,7 +276,7 @@ export function shoalFits(r: Region, c: Pt, ps: number, pads: readonly Pad[], sp
   for (let i = 0; i < 12; i++) {
     const a = (i / 12) * TAU;
     const q = { x: c.x + Math.cos(a) * rx, y: c.y + Math.sin(a) * ry };
-    if (!clearWater(r, q, pads, T.rockGap + (pads.length ? T.padGap : 0))) return false;
+    if (!clearWater(r, q, pads, T.rockGap, T.padGap)) return false;
     if (Math.sin(a) < -0.5 && !clearWater(r, { x: q.x, y: q.y - lift }, [], 0)) return false;
   }
   return true;
@@ -283,8 +284,8 @@ export function shoalFits(r: Region, c: Pt, ps: number, pads: readonly Pad[], sp
 
 /** The loosest spread (of `ROOM`) a shoal at `c` fits at, or 0 where none does. */
 export function roomAt(r: Region, c: Pt, ps: number, pads: readonly Pad[]): number {
-  if (!shoalFits(r, c, ps, pads, ROOM[3])) return 0;
-  for (const s of ROOM) if (s === ROOM[3] || shoalFits(r, c, ps, pads, s)) return s;
+  if (!shoalFits(r, c, ps, pads, TIGHTEST)) return 0;
+  for (const s of ROOM) if (s === TIGHTEST || shoalFits(r, c, ps, pads, s)) return s;
   return 0;
 }
 
@@ -328,7 +329,10 @@ const inView = (q: Pt, v: Rect, m: number) => q.x > v.x + m && q.x < v.x + v.w -
 
 const openCache = new WeakMap<object, Home[]>();
 
-/** Where the shoal can be now: its homes clear of the planted water plants (cached per planting). */
+/**
+ * Where the shoal can be now: its homes clear of the planted water plants (cached per planting).
+ * When plants fill the shallows so that none is clear, it hangs over them, as over a seagrass meadow.
+ */
 export function openHomes(w: Pick<FaunaWorld, 'regions' | 'perspective' | 'pads'>): Home[] {
   const h = shoalHomes(w);
   if (!h) return [];
@@ -340,9 +344,16 @@ export function openHomes(w: Pick<FaunaWorld, 'regions' | 'perspective' | 'pads'
       const room = roomAt(h.region, q, w.perspective(q.y, q.x), w.pads);
       if (room > 0) out.push({ x: q.x, y: q.y, room });
     }
+    if (out.length === 0) out = h.spots;
     openCache.set(w.pads, out);
   }
   return out;
+}
+
+/** The planted water plants it keeps off: none once they fill the shallows. */
+export function padsFor(w: Pick<FaunaWorld, 'regions' | 'perspective' | 'pads'>): readonly Pad[] {
+  const h = shoalHomes(w);
+  return h && w.pads.length > 0 && openHomes(w) !== h.spots ? w.pads : [];
 }
 
 /** A home to appear at: in view when it can, roomier ones likelier. */
@@ -369,6 +380,7 @@ export function driftTarget(w: Pick<FaunaWorld, 'regions' | 'perspective' | 'pad
     if (away) return Math.hypot(q.x - away.x, (q.y - away.y) * 0.5) > Math.hypot(from.x - away.x, (from.y - away.y) * 0.5) + 30 && d < 220;
     return d >= T.drift[0] && d <= T.drift[1] && Math.abs(q.y - from.y) < Math.abs(q.x - from.x) * 0.8;
   };
+  const pads = padsFor(w);
   let pool = openHomes(w).filter(ok);
   const seen = pool.filter((q) => inView(q, w.view, 30));
   if (seen.length > 0) pool = seen;
@@ -377,7 +389,7 @@ export function driftTarget(w: Pick<FaunaWorld, 'regions' | 'perspective' | 'pad
     let room = q.room;
     for (let k = 1; k < 6 && room > 0; k++) {
       const m = { x: lerp(from.x, q.x, k / 6), y: lerp(from.y, q.y, k / 6) };
-      room = Math.min(room, roomAt(h.region, m, w.perspective(m.y, m.x), w.pads));
+      room = Math.min(room, roomAt(h.region, m, w.perspective(m.y, m.x), pads));
     }
     if (room > 0) return { x: q.x, y: q.y, room };
   }
@@ -590,7 +602,7 @@ export class Shoal extends BaseCreature {
     // a water plant planted under it: hang closer, or move off
     if (this.timerAll >= this.checkAt && (this.state === 'hover' || this.state === 'turn')) {
       this.checkAt = this.timerAll + 2;
-      const fits = roomAt(homes.region, this, this.scale, w.pads);
+      const fits = roomAt(homes.region, this, this.scale, padsFor(w));
       if (fits === 0) {
         const open = openHomes(w);
         if (open.length > 0) this.startDrift({ ...open.reduce((a, q) => (dist(q, this) < dist(a, this) ? q : a), open[0]!) });
@@ -603,7 +615,7 @@ export class Shoal extends BaseCreature {
   private hover(w: FaunaWorld): void {
     this.target = null;
     const h = shoalHomes(w);
-    this.room = (h && roomAt(h.region, this, this.scale, w.pads)) || ROOM[3];
+    this.room = (h && roomAt(h.region, this, this.scale, padsFor(w))) || TIGHTEST;
     this.waitFor = rangeOf(this.rng, [...DAMSELFISH_TUNING.hover]);
     this.go('hover');
   }
