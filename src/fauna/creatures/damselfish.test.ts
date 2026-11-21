@@ -258,7 +258,7 @@ describe('by day only', () => {
 });
 
 describe('drawing', () => {
-  it('two drawImages a fish, three for the turning ones, in one save', () => {
+  it('one shadow and a drawImage a fish (two for a turning one), with no save', () => {
     const sim = coastSim(4);
     const [s] = sim.spawn('damselfish') as Shoal[];
     run(sim, 30);
@@ -276,8 +276,13 @@ describe('drawing', () => {
     } as unknown as CanvasRenderingContext2D;
     drawShoal(ctx, parts, s!, 1);
     expect(saves).toBe(0);
-    expect(draws).toBeGreaterThanOrEqual(2 * s!.fish.length);
-    expect(draws).toBeLessThanOrEqual(3 * s!.fish.length);
+    expect(draws).toBeGreaterThanOrEqual(1 + s!.fish.length);
+    expect(draws).toBeLessThanOrEqual(1 + 2 * s!.fish.length);
+    // at rest, hanging still: barely more than one a fish
+    for (const f of s!.fish) f.shimmer = 0;
+    draws = 0;
+    drawShoal(ctx, parts, s!, 1);
+    expect(draws).toBe(1 + s!.fish.length);
   });
 
   it('shows on the coast stage', () => {

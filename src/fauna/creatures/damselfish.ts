@@ -173,7 +173,7 @@ export interface DamselfishParts {
   deep: [Sprite, Sprite, Sprite];
   /** the light caught on a flank as it turns */
   glint: Sprite;
-  /** its blurred shadow on the bed */
+  /** the shoal's blurred shadow on the bed (`SHADOW_R` across, drawn at the shoal's spread) */
   shadow: Sprite;
   /** the parts alone (sheet) */
   body: Sprite;
@@ -181,6 +181,8 @@ export interface DamselfishParts {
 }
 
 export const TAIL_SWEEP = 0.26;
+/** The shadow cloud's painted radius (world units), scaled to the shoal when drawn. */
+const SHADOW_R = 40;
 
 export function paintDamselfish(res: number, seed: number): DamselfishParts {
   const box = { w: HEAD - ROOT + 0.36 * L + 2, h: 0.56 * L + 2, ox: -ROOT + 0.34 * L + 1, oy: 0.28 * L + 1 };
@@ -201,21 +203,24 @@ export function paintDamselfish(res: number, seed: number): DamselfishParts {
   const frames = [frame(-TAIL_SWEEP), frame(0), frame(TAIL_SWEEP)].map((f) => deepCopy(f, res, cool, 0.18, 1.5)) as DamselfishParts['frames'];
   const glint = paintSprite(res, { w: HEAD - ROOT + 2, h: HW * 2 + 2, ox: -ROOT + 1, oy: HW + 1 }, seed + 5, (p, rng) => {
     // a long thin streak of light along one flank, not a spot
-    p.dab({ x: (HEAD + ROOT) / 2, y: HW * 0.42 }, COL.glint, { rng, variant: 'leaf', angle: 0, length: (HEAD - ROOT) * 0.85, width: HW * 0.42, opacity: 0.6, blend: 'source-over' });
-    p.dab({ x: (HEAD + ROOT) / 2 - 0.04 * L, y: HW * 0.4 }, lighten(COL.line, 0.3), { rng, variant: 'leaf', angle: 0, length: (HEAD - ROOT) * 0.5, width: HW * 0.2, opacity: 0.6, blend: 'source-over' });
+    // (a dab runs from its point along its angle)
+    p.dab({ x: ROOT + 0.1 * L, y: HW * 0.42 }, COL.glint, { rng, variant: 'leaf', angle: 0, length: 0.48 * L, width: HW * 0.42, opacity: 0.6, blend: 'source-over' });
+    p.dab({ x: ROOT + 0.18 * L, y: HW * 0.4 }, lighten(COL.line, 0.3), { rng, variant: 'leaf', angle: 0, length: 0.3 * L, width: HW * 0.2, opacity: 0.6, blend: 'source-over' });
   });
-  const sh = paintSprite(res, { w: box.w + 4, h: box.h + 4, ox: box.ox + 2, oy: box.oy + 2 }, seed + 6, (p, rng) => {
-    p.wash(bodyPolygon(), COL.shadow, { rng, blend: 'source-over', opacity: 0.9, edge: 0, centreLift: 0, sharpness: 0.1 });
-    p.ctx.save();
-    p.ctx.translate(ROOT + 0.02 * L, 0);
-    p.wash(tailPolygon(), COL.shadow, { rng, blend: 'source-over', opacity: 0.7, edge: 0, centreLift: 0, sharpness: 0.1 });
-    p.ctx.restore();
+  // the whole shoal's shadow on the bed: a faint cloud of small fish-shaped smudges, one sprite
+  const C = SHADOW_R;
+  const sh = paintSprite(res, { w: 2 * C + 12, h: 2 * C + 12, ox: C + 6, oy: C + 6 }, seed + 6, (p, rng) => {
+    for (let i = 0; i < 22; i++) {
+      const r = Math.sqrt(rng.next()) * C * 0.85;
+      const a = rng.range(0, TAU);
+      p.dab({ x: Math.cos(a) * r, y: Math.sin(a) * r }, COL.shadow, { rng, variant: 'leaf', angle: rng.range(-0.3, 0.3) + (rng.chance(0.5) ? 0 : Math.PI), length: 0.9 * L, width: 0.36 * L, opacity: 0.75, blend: 'source-over' });
+    }
   });
   return {
     frames,
     deep: frames.map((f) => deepCopy(f, res, cool, 0.35, 1.9)) as DamselfishParts['deep'],
     glint,
-    shadow: deepCopy(deepCopy(sh, res, cool, 0.15, 3), res, cool, 0, 3),
+    shadow: deepCopy(deepCopy(sh, res, cool, 0.15, 3), res, cool, 0, 2),
     body,
     tail,
   };
@@ -689,7 +694,7 @@ export class Shoal extends BaseCreature {
   }
 }
 
-/** Draw a shoal's shadows, then its fish, then the glints of the turning ones: two or three `drawImage`s a fish. */
+/** Draw a shoal's shadow, then its fish, then the glints of the turning ones: about one `drawImage` a fish. */
 export function drawShoal(ctx: Ctx, parts: DamselfishParts, s: Shoal, alpha: number): void {
   const m = ctx.getTransform();
   const A = m.a;
@@ -701,13 +706,6 @@ export function drawShoal(ctx: Ctx, parts: DamselfishParts, s: Shoal, alpha: num
   const ps = s.scale;
   const deep = smoothstep((s.z - 0.62) / 0.3);
   const set = (a: number, b: number, c: number, d: number, x: number, y: number) => ctx.setTransform(A * a + C * b, B * a + D * b, A * c + C * d, B * c + D * d, A * x + C * y + E, B * x + D * y + F);
-  // a shadow lies on the bed: rotated in the sea plane, then the plane foreshortened
-  const flat = (img: Sprite, x: number, y: number, k: number, rot: number) => {
-    const cs = Math.cos(rot) * k;
-    const sn = Math.sin(rot) * k;
-    set(cs, sn * SQUASH, -sn, cs * SQUASH, x, y);
-    ctx.drawImage(img.img as CanvasImageSource, -img.ox, -img.oy, img.w, img.h);
-  };
   // a fish seen from above and a little to the side keeps its body's width; only its length foreshortens
   const put = (img: Sprite, x: number, y: number, k: number, rot: number) => {
     const dx = Math.cos(rot);
@@ -720,11 +718,12 @@ export function drawShoal(ctx: Ctx, parts: DamselfishParts, s: Shoal, alpha: num
     ctx.drawImage(img.img as CanvasImageSource, -img.ox, -img.oy, img.w, img.h);
   };
   const base = ctx.globalAlpha;
-  ctx.globalAlpha = base * alpha * lerp(0.26, 0.4, deep);
-  for (const f of s.fish) {
-    const q = s.fishAt(f);
-    flat(parts.shadow, q.bed.x, q.bed.y, ps * f.size, f.heading);
-  }
+  // one shadow for the shoal: per-fish shadows doubled the draw calls and most of the cost
+  const sh = parts.shadow;
+  const ks = ((DAMSELFISH_TUNING.radius * s.spread + 4) * ps) / SHADOW_R;
+  ctx.globalAlpha = base * alpha * lerp(0.3, 0.5, deep);
+  set(ks, 0, 0, ks * SQUASH, s.x, s.y);
+  ctx.drawImage(sh.img as CanvasImageSource, -sh.ox, -sh.oy, sh.w, sh.h);
   for (const f of s.fish) {
     const q = s.fishAt(f);
     const fr = Math.sin(f.phase) > 0.55 ? 2 : Math.sin(f.phase) < -0.55 ? 0 : 1;

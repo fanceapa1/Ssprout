@@ -58,7 +58,7 @@ function cove(id: string, label: string, spec: StageSpec, w: number, pose: Pose,
 /** One fish's parts on a band of turquoise: the three tail frames, the deep copy, the glint over a frame, the shadow. */
 const fish: StudioEntry = {
   id: 'fish',
-  label: 'one fish, 8 px a unit: tail flicked one way · straight · the other way · deep (near the bottom) · turning (the glint) · its shadow',
+  label: 'one fish, 8 px a unit: tail flicked one way · straight · the other way · deep (near the bottom) · turning (the glint) · the shoal’s shadow (one for the shoal)',
   w: 1000,
   h: 200,
   render(canvas, { seed, pixelRatio }) {
@@ -71,7 +71,9 @@ const fish: StudioEntry = {
     const parts = paintDamselfish(k * pixelRatio, 6230 + (seed % 7));
     const items = [parts.frames[0], parts.frames[1], parts.frames[2], parts.deep[1], parts.frames[1], parts.shadow];
     items.forEach((sp, i) => {
-      ctx.setTransform(pixelRatio * k, 0, 0, pixelRatio * k, pixelRatio * (90 + i * 165), pixelRatio * 100);
+      // the shoal's shadow is painted shoal-sized: shown at a fifth
+      const kk = i === 5 ? k * 0.2 : k;
+      ctx.setTransform(pixelRatio * kk, 0, 0, pixelRatio * kk, pixelRatio * (90 + i * 165), pixelRatio * 100);
       ctx.drawImage(sp.img as CanvasImageSource, -sp.ox, -sp.oy, sp.w, sp.h);
       if (i === 4) ctx.drawImage(parts.glint.img as CanvasImageSource, -parts.glint.ox, -parts.glint.oy, parts.glint.w, parts.glint.h);
     });
