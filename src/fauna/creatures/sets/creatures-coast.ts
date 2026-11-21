@@ -3,6 +3,7 @@ import bee from '../bee';
 import butterfly from '../butterfly';
 import cat from '../cat';
 import cicada from '../cicada';
+import damselfish from '../damselfish';
 import dolphin from '../dolphin';
 import goat from '../goat';
 import greenLizard from '../green-lizard';
@@ -16,5 +17,5 @@ import scopsOwl from '../scops-owl';
 import swallow from '../swallow';
 import tortoise from '../tortoise';
 
-const defs: readonly CreatureDef[] = [bee, butterfly, cat, cicada, dolphin, goat, greenLizard, gull, heron, octopus, rockCrab, rockThrush, scopsOwl, swallow, tortoise];
+const defs: readonly CreatureDef[] = [bee, butterfly, cat, cicada, damselfish, dolphin, goat, greenLizard, gull, heron, octopus, rockCrab, rockThrush, scopsOwl, swallow, tortoise];
 export default defs;
