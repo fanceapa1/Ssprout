@@ -113,7 +113,16 @@ crab), with or without the octopus, 12 s stepped; `bench(60)` untimed, then `ben
 - Inside the 1.5 ms budget everywhere, with about 0.4 ms to spare in the close view.
 
 ## Tests
-TESTS
+`src/fauna/creatures/octopus.test.ts`, 19 tests (the pools as ellipses; coast only; sitting spots
+with every arm point inside the water and off a crab; a visit's acts; the body inside the rim and
+nothing seen past it; the colour following what it does, blended smoothly; the heron's fright, pale
+and flat, into the den; a passing gull, settling again; an open pool first, even out of view; one at
+a time; rarity and never at night; nightfall; sighting; determinism; reduced motion; the studio
+stage; the skins' blend; draws only on `underwater`, one clip, two `drawImage`s, at most 96 stamps
+composed, composed every other step while it sits; a cheap update).
+Typecheck clean. The full unit suite after the rebase on `main`: 280 files, 2966 tests, all pass.
+E2E, one file at a time, one worker: `lazy-creatures` 2, `fauna` 6, `sceneries` 8, all pass. The
+full e2e suite was not run, and there is no coast fauna e2e spec.
 
 ## Left open
 - **Not in the shallows** (above): a stony-edge region in the places would let it out of the pools.
