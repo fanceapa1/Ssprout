@@ -9,11 +9,12 @@ import greenLizard from '../green-lizard';
 import gull from '../gull';
 import heron from '../heron';
 import type { CreatureDef } from '../lib/def';
+import octopus from '../octopus';
 import rockCrab from '../rock-crab';
 import rockThrush from '../rock-thrush';
 import scopsOwl from '../scops-owl';
 import swallow from '../swallow';
 import tortoise from '../tortoise';
 
-const defs: readonly CreatureDef[] = [bee, butterfly, cat, cicada, dolphin, goat, greenLizard, gull, heron, rockCrab, rockThrush, scopsOwl, swallow, tortoise];
+const defs: readonly CreatureDef[] = [bee, butterfly, cat, cicada, dolphin, goat, greenLizard, gull, heron, octopus, rockCrab, rockThrush, scopsOwl, swallow, tortoise];
 export default defs;
