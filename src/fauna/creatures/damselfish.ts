@@ -41,7 +41,7 @@ export const DAMSELFISH_TUNING = {
   drift: [24, 110] as const,
   speed: 6,
   /** how near each kind passes before it tightens and sinks (world units, y counted half) */
-  threats: { gull: 120, heron: 150 } as Record<string, number>,
+  threats: { gull: 120, heron: 150, octopus: 60 } as Record<string, number>,
   /** it stays tight this long after the last threat (s), and moves off one that lingers this long */
   calm: [5, 10] as const,
   linger: 6,

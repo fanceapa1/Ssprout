@@ -162,7 +162,7 @@ describe('a shoal in the shallows', () => {
   });
 
   it('tightens and sinks when a gull or the heron passes over, and loosens again after', () => {
-    for (const kind of ['gull', 'heron']) {
+    for (const kind of ['gull', 'heron', 'octopus']) {
       const sim = coastSim(8);
       const [s] = sim.spawn('damselfish') as Shoal[];
       settle(sim, s!);

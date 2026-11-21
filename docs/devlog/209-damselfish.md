@@ -35,7 +35,7 @@ The coast's shoal: the Mediterranean damselfish (*Chromis chromis*), kind `damse
   6 units/s × perspective. A gull (120) or the heron (150) passing over (y counted half: a bird
   high over the water is over it) tightens it to 0.42 of its spread and sinks it toward the bottom
   (depth 0.35 → 0.88: the fish soften, cool and fade, their shadows close in under them) until
-  5–10 s after the bird has gone; a bird that stays 6 s sends it slipping away along the shore. A
+  5–10 s after the bird has gone (the octopus, GK12, within 60 does the same: it landed during the rebase); a bird that stays 6 s sends it slipping away along the shore. A
   shadow from beyond the view (a gull high over, a boat's) does the same every 70–200 s for
   3–6 s. Then it loosens again over about 5 s.
 - **Paint** (`paintDamselfish`, one `ArtCache` entry): from above and a little to the side (the
@@ -129,6 +129,5 @@ nightfall; deterministic; draw calls).
   shadow; per-fish shadows cost about 0.5 ms a frame.
 - **Cost:** 0.15–0.35 ms a frame is the most of any coast creature; drawing the shoal into a
   cache every second frame measured about 0.3 ms less with per-fish shadows and was not kept.
-- **The octopus** (GK12) is not a threat yet; add it to `DAMSELFISH_TUNING.threats` when it lands.
 
 Status: done.
