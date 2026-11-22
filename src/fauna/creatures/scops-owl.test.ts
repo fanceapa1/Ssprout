@@ -7,7 +7,7 @@ import { COAST_FAUNA } from '../../scenery/coast/fauna';
 import { OASIS } from '../../scenery/oasis';
 import { FaunaSim } from '../sim';
 import { perchY } from '../targets';
-import scopsOwl, { callPose, choosePerch, owlPerches, ScopsOwl } from './scops-owl';
+import scopsOwl, { callPose, choosePerch, flightFrame, HEAD_STEPS, headBlend, OWL_FRAME, owlPerches, ScopsOwl, seatOf, shapeOf, SIT, tuftAt, TURN_MAX } from './scops-owl';
 
 const plants: PlantInstance[] = [];
 const ONLY = COAST_FAUNA.filter((r) => r.kind === 'scops-owl');
@@ -33,6 +33,19 @@ describe('where the scops owl perches', () => {
     expect(ids.some((id) => id.startsWith('pine-branch'))).toBe(true);
     expect(ps.some((p) => p.kind === 'wall')).toBe(true);
     expect(ps.every((p) => p.kind === 'branch' || p.kind === 'wall')).toBe(true);
+  });
+
+  it('keeps inside the painted frame, and sits on the wood or stone (a seat off the perch line)', () => {
+    const w = coastSim().world;
+    const ps = owlPerches(w);
+    expect(ps.every((p) => p.x >= OWL_FRAME.x0 && p.x <= OWL_FRAME.x1)).toBe(true);
+    expect(w.perches.some((p) => p.id.startsWith('pine-branch') && p.x < OWL_FRAME.x0)).toBe(true);
+    expect(ps.find((p) => p.id === 'olive-fork')).toBeDefined();
+    for (const p of ps) {
+      const s = seatOf(p);
+      expect(Math.hypot(s.x, s.y)).toBeLessThan(16);
+      expect(s.y).toBeLessThanOrEqual(0);
+    }
   });
 
   it('picks the olive most, and never a held perch', () => {
@@ -68,7 +81,8 @@ describe('a night in the olive', () => {
       const a = o!.acting();
       if (a) acts.add(a);
       if (o!.doing() === 'perch' && o!.perch) {
-        expect(o!.y).toBeCloseTo(perchY(o!.perch, o!.x), 5);
+        const seat = seatOf(o!.perch);
+        expect(o!.y).toBeCloseTo(perchY(o!.perch, o!.x - seat.x) + seat.y, 5);
         expect(o!.layer).toBe('entities');
         perched.add(o!.perch.id);
       }
@@ -142,5 +156,79 @@ describe('a night in the olive', () => {
     const starts = puffs.filter((p, i) => p && !puffs[i - 1]).length;
     expect(starts).toBeGreaterThanOrEqual(3);
     expect(starts).toBeLessThanOrEqual(5);
+  });
+});
+
+describe('its head turn and poses', () => {
+  it('turns through in-between heads: the painted turn and the blend move on smoothly, no frame pops', () => {
+    // the turn as drawn: the step under plus the share of the next laid over it
+    const drawn = (t: number) => {
+      const h = headBlend(t);
+      expect(h.b).toBe(h.a + 1);
+      expect(h.k).toBeGreaterThanOrEqual(0);
+      expect(h.k).toBeLessThanOrEqual(1);
+      return Math.sign(t) * (h.a + h.k);
+    };
+    let last = drawn(-1);
+    expect(last).toBeCloseTo(-(HEAD_STEPS - 1), 6);
+    for (let i = 1; i <= 400; i++) {
+      const v = drawn(-1 + i / 200);
+      expect(v - last).toBeGreaterThan(0);
+      expect(v - last).toBeLessThan(0.04);
+      last = v;
+    }
+    expect(last).toBeCloseTo(HEAD_STEPS - 1, 6);
+    // the face-on head is never mirrored; a turn to −x mirrors the turned ones
+    expect(headBlend(-0.05)).toMatchObject({ a: 0, flipA: false, flipB: true });
+    expect(headBlend(0.05)).toMatchObject({ a: 0, flipA: false, flipB: false });
+    expect(TURN_MAX).toBeGreaterThan(Math.PI / 2);
+  });
+
+  it('the ear tufts slide round the head as it turns and stand up as they rise', () => {
+    const front = [tuftAt(-1, 0, 0), tuftAt(1, 0, 0)];
+    expect(front[0]!.x).toBeCloseTo(-front[1]!.x, 6);
+    for (let i = 1; i <= 50; i++) {
+      const a = tuftAt(1, (TURN_MAX * (i - 1)) / 50, 0.5);
+      const b = tuftAt(1, (TURN_MAX * i) / 50, 0.5);
+      expect(Math.abs(b.x - a.x)).toBeLessThan(0.3);
+    }
+    expect(Math.abs(tuftAt(1, 0, 1).lean)).toBeLessThan(Math.abs(tuftAt(1, 0, 0).lean));
+    expect(tuftAt(1, 0, 1).scale).toBeGreaterThan(tuftAt(1, 0, 0).scale);
+  });
+
+  it('relaxed is round with the tufts low, alert a little slimmer, tall all the way', () => {
+    const sit = shapeOf(SIT);
+    const alert = shapeOf({ ...SIT, alert: 1 });
+    const tall = shapeOf({ ...SIT, tall: 1 });
+    expect(sit.morph).toBe(0);
+    expect(alert.morph).toBeGreaterThan(0.2);
+    expect(alert.morph).toBeLessThan(0.5);
+    expect(tall.morph).toBe(1);
+    expect(sit.raise).toBeLessThan(alert.raise);
+    expect(alert.raise).toBeLessThan(tall.raise);
+  });
+
+  it('flies mostly gliding, with a deep beat now and then', () => {
+    const frames = Array.from({ length: 1400 }, (_, i) => flightFrame(i / 1000));
+    const glide = frames.filter((f) => f === 'glide').length / frames.length;
+    expect(glide).toBeGreaterThan(0.7);
+    expect(frames).toContain('up');
+    expect(frames).toContain('down');
+  });
+
+  it('is alert while it turns its head or calls, and settles back after', () => {
+    const sim = coastSim(5);
+    const [o] = sim.spawn('scops-owl') as ScopsOwl[];
+    settle(sim, o!);
+    let keen = 0;
+    let calm = 0;
+    for (let s = 0; s < 300 && o!.doing() === 'perch'; s += 0.1) {
+      sim.update(0.1, 0);
+      const q = o!.pose();
+      if ((o!.acting() === 'call' || o!.acting() === 'turn') && q.alert > 0.5) keen++;
+      if (o!.acting() === 'still' && q.alert === 0) calm++;
+    }
+    expect(keen).toBeGreaterThan(0);
+    expect(calm).toBeGreaterThan(0);
   });
 });

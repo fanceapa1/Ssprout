@@ -1,6 +1,6 @@
 /**
- * Studio: the scops owl, close. Its poses on white (sitting, the head turned, a blink, the call's
- * puff, stretched tall, the flight frames), and the real behaviour at night on a crop of the olive.
+ * Studio: the scops owl, close. Its poses on white (relaxed, alert, stretched tall, calling, a blink,
+ * the head turning through its in-between turns, the flight frames), and the real behaviour at night on the olive.
  */
 import type { StudioEntry, StudioSection } from '../../studio/types';
 import { multiplyPaper, Stage, type StageSpec } from '../stage';
@@ -33,31 +33,37 @@ function close(id: string, label: string, spec: StageSpec, w: number): StudioEnt
   };
 }
 
-type Item = { x: number; q?: OwlPose; fly?: number };
+type Item = { x: number; y: number; q?: OwlPose; fly?: number };
 
 const poses: StudioEntry = {
   id: 'poses',
-  label: 'sitting · head turned · blink · calling (throat puffed) · tall and thin · flight: glide, up, down',
+  label:
+    'sitting relaxed · alert · stretched tall (camouflage) · calling (throat puffed) · blink · head turned left, half left, half right, right · flight: glide, wings up, wings down',
   w: 1000,
-  h: 260,
+  h: 410,
   render(canvas, { seed, pixelRatio }) {
     const ctx = canvas.getContext('2d')!;
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
-    const k = 5.5;
+    const k = 5;
     const parts = paintOwl(k * pixelRatio, 4210 + (seed % 7));
+    const y = 205;
     const items: Item[] = [
-      { x: 60, q: SIT },
-      { x: 170, q: { ...SIT, turn: 1 } },
-      { x: 280, q: { ...SIT, blink: true } },
-      { x: 390, q: callPose(0.23) },
-      { x: 500, q: { ...SIT, tall: 1 } },
-      { x: 640, fly: 0 },
-      { x: 780, fly: 0.45 },
-      { x: 910, fly: 0.5 },
+      { x: 60, y, q: SIT },
+      { x: 165, y, q: { ...SIT, alert: 1 } },
+      { x: 270, y, q: { ...SIT, tall: 1 } },
+      { x: 375, y, q: { ...callPose(0.23), alert: 1 } },
+      { x: 480, y, q: { ...SIT, blink: true } },
+      { x: 590, y, q: { ...SIT, alert: 1, turn: -1 } },
+      { x: 695, y, q: { ...SIT, alert: 1, turn: -0.5 } },
+      { x: 800, y, q: { ...SIT, alert: 1, turn: 0.5 } },
+      { x: 905, y, q: { ...SIT, alert: 1, turn: 1 } },
+      { x: 170, y: 365, fly: 0 },
+      { x: 500, y: 365, fly: 0.45 },
+      { x: 830, y: 365, fly: 0.6 },
     ];
     for (const it of items) {
-      ctx.setTransform(pixelRatio * k, 0, 0, pixelRatio * k, pixelRatio * it.x, pixelRatio * 215);
+      ctx.setTransform(pixelRatio * k, 0, 0, pixelRatio * k, pixelRatio * it.x, pixelRatio * it.y);
       if (it.q) drawPerched(ctx, parts, it.q);
       else drawFlying(ctx, parts, it.fly!, 0);
     }
