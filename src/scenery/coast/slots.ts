@@ -38,31 +38,32 @@ const SPECS: Record<Habitat, SlotSpec[]> = {
     ['top-1', 1020, 548, 'tree', 'top'],
     ['top-2', 1220, 556, 'medium', 'top'],
     ['top-3', 1400, 552, 'small', 'top'],
-    ['mid-1', 880, 684, 'large', 'middle'],
+    ['mid-1', 860, 684, 'large', 'middle'],
     ['mid-2', 1120, 676, 'small', 'middle'],
     ['mid-3', 1300, 680, 'small', 'middle'],
     ['mid-4', 1420, 676, 'small', 'middle'],
     ['mid-5', 1474, 680, 'small', 'middle'],
-    ['low-1', 812, 826, 'small', 'lower'],
+    ['low-1', 812, 822, 'small', 'lower'],
     ['low-2', 990, 822, 'small', 'lower'],
     ['low-3', 1200, 812, 'medium', 'lower'],
     ['low-4', 1560, 812, 'medium', 'lower'],
   ],
-  // beside the gravel path, on the foreground and the terraces
+  // beside the gravel path on the terraces; the foreground under the lowest wall is the painting's
+  // foot, faded into the margin, so nothing grows there (ADR 0384)
   path: [
-    ['path-1', 790, 975, 'small'],
-    ['path-2', 990, 950, 'small'],
-    ['path-3', 846, 946, 'small'],
-    ['path-4', 870, 792, 'small', 'lower'],
+    ['path-1', 1040, 822, 'small', 'lower'],
+    ['path-2', 940, 684, 'small', 'middle'],
+    ['path-3', 846, 822, 'small', 'lower'],
+    ['path-4', 882, 822, 'small', 'lower'],
     ['path-5', 1170, 560, 'small', 'top'],
   ],
-  // the scrub: the promontory's cliff top right of the olive (a tree), the foreground's corners
+  // the scrub: the promontory's cliff top right of the olive (a tree), its foot, and the lower terrace's ends
   back: [
     ['scrub-1', 1468, 306, 'tree'],
-    ['scrub-3', 1300, 965, 'medium'],
-    ['scrub-4', 1580, 960, 'small'],
-    ['scrub-5', 700, 985, 'small'],
-    ['scrub-6', 1180, 960, 'small'],
+    ['scrub-3', 1508, 510, 'medium', 'top'],
+    ['scrub-4', 1480, 822, 'small', 'lower'],
+    ['scrub-5', 752, 838, 'small', 'lower'],
+    ['scrub-6', 1300, 834, 'small', 'lower'],
   ],
   // the walls' copings and faces, the splash rocks in the sea, and the bastion's headland ledge (ADR 0383)
   rock: [
