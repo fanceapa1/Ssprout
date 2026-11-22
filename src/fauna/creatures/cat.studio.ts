@@ -1,10 +1,11 @@
 /**
- * Studio: the island cat close. Every pose side by side, the walk cycle frame by frame, the three
- * coats, and the real behaviour on close crops of the coast's painting: a coping, the olive's shade.
+ * Studio: the island cat close. Every pose side by side, the walk cycle frame by frame, the front
+ * and back walks, the drawn changes of pose, the three coats, and the real behaviour on close crops
+ * of the coast's painting.
  */
 import type { StudioEntry, StudioSection } from '../../studio/types';
 import { multiplyPaper, Stage, type StageSpec } from '../stage';
-import { CAT_COATS, drawCat, paintCat, REST_POSE, type CatPose } from './cat';
+import { CAT_COATS, drawCat, inBetween, paintCat, REST_POSE, stretchPose, type CatPose } from './cat';
 
 const stages = new Map<string, Stage>();
 
@@ -33,7 +34,9 @@ function close(id: string, label: string, spec: StageSpec, w: number): StudioEnt
 }
 
 /** Draw poses in rows on white, `k` px per unit, each at its feet's point. */
-function sheet(canvas: HTMLCanvasElement, pixelRatio: number, seed: number, k: number, rows: { y: number; items: { x: number; q: Partial<CatPose>; coat?: (typeof CAT_COATS)[number]; flip?: boolean }[] }[]): void {
+type Item = { x: number; q: Partial<CatPose>; coat?: (typeof CAT_COATS)[number]; flip?: boolean; mix?: { a: Partial<CatPose>; b: Partial<CatPose>; k: number } };
+
+function sheet(canvas: HTMLCanvasElement, pixelRatio: number, seed: number, k: number, rows: { y: number; items: Item[] }[]): void {
   const ctx = canvas.getContext('2d')!;
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -47,16 +50,19 @@ function sheet(canvas: HTMLCanvasElement, pixelRatio: number, seed: number, k: n
     ctx.stroke();
     for (const it of row.items) {
       ctx.setTransform(pixelRatio * k * (it.flip ? -1 : 1), 0, 0, pixelRatio * k, pixelRatio * it.x, pixelRatio * row.y);
-      drawCat(ctx, parts.get(it.coat ?? 'tabby')!, { ...REST_POSE, ...it.q });
+      const q = it.mix ? inBetween({ ...REST_POSE, ...it.mix.a }, { ...REST_POSE, ...it.mix.b }, it.mix.k) : { ...REST_POSE, ...it.q };
+      drawCat(ctx, parts.get(it.coat ?? 'tabby')!, q);
     }
   }
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   multiplyPaper(canvas);
 }
 
+const awake = { sleep: false, head: 0.08 };
+
 const poses: StudioEntry = {
   id: 'poses',
-  label: 'asleep in a loaf · loaf, awake · curled asleep · sitting · washing a paw · the front stretch · the hind-leg reach · crouched to jump · leaping up · leaping down · walking',
+  label: 'asleep in a loaf · loaf, awake · curled asleep · sitting · washing a paw · standing · the front stretch · its follow-through · crouched to jump · leaping up · leaping down · walking · looking up',
   w: 1200,
   h: 330,
   render(canvas, { seed, pixelRatio }) {
@@ -69,31 +75,65 @@ const poses: StudioEntry = {
           { x: 420, q: { shape: 'curl' } },
           { x: 580, q: { shape: 'sit', sleep: false } },
           { x: 730, q: { shape: 'wash', paw: 0.9 } },
-          { x: 920, q: { shape: 'bow', sleep: false } },
-          { x: 1100, q: { shape: 'reach', sleep: false, pitch: 0.08 } },
+          { x: 900, q: { shape: 'stand', ...awake } },
+          { x: 1090, q: stretchPose({ ...REST_POSE }, 0.4) },
         ],
       },
       {
         y: 300,
         items: [
-          { x: 100, q: { shape: 'crouch', sleep: false, pitch: -0.12 } },
-          { x: 300, q: { shape: 'leap', sleep: false, pitch: -0.55, lift: 6, shadow: 0 } },
-          { x: 520, q: { shape: 'leap', sleep: false, pitch: 0.4, lift: 6, shadow: 0 } },
-          { x: 740, q: { shape: 'walk', sleep: false, walk: 0.1, head: 0.08 } },
-          { x: 960, q: { shape: 'sit', sleep: false, head: -0.4 } },
+          { x: 100, q: stretchPose({ ...REST_POSE }, 0.8) },
+          { x: 290, q: { shape: 'crouch', ...awake, pitch: -0.12 } },
+          { x: 460, q: { shape: 'leap', ...awake, pitch: -0.55, lift: 6, shadow: 0 } },
+          { x: 660, q: { shape: 'leap', ...awake, pitch: 0.4, lift: 6, shadow: 0 } },
+          { x: 860, q: { shape: 'walk', ...awake, walk: 0.1 } },
+          { x: 1060, q: { shape: 'sit', sleep: false, head: -0.4 } },
         ],
       },
     ]);
   },
 };
 
+const FRAMES = 10;
+
 const walk: StudioEntry = {
   id: 'walk',
-  label: 'the walk cycle: eight frames of one stride (lateral sequence, the tail up)',
+  label: 'the walk: ten frames of one stride, a lateral sequence (near hind, near fore, far hind, far fore); a paw down sweeps back as far as the body goes, and each hind lands in its fore’s print',
   w: 1200,
   h: 170,
   render(canvas, { seed, pixelRatio }) {
-    sheet(canvas, pixelRatio, seed, 2.4, [{ y: 140, items: Array.from({ length: 8 }, (_, i) => ({ x: 80 + i * 145, q: { shape: 'walk' as const, sleep: false, walk: i / 8, head: 0.08 } })) }]);
+    sheet(canvas, pixelRatio, seed, 2.4, [{ y: 140, items: Array.from({ length: FRAMES }, (_, i) => ({ x: 70 + i * 116, q: { shape: 'walk' as const, ...awake, walk: i / FRAMES } })) }]);
+  },
+};
+
+const views: StudioEntry = {
+  id: 'views',
+  label: 'walking toward the viewer and away: eight frames of a stride each (down a step, up the path), the paws planted as the body comes on',
+  w: 1200,
+  h: 330,
+  render(canvas, { seed, pixelRatio }) {
+    const row = (y: number, view: 'front' | 'back') => ({ y, items: Array.from({ length: 8 }, (_, i) => ({ x: 90 + i * 145, q: { shape: 'walk' as const, ...awake, view, dir: { x: 0, y: view === 'front' ? 1 : -1 }, walk: i / 8 } })) });
+    sheet(canvas, pixelRatio, seed, 2.6, [row(150, 'front'), row(310, 'back')]);
+  },
+};
+
+const changes: StudioEntry = {
+  id: 'changes',
+  label: 'drawn changes of pose, left to right: standing to sitting, sitting to the loaf, the loaf to the front stretch (the painted pose at each end)',
+  w: 1200,
+  h: 480,
+  render(canvas, { seed, pixelRatio }) {
+    const ks = [0, 0.2, 0.4, 0.6, 0.8, 1];
+    const run = (y: number, a: Partial<CatPose>, b: Partial<CatPose>) => ({ y, items: ks.map((k, i) => ({ x: 240 + i * 145, q: {}, mix: { a: { ...awake, ...a }, b: { ...awake, ...b }, k } })) });
+    const ends = (y: number, a: Partial<CatPose>, b: Partial<CatPose>) => ({ y, items: [{ x: 75, q: { ...awake, ...a } }, { x: 1125, q: { ...awake, ...b } }] });
+    sheet(canvas, pixelRatio, seed, 2.4, [
+      run(140, { shape: 'stand' }, { shape: 'sit' }),
+      ends(140, { shape: 'stand' }, { shape: 'sit' }),
+      run(290, { shape: 'sit' }, { shape: 'loaf' }),
+      ends(290, { shape: 'sit' }, { shape: 'loaf' }),
+      run(440, { shape: 'loaf' }, stretchPose({ ...REST_POSE }, 0.3)),
+      ends(440, { shape: 'loaf' }, stretchPose({ ...REST_POSE }, 0.3)),
+    ]);
   },
 };
 
@@ -123,6 +163,8 @@ const section: StudioSection = {
   entries: [
     poses,
     walk,
+    views,
+    changes,
     coats,
     close('wall', 'the middle terrace’s coping: dozing, waking, the stretch, a stroll', { x: 1080, y: 600, w: 300, h: 150 }, 840),
     close('shade', 'the top terrace by the olive: the walks either side of the trunk', { x: 1120, y: 440, w: 380, h: 170 }, 840),
