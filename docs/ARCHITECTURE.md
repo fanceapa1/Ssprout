@@ -348,7 +348,7 @@ export interface Scenery {                    // types.ts
   habitatWords: Record<Habitat, string>;      // how the planting sheet and placement name each habitat
   fauna: SceneryFauna;                        // fauna/habitat.ts: unlocks (FaunaTable); water? { still, moving, avoid? }, perches?, stands?, ground?, walls?, regions?, carriers?, perspective?(x, y)
   sound: SoundSceneryId;                      // the sound profile it plays (core/soundscape.ts SCENERIES; ADR 0283)
-  motion?: () => Promise<SceneryMotion | undefined>; // moving water over the painting (ADR 0282), its own lazy chunk (ADR 0341): { prepare(): Generator (sprites, in parts); draw(ctx, t) (world units, pure in t); under?(ctx, t) (drawn before the mirrored sky and water.ts, ADR 0374) }
+  motion?: () => Promise<SceneryMotion | undefined>; // moving water over the painting (ADR 0282), its own lazy chunk (ADR 0341): { prepare(): Generator (sprites, in parts); draw(ctx, t, light?) (world units, pure in t and the scene's DaylightState, ADR 0362); under?(ctx, t) (drawn before the mirrored sky and water.ts, ADR 0374) }
   pondSurface?: number;                       // how much of the generic water surface (water.ts: shimmer, rings, glints) plays on its pond: 1 when left out, 0 a still mirror (ADR 0302)
 }
 getScenery(id): Scenery /* the default when not registered */; hasScenery(id); sceneries(flags?)  // registry.ts
