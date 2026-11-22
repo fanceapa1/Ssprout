@@ -849,11 +849,25 @@ y    0 ┌───────────────────────�
 | Habitat ("words") | Count | Where | Sizes |
 |---|---|---|---|
 | water ("in the shallows") | 9 | `shallows-1…6` in the cove's near shallows (y 590–706), `pool-1…3` in the rock pools | 1 large (`shallows-1`, the seagrass meadow), 4 medium, 4 small |
-| shore ("on the beach") | 5 | `beach-1…5` on the pebble beach | 1 large (`beach-2`), 1 medium, 3 small |
+| shore ("on the beach") | 6 | `beach-1…5` on the pebble beach, `scrub-2` on its sand at the west end (ADR 0383); site `beach` | 1 large (`beach-2`), 1 medium, 4 small |
 | meadow ("in the terrace beds") | 12 | `top-1…3` on the top terrace, `mid-1…5` the middle, `low-1…4` the lower | 1 tree (`top-1`, the top terrace's left end), 1 large (`mid-1`), 3 medium, 7 small |
 | path ("along the path") | 5 | `path-1…3` on the foreground, `path-4` on the lower terrace, `path-5` on the top terrace | 5 small |
-| back ("in the scrub") | 6 | `scrub-1` (tree, on the promontory's cliff top right of the olive, G4b), `scrub-2` by the pine's rock, `scrub-3…6` the foreground's scrub | 1 tree, 1 medium, 4 small |
-| rock ("on the walls and rocks") | 11 | `wall-1…5` on the copings, `crack-1/2` in the wall faces, `splash-1…3` on the splash rocks, `shelf-1` on the bastion | 2 medium, 9 small |
+| back ("in the scrub") | 5 | `scrub-1` (tree, on the promontory's cliff top right of the olive, G4b), `scrub-3…6` the foreground's scrub | 1 tree, 1 medium, 3 small |
+| rock ("on the walls and rocks") | 11 | `wall-1…5` on the copings and `crack-1/2` in the wall faces (site `wall`), `splash-1…3` on the splash rocks (`sea-rock`), `shelf-1` on the bastion (`ledge`) | 2 medium, 9 small |
+
+**Sites** (ADR 0383; docs/systems/plants.md › Sites): every rock and shore slot has one, so a
+woodland or garden plant never stands on a rock in the sea or on the beach. Only the caper, the rock
+samphire and the sea lavender take the splash rocks; only the rock samphire, the sea holly, the sea
+daffodil and the oleander the beach; the caper, the rock samphire, the rock rose and the Jerusalem sage
+the bastion. `src/scenery/coast/sites.test.ts` pins each species' coast slots. `scrub-2` lies on the
+beach's sand (the review saw a cyclamen there), so it is a beach slot under its old id.
+
+**Room for large plants.** `scrub-1` is still the one slot a large wild plant (the Aleppo pine, the
+tree spurge, the oleander off the beach) takes, and `top-1` and `mid-1` the cypress's. GL1a (devlog
+217) looked for more and found none in the present painting: the bastion as a large slot puts a
+tree spurge's dome over the cove; the cliff top left of the olive is the goats' track and behind the
+tree slot `top-1`; the cliff foot at the top terrace's east end hides the goats' east ledges; any
+large bed on the packed terraces would hide a bed behind it or the olive's trunk.
 
 Raised slots (on a terrace, a coping or a face) take their terrace's lift; the rest take
 `perspectiveScale(y)`. Each terrace's slots stand in the gaps between those of the terraces
