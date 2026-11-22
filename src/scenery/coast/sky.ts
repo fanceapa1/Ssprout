@@ -438,6 +438,7 @@ export function paintCoastWaterSky(p: Painter, rng: Rng, phase: DayPhase, box: R
   const { sunriseX, sunsetX, moonArc } = COAST_SKY_LAYOUT;
   if (phase === 'sunrise') sunPath(p, rng, sunriseX, far, 260, lighten(PIGMENTS.gold, 0.55), 0.95, 1);
   if (phase === 'sunset') sunPath(p, rng, sunsetX, far, near - far - 50, lighten(AEGEAN.ember, 0.5), 1, 1);
+  if (phase === 'sunset' || phase === 'sunrise') lowSunWater(p, rng, phase === 'sunset' ? sunsetX : sunriseX, far, phase === 'sunset');
   if (phase === 'night') sunPath(p, rng, moonArc[1]!.x - 16, far + 30, 300, lighten(PIGMENTS.bellflower, 0.75), 1, 1);
   // a few lifted wind lanes, more far out
   for (let i = 0; i < 8; i++) {
@@ -449,8 +450,33 @@ export function paintCoastWaterSky(p: Painter, rng: Rng, phase: DayPhase, box: R
   liftToPaper(p, coastPlateLift(COAST_ART.seed), SIDE_COLUMNS);
 }
 
+/**
+ * The low sun's water (GA1): a dark band under the far shore and the point, where the land's
+ * shadow lies on the water, and a bright warm core to the light's road just under the sun.
+ */
+function lowSunWater(p: Painter, rng: Rng, x: number, far: number, sunset: boolean): void {
+  const shade = sunset ? mix(AEGEAN.teal, AEGEAN.plum, 0.55) : mix(AEGEAN.teal, AEGEAN.lilac, 0.5);
+  const fade = { angle: Math.PI / 2, start: 0.25, amount: 1, ragged: 0.5 };
+  p.glaze([{ x: -60, y: far + 1 }, { x: 500, y: far + 1 }, { x: 470, y: far + 16 }, { x: -60, y: far + 30 }], shade, { rng, opacity: sunset ? 0.62 : 0.38, deform: 0.08, spread: 0.3, edge: 0, fade });
+  p.glaze([{ x: 640, y: far + 12 }, { x: 900, y: far + 96 }, { x: 860, y: far + 112 }, { x: 640, y: far + 34 }], shade, { rng, opacity: sunset ? 0.42 : 0.28, deform: 0.08, spread: 0.3, edge: 0, fade });
+  const ctx = p.ctx;
+  const core = sunset ? '255,236,196' : '255,244,220';
+  for (const [dy, rx, ry, a] of [[8, 36, 4.5, 0.95], [14, 24, 7, 0.8], [28, 16, 16, 0.5]] as const) {
+    ctx.save();
+    ctx.translate(x, far + dy);
+    ctx.scale(1, ry / rx);
+    const g = ctx.createRadialGradient(0, 0, 0, 0, 0, rx);
+    g.addColorStop(0, `rgba(${core},${a})`);
+    g.addColorStop(0.5, `rgba(${core},${a * 0.55})`);
+    g.addColorStop(1, `rgba(${core},0)`);
+    ctx.fillStyle = g;
+    ctx.fillRect(-rx, -rx, rx * 2, rx * 2);
+    ctx.restore();
+  }
+}
+
 /** How much of the mirrored sky the near shallows keep, against the far water's 1. */
-export const WATER_NEAR: Record<DayPhase, number> = { midday: 0.4, sunrise: 0.42, sunset: 0.34, night: 0.6 };
+export const WATER_NEAR: Record<DayPhase, number> = { midday: 0.4, sunrise: 0.34, sunset: 0.2, night: 0.6 };
 /** Over how many units from the horizon the mirror thins to the near shallows' share. */
 export const WATER_FALLOFF = 280;
 

@@ -1145,7 +1145,7 @@ export function createCoastMotion(opts: CoastMotionOptions = {}): CoastMotion {
       if (!ctx) continue;
       const one = kind === 2 || pick(b.table, c + 5, 1) < 0.4;
       const sp = kind === 0 ? sunSparks[one ? 0 : 1]! : sparks[(one ? 0 : 2) + ((c + i) % 2)]!;
-      const len = (4 + (kind === 2 ? 9 : kind === 0 ? 15 : 20) * s) * (0.6 + 0.8 * pick(b.table, c + 5, 0)) * (one ? 1 : 1.6);
+      const len = ((kind === 0 ? 6.5 : 4) + (kind === 2 ? 9 : kind === 0 ? 15 : 20) * s) * (0.6 + 0.8 * pick(b.table, c + 5, 0)) * (one ? 1 : 1.6);
       blit(ctx, sp, x, y, len, ((len * sp.h) / sp.w) * (0.6 + 0.4 * s), alpha * outer);
     }
   };

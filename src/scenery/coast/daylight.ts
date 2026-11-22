@@ -14,7 +14,7 @@ const glowY = COAST_SKY_LAYOUT.horizonY / 1000;
  * way open water far out mirrors a low sky. The plate itself thins toward the near shore
  * (`WATER_NEAR`), so the shallows keep their own colour, seagrass and sand.
  */
-export const COAST_WATER_ALPHA: Record<DayPhase, number> = { sunrise: 0.6, midday: 0.34, sunset: 0.78, night: 0.55 };
+export const COAST_WATER_ALPHA: Record<DayPhase, number> = { sunrise: 0.6, midday: 0.34, sunset: 0.7, night: 0.55 };
 
 export const COAST_GRADES: Record<DayPhase, Grade> = {
   sunrise: { tint: [216, 204, 234], amount: 0.2, sky: 0.02, ground: 0.85, glow: 0.55, warm: [255, 222, 196], glowX: glowX(COAST_SKY_LAYOUT.sunriseX), glowY, lantern: 0, mottle: 0.16 },
