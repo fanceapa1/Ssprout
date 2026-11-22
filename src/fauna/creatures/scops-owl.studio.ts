@@ -40,7 +40,7 @@ const poses: StudioEntry = {
   label:
     'sitting relaxed · alert · stretched tall (camouflage) · calling (throat puffed) · blink · head turned left, half left, half right, right · flight: glide, wings up, wings down',
   w: 1000,
-  h: 470,
+  h: 410,
   render(canvas, { seed, pixelRatio }) {
     const ctx = canvas.getContext('2d')!;
     ctx.fillStyle = '#ffffff';
