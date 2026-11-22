@@ -792,7 +792,7 @@ Composition map: studio `coast-map/map`; the rock: studio `coast-rock`.
 
 ```
 y    0 ┌──────────────────────────────────────────────────────────────────────────────┐
-       │ · stars (y 20–150) ·      moon (524,268)→(640,198)→(770,254)                 │
+       │ · stars (y 20–150) ·      moon (524,296)→(640,240)→(770,284)                 │
   200  │ leaning pine crown            ○ suns (8–16°)                olive crown      │
   300  │ far hill, village, chapel ╲   ○  ┃┃┃┃ temple      ___ promontory, pines ___  │
   400  │ ════ sea horizon ═══════════╲  ╱═══════╲ point 636 ‾‾‾ foot y 500 ‾‾‾‾‾‾‾‾‾‾ │
@@ -808,7 +808,7 @@ y    0 ┌───────────────────────�
 - **Light from the left** (ADR 0360): the sea and the open sky are on the left, and draft B is lit
   from the upper left. `sunSide: { sunrise: -1, sunset: -1 }`; both suns stand over the sea's
   horizon (y 400) between the far hill's foot (x 516) and the temple's point (x 636): sunset x 552,
-  sunrise x 636. The moon arcs (524, 268) → (640, 198) → (770, 254), over the bay and the temple,
+  sunrise x 636. The moon arcs (524, 296) → (640, 240) → (770, 284) (G8: lower, so a 1470 × 750 window shows it whole), over the bay and the temple,
   inside a phone's crop all night (G5); the stars (y 20–150) keep a gap round it.
 - **Skyline**: sampled every 2 units from the painted silhouette (`silhouetteAt`: the far hill, the
   horizon, the promontory and each column), so the sky runs between the columns. The architrave,

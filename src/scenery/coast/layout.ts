@@ -253,9 +253,9 @@ export const COAST_SKY_LAYOUT: SkyLayout = {
   sunsetX: 552,
   // inside a phone's crop (x 460–1060) the whole night (G5, devlogs 98 and 119)
   moonArc: [
-    { x: 524, y: 268 },
-    { x: 640, y: 198 },
-    { x: 770, y: 254 },
+    { x: 524, y: 296 },
+    { x: 640, y: 240 },
+    { x: 770, y: 284 },
   ],
   // high over the whole sky; none round the moon's arc
   stars: { top: 20, depth: 130, gap: { x: 610, halfW: 220, y0: 150, y1: 420 } },
