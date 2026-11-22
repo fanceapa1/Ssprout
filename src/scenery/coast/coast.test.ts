@@ -143,6 +143,11 @@ describe('coast framing (ADR 0360)', () => {
       expect(domeTop, `${w}×${h} dome`).toBeGreaterThanOrEqual(clear);
       expect(temple.y, `${w}×${h} temple`).toBeGreaterThanOrEqual(clear);
       expect(Math.min(...FAR_HILL.map((q) => q.y)) - (top + featherWidth(w - 28, h * 0.94) / v.scale), `${w}×${h} sky`).toBeGreaterThanOrEqual(60);
+      // the whole moon below the deckled top edge all night
+      for (let u = 0; u <= 1.0001; u += 0.05) {
+        const d = moonDisc(sky(-20, false, u), COAST_SKY_LAYOUT);
+        expect(d.y - d.r - (top + featherWidth(w - 28, h * 0.94) / v.scale), `${w}×${h} moon at ${u.toFixed(2)}`).toBeGreaterThanOrEqual(8);
+      }
       // every slot's foot in the first 30 % of the stage's bottom dissolve at most
       const fade = fadeHeight(h * 0.94) / v.scale;
       for (const s of slots) expect(s.y, `${w}×${h} ${s.id}`).toBeLessThanOrEqual(top + vh - fade * 0.7);

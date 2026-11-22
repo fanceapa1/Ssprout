@@ -170,7 +170,7 @@ scenery's slots and habitat words through getters, so placement, the planting sh
 seedling framing, labels and the dev `slots()` hooks follow a switch.
 
 Dev API: `sprout.scenery()` → `{ viewed, available, fade }`; `sprout.showScenery(id)` resolves
-once the garden is ready (rejects an unavailable id). Both gardens are offered without a flag.
+once the garden is ready (rejects an unavailable id). The Japanese garden, the waterfall and the oasis are offered without a flag; the coast only with `?dev&scenery=coast`.
 
 ### Switch times (S17, devlog 95)
 Measured on the production build (`vite preview`) in headless Chromium on the owner's laptop while
@@ -792,7 +792,7 @@ Composition map: studio `coast-map/map`; the rock: studio `coast-rock`.
 
 ```
 y    0 ┌──────────────────────────────────────────────────────────────────────────────┐
-       │ · stars (y 20–150) ·      moon (524,268)→(640,198)→(770,254)                 │
+       │ · stars (y 20–150) ·      moon (524,296)→(640,240)→(770,284)                 │
   200  │ leaning pine crown            ○ suns (8–16°)                olive crown      │
   300  │ far hill, village, chapel ╲   ○  ┃┃┃┃ temple      ___ promontory, pines ___  │
   400  │ ════ sea horizon ═══════════╲  ╱═══════╲ point 636 ‾‾‾ foot y 500 ‾‾‾‾‾‾‾‾‾‾ │
@@ -808,7 +808,7 @@ y    0 ┌───────────────────────�
 - **Light from the left** (ADR 0360): the sea and the open sky are on the left, and draft B is lit
   from the upper left. `sunSide: { sunrise: -1, sunset: -1 }`; both suns stand over the sea's
   horizon (y 400) between the far hill's foot (x 516) and the temple's point (x 636): sunset x 552,
-  sunrise x 636. The moon arcs (524, 268) → (640, 198) → (770, 254), over the bay and the temple,
+  sunrise x 636. The moon arcs (524, 296) → (640, 240) → (770, 284) (G8: lower, so a 1470 × 750 window shows it whole), over the bay and the temple,
   inside a phone's crop all night (G5); the stars (y 20–150) keep a gap round it.
 - **Skyline**: sampled every 2 units from the painted silhouette (`silhouetteAt`: the far hill, the
   horizon, the promontory and each column), so the sky runs between the columns. The architrave,
@@ -1195,8 +1195,8 @@ Steps `maquis`, `olive` and `pine` (element `trees`), in parts. Palette `VEG`, l
 `fauna.ts` holds the whole table: the island cat from the start; then the gull, cicada, Balkan
 green lizard, cabbage whites, marbled rock crab, bees, swallows, blue rock thrush, swallowtails,
 goats, Hermann's tortoise, damselfish, scops owl (night only), hoopoe, house gecko (night only),
-octopus, heron and dolphins (the last three rare). Rows whose creature is not painted yet are
-skipped; the shared bees, butterflies, swallows and heron come now (docs/systems/fauna.md › The
+octopus, heron and dolphins (the last three rare). Rows whose creature is not painted yet (the
+hoopoe and the house gecko) are skipped; the shared bees, butterflies, swallows and heron come (docs/systems/fauna.md › The
 coast). `wildlife.ts` reads every place by name from `layout.ts`, `shapes.ts`, `sea.ts`, `slots.ts`
 and `geometry.ts`:
 - Still water is `SEA_WATER`; the rock pools (`POOL_WATER`) join the water layers' clip as `moving`.
@@ -1394,24 +1394,21 @@ should read as alive at the overview and stay calm: slow, soft, nothing flashing
   `coast-motion-sprites`.
 
 ### Left for later tasks
-- Water (devlog 176, Left open): the far hill's reflection is faint, the shingle's spatter still
-  reads a little even, and the placeholder `paintSea` and `paintCaique` are unused until the
-  placeholder file goes.
-- Land and vegetation (devlog 177, Left open): the pine reads more Japanese than Aleppo; the
-  beds are even strips; the walls' seaward ends are a step down, not rubble.
-- Daylight: the white puff behind the temple's base between the first and second columns is the placeholder midday sky plate's (its wash leaves a rounded hole there; the background paints the sky as paper, devlog 180). Real plates lit from the left; the architrave, the capitals and the crowns sit under the
-  sky's wash, and the skyline's 2-unit reach either side of each column leaves a pale sky-tinted
-  band down the columns' sides.
-- Motion (devlogs 184, 213, Left open): the bastion's ledge faces have no moving foam of their own
-  (only the lips, the cliff's foot and the boulders); `sprout.advance` does not move the water; the
-  sunset glints are pale on the bright road (the light plate multiplies them like the water); no
-  overcast light, so glints ignore the weather.
-- Wildlife (devlog 183, Left open): no perch on the chapel or the village (too far for a bird to
-  read); the first splash rock's top is all slot.
-- Daylight (devlog 182, Left open): the promontory's face reads cool grey rather than rose at
-  sunset; the plates paint in one task each, as every garden's; Posidonia stays teal at sunset.
-- Motion and the fauna's targets (perches on the copings, the caique's mast, the chapel; heron
-  stands on the splash rocks; a far sea band).
+The acceptance pass (G8, devlog 225) holds the full list of open items, ordered by how much they
+hurt a first look. The lasting ones:
+- Water (devlog 176): the far hill's reflection is faint; the shingle's spatter reads a little even.
+- Land (devlog 177): the walls' seaward ends are a step down, not rubble; the terraces' seaward
+  edge is a straight ruled line at the overview (devlog 225).
+- Daylight (devlogs 182, 225): the architrave, the capitals and the crowns sit under the sky's
+  wash, and the skyline's 2-unit reach either side of each column leaves a pale sky-tinted band
+  down the columns' sides; the promontory's face reads cool grey rather than rose at sunset;
+  Posidonia stays teal at sunset; the left side's paper lift over the far hill and the leaning
+  pine shows as a pale veil with an edge, pink at sunset.
+- Motion (devlogs 184, 213, 223): the bastion's ledge faces have no moving foam of their own;
+  `sprout.advance` does not move the water; the far glint road is pale at sunset; no overcast
+  light, so glints ignore the weather.
+- Wildlife (devlog 183): no perch on the chapel or the village (too far for a bird to read); the
+  first splash rock's top is all slot.
 
 ## Tests
 - `src/scenery/coast/water.test.ts` (G3): the water's steps and their order; recording hash pins

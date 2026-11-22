@@ -192,7 +192,7 @@ session discards its draft, so it cannot rename another session.
 ## Gardens (ADR 0244)
 With two or more available sceneries (`UIDeps.sceneries`) the dock shows **Gardens** (`gardens`,
 order 25, full span, helper "Each garden keeps its own plants."), from `ui/gardens-section.ts`.
-Both gardens are offered to everyone since S17, so every visitor has the section:
+The waterfall (S17) and the oasis (O8) are offered to everyone, so every visitor has the section:
 - a card per garden (`button.garden-card[data-scenery]`, a toggle: `aria-pressed` marks the
   garden on view) with a thumbnail, the scenery's name and blurb, and "On view" / "Go here";
 - choosing a card calls `controller.showScenery(id)`; the scenery host cross-fades the stage;

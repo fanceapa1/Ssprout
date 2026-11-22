@@ -46,8 +46,9 @@ There are no image assets. Nothing shouts: no confetti, no streaks, no badges.
   (guessed from the time zone, no permission asked): sunrise, midday, sunset and a moonlit night
   with a lit lantern. Each has its own sky, light, long or short shadows and rim light. Each
   session brings its own weather (sun, soft rain or mist), light motes and wind.
-- **Two gardens.** The Japanese garden, where everyone starts, and a rocky waterfall: falls over
-  mossy ledges into a plunge pool, a stream winding down to you. Switch between them in the dock's
+- **Three gardens.** The Japanese garden, where everyone starts; a rocky waterfall: falls over
+  mossy ledges into a plunge pool, a stream winding down to you; and a Ksar oasis: palm terraces
+  under a mud-brick ksar, a stone basin fed by a seguia. Switch between them in the dock's
   Gardens section. Each keeps its own plants and has its own flora (twelve wild gorge plants at the
   waterfall), wildlife (a dipper, char, river crabs, a kajika frog, fireflies at night…), light and
   sound. Your sessions, calendar and history are shared.

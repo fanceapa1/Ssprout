@@ -185,6 +185,81 @@ test.describe('sceneries · reduced motion', () => {
   });
 });
 
+/** A hash of the scene's painting and water alone over a world rect (other systems muted), two frames apart. */
+const seaHashes = (page: Page) =>
+  page.evaluate(async () => {
+    const s = window.sprout!;
+    const ids = s.mute({});
+    s.mute(Object.fromEntries(ids.filter((id) => id !== 'scene' && id !== 'paper').map((id) => [id, '*'])));
+    const a = s.camera.toClient({ x: 120, y: 430 });
+    const b = s.camera.toClient({ x: 560, y: 680 });
+    const c = document.querySelector<HTMLCanvasElement>('#garden')!;
+    const k = c.width / c.getBoundingClientRect().width;
+    const hash = () => {
+      const { data } = c.getContext('2d')!.getImageData(Math.round(a.x * k), Math.round(a.y * k), Math.round((b.x - a.x) * k), Math.round((b.y - a.y) * k));
+      let h = 0x811c9dc5;
+      for (let i = 0; i < data.length; i += 8) h = Math.imul(h ^ data[i]!, 0x01000193);
+      return (h >>> 0).toString(16);
+    };
+    const frames = (n: number) => new Promise<void>((done) => { const f = () => (--n <= 0 ? done() : requestAnimationFrame(f)); requestAnimationFrame(f); });
+    await s.freeze();
+    const first = hash();
+    s.unfreeze();
+    await frames(40);
+    await s.freeze();
+    const second = hash();
+    s.mute({});
+    s.unfreeze();
+    return [first, second];
+  });
+
+/** The coast on view at a pinned noon, the overview held still, its painting and the sea's motion ready. */
+async function openCoast(page: Page): Promise<void> {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await openDev(page, 'scenery=coast');
+  await page.evaluate(async () => {
+    const s = window.sprout!;
+    await s.showScenery('coast');
+    s.camera.autoFocus(false);
+    await s.camera.overview({ animate: false });
+    s.setTime('noon');
+    s.settleAmbience();
+    await s.camera.settle();
+    await s.scenePainted();
+  });
+}
+
+test.describe('sceneries · the coast’s moving sea (ADRs 0362, 0374)', () => {
+  test('the sea moves at the overview', async ({ page }) => {
+    await openCoast(page);
+    const [first, second] = await seaHashes(page);
+    expect(second).not.toBe(first);
+  });
+});
+
+test.describe('sceneries · the coast under reduced motion', () => {
+  test.use({ reducedMotion: 'reduce' });
+
+  test('the sea is a still painting: two frames apart it is the same', async ({ page }) => {
+    await openCoast(page);
+    const [first, second] = await seaHashes(page);
+    expect(second).toBe(first);
+  });
+
+  test('the coast has its own daylight: a warmer sunset, a dark blue night, its plates under its keys (G5)', async ({ page }) => {
+    test.slow();
+    await openCoast(page);
+    const noon = await meanAt(page, 'noon');
+    const sunset = await meanAt(page, 'sunset');
+    const night = await meanAt(page, 'night');
+    // sunset warmer than noon; night darker and bluer
+    expect(sunset[0] / (sunset[2] + 1)).toBeGreaterThan(noon[0] / (noon[2] + 1));
+    expect(night[0] + night[1] + night[2]).toBeLessThan((noon[0] + noon[1] + noon[2]) * 0.85);
+    expect(night[2] / (night[0] + 1)).toBeGreaterThan(noon[2] / (noon[0] + 1));
+    await expect.poll(async () => (await storedOf(page, 'sky-plate')).filter((e) => e.key.startsWith('coast|')).length, { timeout: 80_000 }).toBeGreaterThanOrEqual(2);
+  });
+});
+
 test.describe('sceneries · the coast’s slot sites (ADR 0383)', () => {
   test('a sea plant is offered only the splash rocks and a wall plant only the walls, through the real flow; addPlants keeps to the sites', async ({ page }) => {
     await calmUiMotion(page);
