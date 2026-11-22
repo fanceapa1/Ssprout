@@ -7,7 +7,7 @@ import { COAST_FAUNA } from '../../scenery/coast/fauna';
 import { OASIS } from '../../scenery/oasis';
 import { FaunaSim } from '../sim';
 import { perchY } from '../targets';
-import scopsOwl, { callPose, choosePerch, flightFrame, HEAD_STEPS, headBlend, OWL_FRAME, owlPerches, ScopsOwl, seatOf, shapeOf, SIT, tuftAt, TURN_MAX } from './scops-owl';
+import scopsOwl, { callPose, choosePerch, flightFrame, HEAD_STEPS, headBlend, owlPerches, ScopsOwl, seatOf, shapeOf, SIT, tuftAt, TURN_MAX } from './scops-owl';
 
 const plants: PlantInstance[] = [];
 const ONLY = COAST_FAUNA.filter((r) => r.kind === 'scops-owl');
@@ -35,17 +35,12 @@ describe('where the scops owl perches', () => {
     expect(ps.every((p) => p.kind === 'branch' || p.kind === 'wall')).toBe(true);
   });
 
-  it('keeps inside the painted frame, and sits on the wood or stone (a seat off the perch line)', () => {
+  it('takes the scenery’s tree perches as they are: its feet on the perch line, no seat of its own (ADR 0382)', () => {
     const w = coastSim().world;
     const ps = owlPerches(w);
-    expect(ps.every((p) => p.x >= OWL_FRAME.x0 && p.x <= OWL_FRAME.x1)).toBe(true);
-    expect(w.perches.some((p) => p.id.startsWith('pine-branch') && p.x < OWL_FRAME.x0)).toBe(true);
     expect(ps.find((p) => p.id === 'olive-fork')).toBeDefined();
-    for (const p of ps) {
-      const s = seatOf(p);
-      expect(Math.hypot(s.x, s.y)).toBeLessThan(16);
-      expect(s.y).toBeLessThanOrEqual(0);
-    }
+    expect(ps.some((p) => p.id.startsWith('pine-branch'))).toBe(true);
+    for (const p of ps) expect(seatOf(p), p.id).toEqual({ x: 0, y: p.kind === 'wall' ? -1 : 0 });
   });
 
   it('picks the olive most, and never a held perch', () => {
