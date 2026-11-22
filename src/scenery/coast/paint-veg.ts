@@ -257,14 +257,8 @@ export function* paintOlive(p: Painter, rng: Rng): Strokes {
   // paper under the trunk, so the cliff and the terrace behind do not show through its wash
   inOlive(p, plan, () => {
     const o = trunkOutline(trunk, plan.trunk, view, branchProgress(trunk, view.tau), arrive.age);
-    const side = (k: number, w: readonly number[]) =>
-      o.c.map((q, i) => {
-        const a = o.c[Math.max(0, i - 1)]!;
-        const b = o.c[Math.min(o.c.length - 1, i + 1)]!;
-        const l = Math.hypot(b.x - a.x, b.y - a.y) || 1;
-        return { x: q.x - ((b.y - a.y) / l) * w[i]! * 0.85 * k, y: q.y + ((b.x - a.x) / l) * w[i]! * 0.85 * k };
-      });
-    const shape = [...side(1, o.left), ...side(-1, o.right).reverse()];
+    // inside the body's own flanks, which the trunk painter lays across the stem, not normal to it
+    const shape = [...o.c.map((q, i) => ({ x: q.x - o.left[i]! * 0.85, y: q.y })), ...o.c.map((q, i) => ({ x: q.x + o.right[i]! * 0.85, y: q.y })).reverse()];
     p.ctx.beginPath();
     shape.forEach((q, i) => (i ? p.ctx.lineTo(q.x, q.y) : p.ctx.moveTo(q.x, q.y)));
     p.ctx.closePath();
