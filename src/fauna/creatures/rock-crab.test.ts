@@ -76,6 +76,29 @@ describe('where the rock crab lives', () => {
     expect(splash.size).toBeGreaterThanOrEqual(2);
   }, 60_000);
 
+  it('keeps along a pool’s rim clear of a water plant standing in front of it (devlog 228)', () => {
+    const garden: PlantInstance[] = ['pool-1', 'pool-2', 'pool-3'].map((slotId, i) => ({ id: `w${i}`, speciesId: 'peacocks-tail', sceneryId: 'coast', slotId, seed: i + 5, plantedAt: 0, sessionMinutes: 90, taskName: '', completedAt: 1 }));
+    let onRims = 0;
+    for (const seed of [1, 2, 3]) {
+      const sim = new FaunaSim({ scene: COAST.geometry, seed, habitat: COAST.fauna, auto: false });
+      sim.setGarden(garden, ONLY, (id) => getSpecies(id));
+      sim.hourOverride = 12;
+      sim.spawn('rock-crab');
+      const pads = sim.world.pads;
+      expect(pads).toHaveLength(3);
+      for (let i = 0; i < 20000; i++) {
+        sim.update(0.1, 0);
+        for (const c of crabs(sim)) {
+          if (c.doing() === 'hidden' || c.alpha < 0.3 || !c.rock.id.startsWith('pool-')) continue;
+          onRims++;
+          const behind = pads.some((d) => Math.abs(c.x - d.x) < d.r * 0.9 && c.y > d.y - d.r * 0.8 && c.y < d.y + 2);
+          expect(behind, `seed ${seed} at ${c.rock.id} (${c.x.toFixed(1)}, ${c.y.toFixed(1)})`).toBe(false);
+        }
+      }
+    }
+    expect(onRims).toBeGreaterThan(1000);
+  }, 60_000);
+
   it('lives only on the coast', () => {
     const sim = new FaunaSim({ scene: OASIS.geometry, seed: 1, habitat: OASIS.fauna, auto: false });
     expect(rockCrab.needs!(sim.world)).toBe(false);

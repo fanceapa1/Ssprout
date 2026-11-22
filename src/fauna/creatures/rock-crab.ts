@@ -13,6 +13,7 @@ import { paintSprite, type Sprite } from '../sprite';
 import { BaseCreature, type Ctx, type FaunaWorld } from '../types';
 import type { CreatureDef } from './lib/def';
 import { plantCovers, type PlantCover } from './lib/ground';
+import type { Pad } from '../targets';
 
 /** Carapace width at perspective 1 (world units): about 3 × life, so the eyes and marbling read in the close view. */
 export const ROCK_CRAB_SIZE = 11;
@@ -343,6 +344,28 @@ export function plantOnRock(r: CrabRock, covers: readonly PlantCover[], pad: num
   return { stands: true, wet: lo <= hi ? [lo, hi] : null };
 }
 
+/** The stretch of a pool's rim (`u`, both rows) a water plant in the pool stands in front of (`w.pads`), or null. */
+export function padOnRim(r: CrabRock, pads: readonly Pad[], pad: number): [number, number] | null {
+  let lo = Infinity;
+  let hi = -Infinity;
+  for (let i = 0; i <= 40; i++) {
+    for (const v of [0, 1]) {
+      const q = rockPoint(r, i / 40, v);
+      if (pads.some((d) => Math.abs(q.x - d.x) < d.r * 0.9 + pad && q.y > d.y - d.r * 0.8 && q.y < d.y + 2)) {
+        lo = Math.min(lo, i / 40);
+        hi = Math.max(hi, i / 40);
+      }
+    }
+  }
+  return lo <= hi ? [lo, hi] : null;
+}
+
+/** What the garden's plants take of a rock: a plant on a splash rock, or a water plant before a pool's rim. */
+export function rockPlant(r: CrabRock, w: Pick<FaunaWorld, 'flowers' | 'scene' | 'pads'>, pad: number): RockPlant | null {
+  const rim = r.id.startsWith('pool-') ? padOnRim(r, w.pads, pad) : null;
+  return plantOnRock(r, plantCovers(w), pad) ?? (rim ? { stands: false, wet: rim } : null);
+}
+
 /** Where on the rock it may run (in `u`): the side of the plant it is on, or, from its middle, the wider side; null when there is no room. */
 export function crabRoom(block: [number, number] | null, u: number, m: number): [number, number] | null {
   if (!block) return [m, 1 - m];
@@ -530,7 +553,7 @@ export class RockCrab extends BaseCreature {
     const cs = plantCovers(w);
     let byRock = blocks.get(cs);
     if (!byRock) blocks.set(cs, (byRock = new Map()));
-    if (!byRock.has(this.rock)) byRock.set(this.rock, plantOnRock(this.rock, cs, 0.5 * ROCK_CRAB_SIZE * this.scale));
+    if (!byRock.has(this.rock)) byRock.set(this.rock, rockPlant(this.rock, w, 0.5 * ROCK_CRAB_SIZE * this.scale));
     return byRock.get(this.rock)!;
   }
 
@@ -590,9 +613,8 @@ export class RockCrab extends BaseCreature {
 
   private moveRock(w: FaunaWorld): void {
     const taken = w.creatures.filter((c): c is RockCrab => c instanceof RockCrab && c !== this && !c.done).map((c) => c.rock);
-    const cs = plantCovers(w);
     const pad = 0.5 * ROCK_CRAB_SIZE * this.scale;
-    const roomy = (r: CrabRock) => crabRoom(plantOnRock(r, cs, pad)?.wet ?? null, 0.5, 0.1) !== null;
+    const roomy = (r: CrabRock) => crabRoom(rockPlant(r, w, pad)?.wet ?? null, 0.5, 0.1) !== null;
     const next = chooseRock(crabRocks(w), w.view, this.rng, taken, this.rock, roomy);
     if (next) this.rock = next;
     this.onRock = 0;
@@ -658,8 +680,7 @@ const rockCrab: CreatureDef = {
     const out: RockCrab[] = [];
     for (let i = 0; i < Math.max(1, s.count); i++) {
       const rng = w.rng.fork(`rock-crab:${s.seed}:${w.t.toFixed(3)}:${s.index + i}:${w.creatures.length}`);
-      const cs = plantCovers(w);
-      const roomy = (r: CrabRock) => crabRoom(plantOnRock(r, cs, 0.5 * ROCK_CRAB_SIZE * w.perspective(r.depth))?.wet ?? null, 0.5, 0.1) !== null;
+      const roomy = (r: CrabRock) => crabRoom(rockPlant(r, w, 0.5 * ROCK_CRAB_SIZE * w.perspective(r.depth))?.wet ?? null, 0.5, 0.1) !== null;
       const rock = chooseRock(rocks, w.view, rng, taken, null, roomy);
       if (!rock) break;
       out.push(new RockCrab(w, rock, rng));
