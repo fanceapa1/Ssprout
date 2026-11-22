@@ -960,6 +960,12 @@ layer and dry it once). Steps:
   raster backlog of the earlier steps landing on one composite, so `cliff-foot` shows 16 ms the
   same way. Over 20 ms in that run: `promontory` (backlog), `land` 37, `maquis` 33, `pine` 24, `shore`
   108 (one part).
+- **Paint time, after GR2** (devlog 222; same setup, longest part in ms / parts): `shore` 5.5–13.5 / 245
+  (was one part of 108+; `paintShore` in `paint-placeholder.ts` is still the draft's shore, the
+  last placeholder step), `pine` 15–16 / 154 (the limbs by `skeletonParts`, the species'
+  `paintSkeleton` in parts), `land` 35–46 and `maquis` 33–46: backlog, their own longest parts are
+  16.6 and 17.8 (a flush after every part, throwaway build). Marks unchanged (recorded hashes);
+  guard: `parts.test.ts`.
 - **`far-hill`** (`far` element, soft): two headlands as pale blue-violet washes (`HEADLANDS`: a far
   ridge over the hill's left end, a low island behind the temple's point, under the sky's wash), and
   in the gap between the hill and the point the far coast (`GAP_ISLANDS`, GB1): a pale mainland ridge
