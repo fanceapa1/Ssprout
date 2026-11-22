@@ -10,7 +10,6 @@ import type { DaylightState } from '../../ambience/daylight';
 import { moonDisc, sunDisc } from '../../ambience/sky-layout';
 import { createRng, type Rng } from '../../core/rng';
 import { PAPER_WHITE, blob, bounds, createPainter, makeCanvas, mix, pointInPolygon, ribbon, rgba, type AnyCanvas, type Painter } from '../../paint';
-import { resample } from '../../paint/geometry';
 import type { Pt, Rect } from '../../render/viewport';
 import { applyView } from '../../scene/background';
 import type { Strokes } from '../../scene/paint-land';
@@ -20,11 +19,11 @@ import { POOL_WATER, SEA_WATER } from './geometry';
 import { COAST_ART } from './index';
 import { CAIQUE, COAST_SKY_LAYOUT, HORIZON } from './layout';
 import { coastSteps } from './painters';
-import { SHORE_RUNS } from './paint-rocks';
+import { FOOT_FRONT, LIP_BOULDER_SHAPES, LIP_EDGES } from './lip-shapes';
 import { SAND, SEA } from './paint-water';
 import { caiquePose, CAIQUE_DEPTH, posePoint, type CaiquePose } from './pose';
 import { streak } from './rock-kit';
-import { CAIQUE_BOX, CAIQUE_SCALE, CAIQUE_SHAPES, CLIFF_FOOT, DEPTH, FOAM_LINE, SEA_RECT, SEA_STRETCH, shallowsEdge, shoreContour, shoreDistance, shoreward } from './sea';
+import { CAIQUE_BOX, CAIQUE_SCALE, CAIQUE_SHAPES, DEPTH, FOAM_LINE, SEA_RECT, SEA_STRETCH, shallowsEdge, shoreContour, shoreDistance, shoreward } from './sea';
 import { PINE_TRUNK, SHORE_BOULDER_SHAPES, SPLASH_ROCK_SHAPES, type RockShape } from './shapes';
 import { arrival, CREST_LIFE, crestDepth, crestSpeed, delayAt, depthOf, gridDepths, latest, strength as crestStrength, SWASH_MAX, swashLimit, SWELL, SWELL_LINE, swellAt, type SwellGrid, type SwellPhase } from './swell';
 import { COAST_CARRIERS } from './wildlife';
@@ -80,7 +79,7 @@ export const seaScale = (y: number): number => Math.max(0.06, Math.min(1.15, (y 
 
 /** The rocks standing in the water: their foam swells, and nothing else is drawn over them. */
 export const WET_ROCKS: readonly RockShape[] = [...SHORE_BOULDER_SHAPES.filter((r) => !r.ground), ...SPLASH_ROCK_SHAPES];
-const ALL_ROCKS: readonly RockShape[] = [...SHORE_BOULDER_SHAPES, ...SPLASH_ROCK_SHAPES];
+const ALL_ROCKS: readonly RockShape[] = [...SHORE_BOULDER_SHAPES, ...SPLASH_ROCK_SHAPES, ...LIP_BOULDER_SHAPES];
 
 /** The plate: the sea under the caique painted without it, opaque inside the box, feathered out. */
 const FEATHER = 6;
@@ -217,11 +216,11 @@ const SHALLOWS_BOX: Rect = (() => {
   return { x: b.x, y: b.y, w: b.w, h: Math.max(...FOAM_LINE.map((q) => q.y)) + 4 - b.y };
 })();
 
-/** The lit lips of the ledge, where the water meets the edge (above the beach flight). */
-const LIPS = SHORE_RUNS.lip.filter((run) => run.every((q) => q.y < 790)).map((run) => resample(run, 3));
-/** The cliff's foot on the sea, in stretches that lap one after another. */
+/** The worn lip of the ledge, where the water meets its edge (above the beach flight; GA1). */
+const LIPS = LIP_EDGES.filter((run) => run.every((q) => q.y < 790)).map((run) => run.slice());
+/** The cliff's foot on the sea (the front of its wave-cut shelf, GA1), in stretches that lap one after another. */
 const CLIFF_REACHES: Pt[][] = (() => {
-  const pts = resample(CLIFF_FOOT, 3);
+  const pts = FOOT_FRONT;
   const out: Pt[][] = [];
   for (let i = 0; i < pts.length - 4; i += 14) out.push(pts.slice(i, Math.min(pts.length, i + 17)));
   return out;
