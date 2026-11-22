@@ -94,7 +94,7 @@ describe('coast rock painting (G2)', () => {
 
   it('is deterministic: the same marks every time', () => {
     // quantised hashes from a fresh process, pinned as the oasis's (paint caches warm up across runs)
-    expect({ overview: runs.overview!.hash, detail: runs.detail!.hash }).toEqual({ overview: '74c6ac91', detail: '117c8a3a' });
+    expect({ overview: runs.overview!.hash, detail: runs.detail!.hash }).toEqual({ overview: '1868e5c9', detail: '18c71d99' });
     expect(runs.again!.chunks.map((c) => c.name)).toEqual(runs.overview!.chunks.map((c) => c.name));
   });
 

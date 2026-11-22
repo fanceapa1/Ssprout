@@ -19,14 +19,14 @@ const SPECS: Record<Habitat, SlotSpec[]> = {
     ['shallows-4', 520, 590, 'medium'],
     ['shallows-5', 188, 650, 'small'],
     ['shallows-6', 370, 610, 'medium'],
-    ['pool-1', 230, 894, 'small'],
-    ['pool-2', 400, 904, 'medium'],
-    ['pool-3', 566, 888, 'small'],
+    ['pool-1', 230, 868, 'small'],
+    ['pool-2', 400, 876, 'medium'],
+    ['pool-3', 566, 876, 'small'],
   ],
   // the pebble beach between the waterline and the rock shelf, all sea-washed sand (ADR 0383)
   shore: [
     ['beach-1', 160, 796, 'small', undefined, 'beach'],
-    ['beach-2', 300, 822, 'large', undefined, 'beach'],
+    ['beach-2', 300, 814, 'large', undefined, 'beach'],
     ['beach-3', 450, 806, 'medium', undefined, 'beach'],
     ['beach-4', 580, 830, 'small', undefined, 'beach'],
     ['beach-5', 236, 772, 'small', undefined, 'beach'],
