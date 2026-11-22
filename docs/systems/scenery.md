@@ -828,7 +828,7 @@ y    0 ┌───────────────────────�
   terrace at (1290, 540), right of the path; the gravel `PATH` climbs from the bottom edge (900,
   1000) up the three walls by stone flights (`STEPS`) to the olive.
 - **The sea edge** sits above the paper margin (the margins lift the bottom 166 units, and up
-  to 320 at the right side and 224 at the left near the bottom, ADR 0385): the beach's waterline runs y 742–812 and its back y
+  to 320 at the right side and 224 at the left near the bottom, ADR 0387): the beach's waterline runs y 742–812 and its back y
   822–852, and three pools lie in the rock shelf at y 866–874 (GL1b, ADR 0384: 20–28 higher, so
   they stay above the stage's bottom dissolve). Splash rocks stand in the shallows.
 - **The foreground** below the lowest wall (y 882–1000) is the painting's foot: ground, the path's
@@ -1318,7 +1318,7 @@ The painting is on white with no sky step; the sky is the daylight's plates (doc
   `LightArt.lights` hook, which gets the phase: no contract change.
 - **GA1** (devlog 226): at the low suns the light plate rakes the point, the headland's rim and
   the faces east of its deep fissures, and the columns' left flanks (warm), with their right sides
-  cool. **Margins** (ADR 0385, `margins.ts`): the coast paints its own margins step (the shared
+  cool. **Margins** (ADR 0387, `margins.ts`): the coast paints its own margins step (the shared
   field, the left side narrowed to 140 units) and lays the same lift on its sky plates (below
   y 140) and sea plates, so the sides dissolve alike in every light; the far headland's wash is
   only what shows over the far hill.
@@ -1448,7 +1448,7 @@ hurt a first look. The lasting ones:
 - Daylight (devlogs 182, 225): the architrave, the capitals and the crowns sit under the sky's
   wash, and the skyline's 2-unit reach either side of each column leaves a pale sky-tinted band
   down the columns' sides; Posidonia stays teal at sunset. (GA1 fixed the left side's veil, ADR
-  0385, and gave the sunset its raking light.)
+  0387, and gave the sunset its raking light.)
 - Motion (devlogs 184, 213, 223): the bastion's ledge faces have no moving foam of their own;
   `sprout.advance` does not move the water; no overcast
   light, so glints ignore the weather.

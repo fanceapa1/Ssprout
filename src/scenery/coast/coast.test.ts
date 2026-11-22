@@ -489,7 +489,7 @@ describe('coast gardens in the saved state (schema v4)', () => {
   });
 });
 
-describe('the coast’s paper margins and far headland (GA1, ADR 0385)', () => {
+describe('the coast’s paper margins and far headland (GA1, ADR 0387)', () => {
   const coast = coastMarginField(createRng('coast-margin-test'));
   const shared = marginField(createSimplex2D(createRng('coast-margin-test').fork('margin')));
 

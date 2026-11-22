@@ -42,7 +42,7 @@ scratchpad (`ga1-<n>-before.png`, `ga1-<n>-after.png`, `ga1-overview-1470-*.png`
    And the margins lifted the painting but not the daylight's plates, so the hill and the bay went
    pale under a sky and a sea plate at full colour. The coast now paints its own margins (the
    shared field, the left side narrowed from 200 to 140 units) and lays the same lift on its sky
-   and sea plates (ADR 0385). The left edge is one soft dissolve in every phase; at night it reads
+   and sea plates (ADR 0387). The left edge is one soft dissolve in every phase; at night it reads
    as a paler band of the night's blue, like the bottom edge.
 4. **The phone's empty sky** (item 6): not fixed. The scenery contract has one focus
    (`SceneryView.focus`), and a portrait phone never uses its y: `createViewport` shows at least
@@ -124,5 +124,5 @@ TESTS
 - The phone's first view (contract change above); `scrub-1`'s crown in a wide window.
 - `low-4`'s lavender still touches the right edge's dissolve; the pools stay at the top of the
   bottom dissolve at 1470 × 750.
-- The coast's margins duplicate the shared step's routine (ADR 0385).
+- The coast's margins duplicate the shared step's routine (ADR 0387).
 - The sunset's road core is soft at zoom 3 (the sea plate's feathered rim at the horizon).
