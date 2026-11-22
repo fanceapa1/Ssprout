@@ -17,13 +17,16 @@ describe('ice plant', () => {
     expect([...seen].sort()).toEqual(['crimson', 'hot-pink', 'magenta']);
   });
 
-  it('is a cushion of 4–5 lobes with hundreds of flowers, each opening after its lobe is under way', () => {
+  it('is a low mat of 4–5 lobes with a hundred or so flowers spaced over the leaves, each opening after its lobe is under way', () => {
     for (let s = 1; s <= 30; s++) {
       const p = plan(s);
       expect(p.lobes.length).toBeGreaterThanOrEqual(4);
       expect(p.lobes.length).toBeLessThanOrEqual(5);
       const flowers = p.lobes.flatMap((l) => l.flowers.length);
-      expect(flowers.reduce((a, b) => a + b, 0), `seed ${s}`).toBeGreaterThan(220);
+      const n = flowers.reduce((a, b) => a + b, 0);
+      expect(n, `seed ${s}`).toBeGreaterThan(80);
+      expect(n, `seed ${s}: the leaves show between the flowers`).toBeLessThan(200);
+      for (const l of p.lobes) expect(l.lobe.h, `seed ${s}: a mat, not a heap`).toBeLessThanOrEqual(7.5);
       for (const l of p.lobes) for (const f of l.flowers) {
         expect(f.open[0]).toBeGreaterThanOrEqual(l.window[1] - 0.14 - 1e-9);
         expect(f.open[1]).toBeLessThanOrEqual(1 + 1e-9);
@@ -44,13 +47,14 @@ describe('ice plant', () => {
     }
   });
 
-  it('stays inside its 70-unit box (anchor .5/.7) at full growth', () => {
+  it('stays inside its low box (70 design units wide, anchor .5/.55) at full growth', () => {
+    const h = (70 * icePlant.size.h) / icePlant.size.w;
     for (let s = 1; s <= 40; s++) {
       for (const { lobe } of plan(s).lobes) {
         for (const q of silhouette(lobe, 1)) {
           expect(Math.abs(q.x), `seed ${s}`).toBeLessThan(31);
-          expect(q.y, `seed ${s}`).toBeGreaterThan(-40);
-          expect(q.y, `seed ${s}`).toBeLessThan(15);
+          expect(q.y, `seed ${s}`).toBeGreaterThan(-h * 0.55 + 4);
+          expect(q.y, `seed ${s}`).toBeLessThan(h * 0.45 - 3);
         }
       }
     }

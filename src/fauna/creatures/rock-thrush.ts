@@ -156,17 +156,19 @@ function paintFoldedWing(p: Painter, r: number): void {
 /** An open wing from its shoulder along angle `a` (flight frames). */
 function paintOpenWing(p: Painter, r: number, a: number, len: number, wide: number, op: number, side: number): void {
   const rng = p.rng;
+  // a thrush's wing is broad and round-tipped: the hand nearly as wide as the arm
   const pts = [
     [0, -0.6],
-    [0.35, -0.8],
-    [0.7, -0.68],
-    [0.95, -0.3],
-    [1.05, 0],
-    [0.95, 0.24],
-    [0.8, 0.22],
-    [0.68, 0.44],
-    [0.5, 0.4],
-    [0.3, 0.58],
+    [0.3, -0.85],
+    [0.62, -0.88],
+    [0.88, -0.66],
+    [1.02, -0.3],
+    [1.04, 0.06],
+    [0.94, 0.36],
+    [0.78, 0.5],
+    [0.6, 0.46],
+    [0.44, 0.6],
+    [0.24, 0.56],
     [0, 0.6],
   ];
   const ca = Math.cos(a);
@@ -184,10 +186,13 @@ function paintOpenWing(p: Painter, r: number, a: number, len: number, wide: numb
   for (const v of [-0.15, 0.15, 0.4]) p.inkLine([at(0.45, v * 0.5), at(0.96, v)], { rng, width: 0.13 * r, opacity: 0.28 * op, breaks: 0.4, pigment: C.edge, taper: [0.4, 0.5] });
 }
 
-function paintTail(p: Painter, r: number, spread = 1): void {
-  const w = spread;
+/** The tail from its root; `fan` (flight) spreads it wider toward a rounded end and shortens it a little. */
+function paintTail(p: Painter, r: number, fan = 0): void {
+  const l = 1 - 0.12 * fan;
+  const a = 0.9 + 0.5 * fan;
+  const b = 1.1 + 1.1 * fan;
   const tail = smoothPolygon(
-    [{ x: 1.0 * r, y: -0.75 * r * w }, { x: -3.0 * r, y: -0.9 * r * w }, { x: -5.6 * r, y: -1.1 * r * w }, { x: -6.0 * r, y: 0 }, { x: -5.6 * r, y: 1.1 * r * w }, { x: -3.0 * r, y: 0.9 * r * w }, { x: 1.0 * r, y: 0.75 * r * w }],
+    [{ x: 1.0 * r, y: -0.75 * r }, { x: -3.0 * r * l, y: -a * r }, { x: -5.6 * r * l, y: -b * r }, { x: -6.0 * r * l, y: -0.4 * b * r }, { x: -6.1 * r * l, y: 0 }, { x: -6.0 * r * l, y: 0.4 * b * r }, { x: -5.6 * r * l, y: b * r }, { x: -3.0 * r * l, y: a * r }, { x: 1.0 * r, y: 0.75 * r }],
     2,
   );
   p.wetInWet(tail, C.wing, C.tail, { rng: p.rng, angle: Math.PI, split: 0.3, softness: 0.5, opacity: 0.92, edge: 0.24, edgeWidth: 0.35 * r, sharpness: 0.4, granulation: 0.4, flow: 0.5, flowScale: 2 * r, deform: 0.05, blend: 'source-over', fade: { angle: 0, start: 0.75, amount: 0.55 } });
@@ -237,18 +242,24 @@ export function paintThrush(res: number, seed: number): ThrushParts {
       p.ctx.save();
       p.ctx.translate(-4.2 * r, 0.3 * r);
       p.ctx.rotate(0.06);
-      paintTail(p, r, wing === 'fold' ? 1 : 1.3);
+      paintTail(p, r, wing === 'fold' ? 0.8 : 0.5);
       p.ctx.restore();
-      paintFlightBody(p, r);
-      if (wing === 'fold') return;
+      // the far wing first, behind the body, paler; then the body and the near wing
       p.ctx.save();
       p.ctx.translate(0.8 * r, -0.8 * r);
-      if (wing === 'up') paintOpenWing(p, r, -Math.PI / 2 - 0.4, 11, 3.2, 0.92, -1);
-      else if (wing === 'down') paintOpenWing(p, r, Math.PI / 2 + 0.55, 10, 3, 0.9, 1);
-      else {
-        paintOpenWing(p, r, -Math.PI / 2 - 0.2, 8.5, 3, 0.3, -1);
-        paintOpenWing(p, r, Math.PI - 0.2, 9.2, 2.5, 0.88, -1);
-      }
+      if (wing === 'up') paintOpenWing(p, r, -Math.PI / 2 + 0.1, 7.5, 3.6, 0.55, 1);
+      else if (wing === 'down') paintOpenWing(p, r, Math.PI / 2 + 0.15, 6.5, 3.4, 0.5, -1);
+      else if (wing === 'mid') paintOpenWing(p, r, -Math.PI / 2 - 0.05, 7.5, 3.8, 0.6, 1);
+      else paintOpenWing(p, r, -Math.PI / 2 + 0.3, 7.5, 3.8, 0.6, 1);
+      p.ctx.restore();
+      paintFlightBody(p, r);
+      p.ctx.save();
+      p.ctx.translate(0.8 * r, -0.8 * r);
+      if (wing === 'up') paintOpenWing(p, r, -Math.PI / 2 - 0.35, 10.5, 4.3, 0.92, -1);
+      else if (wing === 'down') paintOpenWing(p, r, Math.PI / 2 + 0.4, 10, 4.2, 0.9, 1);
+      else if (wing === 'mid') paintOpenWing(p, r, Math.PI / 2 - 0.05, 7.5, 4.4, 0.9, 1);
+      // gliding: both wings held out, the near one tilted toward the viewer, the far one above
+      else paintOpenWing(p, r, Math.PI / 2 - 0.3, 8, 4.6, 0.9, 1);
       p.ctx.restore();
     });
   return { body, half, open, legs, tail, flyUp: fly('up', 0), flyMid: fly('mid', 1), flyDown: fly('down', 2), glide: fly('fold', 3), size: THRUSH_SIZE };

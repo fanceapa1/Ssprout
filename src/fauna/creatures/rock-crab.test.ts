@@ -4,12 +4,14 @@ import type { PlantInstance } from '../../core/state';
 import { COAST } from '../../scenery/coast';
 import { COAST_FAUNA } from '../../scenery/coast/fauna';
 import { OASIS } from '../../scenery/oasis';
+import { getSpecies } from '../../plants/registry';
 import { inRegion } from '../targets';
 import { FaunaSim } from '../sim';
 import type { Sprite } from '../sprite';
 import { Stage } from '../stage';
 import type { Creature } from '../types';
 import rockCrab, { crabRocks, drawRockCrab, feedPose, RockCrab, rockPoint, ROCK_CRAB_SIZE, ROCK_CRAB_TUNING, wavePose, type RockCrabParts } from './rock-crab';
+import { plantCovers } from './lib/ground';
 
 const plants: PlantInstance[] = [];
 const ONLY = COAST_FAUNA.filter((r) => r.kind === 'rock-crab');
@@ -42,6 +44,60 @@ describe('where the rock crab lives', () => {
     expect(rocks[0]!.dryU).toBeNull();
     for (const r of rocks.slice(1, 4)) expect(r.dryU).not.toBeNull();
   });
+
+  it('keeps to the waterline of a rock a plant stands on: never on its lip, never in the plant’s footprint (devlog 228)', () => {
+    const garden: PlantInstance[] = ['splash-1', 'splash-2', 'splash-3'].map((slotId, i) => ({ id: `p${i}`, speciesId: 'sea-lavender', sceneryId: 'coast', slotId, seed: i + 3, plantedAt: 0, sessionMinutes: 90, taskName: '', completedAt: 1 }));
+    let seen = 0;
+    const splash = new Set<string>();
+    for (const seed of [1, 2, 3, 4]) {
+      const sim = new FaunaSim({ scene: COAST.geometry, seed, habitat: COAST.fauna, auto: false });
+      sim.setGarden(garden, ONLY, (id) => getSpecies(id));
+      sim.hourOverride = 12;
+      sim.spawn('rock-crab');
+      const cs = plantCovers(sim.world);
+      expect(cs.map((c) => c.slot)).toEqual(['splash-1', 'splash-2', 'splash-3']);
+      for (let i = 0; i < 20000; i++) {
+        sim.update(0.1, 0);
+        for (const c of crabs(sim)) {
+          if (c.doing() === 'hidden' || c.alpha < 0.3) continue;
+          seen++;
+          if (['splash-1', 'splash-2', 'splash-3'].includes(c.rock.id)) {
+            splash.add(c.rock.id);
+            // the three faces carry the three planted slots: the lip is the plant's
+            if (c.doing() !== 'dart') expect(c.v, `seed ${seed} on ${c.rock.id}`).toBeGreaterThan(0.95);
+          }
+          const inside = cs.some((f) => c.x > f.x0 && c.x < f.x1 && c.y > f.top && c.y < f.base + (f.base - f.top) * 0.1);
+          expect(inside, `seed ${seed} at ${c.rock.id} (${c.x.toFixed(1)}, ${c.y.toFixed(1)})`).toBe(false);
+        }
+      }
+    }
+    expect(seen).toBeGreaterThan(5000);
+    // the planted rocks are still its, along their waterlines
+    expect(splash.size).toBeGreaterThanOrEqual(2);
+  }, 60_000);
+
+  it('keeps along a pool’s rim clear of a water plant standing in front of it (devlog 228)', () => {
+    const garden: PlantInstance[] = ['pool-1', 'pool-2', 'pool-3'].map((slotId, i) => ({ id: `w${i}`, speciesId: 'peacocks-tail', sceneryId: 'coast', slotId, seed: i + 5, plantedAt: 0, sessionMinutes: 90, taskName: '', completedAt: 1 }));
+    let onRims = 0;
+    for (const seed of [1, 2, 3]) {
+      const sim = new FaunaSim({ scene: COAST.geometry, seed, habitat: COAST.fauna, auto: false });
+      sim.setGarden(garden, ONLY, (id) => getSpecies(id));
+      sim.hourOverride = 12;
+      sim.spawn('rock-crab');
+      const pads = sim.world.pads;
+      expect(pads).toHaveLength(3);
+      for (let i = 0; i < 20000; i++) {
+        sim.update(0.1, 0);
+        for (const c of crabs(sim)) {
+          if (c.doing() === 'hidden' || c.alpha < 0.3 || !c.rock.id.startsWith('pool-')) continue;
+          onRims++;
+          const behind = pads.some((d) => Math.abs(c.x - d.x) < d.r * 0.9 && c.y > d.y - d.r * 0.8 && c.y < d.y + 2);
+          expect(behind, `seed ${seed} at ${c.rock.id} (${c.x.toFixed(1)}, ${c.y.toFixed(1)})`).toBe(false);
+        }
+      }
+    }
+    expect(onRims).toBeGreaterThan(1000);
+  }, 60_000);
 
   it('lives only on the coast', () => {
     const sim = new FaunaSim({ scene: OASIS.geometry, seed: 1, habitat: OASIS.fauna, auto: false });

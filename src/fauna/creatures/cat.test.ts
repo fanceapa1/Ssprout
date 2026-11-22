@@ -41,7 +41,8 @@ import cat, {
   type CatPose,
   type Rig,
 } from './cat';
-import { blockerOn, GROUND_ROOM, groundBodies, groundFree, stepsRound } from './lib/ground';
+import { blockerOn, GROUND_ROOM, groundBodies, groundFree, hiddenByPlant, plantCovers, stepsRound } from './lib/ground';
+import { getSpecies } from '../../plants/registry';
 import { Tortoise } from './tortoise';
 
 const plants: PlantInstance[] = [];
@@ -121,6 +122,45 @@ describe('where the cat goes', () => {
       expect(n.x).toBeLessThan(1500);
     }
   });
+
+  it('does not doze behind a planted plant: the olive’s shade behind a lavender in `top-2` is skipped (devlog 228)', () => {
+    const planted = (slots: [string, string][]): PlantInstance[] =>
+      slots.map(([speciesId, slotId], i) => ({ id: `p${i}`, speciesId, sceneryId: 'coast', slotId, seed: i + 1, plantedAt: 0, sessionMinutes: 90, taskName: '', completedAt: 1 }));
+    const lookup = (id: string) => getSpecies(id);
+    const sim = coastSim(5);
+    sim.setGarden(planted([['lavender', 'top-2'], ['lavender', 'low-3'], ['rock-rose', 'path-5']]), ONLY, lookup);
+    const covers = plantCovers(sim.world);
+    expect(covers.map((c) => c.slot).sort()).toEqual(['low-3', 'path-5', 'top-2']);
+    const hidden = (q: { x: number; y: number }) => hiddenByPlant(covers, q);
+    // the acceptance's spot: in the olive's shade, behind the lavender
+    const behind = map.nodes.filter((n) => n.rest && hidden(n));
+    expect(behind.some((n) => n.shade)).toBe(true);
+    const rng = createRng(8);
+    let chosen = 0;
+    for (let i = 0; i < 400; i++) {
+      const to = chooseRest(map, rng, w.view, null, [], undefined, hidden)!;
+      expect(hidden(map.nodes[to]!), map.nodes[to]!.id).toBe(false);
+      if (map.nodes[to]!.shade) chosen++;
+    }
+    // the shade on the olive's other side is still there
+    expect(chosen).toBeGreaterThan(20);
+    // and over an hour of the real thing it never lies down out of sight
+    for (const seed of [1, 2, 3]) {
+      const live = coastSim(seed);
+      live.setGarden(planted([['lavender', 'top-2'], ['lavender', 'low-3'], ['rock-rose', 'path-5']]), ONLY, lookup);
+      const cs = plantCovers(live.world);
+      let dozing = 0;
+      for (let i = 0; i < 3600 * 20; i++) {
+        live.update(0.05, 0);
+        for (const k of cats(live)) {
+          if (k.doing() !== 'doze') continue;
+          dozing++;
+          expect(hiddenByPlant(cs, k), `seed ${seed}: dozing at (${k.x.toFixed(0)}, ${k.y.toFixed(0)})`).toBe(false);
+        }
+      }
+      expect(dozing).toBeGreaterThan(0);
+    }
+  }, 60_000);
 
   it('lives only at the coast', () => {
     const garden = new FaunaSim({ scene: gardenScene, seed: 3 });
