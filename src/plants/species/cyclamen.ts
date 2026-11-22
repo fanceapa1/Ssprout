@@ -34,8 +34,9 @@ const PETAL = '#e9a3bb';
 const PETAL_TIP = '#f4c9d6';
 const PETAL_BASE = '#cf6a96';
 const THROAT = '#8e3a64';
-const STALK = '#cf7d89';
-const STALK_DEEP = '#a8606f';
+const PETAL_DEEP = '#b83a78';
+const STALK = '#bf6e78';
+const STALK_DEEP = '#80404c';
 const PETIOLE = '#9a8f6c';
 const CAPSULE = '#b8ab7a';
 const CAPSULE_DEEP = '#8a7a56';
@@ -103,6 +104,9 @@ export interface Cyclamen {
 }
 
 const seedOf = (rng: Rng) => rng.int(1, 0x7fffffff);
+
+/** Most flowers show their mouth, some are seen from the side and a few from behind. */
+const viewOf = (seed: number) => [0, 0, 0.5, 0, 1, 0.5, 0, 0, 1, 0.5][seed % 10]!;
 
 export function buildCyclamen(rng: Rng): Cyclamen {
   const foot = rng.range(-2, 2);
@@ -228,6 +232,7 @@ export function poseCyclamen(plant: Cyclamen, g: number): CyclamenPose {
       roll: l.roll * s,
       zone: l.zone,
       flecks: l.flecks,
+      marble: l.seed,
     });
     pose.leaves.push({
       id: l.id,
@@ -258,6 +263,7 @@ export function poseCyclamen(plant: Cyclamen, g: number): CyclamenPose {
       size: f.size * lerp(0.2, 1, size),
       spread: f.spread,
       petals: f.petals,
+      view: viewOf(f.seed),
     });
     pose.flowers.push({
       id: `flower-${i}`,
@@ -268,6 +274,7 @@ export function poseCyclamen(plant: Cyclamen, g: number): CyclamenPose {
       tip: PETAL_TIP,
       base: PETAL_BASE,
       throat: THROAT,
+      deepest: PETAL_DEEP,
       seed: f.seed,
       tones: f.tones,
     });
