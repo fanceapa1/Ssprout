@@ -283,6 +283,26 @@ native name's language to the planting sheet, the herbarium, the plant card and 
 The dev fixtures (`fx-*`) and the placeholder sprout have the `EVERYWHERE` range. Where each
 scenery stands: docs/systems/scenery.md › Flora.
 
+## Sites (ADR 0383)
+A habitat can cover places that grow very different plants: the coast's `rock` is its terrace walls,
+the bastion's ledge and splash rocks in the sea, and its `shore` is beach sand where the oasis's is a
+spring's margin. A slot may carry a `site` (`wall`, `ledge`, `sea-rock`, `beach`) and a species
+`sites`; a slot with a site takes only species that list it (`fitsSite`, read by `isCompatible`, so
+placement, `session/start` and `addPlants` all follow it). The planting sheet's habitat line names a
+habitat only where some slot of it allows the species' sites. Only the coast sets sites; on the other
+gardens' slots `sites` is never read. The coast's species and their sites:
+
+| Species | wall | ledge | sea-rock | beach |
+|---|---|---|---|---|
+| caper | yes | yes | yes | (not shore) |
+| cyclamen, ice plant, southern maidenhair | yes | | | |
+| rock samphire | | yes | yes | yes |
+| sea lavender | | | yes | |
+| rock rose, Jerusalem sage | | yes | | |
+| sea holly, sea daffodil, oleander | | | | yes |
+
+The tree spurge keeps `back` only: the bastion is the one ledge and is `medium`.
+
 ## How species integrate
 Drop `species/<id>.ts` (with its `range`), its `species/<id>.test.ts` and `notes/<id>.ts` (see
 [species-recipe.md](species-recipe.md) and ARCHITECTURE › Species). The system relies only on: `size`/`anchor`

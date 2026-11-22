@@ -180,6 +180,18 @@ describe('planting sheet: the garden’s flora (ADR 0250)', () => {
     expect(card(sheet.el, 'fern').querySelector('.plant-habitat')!.textContent).toBe('on the ledges · on the banks');
   });
 
+  it('leaves out a habitat whose slots all have a site the species does not list (ADR 0383)', () => {
+    const words = { water: 'in the shallows', shore: 'on the beach', meadow: 'in the beds', path: 'by the path', back: 'in the scrub', rock: 'on the rocks' };
+    const sheet = makeSheet(spyPreviews().cache, {
+      species: [{ ...offer('fern', ['rock', 'shore']), species: { ...offer('fern', ['rock', 'shore']).species, sites: ['wall'] } }, offer('moss', ['rock', 'shore'])],
+      slots: [{ id: 'w1', habitat: 'rock', site: 'wall' }, { id: 'b1', habitat: 'shore', site: 'beach' }],
+      habitatWords: () => words,
+    });
+    sheet.open();
+    expect(card(sheet.el, 'fern').querySelector('.plant-habitat')!.textContent).toBe('on the rocks');
+    expect(card(sheet.el, 'moss').querySelector('.plant-habitat')!.textContent).toBe('');
+  });
+
   it('marks the native name with the species’ language (default romanised Japanese)', () => {
     const sheet = makeSheet(spyPreviews().cache, {
       species: [offer('fern', ['meadow'], { name: 'Kujakushida' }), offer('heather', ['meadow'], { name: 'Fraoch', lang: 'gd' })],

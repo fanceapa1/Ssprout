@@ -133,7 +133,7 @@ const icePlant: SpeciesDef = {
   // a South African garden plant, planted in Mediterranean coastal gardens and wild nowhere in the vocabulary
   range: { realms: [], biomes: [], climates: [], cultivatedIn: ['mediterranean'] },
   tier: 1,
-  habitats: ['meadow', 'rock', 'path'],
+  habitats: ['meadow', 'rock', 'path'], sites: ['wall'],
   sizeClass: 'small',
   size: { w: SMALL_SIZE, h: SMALL_SIZE },
   anchor: { x: 0.5, y: 0.7 },

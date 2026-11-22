@@ -6,8 +6,12 @@ export type Tier = 1 | 2 | 3 | 4;
 export type Habitat = 'water' | 'shore' | 'meadow' | 'path' | 'back' | 'rock';
 export type SizeClass = 'small' | 'medium' | 'large' | 'tree';
 
+/** A particular kind of place inside a habitat, set on a slot only where the habitat word is too broad (ADR 0383). */
+export type Site = 'wall' | 'ledge' | 'sea-rock' | 'beach';
+
 export const TIERS: readonly Tier[] = [1, 2, 3, 4];
 export const HABITATS: readonly Habitat[] = ['water', 'shore', 'meadow', 'path', 'back', 'rock'];
+export const SITES: readonly Site[] = ['wall', 'ledge', 'sea-rock', 'beach'];
 /** Ordered small → large; a slot with maxSize X accepts X and everything smaller. */
 export const SIZE_CLASSES: readonly SizeClass[] = ['small', 'medium', 'large', 'tree'];
 
@@ -31,6 +35,8 @@ export interface SpeciesDef {
   range: Range;
   tier: Tier;
   habitats: Habitat[];
+  /** the sites it grows on: a slot with a site takes only species that list it (ADR 0383) */
+  sites?: Site[];
   sizeClass: SizeClass;
   /** sprite box in world units at slot scale 1 */
   size: { w: number; h: number };
@@ -52,6 +58,11 @@ export interface SpeciesDef {
 
 export function fitsSize(species: SizeClass, slotMax: SizeClass): boolean {
   return SIZE_CLASSES.indexOf(species) <= SIZE_CLASSES.indexOf(slotMax);
+}
+
+/** A slot without a site takes any species of its habitat; one with a site only those listing it. */
+export function fitsSite(species: Pick<SpeciesDef, 'sites'>, slot: { site?: Site }): boolean {
+  return slot.site === undefined || (species.sites?.includes(slot.site) ?? false);
 }
 
 /** The language of a species' native name, for the `lang` attribute. */

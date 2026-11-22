@@ -265,7 +265,7 @@ const caper: SpeciesDef = {
   // wild round the Mediterranean and in the Saharan oases; grown as a crop on Mediterranean terraces
   range: { realms: ['n-africa-arabia', 'mediterranean'], biomes: ['desert', 'coast', 'scrub'], climates: ['arid', 'mediterranean'], cultivatedIn: ['mediterranean'] },
   tier: 1,
-  habitats: ['rock', 'path'],
+  habitats: ['rock', 'path'], sites: ['wall', 'ledge', 'sea-rock'],
   sizeClass: 'small',
   // drawn in the 70-unit design box; the root sits high so the shoots can spill down the wall
   size: { w: SMALL_SIZE, h: SMALL_SIZE },

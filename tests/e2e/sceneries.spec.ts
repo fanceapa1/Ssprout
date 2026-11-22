@@ -1,6 +1,7 @@
 import type { Page } from '@playwright/test';
 import { expect, openDev, test } from './fixtures';
 import { storedOf } from './paint-store';
+import { calmUiMotion, plantSession } from './ui-helpers';
 
 /**
  * Switching the garden on view at runtime (ADR 0243). Both gardens are offered to everyone since
@@ -181,5 +182,39 @@ test.describe('sceneries · reduced motion', () => {
     expect(night[2] / (night[0] + 1)).toBeGreaterThan(noon[2] / (noon[0] + 1));
     await expect.poll(async () => (await storedOf(page, 'sky-plate')).filter((e) => e.key.startsWith('oasis|')).length, { timeout: 80_000 }).toBeGreaterThanOrEqual(2);
     await expect.poll(async () => (await storedOf(page, 'light-plate')).filter((e) => e.key.startsWith('oasis|')).length, { timeout: 80_000 }).toBeGreaterThanOrEqual(2);
+  });
+});
+
+test.describe('sceneries · the coast’s slot sites (ADR 0383)', () => {
+  test('a sea plant is offered only the splash rocks and a wall plant only the walls, through the real flow; addPlants keeps to the sites', async ({ page }) => {
+    await calmUiMotion(page);
+    await openDev(page, 'scenery=coast&uitime=0.02');
+    await page.evaluate(async () => {
+      window.sprout!.reset();
+      window.sprout!.seed(7);
+      await window.sprout!.showScenery('coast');
+      window.sprout!.ui.refresh();
+    });
+    const options = (id: string) => page.evaluate((id) => window.sprout!.placementOptions(id, 'coast').map((o) => o.id), id);
+    expect(await options('sea-lavender')).toEqual(['splash-1', 'splash-2', 'splash-3']);
+    expect(await options('cyclamen')).not.toContain('splash-1');
+    expect((await options('southern-maidenhair')).every((id) => id.startsWith('wall-') || id.startsWith('crack-'))).toBe(true);
+
+    await plantSession(page, { species: 'sea-lavender', minutes: 30, begin: false });
+    const markers = await page.locator('button.marker[data-slot-id]').evaluateAll((els) => els.map((e) => e.getAttribute('data-slot-id')).sort());
+    expect(markers).toEqual(['splash-1', 'splash-2', 'splash-3']);
+    await page.locator('.placement-bar').getByRole('button', { name: 'Back to planting' }).click();
+    const sheet = page.locator('dialog[data-dialog="planting"]');
+    await expect(sheet.locator('.plant-card[data-species-id="southern-maidenhair"] .plant-habitat')).toHaveText('on the walls and rocks');
+
+    const misplaced = await page.evaluate(() => {
+      const s = window.sprout!;
+      s.addPlants(48, undefined, 'coast');
+      return s
+        .state()
+        .plants.filter((p) => p.sceneryId === 'coast' && !s.placementOptions(p.speciesId, 'coast').some((o) => o.id === p.slotId))
+        .map((p) => `${p.speciesId}@${p.slotId}`);
+    });
+    expect(misplaced).toEqual([]);
   });
 });

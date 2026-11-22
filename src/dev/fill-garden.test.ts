@@ -33,6 +33,14 @@ describe('plantRandomly', () => {
     }
   });
 
+  it('plants on a slot with a site only species that list it (ADR 0383)', () => {
+    const slots = [{ id: 'r1', habitat: 'rock' as const, maxSize: 'small' as const, site: 'sea-rock' as const }];
+    const land = plantRandomly(createDefaultState(0), createRng(1), SPECIES, slots, 10, 0);
+    expect(land.added).toEqual([]);
+    const sea = [...SPECIES, { id: 'samphire', tier: 1 as const, habitats: ['rock' as const], sizeClass: 'small' as const, sites: ['sea-rock' as const] }];
+    expect(plantRandomly(createDefaultState(0), createRng(1), sea, slots, 10, 0).added.map((p) => p.speciesId)).toEqual(['samphire']);
+  });
+
   it('respects n and the tier filter', () => {
     expect(plantRandomly(createDefaultState(0), createRng(1), SPECIES, SLOTS, 2, 0).added).toHaveLength(2);
     const t4 = plantRandomly(createDefaultState(0), createRng(1), SPECIES, SLOTS, 10, 0, 4);

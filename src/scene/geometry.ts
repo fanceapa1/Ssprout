@@ -1,4 +1,4 @@
-import type { Habitat, SizeClass } from '../plants/types';
+import type { Habitat, Site, SizeClass } from '../plants/types';
 import type { Pt } from '../render/viewport';
 import { GARDEN_SLOTS } from './slots';
 
@@ -12,6 +12,8 @@ export interface Slot {
   maxSize: SizeClass;
   /** perspective, ~0.55 far … 1.15 near */
   scale: number;
+  /** narrows the habitat (ADR 0383): only species that list this site grow here */
+  site?: Site;
 }
 
 export interface Rock {

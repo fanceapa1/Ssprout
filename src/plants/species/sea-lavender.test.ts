@@ -5,7 +5,7 @@ import { COAST_SLOTS } from '../../scenery/coast/slots';
 import { growsIn } from '../flora';
 import { smallSuite } from '../lib/suites';
 import { getSpecies } from '../registry';
-import { fitsSize } from '../types';
+import { isCompatible } from '../../core/placement';
 import seaLavender, { buildSeaLavender, poseSeaLavender, seaLavenderReach, type SeaLavenderPose } from './sea-lavender';
 
 smallSuite('sea-lavender');
@@ -100,14 +100,14 @@ describe('sea lavender', () => {
     expect(def.sizeClass).toBe('small');
     expect(def.size).toEqual({ w: 86, h: 86 });
     expect(def.habitats).toEqual(['rock']);
+    expect(def.sites).toEqual(['sea-rock']);
     expect(def.pollinators).toBe(true);
     expect(def.bloomColor).toBe('#c0a8d0');
   });
 
-  it('fits every rock slot of the coast: the wall cracks, the splash rocks and the shelf', () => {
-    const rock = COAST_SLOTS.filter((s) => s.habitat === 'rock');
-    expect(rock.length).toBe(11);
-    expect(rock.every((s) => fitsSize(seaLavender.sizeClass, s.maxSize))).toBe(true);
+  it('fits the splash rocks in the sea only, not the terrace walls or the bastion (ADR 0383)', () => {
+    const fits = COAST_SLOTS.filter((s) => isCompatible(seaLavender, s)).map((s) => s.id);
+    expect(fits).toEqual(['splash-1', 'splash-2', 'splash-3']);
   });
 
   it('grows wild on Mediterranean rocky coasts only (ADR 0361)', () => {

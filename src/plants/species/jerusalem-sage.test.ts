@@ -5,10 +5,10 @@ import { COAST_SLOTS } from '../../scenery/coast/slots';
 import { growsIn } from '../flora';
 import { shrubSuite } from '../lib/suites';
 import { getSpecies } from '../registry';
-import { fitsSize } from '../types';
+import { isCompatible } from '../../core/placement';
 import jerusalemSage, { buildJerusalemSage, jerusalemSageReach, poseJerusalemSage, type JerusalemSagePose } from './jerusalem-sage';
 
-shrubSuite('jerusalem-sage', buildJerusalemSage, { habitats: ['back', 'meadow'], sizeClass: 'medium' });
+shrubSuite('jerusalem-sage', buildJerusalemSage, { habitats: ['back', 'meadow', 'rock'], sizeClass: 'medium' });
 
 type Mark = { size: number; pts: number[] };
 
@@ -110,10 +110,10 @@ describe('Jerusalem sage', () => {
     expect(def.description.length).toBeLessThan(80);
   });
 
-  it('never grows out of the sea: no rock slot (splash rocks), but scrub and terrace slots to fit', () => {
-    expect(jerusalemSage.habitats).not.toContain('rock');
-    const fits = COAST_SLOTS.filter((s) => jerusalemSage.habitats.includes(s.habitat) && fitsSize(jerusalemSage.sizeClass, s.maxSize)).map((s) => s.id);
-    expect(fits.sort()).toEqual(['low-3', 'low-4', 'mid-1', 'scrub-1', 'scrub-3', 'top-1', 'top-2']);
+  it('never grows out of the sea: of the rock only the bastion’s ledge, and scrub and terrace slots to fit (ADR 0383)', () => {
+    expect(jerusalemSage.sites).toEqual(['ledge']);
+    const fits = COAST_SLOTS.filter((s) => isCompatible(jerusalemSage, s)).map((s) => s.id);
+    expect(fits.sort()).toEqual(['low-3', 'low-4', 'mid-1', 'scrub-1', 'scrub-3', 'shelf-1', 'top-1', 'top-2']);
   });
 
   it('is offered by the Greek coast, not by the Japanese garden, the waterfall or the oasis', () => {

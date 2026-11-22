@@ -229,7 +229,7 @@ const rockSamphire: SpeciesDef = {
   // wild on Mediterranean (and Atlantic European) rocky shores
   range: { realms: ['mediterranean', 'europe'], biomes: ['coast'], climates: ['mediterranean'] },
   tier: 1,
-  habitats: ['rock', 'shore'],
+  habitats: ['rock', 'shore'], sites: ['sea-rock', 'ledge', 'beach'],
   sizeClass: 'small',
   size: { w: SMALL_SIZE, h: SMALL_SIZE },
   anchor: { x: ANCHOR.x, y: ANCHOR.y },

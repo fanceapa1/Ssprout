@@ -4,11 +4,11 @@
  * terrace's lift (`terraceScale`, ADR 0360). docs/systems/scenery.md › Coast › Slots.
  */
 import type { Slot } from '../../scene/geometry';
-import type { Habitat, SizeClass } from '../../plants/types';
+import type { Habitat, Site, SizeClass } from '../../plants/types';
 import { terraceScale, type Terrace } from './layout';
 
-/** id, x, y, max size, and the terrace it stands on when it is not the ground's. */
-type SlotSpec = [id: string, x: number, y: number, maxSize: SizeClass, terrace?: Terrace];
+/** id, x, y, max size, the terrace it stands on when it is not the ground's, and its site (ADR 0383). */
+type SlotSpec = [id: string, x: number, y: number, maxSize: SizeClass, terrace?: Terrace, site?: Site];
 
 const SPECS: Record<Habitat, SlotSpec[]> = {
   // the cove's shallows (the seagrass meadow's large one) and the rock pools in the shelf
@@ -23,13 +23,15 @@ const SPECS: Record<Habitat, SlotSpec[]> = {
     ['pool-2', 400, 904, 'medium'],
     ['pool-3', 566, 888, 'small'],
   ],
-  // the pebble beach between the waterline and the rock shelf
+  // the pebble beach between the waterline and the rock shelf, all sea-washed sand (ADR 0383)
   shore: [
-    ['beach-1', 160, 796, 'small'],
-    ['beach-2', 300, 822, 'large'],
-    ['beach-3', 450, 806, 'medium'],
-    ['beach-4', 580, 830, 'small'],
-    ['beach-5', 236, 772, 'small'],
+    ['beach-1', 160, 796, 'small', undefined, 'beach'],
+    ['beach-2', 300, 822, 'large', undefined, 'beach'],
+    ['beach-3', 450, 806, 'medium', undefined, 'beach'],
+    ['beach-4', 580, 830, 'small', undefined, 'beach'],
+    ['beach-5', 236, 772, 'small', undefined, 'beach'],
+    // on the sand at the beach's west end, though its id says scrub (ids are kept in saved gardens)
+    ['scrub-2', 80, 826, 'small', undefined, 'beach'],
   ],
   // the beds on the three terraces
   meadow: [
@@ -54,33 +56,40 @@ const SPECS: Record<Habitat, SlotSpec[]> = {
     ['path-4', 870, 792, 'small', 'lower'],
     ['path-5', 1170, 560, 'small', 'top'],
   ],
-  // the scrub: the promontory's cliff top right of the olive (a tree), the pine's rock, the foreground's corners
+  // the scrub: the promontory's cliff top right of the olive (a tree), the foreground's corners
   back: [
     ['scrub-1', 1468, 306, 'tree'],
-    ['scrub-2', 80, 826, 'small'],
     ['scrub-3', 1300, 965, 'medium'],
     ['scrub-4', 1580, 960, 'small'],
     ['scrub-5', 700, 985, 'small'],
     ['scrub-6', 1180, 960, 'small'],
   ],
-  // the walls' copings and faces, the splash rocks, and the bastion's rock shelf
+  // the walls' copings and faces, the splash rocks in the sea, and the bastion's headland ledge (ADR 0383)
   rock: [
-    ['wall-1', 1310, 567, 'small', 'top'],
-    ['wall-2', 1060, 704, 'small', 'middle'],
-    ['wall-3', 690, 855, 'small', 'lower'],
-    ['wall-5', 1460, 563, 'small', 'top'],
-    ['crack-1', 1356, 724, 'small', 'middle'],
-    ['wall-4', 1110, 842, 'small', 'lower'],
-    ['crack-2', 1420, 860, 'small', 'lower'],
-    ['splash-1', 590, 654, 'medium'],
-    ['splash-2', 384, 712, 'small'],
-    ['splash-3', 190, 702, 'small'],
-    ['shelf-1', 744, 726, 'medium', 'middle'],
+    ['wall-1', 1310, 567, 'small', 'top', 'wall'],
+    ['wall-2', 1060, 704, 'small', 'middle', 'wall'],
+    ['wall-3', 690, 855, 'small', 'lower', 'wall'],
+    ['wall-5', 1460, 563, 'small', 'top', 'wall'],
+    ['crack-1', 1356, 724, 'small', 'middle', 'wall'],
+    ['wall-4', 1110, 842, 'small', 'lower', 'wall'],
+    ['crack-2', 1420, 860, 'small', 'lower', 'wall'],
+    ['splash-1', 590, 654, 'medium', undefined, 'sea-rock'],
+    ['splash-2', 384, 712, 'small', undefined, 'sea-rock'],
+    ['splash-3', 190, 702, 'small', undefined, 'sea-rock'],
+    ['shelf-1', 744, 726, 'medium', 'middle', 'ledge'],
   ],
 };
 
 export const COAST_SLOTS: Slot[] = (Object.keys(SPECS) as Habitat[]).flatMap((habitat) =>
-  SPECS[habitat].map(([id, x, y, maxSize, terrace]) => ({ id, x, y, habitat, maxSize, scale: terraceScale(y, terrace) })),
+  SPECS[habitat].map(([id, x, y, maxSize, terrace, site]) => ({
+    id,
+    x,
+    y,
+    habitat,
+    maxSize,
+    scale: terraceScale(y, terrace),
+    ...(site ? { site } : {}),
+  })),
 );
 
 /** The terrace each slot stands on (none: the foreground, the beach and the sea edge), for tests and the map. */

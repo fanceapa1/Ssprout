@@ -185,6 +185,9 @@ offers it (`src/scenery/flora.test.ts`; which garden offers which species: ADR 0
   `rock` (crevices next to boulders, small plants).
 - Each species lists allowed habitats. Only compatible slots are shown, as softly glowing seed
   markers. Each slot also has a max size class so trees only go where they fit.
+- Where one habitat covers very different places (the coast's walls, headland ledge and rocks in
+  the sea; its beach sand), a slot also has a **site**, and only species that grow there take it:
+  no woodland or garden plant on a rock in the sea or on the beach (ADR 0383).
 - A species whose every compatible slot holds the seedling of another session in progress has
   nowhere to go just now: the planting sheet shows it greyed with "Its spots all hold growing
   seedlings just now" and it cannot be chosen (ADR 0205; mostly the lotus, which fits two slots).

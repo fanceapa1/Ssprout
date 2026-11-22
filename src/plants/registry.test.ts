@@ -4,7 +4,7 @@ import { speciesMeta } from '../build/species-meta';
 import { loadPainter, painterReady } from './painter';
 import { getPainter } from './painters';
 import { allSpecies, buildRegistry, fromMeta, getSpecies, speciesByTier } from './registry';
-import { fitsSize, reflects, TIERS, type SpeciesDef } from './types';
+import { fitsSize, reflects, SITES, TIERS, type SpeciesDef } from './types';
 
 const stub = (id: string, extra: Partial<SpeciesDef> = {}): { default: SpeciesDef } => ({
   default: {
@@ -38,6 +38,8 @@ describe('species registry', () => {
       expect(s.id).toMatch(/^[a-z0-9]+(-[a-z0-9]+)*$/);
       expect(TIERS).toContain(s.tier);
       expect(s.habitats.length).toBeGreaterThan(0);
+      for (const site of s.sites ?? []) expect(SITES).toContain(site);
+      expect(new Set(s.sites ?? []).size).toBe((s.sites ?? []).length);
       expect(s.bloomColor).toMatch(/^#[0-9a-f]{6}$/i);
       expect(s.anchor.x).toBeGreaterThanOrEqual(0);
       expect(s.anchor.x).toBeLessThanOrEqual(1);

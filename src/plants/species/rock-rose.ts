@@ -330,7 +330,7 @@ const rockRose: SpeciesDef = {
   // wild in the eastern and central Mediterranean scrub and on its rocky coasts
   range: { realms: ['mediterranean'], biomes: ['scrub', 'coast'], climates: ['mediterranean'] },
   tier: 2,
-  habitats: ['back', 'path'],
+  habitats: ['back', 'path', 'rock'], sites: ['ledge'],
   sizeClass: 'small',
   size: { w: BOX.w, h: BOX.h },
   anchor: { x: BOX.ax, y: BOX.ay },
