@@ -827,8 +827,8 @@ y    0 ┌───────────────────────�
   Lifts as the oasis (ADR 0300): lower 48, middle 92, top 132. The big olive stands on the top
   terrace at (1290, 540), right of the path; the gravel `PATH` climbs from the bottom edge (900,
   1000) up the three walls by stone flights (`STEPS`) to the olive.
-- **The sea edge** sits above the paper margin (`paintMargins` lifts the bottom 166 units, and up
-  to 320 at the sides near the bottom): the beach's waterline runs y 742–812 and its back y
+- **The sea edge** sits above the paper margin (the margins lift the bottom 166 units, and up
+  to 320 at the right side and 224 at the left near the bottom, ADR 0385): the beach's waterline runs y 742–812 and its back y
   822–852, and three pools lie in the rock shelf at y 866–874 (GL1b, ADR 0384: 20–28 higher, so
   they stay above the stage's bottom dissolve). Splash rocks stand in the shallows.
 - **The foreground** below the lowest wall (y 882–1000) is the painting's foot: ground, the path's
@@ -1316,6 +1316,12 @@ The painting is on white with no sky step; the sky is the daylight's plates (doc
   and steady, the harbour light on the mole's post (`HARBOUR_LIGHT`, GB1) with five warm dabs below
   it on the water as its broken reflection, and the extra stars. All through the existing
   `LightArt.lights` hook, which gets the phase: no contract change.
+- **GA1** (devlog 226): at the low suns the light plate rakes the point, the headland's rim and
+  the faces east of its deep fissures, and the columns' left flanks (warm), with their right sides
+  cool. **Margins** (ADR 0385, `margins.ts`): the coast paints its own margins step (the shared
+  field, the left side narrowed to 140 units) and lays the same lift on its sky plates (below
+  y 140) and sea plates, so the sides dissolve alike in every light; the far headland's wash is
+  only what shows over the far hill.
 - **Grades** (`COAST_GRADES`): the low glows over the sea at each sun's x (glowY 0.4), no lantern,
   sunset apricot 0.34, night a blue 0.5.
 - **The temple's shade** starts under the slanted break on the broken shafts, and the architrave's
@@ -1435,15 +1441,16 @@ should read as alive at the overview and stay calm: slow, soft, nothing flashing
 The acceptance pass (G8, devlog 225) holds the full list of open items, ordered by how much they
 hurt a first look. The lasting ones:
 - Water (devlog 176): the far hill's reflection is faint; the shingle's spatter reads a little even.
-- Land (devlog 177): the walls' seaward ends are a step down, not rubble; the terraces' seaward
-  edge is a straight ruled line at the overview (devlog 225).
+- Land (devlog 177): the walls' seaward ends are a step down, not rubble.
+- View (devlog 226): the phone's first view is 40 % sky (one focus for every window shape; a
+  per-scenery portrait framing is a contract change); `scrub-1`'s tree cannot show its crown in a
+  wide window at its scale; `low-4`'s medium plant still touches the right edge's dissolve.
 - Daylight (devlogs 182, 225): the architrave, the capitals and the crowns sit under the sky's
   wash, and the skyline's 2-unit reach either side of each column leaves a pale sky-tinted band
-  down the columns' sides; the promontory's face reads cool grey rather than rose at sunset;
-  Posidonia stays teal at sunset; the left side's paper lift over the far hill and the leaning
-  pine shows as a pale veil with an edge, pink at sunset.
+  down the columns' sides; Posidonia stays teal at sunset. (GA1 fixed the left side's veil, ADR
+  0385, and gave the sunset its raking light.)
 - Motion (devlogs 184, 213, 223): the bastion's ledge faces have no moving foam of their own;
-  `sprout.advance` does not move the water; the far glint road is pale at sunset; no overcast
+  `sprout.advance` does not move the water; no overcast
   light, so glints ignore the weather.
 - Wildlife (devlog 183): no perch on the chapel or the village (too far for a bird to read); the
   first splash rock's top is all slot.

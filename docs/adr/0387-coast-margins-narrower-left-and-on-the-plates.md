@@ -30,4 +30,4 @@ Part of the edge was a far headland's wash that ran on behind the far hill (fixe
 - The margins, sky, sea-plate and light hashes moved (recorded in devlog 226).
 - The routine duplicates the shared step's 40 lines (the field is not a parameter there); a
   shared `paintMargins(p, rng, field)` would remove the copy, a change outside the coast.
-- Each plate pays a pixel pass over its two side bands (about 1 ms each at plate resolution).
+- Each plate pays one pixel pass over its two side bands, once per phase (plates are kept and cached).
