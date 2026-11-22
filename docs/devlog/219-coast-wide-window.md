@@ -62,7 +62,10 @@ frame is the same as before; the strip under the lowest wall is now empty paper 
 ghosts of plants. The phone's frame did not change (only a pool slot there moved up).
 
 ## Tests
-STATUS_TESTS
+- `npm run typecheck`: clean. Unit suite (2 workers): 283 files, 3023 tests passed.
+- e2e, one file at a time on the production build (1 worker): sceneries 9, scene 5, camera 16,
+  planting-previews 2, plants 8, plant-card-phone 5, lazy-species-painters 1, fauna 6,
+  lazy-creatures 2, ambience 6, studio 14: all passed. No full e2e run.
 
 ## Left open
 - `low-4` (1560, 812, medium): a full medium box reaches x 1638; no place further left clears the
