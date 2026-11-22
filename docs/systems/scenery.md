@@ -1281,11 +1281,13 @@ should read as alive at the overview and stay calm: slow, soft, nothing flashing
   suns, faint at night; the bands themselves go 45 % quieter at night. Eleven layouts, taken by the
   crest's number.
 - **Parting round rocks and the hull** (GS2): every wet rock and the hull is an obstacle at the
-  depth of the grid line through its foot (`obstacleDepths()`). Once a crest has passed it, the
-  stretch of the crest behind it lags (0.6–2.6 s, by its width, a Gaussian about twice its width)
-  and thins in its lee, the lag healing over about 8 + 1.6 × half its width in depth: the crest
-  parts round the obstacle and closes behind it. Only that stretch is drawn in short spans
-  (5 columns each) from the band sprite's matching slice; the rest of the piece stays one blit.
+  depth of the grid line through its foot (`obstacleDepths()`). Once a crest has passed a splash
+  rock or the hull, the stretch of the crest behind it lags (0.6–2.6 s, by its width, a Gaussian
+  about twice its width) and thins in its lee, the lag healing over `min(30, 8 + 1.2 × half its
+  width)` units of depth: the crest parts round the obstacle and closes behind it. Only that
+  stretch is drawn in short spans (7 columns each) from the band sprite's matching slice; the
+  rest of the piece stays one blit. (The boulders along the bastion's foot do not part crests:
+  the bands have faded there.)
   The rocks' foam and rings and the hull's ring keep the same depth, so a ring starts as the band
   reaches the foot.
 - **Catspaws**: 24 short pale streaks (34 before GS2) and 8 troughs drift slowly in (0.6 units/s × `seaScale`),
