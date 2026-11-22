@@ -316,6 +316,7 @@ const olive: SpeciesDef = {
   size: SIZE,
   anchor: { x: 0.5, y: 0.94 },
   description: 'Olive — a wrung old trunk under a crown that flashes silver.',
+  in: { oasis: { nativeName: 'Zitoun', nativeLang: 'ary-Latn' } },
   bloomColor: '#e8e0c4',
   pollinators: false,
   draw(p, rng, opts) {
