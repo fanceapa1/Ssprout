@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { FaunaSim } from '../../fauna/sim';
 import { distanceToPolygon, pointInPolygon, polygonBounds, polygonCentroid } from '../../fauna/math';
 import { carried, inRegion, perchY, regionScale, wallTopAt, type Perch } from '../../fauna/targets';
-import type { Pt } from '../../render/viewport';
+import { createViewport, type Pt } from '../../render/viewport';
 import { perspectiveScale, PLANT_SIZES, plantScale } from '../../scene/slots';
 import { COAST } from '.';
 import { POOL_WATER, SEA_WATER } from './geometry';
@@ -13,7 +13,7 @@ import {
 } from './shapes';
 import { COAST_SLOTS } from './slots';
 import {
-  CAIQUE_MEASURE, COAST_CARRIERS, COAST_GROUND, COAST_PERCHES, COAST_REGIONS, COAST_STANDS, COAST_WALLS, COAST_WILDLIFE, coastPerspective, intoSea, seaScale, TEMPLE_SCALE,
+  CAIQUE_MEASURE, COAST_CARRIERS, COAST_GROUND, COAST_PERCHES, COAST_SEEN, COAST_REGIONS, COAST_STANDS, COAST_WALLS, COAST_WILDLIFE, coastPerspective, intoSea, seaScale, TEMPLE_SCALE,
 } from './wildlife';
 
 const of = (kind: Perch['kind']) => COAST_PERCHES.filter((p) => p.kind === kind);
@@ -108,6 +108,22 @@ describe('perches', () => {
     const top = OLIVE_LIMBS[0]!.at(-1)!;
     expect(Math.abs(fork.x - top.x)).toBeLessThan(top.hw * 1.2);
     expect(Math.abs(fork.y - top.y)).toBeLessThan(8);
+  });
+
+  it('every perch lies where every supported window shows it, out of the margins’ fade (ADR 0382)', () => {
+    // the overview's crop at each landscape window (CSS px): the stage is 94 % of its height, 14 px margins aside (style.css)
+    for (const [w, h] of [[1470, 750], [1440, 900], [1920, 1080], [1280, 720], [1366, 768]] as const) {
+      const vis = createViewport(w - 28, h * 0.94, 1, COAST.view.focus).visible;
+      expect(vis.y, `${w}×${h}`).toBeLessThanOrEqual(COAST_SEEN.y - 30);
+      expect(vis.y + vis.h, `${w}×${h}`).toBeGreaterThanOrEqual(COAST_SEEN.y + COAST_SEEN.h);
+    }
+    for (const p of COAST_PERCHES) {
+      expect(p.y, p.id).toBeGreaterThanOrEqual(COAST_SEEN.y);
+      expect(p.y, p.id).toBeLessThanOrEqual(COAST_SEEN.y + COAST_SEEN.h);
+      if (p.kind === 'ledge') continue;
+      expect(p.x, p.id).toBeGreaterThanOrEqual(COAST_SEEN.x);
+      expect(p.x, p.id).toBeLessThanOrEqual(COAST_SEEN.x + COAST_SEEN.w);
+    }
   });
 
   it('jar, splash-rock, temple and far-pine perches sit on what the shapes say', () => {

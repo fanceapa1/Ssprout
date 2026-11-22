@@ -69,6 +69,14 @@ export const seaScale = (y: number): number => round2((CAIQUE_MEASURE * Math.max
 const offSlots = (q: Pt, gap = 20): boolean => COAST_SLOTS.every((s) => Math.hypot(s.x - q.x, s.y - q.y) >= gap);
 const inFrame = (q: Pt): boolean => q.x >= 10 && q.x <= 1590 && q.y >= 20 && q.y <= 990;
 
+/**
+ * What every supported window's overview shows of the coast (ADR 0382): a wide laptop (1470 × 750)
+ * crops the world to y 209–991; a perch keeps a bird's height (30) below the top, and stays out of
+ * the side margins' deep fade (x 60–1530). Phones crop the sides instead (ADR 0123).
+ */
+export const COAST_SEEN = { x: 60, y: 240, w: 1470, h: 745 } as const;
+const seen = (q: Pt): boolean => q.x >= COAST_SEEN.x && q.x <= COAST_SEEN.x + COAST_SEEN.w && q.y >= COAST_SEEN.y && q.y <= COAST_SEEN.y + COAST_SEEN.h;
+
 /** The olive's crown as the layout gives it, a little larger: what stands behind it is hidden. */
 const behindOlive = (q: Pt): boolean => ((q.x - OLIVE.crown.x) / (OLIVE.rx * 1.1)) ** 2 + ((q.y - OLIVE.crown.y) / (OLIVE.ry * 1.1)) ** 2 < 1;
 
@@ -121,7 +129,7 @@ function limbPerches(limb: readonly WoodPt[], id: string, n: number, steep: numb
   for (let i = 1; i < limb.length - 1; i++) {
     const w = limb[i]!;
     const { q, slope, dx } = limbTop(limb, i);
-    if (dx < 8 || Math.abs(slope) > steep || w.hw < WOOD.hw || w.leaves > WOOD.leaves || !inFrame(q) || !offSlots(q)) continue;
+    if (dx < 8 || Math.abs(slope) > steep || w.hw < WOOD.hw || w.leaves > WOOD.leaves || !seen(q) || !offSlots(q)) continue;
     segs.push({ q, slope, spread: Math.min(8, dx * 0.2) });
   }
   segs.sort((a, b) => Math.abs(a.slope) - Math.abs(b.slope));
@@ -255,15 +263,9 @@ function goatLedges(): Perch[] {
   return out;
 }
 
+/** Every perch inside `COAST_SEEN`; the goats' ledges run on in from the east edge, through its fade. */
 export const COAST_PERCHES: Perch[] = [
-  ...copingPerches(),
-  ...olivePerches(),
-  ...pinePerches(),
-  ...jarPerches(),
-  ...splashPerches(),
-  ...templePerches(),
-  ...boatPerches(),
-  ...crownPerches(),
+  ...[...copingPerches(), ...olivePerches(), ...pinePerches(), ...jarPerches(), ...splashPerches(), ...templePerches(), ...boatPerches(), ...crownPerches()].filter(seen),
   ...goatLedges(),
 ];
 
