@@ -416,7 +416,7 @@ function drawSurface(p: Painter, plan: PeacocksTailPlan, pose: PeacocksTailPose,
 
 const peacocksTail: SpeciesDef = {
   id: 'peacocks-tail',
-  name: "Peacock's tail",
+  name: "Peacock's Tail",
   nativeName: 'Padina pavonica',
   nativeLang: 'la',
   // a warm-sea alga of rock pools and shallow rocks, wild only

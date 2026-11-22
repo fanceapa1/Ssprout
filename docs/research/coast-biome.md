@@ -213,6 +213,7 @@ algae, not plants. The game calls everything "plants"; the Notes say what they a
 - **Tier and size:** 2, medium (a low shrub). Pollinators: yes (bees, beetles).
 - **Habitats:** scrub (`back`), gravel path edge (`path`), cliff-top ledges (`rock`).
 - **Flowering:** late March to June [15]. Each paper flower lasts about a day and drops its petals in the evening, but new ones open for weeks [15]. bloomColor `#c9609a`.
+- **Ladanum:** *Cistus creticus* is one source of ladanum (labdanum), the fragrant resin of its sticky leaves; it was once collected by combing the beards and thighs of the goats and sheep that browsed the bushes [38], as Herodotus already tells of ladanum gathered from goats' beards [39].
 - **Illustrator:**
   - **Shape:** a rounded, rather open small shrub, with sticky, wrinkled, hairy, grey-green leaves (`#7f9470`).
   - **Flowers:** 4–6 cm, five **crinkled tissue-paper petals** in purple-pink (`#c9609a`, pale `#e6a4c6`), a bright yellow boss of stamens (`#e6c050`). A scattering of petals on the ground is a nice detail.
@@ -281,6 +282,7 @@ algae, not plants. The game calls everything "plants"; the Notes say what they a
 #### 15. Aleppo pine — id `aleppo-pine` — *Pinus halepensis*
 - **Names:** English Aleppo pine. Greek: χαλέπιος πεύκη (chalepios pefki); πεύκη (pefki) is the Greek "pine".
 - **Native or cultivated:** **native**, the western and Ionian Greek pine; the Aegean pine is *P. brutia* [1]. `realms: ['mediterranean']`, biomes `scrub`, `coast`.
+- **Resin and cones:** its resin flavours the Greek wine retsina; its ripe cones open slowly over the next few years, sooner in the heat of a fire [40].
 - **Tier and size:** 4, tree. Pollinators: no.
 - **Habitats:** the cliff top and cliff edge (`back`).
 - **Flowering:** cones; fresh male cones are small and yellow in spring *(verify)*. bloomColor `#b9b060`.
@@ -293,7 +295,7 @@ algae, not plants. The game calls everything "plants"; the Notes say what they a
 
 #### 16. Mediterranean cypress — id `cypress` — *Cupressus sempervirens*
 - **Names:** English Mediterranean (Italian) cypress. Greek: κυπαρίσσι (kyparissi).
-- **Native or cultivated:** planted in Greek gardens, chapel yards and farms, and wild or ancient in the south-east Aegean and Crete *(verify)*. `cultivatedIn: ['mediterranean']`.
+- **Native or cultivated:** planted in Greek gardens, chapel yards and farms, and wild or ancient in the south-east Aegean and Crete *(verify)*; native in Greece on Crete, where a wild population regenerates [41]. `cultivatedIn: ['mediterranean']`.
 - **Tier and size:** 4, large (a tall narrow box, not a tree box). Pollinators: no.
 - **Habitats:** terrace bed (`meadow`) beside the chapel path.
 - **Illustrator:**
@@ -822,3 +824,7 @@ or boat ropes together [32]. Record or synthesise them separately.
 35. Grapevine in Greek (αμπέλι, κλήμα; κληματαριά in a yard) — Greek Wikipedia: https://el.wikipedia.org/wiki/Αμπέλι
 36. Pomegranate in Greek (ροδιά; Persephone, a gift to a new home, kollyva) — Greek Wikipedia: https://el.wikipedia.org/wiki/Ροδιά
 37. Oleander in Greek (πικροδάφνη, *Nerium oleander*; native in Greece; oleandrin) — Greek Wikipedia: https://el.wikipedia.org/wiki/Πικροδάφνη
+38. Ladanum from *Cistus creticus*, collected by combing goats' and sheep's beards and thighs — Wikipedia, Labdanum (citing W. Rhind, *A History of the Vegetable Kingdom*, 1857): https://en.wikipedia.org/wiki/Labdanum
+39. Herodotus, *Histories* 3.112: ladanum gathered from the beards of he-goats, where it sticks from the bushes they browse — Rawlinson's translation, Wikisource: https://en.wikisource.org/wiki/History_of_Herodotus/Book_3
+40. Aleppo pine: retsina, cones opening slowly over years and sooner with fire's heat, native east to Greece — Wikipedia: https://en.wikipedia.org/wiki/Pinus_halepensis
+41. Mediterranean cypress native in Greece on Crete, a wild population that regenerates — Wikipedia: https://en.wikipedia.org/wiki/Cupressus_sempervirens

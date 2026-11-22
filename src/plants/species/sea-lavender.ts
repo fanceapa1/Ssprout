@@ -269,7 +269,7 @@ export function seaLavenderReach(plant: SeaLavender): Pt[] {
 
 const seaLavender: SpeciesDef = {
   id: 'sea-lavender',
-  name: 'Sea lavender',
+  name: 'Sea Lavender',
   nativeName: 'Limonio',
   nativeLang: 'el-Latn',
   // wild on Mediterranean rocky coasts and salt flats
@@ -279,7 +279,7 @@ const seaLavender: SpeciesDef = {
   sizeClass: 'small',
   size: { w: BOX.w, h: BOX.h },
   anchor: { x: BOX.ax, y: BOX.ay },
-  description: 'Sea lavender: a lilac froth on bare wires over a salt-rock rosette.',
+  description: 'Sea lavender — a lilac froth on bare wires over a salt-rock rosette.',
   bloomColor: '#c0a8d0',
   pollinators: true,
   draw(p: Painter, rng: Rng, opts) {

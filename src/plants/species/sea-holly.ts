@@ -277,9 +277,9 @@ export function seaHollyReach(plant: SeaHolly): Pt[] {
 
 const seaHolly: SeaHollyDef = {
   id: 'sea-holly',
-  name: 'Sea holly',
-  nativeName: 'Eryngio',
-  nativeLang: 'el-Latn',
+  name: 'Sea Holly',
+  nativeName: 'Eryngium maritimum',
+  nativeLang: 'la',
   // wild on Mediterranean (and European) sandy coasts
   range: { realms: ['mediterranean', 'europe'], biomes: ['coast'], climates: ['mediterranean'] },
   tier: 2,
@@ -287,7 +287,7 @@ const seaHolly: SeaHollyDef = {
   sizeClass: 'small',
   size: { w: BOX.w, h: BOX.h },
   anchor: { x: BOX.ax, y: BOX.ay },
-  description: 'Sea holly: a frosted, spiny clump crowned with blue thistle heads.',
+  description: 'Sea holly — a frosted, spiny clump crowned with round blue heads.',
   bloomColor: BLOOM,
   pollinators: true,
   draw(p, rng, opts) {

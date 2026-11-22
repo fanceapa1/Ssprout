@@ -349,7 +349,7 @@ export function rockRoseReach(plant: RockRose): Pt[] {
 
 const rockRose: SpeciesDef = {
   id: 'rock-rose',
-  name: 'Pink rock rose',
+  name: 'Pink Rock Rose',
   nativeName: 'Kistos',
   nativeLang: 'el-Latn',
   // wild in the eastern and central Mediterranean scrub and on its rocky coasts
@@ -359,7 +359,7 @@ const rockRose: SpeciesDef = {
   sizeClass: 'small',
   size: { w: BOX.w, h: BOX.h },
   anchor: { x: BOX.ax, y: BOX.ay },
-  description: 'Pink rock rose: crumpled silk blooms on a grey-green mound.',
+  description: 'Pink rock rose — crumpled silk blooms on a grey-green mound.',
   bloomColor: BLOOM,
   pollinators: true,
   draw(p, rng, opts) {

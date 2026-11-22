@@ -223,7 +223,7 @@ export function rockSamphireReach(plant: RockSamphire): Pt[] {
 
 const rockSamphire: SpeciesDef = {
   id: 'rock-samphire',
-  name: 'Rock samphire',
+  name: 'Rock Samphire',
   nativeName: 'Kritamo',
   nativeLang: 'el-Latn',
   // wild on Mediterranean (and Atlantic European) rocky shores
@@ -233,7 +233,7 @@ const rockSamphire: SpeciesDef = {
   sizeClass: 'small',
   size: { w: SMALL_SIZE, h: SMALL_SIZE },
   anchor: { x: ANCHOR.x, y: ANCHOR.y },
-  description: 'Rock samphire: a fleshy green cushion in a crack, crowned with lime plates.',
+  description: 'Rock samphire — a fleshy green cushion in a crack, crowned with lime plates.',
   bloomColor: '#cfd28a',
   pollinators: true,
   draw(p: Painter, rng: Rng, opts) {

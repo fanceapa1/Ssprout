@@ -256,7 +256,7 @@ export function paintAleppoPine(p: Painter, plan: AleppoPinePlan, g: number, pr:
 const aleppoPine: SpeciesDef = {
   id: 'aleppo-pine',
   name: 'Aleppo Pine',
-  nativeName: 'Péfko',
+  nativeName: 'Pefki',
   nativeLang: 'el-Latn',
   // wild round the Mediterranean on coasts and dry limestone hills, the Maghreb's hills included
   range: { realms: ['mediterranean'], biomes: ['coast', 'scrub'], climates: ['mediterranean'] },

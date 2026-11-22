@@ -272,7 +272,7 @@ export function treeSpurgeReach(plant: TreeSpurge): Pt[] {
 
 const treeSpurge: SpeciesDef = {
   id: 'tree-spurge',
-  name: 'Tree spurge',
+  name: 'Tree Spurge',
   // the Greek names in the research are unconfirmed, so the card shows the Latin
   nativeName: 'Euphorbia dendroides',
   nativeLang: 'la',
@@ -283,7 +283,7 @@ const treeSpurge: SpeciesDef = {
   sizeClass: 'large',
   size: { w: BOX.w, h: BOX.h },
   anchor: { x: BOX.ax, y: BOX.ay },
-  description: 'Tree spurge: a lime-yellow dome of forked stems on the cliff.',
+  description: 'Tree spurge — a lime-yellow dome of forked stems on the cliff.',
   bloomColor: LIME,
   pollinators: true,
   draw(p, rng, opts) {

@@ -306,7 +306,7 @@ function fruitColour(ripe: number): Pigment {
 const olive: SpeciesDef = {
   id: 'olive',
   name: 'Olive',
-  nativeName: 'Eliá',
+  nativeName: 'Elia',
   nativeLang: 'el-Latn',
   // wild in Mediterranean maquis; planted round the whole basin and in the Maghreb's oases
   range: { realms: ['mediterranean'], biomes: ['scrub', 'garden'], climates: ['mediterranean'], cultivatedIn: ['mediterranean', 'n-africa-arabia'] },

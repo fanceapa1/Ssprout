@@ -244,7 +244,7 @@ export function paintCypress(p: Painter, pose: CypressPose, pr: Rng): void {
 const cypress: SpeciesDef = {
   id: 'cypress',
   name: 'Mediterranean Cypress',
-  nativeName: 'Kyparíssi',
+  nativeName: 'Kyparissi',
   nativeLang: 'el-Latn',
   // wild in the eastern Mediterranean's hills (Crete, the south-east Aegean), planted all round it
   range: { realms: ['mediterranean'], biomes: ['scrub', 'coast'], climates: ['mediterranean'], cultivatedIn: ['mediterranean'] },

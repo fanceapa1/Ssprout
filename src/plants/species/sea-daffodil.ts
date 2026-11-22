@@ -241,7 +241,7 @@ export function seaDaffodilReach(plant: SeaDaffodil): Pt[] {
 
 const seaDaffodil: SpeciesDef = {
   id: 'sea-daffodil',
-  name: 'Sea daffodil',
+  name: 'Sea Daffodil',
   nativeName: 'Krinos tis thalassas',
   nativeLang: 'el-Latn',
   // wild on Mediterranean dunes and sandy beaches
