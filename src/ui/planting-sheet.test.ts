@@ -47,7 +47,7 @@ function spyPreviews(drawnAtOnce: ReadonlySet<string> = new Set()) {
   return { cache: cache as unknown as PreviewCache & typeof cache, hurried };
 }
 
-function makeSheet(previews: PreviewCache, over: { species?: unknown[]; slots?: unknown[]; habitatWords?: () => unknown } = {}) {
+function makeSheet(previews: PreviewCache, over: { species?: unknown[]; slots?: unknown[]; habitatWords?: () => unknown; scenery?: string } = {}) {
   const controller = {
     recommendPlans: () => [{ id: 'p1', name: 'Steady', blocks: [{ kind: 'focus', minutes: 25 }] }],
     selectableSpecies: () => over.species ?? SPECIES,
@@ -56,7 +56,8 @@ function makeSheet(previews: PreviewCache, over: { species?: unknown[]; slots?: 
     updateSettings: () => {},
   };
   const slots = over.slots ?? [{ id: 's1', habitat: 'meadow' }];
-  const deps = { controller, clock: { now: () => 0 }, getSpecies: () => undefined, slots: () => slots, habitatWords: over.habitatWords } as unknown as UIDeps;
+  const store = { get: () => ({ scenery: over.scenery ?? 'japanese-garden' }) };
+  const deps = { controller, store, clock: { now: () => 0 }, getSpecies: () => undefined, slots: () => slots, habitatWords: over.habitatWords } as unknown as UIDeps;
   const ctx = {
     deps,
     previews,
@@ -190,6 +191,21 @@ describe('planting sheet: the garden’s flora (ADR 0250)', () => {
     sheet.open();
     expect(card(sheet.el, 'fern').querySelector('.plant-habitat')!.textContent).toBe('on the rocks');
     expect(card(sheet.el, 'moss').querySelector('.plant-habitat')!.textContent).toBe('');
+  });
+
+  it('a shared species shows the native name and line of the garden on view (ADR 0385)', () => {
+    const vine = offer('vine', ['meadow'], { name: 'Dalia', lang: 'ary-Latn' });
+    const shared = { ...vine, species: { ...vine.species, in: { coast: { nativeName: 'Ampeli', nativeLang: 'el-Latn', description: 'A terrace roof.' } } } };
+    const read = (scenery: string) => {
+      const sheet = makeSheet(spyPreviews().cache, { species: [shared], scenery });
+      sheet.open();
+      const c = card(sheet.el, 'vine');
+      const native = c.querySelector('.plant-native')!;
+      sheet.el.remove();
+      return [native.textContent, native.getAttribute('lang'), c.querySelector('.plant-desc')!.textContent];
+    };
+    expect(read('coast')).toEqual(['Ampeli', 'el-Latn', 'A terrace roof.']);
+    expect(read('oasis')).toEqual(['Dalia', 'ary-Latn', 'vine line']);
   });
 
   it('marks the native name with the species’ language (default romanised Japanese)', () => {
