@@ -297,6 +297,7 @@ export function createCoastMotion(opts: CoastMotionOptions = {}): CoastMotion {
   const bands: Sprite[] = [];
   const gleams: Sprite[] = [];
   const sparks: Sprite[] = [];
+  const sunSparks: Sprite[] = [];
   const breakers: Sprite[] = [];
   const bores: Sprite[] = [];
   const lefts: Sprite[] = [];
@@ -404,6 +405,28 @@ export function createCoastMotion(opts: CoastMotionOptions = {}): CoastMotion {
       yield* D.dryParts({ opacity: 0.45, edge: 0.1, sharpness: 0.3, flow: 0.2 });
       yield* L.dryParts({ ...LIFT, opacity: 1, sharpness: 0.8, edgeWidth: 0.4, flow: 0.2 });
       sparks.push(seal(s));
+      yield;
+    }
+    // a low sun's glint (GS2): a white core in a warm gold flare over a warm shade, so under the
+    // light plate it stays the brightest and warmest thing on the water
+    for (let i = 0; i < 2; i++) {
+      const r = rng.fork(`sun-spark-${i}`);
+      const { s, p } = sprite(24, 7, `sun-spark-${i}`, 6);
+      const box = { x: 0, y: 0, w: 24, h: 7 };
+      const D = p.layer(box);
+      const G = p.layer(box);
+      const C = p.layer(box);
+      const flecks = i === 0 ? [{ x: 12, y: 3.2, len: r.range(14, 18), h: r.range(2.2, 2.8) }] : Array.from({ length: r.int(3, 5) }, () => ({ x: r.range(5, 19), y: r.range(2.2, 4.4), len: r.range(5, 9), h: r.range(1.6, 2.2) }));
+      for (const f of flecks) {
+        const bow = r.range(-0.25, 0.25);
+        D.fill(dash(f.x + 0.4, f.y + f.h * 0.8, f.len * 0.9, f.h * 0.8, bow), SUN_SHADE, 0.6);
+        G.fill(dash(f.x, f.y, f.len * 1.05, f.h * 1.1, bow), SUN_GOLD, 0.85);
+        C.fill(dash(f.x, f.y - f.h * 0.05, f.len * 0.8, f.h * 0.7, bow), PAPER_WHITE, 1);
+      }
+      yield* D.dryParts({ opacity: 0.5, edge: 0.1, sharpness: 0.3, flow: 0.2 });
+      yield* G.dryParts({ ...LIFT, opacity: 0.95, sharpness: 0.5, edgeWidth: 0.6, flow: 0.2 });
+      yield* C.dryParts({ ...LIFT, opacity: 1, sharpness: 0.8, edgeWidth: 0.3, flow: 0.1 });
+      sunSparks.push(seal(s));
       yield;
     }
     // a piece of swell (GS2): a broad soft lighter back behind the crest line, a darker trough
@@ -1122,8 +1145,8 @@ export function createCoastMotion(opts: CoastMotionOptions = {}): CoastMotion {
       marks?.push({ element: 'glint', index: i, x, y });
       if (!ctx) continue;
       const one = kind === 2 || pick(b.table, c + 5, 1) < 0.4;
-      const sp = sparks[(one ? 0 : 2) + ((c + i) % 2)]!;
-      const len = (4 + (kind === 2 ? 9 : 20) * s) * (0.6 + 0.8 * pick(b.table, c + 5, 0)) * (one ? 1 : 1.6);
+      const sp = kind === 0 ? sunSparks[one ? 0 : 1]! : sparks[(one ? 0 : 2) + ((c + i) % 2)]!;
+      const len = (4 + (kind === 2 ? 9 : kind === 0 ? 15 : 20) * s) * (0.6 + 0.8 * pick(b.table, c + 5, 0)) * (one ? 1 : 1.6);
       blit(ctx, sp, x, y, len, ((len * sp.h) / sp.w) * (0.6 + 0.4 * s), alpha * outer);
     }
   };
@@ -1434,7 +1457,7 @@ export function createCoastMotion(opts: CoastMotionOptions = {}): CoastMotion {
     },
     sprites() {
       const all: Record<string, Sprite[]> = {
-        light: lights, trough: troughSprites, band: bands, spark: sparks, net: net ? [net] : [], ring: rings, 'pool-ring': poolRing,
+        light: lights, trough: troughSprites, band: bands, spark: sparks, 'sun-spark': sunSparks, net: net ? [net] : [], ring: rings, 'pool-ring': poolRing,
         gleam: gleams, breaker: breakers, bore: bores, lace: foam.map((f) => f.lace), left: lefts, wet: foam.map((f) => f.wet), film: foam.map((f) => f.film),
         'rock-foam': rockFoam, lap: laps,
         boat: [boat.plate, boat.light, boat.dark, boat.hull, boat.buoy].filter((s): s is Sprite => !!s),
@@ -1445,3 +1468,6 @@ export function createCoastMotion(opts: CoastMotionOptions = {}): CoastMotion {
 }
 
 const ROPE = rgba(BOAT.rope);
+/** a low sun's glint: its flare and the warm shade under it */
+const SUN_GOLD = '#ffd27a';
+const SUN_SHADE = '#5a4a52';

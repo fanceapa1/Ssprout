@@ -315,7 +315,7 @@ describe('the coast’s water in motion (G6)', () => {
 
   it('keeps every crest band inside its bounds and the sea, and paints its new sprites (GS2)', () => {
     const kinds = new Set(a.m.sprites().map((s) => s.kind));
-    for (const k of ['band', 'gleam', 'bore', 'left']) expect(kinds.has(k), k).toBe(true);
+    for (const k of ['band', 'gleam', 'sun-spark', 'bore', 'left']) expect(kinds.has(k), k).toBe(true);
     for (let t = 0; t < 120; t += 0.7) {
       for (const k of a.m.marksAt(t).filter((q) => q.element === 'crest')) {
         const B = MOTION_BOUNDS;
