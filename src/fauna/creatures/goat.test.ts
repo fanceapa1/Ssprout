@@ -4,13 +4,13 @@ import { createRng } from '../../core/rng';
 import type { PlantInstance } from '../../core/state';
 import { COAST } from '../../scenery/coast';
 import { COAST_FAUNA } from '../../scenery/coast/fauna';
-import { DRUM, OLIVE, STYLOBATE } from '../../scenery/coast/layout';
+import { COLUMNS, DRUM, OLIVE, STYLOBATE } from '../../scenery/coast/layout';
 import { COAST_SLOTS } from '../../scenery/coast/slots';
 import { OASIS } from '../../scenery/oasis';
 import { FaunaSim } from '../sim';
 import type { Sprite } from '../sprite';
 import { Stage } from '../stage';
-import goat, { bandCoats, drawGoatSprite, GOAT_POSES, goatMap, Goats, route, wayY, type GoatMap, type GoatMember } from './goat';
+import goat, { bandCoats, drawGoatSprite, GOAT_K, GOAT_POSES, goatMap, Goats, route, wayY, type GoatMap, type GoatMember } from './goat';
 
 const plants: PlantInstance[] = [];
 const ONLY = COAST_FAUNA.filter((r) => r.kind === 'goat');
@@ -68,6 +68,21 @@ describe('the goats’ ground', () => {
     expect(r.filter((q) => q.hop).length).toBe(3);
     for (const q of r) expect(Math.abs(q.y - wayY(map.ways[q.way]!, q.x))).toBeLessThan(0.1);
     expect(route(map, rim, 1000, map.ways.findIndex((w) => w.id === 'ledge-east-1'), 1560)).toBeNull();
+  });
+
+  it('is drawn at 0.6 of the temple’s measure: a goat a tenth of a tall column and a fraction of a far pine (devlog 228)', () => {
+    // a standing nanny's head is 1 m up: 125 units a metre at scale 1, at its way's scale
+    const crowns = COAST.fauna.perches!.filter((p) => p.kind === 'crown' && p.id.startsWith('pine-crown-'));
+    const pine = Math.min(...crowns.map((p) => p.depth - p.y));
+    const column = Math.max(...COLUMNS.map((c) => c.h));
+    for (const w of map.ways) {
+      const goatH = 125 * w.scale * GOAT_K;
+      expect(goatH / column, w.id).toBeGreaterThan(0.06);
+      expect(goatH / column, w.id).toBeLessThan(0.12);
+      expect(goatH / pine, w.id).toBeLessThan(0.25);
+      // still reads at the overview: several units tall
+      expect(goatH, w.id).toBeGreaterThan(6);
+    }
   });
 
   it('is the coast’s alone: no ledges, no goats', () => {

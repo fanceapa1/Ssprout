@@ -14,6 +14,11 @@ import type { CreatureDef } from './lib/def';
 const S0 = 0.13;
 /** World units per decimetre at `S0` (125 units a metre at scale 1). */
 const DM = 12.5 * S0;
+/**
+ * Drawn at this share of the temple's measure (ADR 0373): the far pines and the ledge scrub are
+ * painted smaller than its 6 m columns imply, and a life-size goat stood half a pine's height.
+ */
+export const GOAT_K = 0.6;
 
 export const GOAT_TUNING = {
   /** decimetres a second: an unhurried picking walk */
@@ -188,7 +193,7 @@ export function route(map: GoatMap, a: number, xa: number, b: number, xb: number
   const along = (w: number, x0: number, x1: number) => {
     const way = map.ways[w]!;
     const dir = Math.sign(x1 - x0);
-    for (const q of dir > 0 ? way.pts : [...way.pts].reverse()) if ((q.x - x0) * dir > 0.5 && (x1 - q.x) * dir > 0.5) out.push({ x: q.x, y: q.y, way: w });
+    for (const q of dir > 0 ? way.pts : [...way.pts].reverse()) if ((q.x - x0) * dir > 0.05 && (x1 - q.x) * dir > 0.05) out.push({ x: q.x, y: q.y, way: w });
     out.push({ x: x1, y: wayY(way, x1), way: w });
   };
   let x = xa;
@@ -522,7 +527,7 @@ export class Goats extends BaseCreature {
       const x = lerp(r.x0 + 14, r.x1 - 14, this.rng.range(0.15, 0.85));
       const y = wayY(r, x);
       return [
-        { x: x + this.rng.range(-4, 4), y: y + 18 * DM * 0.62, way: this.range.rim, behind: true },
+        { x: x + this.rng.range(-2, 2), y: y + 18 * DM * GOAT_K * 0.62, way: this.range.rim, behind: true },
         { x, y, way: this.range.rim },
       ];
     }
@@ -583,7 +588,7 @@ export class Goats extends BaseCreature {
     let side = back;
     order.forEach((m, i) => {
       if (i > 0) {
-        const gap = (m.coat === 'kid' ? 0.7 : 1) * GOAT_TUNING.gap * DM * (way.scale / S0) * this.rng.range(0.85, 1.25);
+        const gap = (m.coat === 'kid' ? 0.7 : 1) * GOAT_TUNING.gap * DM * ((way.scale * GOAT_K) / S0) * this.rng.range(0.85, 1.25);
         let nx = x + side * gap;
         if (nx < way.x0 + 2 || nx > way.x1 - 2) {
           side = -side;
@@ -613,7 +618,7 @@ export class Goats extends BaseCreature {
         return;
       }
       const r = route(this.map, m.way, m.x, out.way, out.x) ?? [];
-      m.path = [...r, { ...this.entry[0]!, x: this.entry[0]!.x + this.rng.range(-3, 3) }];
+      m.path = [...r, { ...this.entry[0]!, x: this.entry[0]!.x + this.rng.range(-1.5, 1.5) }];
       m.wait = i * this.rng.range(1, 3);
       m.act = 'stand';
     });
@@ -706,7 +711,7 @@ export class Goats extends BaseCreature {
       }
       // a goat ahead on the same way, close and not making room: wait a little
       const dir = Math.sign(next.x - m.x);
-      const near = this.members.some((o) => o !== m && o.shown && !o.gone && o.way === m.way && (o.x - m.x) * dir > 0 && Math.abs(o.x - m.x) < GOAT_TUNING.gap * DM * 0.55 && Math.abs(o.y - m.y) < 6);
+      const near = this.members.some((o) => o !== m && o.shown && !o.gone && o.way === m.way && (o.x - m.x) * dir > 0 && Math.abs(o.x - m.x) < GOAT_TUNING.gap * DM * GOAT_K * 0.55 && Math.abs(o.y - m.y) < 6);
       if (near && m.shown && m.blocked >= 0) {
         m.blocked += dt;
         // held up too long: it squeezes past
@@ -753,7 +758,7 @@ export class Goats extends BaseCreature {
   }
 
   private scaleAt(way: number): number {
-    return this.map.ways[way]?.scale ?? S0;
+    return (this.map.ways[way]?.scale ?? S0) * GOAT_K;
   }
 
   private startAct(m: GoatMember, fresh = false): void {
@@ -819,7 +824,7 @@ export class Goats extends BaseCreature {
       const pose = this.poseOf(m);
       const s = w.art.get(`goat:${m.coat}:${pose}`, (res) => paintGoatSprite(res, m.coat, pose, m.bell, 6200 + COATS.indexOf(m.coat) * 101));
       const k = this.scaleAt(m.way) / S0;
-      const lift = m.skip > 0 && !m.hop ? Math.sin((m.skip / 0.36) * Math.PI) * 1.6 * DM * 0.62 : 0;
+      const lift = m.skip > 0 && !m.hop ? Math.sin((m.skip / 0.36) * Math.PI) * 1.6 * DM * GOAT_K * 0.62 : 0;
       // below the cliff top's edge it is still behind the crest: only what shows above the edge
       const behind = rim && m.x > rim.x0 - 20 && m.x < rim.x1 + 20 && m.y > wayY(rim, m.x) + 0.6 && !m.hop && m.way === this.range.rim;
       if (behind) {
