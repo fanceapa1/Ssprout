@@ -1,7 +1,7 @@
 /**
  * The coast's shore, land, maquis and pine steps come in many small parts (GR2, ADR 0330): part
- * counts and the shore's recorded marks, no timing. The shore's pin is its marks from before it was
- * split, so the split changed no pixel.
+ * counts and the shore's recorded marks, no timing. The shore's pin is the real shore's marks (GB2,
+ * devlog 224); before it, the draft shore's from before its split.
  */
 import { beforeAll, describe, expect, it } from 'vitest';
 import { createPainter, makeCanvas } from '../../paint';
@@ -39,8 +39,8 @@ describe('coast paint parts (GR2)', () => {
     for (const s of STEPS) runs[s] = record(s);
   }, 120_000);
 
-  it('paints the shore with the marks it made in one part', () => {
-    expect(runs.shore!.hash).toBe('df0b78ed');
+  it('paints the shore with the same marks every time', () => {
+    expect(runs.shore!.hash).toBe('e2b6526a');
   });
 
   it('keeps each step in many parts, each with a bounded number of pixel reads', () => {
