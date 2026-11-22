@@ -251,7 +251,7 @@ const seaLavender: SpeciesDef = {
   // wild on Mediterranean rocky coasts and salt flats
   range: { realms: ['mediterranean'], biomes: ['coast'], climates: ['mediterranean'] },
   tier: 2,
-  habitats: ['rock'],
+  habitats: ['rock'], sites: ['sea-rock'],
   sizeClass: 'small',
   size: { w: BOX.w, h: BOX.h },
   anchor: { x: BOX.ax, y: BOX.ay },

@@ -283,7 +283,7 @@ const seaHolly: SeaHollyDef = {
   // wild on Mediterranean (and European) sandy coasts
   range: { realms: ['mediterranean', 'europe'], biomes: ['coast'], climates: ['mediterranean'] },
   tier: 2,
-  habitats: ['shore'],
+  habitats: ['shore'], sites: ['beach'],
   sizeClass: 'small',
   size: { w: BOX.w, h: BOX.h },
   anchor: { x: BOX.ax, y: BOX.ay },

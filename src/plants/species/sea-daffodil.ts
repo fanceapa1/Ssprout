@@ -247,7 +247,7 @@ const seaDaffodil: SpeciesDef = {
   // wild on Mediterranean dunes and sandy beaches
   range: { realms: ['mediterranean'], biomes: ['coast'], climates: ['mediterranean'] },
   tier: 2,
-  habitats: ['shore'],
+  habitats: ['shore'], sites: ['beach'],
   sizeClass: 'medium',
   size: { w: BOX.w, h: BOX.h },
   anchor: { x: BOX.ax, y: BOX.ay },

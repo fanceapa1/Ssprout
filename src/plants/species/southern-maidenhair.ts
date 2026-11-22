@@ -244,7 +244,7 @@ const southernMaidenhair: SpeciesDef = {
   // wild on wet walls, wells and springs round the Mediterranean and in the Saharan oases
   range: { realms: ['n-africa-arabia', 'mediterranean'], biomes: ['wetland', 'wet-cliff', 'coast'], climates: ['arid', 'warm-temperate', 'mediterranean'] },
   tier: 1,
-  habitats: ['rock', 'shore'],
+  habitats: ['rock', 'shore'], sites: ['wall'],
   sizeClass: 'small',
   // drawn in the 70-unit design box; the root sits a little high so the fronds can hang over
   size: { w: SMALL_SIZE, h: SMALL_SIZE },

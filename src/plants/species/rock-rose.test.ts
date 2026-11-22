@@ -5,7 +5,7 @@ import { COAST_SLOTS } from '../../scenery/coast/slots';
 import { growsIn } from '../flora';
 import { smallSuite } from '../lib/suites';
 import { getSpecies } from '../registry';
-import { fitsSize } from '../types';
+import { isCompatible } from '../../core/placement';
 import rockRose, { buildRockRose, poseRockRose, rockRoseReach, type RockRosePose } from './rock-rose';
 
 smallSuite('rock-rose');
@@ -94,21 +94,23 @@ describe('pink rock rose', () => {
     expect(bloom.flowers.filter((f) => f.open > 0.95).length).toBeGreaterThan(bush.flowers.length);
   });
 
-  it('is a tier-2 small plant of the scrub and the path, pink, visited by pollinators', () => {
+  it('is a tier-2 small plant of the scrub, the path and the headland ledge, pink, visited by pollinators', () => {
     const def = getSpecies('rock-rose')!;
     expect(def.tier).toBe(2);
     expect(def.sizeClass).toBe('small');
     expect(def.size).toEqual({ w: 86, h: 86 });
-    expect(def.habitats).toEqual(['back', 'path']);
+    expect(def.habitats).toEqual(['back', 'path', 'rock']);
+    expect(def.sites).toEqual(['ledge']);
     expect(def.pollinators).toBe(true);
     expect(def.bloomColor).toBe('#c9609a');
   });
 
-  it('fits all five path slots of the coast and the five small scrub slots', () => {
+  it('fits the coast’s path and scrub slots and the bastion’s ledge, never a wall or a rock in the sea (ADR 0383)', () => {
     for (const h of ['path', 'back'] as const) {
-      const fits = COAST_SLOTS.filter((s) => s.habitat === h && fitsSize(rockRose.sizeClass, s.maxSize));
+      const fits = COAST_SLOTS.filter((s) => s.habitat === h && isCompatible(rockRose, s));
       expect(fits.length, h).toBeGreaterThanOrEqual(5);
     }
+    expect(COAST_SLOTS.filter((s) => s.habitat === 'rock' && isCompatible(rockRose, s)).map((s) => s.id)).toEqual(['shelf-1']);
   });
 
   it('is offered by the Greek coast, not by the Japanese garden, the waterfall or the oasis', () => {

@@ -293,7 +293,7 @@ const jerusalemSage: SpeciesDef = {
   // wild in the Greek and central Mediterranean phrygana, on stony slopes and coastal rocks
   range: { realms: ['mediterranean'], biomes: ['scrub', 'coast'], climates: ['mediterranean'] },
   tier: 3,
-  habitats: ['back', 'meadow'],
+  habitats: ['back', 'meadow', 'rock'], sites: ['ledge'],
   sizeClass: 'medium',
   size: { w: BOX.w, h: BOX.h },
   anchor: { x: BOX.ax, y: BOX.ay },

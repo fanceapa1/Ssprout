@@ -329,7 +329,7 @@ const oleander: SpeciesDef = {
   // the riparian scrub of wadis and seasonal riverbeds, from the Sahara's edge round the Mediterranean
   range: { realms: ['n-africa-arabia', 'mediterranean'], biomes: ['desert', 'wetland', 'scrub'], climates: ['arid', 'warm-temperate', 'mediterranean'] },
   tier: 3,
-  habitats: ['shore', 'back'],
+  habitats: ['shore', 'back'], sites: ['beach'],
   sizeClass: 'large',
   size: { w: BOX.w, h: BOX.h },
   anchor: { x: BOX.ax, y: BOX.ay },

@@ -275,7 +275,7 @@ const cyclamen: SpeciesDef = {
   // wild in Mediterranean scrub, woodland edges and old walls
   range: { realms: ['mediterranean'], biomes: ['coast', 'scrub'], climates: ['mediterranean'] },
   tier: 1,
-  habitats: ['rock', 'meadow', 'back'],
+  habitats: ['rock', 'meadow', 'back'], sites: ['wall'],
   sizeClass: 'small',
   size: { w: SMALL_SIZE, h: SMALL_SIZE },
   anchor: { x: ANCHOR.x, y: ANCHOR.y },
