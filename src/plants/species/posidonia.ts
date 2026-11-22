@@ -1,5 +1,5 @@
 import { createRng, type Rng } from '../../core/rng';
-import { PIGMENTS, jitter, mix, type Painter, type Pigment, type Pt } from '../../paint';
+import { PIGMENTS, bounds, jitter, mix, padRect, type Painter, type Pigment, type Pt } from '../../paint';
 import { ribbon } from '../lib/baikamo-paint';
 import { clamp01, ease, lerp, smooth, stagger, visible } from '../lib/small-growth';
 import { plantFrame } from '../lib/small-paint';
@@ -324,13 +324,13 @@ function drawBed(p: Painter, rng: Rng, plan: PosidoniaPlan, pose: PosidoniaPose,
   if (pose.dead.length || pose.balls.length) {
     const D = p.layer(area);
     for (const d of pose.dead) {
-      const poly = band(d.pts, d.pts.map((_, i) => d.width * lerp(0.8, 1, Math.sin((i / 6) * Math.PI))));
-      if (poly) D.fill(poly, underWater(DEAD, 0.4), 0.7 * d.k);
+      const poly = band(d.pts, d.pts.map((_, i) => d.width * (0.3 + 0.7 * Math.sin((i / 6) * Math.PI) ** 0.6)));
+      if (poly) D.fill(poly, mix(mix(DEAD, SEA, 0.12), '#a8885a', 0.3), 0.55 * d.k);
     }
     for (const b of pose.balls) {
       const br = createRng(b.seed);
       D.fill(blobAt(b.at.x + 0.6, b.at.y + 0.9, b.r * 1.2 * b.k, b.r * 0.45 * b.k), mix(PIGMENTS.shadow, SEA, 0.4), 0.3 * b.k);
-      D.fill(blobAt(b.at.x, b.at.y - b.r * 0.4, b.r * b.k, b.r * 0.8 * b.k), underWater(BALL, 0.35), 0.8 * b.k);
+      D.fill(blobAt(b.at.x, b.at.y - b.r * 0.4, b.r * b.k, b.r * 0.8 * b.k), mix(BALL, SEA, 0.14), 0.8 * b.k);
       // its felt of fibres
       for (let i = 0; i < 8; i++) {
         const a = br.range(0, Math.PI * 2);
@@ -355,60 +355,82 @@ function blobAt(cx: number, cy: number, rx: number, ry: number): Pt[] {
   return pts;
 }
 
+/** A thin line along a leaf at `off` of its half-width: one of the parallel veins of a seagrass blade. */
+function vein(l: LeafPose, off: number, from: number, to: number, hw: number): Pt[] | null {
+  const pts: Pt[] = [];
+  for (let i = from; i <= to; i++) {
+    const a = l.pts[Math.max(0, i - 1)]!;
+    const b = l.pts[Math.min(l.pts.length - 1, i + 1)]!;
+    const d = Math.hypot(b.x - a.x, b.y - a.y) || 1;
+    const o = off * l.widths[i]!;
+    pts.push({ x: l.pts[i]!.x - ((b.y - a.y) / d) * o, y: l.pts[i]!.y + ((b.x - a.x) / d) * o });
+  }
+  return ribbon(pts, (t) => hw * (1 - 0.5 * t));
+}
+
 function drawLeaves(p: Painter, plan: PosidoniaPlan, pose: PosidoniaPose, area: { x: number; y: number; w: number; h: number }, near: number) {
-  // the far half of the meadow first, cooler and softer; the near half over it
+  // the far half of the meadow first, cooler and softer; the near half over it. One wash per
+  // shoot, so the shoots glaze over each other instead of merging into one flat shape
   for (const back of [true, false]) {
-    const L = p.layer(area);
-    let any = false;
+    const groups = new Map<string, LeafPose[]>();
     for (const l of pose.leaves) {
       if (l.back !== back) continue;
-      any = true;
-      const n = l.pts.length - 1;
-      const mid = Math.max(1, Math.round(n * 0.45));
-      const low = sub(l, 0, mid);
-      const cool = back ? 0.1 : 0;
-      // water blurs each ribbon: a faint doubled copy just below it
-      const halo = band(l.pts, l.widths, 1.25, 0.35, 0.6);
-      if (halo) L.fill(halo, mix(underWater(DEEP, 0), SEA, cool), 0.16);
-      const body = band(l.pts, l.widths);
-      if (body) L.fill(body, mix(underWater(l.tone, l.lift * 0.6), SEA, cool), 0.76);
-      // the deep foot of the leaf, bluer and darker
-      const foot = band(low.pts, low.widths);
-      if (foot) L.fill(foot, mix(underWater(DEEP, 0), SEA, cool), 0.4);
-      // young green toward the tip of a leaf in its first season
-      if (l.brown < 0.05) {
-        const up = sub(l, mid, n);
-        const fresh = band(up.pts, up.widths);
-        if (fresh) L.fill(fresh, mix(underWater(YOUNG, l.lift), SEA, cool), 0.32);
-      }
-      // the old tips go olive and brown
-      if (l.brown > 0.01) {
-        const from = Math.max(1, Math.floor(n * (1 - l.brown)));
-        const t = sub(l, from, n);
-        const tip = band(t.pts, t.widths);
-        if (tip) L.fill(tip, underWater(TIP, l.lift), lerp(0.18, 0.48, l.age));
-      }
-      // light caught along one edge of the ribbon, lifted out wet
-      const hi = sub(l, Math.round(n * 0.25), Math.round(n * 0.8));
-      const sheen = band(hi.pts, hi.widths, 0.4, 0, -0.45);
-      if (sheen) L.lift(sheen, 0.35 + 0.2 * l.lift);
-      // pale flecks of epiphytes on the old leaves, seen close
-      if (near > 0.05 && l.age > 0.05) {
-        for (const f of l.flecks) {
-          const i = Math.min(n, Math.round(f.s * n));
-          const q = l.pts[i]!;
-          const w = l.widths[i]!;
-          L.lift(blobAt(q.x, q.y + f.side * w * 0.4, f.r * w * 0.8, f.r * w * 0.5), 0.5 * near * l.age);
-        }
-      }
+      const key = l.id.split('l')[0]!;
+      const g = groups.get(key);
+      if (g) g.push(l);
+      else groups.set(key, [l]);
     }
-    if (!any) {
-      L.discard();
-      continue;
+    for (const leaves of groups.values()) {
+      const all = leaves.flatMap((l) => l.pts.flatMap((q, i) => [{ x: q.x, y: q.y - l.widths[i]! }, { x: q.x, y: q.y + l.widths[i]! }]));
+      const L = p.layer(padRect(bounds(all), 3));
+      for (const l of leaves) paintLeaf(L, l, back, near);
+      // light on the surface lifts out of the leaves below it
+      for (const gl of plan.glints) L.lift(lens(gl), 0.4 * pose.glint);
+      L.dry({ opacity: back ? 0.6 : 0.72, edge: 0.14, edgeWidth: 0.4, sharpness: back ? 0.08 : 0.16, centreLift: 0.1, granulation: 0.2, flow: 0.6, flowScale: 7, darken: 0.16 });
     }
-    // light on the surface lifts out of the leaves below it
-    for (const gl of plan.glints) L.lift(lens(gl), 0.4 * pose.glint);
-    L.dry({ opacity: back ? 0.62 : 0.74, edge: 0.18, edgeWidth: 0.4, sharpness: back ? 0.1 : 0.2, centreLift: 0.08, granulation: 0.2, flow: 0.45, flowScale: 9, darken: 0.2 });
+  }
+}
+
+function paintLeaf(L: ReturnType<Painter['layer']>, l: LeafPose, back: boolean, near: number): void {
+  const n = l.pts.length - 1;
+  const mid = Math.max(1, Math.round(n * 0.45));
+  const low = sub(l, 0, mid);
+  const cool = back ? 0.1 : 0;
+  // the blade narrows toward a blunt, frayed tip
+  const w = l.widths.map((v, i) => v * (1 - 0.4 * smooth((i / n - 0.5) / 0.5)));
+  const halo = band(l.pts, w, 1.25, 0.35, 0.6);
+  if (halo) L.fill(halo, mix(underWater(DEEP, 0), SEA, cool), 0.12);
+  const body = band(l.pts, w);
+  if (body) L.fill(body, mix(underWater(l.tone, l.lift * 0.6), SEA, cool), 0.5);
+  const foot = band(low.pts, sub({ ...l, widths: w }, 0, mid).widths);
+  if (foot) L.fill(foot, mix(underWater(DEEP, 0), SEA, cool), 0.42);
+  const up = sub({ ...l, widths: w }, mid, n);
+  if (l.brown < 0.05) {
+    const fresh = band(up.pts, up.widths);
+    if (fresh) L.fill(fresh, mix(underWater(YOUNG, l.lift), SEA, cool), 0.3);
+  }
+  if (l.brown > 0.01) {
+    const from = Math.max(1, Math.floor(n * (1 - l.brown)));
+    for (const [shift, k] of [[0, 0.55], [Math.round((n - from) * 0.45), 0.6]] as const) {
+      const t = sub({ ...l, widths: w }, Math.min(n - 1, from + shift), n);
+      const tip = band(t.pts, t.widths);
+      if (tip) L.fill(tip, underWater(TIP, l.lift), lerp(0.12, 0.3, l.age) * k * 1.6);
+    }
+  }
+  for (const off of [-0.5, 0.05, 0.55]) {
+    const v = vein({ ...l, widths: w }, off, 1, Math.round(n * 0.9), 0.1);
+    if (v) L.fill(v, mix(underWater(DEEP, 0), SEA, cool), 0.2);
+  }
+  const hi = sub({ ...l, widths: w }, Math.round(n * 0.25), Math.round(n * 0.8));
+  const sheen = band(hi.pts, hi.widths, 0.4, 0, -0.45);
+  if (sheen) L.lift(sheen, 0.32 + 0.2 * l.lift);
+  if (near > 0.05 && l.age > 0.05) {
+    for (const f of l.flecks) {
+      const i = Math.min(n, Math.round(f.s * n));
+      const q = l.pts[i]!;
+      const wi = w[i]!;
+      L.lift(blobAt(q.x, q.y + f.side * wi * 0.4, f.r * wi * 0.8, f.r * wi * 0.5), 0.5 * near * l.age);
+    }
   }
 }
 
