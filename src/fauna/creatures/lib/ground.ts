@@ -1,9 +1,12 @@
 /**
  * Shared bits for creatures that walk the ground: where the others stand or are going to rest, so
- * none walks through another or settles on its spot. docs/systems/fauna.md › Ground creatures.
+ * none walks through another or settles on its spot; and where the planted plants stand.
+ * docs/systems/fauna.md › Ground creatures.
  */
+import type { Slot } from '../../../scene/geometry';
 import type { Pt } from '../../../render/viewport';
 import { clamp } from '../../math';
+import type { FlowerTarget } from '../../targets';
 import type { FaunaWorld } from '../../types';
 
 /** The ground creatures and the room each keeps round it (world units at perspective 1). */
@@ -74,4 +77,40 @@ export function stepsRound(a: Pt, b: Pt, body: Pt, long: number, wide: number, s
   const along = (body.x - a.x) * ux + (body.y - a.y) * uy;
   const at = (t: number): Pt => ({ x: a.x + ux * t, y: a.y + uy * t + side * wide });
   return [at(along - long), at(along + long)];
+}
+
+/** A finished plant as it stands on the picture: its x span, its top and its base (the slot's y). */
+export interface PlantCover {
+  slot: string;
+  x0: number;
+  x1: number;
+  top: number;
+  base: number;
+}
+
+const covers = new WeakMap<readonly FlowerTarget[], PlantCover[]>();
+
+/**
+ * Where the planted plants stand, from what the fauna world knows of them: each flowering plant's
+ * flower target (`w.flowers`: a point near its box's top, its base, `r` a fifth of its width)
+ * matched to its slot. Cached per planting.
+ */
+export function plantCovers(w: Pick<FaunaWorld, 'flowers' | 'scene'>): PlantCover[] {
+  let out = covers.get(w.flowers);
+  if (out) return out;
+  out = [];
+  for (const f of w.flowers) {
+    let best: Slot | null = null;
+    for (const s of w.scene.slots) if (Math.abs(s.y - f.baseY) < 0.01 && (!best || Math.abs(s.x - f.x) < Math.abs(best.x - f.x))) best = s;
+    if (!best) continue;
+    const half = (f.r / 0.22) * 0.4;
+    out.push({ slot: best.id, x0: best.x - half, x1: best.x + half, top: f.y - f.r, base: best.y });
+  }
+  covers.set(w.flowers, out);
+  return out;
+}
+
+/** Whether something standing at `q` is behind a planted plant and hidden by it (its feet under the plant's top). */
+export function hiddenByPlant(cs: readonly PlantCover[], q: Pt, pad = 0): boolean {
+  return cs.some((c) => q.x > c.x0 - pad && q.x < c.x1 + pad && q.y < c.base + 2 && q.y > c.top);
 }

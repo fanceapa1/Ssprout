@@ -10,7 +10,7 @@ import { perchY, type GroundSpot, type Perch } from '../targets';
 import { BaseCreature, type Ctx, type FaunaWorld } from '../types';
 import { heldSpots } from './bird';
 import type { CreatureDef } from './lib/def';
-import { blockerOn, GROUND_ROOM, groundBodies, groundFree, stepsRound, type GroundBody } from './lib/ground';
+import { blockerOn, GROUND_ROOM, groundBodies, groundFree, hiddenByPlant, plantCovers, stepsRound, type GroundBody } from './lib/ground';
 
 /** Drawn a little larger than life (about 55 cm nose to rump) so the outline reads at the overview. */
 export const CAT_K = 1.2;
@@ -1073,12 +1073,12 @@ const classOf = (n: CatNode): keyof typeof CAT_TUNING.weights => (n.kind === 'co
 
 /**
  * Where to settle next: a coping, the olive's shade or another walk within reach (`route`: at most
- * one jump), in view first, never where another creature is.
+ * one jump), in view first, never where another creature is nor behind a planted plant (`hidden`).
  */
-export function chooseRest(map: CatMap, rng: Rng, view: Rect, from: number | null, held: readonly Pt[], route?: { cost: readonly number[]; jumps: readonly number[] }): number | null {
+export function chooseRest(map: CatMap, rng: Rng, view: Rect, from: number | null, held: readonly Pt[], route?: { cost: readonly number[]; jumps: readonly number[] }, hidden?: (q: Pt) => boolean): number | null {
   const ok = (i: number) => {
     const n = map.nodes[i]!;
-    if (i === from || !n.rest || map.edges[i]!.length === 0) return false;
+    if (i === from || !n.rest || map.edges[i]!.length === 0 || hidden?.(n)) return false;
     if (route && !(route.cost[i]! <= CAT_TUNING.reach && route.jumps[i]! <= 1)) return false;
     return held.every((h) => dist(h, n) > 30);
   };
@@ -1096,13 +1096,14 @@ export function chooseRest(map: CatMap, rng: Rng, view: Rect, from: number | nul
   return pool[pool.length - 1]!;
 }
 
-/** Where along a coping it lies: somewhere in its spread clear of the plants, else the middle. */
-export function restX(w: MapWorld, n: CatNode, rng: Rng): number {
+/** Where along a coping it lies: somewhere in its spread clear of the plants and not behind one, else the middle. */
+export function restX(w: MapWorld, n: CatNode, rng: Rng, hidden?: (q: Pt) => boolean): number {
   const p = n.perch;
   if (!p) return n.x;
   for (let i = 0; i < 6; i++) {
     const x = clamp(n.x + rng.range(-0.5, 0.5) * p.spread, p.x - p.spread, p.x + p.spread);
-    if (clearAt(w, P(x, perchY(p, x)), CAT_TUNING.rest)) return x;
+    const q = P(x, perchY(p, x));
+    if (clearAt(w, q, CAT_TUNING.rest) && !hidden?.(q)) return x;
   }
   return n.x;
 }
@@ -1138,6 +1139,12 @@ export function walkable(w: MapWorld, q: Pt, terrace: number): boolean {
   if (!clearAt(w, q)) return false;
   return w.ground.some((g) => terraceOf(g.id) === terrace && ((q.x - g.x) / g.rx) ** 2 + ((q.y - g.y) / (g.ry + 8)) ** 2 <= 1);
 }
+
+/** Behind a planted plant, out of the viewer's sight. */
+const hiddenFor = (w: Pick<FaunaWorld, 'flowers' | 'scene'>) => {
+  const cs = plantCovers(w);
+  return (q: Pt) => hiddenByPlant(cs, q);
+};
 
 /** The places others hold: their spots, and where every ground creature is now. */
 function takenBy(w: FaunaWorld, self: object, bodies: readonly GroundBody[]): Pt[] {
@@ -1216,7 +1223,7 @@ export class Cat extends BaseCreature {
     this.coat = coatName;
     this.variant = coatName;
     const map = catMap(w);
-    const start = chooseRest(map, rng, w.view, null, held);
+    const start = chooseRest(map, rng, w.view, null, held, undefined, hiddenFor(w));
     if (start === null) {
       this.done = true;
       return;
@@ -1261,7 +1268,7 @@ export class Cat extends BaseCreature {
     let x = n.x;
     let y = n.y;
     if (n.perch) {
-      x = restX(w, n, this.rng);
+      x = restX(w, n, this.rng, hiddenFor(w));
       y = perchY(n.perch, x);
     }
     this.pos = P(x, y);
@@ -1404,7 +1411,7 @@ export class Cat extends BaseCreature {
     const held = takenBy(w, this, bodies);
     // never through another creature: a way that passes one is given up for another place
     for (let tries = 0; tries < 4; tries++) {
-      const to = chooseRest(map, this.rng, w.view, this.node, held, route);
+      const to = chooseRest(map, this.rng, w.view, this.node, held, route, hiddenFor(w));
       if (to === null) return false;
       const path = pathTo(route.prev, this.node, to);
       if (path.length < 2) return false;
@@ -1414,7 +1421,7 @@ export class Cat extends BaseCreature {
         const n = map.nodes[path[k]!]!;
         const e = map.edges[path[k - 1]!]!.find((x) => x.to === path[k])!;
         let x = n.x;
-        if (k === path.length - 1 && n.perch) x = restX(w, n, this.rng);
+        if (k === path.length - 1 && n.perch) x = restX(w, n, this.rng, hiddenFor(w));
         const toPt = P(x, n.perch ? perchY(n.perch, x) : n.y);
         legs.push({ kind: e.kind, from, to: toPt, node: path[k]! });
         from = toPt;
