@@ -4,16 +4,19 @@
  * caique's pose small, continuous and carried to its perches.
  */
 import { beforeAll, describe, expect, it } from 'vitest';
+import { pinnedState, type DaylightState, type DayPhase } from '../../ambience/daylight';
+import { moonDisc, sunDisc } from '../../ambience/sky-layout';
 import { carried } from '../../fauna/targets';
 import { bounds, pointInPolygon } from '../../paint';
 import type { Pt } from '../../render/viewport';
 import { PaintRecorder } from '../../scene/paint-record';
 import { COAST } from '.';
 import { POOL_WATER, SEA_WATER } from './geometry';
-import { CAIQUE } from './layout';
+import { CAIQUE, COAST_SKY_LAYOUT, HORIZON } from './layout';
 import { createCoastMotion, MOTION_BOUNDS, PLATE_RECT, WET_ROCKS, type CoastMotion } from './motion';
-import { CAIQUE_SWING, caiquePose, posePoint } from './pose';
-import { CAIQUE_BOX, CAIQUE_SHAPES, FOAM_LINE } from './sea';
+import { CAIQUE_DEPTH, CAIQUE_SWING, caiquePose, posePoint } from './pose';
+import { CAIQUE_BOX, CAIQUE_SHAPES, shallowsEdge, shoreward } from './sea';
+import { foamY, swashLimit, swellAt } from './swell';
 import { COAST_CARRIERS, COAST_WILDLIFE } from './wildlife';
 
 /** A context that logs each blit with its alpha, composite, transform and world area, and each clip. */
@@ -37,6 +40,15 @@ function fakeCtx(transform = { a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 }) {
     transform: (a: number, b: number, c: number, d: number, e: number, f: number) => {
       m = { a: m.a * a + m.c * b, b: m.b * a + m.d * b, c: m.a * c + m.c * d, d: m.b * c + m.d * d, e: m.a * e + m.c * f + m.e, f: m.b * e + m.d * f + m.f };
     },
+    setTransform: (a: number, b: number, c: number, d: number, e: number, f: number) => {
+      m = { a, b, c, d, e, f };
+    },
+    fillStyle: null as unknown,
+    createPattern: () => ({ setTransform: (q: Record<string, number>) => log.push(`pattern [${['a', 'c', 'd', 'e', 'f'].map((k) => r(q[k]!)).join(',')}]`) }),
+    fillRect: (...n: number[]) => {
+      area += Math.abs(n[2]! * n[3]!) * 0;
+      log.push(`fill ${r(ctx.globalAlpha)} ${n.map(r).join(',')}`);
+    },
     beginPath: noop,
     moveTo: noop,
     lineTo: noop,
@@ -52,12 +64,13 @@ function fakeCtx(transform = { a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 }) {
   return { ctx: ctx as unknown as CanvasRenderingContext2D, log, stats: () => ({ clips, area }) };
 }
 
-const drawn = (m: CoastMotion, t: number, transform?: Parameters<typeof fakeCtx>[0]) => {
+const drawn = (m: CoastMotion, t: number, transform?: Parameters<typeof fakeCtx>[0], light?: DaylightState) => {
   const { ctx, log } = fakeCtx(transform);
   m.under?.(ctx, t);
-  m.draw(ctx, t);
+  m.draw(ctx, t, light);
   return log;
 };
+const at = (phase: DayPhase) => pinnedState({ sunrise: 0, midday: 0, sunset: 0, night: 0, [phase]: 1 });
 
 function prepared(opts: Parameters<typeof createCoastMotion>[0]) {
   const rec = new PaintRecorder({ hash: false });
@@ -79,13 +92,12 @@ function prepared(opts: Parameters<typeof createCoastMotion>[0]) {
   }
 }
 
+const SHALLOWS = shoreward(shallowsEdge());
 const near = (q: Pt, shape: readonly Pt[], d: number) =>
   pointInPolygon(q, shape) || [[d, 0], [-d, 0], [0, d], [0, -d]].some(([dx, dy]) => pointInPolygon({ x: q.x + dx!, y: q.y + dy! }, shape));
-const foamY = (x: number) => {
-  let best = FOAM_LINE[0]!;
-  for (const q of FOAM_LINE) if (Math.abs(q.x - x) < Math.abs(best.x - x)) best = q;
-  return best.y;
-};
+
+/** blits a frame at most: the crests' pieces are most of them (GS1) */
+const BLITS = 300;
 
 describe('the coast’s water in motion (G6)', () => {
   let a: ReturnType<typeof prepared>;
@@ -108,9 +120,10 @@ describe('the coast’s water in motion (G6)', () => {
     expect(a.m.sprites().length).toBeGreaterThanOrEqual(40);
   });
 
-  it('is a pure function of the animation time', () => {
+  it('is a pure function of the animation time and the light', () => {
     for (const t of [0, 0.4, 3.7, 61.25, 3600.5]) expect(drawn(a.m, t)).toEqual(drawn(b.m, t));
     expect(drawn(a.m, 12.5)).toEqual(drawn(a.m, 12.5));
+    for (const p of ['sunrise', 'sunset', 'night'] as const) expect(drawn(a.m, 77.7, undefined, at(p))).toEqual(drawn(b.m, 77.7, undefined, at(p)));
   });
 
   it('holds still while frozen and moves when time runs, without repeating', () => {
@@ -120,21 +133,29 @@ describe('the coast’s water in motion (G6)', () => {
     expect(drawn(a.m, 10)).not.toEqual(drawn(a.m, 10 + 60));
   });
 
-  it('always has swell, foam at the rocks and wavelets on the beach; glints, rings and pool rings come and go', () => {
-    const sum = { glint: 0, ring: 0, pool: 0 };
+  it('always has swell crests, caustics, foam at the rocks and wavelets on the beach; breakers, glints, rings and pool rings come and go', () => {
+    const sum = { glint: 0, ring: 0, pool: 0, breaker: 0, swirl: 0 };
     let n = 0;
     for (let t = 0; t < 240; t += 0.37) {
       const v = a.m.visibleAt(t);
-      expect(v.swell, `t ${t}`).toBeGreaterThanOrEqual(20);
+      expect(v.crest, `t ${t}`).toBeGreaterThanOrEqual(25);
+      expect(v.swell, `t ${t}`).toBeGreaterThanOrEqual(5);
+      expect(v.caustic, `t ${t}`).toBe(1);
       expect(v.foam, `t ${t}`).toBe(WET_ROCKS.length);
-      expect(v.wavelet, `t ${t}`).toBeGreaterThanOrEqual(8);
+      expect(v.wavelet, `t ${t}`).toBe(9);
       expect(v.boat).toBe(1);
       sum.glint += v.glint;
       sum.ring += v.ring;
       sum.pool += v.pool;
+      sum.breaker += v.breaker;
+      sum.swirl += v.swirl;
       n++;
     }
-    expect(sum.glint / n).toBeGreaterThan(3);
+    // a lip forms on some reach about a quarter of the time; each crest rings every rock for a while
+    expect(sum.breaker / n).toBeGreaterThan(1);
+    expect(sum.breaker / n).toBeLessThan(5);
+    expect(sum.swirl / n).toBeGreaterThan(1);
+    expect(sum.glint / n).toBeGreaterThan(2);
     expect(sum.ring / n).toBeGreaterThan(0.1);
     expect(sum.ring / n).toBeLessThan(1);
     // a pool ring is rare: at most one on the go, and the pools are still most of the time
@@ -152,10 +173,19 @@ describe('the coast’s water in motion (G6)', () => {
           expect(near(q, SEA_WATER, 3), at).toBe(true);
           expect(WET_ROCKS.some((r) => pointInPolygon(q, r.outline)), at).toBe(false);
           expect(Math.abs(q.x - CAIQUE.x) < 40 && q.y > CAIQUE.y - 20 && q.y < CAIQUE.y, at).toBe(false);
+        } else if (k.element === 'crest') {
+          expect(near(q, SEA_WATER, 4), at).toBe(true);
+          expect(q.y, at).toBeGreaterThan(HORIZON);
+        } else if (k.element === 'caustic') expect(pointInPolygon(q, SHALLOWS) && pointInPolygon(q, SEA_WATER), at).toBe(true);
+        else if (k.element === 'breaker') {
+          expect(q.y - foamY(q.x), at).toBeGreaterThanOrEqual(-14);
+          expect(q.y - foamY(q.x), at).toBeLessThanOrEqual(0.5);
         } else if (k.element === 'wavelet') {
-          expect(q.y - foamY(q.x), at).toBeGreaterThanOrEqual(-1);
-          expect(q.y - foamY(q.x), at).toBeLessThan(14);
-        } else if (k.element === 'pool') expect(pointInPolygon(q, pools[k.index]!), at).toBe(true);
+          // the shore wave never climbs past its line
+          expect(q.y - foamY(q.x), at).toBeGreaterThanOrEqual(-0.5);
+          expect(q.y - foamY(q.x), at).toBeLessThanOrEqual(swashLimit(q.x) + 0.5);
+        } else if (k.element === 'swirl') expect(near(q, SEA_WATER, 4), at).toBe(true);
+        else if (k.element === 'pool') expect(pointInPolygon(q, pools[k.index]!), at).toBe(true);
         else if (k.element === 'ring') expect(near(q, SEA_WATER, 1), at).toBe(true);
         else if (k.element === 'lap') expect(near(q, SEA_WATER, 4), at).toBe(true);
         else if (k.element === 'foam') expect(near({ x: q.x, y: q.y + 3 }, SEA_WATER, 4), at).toBe(true);
@@ -230,15 +260,67 @@ describe('the coast’s water in motion (G6)', () => {
     for (let t = 0; t < 60; t += 0.29) {
       const { ctx, log, stats } = fakeCtx();
       a.m.under?.(ctx, t);
-      a.m.draw(ctx, t);
+      a.m.draw(ctx, t, at(t % 2 < 1 ? 'sunset' : 'night'));
       worst = Math.max(worst, log.length);
       worstArea = Math.max(worstArea, stats().area);
       worstClips = Math.max(worstClips, stats().clips);
     }
-    expect(worst).toBeLessThanOrEqual(160);
-    // world units²: under 16 % of the 1600 × 1000 painting, mostly the waterline's thin, clear sprites
-    expect(worstArea).toBeLessThan(260_000);
-    expect(worstClips).toBeLessThanOrEqual(6);
+    expect(worst).toBeLessThanOrEqual(BLITS);
+    // world units²: under a quarter of the 1600 × 1000 painting, mostly the crests' and the waterline's thin, clear sprites
+    expect(worstArea).toBeLessThan(400_000);
+    expect(worstClips).toBeLessThanOrEqual(7);
     expect(bounds(SEA_WATER).w).toBeGreaterThan(0);
+  });
+
+  it('lays its glints on a road under the low sun and the moon, and scatters a few at noon', () => {
+    const glints = (p: DayPhase) => {
+      const out: Pt[] = [];
+      for (let t = 0; t < 120; t += 0.21) out.push(...a.m.marksAt(t, at(p)).filter((k) => k.element === 'glint'));
+      return out;
+    };
+    const noon = glints('midday');
+    const sunset = glints('sunset');
+    const night = glints('night');
+    expect(sunset.length).toBeGreaterThan(2.5 * noon.length);
+    expect(noon.length).toBeGreaterThan(20);
+    const sx = sunDisc(at('sunset'), COAST_SKY_LAYOUT).x;
+    const mx = moonDisc(at('night'), COAST_SKY_LAYOUT).x;
+    const onRoad = (g: Pt[], x: number) => g.filter((q) => Math.abs(q.x - x) < 10 + 100 * Math.max(0, (q.y - HORIZON) / 350)).length / g.length;
+    expect(onRoad(sunset, sx)).toBeGreaterThan(0.95);
+    expect(onRoad(night, mx)).toBeGreaterThan(0.95);
+    expect(onRoad(noon, sx)).toBeLessThan(0.6);
+    // the road is dense far out under the sun and widens toward the beach
+    expect(sunset.filter((q) => q.y < HORIZON + 60).length).toBeGreaterThan(sunset.length / 3);
+  });
+
+  it('breaks each crest on the beach in turn: a lip out on the water, a run up, the draw back', () => {
+    const ups = Array.from({ length: 9 }, () => [] as number[]);
+    for (let t = 0; t < 120; t += 0.1) {
+      for (const k of a.m.marksAt(t)) if (k.element === 'wavelet') ups[k.index]!.push(k.y - foamY(k.x));
+    }
+    for (const run of ups) {
+      // up past half its reach every crest, and back down to the waterline between them
+      const top = Math.max(...run);
+      expect(top).toBeGreaterThan(5);
+      let crests = 0;
+      for (let i = 1; i < run.length; i++) if (run[i - 1]! < top / 2 && run[i]! >= top / 2) crests++;
+      expect(crests).toBeGreaterThanOrEqual(9);
+      expect(crests).toBeLessThanOrEqual(15);
+      expect(Math.min(...run)).toBeLessThan(0.5);
+    }
+  });
+
+  it('heaves the caique with the swell that passes it', () => {
+    let sxy = 0;
+    let sxx = 0;
+    let syy = 0;
+    for (let t = 0; t < 400; t += 0.25) {
+      const lift = swellAt(CAIQUE_DEPTH, CAIQUE.x, t).lift;
+      const dy = caiquePose(t).dy;
+      sxy += -lift * dy;
+      sxx += lift * lift;
+      syy += dy * dy;
+    }
+    expect(sxy / Math.sqrt(sxx * syy)).toBeGreaterThan(0.6);
   });
 });

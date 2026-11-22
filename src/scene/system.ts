@@ -708,7 +708,7 @@ export function createSceneSystem(opts: SceneSystemOptions = {}): SceneSystem {
           if (motionReady) motion?.under?.(ctx, f.t);
           sky?.drawWater(ctx);
           water.draw(ctx, f.t, light);
-          if (motionReady) motion?.draw(ctx, f.t);
+          if (motionReady) motion?.draw(ctx, f.t, light);
           ctx.globalAlpha = 1;
         }
       } else if (layer === 'lighting' && opts.showSlots) {

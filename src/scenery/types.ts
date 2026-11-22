@@ -4,7 +4,7 @@
  * docs/systems/scenery.md, docs/ARCHITECTURE.md › Sceneries.
  */
 import type { LightArt, LightPainters } from '../ambience/cast';
-import type { DayPhase } from '../ambience/daylight';
+import type { DayPhase, DaylightState } from '../ambience/daylight';
 import type { SceneryFauna } from '../fauna/habitat';
 import type { SkyLayout } from '../ambience/sky-layout';
 import type { Rng } from '../core/rng';
@@ -62,8 +62,8 @@ export interface SceneryAmbience {
 export interface SceneryMotion {
   /** paint its sprites once, in parts (the scene runs them between frames) */
   prepare(): Generator<void, void, undefined>;
-  /** draw at animation time `t` (seconds) in world units: a pure function of `t` */
-  draw(ctx: CanvasRenderingContext2D, t: number): void;
+  /** draw at animation time `t` (seconds) in world units: a pure function of `t` and the daylight it is given (ADR 0362) */
+  draw(ctx: CanvasRenderingContext2D, t: number, light?: DaylightState | null): void;
   /** draw under the mirrored sky and the generic water surface, pure in `t` (ADR 0374) */
   under?(ctx: CanvasRenderingContext2D, t: number): void;
 }

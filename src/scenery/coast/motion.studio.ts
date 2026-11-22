@@ -1,7 +1,9 @@
 /**
- * Studio: the coast's water in motion (G6, ADRs 0282, 0374): each place animated over the still
- * painting, strips of frames a second apart, and the motion's sprites. Pause the studio to hold a frame.
+ * Studio: the coast's water in motion (G6, GS1; ADRs 0282, 0374, 0362): each place animated over the
+ * still painting, strips of frames apart, the glints under each light, and the motion's sprites.
+ * Pause the studio to hold a frame. The light plates are not drawn here: sunset glints stay white.
  */
+import { pinnedState, type DaylightState, type DayPhase } from '../../ambience/daylight';
 import { makeCanvas, paperTexture, type AnyCanvas } from '../../paint';
 import type { Rect } from '../../render/viewport';
 import { paintSceneSync } from '../../scene/background';
@@ -41,7 +43,7 @@ function still(rect: Rect, seed: number, width: number, height: number): AnyCanv
 }
 
 /** one view of the water at `t` */
-function frame(canvas: AnyCanvas, rect: Rect, x: number, w: number, seed: number, t: number): void {
+function frame(canvas: AnyCanvas, rect: Rect, x: number, w: number, seed: number, t: number, light?: DaylightState): void {
   const ctx = canvas.getContext('2d') as CanvasRenderingContext2D;
   const h = canvas.height;
   const scale = w / rect.w;
@@ -53,12 +55,14 @@ function frame(canvas: AnyCanvas, rect: Rect, x: number, w: number, seed: number
   ctx.setTransform(scale, 0, 0, scale, x - rect.x * scale, -rect.y * scale);
   const m = motionFor(seed);
   m.under?.(ctx, t);
-  m.draw(ctx, t);
+  m.draw(ctx, t, light);
   ctx.restore();
 }
 
 /** the water moving (`animated`), or `frames` frames `step` seconds apart side by side */
-function moving(id: string, label: string, rect: Rect, w: number, frames = 1, step = 1): StudioEntry {
+const lit = (phase: DayPhase) => pinnedState({ sunrise: 0, midday: 0, sunset: 0, night: 0, [phase]: 1 });
+
+function moving(id: string, label: string, rect: Rect, w: number, frames = 1, step = 1, light?: DaylightState): StudioEntry {
   const gap = 8;
   return {
     id,
@@ -71,7 +75,7 @@ function moving(id: string, label: string, rect: Rect, w: number, frames = 1, st
       const fw = w * pixelRatio;
       ctx.fillStyle = '#ffffff';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
-      for (let i = 0; i < frames; i++) frame(canvas as AnyCanvas, rect, Math.round(i * (fw + gap * pixelRatio)), Math.round(fw), seed, t + i * step);
+      for (let i = 0; i < frames; i++) frame(canvas as AnyCanvas, rect, Math.round(i * (fw + gap * pixelRatio)), Math.round(fw), seed, t + i * step, light);
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.globalCompositeOperation = 'multiply';
       ctx.drawImage(paperTexture(canvas.width, canvas.height, 1) as CanvasImageSource, 0, 0);
@@ -109,6 +113,9 @@ const spriteSheet: StudioEntry = {
 };
 
 const COVE = { x: 0, y: 390, w: 940, h: 470 };
+const BAY = { x: -20, y: 396, w: 700, h: 400 };
+const BREAK = { x: 180, y: 712, w: 220, h: 80 };
+const SHALLOWS = { x: 120, y: 640, w: 260, h: 110 };
 const BEACH = { x: 260, y: 700, w: 300, h: 130 };
 const BOAT = { x: 330, y: 440, w: 150, h: 100 };
 const ROCKS = { x: 520, y: 600, w: 300, h: 200 };
@@ -127,6 +134,14 @@ const section: StudioSection = {
     moving('boat-frames', 'the caique a second apart', BOAT, 300, 4),
     moving('rocks', 'the bastion: foam swelling round the splash rocks and boulders, the lap along the ledge', ROCKS, 600),
     moving('pools', 'the rock pools: still mirrors, a slow ring now and then', POOLS, 700),
+    moving('swell', 'the swell (GS1): broken crests running in along lines of equal depth, closer and fainter far out, the shore break and the rocks keeping their time', BAY, 900),
+    moving('swell-frames', 'the swell two seconds apart: a crest moves in by about one gap in ten seconds', BAY, 440, 4, 2),
+    moving('shore-break', 'the shore break (GS1): a lip forms out on the water, runs up the shingle, pauses, slides back; the wet sand dries', BREAK, 700),
+    moving('shore-break-frames', 'the shore break half a second apart', BREAK, 220, 8, 0.5),
+    moving('caustics', 'the light netting the sandy shallows: two nets sliding apart, slowly breathing', SHALLOWS, 700),
+    moving('glints-sunset', 'the glints at sunset: a glittering road under the sun (white here: the light plate warms them in the garden)', BAY, 900, 1, 1, lit('sunset')),
+    moving('glints-night', 'the glints at night: a narrower road under the moon', BAY, 900, 1, 1, lit('night')),
+    moving('glints-noon', 'the glints at noon: a few scattered over the near water', BAY, 900, 1, 1, lit('midday')),
     spriteSheet,
   ],
 };

@@ -74,6 +74,7 @@ The Japanese garden's painters stay in `src/scene/` (docs/systems/scene.md): its
 | `coast/flora.ts`, `coast/fauna.ts` | `COAST_FLORA` (ADR 0361; offers the five shared species and the ice plant so far); `COAST_FAUNA` (empty) and `COAST_WILDLIFE` |
 | `coast/painters.ts`, `coast/paint-placeholder.ts` | the lazy chunk: `coastSteps` runs draft B's steps moved onto the final layout; `COAST_PAINTERS_LOADED` |
 | `coast/sky.ts`, `coast/light.ts` | placeholders: one wash per phase cut to the skyline with a low glow over the sea, a mirrored sea sky; a shade under the promontory and the walls, warm light on the temple at low suns |
+| `coast/swell.ts`, `coast/motion.ts`, `coast/pose.ts`, `coast/motion.studio.ts` | the sea in motion (G6, GS1; ADRs 0282, 0374, 0362): the swell's crest schedule (eager data: `SWELL`, `arrival`, `crestDepth`, `swellAt`, `swashLimit`), the motion (`createCoastMotion`), the caique's pose, studio `coast-motion` (159) |
 | `coast/sea.ts`, `coast/paint-water.ts`, `coast/boat.ts`, `coast/water.studio.ts` | the water (G3, ADR 0366): its shapes (eager data: depth lines, seabed, reflections, the caique, foam and wrack lines), its painters (`paintSea`, `paintBeach`, `paintPools`, `paintCaique`), studio `coast-water` (153) |
 | `coast/map.studio.ts` | studio `coast-map` (152): the composition map over the placeholder painting (`map`), and the painting under the midday plate (`painting`) |
 | `coast/coast.test.ts` | see Tests |
@@ -1144,53 +1145,81 @@ The painting is on white with no sky step; the sky is the daylight's plates (doc
   light plates' marks 72–98 ms (night 1). The oasis's on the same run: sky 105–221, basin 41–70,
   light 70–135. Each plate is one task, as in every garden.
 
-### Motion (G6, `motion.ts`, `pose.ts`, ADRs 0282, 0374)
+### Motion (G6, GS1; `motion.ts`, `swell.ts`, `pose.ts`; ADRs 0282, 0374, 0362)
 `createCoastMotion` is `COAST.motion`, in the coast's lazy chunk. Like the oasis's (Oasis ›
-Motion) it goes over the still painting, about 60 sprites painted once in parts and sealed into
+Motion) it goes over the still painting, about 95 sprites painted once in parts and sealed into
 `ImageBitmap`s; each frame blits them as a pure function of `t` (the renderer's animation time,
-which `freeze()` holds; tempo 1). All of it is slow and faint: nothing should pull the eye from the
-plants.
-- **Swell** (clip: `SEA_WATER` less every rock outline): 80 pale streaks (two or three soft lifted
-  pieces over a faint teal trough) and 22 longer troughs drift in toward the beach at 1.1 units/s
-  times `seaScale(y)` (nothing at the horizon, 1 by the beach), each living 7–13 s. 20 glints
-  (a white dash over a teal trough) flicker 1–2.6 s, mostly far out. Each mark draws its start from
-  29 places picked once (more toward the horizon, 0.3 as often over the pale shallows, 0.1 for
-  glints, none near rock or the boat, start and end in the sea), so a mark repeats a place after
-  29 passes (4–7 min) and no two share a cycle.
-- **Waterline** (clip: a band along `FOAM_LINE` less the rocks): nine overlapping reaches, each
-  with a lace (scalloped broken foam and bubbles), a wet band (`SAND.wetDark`) and a sheet of water
-  (`SEA.aqua`), their ends feathered. Every 7–11.5 s, out of phase, a reach runs 4–10 units up the
-  shingle in the first third (ease out), the lace brightening and the sheet following, then draws
-  back while the wet band left at the top dries.
-- **Rocks** (clip as the swell): a foam ring along each wet boulder's and splash rock's foot (from
-  their `columns`, curling up behind at both ends) swells out 2 units and 9 % wider and fades,
-  every 5.5–9 s. The ledge's lips (`SHORE_RUNS.lip` above the flight) and the cliff's foot
-  (`CLIFF_FOOT` in 45-unit stretches, feathered) lap the same way, 6–10 s.
+which `freeze()` holds; tempo 1) and of the daylight the scene passes to `draw` (ADR 0362). The sea
+should read as alive at the overview and stay calm: slow, soft, nothing flashing, nothing looping.
+- **The swell** (`swell.ts`, eager, pure in `t`): one schedule every moving part reads. Crest `n`
+  breaks at `n · 10.6 s` ± 1.6 s (seeded), with a seeded strength 0.35–1 in sets of about seven. It
+  is born at the horizon and runs in at `2 + 0.011 · g` units of depth a second (g up from the
+  horizon): slow and close far out, about 6 units a second at the beach, some 100 s from horizon
+  to break. The break peels left to right along the beach over 2.6 s (`delayAt(x)`).
+  `swellAt(depth, x, t)` gives the water's height anywhere (sharp crests, long flat troughs,
+  continuous in `t`). Depth is `depthOf(q)`: the shore distance unstretched (`SEA_STRETCH`).
+- **Crests** (clip: `SEA_WATER` less every rock outline): each crest is broken into pieces along a
+  line of equal depth (`shoreContour` at 54 depths, closer near the shore, built one per part), so
+  it bends round the coves and the headland. A piece is a band sprite (a long soft lit back over a
+  darker face, 160 × 18 units) turned to its line, thinner and fainter far out (`seaScale`), fading
+  in under the horizon and out at the break, dimmed by the boat and gone where its line climbs
+  steeply. Eleven ways of breaking a crest into pieces, taken by its number.
+- **Catspaws**: 34 short pale streaks and 8 troughs drift slowly in (0.6 units/s × `seaScale`),
+  each from 29 places picked once, as before (G6).
+- **Caustics** (clip: the pale shallows, `shoreward(shallowsEdge())`): a 128 px tile of a net of
+  light lines (the edges of cells on a torus) filled twice as a pattern, foreshortened, sliding
+  apart at 0.4–0.6 units/s and breathing; alpha 0.26–0.34 at noon, less at the low suns, none at
+  night (only the sun nets the sand); under the crests. Two fills, no blits.
+- **Glints**: 128 twinkle slots (each a 0.5–1.4 s life on a 1.4–3.6 s cycle) pick, per pass, a
+  low-sun road (sunrise + sunset weight), the moon's road (night weight × the moon's light) or a
+  scatter over the near water (midday × 0.3), else stay dark. A road lies under `sunDisc`'s or
+  `moonDisc`'s x, dense near the horizon and widening toward the beach; a glint is a small hard
+  lifted spark or a small cluster, over a teal shade so it reads on bright water. The light plates
+  tint them: pale gold at sunset, blue-white at night.
+- **The shore break** (clip: a band along `FOAM_LINE`, 18 units out to 26 up the shingle, less the
+  rocks and the pine's trunk): nine overlapping reaches, each with a breaker (a broken white lip over a darker face), a
+  lace, a wet band (`SAND.wetDark`) and a sheet of water (`SEA.aqua`), their ends feathered. Each
+  crest: the lip forms 13 units out and comes in over 2.6 s, then runs on as the leading edge of
+  the sheet up the shingle, 7–20 units (`7 + 13 · strength`, never past `swashLimit(x)`, which
+  keeps it 12 units short of every beach slot) in 2.2 s; it rests 0.7 s and slides back over
+  3.8 s; the wet band left at the top dries over 6.5 s. The sheet sprite reaches back up over the
+  waterline, so drawn a run's length down it covers the sand behind its edge. A thin lace stays
+  at the waterline between crests.
+- **Water meeting stone**: the foam ring at each wet boulder's and splash rock's foot rises and
+  swells out with the swell there (`swellAt` at the rock's depth), and each crest leaves a ring
+  spreading round the foot over 4.4 s. The ledge's lips and the cliff's foot lap with the crests
+  that reach them.
 - **Pools** (clip: `POOL_WATER`): still mirrors; now and then (a 29–47 s cycle, about half the
   passes) one small ring spreads over 9 s.
 - **Caique** (ADR 0374): `under` draws a plate of the sea painted without the boat (the painting's
   own `sea` step over `CAIQUE_BOX`, 5 px a unit, feathered over 6 units) and the reflection, mirrored
   to the pose (its lifts over the water, its colours multiplied in), before the mirrored sky. `draw`
-  then adds a ring spreading from the hull now and then (two cycles, 16–27 s), the mooring line as
-  a thin stroke from the posed stem to the water, the hull and rig carried by the pose and clipped
-  at the water line (the keel runs on under it), and the buoy bobbing on its own.
+  then adds a ring spreading from the hull as a strong crest lifts it, the mooring line as a thin
+  stroke from the posed stem to the water, the hull and rig carried by the pose and clipped at the
+  water line (the keel runs on under it), and the buoy bobbing on its own.
 - **The pose** (`pose.ts`, eager): `caiquePose(t, out?)` → `{ dx, dy, angle }` about `CAIQUE`, the
-  angle clockwise in radians: two bobs (6.7 and 3.9 s) and two rolls (8.3 and 4.7 s) and a slow
-  surge on the mooring (23.3 s), within `CAIQUE_SWING` (0.9, 1.15 units, 1.9°). `posePoint(q, pose)`
-  carries a point of the boat at rest. Each `draw` writes the pose into
+  angle clockwise in radians: the swell's heave at the caique's depth (0.65 units, with a little
+  pitch as the crest reaches the bow first), a chop (6.7 and 3.9 s), two rolls (8.3 and 4.7 s) and
+  a slow surge on the mooring (23.3 s), within `CAIQUE_SWING` (0.9, 1.25 units, 1.9°).
+  `posePoint(q, pose)` carries a point of the boat at rest. Each `draw` writes the pose into
   `COAST_CARRIERS.caique.pose` (ADR 0373), so a perch on the mast or the rail rides the boat via
   `carried`. Under reduced motion nothing writes it: it stays at rest, on the painted boat.
 - **Layers**: everything is on `waterSurface`, under `entities`: a plant in the shallows (the
   Posidonia) or a pool is drawn over the marks, which pass under it as if it stood above the
   surface; the marks never draw on a plant. The light plates are multiplied over the marks, so
-  noon, the low suns and night tint them like the painting (white lights go moonlit blue at night).
+  noon, the low suns and night tint them like the painting. The fish (`underwater`) are under the
+  marks: the caustics and crests are faint enough to leave them readable.
 - **The generic surface** is off (`pondSurface: 0`): its shimmer bands and rings landed anywhere on
   the open sea and doubled the swell; with it off, reduced motion leaves the sea a still painting.
-- **Cost**: at most 160 blits, 6 clips and 1 stroke a frame (tested), every clip a cached
-  `Path2D`, no allocation per mark. `MOTION_BOXES` skip what the view misses and `MOTION_BOUNDS`
-  the whole draw. Bench numbers in devlog 184.
+- **Cost**: at most 300 blits, 2 pattern fills, 7 clips and 1 stroke a frame (tested), every
+  clip a cached `Path2D`, no allocation per mark. `MOTION_BOXES` skip what the view misses and
+  `MOTION_BOUNDS` the whole draw. Bench numbers in devlogs 184 and 213.
+- **Looking at it**: `sprout.advance` moves the dev clock, not `t`. To see frames at chosen times,
+  replace `requestAnimationFrame` with a queue after `sprout.freeze()`, `unfreeze()`, and call the
+  queued frame with timestamps 50 ms apart (devlog 213); or the studio's strips.
 - Studio `coast-motion` (159): `cove`, `cove-frames`, `beach`, `beach-frames`, `boat`,
-  `boat-frames`, `rocks`, `pools`, `coast-motion-sprites`.
+  `boat-frames`, `rocks`, `pools`, `swell`, `swell-frames`, `shore-break`, `shore-break-frames`,
+  `caustics`, `glints-sunset`, `glints-night`, `glints-noon`, `coast-motion-sprites`.
 
 ### Left for later tasks
 - Water (devlog 176, Left open): the far hill's reflection is faint, the shingle's spatter still
@@ -1201,8 +1230,10 @@ plants.
 - Daylight: the white puff behind the temple's base between the first and second columns is the placeholder midday sky plate's (its wash leaves a rounded hole there; the background paints the sky as paper, devlog 180). Real plates lit from the left; the architrave, the capitals and the crowns sit under the
   sky's wash, and the skyline's 2-unit reach either side of each column leaves a pale sky-tinted
   band down the columns' sides.
-- Motion (devlog 184, Left open): the bastion's ledge faces have no moving foam of their own
-  (only the lips, the cliff's foot and the boulders); `sprout.advance` does not move the water.
+- Motion (devlogs 184, 213, Left open): the bastion's ledge faces have no moving foam of their own
+  (only the lips, the cliff's foot and the boulders); `sprout.advance` does not move the water; the
+  sunset glints are pale on the bright road (the light plate multiplies them like the water); no
+  overcast light, so glints ignore the weather.
 - Wildlife (devlog 183, Left open): no perch on the chapel or the village (too far for a bird to
   read); the first splash rock's top is all slot.
 - Daylight (devlog 182, Left open): the promontory's face reads cool grey rather than rose at
@@ -1218,11 +1249,18 @@ plants.
   the deep and off the dark seabed, most on sandy windows; pool slots in a pool; beach slots on
   the beach below the foam; the caique on open water, clear of every slot, the reflections below
   the horizon.
-- `src/scenery/coast/motion.test.ts` (G6): the motion is pure in `t`, holds when frozen, always has
-  swell, rock foam and wavelets, glints, rings and pool rings come and go; every mark in its water
-  and off rock and the boat; the pose bounded, continuous and inside the plate; the pose written
-  into the caique's carrier (a mast perch follows it), at rest under reduced motion, where nothing
-  is drawn; nothing off screen; at most 160 blits and 6 clips a frame.
+- `src/scenery/coast/motion.test.ts` (G6, GS1): the motion is pure in `t` and the light, holds when
+  frozen, always has crests, catspaws, caustics, rock foam and wavelets; breakers, glints, rock
+  rings, hull rings and pool rings come and go; every mark in its water and off rock and the boat,
+  the shore wave never past its line; glints on a road under the low sun and the moon, scattered at
+  noon; every reach breaks once a crest; the caique heaves with the swell at its depth; the pose
+  bounded, continuous and inside the plate; the pose written into the caique's carrier (a mast perch
+  follows it), at rest under reduced motion, where nothing is drawn; nothing off screen; at most 300
+  blits and 7 clips a frame.
+- `src/scenery/coast/swell.test.ts` (GS1): crests in order about a period apart in uneven sets; the
+  latest crest for any time; a crest's run in from the horizon to the break (slower far out); the
+  break peeling left to right; the water's height bounded, continuous, highest under a crest; no
+  wave run up to a beach slot.
 - `src/scenery/coast/coast.test.ts` (G1): offered only with `?dev&scenery=coast`; self-consistency
   with no building, lantern, eave, falls or streams, and its motion; its placeholder steps by element;
   habitat words; `pathOut` from the bottom edge up the terraces; the framing (the temple, open sea,
