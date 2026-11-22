@@ -6,6 +6,8 @@
 import type { Rng } from '../../core/rng';
 import { PAPER_WHITE, blob, mix, resample, ribbon, rgba, smoothPath, type Painter, type Pigment } from '../../paint';
 import type { Pt } from '../../render/viewport';
+import type { Strokes } from '../../scene/paint-land';
+import { pacer } from '../oasis/paint-pace';
 import { C } from './drafts/b/paint';
 import {
   BEACH, CAIQUE, HORIZON, LAND, OLIVE, PATH, PINE, POOLS, SHORE_SCRUB, STEPS, WALLS, WATERLINE_EDGE,
@@ -57,22 +59,26 @@ export function paintCaique(p: Painter, rng: Rng): void {
   p.glaze(blob(x, y + 6, 50, 5, rng), C.seaFar, { rng, opacity: 0.3, edge: 0 });
 }
 
-export function paintShore(p: Painter, rng: Rng): void {
+export function* paintShore(p: Painter, rng: Rng): Strokes {
   const beach = poly(BEACH);
   reserve(p, beach);
-  p.wetInWet(beach, C.sand, mix(C.sand, C.sandShade, 0.5), { rng, angle: Math.PI / 2, split: 0.5, opacity: 0.7, deform: 0.05, edge: 0.15, granulation: 0.55, granules: 0.3 });
+  yield* p.parts.wetInWet(beach, C.sand, mix(C.sand, C.sandShade, 0.5), { rng, angle: Math.PI / 2, split: 0.5, opacity: 0.7, deform: 0.05, edge: 0.15, granulation: 0.55, granules: 0.3 });
+  const pace = pacer(20);
   for (let i = 0; i < 80; i++) {
     p.dab({ x: rng.range(0, 620), y: rng.range(820, 900) }, mix(C.rockShade, C.sandShade, rng.next()), { rng, variant: 'round', length: rng.range(4, 9), width: rng.range(3, 6), opacity: 0.5 });
+    if (pace()) yield;
   }
   const lap = resample(smoothPath(poly(WATERLINE_EDGE), 6), 10);
   p.stroke(lap.map((q) => ({ x: q.x, y: q.y + 6 })), { rng, pigment: C.sandShade, width: 8, opacity: 0.35, wetness: 0.6 });
+  yield;
   p.stroke(lap.map((q) => ({ x: q.x, y: q.y - 3 })), { rng, pigment: PAPER_WHITE, width: 5, opacity: 0.9, blend: 'source-over', wetness: 0.3 });
+  yield;
   for (const pool of POOLS) {
     const b = blob(pool.cx, pool.cy, pool.rx, pool.ry, rng, { irregularity: 0.25 });
-    p.wash(blob(pool.cx, pool.cy + 3, pool.rx + 6, pool.ry + 4, rng), C.rockShade, { rng, opacity: 0.5, edge: 0.2 });
+    yield* p.parts.wash(blob(pool.cx, pool.cy + 3, pool.rx + 6, pool.ry + 4, rng), C.rockShade, { rng, opacity: 0.5, edge: 0.2 });
     reserve(p, b);
-    p.wetInWet(b, C.shallows, C.seaMid, { rng, angle: Math.PI / 2, split: 0.5, opacity: 0.75, edge: 0.3, sharpness: 0.8 });
-    p.lift({ cx: pool.cx - pool.rx * 0.3, cy: pool.cy - pool.ry * 0.3, rx: pool.rx * 0.4, ry: 1.5 }, { rng, amount: 0.5, layers: 3 });
+    yield* p.parts.wetInWet(b, C.shallows, C.seaMid, { rng, angle: Math.PI / 2, split: 0.5, opacity: 0.75, edge: 0.3, sharpness: 0.8 });
+    yield* p.parts.lift({ cx: pool.cx - pool.rx * 0.3, cy: pool.cy - pool.ry * 0.3, rx: pool.rx * 0.4, ry: 1.5 }, { rng, amount: 0.5, layers: 3 });
   }
 }
 
