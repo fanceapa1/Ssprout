@@ -469,8 +469,9 @@ The garden can be looked at closely, like leaning into a painting.
   watering and reflections follow the view.
 - **Plant card.** Clicking or tapping a plant (where it is painted, not its empty box; the
   front-most wins; the cursor shows a hand over plants) glides onto it and opens a washi card:
-  the species and its Japanese name; a short note on its place in Japanese gardens and culture
-  (every species has one); its poetic line; and the plant's own story — what it was planted for,
+  the species and its native name in the language of the garden it grows in; a short note on its
+  place in that garden's land and culture (every species has one); its poetic line (a species two
+  gardens share speaks each garden's words, ADR 0385); and the plant's own story — what it was planted for,
   minutes of study, the day it was planted; for a seedling its growth and time to go (or that it
   rests while paused or waits while another session is active); the plant it replaced. On wide
   screens the card stands beside the plant; on phones it docks at the bottom of the garden and
