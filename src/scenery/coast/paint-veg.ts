@@ -63,41 +63,53 @@ interface Clump {
 
 /** A clump as a cloud of small scalloped lobes over a flat bottom, top to bottom. */
 function lobes(c: Clump, rng: Rng): Pt[][] {
-  const n = Math.max(4, Math.min(16, Math.round((c.rx / c.ry) * 3.2 + 1)));
+  const n = Math.max(6, Math.min(24, Math.round((c.rx / c.ry) * 4.5 + 2)));
   const out: { y: number; poly: Pt[] }[] = [];
   for (let k = 0; k < n; k++) {
     const a = rng.range(0, Math.PI * 2);
     const d = Math.sqrt(rng.next());
-    const r = c.ry * rng.range(0.42, 0.7);
+    const r = c.ry * rng.range(0.32, 0.56);
     const x = c.x + Math.cos(a) * (c.rx - r) * d;
     const y = Math.min(c.y + c.ry * 0.45 - r * 0.5, c.y + Math.sin(a) * (c.ry - r * 0.6) * d);
-    out.push({ y, poly: blob(x, y, r * rng.range(1, 1.35), r, rng, { points: 12, irregularity: 0.3, scallop: 0.3, scallops: 5, flatBottom: 0.3 }) });
+    out.push({ y, poly: blob(x, y, r * rng.range(1, 1.35), r, rng, { points: 18, irregularity: 0.25, scallop: 0.35, scallops: 6, flatBottom: 0.3 }) });
   }
   return out.sort((p, q) => p.y - q.y).map((o) => o.poly);
 }
 
-/** Clumps in two batched layers: the lobes' lit body, then each lobe's shade on its lower right. */
+/**
+ * Clumps in two batched layers: the lobes' body, lifted where the sun catches the dome's upper
+ * left; then the shade, gathered in the clump's foot and in the lowest lobes' lower right (GA1:
+ * a crescent on every lobe read as cut paper).
+ */
 function* clumps(p: Painter, list: readonly Clump[], rng: Rng, sample: Rect, dry: DryOptions): Strokes {
   const all = list.map((c) => ({ c, lobes: lobes(c, rng) })).filter((x) => inView(p, padRect(bounds(x.lobes.flat()), 6)));
   if (!all.length) return;
   const area = padRect(bounds(all.flatMap((x) => x.lobes.flat())), 6);
   const B = batchLayer(p, area, sample, 4);
   if (B.empty) return;
-  for (const { c, lobes: ls } of all) for (const l of ls) B.fill(l, c.lit, c.a * 0.6);
+  for (const { c, lobes: ls } of all) for (const l of ls) B.fill(l, c.lit, c.a * 0.66);
+  for (const { c, lobes: ls } of all) {
+    for (const l of ls.slice(0, Math.ceil(ls.length / 2))) {
+      const b = bounds(l);
+      if (b.x + b.w / 2 > c.x + c.rx * 0.35) continue;
+      B.lift(blob(b.x + b.w * 0.38, b.y + b.h * 0.32, b.w * 0.3, b.h * 0.24, rng, { irregularity: 0.4, points: 10 }), 0.6);
+    }
+  }
   B.flush();
   yield;
-  yield* B.dryParts(dry);
+  yield* B.dryParts({ ...dry, edge: Math.min(dry.edge ?? 0.4, 0.2), sharpness: Math.min(dry.sharpness ?? 0.6, 0.4) });
   const D = batchLayer(p, area, sample, 4);
   for (const { c, lobes: ls } of all) {
-    for (const l of ls) {
+    D.fill(blob(c.x + c.rx * 0.12, c.y + c.ry * 0.2, c.rx * 0.95, c.ry * 0.5, rng, { irregularity: 0.35, points: 16, flatBottom: 0.4 }), c.dark, c.a * 0.7);
+    for (const l of ls.slice(Math.floor(ls.length / 2))) {
       const b = bounds(l);
-      D.fill(l, c.dark, c.a * 0.75);
-      D.lift(l.map((q) => ({ x: q.x - b.w * 0.16, y: q.y - b.h * 0.34 })), 1);
+      D.fill(l, c.dark, c.a * 0.35);
+      D.lift(l.map((q) => ({ x: q.x - b.w * 0.2, y: q.y - b.h * 0.4 })), 1);
     }
   }
   D.flush();
   yield;
-  yield* D.dryParts({ ...dry, opacity: (dry.opacity ?? 0.8) * 0.9 });
+  yield* D.dryParts({ ...dry, opacity: (dry.opacity ?? 0.8) * 0.9, edge: Math.min(dry.edge ?? 0.4, 0.15), sharpness: Math.min(dry.sharpness ?? 0.6, 0.35) });
 }
 
 const CLUMP_DRY: DryOptions = { opacity: 0.85, edge: 0.4, edgeWidth: 0.9, sharpness: 0.6, centreLift: 0.2, granulation: 0.4, granules: 0.15, flow: 0.4, flowScale: 8 };
