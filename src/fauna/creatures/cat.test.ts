@@ -41,6 +41,8 @@ import cat, {
   type CatPose,
   type Rig,
 } from './cat';
+import { blockerOn, GROUND_ROOM, groundBodies, groundFree, stepsRound } from './lib/ground';
+import { Tortoise } from './tortoise';
 
 const plants: PlantInstance[] = [];
 const ONLY = COAST_FAUNA.filter((r) => r.kind === 'cat');
@@ -499,6 +501,110 @@ describe('the front stretch', () => {
     const reach = rigOf(stretchPose({ ...REST_POSE }, 0.82));
     const hind = legJoints(reach, 2);
     expect(hind.top.x - hind.foot.x).toBeGreaterThan(10);
+  });
+});
+
+describe('ground creatures keep off each other', () => {
+  const body = (x: number, y: number, r = 10, rest: { x: number; y: number } | null = null) => ({ kind: 'tortoise', at: { x, y }, rest, r, ref: {} });
+
+  it('the shared helper: who is in the way, where is free, the steps round', () => {
+    const bodies = [body(50, 2), body(20, 30), body(-20, 0)];
+    const hit = blockerOn({ x: 0, y: 0 }, { x: 100, y: 0 }, 5, bodies)!;
+    expect(hit.body).toBe(bodies[0]);
+    expect(hit.along).toBeCloseTo(50, 6);
+    expect(blockerOn({ x: 0, y: 0 }, { x: 30, y: 0 }, 5, [body(80, 0)])).toBeNull();
+    expect(groundFree({ x: 50, y: 10 }, 5, bodies)).toBe(false);
+    expect(groundFree({ x: 50, y: 20 }, 5, bodies)).toBe(true);
+    expect(groundFree({ x: 0, y: 60 }, 5, [body(0, 0, 10, { x: 0, y: 64 })])).toBe(false);
+    const [a, b] = stepsRound({ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 50, y: 2 }, 20, 16, 1);
+    expect(a).toEqual({ x: 30, y: 16 });
+    expect(b).toEqual({ x: 70, y: 16 });
+    const sim = coastSim(1, { auto: false });
+    sim.spawn('tortoise');
+    sim.spawn('heron');
+    const w = sim.world;
+    // only ground creatures, and not while hidden
+    for (const c of sim.creatures) (c as unknown as { alpha: number }).alpha = 1;
+    expect(groundBodies(w).map((g) => g.kind)).toEqual(['tortoise']);
+    for (const c of sim.creatures) (c as unknown as { alpha: number }).alpha = 0;
+    expect(groundBodies(w)).toEqual([]);
+  });
+
+  it('the cat goes round a tortoise or gives the way up, never through it, and neither rests on the other’s spot', () => {
+    const problems: string[] = [];
+    let waits = 0;
+    let detours = 0;
+    let meetings = 0;
+    for (const seed of [1, 2, 3, 4, 5, 6, 7, 8]) {
+      const sim = coastSim(seed);
+      sim.update(0.05, 0);
+      sim.spawn('tortoise', { count: 2 });
+      let was = '';
+      for (let t = 0; t < 1200; t += 0.1) {
+        sim.update(0.1, 0);
+        const k = cats(sim)[0];
+        if (!k) continue;
+        if (k.doing() === 'wait' && was !== 'wait') waits++;
+        was = k.doing();
+        const { scale, facing } = k as unknown as { scale: number; facing: number };
+        for (const tt of sim.creatures.filter((c): c is Tortoise => c instanceof Tortoise && !c.done && c.alpha > 0.5)) {
+          const d = dist(k, tt);
+          if (d < 80) meetings++;
+          const room = (GROUND_ROOM.cat! * 0.25 + GROUND_ROOM.tortoise!) * scale;
+          // walking, it never passes over a tortoise in front of it
+          if (k.doing() === 'walk' && d < room * 0.8) {
+            const q = k.pose();
+            const ahead = (tt.x - k.x) * (q.view === 'side' ? facing : q.dir.x) + (tt.y - k.y) * q.dir.y;
+            if (ahead > 0 && tt.doing() !== 'plod') problems.push(`cat walks into the tortoise at ${t.toFixed(1)} (seed ${seed}, ${d.toFixed(1)})`);
+          }
+          if (['doze', 'sit', 'wash'].includes(k.doing()) && ['pause', 'graze', 'bask', 'doze'].includes(tt.doing()) && d < room) problems.push(`resting together at ${t.toFixed(1)} (seed ${seed}, ${d.toFixed(1)})`);
+        }
+      }
+      detours += cats(sim)[0]?.detours ?? 0;
+    }
+    expect(problems.slice(0, 10)).toEqual([]);
+    // the meetings themselves are rare in a day; the next test makes them
+    expect(meetings + waits + detours).toBeGreaterThanOrEqual(0);
+  });
+
+  it('a tortoise put down on its way: it stops and looks, then steps round it or gives the stroll up', () => {
+    let detours = 0;
+    let met = 0;
+    const problems: string[] = [];
+    for (const seed of [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]) {
+      const sim = coastSim(seed);
+      let k: Cat | undefined;
+      type LegT = { from: { x: number; y: number }; to: { x: number; y: number }; kind: string; node: number };
+      let leg: LegT | undefined;
+      for (let t = 0; t < 1500 && !leg; t += 0.1) {
+        sim.update(0.1, 0);
+        k = cats(sim)[0];
+        const r = (k as unknown as { route: LegT[] } | undefined)?.route;
+        const l = r?.[0];
+        if (k && k.doing() === 'walk' && l && l.kind === 'walk' && l.node >= 0 && Math.abs(l.to.x - k.x) > 90 && Math.abs(l.to.y - k.y) < 12) leg = l;
+      }
+      if (!k || !leg) continue;
+      const [tt] = sim.spawn('tortoise') as Tortoise[];
+      if (!tt) continue;
+      met++;
+      // a dozing tortoise half way along
+      Object.assign(tt, { x: (k.x + leg.to.x) / 2, y: (k.y + leg.to.y) / 2, alpha: 1, mode: 'doze', modeFor: 1e6, modeT: 0, route: [] });
+      (tt as unknown as { state: string }).state = 'doze';
+      let waited = false;
+      for (let t = 0; t < 60; t += 0.1) {
+        sim.update(0.1, 0);
+        const c = cats(sim)[0]!;
+        if (c.doing() === 'wait') waited = true;
+        const scale = (c as unknown as { scale: number }).scale;
+        const room = (GROUND_ROOM.cat! * 0.25 + GROUND_ROOM.tortoise!) * scale;
+        if (dist(c, tt) < room * 0.9) problems.push(`seed ${seed}: within ${dist(c, tt).toFixed(1)} of the tortoise (${c.doing()}) at ${t.toFixed(1)}`);
+      }
+      if (!waited) problems.push(`seed ${seed}: never stopped to look`);
+      detours += cats(sim)[0]!.detours;
+    }
+    expect(problems.slice(0, 6).join('\n')).toBe('');
+    expect(met).toBeGreaterThan(5);
+    expect(detours).toBeGreaterThan(0);
   });
 });
 

@@ -10,6 +10,7 @@ import { perchY, type GroundSpot, type Perch } from '../targets';
 import { BaseCreature, type Ctx, type FaunaWorld } from '../types';
 import { heldSpots } from './bird';
 import type { CreatureDef } from './lib/def';
+import { blockerOn, GROUND_ROOM, groundBodies, groundFree, stepsRound, type GroundBody } from './lib/ground';
 
 /** Drawn a little larger than life (about 55 cm nose to rump) so the outline reads at the overview. */
 export const CAT_K = 1.2;
@@ -41,6 +42,8 @@ export const CAT_TUNING = {
   meet: 0.14,
   /** seconds of turning to or from the viewer */
   turn: 0.45,
+  /** seconds it stops to look at a creature in its way before it steps round (or gives the way up) */
+  look: [0.8, 1.8] as const,
   /** where it settles next: a sunny coping, the olive's shade, another walk or the path */
   weights: { coping: 0.55, shade: 0.3, ground: 0.15 },
 };
@@ -1113,14 +1116,33 @@ function nearestNode(map: CatMap, q: Pt): number {
 
 // ---------------------------------------------------------------------------------------------
 
-type Mode = 'doze' | 'wake' | 'stretch' | 'sit' | 'wash' | 'walk' | 'crouch' | 'leap' | 'land' | 'dusk' | 'turn';
+type Mode = 'doze' | 'wake' | 'stretch' | 'sit' | 'wash' | 'walk' | 'crouch' | 'leap' | 'land' | 'dusk' | 'turn' | 'wait';
 
 interface Leg {
   kind: 'walk' | 'jump' | 'off';
   from: Pt;
   to: Pt;
-  /** node it arrives at (−1: off the view) */
+  /** node it arrives at (−1: off the view or a step round something) */
   node: number;
+  /** a step round another creature: it stays side-on */
+  round?: boolean;
+}
+
+/** Room the cat keeps (`GROUND_ROOM`); where it settles it wants half of it clear. */
+const ROOM = GROUND_ROOM.cat!;
+/** how near its side may pass another creature (with that one's own room): near enough to brush past, never over it */
+const PASS = ROOM * 0.25;
+
+/** Where it may put its feet stepping round something: clear of the plants and on a walk or the path of its terrace. */
+export function walkable(w: MapWorld, q: Pt, terrace: number): boolean {
+  if (!clearAt(w, q)) return false;
+  return w.ground.some((g) => terraceOf(g.id) === terrace && ((q.x - g.x) / g.rx) ** 2 + ((q.y - g.y) / (g.ry + 8)) ** 2 <= 1);
+}
+
+/** The places others hold: their spots, and where every ground creature is now. */
+function takenBy(w: FaunaWorld, self: object, bodies: readonly GroundBody[]): Pt[] {
+  const near = (h: Pt) => h.x === (self as Cat).x && h.y === (self as Cat).y;
+  return [...heldSpots(w).filter((h) => !near(h)), ...bodies.map((b) => b.at)];
 }
 
 const isPainted = (q: CatPose) => !q.rig && q.view === 'side' && SPRITE_SHAPES.includes(q.shape);
@@ -1148,13 +1170,14 @@ export class Cat extends BaseCreature {
   readonly kind = 'cat' as const;
   readonly visitor = false;
   readonly coat: CatCoat;
-  /** for tests: dozes, stretches, washes, jumps, strolls, turns to or from the viewer */
+  /** for tests: dozes, stretches, washes, jumps, strolls, turns to or from the viewer, steps round */
   dozes = 0;
   stretches = 0;
   washes = 0;
   jumps = 0;
   strolls = 0;
   turns = 0;
+  detours = 0;
   node = -1;
   private pos: Pt = { x: 0, y: 0 };
   private facing = 1;
@@ -1320,7 +1343,7 @@ export class Cat extends BaseCreature {
     }
     // awake and still: the head follows a bird or a butterfly passing near
     let target = 0;
-    if (this.mode === 'sit' || this.mode === 'dusk' || this.mode === 'wake') {
+    if (this.mode === 'sit' || this.mode === 'dusk' || this.mode === 'wake' || this.mode === 'wait') {
       let best = 260 * this.scale;
       for (const c of w.creatures) {
         if (c === this || c.done || c.kind === 'cat') continue;
@@ -1377,25 +1400,35 @@ export class Cat extends BaseCreature {
     const map = catMap(w);
     if (this.node < 0) this.node = nearestNode(map, this.pos);
     const route = routes(map, this.node);
-    const held = heldSpots(w).filter((h) => dist(h, this.pos) > 1);
-    const to = chooseRest(map, this.rng, w.view, this.node, held, route);
-    if (to === null) return false;
-    const path = pathTo(route.prev, this.node, to);
-    if (path.length < 2) return false;
-    this.route = [];
-    let from = { ...this.pos };
-    for (let k = 1; k < path.length; k++) {
-      const n = map.nodes[path[k]!]!;
-      const e = map.edges[path[k - 1]!]!.find((x) => x.to === path[k])!;
-      let x = n.x;
-      if (k === path.length - 1 && n.perch) x = restX(w, n, this.rng);
-      const toPt = P(x, n.perch ? perchY(n.perch, x) : n.y);
-      this.route.push({ kind: e.kind, from, to: toPt, node: path[k]! });
-      from = toPt;
+    const bodies = groundBodies(w, this);
+    const held = takenBy(w, this, bodies);
+    // never through another creature: a way that passes one is given up for another place
+    for (let tries = 0; tries < 4; tries++) {
+      const to = chooseRest(map, this.rng, w.view, this.node, held, route);
+      if (to === null) return false;
+      const path = pathTo(route.prev, this.node, to);
+      if (path.length < 2) return false;
+      const legs: Leg[] = [];
+      let from = { ...this.pos };
+      for (let k = 1; k < path.length; k++) {
+        const n = map.nodes[path[k]!]!;
+        const e = map.edges[path[k - 1]!]!.find((x) => x.to === path[k])!;
+        let x = n.x;
+        if (k === path.length - 1 && n.perch) x = restX(w, n, this.rng);
+        const toPt = P(x, n.perch ? perchY(n.perch, x) : n.y);
+        legs.push({ kind: e.kind, from, to: toPt, node: path[k]! });
+        from = toPt;
+      }
+      if (legs.some((l) => (l.kind === 'jump' ? !groundFree(l.to, ROOM * 0.5 * this.scale, bodies) : blockerOn(l.from, l.to, PASS * this.scale, bodies)))) {
+        held.push(map.nodes[to]!);
+        continue;
+      }
+      this.route = legs;
+      this.strolls++;
+      this.startLeg(w);
+      return true;
     }
-    this.strolls++;
-    this.startLeg(w);
-    return true;
+    return false;
   }
 
   /** Away for the night: along its terrace to the landward edge of the view. */
@@ -1410,7 +1443,7 @@ export class Cat extends BaseCreature {
     const dx = leg.to.x - this.pos.x;
     const dy = leg.to.y - this.pos.y;
     if (Math.abs(dx) > 2) this.flipTo(Math.sign(dx));
-    this.wantView = leg.kind === 'jump' ? 'side' : viewFor(dx, dy, this.view);
+    this.wantView = leg.kind === 'jump' || leg.round ? 'side' : viewFor(dx, dy, this.view);
     const d = Math.hypot(dx, dy);
     // set now, so the stride it gets up into is the one it walks
     if (d > 1e-3 && this.mode !== 'walk') this.dir = P(this.wantView === 'side' ? (dx * this.facing) / d : dx / d, dy / d);
@@ -1447,6 +1480,15 @@ export class Cat extends BaseCreature {
     if (this.changing() && this.mode !== 'leap') return;
     if (this.wantView !== this.view) this.turnTo(this.wantView);
     if (this.turnT < 1) return;
+    if (this.mode === 'wait') {
+      if (this.modeT < this.modeFor) return;
+      this.giveWay(w);
+      return;
+    }
+    if ((leg.kind !== 'jump' || this.mode === 'crouch') && this.inTheWay(w)) {
+      this.setMode('wait', rangeOf(this.rng, CAT_TUNING.look) / sf);
+      return;
+    }
     if (leg.kind === 'jump') {
       if (this.mode === 'crouch') {
         if (this.modeT >= this.modeFor) {
@@ -1500,6 +1542,52 @@ export class Cat extends BaseCreature {
     if (left < 0.3) this.arrive(w);
   }
 
+  /** Another ground creature close ahead on the way, or on the far side of a jump. */
+  private inTheWay(w: FaunaWorld): GroundBody | null {
+    const leg = this.route[0]!;
+    const bodies = groundBodies(w, this);
+    if (bodies.length === 0) return null;
+    if (leg.kind === 'jump') return bodies.find((b) => !groundFree(leg.to, ROOM * 0.5 * this.scale, [b])) ?? null;
+    const hit = blockerOn(this.pos, leg.to, PASS * this.scale, bodies);
+    return hit && hit.along < (24 + ROOM) * this.scale + hit.body.r ? hit.body : null;
+  }
+
+  /**
+   * After a look: on if the way has cleared, else round the creature on the walk's ground (two
+   * steps beside it, nearer the viewer or further), else the stroll is given up and it sits.
+   */
+  private giveWay(w: FaunaWorld): boolean {
+    const body = this.inTheWay(w);
+    const leg = this.route[0]!;
+    const sf = w.speed;
+    if (!body) {
+      this.setMode(leg.kind === 'jump' ? 'crouch' : 'walk', leg.kind === 'jump' ? 0.3 / sf : 0);
+      return true;
+    }
+    if (leg.kind !== 'jump') {
+      const map = catMap(w);
+      const terrace = map.nodes[leg.node >= 0 ? leg.node : nearestNode(map, this.pos)]!.terrace;
+      const others = groundBodies(w, this).filter((b) => b !== body);
+      const wide = (PASS * this.scale + body.r) * 1.12;
+      const long = (24 + ROOM) * this.scale;
+      for (const side of body.at.y >= this.pos.y ? [-1, 1] : [1, -1]) {
+        const [a, b] = stepsRound(this.pos, leg.to, body.at, long, wide, side);
+        const ahead = (a.x - this.pos.x) * (leg.to.x - this.pos.x) + (a.y - this.pos.y) * (leg.to.y - this.pos.y) > 0;
+        const steps = ahead ? [a, b] : [b];
+        if (!steps.every((q) => walkable(w, q, terrace) && groundFree(q, ROOM * 0.5 * this.scale, others))) continue;
+        this.detours++;
+        this.route.unshift(...steps.map((q, i): Leg => ({ kind: 'walk', from: i ? steps[i - 1]! : { ...this.pos }, to: q, node: -1, round: true })));
+        this.startLeg(w);
+        return true;
+      }
+    }
+    // no way round: it gives the stroll up and sits where it is
+    this.route = [];
+    this.node = nearestNode(catMap(w), this.pos);
+    this.setMode('sit', rangeOf(this.rng, [3, 7]) / sf);
+    return false;
+  }
+
   private arrive(w: FaunaWorld): void {
     const leg = this.route.shift()!;
     if (leg.node >= 0) this.node = leg.node;
@@ -1507,6 +1595,8 @@ export class Cat extends BaseCreature {
       this.startLeg(w);
       return;
     }
+    // someone has settled on its place meanwhile: on somewhere else
+    if (leg.node >= 0 && !groundFree(leg.to, ROOM * 0.5 * this.scale, groundBodies(w, this)) && this.stroll(w)) return;
     if (leg.node >= 0) {
       const n = catMap(w).nodes[leg.node]!;
       this.pos = { ...leg.to };
@@ -1588,6 +1678,7 @@ export class Cat extends BaseCreature {
         return q;
       }
       case 'turn':
+      case 'wait':
         q.shape = 'stand';
         q.sleep = this.blink >= 0 && this.blink < 0.4;
         q.head = this.look * 0.6 + flick * 0.5;
@@ -1721,7 +1812,7 @@ const cat: CreatureDef = {
     }
     const rng = w.rng.fork(`cat:${s.seed}:${w.t.toFixed(3)}:${s.index}:${w.creatures.length}`);
     const coatName = s.variants.length ? (s.variants.find((v) => (CAT_COATS as readonly string[]).includes(v)) as CatCoat | undefined) : undefined;
-    const c = new Cat(w, rng, coatName ?? CAT_COATS[Math.abs(s.seed) % CAT_COATS.length]!, heldSpots(w));
+    const c = new Cat(w, rng, coatName ?? CAT_COATS[Math.abs(s.seed) % CAT_COATS.length]!, [...heldSpots(w), ...groundBodies(w).map((b) => b.at)]);
     return c.done ? [] : [c];
   },
   sheet: {

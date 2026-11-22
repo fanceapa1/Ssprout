@@ -1,15 +1,15 @@
 /**
  * Studio: the island cat close. Every pose side by side, the walk cycle frame by frame, the front
  * and back walks, the drawn changes of pose, the three coats, and the real behaviour on close crops
- * of the coast's painting.
+ * of the coast's painting (one with a tortoise put down in its way).
  */
 import type { StudioEntry, StudioSection } from '../../studio/types';
 import { multiplyPaper, Stage, type StageSpec } from '../stage';
-import { CAT_COATS, drawCat, inBetween, paintCat, REST_POSE, stretchPose, type CatPose } from './cat';
+import { Cat, CAT_COATS, drawCat, inBetween, paintCat, REST_POSE, stretchPose, type CatPose } from './cat';
 
 const stages = new Map<string, Stage>();
 
-function close(id: string, label: string, spec: StageSpec, w: number): StudioEntry {
+function close(id: string, label: string, spec: StageSpec, w: number, setup?: (stage: Stage) => void): StudioEntry {
   const h = Math.round((w * spec.h) / spec.w);
   return {
     id,
@@ -23,6 +23,7 @@ function close(id: string, label: string, spec: StageSpec, w: number): StudioEnt
       if (!stage || frame === 0) {
         stage = new Stage(spec, seed, 'cat', 'coast');
         stages.set(key, stage);
+        setup?.(stage);
         for (let s = 0; s < t; s += 1 / 30) {
           stage.tickRespawn(s);
           stage.sim.update(1 / 30, 0);
@@ -156,6 +157,24 @@ const coats: StudioEntry = {
   },
 };
 
+type LegT = { to: { x: number; y: number }; kind: string; node: number };
+
+/** On to the cat's first long stroll along a walk in view, and a dozing tortoise half way along it (as `cat.test.ts` does). */
+function tortoiseInTheWay(stage: Stage): void {
+  const v = stage.sim.world.view;
+  const inView = (q: { x: number; y: number }) => q.x > v.x + 30 && q.x < v.x + v.w - 30 && q.y > v.y && q.y < v.y + v.h;
+  for (let t = 0; t < 3000; t += 1 / 10) {
+    stage.tickRespawn(t);
+    stage.sim.update(1 / 10, 0);
+    const k = stage.sim.creatures.find((c): c is Cat => c instanceof Cat);
+    const leg = (k as unknown as { route: LegT[] } | undefined)?.route[0];
+    if (!k || k.doing() !== 'walk' || !leg || leg.kind !== 'walk' || leg.node < 0 || Math.abs(leg.to.x - k.x) < 90 || Math.abs(leg.to.y - k.y) > 12 || !inView(k) || !inView(leg.to)) continue;
+    const [tt] = stage.sim.spawn('tortoise');
+    if (tt) Object.assign(tt, { x: (k.x + leg.to.x) / 2, y: (k.y + leg.to.y) / 2, alpha: 1, mode: 'doze', modeFor: 1e6, modeT: 0, route: [], state: 'doze' });
+    return;
+  }
+}
+
 const section: StudioSection = {
   id: 'fauna-cat-close',
   title: 'Fauna · island cat, close',
@@ -168,6 +187,7 @@ const section: StudioSection = {
     coats,
     close('wall', 'the middle terrace’s coping: dozing, waking, the stretch, a stroll', { x: 1080, y: 600, w: 300, h: 150 }, 840),
     close('shade', 'the top terrace by the olive: the walks either side of the trunk', { x: 1120, y: 440, w: 380, h: 170 }, 840),
+    close('round', 'a tortoise put down in its way along a walk: it stops and looks, then steps round it (or gives the stroll up)', { x: 1200, y: 640, w: 420, h: 170 }, 840, tortoiseInTheWay),
   ],
 };
 
