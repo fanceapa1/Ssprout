@@ -233,6 +233,7 @@ export interface SpeciesDef {
   pollinators: boolean;       // attracts bees/butterflies
   reflect?: boolean;          // default true when habitat includes shore/water
   rimLight?: boolean;         // false: no sunrise/sunset rim light (under water, ADR 0281); default true
+  in?: Partial<Record<SceneryId, SpeciesWords>>; // a garden's own native name and line (ADR 0385)
   /** paint the plant into p's canvas (w×h px); base at anchor; growth 0..1 (0 = seedling, 1 = full bloom) */
   draw(p: Painter, rng: Rng, opts: { w: number; h: number; growth: number }): void;
 }
@@ -258,6 +259,14 @@ the studio loads all of them.
 A species is only added files (ADR 0251, `docs/systems/species-recipe.md`): `species/<id>.ts`,
 `species/<id>.test.ts` and `notes/<id>.ts`. `speciesNote(id, sceneryId?)` (`notes.ts`, main thread
 only) returns the note's `in[sceneryId]` when it has one, else `note`; null for an unknown id.
+
+**A garden's words (ADR 0385).** A species shared between gardens may give one of them its own
+native name and line: `SpeciesWords = { description?: string } & ({ nativeName: string; nativeLang:
+string } | {})` (a native name always with its language). `speciesWords(def, sceneryId?)` returns
+`{ nativeName, nativeLang, description }`, each the garden's where it gives one, else the species'
+own; the language goes with the name it came from. Every card reads it with the plant's garden: the
+plant card (the plant's or session's `sceneryId`), Your plant, the herbarium (the pressed flower's)
+and the planting sheet (`state.scenery`). The English `name` is one per species.
 
 **Flora** (`src/plants/biomes.ts`, `src/plants/flora.ts`, ADR 0250). The vocabulary is `REALMS`,
 `BIOMES` and `CLIMATES` (one line per tag; a new scenery extends them there), and

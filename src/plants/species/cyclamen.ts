@@ -286,7 +286,7 @@ export function cyclamenReach(plant: Cyclamen): Pt[] {
 
 const cyclamen: SpeciesDef = {
   id: 'cyclamen',
-  name: 'Ivy-leaved cyclamen',
+  name: 'Ivy-leaved Cyclamen',
   nativeName: 'Kyklamino',
   nativeLang: 'el-Latn',
   // wild in Mediterranean scrub, woodland edges and old walls
@@ -296,7 +296,7 @@ const cyclamen: SpeciesDef = {
   sizeClass: 'small',
   size: { w: SMALL_SIZE, h: SMALL_SIZE },
   anchor: { x: ANCHOR.x, y: ANCHOR.y },
-  description: 'Ivy-leaved cyclamen: silver-marbled leaves under swept-back pink flames.',
+  description: 'Ivy-leaved cyclamen — silver-marbled leaves under swept-back pink flames.',
   bloomColor: '#d98aa6',
   pollinators: true,
   draw(p: Painter, rng: Rng, opts) {

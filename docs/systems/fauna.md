@@ -544,7 +544,12 @@ ignored) and emits `fauna:arrived { id, sceneryId }` once per run for each annou
 creature module that `faunaSeenIn(state, sceneryId, id)` says is new. The UI's quiet line shows that
 garden's line (`faunaArrivalLine(sceneryId, id)`) and records it there with
 `controller.announceFauna(id, sceneryId)`, so a dragonfly seen in the Japanese garden is still new at
-the waterfall, and not again after a reload. Unit tests: `arrivals.test.ts`,
+the waterfall, and not again after a reload. A line is a one-off note of a first sighting: it waits
+in the queue while the garden is not calm (a sheet or the placement open, a bloom's hold, another
+line) and then shows for about 6 s, whether or not the creature is still there, in every garden
+(devlog 227: the lizard's line seen at night was most likely a day sighting said late, or a time jump during
+it). So a line names where a creature lives, not one perch it may not take ("a cicada sings on the
+trunk of a tree"). Unit tests: `arrivals.test.ts`,
 `ui/quiet-line.test.ts`. Audio still raises its bird layer on the Japanese ids only (`small-birds`,
 `swallows`; the sound task S15).
 

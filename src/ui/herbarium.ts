@@ -1,5 +1,5 @@
 import type { PressedFlower } from '../core/state';
-import { nativeLang } from '../plants/types';
+import { speciesWords } from '../plants/types';
 import type { UIContext } from './context';
 import { clear, h, setText } from './dom';
 import { formatDay, inSentence } from './format';
@@ -35,6 +35,7 @@ export function createHerbarium(ctx: UIContext): Sheet {
 
   function specimen(p: PressedFlower, i: number, gardens: boolean): HTMLLIElement {
     const def = getSpecies(p.speciesId);
+    const words = def ? speciesWords(def, p.sceneryId) : null;
     const garden = gardens ? ctx.deps.sceneries?.find((g) => g.id === p.sceneryId) : undefined;
     const canvas = h('canvas.specimen-art', { 'aria-hidden': 'true' });
     canvas.style.width = `${SPECIMEN.w}px`;
@@ -51,7 +52,7 @@ export function createHerbarium(ctx: UIContext): Sheet {
         'span.specimen-label',
         {},
         h('span.specimen-name', {}, name),
-        def?.nativeName ? h('span.specimen-native', { lang: nativeLang(def) }, def.nativeName) : null,
+        words?.nativeName ? h('span.specimen-native', { lang: words.nativeLang }, words.nativeName) : null,
         p.taskName ? h('span.specimen-task', {}, `for “${p.taskName}”`) : null,
         h('span.specimen-date', {}, `pressed ${formatDay(p.removedAt)}`),
         h('span.specimen-grew', {}, `grew from ${formatDay(p.plantedAt)}`),

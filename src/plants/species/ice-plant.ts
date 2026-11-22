@@ -128,8 +128,8 @@ export function planIcePlant(rng: Rng): IcePlantPlan {
 const icePlant: SpeciesDef = {
   id: 'ice-plant',
   name: 'Ice Plant',
-  nativeName: 'Mesimvrianthemo',
-  nativeLang: 'el-Latn',
+  nativeName: 'Lampranthus',
+  nativeLang: 'la',
   // a South African garden plant, planted in Mediterranean coastal gardens and wild nowhere in the vocabulary
   range: { realms: [], biomes: [], climates: [], cultivatedIn: ['mediterranean'] },
   tier: 1,

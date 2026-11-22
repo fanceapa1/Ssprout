@@ -1,5 +1,5 @@
 import type { SpeciesNote } from '../notes';
 
 export default {
-  note: 'A stiff, frosted thistle of Mediterranean dunes and shingle that holds the sand with a taproot as long as a forearm. Its leaves wear a chalky bloom against salt and sun, and in summer its blue heads draw bees and butterflies. It is protected on many coasts and is only ever painted here.',
+  note: 'A stiff, blue-grey plant of dunes and shingle across Greece, like a holly made of frost. Its leathery leaves have spiny teeth and pale veins, and its round blue heads sit in collars of spiny bracts, visited by bees, butterflies and wasps.',
 } satisfies SpeciesNote;

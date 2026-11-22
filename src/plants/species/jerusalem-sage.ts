@@ -287,7 +287,7 @@ export function jerusalemSageReach(plant: JerusalemSage): Pt[] {
 
 const jerusalemSage: SpeciesDef = {
   id: 'jerusalem-sage',
-  name: 'Jerusalem sage',
+  name: 'Jerusalem Sage',
   nativeName: 'Phlomis fruticosa',
   nativeLang: 'la',
   // wild in the Greek and central Mediterranean phrygana, on stony slopes and coastal rocks
@@ -297,7 +297,7 @@ const jerusalemSage: SpeciesDef = {
   sizeClass: 'medium',
   size: { w: BOX.w, h: BOX.h },
   anchor: { x: BOX.ax, y: BOX.ay },
-  description: 'Jerusalem sage: tiers of hooded gold on a grey felt mound.',
+  description: 'Jerusalem sage — tiers of hooded gold on a grey felt mound.',
   bloomColor: '#e6c040',
   pollinators: true,
   draw(p, rng, opts) {

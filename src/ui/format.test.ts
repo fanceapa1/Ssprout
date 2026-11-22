@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { crossedMilestone, faunaArrivalLine, formatTimer, habitatPhrase, inSentence, pickTips, spokenMinutes, TIER_WORDS } from './format';
+import { crossedMilestone, faunaArrivalLine, formatTimer, habitatPhrase, inSentence, pickTips, placesPhrase, slotPlace, spokenMinutes, TIER_WORDS } from './format';
 
 const MIN = 60_000;
 
@@ -23,6 +23,32 @@ describe('ui format helpers', () => {
 
   it('joins habitat words', () => {
     expect(habitatPhrase(['water', 'shore'])).toBe('on the water · at the pond’s edge');
+  });
+
+  describe('placesPhrase and slotPlace (ADR 0386)', () => {
+    const words = { water: 'in the shallows', shore: 'on the beach', meadow: 'in the beds', path: 'along the path', back: 'in the scrub', rock: 'on the walls and rocks' };
+    const slots = [
+      { habitat: 'rock' as const, site: 'wall' as const },
+      { habitat: 'rock' as const, site: 'ledge' as const },
+      { habitat: 'rock' as const, site: 'sea-rock' as const },
+      { habitat: 'shore' as const, site: 'beach' as const },
+      { habitat: 'meadow' as const },
+    ];
+    it('names a habitat by the sites a species takes when it takes only some of them', () => {
+      expect(placesPhrase({ habitats: ['rock'], sites: ['sea-rock'] }, slots, words)).toBe('on the splash rocks');
+      expect(placesPhrase({ habitats: ['rock', 'shore'], sites: ['sea-rock', 'ledge', 'beach'] }, slots, words)).toBe('on the rock ledge · on the splash rocks · on the beach');
+      expect(placesPhrase({ habitats: ['rock', 'meadow'], sites: ['wall'] }, slots, words)).toBe('on the walls · in the beds');
+    });
+    it('keeps the habitat word when the species takes every site, or the habitat has no sites', () => {
+      expect(placesPhrase({ habitats: ['rock', 'path'], sites: ['wall', 'ledge', 'sea-rock'] }, slots, words)).toBe('on the walls and rocks');
+      expect(placesPhrase({ habitats: ['meadow', 'shore'] }, slots, words)).toBe('in the beds');
+      const garden = [{ habitat: 'water' as const }, { habitat: 'shore' as const }];
+      expect(placesPhrase({ habitats: ['water', 'shore'] }, garden)).toBe(habitatPhrase(['water', 'shore']));
+    });
+    it('names one slot by its site, else by its habitat', () => {
+      expect(slotPlace({ habitat: 'rock', site: 'sea-rock' }, words)).toBe('on the splash rocks');
+      expect(slotPlace({ habitat: 'meadow' }, words)).toBe('in the beds');
+    });
   });
 
   describe('crossedMilestone', () => {
@@ -49,11 +75,18 @@ describe('ui format helpers', () => {
     // each garden its own line for a shared creature
     expect(faunaArrivalLine('waterfall', 'dragonfly')).toBe('A red dragonfly hovers over the pool.');
     expect(faunaArrivalLine('waterfall', 'koi-1')).toBeNull();
+    // a creature that perches in several places is not tied to one of them (devlog 227)
+    expect(faunaArrivalLine('coast', 'cicada')).toBe('A cicada sings on the trunk of a tree.');
+    expect(faunaArrivalLine('coast', 'scops-owl')).toBe('A scops owl calls after dark.');
   });
 
   it('writes species names in a sentence with proper adjectives kept', () => {
     expect(inSentence('Japanese Iris')).toBe('Japanese iris');
     expect(inSentence('Red Spider Lily')).toBe('red spider lily');
+    expect(inSentence('Mediterranean Cypress')).toBe('Mediterranean cypress');
+    expect(inSentence('Aleppo Pine')).toBe('Aleppo pine');
+    expect(inSentence('Jerusalem Sage')).toBe('Jerusalem sage');
+    expect(inSentence('Greek coast')).toBe('Greek coast');
   });
 
   describe('pickTips', () => {

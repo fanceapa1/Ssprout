@@ -26,6 +26,17 @@ orchestrator.
   flowers store it; renaming it later orphans plants (`unknownSpecies` on load).
 - **`name`** (English), **`nativeName`** and **`nativeLang`** (task F1: the language of the native
   name, e.g. Japanese), **`description`**: one short poetic line, **under 80 characters**.
+  - **House style** (all four gardens): `name` in title case ("Sea Daffodil", "Pink Rock Rose");
+    `description` led by the name in sentence case and an em dash ("Sea daffodil — white trumpets
+    …"); the native name in the garden's language, romanised (Greek without stress accents, as the
+    research brief writes it: "Kyparissi"). Where the brief has no sure native name, use the Latin
+    with `nativeLang: 'la'` ("Euphorbia dendroides"); a name the brief marks *(verify)* never ships.
+  - **A species shared between gardens** speaks each garden's words. Its own `nativeName`,
+    `nativeLang` and `description` are the first garden's; another garden whose words differ gets
+    `in: { <sceneryId>: { nativeName, nativeLang, description } }` (any of them; a name always with
+    its language, ADR 0385), and its note `in: { <sceneryId>: '…' }` in `notes/<id>.ts`. Nothing in
+    a line or a note may name a place the other garden does not have (a palm, a seguia, a terrace).
+    Adding a garden's words to an existing species is a text change: touch only those lines.
 - **`range`** (task F1, ADR 0250): where it grows (realms, biomes, climates, `cultivatedIn`). The
   scenery's biome profile and `also`/`except` decide which gardens offer it (`floraOf`). A shared
   species (by biology, not by convenience) lists every biome it really grows in.

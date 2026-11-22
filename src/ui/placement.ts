@@ -3,6 +3,7 @@ import type { Slot } from '../scene/geometry';
 import { GARDEN_HABITAT_WORDS } from '../scenery/japanese-garden/flora';
 import type { UIContext } from './context';
 import { clear, fragment, h, setText } from './dom';
+import { slotPlace } from './format';
 import { ICONS } from './icons';
 import type { PlacementHighlight, PlantingDraft } from './types';
 
@@ -96,7 +97,7 @@ export function createPlacement(ctx: UIContext, draft: PlantingDraft, actions: P
   }
 
   function marker(o: CompatibleSlot<Slot>): HTMLButtonElement {
-    const where = words()[o.slot.habitat];
+    const where = slotPlace(o.slot, words());
     const name = occupantName(o);
     const label = o.occupiedBy ? `Replace ${name}, ${where}. It will be pressed into your herbarium.` : `Plant here, ${where}`;
     return h(
@@ -168,7 +169,7 @@ export function createPlacement(ctx: UIContext, draft: PlantingDraft, actions: P
     } else if (chosen.occupiedBy) {
       prompt.append(h('strong', {}, name), ` will take the place of ${occupantName(chosen)}.`);
     } else {
-      prompt.append(h('strong', {}, name), ` will grow ${words()[chosen.slot.habitat]}.`);
+      prompt.append(h('strong', {}, name), ` will grow ${slotPlace(chosen.slot, words())}.`);
     }
     begin.disabled = !chosen;
   }

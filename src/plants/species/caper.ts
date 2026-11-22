@@ -271,6 +271,7 @@ const caper: SpeciesDef = {
   size: { w: SMALL_SIZE, h: SMALL_SIZE },
   anchor: { x: 0.5, y: 0.42 },
   description: 'Caper — a flower for a single day, on the crumbling wall.',
+  in: { coast: { nativeName: 'Kappari', nativeLang: 'el-Latn' } },
   bloomColor: '#f4ece6',
   pollinators: true,
   draw(p, rng, opts) {

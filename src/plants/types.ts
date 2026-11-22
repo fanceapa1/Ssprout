@@ -1,4 +1,5 @@
 import type { Rng } from '../core/rng';
+import type { SceneryId } from '../core/sceneries';
 import type { Painter } from '../paint';
 import type { Range } from './biomes';
 
@@ -52,8 +53,29 @@ export interface SpeciesDef {
   reflect?: boolean;
   /** false: no sunrise/sunset rim light (a plant under the water, ADR 0281); default true */
   rimLight?: boolean;
+  /** a garden's own words for a species shared between gardens, each falling back to the above (ADR 0385) */
+  in?: Partial<Record<SceneryId, SpeciesWords>>;
   /** paint the plant into p's canvas (w×h px); base at anchor; growth 0..1 */
   draw(p: Painter, rng: Rng, opts: SpeciesDrawOptions): void;
+}
+
+/** One garden's card words for a shared species: a native name always comes with its language. */
+export type SpeciesWords = { description?: string } & (
+  | { nativeName: string; nativeLang: string }
+  | { nativeName?: undefined; nativeLang?: undefined }
+);
+
+/** What the cards say of a species in a garden: that garden's words where it has them, else the species' own. */
+export function speciesWords(
+  def: Pick<SpeciesDef, 'nativeName' | 'nativeLang' | 'description' | 'in'>,
+  sceneryId?: SceneryId,
+): { nativeName: string | undefined; nativeLang: string; description: string } {
+  const own = sceneryId ? def.in?.[sceneryId] : undefined;
+  return {
+    nativeName: own?.nativeName ?? def.nativeName,
+    nativeLang: own?.nativeName ? own.nativeLang : nativeLang(def),
+    description: own?.description ?? def.description,
+  };
 }
 
 export function fitsSize(species: SizeClass, slotMax: SizeClass): boolean {

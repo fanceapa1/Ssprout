@@ -1,5 +1,5 @@
 import type { SpeciesNote } from '../notes';
 
 export default {
-  note: 'A low cushion of silver-green leaves that thrives on poor, sun-baked soil. Its spikes are cut in summer to scent linen and drawers, and bees work the flowers from morning until the heat of the afternoon.',
+  note: 'English lavender, λεβάντα (levanta) in Greek, is grown in Greek gardens; the wild lavender of Greece is another species, its heads topped with two bracts like ears. Its silver-green cushion carries straight violet spikes, worked by bees and the hummingbird hawk-moth.',
 } satisfies SpeciesNote;

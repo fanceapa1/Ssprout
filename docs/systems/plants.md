@@ -31,7 +31,7 @@ Look at it: studio sections **Plants · watering**, **· wither**, **· growth t
 | `plants.studio.ts` | studio sections |
 | `close-view.studio.ts` | studio: a plant over the hill line, overview sprite vs close sprite (ADR 0187) |
 | `registry.ts` | auto-discovery of `species/<id>.ts` (file name = id): `getSpecies`, `allSpecies`, `speciesByTier`, `buildRegistry` |
-| `types.ts` | `SpeciesDef`, `Tier`, `Habitat`, `SizeClass`, `TIERS`, `HABITATS`, `SIZE_CLASSES`, `nativeLang(def)` |
+| `types.ts` | `SpeciesDef`, `Tier`, `Habitat`, `SizeClass`, `TIERS`, `HABITATS`, `SIZE_CLASSES`, `nativeLang(def)`, `speciesWords(def, sceneryId?)` (ADR 0385) |
 | `biomes.ts` | the flora vocabulary: `REALMS`, `BIOMES`, `CLIMATES` (one line per tag), `Range`, `EVERYWHERE` (ADR 0250) |
 | `flora.ts` | `SceneryBiome`, `growsIn`, `floraOf`, `floraLookup`: which species a scenery offers (ADR 0250) |
 | `species.studio.ts` | one studio section per registered species (`GROWTH_STAGES` + grow loop) |
@@ -240,7 +240,18 @@ gardens and culture, shown on the plant card (ADR 0167). A species shared betwee
 species note (ADR 0251). `notes.ts` globs the files on the main thread only: the sprite worker never
 imports it. `notes.test.ts`: every species has a note and no note lacks a species (no count pin),
 the style rules (2–3 sentences, ≤ 330 characters, no loud words) for every text, known scenery ids.
-The plant card still calls `speciesNote(id)` without the plant's scenery (left for F1's card change).
+The plant card asks for the note of the plant's own garden (`speciesNote(id, plant.sceneryId)`).
+
+**A garden's words (ADR 0385).** A species shared between gardens may also give one garden its own
+native name and line in `species/<id>.ts`: `in: { coast: { nativeName: 'Ampeli', nativeLang:
+'el-Latn', description: 'Grapevine — …' } }`. `speciesWords(def, sceneryId?)` (`types.ts`) returns
+`{ nativeName, nativeLang, description }`, each the garden's where it gives one, else the species'
+own; the language goes with the name it came from. The plant card, Your plant and the herbarium
+ask with the plant's, session's or pressed flower's garden, the planting sheet with the garden on
+view; the studio asks with none. The five species the oasis and the coast share carry the oasis's
+words as their own and the coast's under `in.coast` (devlog 227). `words.test.ts` checks every
+entry: a garden that offers the species, a native name with its language, a line under 80
+characters led by the name.
 
 ## Flora (ADR 0250)
 Every species has a `range`: the realms, biomes and climates where it grows wild, and
@@ -279,7 +290,8 @@ shows (a bred or trained form is cultivated only). The 25 garden species:
 | wisteria | japan | temperate-forest | warm, cool | wild on valley edges (the waterfall excepts the trellised sprite) |
 
 Every one is also `cultivatedIn: ['japan']`. `nativeLang` (BCP 47, default `ja-Latn`) gives the
-native name's language to the planting sheet, the herbarium, the plant card and the plant view.
+native name's language to the planting sheet, the herbarium, the plant card and the plant view
+(through `speciesWords`, which takes a garden's own name and language first, ADR 0385).
 The dev fixtures (`fx-*`) and the placeholder sprout have the `EVERYWHERE` range. Where each
 scenery stands: docs/systems/scenery.md › Flora.
 
@@ -289,7 +301,9 @@ the bastion's ledge and splash rocks in the sea, and its `shore` is beach sand w
 spring's margin. A slot may carry a `site` (`wall`, `ledge`, `sea-rock`, `beach`) and a species
 `sites`; a slot with a site takes only species that list it (`fitsSite`, read by `isCompatible`, so
 placement, `session/start` and `addPlants` all follow it). The planting sheet's habitat line names a
-habitat only where some slot of it allows the species' sites. Only the coast sets sites; on the other
+habitat only where some slot of it allows the species' sites, and when the species takes only some
+of that habitat's sites it names those instead (`placesPhrase`, `SITE_WORDS`: "on the splash rocks",
+ADR 0386); the placement markers and prompt name a slot by its site (`slotPlace`). Only the coast sets sites; on the other
 gardens' slots `sites` is never read. The coast's species and their sites:
 
 | Species | wall | ledge | sea-rock | beach |

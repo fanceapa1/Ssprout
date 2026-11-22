@@ -1,7 +1,7 @@
 import { sessionTimeline, MINUTE_MS, MAX_TASK_NAME, normalizeTaskName } from '../core/session';
 import { inProgressSessions, type GardenState } from '../core/state';
 import { speciesNote } from '../plants/notes';
-import { nativeLang, type SpeciesDef } from '../plants/types';
+import { speciesWords, type SpeciesDef } from '../plants/types';
 import { CHEVRON, chevronSvg } from './calendar-art';
 import type { UIContext } from './context';
 import { clear, fragment, h, setText } from './dom';
@@ -50,6 +50,7 @@ export function plantStory(state: GardenState, id: string, now: number, getSpeci
   const plant = state.plants.find((p) => p.id === id);
   if (plant) {
     const def = getSpecies(plant.speciesId);
+    const words = def ? speciesWords(def, plant.sceneryId) : null;
     const logged = state.log?.find((e) => e.id === id && e.outcome === 'completed');
     // the flower pressed when this plant bloomed in its place (the same moment)
     const pressed = state.pressed.find((p) => p.removedAt === plant.completedAt);
@@ -59,9 +60,9 @@ export function plantStory(state: GardenState, id: string, now: number, getSpeci
       kind: 'finished',
       speciesId: plant.speciesId,
       name: def?.name ?? 'A plant',
-      nativeName: def?.nativeName ?? null,
-      nativeLang: nativeLang(def ?? {}),
-      line: def?.description ?? '',
+      nativeName: words?.nativeName ?? null,
+      nativeLang: words?.nativeLang ?? 'ja-Latn',
+      line: words?.description ?? '',
       note: speciesNote(plant.speciesId, plant.sceneryId),
       task: plant.taskName?.trim() || 'Study session',
       plantedAt: plant.plantedAt,
@@ -74,6 +75,7 @@ export function plantStory(state: GardenState, id: string, now: number, getSpeci
   const session = inProgressSessions(state).find((s) => s.id === id);
   if (!session) return null;
   const def = getSpecies(session.speciesId);
+  const words = def ? speciesWords(def, session.sceneryId) : null;
   const t = sessionTimeline(session, now);
   const displaced = session.displacedPlantId ? state.plants.find((p) => p.id === session.displacedPlantId) : undefined;
   const displacedDef = displaced ? getSpecies(displaced.speciesId) : undefined;
@@ -82,9 +84,9 @@ export function plantStory(state: GardenState, id: string, now: number, getSpeci
     kind: 'growing',
     speciesId: session.speciesId,
     name: def?.name ?? 'A seedling',
-    nativeName: def?.nativeName ?? null,
-    nativeLang: nativeLang(def ?? {}),
-    line: def?.description ?? '',
+    nativeName: words?.nativeName ?? null,
+    nativeLang: words?.nativeLang ?? 'ja-Latn',
+    line: words?.description ?? '',
     note: speciesNote(session.speciesId, session.sceneryId),
     task: session.taskName?.trim() || 'Study session',
     plantedAt: session.startedAt,

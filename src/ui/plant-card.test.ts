@@ -15,6 +15,7 @@ const SPECIES: Record<string, Partial<SpeciesDef>> = {
   clover: { name: 'White Clover', nativeName: 'Shirotsumekusa', description: 'Three leaves for patience.' },
   iris: { name: 'Japanese Iris', description: 'Violet sails.' },
   heather: { name: 'Heather', nativeName: 'Fraoch', nativeLang: 'gd', description: 'Purple on the moor.' },
+  vine: { name: 'Grapevine', nativeName: 'Dalia', nativeLang: 'ary-Latn', description: 'Palm posts.', in: { coast: { nativeName: 'Ampeli', nativeLang: 'el-Latn', description: 'A terrace roof.' } } },
 };
 const getSpecies = (id: string) => SPECIES[id] as SpeciesDef | undefined;
 
@@ -27,6 +28,17 @@ describe('plantStory and storyLines', () => {
     const state = garden({ plants: [makePlant({ id: 'a', speciesId: 'violet' }), makePlant({ id: 'b', speciesId: 'heather', slotId: 'meadow-2' })] });
     expect(plantStory(state, 'a', T0, getSpecies)).toMatchObject({ nativeName: 'Sumire', nativeLang: 'ja-Latn' });
     expect(plantStory(state, 'b', T0, getSpecies)).toMatchObject({ nativeName: 'Fraoch', nativeLang: 'gd' });
+  });
+
+  it('a shared species speaks the words of the garden the plant grows in (ADR 0385)', () => {
+    const state = garden({
+      plants: [makePlant({ id: 'a', speciesId: 'vine', sceneryId: 'coast' }), makePlant({ id: 'b', speciesId: 'vine', sceneryId: 'oasis' })],
+      session: makeSession({ id: 's1', speciesId: 'vine', sceneryId: 'coast' }),
+    });
+    const coast = { nativeName: 'Ampeli', nativeLang: 'el-Latn', line: 'A terrace roof.' };
+    expect(plantStory(state, 'a', T0, getSpecies)).toMatchObject(coast);
+    expect(plantStory(state, 's1', T0 + 5 * MIN, getSpecies)).toMatchObject(coast);
+    expect(plantStory(state, 'b', T0, getSpecies)).toMatchObject({ nativeName: 'Dalia', nativeLang: 'ary-Latn', line: 'Palm posts.' });
   });
 
   it('a finished plant that took a pressed plant’s place names it, with its task', () => {
