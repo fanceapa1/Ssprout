@@ -1,7 +1,7 @@
 # Study Sprout — Product Specification
 
 Study Sprout is a browser study timer wrapped in a living Japanese watercolour garden.
-There are two gardens to grow, a Japanese garden and a rocky waterfall (§1a). Each starts serene but sparse. Every completed study session blooms a new plant.
+There are three gardens to grow, a Japanese garden, a rocky waterfall and a Ksar oasis (§1a). Each starts serene but sparse. Every completed study session blooms a new plant.
 Over many sessions the garden fills, and wildlife slowly moves in.
 
 **Guiding principle: subtlety.** Nothing shouts. No confetti, no badges, no streak guilt.
@@ -42,6 +42,13 @@ watercolour language:
 - **The rocky waterfall**: falls dropping one sheet from a notch in a cliff into a plunge pool,
   mossy ledges either side, crown woods along the cliff top, a stream winding down toward the
   viewer, a trail of stepping stones, open sky to the right where the sun sets and rises.
+- **The Ksar oasis**: a tended palm grove in the Draa valley, a mud-brick ksar on a red bluff,
+  palm terraces stepping down to a stone basin fed by a seguia, and the oued bending past
+  (phase 13, released in O8, devlog 140; docs/systems/scenery.md › Oasis).
+
+*Status:* a fourth garden, the Greek coast (phase 15: dry-stone terraces over a turquoise cove,
+docs/systems/scenery.md › Coast), is painted and runs only behind `?dev&scenery=coast`; it is
+not offered until the owner releases it (acceptance: devlog 225).
 
 Rules:
 - **A new user starts in the Japanese garden.** A garden saved before there were sceneries is the
