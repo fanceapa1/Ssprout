@@ -65,7 +65,7 @@ describe('coast vegetation painting (G4)', () => {
 
   // quantised hashes from a fresh process's first runs (paint caches warm up, so a later run differs)
   it('is deterministic: the same marks every time (recording hash pins)', () => {
-    expect({ overview: runs.overview!.hash, detail: runs.detail!.hash }).toEqual({ overview: '8f4aa21a', detail: 'aded38fd' });
+    expect({ overview: runs.overview!.hash, detail: runs.detail!.hash }).toEqual({ overview: 'b794dd34', detail: '691c24cd' });
     expect(runs.again!.chunks.map((c) => c.name)).toEqual(runs.overview!.chunks.map((c) => c.name));
   });
 

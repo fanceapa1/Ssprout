@@ -51,8 +51,8 @@ const SPECS: Record<Habitat, SlotSpec[]> = {
   // beside the gravel path on the terraces; the foreground under the lowest wall is the painting's
   // foot, faded into the margin, so nothing grows there (ADR 0384)
   path: [
-    ['path-1', 1040, 822, 'small', 'lower'],
-    ['path-2', 940, 684, 'small', 'middle'],
+    ['path-1', 1024, 822, 'small', 'lower'],
+    ['path-2', 938, 696, 'small', 'middle'],
     ['path-3', 846, 822, 'small', 'lower'],
     ['path-4', 882, 822, 'small', 'lower'],
     ['path-5', 1170, 560, 'small', 'top'],
@@ -61,8 +61,8 @@ const SPECS: Record<Habitat, SlotSpec[]> = {
   back: [
     ['scrub-1', 1468, 306, 'tree'],
     ['scrub-3', 1508, 510, 'medium', 'top'],
-    ['scrub-4', 1480, 822, 'small', 'lower'],
-    ['scrub-5', 752, 838, 'small', 'lower'],
+    ['scrub-4', 1498, 826, 'small', 'lower'],
+    ['scrub-5', 1360, 834, 'small', 'lower'],
     ['scrub-6', 1300, 834, 'small', 'lower'],
   ],
   // the walls' copings and faces, the splash rocks in the sea, and the bastion's headland ledge (ADR 0383)
