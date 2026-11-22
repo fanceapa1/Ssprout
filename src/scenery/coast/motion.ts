@@ -1020,7 +1020,7 @@ export function createCoastMotion(opts: CoastMotionOptions = {}): CoastMotion {
 
   /**
    * The swell's crests (GS2): broad soft bands along lines of equal depth, a lighter back behind the
-   * crest and a darker trough ahead, about as wide as the gap to the next crest; a thin broken
+   * crest and a darker trough ahead, half as wide as the gap to the next crest; a thin broken
    * highlight on some, where the light is; parted round the rocks and the hull and closing behind.
    */
   const drawCrests = (ctx: CanvasRenderingContext2D | null, t: number, outer: number, marks: Mark[] | null, light: DaylightState | null) => {
@@ -1061,7 +1061,7 @@ export function createCoastMotion(opts: CoastMotionOptions = {}): CoastMotion {
         const a = alpha * bodyA * smooth((0.62 - Math.abs(angle)) / 0.3) * outer;
         if (a < 0.03) continue;
         const sp = bands[pieces[i + 2]!]!;
-        // the band spans most of the gap to the next crest: wide by the beach, narrow far out
+        // the band spans half the gap to the next crest: wide by the beach, narrow far out
         const h = BAND_SPAN * crestSpeed(d) * SWELL.period * (BAND.h / (BAND.h - 6)) * (0.8 + 0.2 * st);
         const off = h * (0.5 - BAND.crest / BAND.h) + pieces[i + 4]! * s;
         const g = pieces[i + 5]!;
