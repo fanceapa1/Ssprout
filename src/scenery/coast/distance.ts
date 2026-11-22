@@ -28,7 +28,9 @@ export function hillTop(x: number): number {
  * coast behind it, both low enough that a sun sets on the sea beside them.
  */
 export const HEADLANDS: readonly (readonly Pt[])[] = [
-  [{ x: -40, y: 310 }, { x: 10, y: 304 }, { x: 52, y: 306 }, { x: 96, y: 313 }, { x: 140, y: 322 }, { x: 180, y: 336 }, { x: 180, y: HORIZON }, { x: -40, y: HORIZON }],
+  // only what shows over the far hill's left end, tucked a few units under its crest (GA1: the hidden
+  // part showed through the hill as a veil with a hard edge)
+  [{ x: -40, y: 310 }, { x: 10, y: 304 }, { x: 52, y: 306 }, { x: 96, y: 313 }, { x: 118, y: 316 }, { x: 96, y: 320 }, { x: 60, y: 325 }, { x: 20, y: 334 }, { x: -20, y: 343 }, { x: -40, y: 348 }],
   [{ x: 650, y: HORIZON }, { x: 668, y: 393 }, { x: 700, y: 386 }, { x: 742, y: 381 }, { x: 792, y: 380 }, { x: 846, y: 383 }, { x: 900, y: 390 }, { x: 960, y: HORIZON }],
 ];
 /** The far coast in the gap: a pale mainland ridge, then a nearer island in front of it. */

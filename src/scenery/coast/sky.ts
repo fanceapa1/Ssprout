@@ -14,6 +14,8 @@ import { PINE_PADS } from './shapes';
 import { columnShapes } from './temple';
 import { CLOUD_BANKS, CLOUD_STREAKS, GAP_ISLANDS, HEADLANDS } from './distance';
 import { createRng } from '../../core/rng';
+import { COAST_ART } from './index';
+import { coastPlateLift, liftToPaper, SIDE_COLUMNS } from './margins';
 
 export { COAST_SKY_RECT };
 
@@ -280,6 +282,9 @@ export function paintCoastSky(p: Painter, rng: Rng, phase: DayPhase): void {
   paintPhaseSky(p, rng, phase);
   ctx.restore();
   paintDistance(p, rng, phase);
+  // the paper margins the landscape has, so the sides dissolve alike in every light (GA1)
+  const lift = coastPlateLift(COAST_ART.seed);
+  liftToPaper(p, (x, y) => lift(x, Math.max(y, 140)), SIDE_COLUMNS);
 }
 
 function paintPhaseSky(p: Painter, rng: Rng, phase: DayPhase): void {
@@ -441,6 +446,7 @@ export function paintCoastWaterSky(p: Painter, rng: Rng, phase: DayPhase, box: R
     p.lift({ cx: rng.range(box.x, box.x + box.w * 0.7), cy: y, rx: len / 2, ry: rng.range(1, 2) }, { rng, amount: rng.range(0.15, 0.3), deform: 0.25, spread: 0.3, layers: 5 });
   }
   thinToShore(p, box, WATER_NEAR[phase]);
+  liftToPaper(p, coastPlateLift(COAST_ART.seed), SIDE_COLUMNS);
 }
 
 /** How much of the mirrored sky the near shallows keep, against the far water's 1. */
