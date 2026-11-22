@@ -800,8 +800,8 @@ y    0 ┌───────────────────────�
        │   shallows · splash rocks      bastion ╲  middle terrace                     │
   716  │                                  ╲cove  ═══ W2 (772→1620, y 716→694, h 44) ═ │
   760  │ ‾‾ beach waterline (y 742–812) ‾‾ steps ╲  lower terrace                     │
-  850  │   beach · rock shelf · pools (y 886–902)   ═ W3 (690→1620, y 855→834, h 48) ═ │
- 1000  │   (paper margin)                 path ▒ foreground                          │
+  850  │   beach · rock shelf · pools (y 866–874)   ═ W3 (690→1620, y 855→834, h 48) ═ │
+ 1000  │   (paper margin)                 path ▒ foreground: the painting's foot      │
        └──────────────────────────────────────────────────────────────────────────────┘
 ```
 - **Light from the left** (ADR 0360): the sea and the open sky are on the left, and draft B is lit
@@ -825,14 +825,26 @@ y    0 ┌───────────────────────�
   1000) up the three walls by stone flights (`STEPS`) to the olive.
 - **The sea edge** sits above the paper margin (`paintMargins` lifts the bottom 166 units, and up
   to 320 at the sides near the bottom): the beach's waterline runs y 742–812 and its back y
-  840–852, and three pools lie in the rock shelf at y 886–902. Splash rocks stand in the shallows.
+  822–852, and three pools lie in the rock shelf at y 866–874 (GL1b, ADR 0384: 20–28 higher, so
+  they stay above the stage's bottom dissolve). Splash rocks stand in the shallows.
+- **The foreground** below the lowest wall (y 882–1000) is the painting's foot: ground, the path's
+  start, a jar and phrygana, fading into the paper margin and the stage's bottom dissolve. No slot
+  stands there (ADR 0384): in a wide window it is under the dissolve or below the window.
 - **Water**: `SEA_WATER` (from the horizon to the promontory's foot, the shoreline and the waterline)
   is the still `pond`, waterline y 400. No streams. The rock pools are `POOL_WATER` (not on the
   geometry; their slots are water slots).
-- **View**: focus (760, 600). The phone crop (x 460–1060) holds the temple, open sea across more
-  than a third of its width, shallows, splash rocks, beach and pool slots, beds on all three
-  terraces and both low suns. A 16:9 screen shows y 100–1000: 190 units of sky above the temple.
-  `pathOut` is `PATH`.
+- **View** (ADR 0384): focus (760, 570). The phone crop (x 460–1060) holds the temple, open sea
+  across more than a third of its width, shallows, splash rocks, beach and pool slots, beds on all
+  three terraces and both low suns. The wide window gives up the empty foreground, not the sky:
+  | Window | Overview's world rect (y) | Bottom dissolve starts (y) | Dome / temple top under the corner buttons |
+  |---|---|---|---|
+  | 1470 × 750 | 179–961 | ≈ 844 | 37 / 34 units clear |
+  | 1440 × 900 | 41–1000 | ≈ 856 | far below |
+  | 1920 × 1080, 1280 × 720, 1366 × 768 | ≈ 135–1000 | ≈ 870 | far below |
+  | 390 × 844 (phone) | −136–1136 (paper above and below), x 460–1060 | ≈ 945 | the dome is outside the crop |
+  The dissolve is `fadeHeight` (15 % of the stage) and the stage's height is 94 % of the window's
+  (ADR 0130); the corner buttons reach 60 CSS px into the stage. Every slot's foot lies within the
+  first 30 % of the dissolve in every landscape window (`coast.test.ts` › framing). `pathOut` is `PATH`.
 - **Flora** (ADR 0361): `{ realm: 'mediterranean', biomes: ['coast', 'scrub', 'garden', 'marine'],
   climate: 'mediterranean', cultivated: true }`, the research's profile. By biology it offers the
   species shared with the oasis and the ice plant so far; the phase 15 species bring the rest.
@@ -851,8 +863,8 @@ y    0 ┌───────────────────────�
 | water ("in the shallows") | 9 | `shallows-1…6` in the cove's near shallows (y 590–706), `pool-1…3` in the rock pools | 1 large (`shallows-1`, the seagrass meadow), 4 medium, 4 small |
 | shore ("on the beach") | 6 | `beach-1…5` on the pebble beach, `scrub-2` on its sand at the west end (ADR 0383); site `beach` | 1 large (`beach-2`), 1 medium, 4 small |
 | meadow ("in the terrace beds") | 12 | `top-1…3` on the top terrace, `mid-1…5` the middle, `low-1…4` the lower | 1 tree (`top-1`, the top terrace's left end), 1 large (`mid-1`), 3 medium, 7 small |
-| path ("along the path") | 5 | `path-1…3` on the foreground, `path-4` on the lower terrace, `path-5` on the top terrace | 5 small |
-| back ("in the scrub") | 5 | `scrub-1` (tree, on the promontory's cliff top right of the olive, G4b), `scrub-3…6` the foreground's scrub | 1 tree, 1 medium, 3 small |
+| path ("along the path") | 5 | `path-1`, `path-3`, `path-4` on the lower terrace's front either side of the path, `path-2` on the middle terrace left of it, `path-5` on the top terrace | 5 small |
+| back ("in the scrub") | 5 | `scrub-1` (tree, on the promontory's cliff top right of the olive, G4b), `scrub-3` (medium) at the promontory's foot right of the olive, `scrub-4…6` on the lower terrace (its west end by the shore scrub, by the jar, its east end) | 1 tree, 1 medium, 3 small |
 | rock ("on the walls and rocks") | 11 | `wall-1…5` on the copings and `crack-1/2` in the wall faces (site `wall`), `splash-1…3` on the splash rocks (`sea-rock`), `shelf-1` on the bastion (`ledge`) | 2 medium, 9 small |
 
 **Sites** (ADR 0383; docs/systems/plants.md › Sites): every rock and shore slot has one, so a
@@ -868,6 +880,19 @@ tree spurge, the oleander off the beach) takes, and `top-1` and `mid-1` the cypr
 tree spurge's dome over the cove; the cliff top left of the olive is the goats' track and behind the
 tree slot `top-1`; the cliff foot at the top terrace's east end hides the goats' east ledges; any
 large bed on the packed terraces would hide a bed behind it or the olive's trunk.
+
+**Moved for the wide window** (GL1b, ADR 0384; ids kept, saved gardens hold them): the seven
+foreground slots went up onto the terraces, where they take the terrace's lift (smaller than before):
+`path-1` (790, 975) → (1040, 822) lower, `path-2` (990, 950) → (940, 684) middle, `path-3` (846, 946)
+→ (846, 822) lower, `scrub-3` (1300, 965) → (1508, 510) top, `scrub-4` (1580, 960) → (1480, 822)
+lower, `scrub-5` (700, 985) → (752, 838) lower, `scrub-6` (1180, 960) → (1300, 834) lower. To make
+room: `path-4` (870, 792) → (882, 822), `low-1` (812, 826) → (812, 822), `mid-1` (880, 684) →
+(860, 684); the pools' slots rose with the pools (868, 876, 876), `beach-2` (300, 822) → (300, 814)
+with the beach's back. Neighbours on one terrace share a y where they are closer than half a box,
+so neither stands over the other's base. The phrygana cushion and the grass tuft at the promontory's
+foot moved left for `scrub-3` ((1500, 512) → (1440, 512), (1478, 508) → (1408, 506)).
+`low-4` (1560, 812, medium) keeps its place: a full 1.25× medium box there reaches x 1638, but no
+place further left clears the middle terrace's beds behind it.
 
 Raised slots (on a terrace, a coping or a face) take their terrace's lift; the rest take
 `perspectiveScale(y)`. Each terrace's slots stand in the gaps between those of the terraces
