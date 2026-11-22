@@ -1,6 +1,7 @@
 import { createRng, type Rng } from '../../core/rng';
 import type { Pt } from '../../paint/geometry';
 import { PIGMENTS, mix, type Pigment } from '../../paint/pigments';
+import type { Painter } from '../../paint';
 import { blob, bounds, padRect } from '../../paint/geometry';
 import { paintOliveLeaves, paintOliveTrunk, type OliveLeaf, type OliveTrunk } from '../lib/olive-paint';
 import { inUnits, paintGroundShadow, paintSeed, paintSkeleton, softRes, stableLayer, visibleBranches } from '../lib/tree-paint';
@@ -219,7 +220,7 @@ export function oliveArrivals(g: number) {
     clump: (c: OliveClump) => stagger(g, 0.38, 0.76, c.delay, 0.16),
     leaf: (l: { delay: number }) => stagger(g, 0.4, 0.8, l.delay, 0.12),
     /** the whip's and the young tree's few leaves at the tips, handing over to the crown */
-    tips: ramp(g, 0.02, 0.07) * (1 - ramp(g, 0.52, 0.7)),
+    tips: ramp(g, 0.02, 0.07) * (1 - ramp(g, 0.62, 0.8)),
     bloom: (b: OliveBloom) => ramp(g, 0.6 + b.delay * 0.06, 0.66 + b.delay * 0.06) * (1 - ramp(g, 0.79, 0.85)),
     fruit: (f: OliveFruit) => ramp(g, 0.8 + f.delay * 0.05, 0.88 + f.delay * 0.05),
     ripe: (f: OliveFruit) => f.ripe * ramp(g, 0.88 + f.delay * 0.04, 0.99),
@@ -238,7 +239,7 @@ const FRUIT_BLACK = '#3f3240';
 
 const YOUNG: Record<0 | 1 | 2, Pigment> = { 0: '#6f8a6c', 1: '#8fa38a', 2: '#b9c4b0' };
 
-/** The whip's and the young tree's leaves: pairs along the outer part of every shoot, from the paths as painted. */
+/** The whip's and the young tree's leaves: pairs all the way up every shoot, and a tuft at each tip, from the paths as painted. */
 function youngLeaves(vis: readonly { b: { id: number; order: number }; path: Pt[] }[], amount: number): { at: Pt; l: OliveLeaf; k: number }[] {
   const out: { at: Pt; l: OliveLeaf; k: number }[] = [];
   // the whip carries its own leaves until it branches
@@ -247,24 +248,55 @@ function youngLeaves(vis: readonly { b: { id: number; order: number }; path: Pt[
     if (v.b.order === 0 && !whip) continue;
     let run = 0;
     let n = 0;
-    for (let i = 1; i < v.path.length; i++) {
+    const last = v.path.length - 1;
+    for (let i = 1; i <= last; i++) {
       const a = v.path[i - 1]!;
       const q = v.path[i]!;
       run += Math.hypot(q.x - a.x, q.y - a.y);
-      if (run < (whip ? 4 : 6.5)) continue;
+      if (run < (whip ? 3 : 4.2)) continue;
       run = 0;
       n++;
       const heading = Math.atan2(q.y - a.y, q.x - a.x);
-      const fromTip = (v.path.length - 1 - i) / v.path.length;
-      if (fromTip > (whip ? 0.85 : 0.7)) continue;
+      const fromTip = (last - i) / v.path.length;
+      if (fromTip > (whip ? 0.97 : 0.92)) continue;
+      // seeded by the shoot and the pair's place on it, so a pair keeps its look as the shoot grows
+      const jr = createRng(v.b.id * 1009 + n);
       for (const side of [-1, 1]) {
+        if (!whip && jr.chance(0.2)) continue;
         const tone = ((n + v.b.id + (side > 0 ? 1 : 0)) % 3) as 0 | 1 | 2;
-        const l: OliveLeaf = { x: q.x, y: q.y, angle: steer(heading + side * 0.65, DOWN, 0.12), length: whip ? 8 : 6.4, tone, asym: 0, curve: side * 0.1, delay: 0 };
-        out.push({ at: q, l, k: amount * (1 - ramp(fromTip, 0.45, 0.7)) });
+        const at = { x: q.x + jr.range(-0.8, 0.8), y: q.y + jr.range(-0.8, 0.8) };
+        const l: OliveLeaf = { x: at.x, y: at.y, angle: steer(heading + side * jr.range(0.35, 1.0), DOWN, 0.15), length: (whip ? 11 : 7) * jr.range(0.75, 1.15), tone, asym: jr.range(-0.2, 0.2), curve: side * jr.range(0, 0.2), delay: 0 };
+        out.push({ at, l, k: amount * (1 - 0.45 * ramp(fromTip, 0.55, 0.92)) });
       }
+    }
+    // the tip's tuft: a few leaves fanned round the shoot's end, the start of a bushy head
+    if (last < 1) continue;
+    const tip = v.path[last]!;
+    const before = v.path[Math.max(0, last - 2)]!;
+    const heading = Math.atan2(tip.y - before.y, tip.x - before.x);
+    const m = whip ? 5 : 7;
+    for (let j = 0; j < m; j++) {
+      const u = j / (m - 1) - 0.5;
+      const tone = ((j + v.b.id) % 3) as 0 | 1 | 2;
+      const l: OliveLeaf = { x: tip.x, y: tip.y, angle: steer(heading + u * 2.6, DOWN, 0.1), length: (whip ? 10 : 7.5) * (1 - 0.25 * Math.abs(u)), tone, asym: 0, curve: u * 0.2, delay: 0 };
+      out.push({ at: tip, l, k: amount });
     }
   }
   return out;
+}
+
+/** A soft grey-green wash round the young tree's tips, so its first leaves read as a little head, not a bare frame. */
+function youngHead(p: Painter, vis: readonly { b: { id: number; order: number }; path: Pt[] }[], amount: number, scale: number, rng: Rng): void {
+  const whip = vis.length === 1;
+  const tips = vis.filter((v) => (whip || v.b.order >= 1) && v.path.length > 1).map((v) => ({ id: v.b.id, at: v.path[v.path.length - 1]! }));
+  if (!tips.length || amount < 0.03) return;
+  const r = (whip ? 6 : 10) * Math.max(0.5, scale);
+  const W = stableLayer(p, padRect(bounds(tips.map((t) => t.at)), r * 1.6), rng, softRes(p));
+  for (const t of tips) {
+    const br = createRng(t.id * 131 + 7);
+    W.fill(blob(t.at.x, t.at.y + r * 0.15, r, r * 0.72, br, { points: 10, irregularity: 0.35, rotation: br.range(-0.6, 0.6) }), WASH, 0.34 * amount);
+  }
+  W.dry({ opacity: 0.7, edge: 0.12, edgeWidth: 2, sharpness: 0.35, centreLift: 0.15, granulation: 0.15, flow: 0.5, flowScale: 14 });
 }
 
 function fruitColour(ripe: number): Pigment {
@@ -300,7 +332,11 @@ const olive: SpeciesDef = {
       const limbs = { base, branches: plan.tree.branches.filter((b) => b.order > 1) };
       paintSkeleton(p, limbs, view, pr.fork('limbs'), { pigment: mix(COLOURS.young, BARK, arrive.age), texture: 0.4 * arrive.age, modelling: 0.45, textureMin: 6, flare: 0, opacity: 0.88 });
       paintOliveTrunk(p, trunk, plan.trunk, view, branchProgress(trunk, view.tau), arrive.age, pr.fork('trunk'), COLOURS, plan.tree.branches.filter((b) => b.parent === trunk.id));
-      if (arrive.tips > 0.01) paintOliveLeaves(p, youngLeaves(visibleBranches(plan.tree, view), arrive.tips), view, (l) => YOUNG[l.tone], pr.fork('young'), { opacity: 0.85, edge: 0.45, edgeWidth: 0.6, sharpness: 0.75, centreLift: 0.25, granulation: 0.1, flow: 0.3, flowScale: 8 });
+      if (arrive.tips > 0.01) {
+        const vis = visibleBranches(plan.tree, view);
+        youngHead(p, vis, arrive.tips, view.scale, pr.fork('young-head'));
+        paintOliveLeaves(p, youngLeaves(vis, arrive.tips), view, (l) => YOUNG[l.tone], pr.fork('young'), { opacity: 0.85, edge: 0.45, edgeWidth: 0.6, sharpness: 0.75, centreLift: 0.25, granulation: 0.1, flow: 0.3, flowScale: 8 });
+      }
 
       const s = view.scale;
       // the crown's body: a soft wash under each tuft (pale on the lit side, cool beneath), then the leaves
