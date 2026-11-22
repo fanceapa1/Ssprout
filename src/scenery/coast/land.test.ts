@@ -57,7 +57,7 @@ describe('coast land painting (G4)', () => {
 
   // quantised hashes from a fresh process's first runs (paint caches warm up, so a later run differs)
   it('is deterministic: the same marks every time (recording hash pins)', () => {
-    expect({ overview: runs.overview!.hash, detail: runs.detail!.hash }).toEqual({ overview: 'ae014422', detail: '1d816dbb' });
+    expect({ overview: runs.overview!.hash, detail: runs.detail!.hash }).toEqual({ overview: '2aae3c25', detail: 'f6e85c38' });
     expect(runs.again!.chunks.map((c) => c.name)).toEqual(runs.overview!.chunks.map((c) => c.name));
   });
 
@@ -72,7 +72,7 @@ describe('coast land painting (G4)', () => {
     for (const step of ['land', 'walls', 'beds']) expect(runs.overview!.chunks.filter((c) => c.name === step).length, step).toBeGreaterThan(5);
   });
 
-  it('hangs each wall’s face from the layout’s coping, full height but for its seaward end', () => {
+  it('hangs each wall’s face from the layout’s coping, full height to its seaward end (ADR 0388)', () => {
     expect(WALL_FACES).toHaveLength(WALLS.length);
     for (const [i, face] of WALL_FACES.entries()) {
       const w = WALLS[i]!;
@@ -82,11 +82,7 @@ describe('coast land painting (G4)', () => {
         const y = copingAt(w, q.x);
         if (y !== null) expect(Math.abs(q.y - y), `wall ${i} at ${q.x}`).toBeLessThan(2);
       }
-      for (let k = 0; k < top.length; k++) {
-        const drop = face[face.length - 1 - k]!.y - top[k]!.y;
-        if (top[k]!.x > w.edge[0]!.x + 60) expect(drop).toBeCloseTo(w.h, 6);
-        else expect(drop).toBeGreaterThan(w.h * 0.25);
-      }
+      for (let k = 0; k < top.length; k++) expect(face[face.length - 1 - k]!.y - top[k]!.y).toBeCloseTo(w.h, 6);
       expect(bounds(face).x + bounds(face).w).toBeGreaterThanOrEqual(1620);
     }
     // each wall and crack slot stands on its wall's painted coping or face

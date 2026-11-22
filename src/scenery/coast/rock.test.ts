@@ -10,7 +10,7 @@ import { pointInPolygon, resample } from '../../paint/geometry';
 import { applyView, type PaintView } from '../../scene/background';
 import { PaintRecorder, type RecordedCost } from '../../scene/paint-record';
 import { COAST_ART, COAST_ELEMENTS } from '.';
-import { FAR_HILL, HORIZON, PROMONTORY, SPLASH_ROCKS, TEMPLE_SHAPES } from './layout';
+import { FAR_HILL, HORIZON, LAND, PROMONTORY, SHORE_EDGE, SPLASH_ROCKS, TEMPLE_SHAPES, WALLS } from './layout';
 import { PROMONTORY_FORM, SHORE_RUNS, footAt, topAt } from './paint-rocks';
 import { coastSteps } from './painters';
 import { rough } from './rock-kit';
@@ -18,7 +18,8 @@ import { SUN_R, UNITS_PER_DEGREE } from '../../ambience/sky-layout';
 import { CHAPEL_ROAD, FAR_CYPRESSES, FAR_OLIVES, FIELD_TERRACES, GAP_ISLANDS, HARBOUR, HILL_SHORE, PASTEL_WALLS, TILED_ROOFS } from './distance';
 import { CLIFF_STONES, LEDGE_SCRUB, SHORE_BOULDER_SHAPES, SPLASH_ROCK_SHAPES } from './shapes';
 import { COAST_WILDLIFE } from './wildlife';
-import { FOOT_SHELF, LEDGE_SAMPLES, LIP, LIP_BOULDER_SHAPES, LIP_EDGES } from './lip-shapes';
+import { FOOT_BOULDER_SHAPES, FOOT_SHELF } from './lip-shapes';
+import { BACK_EDGES, FACE_FEET, PLATFORM_FACES } from './platform';
 import { CLIFF_FOOT } from './sea';
 import { SEA_WATER } from './geometry';
 import { COAST_SLOTS } from './slots';
@@ -29,7 +30,7 @@ import { VILLAGE_CUBES } from './shapes';
 beforeAll(() => COAST_ART.painters.load());
 
 /** The rock painter's own steps (the promontory's pines and scrub are the vegetation's). */
-const MINE = ['far-hill', 'village', 'promontory', 'temple', 'cliff-foot', 'shore-rocks'];
+const MINE = ['far-hill', 'village', 'promontory', 'temple', 'cliff-foot', 'platform', 'shore-rocks'];
 const OVERVIEW: PaintView = { rect: { x: 0, y: 0, w: 1600, h: 1000 }, scale: 0.6 };
 // a resting close view on the temple
 const DETAIL: PaintView = { rect: { x: 640, y: 270, w: 270, h: 150 }, scale: 3 };
@@ -85,19 +86,20 @@ describe('coast rock painting (G2)', () => {
   it('paints the far hill, the village, the promontory, the temple and the shore’s rock as their own steps', () => {
     expect(COAST_ELEMENTS.far).toEqual(['far-hill']);
     expect(COAST_ELEMENTS.rock).toEqual(['village', 'promontory', 'temple']);
-    expect(COAST_ELEMENTS.stones).toEqual(['cliff-foot', 'shore-rocks']);
-    // the cliff's foot and the shore's rock go over the land's edge and the water, before the trees
+    expect(COAST_ELEMENTS.stones).toEqual(['cliff-foot', 'platform', 'shore-rocks']);
+    // the cliff's foot, the platform and the shore's rock go over the land's edge and the water, before the trees
     const names = coastSteps(COAST_ART).map((s) => s.name);
     expect(names.indexOf('cliff-foot')).toBeGreaterThan(names.indexOf('beds'));
     expect(names.indexOf('cliff-foot')).toBeLessThan(names.indexOf('olive'));
-    expect(names.indexOf('shore-rocks')).toBeGreaterThan(names.indexOf('land'));
+    expect(names.indexOf('platform')).toBeGreaterThan(names.indexOf('walls'));
+    expect(names.indexOf('shore-rocks')).toBeGreaterThan(names.indexOf('platform'));
     expect(names.indexOf('shore-rocks')).toBeLessThan(names.indexOf('shore'));
     expect(names.indexOf('shore-rocks')).toBeLessThan(names.indexOf('pine'));
   });
 
   it('is deterministic: the same marks every time', () => {
     // quantised hashes from a fresh process, pinned as the oasis's (paint caches warm up across runs)
-    expect({ overview: runs.overview!.hash, detail: runs.detail!.hash }).toEqual({ overview: 'c6b18793', detail: 'eecad23b' });
+    expect({ overview: runs.overview!.hash, detail: runs.detail!.hash }).toEqual({ overview: '0ba1cd6f', detail: '54624ba2' });
     expect(runs.again!.chunks.map((c) => c.name)).toEqual(runs.overview!.chunks.map((c) => c.name));
   });
 
@@ -106,8 +108,8 @@ describe('coast rock painting (G2)', () => {
     const most = (k: 'calls' | 'pixels') => chunks.reduce((a, c) => (c[k] > a[k] ? c : a));
     expect(most('calls').calls, most('calls').name).toBeLessThanOrEqual(60_000);
     expect(most('pixels').pixels, most('pixels').name).toBeLessThanOrEqual(400_000);
-    // the cliff's foot skips itself when the view does not reach it (the detail view is the temple)
-    for (const step of MINE.filter((s) => view === 'overview' || s !== 'cliff-foot')) expect(chunks.filter((c) => c.name === step).length, step).toBeGreaterThan(10);
+    // the cliff's foot and the platform skip themselves when the view does not reach them (the detail view is the temple)
+    for (const step of MINE.filter((s) => view === 'overview' || (s !== 'cliff-foot' && s !== 'platform'))) expect(chunks.filter((c) => c.name === step).length, step).toBeGreaterThan(10);
   });
 
   it('keeps the promontory and the cliff’s foot in many parts, each pixel read in a part of its own (GR1)', () => {
@@ -262,26 +264,57 @@ describe('coast far shore and cliff detail (GB1)', () => {
   });
 });
 
-describe('the worn lip and the cliff’s wave-cut shelf (GA1)', () => {
+describe('the platform above the sea (GO1, ADR 0388) and the cliff’s wave-cut shelf (GA1)', () => {
   const dist = (q: { x: number; y: number }, line: readonly { x: number; y: number }[]) =>
     Math.min(...line.map((r) => Math.hypot(r.x - q.x, r.y - q.y)));
+  const onShore = (q: { x: number; y: number }) => SHORE_EDGE.some((r) => r.x === q.x && r.y === q.y);
 
-  it('breaks the runs that face away: the edge wanders out and back, never far from the line', () => {
-    for (const [a, b] of LIP.ranges) {
-      const outs = LIP.out.slice(a, b + 1);
-      if (b - a > 20) expect(Math.max(...outs) - Math.min(...outs)).toBeGreaterThan(4);
-      for (const o of outs) expect(Math.abs(o)).toBeLessThanOrEqual(12);
+  it('drops a face from each headland’s rim to its foot on the shoreline, taller than the wall it ends', () => {
+    expect(PLATFORM_FACES.map((f) => f.id)).toEqual(['top', 'bastion']);
+    for (const f of PLATFORM_FACES) {
+      for (const q of f.foot) expect(onShore(q), `${f.id} ${q.x},${q.y}`).toBe(true);
+      // the rim runs from the headland's west corner to the coping of the wall that holds its terrace
+      expect(onShore(f.rim[0]!), f.id).toBe(true);
+      expect(f.rim[f.rim.length - 1]).toEqual(WALLS[f.wall]!.edge[0]);
+      for (let i = 1; i < f.foot.length; i++) expect(f.foot[i]!.x, f.id).toBeGreaterThan(f.foot[i - 1]!.x);
+      // the foot lies below the rim all along: at least 45 units of rock, more than the wall's height
+      for (const q of f.foot) {
+        const rim = f.rim.reduce((a, r) => (Math.abs(r.x - q.x) < Math.abs(a.x - q.x) ? r : a));
+        expect(q.y - rim.y, `${f.id} ${q.x}`).toBeGreaterThanOrEqual(45);
+      }
+      expect(Math.max(...f.foot.map((q) => q.y)) - f.rim[f.rim.length - 1]!.y, f.id).toBeGreaterThan(WALLS[f.wall]!.h);
+      // the face is land: the sea stops at its foot
+      const b = bounds(f.outline);
+      expect(pointInPolygon({ x: b.x + b.w / 2, y: b.y + b.h / 2 }, LAND), f.id).toBe(true);
+      expect(pointInPolygon({ x: b.x + b.w / 2, y: b.y + b.h / 2 }, SEA_WATER), f.id).toBe(false);
     }
-    // low by the bastion's foot, where `shallows-3` lies in the water
-    LIP.edge.forEach((q, i) => {
-      if (LEDGE_SAMPLES[i]!.y > 712) expect(LIP.out[i]!).toBeLessThanOrEqual(2.5);
-    });
-    expect(LIP_EDGES.length).toBe(LIP.ranges.length);
+    // the top terrace's headland stands higher in the picture than the bastion below it
+    expect(PLATFORM_FACES[0]!.rim[0]!.y).toBeLessThan(PLATFORM_FACES[1]!.rim[0]!.y - 100);
+    // the motion's breaks follow each foot
+    FACE_FEET.forEach((f, i) => expect(dist(f[0]!, PLATFORM_FACES[i]!.foot) + dist(f[f.length - 1]!, PLATFORM_FACES[i]!.foot)).toBeLessThan(1));
   });
 
-  it('keeps its boulders off the other rocks and the water slots, and in the water', () => {
+  it('runs every back edge down to the left on the shoreline: the floor’s rim over the water, its face turned away', () => {
+    expect(BACK_EDGES.length).toBe(3);
+    for (const e of BACK_EDGES) {
+      for (const q of e) expect(onShore(q), `${q.x},${q.y}`).toBe(true);
+      for (let i = 1; i < e.length; i++) expect(e[i]!.x).toBeLessThan(e[i - 1]!.x);
+    }
+  });
+
+  it('drops the fallen blocks into the water at a face’s foot, off the water slots', () => {
+    const fallen = SHORE_BOULDER_SHAPES.filter((r) => !r.ground);
+    expect(fallen.length).toBeGreaterThanOrEqual(4);
+    for (const r of fallen) {
+      expect(pointInPolygon({ x: r.x, y: r.y - 1 }, SEA_WATER), `${r.x},${r.y}`).toBe(true);
+      expect(Math.min(...FACE_FEET.map((f) => dist(r, f))), `${r.x},${r.y}`).toBeLessThan(40);
+      for (const s of COAST_SLOTS.filter((q) => q.habitat === 'water')) expect(Math.hypot(s.x - r.x, s.y - r.y), s.id).toBeGreaterThan(40);
+    }
+  });
+
+  it('keeps the cliff’s fallen blocks off the other rocks and the water slots, and in the water', () => {
     const others = [...SHORE_BOULDER_SHAPES, ...SPLASH_ROCK_SHAPES].map((r) => bounds(r.outline));
-    for (const r of LIP_BOULDER_SHAPES) {
+    for (const r of FOOT_BOULDER_SHAPES) {
       const b = bounds(r.outline);
       for (const o of others) expect(o.x < b.x + b.w && b.x < o.x + o.w && o.y < b.y + b.h && b.y < o.y + o.h, `${r.x},${r.y}`).toBe(false);
       for (const s of COAST_SLOTS.filter((q) => q.habitat === 'water')) expect(Math.hypot(s.x - r.x, s.y - r.y), s.id).toBeGreaterThan(40);

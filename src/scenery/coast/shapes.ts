@@ -87,18 +87,17 @@ export const SPLASH_ROCK_SHAPES: readonly RockShape[] = SPLASH_ROCKS.map((r, i) 
 });
 
 /** The beach flight's box: no boulder or stone of the shore's rock lies on it. */
-export const BEACH_FLIGHT_BOX = { x: 668, y: 786, w: 70, h: 62 } as const;
+export const BEACH_FLIGHT_BOX = { x: 638, y: 804, w: 80, h: 56 } as const;
 const onFlight = (x: number, y: number, r: number): boolean =>
   x + r > BEACH_FLIGHT_BOX.x && x - r < BEACH_FLIGHT_BOX.x + BEACH_FLIGHT_BOX.w && y + r > BEACH_FLIGHT_BOX.y && y - r * 0.6 < BEACH_FLIGHT_BOX.y + BEACH_FLIGHT_BOX.h;
 
 /**
- * Boulders fallen from the shoreline's ledge: the layout's dropped into the water at the ledge's
- * foot (or left on the ledge where the foot is land), and smaller ones out in the water.
+ * Blocks fallen from the headlands' faces: the layout's dropped into the water at a face's foot
+ * (or left on the land where that is land), and a few smaller ones at the feet (ADR 0388).
  */
 export const SHORE_BOULDER_SHAPES: readonly RockShape[] = [
   ...SHORE_BOULDERS.map((b) => (pointInPolygon({ x: b.x, y: b.y + 14 }, LAND) ? { ...b, ground: true } : { ...b, y: b.y + 14, ground: false })),
-  ...[{ x: 784, y: 618, w: 16 }, { x: 670, y: 736, w: 20 }, { x: 728, y: 776, w: 14 }, { x: 812, y: 660, w: 12 },
-    { x: 864, y: 528, w: 12 }, { x: 838, y: 553, w: 16 }, { x: 801, y: 585, w: 10 }, { x: 762, y: 688, w: 16 }, { x: 720, y: 710, w: 12 }].map((b) => ({ ...b, ground: false })),
+  ...[{ x: 772, y: 636, w: 12 }, { x: 734, y: 793, w: 10 }].map((b) => ({ ...b, ground: false })),
 ]
   .filter((b) => !onFlight(b.x, b.y, b.w / 2))
   .map((b, i) => {
@@ -165,11 +164,9 @@ export function copingLine(w: Wall, ext = 20): Pt[] {
 /** Each wall's coping (the perch line along its top), in `WALLS` order. */
 export const WALL_TOPS: readonly Pt[][] = WALLS.map((w) => copingLine(w));
 
-/** A wall's drop at x: full height, stepping down over its last 60 units at the seaward end into the slope. */
-export function wallDrop(i: number, x: number): number {
-  const w = WALLS[i]!;
-  const u = Math.min(1, Math.max(0, (x - w.edge[0]!.x) / 60));
-  return w.h * (0.3 + 0.7 * u * u * (3 - 2 * u));
+/** A wall's drop at x: full height to its seaward end, where it meets a headland's face or the beach steps' rock (ADR 0388). */
+export function wallDrop(i: number, _x: number): number {
+  return WALLS[i]!.h;
 }
 
 /** Each wall's face, coping first then its foot right to left, for the painters and daylight. */
@@ -246,8 +243,8 @@ export const FLIGHTS: readonly Step[][] = STEPS.map((s, f) =>
   Array.from({ length: s.n }, (_, k) => {
     if (f === BEACH_FLIGHT) {
       // narrow slabs stepping down and to the left, from the lower terrace onto the beach's tip
-      const x = s.x + 58 - k * 15;
-      const y = s.y - 1 + k * 13;
+      const x = s.x + 58 - k * 14;
+      const y = s.y - 1 + k * 11;
       const w = 13 + k;
       const tread = [{ x: x - w + 1, y: y + k * 0.4 }, { x: x + w - 1, y: y - 0.5 }, { x: x + w + 1, y: y + 5 }, { x: x - w - 1, y: y + 5.4 }];
       const riser = [tread[3]!, tread[2]!, { x: x + w + 0.5, y: y + 13 }, { x: x - w - 0.5, y: y + 13 }];
@@ -534,16 +531,16 @@ export const MAQUIS: readonly { x: number; y: number; r: number }[] = (() => {
 /** Phrygana cushions (thorny burnet, thyme, spurge): low grey-green domes; centre x, foot y, radius. */
 export const PHRYGANA: readonly { x: number; y: number; r: number; rust: boolean }[] = [
   { x: 902, y: 520, r: 18, rust: false }, { x: 1570, y: 514, r: 15, rust: true }, { x: 1330, y: 513, r: 14, rust: false },
-  { x: 822, y: 604, r: 14, rust: true }, { x: 1590, y: 650, r: 16, rust: false },
+  { x: 828, y: 550, r: 12, rust: true }, { x: 1590, y: 650, r: 16, rust: false },
   { x: 1060, y: 760, r: 12, rust: true },
-  { x: 726, y: 800, r: 13, rust: false },
+  { x: 748, y: 812, r: 12, rust: false },
   { x: 664, y: 940, r: 22, rust: false }, { x: 1250, y: 1004, r: 26, rust: true }, { x: 1468, y: 980, r: 28, rust: false }, { x: 1610, y: 920, r: 22, rust: true },
 ];
 
 /** Dry golden grass: base x, y and height. */
 export const GRASS: readonly (readonly [number, number, number])[] = [
   [930, 512, 22], [1408, 506, 20],
-  [842, 616, 18], [1560, 612, 18], [1240, 610, 16],
+  [800, 552, 16], [1560, 612, 18], [1240, 610, 16],
   [790, 742, 20], [1200, 752, 18], [1610, 746, 22],
   [748, 866, 22], [1450, 880, 24], [1590, 884, 22],
   [720, 940, 30], [1100, 1006, 40], [1390, 1010, 44], [1530, 1004, 40], [1604, 994, 46], [970, 1010, 34],
@@ -558,5 +555,5 @@ export const WALL_GRASS: readonly (readonly [number, number, number])[] = [
 
 /** Scrub clumps in pockets of soil behind the shoreline's ledge (not on it, not on the slots): centre, radii. */
 export const SHORE_CLUMPS: readonly { x: number; y: number; rx: number; ry: number }[] = [
-  { x: 866, y: 560, rx: 18, ry: 9 }, { x: 760, y: 742, rx: 12, ry: 6 },
+  { x: 866, y: 560, rx: 18, ry: 9 }, { x: 800, y: 672, rx: 12, ry: 6 },
 ];

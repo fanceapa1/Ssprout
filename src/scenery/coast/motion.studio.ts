@@ -133,7 +133,7 @@ const section: StudioSection = {
     moving('beach-frames', 'the waterline a second apart', BEACH, 300, 4),
     moving('boat', 'the caique: a bob, a roll, its reflection and the mooring line following, a ring now and then', BOAT, 600),
     moving('boat-frames', 'the caique a second apart', BOAT, 300, 4),
-    moving('rocks', 'the bastion: foam swelling round the splash rocks and boulders, the lap along the ledge', ROCKS, 600),
+    moving('rocks', 'the bastion: foam swelling round the splash rocks and fallen blocks, the swell breaking on the headland’s foot', ROCKS, 600),
     moving('pools', 'the rock pools: still mirrors, a slow ring now and then', POOLS, 700),
     moving('swell', 'the swell (GS2): broad bands, a lighter back and a darker trough, a thin highlight on some crests, running in along lines of equal depth and bunching over the shelf', BAY, 900),
     moving('swell-frames', 'the swell two seconds apart: a crest moves in by about one gap in ten seconds', BAY, 440, 4, 2),

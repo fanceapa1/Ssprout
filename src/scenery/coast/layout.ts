@@ -56,15 +56,19 @@ export const PROMONTORY_PINES: readonly { x: number; h: number; lean: number }[]
 export const CAIQUE: Pt = { x: 430, y: 500 };
 
 /**
- * The shoreline, top to bottom (ADR 0360): not one diagonal but a broken edge. The top terrace
- * ends in a rock shelf, the sea cuts in under it, the middle terrace ends in a rock bastion with a
- * second small cove below, the lower terrace ends in scrub, and stone steps come down to the beach.
+ * The shoreline, top to bottom (ADRs 0360, 0388): the top and middle terraces end in headlands
+ * whose faces drop into the sea (the line runs along their feet), and steps come down to the beach.
  */
 export const SHORE_EDGE: readonly Pt[] = [
-  { x: 900, y: 498 }, { x: 878, y: 522 }, { x: 852, y: 548 }, { x: 826, y: 572 }, { x: 792, y: 598 },
-  { x: 818, y: 614 }, { x: 846, y: 630 }, { x: 828, y: 654 }, { x: 790, y: 676 }, { x: 750, y: 700 },
-  { x: 690, y: 726 }, { x: 712, y: 746 }, { x: 754, y: 764 }, { x: 734, y: 786 }, { x: 704, y: 800 },
-  { x: 684, y: 812 }, { x: 676, y: 846 },
+  // the top terrace's back edge, its headland's west corner and the foot of its face
+  { x: 900, y: 498 }, { x: 876, y: 507 }, { x: 850, y: 516 }, { x: 824, y: 527 }, { x: 800, y: 536 }, { x: 780, y: 544 },
+  { x: 764, y: 552 }, { x: 760, y: 580 }, { x: 762, y: 620 }, { x: 786, y: 625 }, { x: 810, y: 629 }, { x: 834, y: 633 },
+  { x: 848, y: 634 },
+  // the middle terrace's back edge, the bastion's west corner and the foot of its face
+  { x: 822, y: 647 }, { x: 792, y: 662 }, { x: 762, y: 679 }, { x: 732, y: 697 }, { x: 706, y: 713 }, { x: 690, y: 726 },
+  { x: 688, y: 752 }, { x: 691, y: 778 }, { x: 714, y: 782 }, { x: 738, y: 786 }, { x: 760, y: 789 },
+  // the lower terrace's back edge down to the steps
+  { x: 740, y: 797 }, { x: 716, y: 805 }, { x: 696, y: 810 }, { x: 684, y: 812 }, { x: 676, y: 846 },
 ];
 
 /** The beach's waterline, left to right, ending at the foot of the steps (a point of the shoreline). */
@@ -86,14 +90,14 @@ export const POOLS: readonly { cx: number; cy: number; rx: number; ry: number }[
 export const SPLASH_ROCKS: readonly { x: number; y: number; w: number }[] = [
   { x: 190, y: 712, w: 46 }, { x: 384, y: 724, w: 62 }, { x: 590, y: 670, w: 74 }, { x: 630, y: 772, w: 52 },
 ];
-/** Boulders and scrub that break the shoreline (painted over its edge). */
+/** Blocks fallen from the headlands' faces, in the water at their feet (and one by the beach steps, on the land). */
 export const SHORE_BOULDERS: readonly { x: number; y: number; w: number }[] = [
-  { x: 812, y: 606, w: 56 }, { x: 842, y: 640, w: 40 }, { x: 706, y: 738, w: 64 }, { x: 760, y: 770, w: 38 },
+  { x: 748, y: 618, w: 30 }, { x: 678, y: 770, w: 30 },
   { x: 694, y: 818, w: 40 },
 ];
 export const SHORE_SCRUB: readonly { x: number; y: number; rx: number; ry: number }[] = [
-  { x: 878, y: 540, rx: 36, ry: 16 }, { x: 812, y: 680, rx: 40, ry: 16 }, { x: 742, y: 800, rx: 40, ry: 18 },
-  { x: 704, y: 836, rx: 26, ry: 12 },
+  { x: 878, y: 540, rx: 36, ry: 16 }, { x: 812, y: 680, rx: 40, ry: 16 }, { x: 752, y: 806, rx: 36, ry: 14 },
+  { x: 708, y: 836, rx: 24, ry: 12 },
 ];
 
 /** The dry-stone walls: top edge (left to right) and face height; each holds the terrace above it. */
@@ -124,7 +128,7 @@ export const PATH: readonly Pt[] = [
 ];
 /** Stone flights: up each wall on the path, and down from the lower terrace to the beach. */
 export const STEPS: readonly { x: number; y: number; n: number }[] = [
-  { x: 924, y: 852, n: 3 }, { x: 990, y: 712, n: 3 }, { x: 1094, y: 574, n: 3 }, { x: 664, y: 798, n: 3 },
+  { x: 924, y: 852, n: 3 }, { x: 990, y: 712, n: 3 }, { x: 1094, y: 574, n: 3 }, { x: 642, y: 811, n: 4 },
 ];
 
 /** The top of a closed shape at x (its highest crossing), or null where it does not reach. */

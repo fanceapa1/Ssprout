@@ -17,6 +17,7 @@ import { createCoastMotion, MOTION_BOUNDS, PLATE_RECT, WET_ROCKS, type CoastMoti
 import { CAIQUE_DEPTH, CAIQUE_SWING, caiquePose, posePoint } from './pose';
 import { CAIQUE_BOX, CAIQUE_SHAPES, shallowsEdge, shoreward } from './sea';
 import { arrival, CREST_LIFE, crestDepth, delayAt, foamY, SWASH_MAX, swashLimit, swellAt } from './swell';
+import { FACE_FEET, PLATFORM_FACES } from './platform';
 import { SPLASH_ROCK_SHAPES } from './shapes';
 import { COAST_SLOTS } from './slots';
 import { COAST_CARRIERS, COAST_WILDLIFE } from './wildlife';
@@ -397,6 +398,15 @@ describe('the coast’s water in motion (G6)', () => {
     const orders = new Set<string>();
     for (let c = 1; c < crests - 1; c++) orders.add(rises.map((r, i) => [r[c]!, i] as const).sort((p, q) => p[0] - q[0]).map((p) => p[1]).join(''));
     expect(orders.size).toBeGreaterThan(3);
+  });
+
+  it('breaks the swell on each headland’s foot, where its laps lie (ADR 0388)', () => {
+    const feet = FACE_FEET.flat();
+    const laps = new Map<number, Pt>();
+    for (let t = 0; t < 30; t += 0.7) for (const k of a.m.marksAt(t)) if (k.element === 'lap') laps.set(k.index, { x: k.x, y: k.y });
+    const onFoot = [...laps.values()].filter((q) => feet.some((f) => Math.hypot(f.x - q.x, f.y - q.y) < 2));
+    expect(onFoot.length).toBeGreaterThanOrEqual(PLATFORM_FACES.length * 2);
+    for (const f of PLATFORM_FACES) expect(onFoot.some((q) => q.x >= f.foot[0]!.x && q.x <= f.foot[f.foot.length - 1]!.x), f.id).toBe(true);
   });
 
   it('heaves the caique with the swell that passes it', () => {

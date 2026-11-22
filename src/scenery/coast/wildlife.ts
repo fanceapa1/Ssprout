@@ -12,11 +12,12 @@ import type { Pt } from '../../render/viewport';
 import { perspectiveScale } from '../../scene/slots';
 import { COAST_FAUNA } from './fauna';
 import { POOL_WATER, SEA_WATER } from './geometry';
+import { PLATFORM_FACES } from './platform';
 import {
   ARCHITRAVE, BEACH, CAIQUE, COAST_SKY_LAYOUT, COLUMN_W, COLUMNS, DRUM, HORIZON, LAND, LIFT, OLIVE, PATH, PINE, PROMONTORY, SHORE_SCRUB, skylineAt,
   STYLOBATE, TEMPLE_SHAPES, WALL_TERRACE, WALLS, WATERLINE_EDGE,
 } from './layout';
-import { CAIQUE_BOX, CAIQUE_SHAPES, DEPTH, shoreContour } from './sea';
+import { CAIQUE_BOX, CAIQUE_SHAPES, DEPTH, shoreContour, shoreDistance } from './sea';
 import {
   BEDS, copingY, FLIGHTS, GOAT_TRACKS, goatTrackY, JARS, PROMONTORY_FORM, OLIVE_LIMBS, PHRYGANA, PINE_BRANCHES, PINE_PADS, PINE_ROCK, PINE_TRUNK, PROMONTORY_PINE_SHAPES, SHORE_BOULDER_SHAPES,
   SPLASH_ROCK_SHAPES, WALL_TOPS, wallDrop, type WoodPt,
@@ -349,7 +350,7 @@ function scrubSpot(id: string, x: number, y: number, rx: number, ry: number): Gr
   for (let k = 1; k > 0.3; k -= 0.1) {
     const g = { id, x, y, rx: round(rx * k), ry: round(Math.max(3, ry * k)) };
     const pts = ellipsePts(g);
-    if (pts.every((q) => pointInPolygon(q, LAND) && TERRACE_FACES.every((f) => !pointInPolygon(q, f.outline)))) return g.rx >= 8 ? g : null;
+    if (pts.every((q) => pointInPolygon(q, LAND) && TERRACE_FACES.every((f) => !pointInPolygon(q, f.outline)) && PLATFORM_FACES.every((f) => !pointInPolygon(q, f.outline)))) return g.rx >= 8 ? g : null;
   }
   return null;
 }
@@ -417,8 +418,10 @@ function shallows(): Region {
   const feet: Pt[] = [];
   for (let x = x0; x <= x1; x += 8) {
     const under = x >= boat.x - 8 && x <= boat.x + boat.w + 8 ? boat.y + boat.h : -Infinity;
-    const top = Math.max(lineY(edge, x), under) + 4;
+    let top = Math.max(lineY(edge, x), under, boat.y + boat.h) + 4;
     const foot = lineY(WATERLINE_EDGE, x) - 6;
+    // the smoothed line can stand a little out past the turquoise off the headlands' feet
+    while (shoreDistance({ x, y: top }) > DEPTH.turquoise + 8 && top < foot) top += 2;
     if (foot - top < 8) continue;
     tops.push({ x, y: round(top) });
     feet.push({ x, y: round(foot) });
