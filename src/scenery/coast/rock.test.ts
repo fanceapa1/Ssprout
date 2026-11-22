@@ -107,6 +107,14 @@ describe('coast rock painting (G2)', () => {
     for (const step of MINE.filter((s) => view === 'overview' || s !== 'cliff-foot')) expect(chunks.filter((c) => c.name === step).length, step).toBeGreaterThan(10);
   });
 
+  it('keeps the promontory and the cliff’s foot in many parts, each pixel read in a part of its own (GR1)', () => {
+    const parts = (view: string, step: string) => runs[view]!.chunks.filter((c) => c.name === step);
+    expect(parts('overview', 'promontory').length).toBeGreaterThanOrEqual(300);
+    expect(parts('detail', 'promontory').length).toBeGreaterThanOrEqual(450);
+    expect(parts('overview', 'cliff-foot').length).toBeGreaterThanOrEqual(140);
+    for (const step of ['promontory', 'temple', 'cliff-foot']) for (const c of parts('overview', step)) expect(c.reads, step).toBeLessThanOrEqual(1);
+  });
+
   it('dries its runs of like marks as shared layers: few pixel reads per step', () => {
     const reads = (step: string) => runs.overview!.chunks.filter((c) => c.name === step).reduce((a, c) => a + c.reads, 0);
     for (const step of MINE) expect(reads(step), step).toBeLessThanOrEqual(260);

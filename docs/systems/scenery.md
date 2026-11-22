@@ -925,6 +925,11 @@ Ionian limestone, white-grey to warm cream, lit from the left over the sea; shad
 violet-grey; sunlit planes lifted back toward paper. Palette `LIME` and `MARBLE` (`rock-kit.ts`, with
 the shared helpers: `rough` outlines, `wetBatch` and `liftBatch`, which wet a kind of mark into one
 layer and dry it once). Steps:
+- **Paint time** (GR1, devlog 218; production, cold, 1440×900 @2): the promontory is about 250 ms in
+  721 parts, none over 8 ms of its own work. The 56 ms its longest part measures is Chromium's
+  raster backlog of the earlier steps landing on one composite, so `cliff-foot` shows 16 ms the
+  same way. Over 20 ms in that run: `promontory` (backlog), `land` 37, `maquis` 33, `pine` 24, `shore`
+  108 (one part).
 - **`far-hill`** (`far` element, soft): two headlands as pale blue-violet washes (`HEADLANDS`: a far
   ridge over the hill's left end, a low island behind the temple's point, under the sky's wash), and
   in the gap between the hill and the point the far coast (`GAP_ISLANDS`, GB1): a pale mainland ridge
