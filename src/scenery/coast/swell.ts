@@ -6,7 +6,7 @@
  */
 import { createRng } from '../../core/rng';
 import type { Pt } from '../../render/viewport';
-import { FOAM_LINE, SEA_STRETCH, shoreDistance } from './sea';
+import { contourWander, FOAM_LINE, SEA_STRETCH, shoreDistance } from './sea';
 import { COAST_SLOTS } from './slots';
 
 export const SWELL = {
@@ -21,10 +21,28 @@ export const SWELL = {
   breaks: 4,
   /** seconds the break takes to peel along the beach, left to right */
   peel: 2.6,
+  /** over the turquoise shelf (shallower than `shelf`) a crest slows to `slow` of its speed at the break: it bunches */
+  shelf: 175,
+  slow: 0.68,
 } as const;
+
+/** How much a crest slows over the shelf at depth `d`: 1 off it, `SWELL.slow` at the beach. */
+export const shoaling = (d: number): number => {
+  const u = Math.max(0, Math.min(1, d / SWELL.shelf));
+  return SWELL.slow + (1 - SWELL.slow) * Math.sqrt(u);
+};
+
+/** A crest's speed toward the shore at depth `d` (world units of depth a second). */
+export const crestSpeed = (d: number): number => (SWELL.speed + SWELL.growth * (SWELL.born - d)) * shoaling(d);
 
 /** How far from the near shore a point lies, in world units of depth (shore distance unstretched). */
 export const depthOf = (q: Pt): number => shoreDistance(q) / SEA_STRETCH;
+
+/** The crests' lines of equal depth wander a little across the bay (`shoreContour(d · SEA_STRETCH, …SWELL_LINE)`). */
+export const SWELL_LINE = [0.06, 'swell'] as const;
+const wander = contourWander(...SWELL_LINE);
+/** The depth of the crest line through `q`: where a band passes it, so what stands there keeps the band's time. */
+export const bandDepth = (q: Pt): number => Math.max(SWELL.breaks, depthOf(q) / wander(q.x));
 
 const TABLE = 97;
 const table = (() => {
@@ -33,25 +51,45 @@ const table = (() => {
 })();
 const draw = (n: number, j: number) => table[((((n % TABLE) + TABLE) % TABLE) * 3 + j)]!;
 
-const AB = SWELL.speed / SWELL.growth;
-const G_BREAK = SWELL.born - SWELL.breaks;
-
 /** When crest `n` breaks (seconds of motion time, at the beach's left end). */
 export const arrival = (n: number): number => n * SWELL.period + SWELL.jitter * (draw(n, 0) - 0.5);
 
 /** How strong crest `n` is, 0.35–1: the swell comes in sets of about seven. */
 export const strength = (n: number): number => 0.35 + 0.65 * (0.55 * (0.5 + 0.5 * Math.sin((n * Math.PI * 2) / 6.7 + 1)) + 0.45 * draw(n, 1));
 
+/** The time a crest takes from the break out to depth `d`, tabled every `STEP` units (integrated speed). */
+const STEP = 0.25;
+const SPAN = Math.ceil((SWELL.born - SWELL.breaks) / STEP);
+const TIMES = (() => {
+  const out = new Float64Array(SPAN + 1);
+  for (let i = 1; i <= SPAN; i++) {
+    const d0 = SWELL.breaks + (i - 1) * STEP;
+    out[i] = out[i - 1]! + STEP / crestSpeed(d0 + STEP / 2);
+  }
+  return out;
+})();
+
 /** Where a crest is `tau` seconds after it breaks (tau ≤ 0), as depth from the shore. */
 export function crestDepth(tau: number): number {
-  const g = (G_BREAK + AB) * Math.exp(SWELL.growth * tau) - AB;
-  return SWELL.born - g;
+  const want = -tau;
+  if (want <= 0) return SWELL.breaks;
+  if (want >= TIMES[SPAN]!) return SWELL.breaks + SPAN * STEP + (want - TIMES[SPAN]!) * crestSpeed(SWELL.born);
+  let lo = 0;
+  let hi = SPAN;
+  while (hi - lo > 1) {
+    const mid = (lo + hi) >> 1;
+    if (TIMES[mid]! <= want) lo = mid;
+    else hi = mid;
+  }
+  return SWELL.breaks + (lo + (want - TIMES[lo]!) / (TIMES[hi]! - TIMES[lo]!)) * STEP;
 }
 
-/** The seconds before its break when a crest is at depth `d` (≤ 0; -Infinity past the horizon). */
+/** The seconds before its break when a crest is at depth `d` (≤ 0; past the horizon at the horizon's speed). */
 export function travel(d: number): number {
-  const g = SWELL.born - Math.max(SWELL.breaks, d);
-  return g <= -AB ? -Infinity : Math.log((g + AB) / (G_BREAK + AB)) / SWELL.growth;
+  const f = (Math.max(SWELL.breaks, d) - SWELL.breaks) / STEP;
+  if (f >= SPAN) return -(TIMES[SPAN]! + (f - SPAN) * STEP / crestSpeed(SWELL.born));
+  const i = Math.floor(f);
+  return -(TIMES[i]! + (TIMES[i + 1]! - TIMES[i]!) * (f - i));
 }
 
 /** How long a crest lives on the sea, horizon to break. */
@@ -113,7 +151,7 @@ export function swashLimit(x: number): number {
   return Math.max(4, lim);
 }
 /** The farthest any wave runs up the shingle. */
-export const SWASH_MAX = 20;
+export const SWASH_MAX = 26;
 const BEACH_SLOTS = COAST_SLOTS.filter((s) => s.id.startsWith('beach-'));
 
 /** Lines of equal depth across the sea, from the break out to the horizon: where a crest lies. */

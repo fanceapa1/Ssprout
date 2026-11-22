@@ -86,7 +86,7 @@ function moving(id: string, label: string, rect: Rect, w: number, frames = 1, st
 
 const spriteSheet: StudioEntry = {
   id: 'coast-motion-sprites',
-  label: 'the motion sprites on a clay grey: swell lights and troughs, glints, rings, the waterline’s lace, wet band and film, the rocks’ foam, the laps, the boat in pieces',
+  label: 'the motion sprites on a clay grey: swell lights and troughs, swell bands and crest highlights, glints and low-sun glints, rings, the white water and the left lace, the waterline’s lace, wet band and film, the rocks’ foam, the laps, the boat in pieces',
   w: 900,
   h: 420,
   render(canvas, { seed, pixelRatio }) {
@@ -119,6 +119,7 @@ const SHALLOWS = { x: 120, y: 640, w: 260, h: 110 };
 const BEACH = { x: 260, y: 700, w: 300, h: 130 };
 const BOAT = { x: 330, y: 440, w: 150, h: 100 };
 const ROCKS = { x: 520, y: 600, w: 300, h: 200 };
+const BOAT_WAKE = { x: 300, y: 430, w: 260, h: 160 };
 const POOLS = { x: 160, y: 860, w: 460, h: 70 };
 
 const section: StudioSection = {
@@ -134,12 +135,14 @@ const section: StudioSection = {
     moving('boat-frames', 'the caique a second apart', BOAT, 300, 4),
     moving('rocks', 'the bastion: foam swelling round the splash rocks and boulders, the lap along the ledge', ROCKS, 600),
     moving('pools', 'the rock pools: still mirrors, a slow ring now and then', POOLS, 700),
-    moving('swell', 'the swell (GS1): broken crests running in along lines of equal depth, closer and fainter far out, the shore break and the rocks keeping their time', BAY, 900),
+    moving('swell', 'the swell (GS2): broad bands, a lighter back and a darker trough, a thin highlight on some crests, running in along lines of equal depth and bunching over the shelf', BAY, 900),
     moving('swell-frames', 'the swell two seconds apart: a crest moves in by about one gap in ten seconds', BAY, 440, 4, 2),
-    moving('shore-break', 'the shore break (GS1): a lip forms out on the water, runs up the shingle, pauses, slides back; the wet sand dries', BREAK, 700),
+    moving('shore-break', 'the shore break (GS2): a lip forms out on the water in sections, pitches into white water, a sheet runs up the shingle, leaves its lace at the turn, slides back; the wet sand dries', BREAK, 700),
     moving('shore-break-frames', 'the shore break half a second apart', BREAK, 220, 8, 0.5),
+    moving('crest-parting', 'a crest parting round the caique and closing behind it (GS2), three seconds apart', BOAT_WAKE, 300, 4, 3),
+    moving('rock-rings', 'the splash rocks ringed as each band reaches their foot (GS2), a second apart', ROCKS, 300, 4),
     moving('caustics', 'the light netting the sandy shallows: two nets sliding apart, slowly breathing', SHALLOWS, 700),
-    moving('glints-sunset', 'the glints at sunset: a glittering road under the sun (white here: the light plate warms them in the garden)', BAY, 900, 1, 1, lit('sunset')),
+    moving('glints-sunset', 'the glints at sunset: a glittering road under the sun, white cores in gold flares over a warm shade (the light plate warms them further in the garden)', BAY, 900, 1, 1, lit('sunset')),
     moving('glints-night', 'the glints at night: a narrower road under the moon', BAY, 900, 1, 1, lit('night')),
     moving('glints-noon', 'the glints at noon: a few scattered over the near water', BAY, 900, 1, 1, lit('midday')),
     spriteSheet,

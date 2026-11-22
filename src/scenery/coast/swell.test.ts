@@ -4,7 +4,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { COAST_SLOTS } from './slots';
-import { arrival, CREST_LIFE, crestDepth, delayAt, foamY, latest, strength, SWASH_MAX, swashLimit, SWELL, swellAt, travel } from './swell';
+import { arrival, CREST_LIFE, crestDepth, crestSpeed, delayAt, foamY, latest, shoaling, strength, SWASH_MAX, swashLimit, SWELL, swellAt, travel } from './swell';
 
 describe('the coast’s swell (GS1)', () => {
   it('sends crests in order, about a period apart, in sets of strong and weak ones', () => {
@@ -37,8 +37,23 @@ describe('the coast’s swell (GS1)', () => {
     expect(CREST_LIFE).toBeGreaterThan(60);
     for (const d of [10, 60, 150, 300]) expect(crestDepth(travel(d))).toBeCloseTo(d, 4);
     const speed = (tau: number) => (crestDepth(tau - 0.5) - crestDepth(tau + 0.5)) / 1;
-    expect(speed(-1)).toBeGreaterThan(2.5 * speed(-CREST_LIFE + 1));
+    expect(speed(-1)).toBeGreaterThan(2 * speed(-CREST_LIFE + 1));
     expect(speed(-1)).toBeLessThan(8);
+    // continuous in time, and pure
+    for (let tau = -CREST_LIFE; tau < 0; tau += 0.37) expect(Math.abs(crestDepth(tau + 0.05) - crestDepth(tau))).toBeLessThan(0.5);
+  });
+
+  it('slows the crests over the turquoise shelf, so they bunch before the beach (GS2)', () => {
+    expect(shoaling(SWELL.shelf + 50)).toBe(1);
+    expect(shoaling(0)).toBeCloseTo(SWELL.slow, 6);
+    // off the shelf a crest gathers speed as it comes in; on it, it stops gathering
+    expect(crestSpeed(200)).toBeGreaterThan(crestSpeed(300));
+    expect(crestSpeed(10)).toBeLessThan(crestSpeed(140) * 1.06);
+    expect((SWELL.speed + SWELL.growth * (SWELL.born - 10)) / (SWELL.speed + SWELL.growth * (SWELL.born - 140))).toBeGreaterThan(1.1);
+    // the gap between crests by the beach is less than the plain run in would give
+    const gap = (d: number) => crestSpeed(d) * SWELL.period;
+    expect(gap(10)).toBeLessThan((SWELL.speed + SWELL.growth * (SWELL.born - 10)) * SWELL.period * 0.8);
+    expect(gap(10)).toBeGreaterThan(30);
   });
 
   it('reaches the beach’s left end first and peels to the right', () => {
