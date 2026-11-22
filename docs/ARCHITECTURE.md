@@ -806,7 +806,7 @@ session is active, so do not await it with one running.
 
 Sceneries (`src/dev/scenery-debug.ts`, ADR 0243): `scenery()` → `{ viewed, available, fade }`,
 `showScenery(id)` (dispatches `scenery/view`; resolves once the garden is ready, rejects an
-unavailable id). Both gardens are offered without a flag.
+unavailable id). The Japanese garden, the waterfall and the oasis are offered without a flag; the coast only with `?dev&scenery=coast`.
 
 Paint cache (`src/paint/debug.ts`): `window.sprout.paintCache` is the app's `PaintCache` (ADR 0227),
 plus `open({ version?, maxBytes? })` for another cache on the same IndexedDB store.

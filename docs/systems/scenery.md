@@ -170,7 +170,7 @@ scenery's slots and habitat words through getters, so placement, the planting sh
 seedling framing, labels and the dev `slots()` hooks follow a switch.
 
 Dev API: `sprout.scenery()` → `{ viewed, available, fade }`; `sprout.showScenery(id)` resolves
-once the garden is ready (rejects an unavailable id). Both gardens are offered without a flag.
+once the garden is ready (rejects an unavailable id). The Japanese garden, the waterfall and the oasis are offered without a flag; the coast only with `?dev&scenery=coast`.
 
 ### Switch times (S17, devlog 95)
 Measured on the production build (`vite preview`) in headless Chromium on the owner's laptop while
