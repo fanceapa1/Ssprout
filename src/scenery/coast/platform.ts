@@ -1,9 +1,6 @@
 /**
- * The plantable ground as a rock platform standing above the sea (GO1, ADR 0388), as data: the
- * headlands' faces (the floor's rim, the face's foot in the water, its outline), the back edges
- * where the floor's rim meets deeper water, and the bedding of each face. Fixed seeds; the painter
- * (`paint-platform.ts`), the motion and the wildlife read them by name.
- * docs/systems/scenery.md › Coast › Platform.
+ * The rock platform under the terraces as data (GO1, ADR 0388): the headlands' faces, the back
+ * edges and each face's bedding, fixed seeds. docs/systems/scenery.md › Coast › Platform.
  */
 import { createRng } from '../../core/rng';
 import { resample } from '../../paint/geometry';

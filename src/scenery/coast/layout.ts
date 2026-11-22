@@ -56,11 +56,8 @@ export const PROMONTORY_PINES: readonly { x: number; h: number; lean: number }[]
 export const CAIQUE: Pt = { x: 430, y: 500 };
 
 /**
- * The shoreline, top to bottom (ADR 0360): not one diagonal but a broken edge. The plantable
- * ground is a rock platform above the sea (ADR 0388): the top terrace and the middle one each end
- * in a headland whose bedded face drops into the water (the line runs along its foot), the edges
- * that run away from the viewer are the floor's rim over deeper water, and stone steps come down
- * to the beach.
+ * The shoreline, top to bottom (ADRs 0360, 0388): the top and middle terraces end in headlands
+ * whose faces drop into the sea (the line runs along their feet), and steps come down to the beach.
  */
 export const SHORE_EDGE: readonly Pt[] = [
   // the top terrace's back edge, its headland's west corner and the foot of its face

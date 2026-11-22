@@ -1,8 +1,6 @@
 /**
- * The platform's rock (GO1, ADR 0388): the headlands' bedded limestone faces dropping from the
- * floor's rim into the sea, their wet feet, shade and broken reflection on the water and the foam
- * where the sea meets them; along the back edges the floor's rock lip over deeper water. Lit from
- * the left over the sea. Shapes in `platform.ts`. docs/systems/scenery.md › Coast › Platform.
+ * The platform's rock (GO1, ADR 0388): the headlands' faces from the floor's rim into the sea, their
+ * feet in the water, and the floor's lip along the back edges. docs/systems/scenery.md › Coast › Platform.
  */
 import type { Rng } from '../../core/rng';
 import { blob, bounds, createSimplex2D, mix, padRect, type Painter, type Pigment } from '../../paint';
