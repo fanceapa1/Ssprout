@@ -67,7 +67,8 @@ turquoise off the new headland). No scrub spot lies on a face.
 phases) and `parts.test.ts` (the shore). `motion.test.ts` and `coast.test.ts` have no hash; their
 step list and lap test changed. New tests: the platform's faces, back edges and fallen blocks
 (`rock.test.ts`), the laps on the headlands' feet (`motion.test.ts`); the walls' full height
-(`land.test.ts`).
+(`land.test.ts`). The cat's put-down-tortoise test (`cat.test.ts`) meets it on seed 66 instead of 51: the
+moved scrub spots change the coast's seeded walks, and 51 no longer steps round.
 
 ## Paint cost
 Dev server, 1470 × 694 at DPR 1, the overview without plants, three paints each in one browser
