@@ -21,6 +21,11 @@ import {
   silhouetteAt, skylineAt, SPLASH_ROCKS, STYLOBATE, TEMPLE_SHAPES, terraceScale, WALL_TERRACE, WALLS, WATERLINE_EDGE,
 } from './layout';
 import { coastSteps } from './painters';
+import { coastMarginField, marginX } from './margins';
+import { HEADLANDS } from './distance';
+import { marginField } from '../../scene/paint-land';
+import { createSimplex2D } from '../../paint';
+import { createRng } from '../../core/rng';
 import { OLIVE_LIMBS, promontoryTop } from './shapes';
 import { SLOT_TERRACE } from './slots';
 
@@ -481,5 +486,27 @@ describe('coast gardens in the saved state (schema v4)', () => {
     expect(r.value.state.plants[0]!.sceneryId).toBe('coast');
     const again = importState(exportState(r.value.state, T0), { now: T0 });
     expect(again.ok && again.state.plants[0]!.sceneryId).toBe('coast');
+  });
+});
+
+describe('the coast’s paper margins and far headland (GA1, ADR 0385)', () => {
+  const coast = coastMarginField(createRng('coast-margin-test'));
+  const shared = marginField(createSimplex2D(createRng('coast-margin-test').fork('margin')));
+
+  it('lifts the left side over 140 units, not 200, and keeps the shared field from x 560 on', () => {
+    for (const y of [250, 360, 600]) {
+      expect(coast(0, y)).toBeGreaterThan(0.7);
+      expect(coast(190, y), `y ${y}`).toBe(0);
+      for (const x of [560, 900, 1400, 1550, 1600]) expect(coast(x, y)).toBeCloseTo(shared(x, y), 6);
+    }
+    for (let x = 0; x < 560; x += 5) expect(marginX(x + 5)).toBeGreaterThan(marginX(x));
+  });
+
+  it('shows the far headland only over the far hill’s left end, tucked a little under its crest', () => {
+    const ridge = HEADLANDS[0]!;
+    const tip = ridge.findIndex((q) => q.x === Math.max(...ridge.map((r) => r.x)));
+    for (const q of ridge) expect(q.x).toBeLessThanOrEqual(120);
+    // its lower edge stays a few units under the hill's crest: no wash hidden behind the hill
+    for (const q of ridge.slice(tip + 1)) expect(q.y - silhouetteAt(q.x)).toBeLessThanOrEqual(10);
   });
 });
