@@ -547,6 +547,8 @@ export const GRASS: readonly (readonly [number, number, number])[] = [
   [790, 742, 20], [1200, 752, 18], [1610, 746, 22],
   [748, 866, 22], [1450, 880, 24], [1590, 884, 22],
   [720, 940, 30], [1100, 1006, 40], [1390, 1010, 44], [1530, 1004, 40], [1604, 994, 46], [970, 1010, 34],
+  // GA1: tufts at the painting's foot, so it ends in something
+  [1012, 902, 22], [1252, 896, 20], [800, 962, 26], [1462, 952, 28], [1180, 980, 24],
 ];
 
 /** Dry grass on the walls' faces, away from the wall-top and crack slots: wall index, x, depth below the coping. */

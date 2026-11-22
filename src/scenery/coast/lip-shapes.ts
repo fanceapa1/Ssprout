@@ -184,3 +184,15 @@ const FOOT_BOULDERS: RockShape[] = [
 
 /** The boulders the worn lip and the cliff's foot add: wet, foam at their feet (their broad dry top as the shore's). */
 export const LIP_BOULDER_SHAPES: readonly RockShape[] = [...LIP_BOULDERS, ...FOOT_BOULDERS];
+
+/**
+ * Stones on the rock shelf round the pools and on the painting's foot below the lowest wall
+ * (GA1): limestone lumps on the ground, clear of the pools' rims, the slots, the path and the jar.
+ */
+export const FOOT_STONES: readonly RockShape[] = [
+  [60, 900, 14], [128, 884, 10], [150, 950, 15], [318, 908, 16], [300, 942, 11], [482, 902, 12], [522, 918, 9], [640, 892, 13],
+  [758, 906, 22], [836, 930, 14], [1182, 916, 18], [1262, 936, 12], [1452, 906, 20], [1522, 930, 13], [992, 962, 16],
+].map(([x, y, w], i) => {
+  const rng = createRng(`coast-foot-stone-${i}`);
+  return { ...boulderShape(x!, y!, w!, y! - w! * rng.range(0.15, 0.25), rng, rng.range(-0.5, 0.5)), ground: true };
+});
