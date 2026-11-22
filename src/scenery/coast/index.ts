@@ -37,8 +37,9 @@ export const COAST_ELEMENTS = {
   rock: ['village', 'promontory', 'temple'],
   beach: ['beach', 'pools'],
   land: ['land', 'walls', 'beds'],
-  // the shore's rock over the land's edge and the water: shelf, pool rims, boulders, splash rocks
-  stones: ['cliff-foot', 'shore-rocks'],
+  // the platform's faces and rims over the land's edge (ADR 0388), then the shore's rock over the
+  // water: shelf, pool rims, boulders, splash rocks
+  stones: ['cliff-foot', 'platform', 'shore-rocks'],
   // the shore painted over the beach, the pools and the shelf: sorted shingle, wrack, the pools' rims
   shore: ['shore'],
   trees: ['maquis', 'olive', 'pine'],

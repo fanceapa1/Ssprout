@@ -113,6 +113,16 @@ export function streak(a: Pt, b: Pt, w: number, rng: Rng): Pt[] {
   return [...left, ...right.reverse()];
 }
 
+/**
+ * Rasterise what the painting has queued so far in a part of its own: the browser records canvas
+ * calls and pays for them at the next pixel read (ADR 0238), which would otherwise land in one
+ * long part of a later step. A one-pixel read: pixels are unchanged.
+ */
+export function* settle(p: Painter): Strokes {
+  p.ctx.getImageData(0, 0, 1, 1);
+  yield;
+}
+
 /** Marks wet together and dried in one pass (a glaze each would pay a drying pass each). */
 export function* wetBatch(p: Painter, marks: readonly Mark[], pigment: Pigment, dry: DryOptions): Strokes {
   if (!marks.length) return;

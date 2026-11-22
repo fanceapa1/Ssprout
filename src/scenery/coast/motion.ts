@@ -19,7 +19,8 @@ import { POOL_WATER, SEA_WATER } from './geometry';
 import { COAST_ART } from './index';
 import { CAIQUE, COAST_SKY_LAYOUT, HORIZON } from './layout';
 import { coastSteps } from './painters';
-import { FOOT_FRONT, LIP_BOULDER_SHAPES, LIP_EDGES } from './lip-shapes';
+import { FOOT_BOULDER_SHAPES, FOOT_FRONT } from './lip-shapes';
+import { FACE_FEET } from './platform';
 import { SAND, SEA } from './paint-water';
 import { caiquePose, CAIQUE_DEPTH, posePoint, type CaiquePose } from './pose';
 import { streak } from './rock-kit';
@@ -79,7 +80,7 @@ export const seaScale = (y: number): number => Math.max(0.06, Math.min(1.15, (y 
 
 /** The rocks standing in the water: their foam swells, and nothing else is drawn over them. */
 export const WET_ROCKS: readonly RockShape[] = [...SHORE_BOULDER_SHAPES.filter((r) => !r.ground), ...SPLASH_ROCK_SHAPES];
-const ALL_ROCKS: readonly RockShape[] = [...SHORE_BOULDER_SHAPES, ...SPLASH_ROCK_SHAPES, ...LIP_BOULDER_SHAPES];
+const ALL_ROCKS: readonly RockShape[] = [...SHORE_BOULDER_SHAPES, ...SPLASH_ROCK_SHAPES, ...FOOT_BOULDER_SHAPES];
 
 /** The plate: the sea under the caique painted without it, opaque inside the box, feathered out. */
 const FEATHER = 6;
@@ -216,8 +217,12 @@ const SHALLOWS_BOX: Rect = (() => {
   return { x: b.x, y: b.y, w: b.w, h: Math.max(...FOAM_LINE.map((q) => q.y)) + 4 - b.y };
 })();
 
-/** The worn lip of the ledge, where the water meets its edge (above the beach flight; GA1). */
-const LIPS = LIP_EDGES.filter((run) => run.every((q) => q.y < 790)).map((run) => run.slice());
+/** The headlands' feet, where the swell breaks on the platform's rock (ADR 0388), in stretches about 36 units long. */
+const FACE_REACHES: Pt[][] = FACE_FEET.flatMap((foot) => {
+  const n = Math.max(1, Math.round(foot.length / 12));
+  const k = foot.length / n;
+  return Array.from({ length: n }, (_, j) => foot.slice(Math.floor(j * k), Math.min(foot.length, Math.ceil((j + 1) * k) + 1)));
+});
 /** The cliff's foot on the sea (the front of its wave-cut shelf, GA1), in stretches that lap one after another. */
 const CLIFF_REACHES: Pt[][] = (() => {
   const pts = FOOT_FRONT;
@@ -249,7 +254,7 @@ export function createCoastMotion(opts: CoastMotionOptions = {}): CoastMotion {
   // each reach's place on the swell: how far along the beach it is, and its own small lag
   const reachDelay = Array.from({ length: REACHES }, (_, i) => delayAt(along(FOAM_LINE, (i + 0.5) / REACHES).x) + rng.range(-0.25, 0.25));
   const rockDepth = WET_ROCKS.map((r) => Math.max(SWELL.breaks, depthOf({ x: r.x, y: r.y + 2 })));
-  const lapAt = [...LIPS, ...CLIFF_REACHES].map((run) => {
+  const lapAt = [...FACE_REACHES, ...CLIFF_REACHES].map((run) => {
     const mid = run[Math.floor(run.length / 2)]!;
     return { x: mid.x, y: mid.y, d: Math.max(SWELL.breaks, depthOf(mid)), lag: rng.range(-0.4, 0.4) };
   });
@@ -731,17 +736,18 @@ export function createCoastMotion(opts: CoastMotionOptions = {}): CoastMotion {
       rockFoam.push(seal(s));
       yield;
     }
-    for (const [i, run] of [...LIPS, ...CLIFF_REACHES].entries()) {
+    for (const [i, run] of [...FACE_REACHES, ...CLIFF_REACHES].entries()) {
       const r = rng.fork(`lap-${i}`);
-      const cliff = i >= LIPS.length;
+      const cliff = i >= FACE_REACHES.length;
       const b = bounds(run);
       const box: Rect = { x: b.x - 8, y: b.y - 6, w: b.w + 16, h: b.h + 12 };
       const { s, p } = sprite(box.w, box.h, `lap-${i}`, 4, box);
       const L = p.layer(box);
-      foamBits(L, r, run, cliff ? 0 : -2.4, cliff ? 1.4 : -0.6, 1.3);
-      foamBits(L, r, run, cliff ? 0 : -5, cliff ? 4 : -1.4, 0.6);
+      // at a headland's foot the white water hugs the rock and climbs it: a band at the foot, spray above
+      foamBits(L, r, run, 0, cliff ? 1.4 : -0.8, cliff ? 1.3 : 1.7);
+      foamBits(L, r, run, 0, cliff ? 4 : -4.4, cliff ? 0.6 : 0.8);
       yield* L.dryParts({ ...LIFT, opacity: 0.85, sharpness: 0.6, edgeWidth: 0.5 });
-      if (cliff) featherX(s, box.x, box.x + box.w, 10, 4);
+      featherX(s, box.x, box.x + box.w, cliff ? 10 : 6, 4);
       laps.push(seal(s));
       yield;
     }
@@ -1219,10 +1225,11 @@ export function createCoastMotion(opts: CoastMotionOptions = {}): CoastMotion {
     }
     for (const [i, at] of lapAt.entries()) {
       const s = surge(swellAt(at.d, at.x, t + at.lag, phase).lift);
-      const cliff = i >= LIPS.length;
+      const cliff = i >= FACE_REACHES.length;
       counts.lap++;
       marks?.push({ element: 'lap', index: i, x: at.x, y: at.y });
-      if (ctx) place(ctx, laps[i]!, cliff ? 0 : -1.2 * s, (cliff ? 1.8 : 0.6) * s, (0.12 + 0.62 * s) * outer);
+      // a crest breaks on a headland's foot: the white water rises up the face and falls back
+      if (ctx) place(ctx, laps[i]!, 0, (cliff ? 1.8 : -3.2) * s, (cliff ? 0.12 + 0.62 * s : 0.1 + 0.8 * s) * outer);
     }
   };
 

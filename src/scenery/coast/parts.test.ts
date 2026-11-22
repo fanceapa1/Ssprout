@@ -40,7 +40,7 @@ describe('coast paint parts (GR2)', () => {
   }, 120_000);
 
   it('paints the shore with the same marks every time', () => {
-    expect(runs.shore!.hash).toBe('60f0f8e5');
+    expect(runs.shore!.hash).toBe('a72560c9');
   });
 
   it('keeps each step in many parts, each with a bounded number of pixel reads', () => {
