@@ -912,14 +912,36 @@ violet-grey; sunlit planes lifted back toward paper. Palette `LIME` and `MARBLE`
 the shared helpers: `rough` outlines, `wetBatch` and `liftBatch`, which wet a kind of mark into one
 layer and dry it once). Steps:
 - **`far-hill`** (`far` element, soft): two headlands as pale blue-violet washes (`HEADLANDS`: a far
-  ridge over the hill's left end, a low island behind the temple's point, under the sky's wash and
-  clear of the suns' gap x 516–636), the far hill in haze (lilac grey into greyed maquis, its right
-  slope in shade), maquis patches, a few cypresses and a dark line where it meets the sea.
+  ridge over the hill's left end, a low island behind the temple's point, under the sky's wash), and
+  in the gap between the hill and the point the far coast (`GAP_ISLANDS`, GB1): a pale mainland ridge
+  and a nearer, darker island in front of it, at most 14 above the horizon and lost into the sea haze
+  at their feet, so a sun from about 4° down sets behind them (the sun is reserved paper on the sky
+  plate, so the painted island shows through its lower part). Then the far hill in haze (lilac grey
+  into greyed maquis, its right slope in shade) and its form (GB1): two gullies, faint shade on
+  their right and a lit edge on their left, and the warm ground the village stands on
+  (`VILLAGE_GROUND`). Maquis patches; old field terraces (`FIELD_TERRACES`: the hill's contours
+  broken into runs, dense on the open slopes either side of the village, sparse in it), each a thin
+  shade with a lit riser top; olive groves on them (`FAR_OLIVES`, four groves on the lower slopes
+  and the crest, one grey-green crown and a shade each, in rows); the road from the harbour up the
+  bare right slope in hairpins and along the crest to the chapel (`CHAPEL_ROAD`), a pale dusty line
+  broken where it passes behind a grove or a wall, its downhill edge in a thin shade; a dark line
+  where the hill meets the sea. All of it lives in `distance.ts` (data, fixed seeds).
 - **`village`** (`rock` element, after the sea so the sea's lobes never cover it): the layout's
   `VILLAGE` as `VILLAGE_CUBES` (`shapes.ts`, fixed seed): one to three white cubes per house, an
   upper storey on some, in rows from the top of the slope down. Each row: walls lifted to white, a
-  pale lilac shade side and foot, tiny dark openings. The chapel at `CHAPEL`: a white cell, a bell wall
-  with its arch on the left, one clear blue dome with a lit shoulder, a small cross.
+  pastel glaze on two houses (`PASTEL_WALLS`, ochre and rose, the Ionian note), a pale lilac shade
+  side and foot, tiny dark openings, and a low hipped roof of old tiles on four houses without an
+  upper storey (`TILED_ROOFS`: a terracotta band, its far slope and the eaves' shadow darker). The
+  chapel at `CHAPEL`: a white cell, a bell wall with its arch on the left, one clear blue dome with a
+  lit shoulder, a small cross. Then (GB1) a slender bell tower in the lower village (`CAMPANILE`), eight
+  cypresses among the houses and by the road (`FAR_CYPRESSES`, 11–19 tall, in the gaps between
+  houses), and the harbour at the hill's foot (`HARBOUR`): low rocky points either side
+  (`HILL_SHORE`, overlapping rocks with broken lit tops and a wet foot, over the sea's top edge), a
+  strip of shingle with two boats drawn up, the quay under the lower houses, the mole curving out to
+  a white light post, five small boats moored, each over a short dark reflection painted by this
+  step (the water painter is not touched), and a far sail in the gap (`FAR_SAIL`). Everything at
+  the waterline stays above y 408, clear of the wildlife's bay (from y 412). No windmill: the
+  research lists it with the postcard clichés.
 - **`promontory`**: the layout's outline cut by hand (noise ≤ 1.1, inside the sky's hang), run on past
   the right edge and 16 below the foot where the top terrace overlaps it. An opaque pale underlayer
   first, so no paper shows at the point (the placeholder's sliver). Its form is fixed
@@ -944,6 +966,14 @@ layer and dry it once). Steps:
   - The foot: a cool shade low on the face; along the sea (x 636 to the shoreline's start) one soft
     undercut graded darker downward, its depth wandering and pinched where a buttress comes down,
     a lit overhang over it in places, and a dark wet algae band at the water.
+  - GB1: under the planes, broad soft patches of warmer cream and cooler grey across the face, so
+    the limestone is not one colour; after the stains, scrub caught on the hard ledges
+    (`LEDGE_SCRUB`, `shapes.ts`: where a deep fissure crosses one and here and there along it; off
+    the goats' ways by 10, 50 from every slot, below the cliff top's maquis): two to four rounded
+    tufts on the lip, each shaded on its lower right, now and then a sprig hanging over; after the
+    foot, the tide's marks along the seaward foot: a broken band of black lichen above the wet rock
+    and loose clusters of orange lichen specks a little above it, and a few orange crusts on the
+    point's upper face.
 - **`temple`**: a krepis of three steps (the left ends broken away; shadows under the lips that come
   and go, a few joints, chipped arrises), the fallen drum (short, its fluted flat end to the light)
   and four blocks; the four shafts (`columnShapes()`: a slight taper and swell, hand-cut edges, the
@@ -1114,18 +1144,30 @@ bells, The owl and crickets. A `coast:gull`, `coast:goats`, `coast:scops-owl`, `
 The painting is on white with no sky step; the sky is the daylight's plates (docs/systems/daylight.md
 › Coast). Studio `coast-daylight` (158).
 - **Cut round the temple** (ADR 0372). `plateSky()` follows the ground without the columns
-  (`groundAt`: the far hill, the horizon, the promontory) with a 4-unit hang, 0.5 over the krepis.
+  (`groundAt`: the far hill, the horizon, the promontory) with a 4-unit hang, 0.5 over the krepis
+  and 1.5 over the far hill (GB1: its edge is a soft wash, and the deeper hang read as a dark rim
+  along the crest at sunset and at night).
   A second clip takes out `TEMPLE_CUT`: each painted shaft (`columnShapes()`), the two capitals and
   the architrave, 0.7 inside their edges. Each base wash covers `washSky()`, the same line 48 lower,
   so no wet edge shows. The sky reaches every column's edge, runs under the architrave, and covers
   the island behind the base. `SKYLINE` is unchanged (the sun's clip, the stars, the slots).
-- **Skies**: midday a clear cerulean overhead thinning to a warm haze on the horizon, two small
-  soft clouds lifted out (330, 176) and (940, 118); sunrise lilac into pale peach, a gold glow round
-  the sun, a pearly haze on the horizon, two quiet lilac bars; sunset violet over rose, an apricot
-  band low, an ember glow round the sun, three violet bars lit apricot underneath; night a deep
-  granulating blue paler over the horizon, the shared 30 stars and 170 smaller ones
-  (`COAST_NIGHT_STARS`, kept off the pine's pads, the olive and the temple). After the clip, the far
-  hill and the headlands are glazed in each phase's colour (`DISTANCE`).
+- **Skies**: midday a clear cerulean overhead thinning to a warm haze on the horizon; sunrise lilac
+  into pale peach, a gold glow round the sun, a pearly haze on the horizon, two quiet lilac bars;
+  sunset violet over rose, an apricot band low, an ember glow round the sun, three violet bars lit
+  apricot underneath; night a deep granulating blue paler over the horizon, the shared 30 stars and
+  170 smaller ones (`COAST_NIGHT_STARS`, kept off the pine's pads, the olive and the temple). After
+  the clip, the far hill, the headlands and the far islands are glazed in each phase's colour
+  (`DISTANCE`).
+- **Clouds** (GB1, places in `distance.ts`, the same shapes in every light from fixed seeds): a low
+  bank of fair-weather cumulus building over the far hill (`CLOUD_BANKS[0]`, base y 286, tops to
+  about 240: the band a 1470×750 window shows above the hill) and a smaller one over the promontory,
+  and four high thin streaks drawn out on a slant (`CLOUD_STREAKS`), each two or three broken pieces.
+  At midday they are lifted out of the wet blue (lost edges, a soft lilac-grey belly under each
+  bank), never cut-out shapes; one of the old small clouds stays high at (940, 118) for tall views.
+  At sunrise and sunset the bank over the hill is a soft wash of the shade's colour (lilac, or
+  violet-plum into rose) with a lost lower edge and the light's colour dropped into each lobe's
+  lower right, toward the low sun, and the streaks a thin tinted glaze; at night the bank is a faint
+  indigo and there are no streaks.
 - **Sea plate** (`COAST_WATER_SKY`): the horizon's colour and the near water's as two washes lost
   into each other: turquoise at noon, pearl and peach to a softened turquoise at sunrise, apricot
   to dusky teal at sunset, night blue to ink. A broken path of light under each low sun (sheen plus
@@ -1140,7 +1182,9 @@ The painting is on white with no sky step; the sky is the daylight's plates (doc
   promontory rose; the near cove lifted so the warm grade does not grey it (midday too). Night:
   cool paper on the temple, the point, the village and the cove, seven lit windows
   (`LIT_WINDOWS`, from the village's painted openings) and the chapel's lamp (`CHAPEL_LAMP`), small
-  and steady, and the extra stars.
+  and steady, the harbour light on the mole's post (`HARBOUR_LIGHT`, GB1) with five warm dabs below
+  it on the water as its broken reflection, and the extra stars. All through the existing
+  `LightArt.lights` hook, which gets the phase: no contract change.
 - **Grades** (`COAST_GRADES`): the low glows over the sea at each sun's x (glowY 0.4), no lantern,
   sunset apricot 0.34, night a blue 0.5.
 - **The temple's shade** starts under the slanted break on the broken shafts, and the architrave's
