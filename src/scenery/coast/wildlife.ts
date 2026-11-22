@@ -19,7 +19,7 @@ import {
 import { CAIQUE_BOX, CAIQUE_SHAPES, DEPTH, shoreContour } from './sea';
 import {
   BEDS, copingY, FLIGHTS, GOAT_TRACKS, goatTrackY, JARS, PROMONTORY_FORM, OLIVE_LIMBS, PHRYGANA, PINE_BRANCHES, PINE_PADS, PINE_ROCK, PINE_TRUNK, PROMONTORY_PINE_SHAPES, SHORE_BOULDER_SHAPES,
-  SPLASH_ROCK_SHAPES, WALL_TOPS, wallDrop,
+  SPLASH_ROCK_SHAPES, WALL_TOPS, wallDrop, type WoodPt,
 } from './shapes';
 import { COAST_SLOTS } from './slots';
 
@@ -98,25 +98,38 @@ function copingPerches(): Perch[] {
   return out;
 }
 
-/** Up to `n` perches on a limb's flattest stretches (|slope| ≤ `steep`), 24 apart, each at its tree's scale. */
-function limbPerches(limb: readonly Pt[], id: string, n: number, steep: number, scale: number, depth: number): Perch[] {
+/**
+ * The upper side of a limb at sample `i` (ADR 0382): its painted centre lifted by its half width
+ * across the limb, and the limb's slope there.
+ */
+export function limbTop(limb: readonly WoodPt[], i: number): { q: Pt; slope: number; dx: number } {
+  const a = limb[Math.max(0, i - 1)]!;
+  const b = limb[Math.min(limb.length - 1, i + 1)]!;
+  const c = limb[i]!;
+  const l = Math.hypot(b.x - a.x, b.y - a.y) || 1;
+  const up = b.x >= a.x ? 1 : -1;
+  const n = { x: ((b.y - a.y) / l) * up, y: (-(b.x - a.x) / l) * up };
+  return { q: { x: round(c.x + n.x * c.hw), y: round(c.y + n.y * c.hw) }, slope: (b.y - a.y) / (b.x - a.x || 1e-6), dx: Math.abs(b.x - a.x) };
+}
+
+/** A limb is a perch where it is this thick (half width) and has at most this many leaves round a bird's body. */
+const WOOD = { hw: 1.8, leaves: 8 } as const;
+
+/** Up to `n` perches on a limb's flattest bare stretches (|slope| ≤ `steep`), 24 apart, on its upper side, each at its tree's scale. */
+function limbPerches(limb: readonly WoodPt[], id: string, n: number, steep: number, scale: number, depth: number): Perch[] {
   const segs: { q: Pt; slope: number; spread: number }[] = [];
-  for (let i = 1; i < limb.length; i++) {
-    const a = limb[i - 1]!;
-    const b = limb[i]!;
-    const dx = b.x - a.x;
-    if (Math.abs(dx) < 4) continue;
-    const slope = (b.y - a.y) / dx;
-    const q = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
-    if (Math.abs(slope) > steep || !inFrame(q) || !offSlots(q)) continue;
-    segs.push({ q, slope, spread: Math.min(8, Math.abs(dx) * 0.35) });
+  for (let i = 1; i < limb.length - 1; i++) {
+    const w = limb[i]!;
+    const { q, slope, dx } = limbTop(limb, i);
+    if (dx < 8 || Math.abs(slope) > steep || w.hw < WOOD.hw || w.leaves > WOOD.leaves || !inFrame(q) || !offSlots(q)) continue;
+    segs.push({ q, slope, spread: Math.min(8, dx * 0.2) });
   }
   segs.sort((a, b) => Math.abs(a.slope) - Math.abs(b.slope));
   const out: Perch[] = [];
   for (const s of segs) {
     if (out.length >= n) break;
     if (out.some((p) => Math.hypot(p.x - s.q.x, p.y - s.q.y) < 24)) continue;
-    out.push({ id: `${id}-${out.length + 1}`, kind: 'branch', x: round(s.q.x), y: round(s.q.y), spread: round(s.spread), dome: 0, depth, slope: round2(s.slope), scale });
+    out.push({ id: `${id}-${out.length + 1}`, kind: 'branch', x: s.q.x, y: s.q.y, spread: round(s.spread), dome: 0, depth, slope: round2(s.slope), scale });
   }
   return out;
 }
@@ -124,11 +137,13 @@ function limbPerches(limb: readonly Pt[], id: string, n: number, steep: number, 
 const OLIVE_SCALE = coastPerspective(OLIVE.base.x, OLIVE.base.y);
 const PINE_SCALE = coastPerspective(PINE.base.x, PINE.base.y);
 
-/** The olive's fork (where the scaffold limbs leave the trunk) and its limbs' flatter stretches. */
+/** The olive's fork (the crotch where its flattest scaffold limb leaves the trunk) and its limbs' and boughs' bare stretches. */
 function olivePerches(): Perch[] {
-  const fork = OLIVE_LIMBS[2]![0]!;
+  const scaffold = OLIVE_LIMBS.slice(1, 4);
+  const flat = scaffold.reduce((a, b) => (Math.abs(limbTop(b, 1).slope) < Math.abs(limbTop(a, 1).slope) ? b : a));
+  const fork = limbTop(flat, 1).q;
   return [
-    { id: 'olive-fork', kind: 'branch', x: fork.x, y: fork.y, spread: 4, dome: 0, depth: OLIVE.base.y + 1, scale: OLIVE_SCALE },
+    { id: 'olive-fork', kind: 'branch', x: fork.x, y: fork.y, spread: 3, dome: 0, depth: OLIVE.base.y + 1, scale: OLIVE_SCALE },
     ...OLIVE_LIMBS.slice(1).flatMap((limb, i) => limbPerches(limb, `olive-limb-${i + 1}`, 2, 1, OLIVE_SCALE, OLIVE.base.y + 1)),
   ];
 }
@@ -378,14 +393,14 @@ export const COAST_WALLS: WallFace[] = [...TERRACE_FACES, ...SPLASH_FACES];
 
 // ── regions ─────────────────────────────────────────────────────────────────────────────────
 
-/** A band round a line, `half` either side: a trunk's bark. */
-function band(line: readonly Pt[], half: number): Pt[] {
+/** A band round a trunk's painted line, `share` of its half width either side: its bark, off the flanks. */
+function band(line: readonly WoodPt[], share: number): Pt[] {
   const side = (s: number) =>
     line.map((q, i) => {
       const a = line[Math.max(0, i - 1)]!;
       const b = line[Math.min(line.length - 1, i + 1)]!;
       const l = Math.hypot(b.x - a.x, b.y - a.y) || 1;
-      return { x: round(q.x - ((b.y - a.y) / l) * half * s), y: round(q.y + ((b.x - a.x) / l) * half * s) };
+      return { x: round(q.x - ((b.y - a.y) / l) * q.hw * share * s), y: round(q.y + ((b.x - a.x) / l) * q.hw * share * s) };
     });
   return [...side(1), ...side(-1).reverse()];
 }
@@ -441,8 +456,8 @@ function skyOverCove(): Region {
 
 /** The olive's trunk up to its fork and the pine's trunk below its needles: the cicada's bark, at each tree's scale. */
 const BARK: Region[] = [
-  { id: 'bark-olive', kind: 'bark', outline: band(OLIVE_LIMBS[0]!, 5), scale: { top: OLIVE_SCALE, bottom: OLIVE_SCALE } },
-  { id: 'bark-pine', kind: 'bark', outline: band(PINE_TRUNK.filter((q) => q.y > Math.max(...PINE_PADS.map((p) => p.y + p.ry)) + 20), 4), scale: { top: PINE_SCALE, bottom: PINE_SCALE } },
+  { id: 'bark-olive', kind: 'bark', outline: band(OLIVE_LIMBS[0]!.slice(1), 0.6), scale: { top: OLIVE_SCALE, bottom: OLIVE_SCALE } },
+  { id: 'bark-pine', kind: 'bark', outline: band(PINE_TRUNK.filter((q) => q.y > Math.max(...PINE_PADS.map((p) => p.y + p.ry)) + 20), 0.6), scale: { top: PINE_SCALE, bottom: PINE_SCALE } },
 ];
 
 export const COAST_REGIONS: Region[] = [

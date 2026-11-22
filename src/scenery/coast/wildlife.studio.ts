@@ -205,6 +205,31 @@ const crop = (id: string, label: string, rect: Rect, w: number, unit: number): S
   },
 });
 
+/** A tree's perches close: each perch's point (cross) and id over the painting, for checking against the wood. */
+const trees = (id: string, label: string, rect: Rect): StudioEntry => ({
+  id,
+  label,
+  w: 900,
+  h: Math.round((900 * rect.h) / rect.w),
+  render(canvas, { seed }) {
+    const ctx = painting(canvas, rect, seed);
+    const u = rect.w / 900;
+    for (const p of COAST_PERCHES.filter((q) => q.kind === 'branch' || q.kind === 'crown')) {
+      ctx.strokeStyle = '#e0204a';
+      ctx.lineWidth = u * 1.5;
+      ctx.beginPath();
+      ctx.moveTo(p.x - 4 * u, p.y);
+      ctx.lineTo(p.x + 4 * u, p.y);
+      ctx.moveTo(p.x, p.y - 4 * u);
+      ctx.lineTo(p.x, p.y + 4 * u);
+      ctx.stroke();
+      ctx.fillStyle = '#e0204a';
+      ctx.font = `${10 * u}px sans-serif`;
+      ctx.fillText(p.id, p.x + 5 * u, p.y - 5 * u);
+    }
+  },
+});
+
 const section: StudioSection = {
   id: 'coast-wildlife',
   title: 'Scenery · coast wildlife places',
@@ -213,6 +238,8 @@ const section: StudioSection = {
     whole,
     crop('targets-close', 'the same, close on the fauna stage’s crop: the cove, the temple, the caique, the splash rocks, the terraces’ seaward ends', COAST_STAGE, 900, 0.8),
     goats,
+    trees('targets-olive', 'the olive’s perches close (red crosses): each on the upper side of its painted limb', { x: 1150, y: 260, w: 300, h: 220 }),
+    trees('targets-pine', 'the leaning pine’s perches close (red crosses): each on the upper side of its painted branch', { x: 0, y: 60, w: 300, h: 380 }),
     crop('targets-far', 'the far stages close: the bay under the far hill, the caique, the temple and the cliff ledges', { x: 180, y: 240, w: 760, h: 300 }, 1000, 0.5),
   ],
 };

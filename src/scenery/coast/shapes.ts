@@ -277,15 +277,27 @@ export const JARS: readonly { x: number; y: number; h: number; lean: number }[] 
  */
 export const OLIVE_TREE = { seed: 4, scale: 1.12, base: OLIVE.base } as const;
 
+/** A sample of a tree's painted wood: the centreline, its half width and the leaves round a bird's body above it. */
+export interface WoodPt extends Pt {
+  hw: number;
+  leaves: number;
+}
+
 /**
- * Its trunk and scaffold limbs in world units (perches), from the plan: `veg.test.ts` checks
- * them against `planOlive(OLIVE_TREE.seed)`.
+ * Its trunk, scaffold limbs and thick boughs as painted (the cicada's bark, the perches), nine samples a limb from
+ * the plan: `veg.test.ts` checks them against `treeWood()` (ADR 0382).
  */
-export const OLIVE_LIMBS: readonly (readonly Pt[])[] = [
-  [{ x: 1290, y: 540 }, { x: 1286, y: 511 }, { x: 1277, y: 482 }, { x: 1266, y: 458 }, { x: 1251, y: 432 }],
-  [{ x: 1245, y: 448 }, { x: 1231, y: 422 }, { x: 1216, y: 395 }, { x: 1207, y: 370 }, { x: 1202, y: 340 }],
-  [{ x: 1260, y: 448 }, { x: 1257, y: 404 }, { x: 1250, y: 361 }, { x: 1237, y: 320 }, { x: 1234, y: 276 }],
-  [{ x: 1276, y: 448 }, { x: 1297, y: 422 }, { x: 1324, y: 402 }, { x: 1353, y: 385 }, { x: 1381, y: 369 }],
+export const OLIVE_LIMBS: readonly (readonly WoodPt[])[] = [
+  [{ x: 1290, y: 540, hw: 51.6, leaves: 0 }, { x: 1289, y: 526, hw: 37, leaves: 0 }, { x: 1285, y: 510, hw: 27.6, leaves: 0 }, { x: 1281, y: 497, hw: 27.8, leaves: 0 }, { x: 1277, y: 484, hw: 28.5, leaves: 0 }, { x: 1271, y: 471, hw: 30.6, leaves: 0 }, { x: 1264, y: 456, hw: 34.8, leaves: 0 }, { x: 1258, y: 443, hw: 25.3, leaves: 0 }, { x: 1251, y: 432, hw: 20.7, leaves: 0 }],
+  [{ x: 1248, y: 455, hw: 16.5, leaves: 0 }, { x: 1239, y: 441, hw: 9.5, leaves: 0 }, { x: 1233, y: 429, hw: 7, leaves: 0 }, { x: 1226, y: 413, hw: 6, leaves: 4 }, { x: 1217, y: 399, hw: 5, leaves: 22 }, { x: 1212, y: 386, hw: 4.3, leaves: 16 }, { x: 1207, y: 370, hw: 3.5, leaves: 14 }, { x: 1206, y: 357, hw: 2.8, leaves: 41 }, { x: 1202, y: 340, hw: 2, leaves: 14 }],
+  [{ x: 1255, y: 455, hw: 16.5, leaves: 0 }, { x: 1260, y: 433, hw: 10.4, leaves: 0 }, { x: 1258, y: 409, hw: 7.5, leaves: 8 }, { x: 1255, y: 389, hw: 6.5, leaves: 8 }, { x: 1251, y: 365, hw: 5.5, leaves: 7 }, { x: 1244, y: 343, hw: 4.6, leaves: 40 }, { x: 1237, y: 320, hw: 3.6, leaves: 39 }, { x: 1234, y: 300, hw: 2.9, leaves: 66 }, { x: 1234, y: 276, hw: 2, leaves: 22 }],
+  [{ x: 1263, y: 455, hw: 16.5, leaves: 0 }, { x: 1279, y: 443, hw: 9.6, leaves: 0 }, { x: 1289, y: 429, hw: 7.1, leaves: 0 }, { x: 1304, y: 416, hw: 6, leaves: 0 }, { x: 1318, y: 407, hw: 5.2, leaves: 0 }, { x: 1335, y: 394, hw: 4.3, leaves: 17 }, { x: 1350, y: 387, hw: 3.6, leaves: 5 }, { x: 1365, y: 374, hw: 2.7, leaves: 39 }, { x: 1381, y: 369, hw: 2, leaves: 66 }],
+  [{ x: 1219, y: 403, hw: 3.3, leaves: 26 }, { x: 1214, y: 400, hw: 2.9, leaves: 24 }, { x: 1205, y: 395, hw: 2.5, leaves: 33 }, { x: 1200, y: 391, hw: 2.3, leaves: 25 }, { x: 1195, y: 386, hw: 2.1, leaves: 15 }, { x: 1190, y: 383, hw: 1.9, leaves: 15 }, { x: 1181, y: 378, hw: 1.5, leaves: 36 }, { x: 1176, y: 374, hw: 1.4, leaves: 27 }, { x: 1171, y: 370, hw: 1.2, leaves: 16 }],
+  [{ x: 1254, y: 376, hw: 3.7, leaves: 2 }, { x: 1257, y: 366, hw: 3.2, leaves: 2 }, { x: 1260, y: 360, hw: 2.9, leaves: 23 }, { x: 1264, y: 350, hw: 2.6, leaves: 34 }, { x: 1270, y: 342, hw: 2.3, leaves: 46 }, { x: 1273, y: 336, hw: 2.1, leaves: 25 }, { x: 1279, y: 328, hw: 1.8, leaves: 7 }, { x: 1282, y: 322, hw: 1.6, leaves: 6 }, { x: 1286, y: 313, hw: 1.3, leaves: 5 }],
+  [{ x: 1247, y: 351, hw: 3, leaves: 54 }, { x: 1239, y: 345, hw: 2.7, leaves: 64 }, { x: 1231, y: 337, hw: 2.4, leaves: 50 }, { x: 1226, y: 329, hw: 2.1, leaves: 35 }, { x: 1217, y: 320, hw: 1.9, leaves: 51 }, { x: 1210, y: 315, hw: 1.7, leaves: 26 }, { x: 1202, y: 310, hw: 1.5, leaves: 2 }, { x: 1193, y: 303, hw: 1.2, leaves: 7 }, { x: 1185, y: 297, hw: 1.1, leaves: 14 }],
+  [{ x: 1240, y: 332, hw: 2.5, leaves: 45 }, { x: 1244, y: 322, hw: 2.2, leaves: 21 }, { x: 1248, y: 316, hw: 2, leaves: 36 }, { x: 1254, y: 308, hw: 1.8, leaves: 33 }, { x: 1262, y: 301, hw: 1.6, leaves: 41 }, { x: 1266, y: 295, hw: 1.4, leaves: 40 }, { x: 1271, y: 286, hw: 1.2, leaves: 17 }, { x: 1275, y: 280, hw: 1.1, leaves: 3 }, { x: 1281, y: 272, hw: 0.9, leaves: 0 }],
+  [{ x: 1311, y: 410, hw: 3.6, leaves: 0 }, { x: 1315, y: 404, hw: 3.2, leaves: 0 }, { x: 1321, y: 396, hw: 2.8, leaves: 14 }, { x: 1326, y: 390, hw: 2.5, leaves: 15 }, { x: 1331, y: 382, hw: 2.2, leaves: 7 }, { x: 1335, y: 376, hw: 2, leaves: 5 }, { x: 1340, y: 371, hw: 1.8, leaves: 11 }, { x: 1348, y: 364, hw: 1.5, leaves: 17 }, { x: 1353, y: 360, hw: 1.3, leaves: 8 }],
+  [{ x: 1334, y: 395, hw: 2.8, leaves: 15 }, { x: 1342, y: 396, hw: 2.4, leaves: 17 }, { x: 1350, y: 398, hw: 2.1, leaves: 9 }, { x: 1358, y: 401, hw: 1.9, leaves: 36 }, { x: 1366, y: 404, hw: 1.7, leaves: 42 }, { x: 1371, y: 406, hw: 1.6, leaves: 23 }, { x: 1379, y: 408, hw: 1.4, leaves: 1 }, { x: 1387, y: 411, hw: 1.2, leaves: 0 }, { x: 1395, y: 413, hw: 1, leaves: 4 }],
 ];
 
 /** The olive's shadow on the gravel, cast right and a little toward the viewer (light from the left). */
@@ -299,22 +311,20 @@ export const OLIVE_SHADOW = { cx: OLIVE.base.x + 70, cy: OLIVE.base.y + 8, rx: 1
  * (ADR 0380). The literals below come from that plan; `veg.test.ts` checks them.
  */
 export const PINE_TREE = { seed: 101, scale: 1.9, marks: 1.3, lean: -1, base: PINE.base } as const;
-/** Its trunk, foot to top (the cicada's bark). */
-export const PINE_TRUNK: readonly Pt[] = [
-  PINE.base, { x: 152, y: 684 }, { x: 133, y: 607 }, { x: 116, y: 529 }, { x: 101, y: 451 }, { x: 87, y: 373 }, { x: 72, y: 295 }, PINE.top,
-];
-/** Its limbs and big branches (perches). */
-export const PINE_BRANCHES: readonly (readonly Pt[])[] = [
-  [{ x: 90, y: 392 }, { x: 65, y: 357 }, { x: 28, y: 334 }, { x: 0, y: 303 }, { x: -28, y: 269 }],
-  [{ x: 87, y: 374 }, { x: 82, y: 338 }, { x: 79, y: 302 }, { x: 72, y: 267 }, { x: 70, y: 230 }],
-  [{ x: 82, y: 344 }, { x: 94, y: 315 }, { x: 103, y: 288 }, { x: 109, y: 257 }, { x: 115, y: 229 }],
-  [{ x: 42, y: 344 }, { x: 34, y: 329 }, { x: 19, y: 317 }, { x: 3, y: 309 }, { x: -12, y: 301 }],
-  [{ x: 25, y: 331 }, { x: 10, y: 336 }, { x: -7, y: 335 }, { x: -23, y: 338 }, { x: -40, y: 339 }],
-  [{ x: -4, y: 298 }, { x: -15, y: 283 }, { x: -26, y: 270 }, { x: -36, y: 255 }, { x: -45, y: 241 }],
-  [{ x: 63, y: 259 }, { x: 95, y: 225 }, { x: 110, y: 178 }, { x: 133, y: 136 }, { x: 155, y: 95 }],
-  [{ x: 57, y: 239 }, { x: 23, y: 220 }, { x: -7, y: 190 }, { x: -29, y: 157 }, { x: -58, y: 128 }],
-  [{ x: 125, y: 150 }, { x: 140, y: 151 }, { x: 155, y: 152 }, { x: 171, y: 153 }, { x: 185, y: 156 }],
-  [{ x: 138, y: 126 }, { x: 142, y: 111 }, { x: 148, y: 96 }, { x: 155, y: 83 }, { x: 162, y: 70 }],
+/** Its trunk as painted, foot to top (the cicada's bark). */
+export const PINE_TRUNK: readonly WoodPt[] = [{ x: 166, y: 762, hw: 19.4, leaves: 0 }, { x: 154, y: 695, hw: 12.6, leaves: 0 }, { x: 138, y: 623, hw: 10.7, leaves: 0 }, { x: 123, y: 557, hw: 9.2, leaves: 0 }, { x: 108, y: 490, hw: 7.7, leaves: 0 }, { x: 94, y: 423, hw: 6.3, leaves: 0 }, { x: 84, y: 350, hw: 4.9, leaves: 0 }, { x: 72, y: 283, hw: 3.6, leaves: 6 }, { x: 51, y: 218, hw: 2.4, leaves: 13 }];
+/** Its limbs and big branches as painted, nine samples each (the perches). */
+export const PINE_BRANCHES: readonly (readonly WoodPt[])[] = [
+  [{ x: 90, y: 392, hw: 3.4, leaves: 0 }, { x: 82, y: 373, hw: 3, leaves: 0 }, { x: 65, y: 358, hw: 2.6, leaves: 0 }, { x: 47, y: 348, hw: 2.3, leaves: 0 }, { x: 28, y: 333, hw: 2, leaves: 1 }, { x: 15, y: 317, hw: 1.8, leaves: 5 }, { x: 1, y: 303, hw: 1.5, leaves: 9 }, { x: -16, y: 285, hw: 1.3, leaves: 4 }, { x: -28, y: 268, hw: 1, leaves: 4 }],
+  [{ x: 86, y: 374, hw: 3, leaves: 0 }, { x: 85, y: 356, hw: 2.6, leaves: 0 }, { x: 82, y: 338, hw: 2.3, leaves: 0 }, { x: 80, y: 320, hw: 2.1, leaves: 1 }, { x: 78, y: 302, hw: 1.8, leaves: 5 }, { x: 75, y: 284, hw: 1.6, leaves: 6 }, { x: 73, y: 266, hw: 1.3, leaves: 10 }, { x: 71, y: 248, hw: 1.1, leaves: 9 }, { x: 70, y: 230, hw: 0.9, leaves: 12 }],
+  [{ x: 82, y: 345, hw: 2.9, leaves: 0 }, { x: 87, y: 331, hw: 2.5, leaves: 0 }, { x: 94, y: 315, hw: 2.2, leaves: 0 }, { x: 100, y: 302, hw: 2, leaves: 0 }, { x: 104, y: 288, hw: 1.7, leaves: 1 }, { x: 107, y: 274, hw: 1.5, leaves: 2 }, { x: 110, y: 257, hw: 1.3, leaves: 6 }, { x: 112, y: 243, hw: 1.1, leaves: 9 }, { x: 115, y: 229, hw: 0.9, leaves: 10 }],
+  [{ x: 42, y: 344, hw: 1.4, leaves: 0 }, { x: 37, y: 336, hw: 1.2, leaves: 0 }, { x: 33, y: 329, hw: 1.1, leaves: 1 }, { x: 26, y: 323, hw: 1, leaves: 2 }, { x: 19, y: 317, hw: 0.9, leaves: 5 }, { x: 12, y: 313, hw: 0.8, leaves: 6 }, { x: 3, y: 309, hw: 0.7, leaves: 8 }, { x: -4, y: 305, hw: 0.6, leaves: 9 }, { x: -12, y: 300, hw: 0.5, leaves: 7 }],
+  [{ x: 25, y: 331, hw: 1.2, leaves: 1 }, { x: 18, y: 335, hw: 1, leaves: 1 }, { x: 10, y: 336, hw: 0.9, leaves: 3 }, { x: 2, y: 335, hw: 0.9, leaves: 7 }, { x: -7, y: 335, hw: 0.8, leaves: 9 }, { x: -15, y: 337, hw: 0.7, leaves: 12 }, { x: -23, y: 338, hw: 0.6, leaves: 11 }, { x: -31, y: 338, hw: 0.5, leaves: 10 }, { x: -40, y: 339, hw: 0.5, leaves: 10 }],
+  [{ x: -4, y: 298, hw: 0.9, leaves: 11 }, { x: -9, y: 290, hw: 0.8, leaves: 6 }, { x: -15, y: 283, hw: 0.7, leaves: 4 }, { x: -20, y: 277, hw: 0.7, leaves: 2 }, { x: -26, y: 270, hw: 0.6, leaves: 3 }, { x: -31, y: 263, hw: 0.6, leaves: 3 }, { x: -36, y: 255, hw: 0.5, leaves: 3 }, { x: -40, y: 248, hw: 0.5, leaves: 5 }, { x: -45, y: 241, hw: 0.4, leaves: 7 }],
+  [{ x: 62, y: 258, hw: 1.9, leaves: 11 }, { x: 81, y: 243, hw: 1.7, leaves: 8 }, { x: 95, y: 225, hw: 1.5, leaves: 11 }, { x: 102, y: 201, hw: 1.4, leaves: 5 }, { x: 110, y: 178, hw: 1.2, leaves: 0 }, { x: 120, y: 158, hw: 1.1, leaves: 0 }, { x: 133, y: 136, hw: 1, leaves: 1 }, { x: 144, y: 116, hw: 0.9, leaves: 2 }, { x: 156, y: 95, hw: 0.8, leaves: 4 }],
+  [{ x: 57, y: 240, hw: 1.7, leaves: 10 }, { x: 39, y: 231, hw: 1.5, leaves: 16 }, { x: 23, y: 220, hw: 1.3, leaves: 15 }, { x: 8, y: 206, hw: 1.2, leaves: 8 }, { x: -7, y: 190, hw: 1.1, leaves: 9 }, { x: -17, y: 173, hw: 1, leaves: 3 }, { x: -29, y: 156, hw: 0.9, leaves: 5 }, { x: -43, y: 142, hw: 0.8, leaves: 5 }, { x: -58, y: 128, hw: 0.7, leaves: 7 }],
+  [{ x: 125, y: 150, hw: 0.7, leaves: 0 }, { x: 133, y: 151, hw: 0.6, leaves: 2 }, { x: 140, y: 151, hw: 0.6, leaves: 4 }, { x: 147, y: 152, hw: 0.6, leaves: 5 }, { x: 155, y: 152, hw: 0.5, leaves: 8 }, { x: 163, y: 153, hw: 0.5, leaves: 10 }, { x: 171, y: 154, hw: 0.5, leaves: 10 }, { x: 178, y: 155, hw: 0.5, leaves: 12 }, { x: 185, y: 156, hw: 0.4, leaves: 10 }],
+  [{ x: 138, y: 126, hw: 0.6, leaves: 2 }, { x: 140, y: 118, hw: 0.6, leaves: 2 }, { x: 142, y: 111, hw: 0.5, leaves: 0 }, { x: 145, y: 104, hw: 0.5, leaves: 2 }, { x: 148, y: 96, hw: 0.5, leaves: 3 }, { x: 151, y: 90, hw: 0.5, leaves: 4 }, { x: 155, y: 84, hw: 0.5, leaves: 6 }, { x: 159, y: 77, hw: 0.4, leaves: 5 }, { x: 162, y: 70, hw: 0.4, leaves: 7 }],
 ];
 /** Its crown's needle clouds that reach into the frame. */
 export const PINE_PADS: readonly { x: number; y: number; rx: number; ry: number }[] = [

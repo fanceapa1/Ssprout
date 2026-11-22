@@ -6,7 +6,8 @@
  */
 import { createRng, type Rng } from '../../core/rng';
 import { blob, bounds, lighten, mix, padRect, ribbon, type DryOptions, type Painter, type Pigment } from '../../paint';
-import { paintOliveLeaves, paintOliveTrunk, trunkOutline } from '../../plants/lib/olive-paint';
+import { pathNormals } from '../../paint/geometry';
+import { paintOliveLeaves, paintOliveTrunk, scaffoldLimbs, trunkOutline } from '../../plants/lib/olive-paint';
 import { paintPineBark, paintPineCones, paintPineNeedles, paintPineWash, toneOf } from '../../plants/lib/aleppo-pine-paint';
 import { paintSkeleton, softRes, stableLayer, visibleBranches } from '../../plants/lib/tree-paint';
 import { branchProgress, treeView, viewPt, type Branch } from '../../plants/lib/tree-structure';
@@ -18,7 +19,7 @@ import { batchLayer } from '../oasis/paint-batch';
 import { pacer } from '../oasis/paint-pace';
 import { EARTH, inView } from './paint-land';
 import {
-  CLIFF_TOP_SLOT, GRASS, MAQUIS, OLIVE_SHADOW, OLIVE_TREE, PHRYGANA, PINE_ROCK, PINE_TREE, PROMONTORY_PINE_SHAPES, SHORE_CLUMPS,
+  CLIFF_TOP_SLOT, GRASS, MAQUIS, OLIVE_SHADOW, OLIVE_TREE, PHRYGANA, PINE_ROCK, PINE_TREE, PROMONTORY_PINE_SHAPES, SHORE_CLUMPS, type WoodPt,
 } from './shapes';
 
 /** The vegetation's palette: dark maquis, Aleppo pine, phrygana, straw. */
@@ -358,20 +359,11 @@ function inPine(p: Painter, plan: AleppoPinePlan, fn: () => void): void {
 }
 
 /**
- * The shapes the eager code reads (`PINE_TRUNK`, `PINE_BRANCHES`, `PINE_PADS` in `shapes.ts`),
- * from the plan: `veg.test.ts` checks the literals against this.
+ * The pine's crown clouds the eager code reads (`PINE_PADS` in `shapes.ts`), from the plan:
+ * `veg.test.ts` checks the literals against this (its wood: `treeWood`).
  */
-export function pineShapes(): { trunk: Pt[]; branches: Pt[][]; pads: { x: number; y: number; rx: number; ry: number }[] } {
+export function pineShapes(): { pads: { x: number; y: number; rx: number; ry: number }[] } {
   const { plan } = scenePine();
-  const view = treeView(1, plan.tree.base, ALEPPO_TIMING);
-  const w = (q: Pt) => {
-    const o = pineWorld(plan, q);
-    return { x: Math.round(o.x), y: Math.round(o.y) };
-  };
-  const sample = (path: readonly Pt[], n: number) => Array.from({ length: n }, (_, i) => w(path[Math.round((i * (path.length - 1)) / (n - 1))]!));
-  const vis = visibleBranches(plan.tree, view);
-  const trunk = sample(vis.find((v) => v.b.order === 0)!.path, 8);
-  const branches = vis.filter((v) => v.b.order === 1 || (v.b.order === 2 && v.b.len * PINE_TREE.scale > 60)).map((v) => sample(v.path, 5));
   // the crown's clouds: tufts gathered round running centres
   const groups: { x: number; y: number; m: { q: Pt; r: number }[] }[] = [];
   for (const t of plan.tufts) {
@@ -394,7 +386,68 @@ export function pineShapes(): { trunk: Pt[]; branches: Pt[][]; pads: { x: number
       ry: Math.round(Math.max(...g.m.map((o) => Math.abs(o.q.y - g.y) + o.r * 0.6))),
     }))
     .filter((d) => d.x + d.rx > 0);
-  return { trunk, branches, pads };
+  return { pads };
+}
+
+/** A ribbon's painted centreline and half widths (box units, per path point) as `n` world samples, each with the leaves over it. */
+function sampleWood(centre: readonly Pt[], hw: readonly number[], world: (q: Pt) => Pt, k: number, leaves: (top: Pt) => number, n = 9): WoodPt[] {
+  const normals = pathNormals(centre);
+  return Array.from({ length: n }, (_, i) => {
+    const j = Math.round((i * (centre.length - 1)) / (n - 1));
+    const nm = normals[j]!;
+    const up = nm.y <= 0 ? 1 : -1;
+    const top = world({ x: centre[j]!.x + nm.x * hw[j]! * up, y: centre[j]!.y + nm.y * hw[j]! * up });
+    const c = world(centre[j]!);
+    return { x: Math.round(c.x), y: Math.round(c.y), hw: Math.round(hw[j]! * k * 10) / 10, leaves: leaves(top) };
+  });
+}
+
+/** A visible branch's centreline with its wobble, as `ribbon` lays it, and its half widths. */
+function wobbled(v: { path: Pt[]; hw: (t: number) => number; off: (t: number) => number }): { centre: Pt[]; hw: number[] } {
+  const normals = pathNormals(v.path);
+  const t = (i: number) => i / (v.path.length - 1);
+  return { centre: v.path.map((q, i) => ({ x: q.x + normals[i]!.x * v.off(t(i)), y: q.y + normals[i]!.y * v.off(t(i)) })), hw: v.path.map((_, i) => v.hw(t(i))) };
+}
+
+/**
+ * The trees' painted wood as the perches read it (`OLIVE_LIMBS`, `PINE_TRUNK`, `PINE_BRANCHES` in
+ * `shapes.ts`): the olive's trunk, scaffold limbs and thick boughs, the pine's trunk and branches,
+ * with the leaves or needle tufts round a bird's body above each sample; `veg.test.ts` checks them.
+ */
+export function treeWood(): { olive: WoodPt[][]; pineTrunk: WoodPt[]; pine: WoodPt[][] } {
+  const { plan } = olivePlan();
+  const view = treeView(1, plan.tree.base);
+  const k = OLIVE_TREE.scale;
+  const b = plan.tree.base;
+  const ow = (q: Pt) => ({ x: OLIVE_TREE.base.x + (q.x - b.x) * k, y: OLIVE_TREE.base.y + (q.y - b.y) * k });
+  const trunk = plan.tree.branches[0]!;
+  const age = oliveArrivals(1).age;
+  const leaves = plan.leaves.map((l) => ow(viewPt(view, l)));
+  const crowd = (top: Pt) => leaves.filter((q) => Math.hypot(q.x - top.x, q.y - top.y + 9) < 10).length;
+  const o = trunkOutline(trunk, plan.trunk, view, branchProgress(trunk, view.tau), age);
+  const scaffold = scaffoldLimbs(o, plan.tree.branches.filter((l) => l.parent === trunk.id), view, age);
+  const boughs = visibleBranches({ base: b, branches: plan.tree.branches.filter((l) => l.order === 2) }, view, { flare: 0 }).filter((v) => v.hw(0) * k >= 2.5);
+  const olive = [
+    sampleWood(o.c, o.c.map((_, i) => (o.left[i]! + o.right[i]!) / 2), ow, k, crowd),
+    ...scaffold.map((sc) => sampleWood(sc.path, sc.path.map((_, i) => sc.hw(i / (sc.path.length - 1))), ow, k, crowd)),
+    ...boughs.map((v) => {
+      const w = wobbled(v);
+      return sampleWood(w.centre, w.hw, ow, k, crowd);
+    }),
+  ];
+  const { plan: pp } = scenePine();
+  const pv = treeView(1, pp.tree.base, ALEPPO_TIMING);
+  const pk = PINE_TREE.scale;
+  const pw = (q: Pt) => pineWorld(pp, q);
+  const tufts = pp.tufts.map((t) => ({ ...pineWorld(pp, t), r: t.r * pk }));
+  const needles = (top: Pt) => tufts.filter((t) => Math.hypot(t.x - top.x, t.y - top.y + 9) < t.r * 0.8 + 6).length;
+  const vis = visibleBranches(pp.tree, pv, { wobble: 0.3, flare: 0.3, skipTags: ['whorl'] });
+  const sample = (v: (typeof vis)[number]) => {
+    const w = wobbled(v);
+    return sampleWood(w.centre, w.hw, pw, pk, needles);
+  };
+  const pine = vis.filter((v) => v.b.order === 1 || (v.b.order === 2 && v.b.len * pk > 60)).map(sample);
+  return { olive, pineTrunk: sample(vis.find((v) => v.b.order === 0)!), pine };
 }
 
 /** Everything the pine paints, crown, trunk, rock and shadow, with room to spare. */

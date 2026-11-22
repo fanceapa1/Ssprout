@@ -6,8 +6,7 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { createRng } from '../../core/rng';
 import { bounds, pointInPolygon } from '../../paint/geometry';
-import { visibleBranches } from '../../plants/lib/tree-paint';
-import { treeView } from '../../plants/lib/tree-structure';
+import { treeView, viewPt } from '../../plants/lib/tree-structure';
 import { planAleppoPine } from '../../plants/species/aleppo-pine';
 import { planOlive } from '../../plants/species/olive';
 import { paintJob, type PaintView } from '../../scene/background';
@@ -15,7 +14,7 @@ import { PaintRecorder, type RecordedCost } from '../../scene/paint-record';
 import { PLANT_SIZES, plantScale } from '../../scene/slots';
 import { COAST_ART, COAST_ELEMENTS } from '.';
 import { CHAPEL, LAND, OLIVE, PINE, VILLAGE } from './layout';
-import { pineShapes, scenePine } from './paint-veg';
+import { pineShapes, scenePine, treeWood } from './paint-veg';
 import { coastSteps } from './painters';
 import {
   CLIFF_TOP_SLOT, copingY, GRASS, MAQUIS, OLIVE_LIMBS, OLIVE_TREE, PHRYGANA, PINE_BRANCHES, PINE_PADS, PINE_ROCK, PINE_TREE, PINE_TRUNK, PROMONTORY_PINE_SHAPES, promontoryTop, SHORE_CLUMPS, WALL_GRASS,
@@ -83,23 +82,28 @@ describe('coast vegetation painting (G4)', () => {
     for (const step of ['maquis', 'olive', 'pine']) expect(runs.overview!.chunks.filter((c) => c.name === step).length, step).toBeGreaterThan(5);
   });
 
-  it('paints the scenery olive as the olive species’ tree, its trunk and limbs where the perches say (ADR 0367)', () => {
+  it('paints the scenery olive as the olive species’ tree, its trunk and limbs where the perches say (ADR 0367, 0382)', () => {
     const plan = planOlive(createRng(OLIVE_TREE.seed));
     const view = treeView(1, plan.tree.base);
     const trunk = plan.tree.branches[0]!;
-    const vis = visibleBranches(plan.tree, view).filter((v) => v.b.id === trunk.id || v.b.parent === trunk.id);
     const b = plan.tree.base;
     const k = OLIVE_TREE.scale;
-    const world = vis.map((v) =>
-      [0, 1, 2, 3, 4].map((i) => v.path[Math.round((i * (v.path.length - 1)) / 4)]!).map((q) => ({ x: Math.round(OLIVE.base.x + (q.x - b.x) * k), y: Math.round(OLIVE.base.y + (q.y - b.y) * k) })),
-    );
+    const world = (q: { x: number; y: number }) => ({ x: OLIVE.base.x + (q.x - b.x) * k, y: OLIVE.base.y + (q.y - b.y) * k });
     expect(OLIVE_TREE.base).toEqual(OLIVE.base);
-    expect(world).toEqual(OLIVE_LIMBS);
+    expect(treeWood().olive).toEqual(OLIVE_LIMBS);
+    // the trunk, then the scaffold limbs: each limb's tip where the plan's limb ends
+    const limbs = plan.tree.branches.filter((l) => l.parent === trunk.id);
+    expect(OLIVE_LIMBS.length).toBeGreaterThan(limbs.length + 1);
+    limbs.forEach((l, i) => {
+      const tip = world(viewPt(view, l.pts.at(-1)!));
+      expect(Math.hypot(OLIVE_LIMBS[i + 1]!.at(-1)!.x - tip.x, OLIVE_LIMBS[i + 1]!.at(-1)!.y - tip.y)).toBeLessThan(4);
+    });
   });
 
   it('paints the scenery pine as the Aleppo pine species’ tree, its trunk, limbs and clouds where the shapes say (ADR 0380)', () => {
     expect(PINE_TREE.base).toEqual(PINE.base);
-    expect(pineShapes()).toEqual({ trunk: PINE_TRUNK, branches: PINE_BRANCHES, pads: PINE_PADS });
+    expect(pineShapes()).toEqual({ pads: PINE_PADS });
+    expect(treeWood()).toMatchObject({ pineTrunk: PINE_TRUNK, pine: PINE_BRANCHES });
     // the species' own plan, only pruned below the fork: the same trunk
     const plan = planAleppoPine(createRng(PINE_TREE.seed), { lean: PINE_TREE.lean });
     expect(scenePine().plan.tree.branches[0]).toEqual(plan.tree.branches[0]);
@@ -107,8 +111,8 @@ describe('coast vegetation painting (G4)', () => {
   });
 
   it('roots the pine on its rock in the picture, its crown clear of the village and the chapel', () => {
-    expect(PINE_TRUNK[0]).toEqual(PINE.base);
-    expect(PINE_TRUNK.at(-1)).toEqual(PINE.top);
+    expect(PINE_TRUNK[0]).toMatchObject(PINE.base);
+    expect(PINE_TRUNK.at(-1)).toMatchObject(PINE.top);
     // its foot far enough in from the paper's margin for the bark to read, on its rock on the beach
     expect(PINE.base.x).toBeGreaterThanOrEqual(110);
     expect(Math.abs(PINE.base.x - PINE_ROCK.x)).toBeLessThan(PINE_ROCK.w / 2);
