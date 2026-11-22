@@ -1249,7 +1249,7 @@ The painting is on white with no sky step; the sky is the daylight's plates (doc
   light plates' marks 72–98 ms (night 1). The oasis's on the same run: sky 105–221, basin 41–70,
   light 70–135. Each plate is one task, as in every garden.
 
-### Motion (G6, GS1; `motion.ts`, `swell.ts`, `pose.ts`; ADRs 0282, 0374, 0362)
+### Motion (G6, GS1, GS2; `motion.ts`, `swell.ts`, `pose.ts`; ADRs 0282, 0374, 0362)
 `createCoastMotion` is `COAST.motion`, in the coast's lazy chunk. Like the oasis's (Oasis ›
 Motion) it goes over the still painting, about 95 sprites painted once in parts and sealed into
 `ImageBitmap`s; each frame blits them as a pure function of `t` (the renderer's animation time,
@@ -1257,18 +1257,38 @@ which `freeze()` holds; tempo 1) and of the daylight the scene passes to `draw` 
 should read as alive at the overview and stay calm: slow, soft, nothing flashing, nothing looping.
 - **The swell** (`swell.ts`, eager, pure in `t`): one schedule every moving part reads. Crest `n`
   breaks at `n · 10.6 s` ± 1.6 s (seeded), with a seeded strength 0.35–1 in sets of about seven. It
-  is born at the horizon and runs in at `2 + 0.011 · g` units of depth a second (g up from the
-  horizon): slow and close far out, about 6 units a second at the beach, some 100 s from horizon
-  to break. The break peels left to right along the beach over 2.6 s (`delayAt(x)`).
+  is born at the horizon and runs in at `(2 + 0.011 · g) · shoaling(d)` units of depth a second
+  (`crestSpeed`; g up from the horizon): slow and close far out, gathering speed as it comes in,
+  then over the turquoise shelf (depth under 175) slowing again to 0.68 of that at the beach
+  (GS2), so the crests bunch to about 45 units apart before they break instead of spreading to 64;
+  some 104 s from horizon to break. `crestDepth`/`travel` read a table of the integrated speed
+  (every 0.25 units). The break peels left to right along the beach over 2.6 s (`delayAt(x)`).
   `swellAt(depth, x, t)` gives the water's height anywhere (sharp crests, long flat troughs,
-  continuous in `t`). Depth is `depthOf(q)`: the shore distance unstretched (`SEA_STRETCH`).
-- **Crests** (clip: `SEA_WATER` less every rock outline): each crest is broken into pieces along a
-  line of equal depth (`shoreContour` at 54 depths, closer near the shore, built one per part), so
-  it bends round the coves and the headland. A piece is a band sprite (a long soft lit back over a
-  darker face, 160 × 18 units) turned to its line, thinner and fainter far out (`seaScale`), fading
-  in under the horizon and out at the break, dimmed by the boat and gone where its line climbs
-  steeply. Eleven ways of breaking a crest into pieces, taken by its number.
-- **Catspaws**: 34 short pale streaks and 8 troughs drift slowly in (0.6 units/s × `seaScale`),
+  continuous in `t`). Depth is `depthOf(q)`: the shore distance unstretched (`SEA_STRETCH`);
+  `bandDepth(q)` is the depth of the crest line through `q` (the lines wander ±6 %,
+  `contourWander`), which the caique's heave reads so it lifts as the band passes it.
+- **Crests** (GS2; clip: `SEA_WATER` less every rock outline): each crest is laid in long
+  overlapping pieces along a line of equal depth (`shoreContour` at 54 depths, closer near the
+  shore, built one per part), so it bends round the coves, wraps a little way round the headland
+  (a piece fades only past 0.32–0.62 rad of slope) and slows into the cove. A piece is a band
+  sprite (`BAND`, 200 × 40 units, painted at 2 px a unit): a broad soft lighter, greener back
+  behind the crest line (aqua toward aqua-pale, lifted source-over) and a darker teal trough ahead
+  of it, granulated, uneven along the length and feathered at the ends. It is drawn as wide as
+  0.72 of the gap to the next crest (`crestSpeed(d) · period`: tens of units by the beach, a few
+  far out), fading in under the horizon and out at the break; each band also swells and fades
+  slowly along its length (a sine in x, its number and `t`). About four pieces in ten carry a thin
+  broken highlight (`gleam`) on the crest line if the crest is strong: bright by day, at the low
+  suns, faint at night; the bands themselves go 45 % quieter at night. Eleven layouts, taken by the
+  crest's number.
+- **Parting round rocks and the hull** (GS2): every wet rock and the hull is an obstacle at the
+  depth of the grid line through its foot (`obstacleDepths()`). Once a crest has passed it, the
+  stretch of the crest behind it lags (0.6–2.6 s, by its width, a Gaussian about twice its width)
+  and thins in its lee, the lag healing over about 8 + 1.6 × half its width in depth: the crest
+  parts round the obstacle and closes behind it. Only that stretch is drawn in short spans
+  (5 columns each) from the band sprite's matching slice; the rest of the piece stays one blit.
+  The rocks' foam and rings and the hull's ring keep the same depth, so a ring starts as the band
+  reaches the foot.
+- **Catspaws**: 24 short pale streaks (34 before GS2) and 8 troughs drift slowly in (0.6 units/s × `seaScale`),
   each from 29 places picked once, as before (G6).
 - **Caustics** (clip: the pale shallows, `shoreward(shallowsEdge())`): a 128 px tile of a net of
   light lines (the edges of cells on a torus) filled twice as a pattern, foreshortened, sliding
@@ -1278,17 +1298,24 @@ should read as alive at the overview and stay calm: slow, soft, nothing flashing
   low-sun road (sunrise + sunset weight), the moon's road (night weight × the moon's light) or a
   scatter over the near water (midday × 0.3), else stay dark. A road lies under `sunDisc`'s or
   `moonDisc`'s x, dense near the horizon and widening toward the beach; a glint is a small hard
-  lifted spark or a small cluster, over a teal shade so it reads on bright water. The light plates
-  tint them: pale gold at sunset, blue-white at night.
-- **The shore break** (clip: a band along `FOAM_LINE`, 18 units out to 26 up the shingle, less the
-  rocks and the pine's trunk): nine overlapping reaches, each with a breaker (a broken white lip over a darker face), a
-  lace, a wet band (`SAND.wetDark`) and a sheet of water (`SEA.aqua`), their ends feathered. Each
-  crest: the lip forms 13 units out and comes in over 2.6 s, then runs on as the leading edge of
-  the sheet up the shingle, 7–20 units (`7 + 13 · strength`, never past `swashLimit(x)`, which
-  keeps it 12 units short of every beach slot) in 2.2 s; it rests 0.7 s and slides back over
-  3.8 s; the wet band left at the top dries over 6.5 s. The sheet sprite reaches back up over the
-  waterline, so drawn a run's length down it covers the sand behind its edge. A thin lace stays
-  at the waterline between crests.
+  lifted spark or a small cluster, over a teal shade so it reads on bright water. A low sun's glint
+  (GS2) is its own sprite: a white core in a pale gold flare (`SUN_GOLD`) over a warm grey shade,
+  so under the light plate's multiply (which can only darken) the core stays as bright as the
+  plate allows and the flare is the warmest mark on the water. Blue-white at night.
+- **The shore break** (GS2; clip: a band along `FOAM_LINE`, 18 units out to 32 up the shingle,
+  less the rocks and the pine's trunk): nine overlapping reaches, each with a breaker (a broken
+  white lip, 1.8–3 units, over a darker turquoise face), the bore (broken white water in a soft
+  white band behind the front), a lace, the lace left at the turn (the same scallops broken into
+  holes and bubbles), a wet band (`SAND.wetDark`) and a sheet of water (aqua-pale, from its edge up
+  over the waterline, fading upward), their ends feathered. Each reach takes each crest at its
+  place on the peel plus a seeded stagger of ±0.45 s of its own (`reachTime`), so the line
+  arrives in sections, not all at once. The lip forms 13 units out and comes in over 2.6 s,
+  pitches into the bore, then runs on as the sheet's leading edge up the shingle, 9–24 units
+  (`9 + 15 · strength`, never past `swashLimit(x)`: `SWASH_MAX` 26, and 12 units short of every
+  beach slot) in 2.2 s; the bore thins as it climbs. It rests 0.7 s and slides back over 3.8 s;
+  the lace is left at the turn and breaks up there over 3.2 s while a thinner lace follows the
+  sheet down; the wet band left at the top dries over 6.5 s. The run never reaches the beach's
+  back or the rock pools (tested: 20 units short of every pool).
 - **Water meeting stone**: the foam ring at each wet boulder's and splash rock's foot rises and
   swells out with the swell there (`swellAt` at the rock's depth), and each crest leaves a ring
   spreading round the foot over 4.4 s. The ledge's lips and the cliff's foot lap with the crests
@@ -1317,13 +1344,14 @@ should read as alive at the overview and stay calm: slow, soft, nothing flashing
   the open sea and doubled the swell; with it off, reduced motion leaves the sea a still painting.
 - **Cost**: at most 300 blits, 2 pattern fills, 7 clips and 1 stroke a frame (tested), every
   clip a cached `Path2D`, no allocation per mark. `MOTION_BOXES` skip what the view misses and
-  `MOTION_BOUNDS` the whole draw. Bench numbers in devlogs 184 and 213.
+  `MOTION_BOUNDS` the whole draw. Bench numbers in devlogs 184, 213 and 223.
 - **Looking at it**: `sprout.advance` moves the dev clock, not `t`. To see frames at chosen times,
   replace `requestAnimationFrame` with a queue after `sprout.freeze()`, `unfreeze()`, and call the
   queued frame with timestamps 50 ms apart (devlog 213); or the studio's strips.
 - Studio `coast-motion` (159): `cove`, `cove-frames`, `beach`, `beach-frames`, `boat`,
   `boat-frames`, `rocks`, `pools`, `swell`, `swell-frames`, `shore-break`, `shore-break-frames`,
-  `caustics`, `glints-sunset`, `glints-night`, `glints-noon`, `coast-motion-sprites`.
+  `crest-parting`, `rock-rings`, `caustics`, `glints-sunset`, `glints-night`, `glints-noon`,
+  `coast-motion-sprites`.
 
 ### Left for later tasks
 - Water (devlog 176, Left open): the far hill's reflection is faint, the shingle's spatter still
