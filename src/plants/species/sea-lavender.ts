@@ -105,10 +105,11 @@ export function buildSeaLavender(rng: Rng): SeaLavender {
   const dotsFor = (n: number, w0: number, spread: number, u0: number): DotPlan[] =>
     Array.from({ length: n }, (_, j) => ({
       u: lerp(u0, 1, (j + rng.range(0.1, 0.9)) / n),
-      off: rng.range(-spread, spread),
-      r: rng.range(0.85, 1.3),
+      off: rng.range(0.25, spread),
+      r: rng.range(0.7, 1.05),
       tone: rng.next(),
-      opens: Math.min(0.88, w0 + 0.12 + rng.range(0, 0.1)),
+      // the stems stand bare a while before their florets open
+      opens: Math.min(0.88, w0 + 0.18 + rng.range(0, 0.1)),
       glint: rng.chance(0.4),
       seed: seedOf(rng),
     }));
@@ -121,17 +122,19 @@ export function buildSeaLavender(rng: Rng): SeaLavender {
       window: [w0, w0 + span],
       width,
       gen,
-      dots: dotsFor(dots, w0, 1.3, gen === 0 ? 0.88 : 0.3),
+      dots: dotsFor(dots, w0, 1.4, gen === 0 ? 0.86 : 0.35),
       seed: seedOf(rng),
     });
 
   const nMain = rng.int(3, 4);
   for (let i = 0; i < nMain; i++) {
     const u = nMain === 1 ? 0 : lerp(-1, 1, (i + rng.range(0.2, 0.8)) / nMain);
-    const lean = u * 0.4 + rng.gaussian(0, 0.05);
-    const length = lerp(54, 44, Math.abs(u)) * rng.range(0.92, 1.06);
+    const lean = u * 0.3 + rng.gaussian(0, 0.06);
+    const length = lerp(54, 42, Math.abs(u)) * rng.range(0.88, 1.06);
     const w0 = 0.34 + i * 0.025 + rng.range(0, 0.02);
-    add(`m${i}`, null, 0, { x: foot + u * 5, y: -3 }, UP + lean, length, -lean * 0.3, w0, 0.26, 0.8, 0, 6);
+    // each stem leaves the rosette from its own place, not all from one point
+    const base = { x: foot + u * 9 + rng.range(-1.5, 1.5), y: -2 - rng.range(0, 2) };
+    add(`m${i}`, null, 0, base, UP + lean, length, -lean * 0.3 + rng.range(-0.12, 0.12), w0, 0.26, 0.8, 0, 7);
     const nb = rng.int(6, 7);
     for (let k = 0; k < nb; k++) {
       const t = lerp(0.36, 0.95, (k + rng.range(0.1, 0.9)) / nb);
@@ -139,11 +142,11 @@ export function buildSeaLavender(rng: Rng): SeaLavender {
       const len = lerp(17, 7, (t - 0.36) / 0.59) * rng.range(0.85, 1.1);
       const bw0 = w0 + 0.08 + t * 0.12;
       const id = `m${i}b${k}`;
-      add(id, `m${i}`, t, { x: 0, y: 0 }, UP + side * rng.range(0.75, 1.1), len, side * rng.range(-0.5, -0.2), bw0, 0.2, 0.42, 1, 5);
+      add(id, `m${i}`, t, { x: 0, y: 0 }, UP + side * rng.range(0.75, 1.1), len, side * rng.range(-0.5, -0.2), bw0, 0.2, 0.32, 1, 7);
       if (len > 9) {
         for (let c = 0; c < 2; c++) {
           const cs = c === 0 ? -1 : 1;
-          add(`${id}s${c}`, id, c === 0 ? 0.55 : 0.92, { x: 0, y: 0 }, UP + cs * rng.range(0.5, 0.8), len * rng.range(0.42, 0.55), cs * rng.range(-0.4, -0.1), bw0 + 0.08, 0.18, 0.3, 2, 4);
+          add(`${id}s${c}`, id, c === 0 ? 0.55 : 0.92, { x: 0, y: 0 }, UP + cs * rng.range(0.5, 0.8), len * rng.range(0.42, 0.55), cs * rng.range(-0.4, -0.1), bw0 + 0.08, 0.18, 0.24, 2, 6);
         }
       }
     }
@@ -202,7 +205,7 @@ export function poseSeaLavender(plant: SeaLavender, g: number): SeaLavenderPose 
       id: b.id,
       pts,
       width: b.width * (0.55 + 0.45 * smooth(k * 1.4)),
-      pigment: b.gen === 0 ? mix(WIRE, LEAF, 0.2) : mix(WIRE, PAPER, 0.3),
+      pigment: b.gen === 0 ? mix(WIRE, LEAF, 0.2) : mix(mix(WIRE, PAPER, 0.3), HAZE, 0.45),
       deep: WIRE_DEEP,
       seed: b.seed,
     });
@@ -216,9 +219,12 @@ export function poseSeaLavender(plant: SeaLavender, g: number): SeaLavenderPose 
       if (size < 0.02) return;
       const open = ramp(g, d.opens, d.opens + 0.12);
       const at = pointAt(pts, d.u);
+      // the florets sit in a row on the twig's upper side, each turned out from it
+      const nrm = at.angle + (Math.sin(at.angle + Math.PI / 2) > 0 ? -Math.PI / 2 : Math.PI / 2);
       pose.dots.push({
         id: `dot-${bi}-${j}`,
-        at: { x: at.x + Math.cos(at.angle + Math.PI / 2) * d.off, y: at.y + Math.sin(at.angle + Math.PI / 2) * d.off },
+        at: { x: at.x + Math.cos(nrm) * d.off, y: at.y + Math.sin(nrm) * d.off },
+        rot: nrm + (d.tone - 0.5) * 0.6,
         r: d.r * lerp(0.3, 1, size),
         alpha: smooth(size * 2.5),
         pigment: mix(mix(BUD, OPEN, smooth(open)), PAPER, d.tone * 0.45 * open),
@@ -230,6 +236,24 @@ export function poseSeaLavender(plant: SeaLavender, g: number): SeaLavenderPose 
     });
   });
   return pose;
+}
+
+/** A path cut at the share `f` of its length: the part before and the part after. */
+function splitPath(pts: readonly Pt[], f: number): [Pt[], Pt[]] {
+  const lens = pts.slice(1).map((q, i) => Math.hypot(q.x - pts[i]!.x, q.y - pts[i]!.y));
+  let left = lens.reduce((a, b) => a + b, 0) * f;
+  for (let i = 0; i < lens.length; i++) {
+    if (left > lens[i]!) {
+      left -= lens[i]!;
+      continue;
+    }
+    const a = pts[i]!;
+    const b = pts[i + 1]!;
+    const u = left / Math.max(1e-6, lens[i]!);
+    const cut = { x: a.x + (b.x - a.x) * u, y: a.y + (b.y - a.y) * u };
+    return [[...pts.slice(0, i + 1), cut], [cut, ...pts.slice(i + 1)]];
+  }
+  return [pts.slice(), []];
 }
 
 /** Every point a full-grown plant paints (for the box test). */
@@ -268,8 +292,14 @@ const seaLavender: SpeciesDef = {
       groundShadow(p, r, { rx: 24, ry: 4, x: plant.foot, k: ramp(g, 0.06, 0.6), opacity: 0.16, pigment: SHADOW });
       seedMound(p, r, g, { rx: 8, x: plant.foot });
       const pose = poseSeaLavender(plant, g);
+      // a stem is a wire only up to its first sprays; above, it thins and pales into the froth
+      const wires = pose.wires.flatMap((w) => {
+        if (!/^m\d+$/.test(w.id)) return [w];
+        const [low, high] = splitPath(w.pts, 0.42);
+        return [{ ...w, pts: low }, { ...w, pts: high, width: w.width * 0.5, pigment: mix(mix(WIRE, PAPER, 0.3), HAZE, 0.45) }];
+      });
+      paintWires(p, wires);
       paintHaze(p, pose.hazes);
-      paintWires(p, pose.wires);
       paintPaddles(p, pose.leaves);
       paintDots(p, pose.dots);
     } finally {

@@ -58,7 +58,7 @@ export function paintLeaves(p: Painter, marks: readonly LeafMark[], reserves: re
   const L = p.layer(padRect(bounds(live.flatMap((m) => m.geom.outline)), 3));
   for (const m of live) {
     const rng = createRng(m.seed);
-    L.fill(deformPolygon(m.geom.outline, rng, { depth: 1, variance: 0.05 }), jitter(m.pigment, rng, 0.025), 0.42 * m.alpha);
+    L.fill(deformPolygon(m.geom.outline, rng, { depth: 1, variance: 0.05 }), jitter(m.pigment, rng, 0.025), 0.5 * m.alpha);
     L.fill(deformPolygon(m.geom.shade, rng, { depth: 1, variance: 0.05 }), m.deep, 0.3 * m.alpha);
   }
   for (const m of live) if (m.alpha > 0.8) L.lift(ribbon(smoothPath(m.geom.mid, 1.2), (t) => 0.3 * (1 - 0.6 * t)), 0.16);
@@ -96,7 +96,7 @@ export function paintMass(p: Painter, marks: readonly MassMark[], reserves: read
   const L = p.layer(padRect(bounds(live.flatMap((m) => lump(m, 8))), 4));
   for (const m of live) {
     const rng = createRng(m.seed + 7);
-    L.fill(deformPolygon(lump(m), rng, { depth: 2, variance: 0.1 }), jitter(m.pigment, rng, 0.02), 0.2 * m.alpha);
+    L.fill(deformPolygon(lump(m), rng, { depth: 2, variance: 0.1 }), jitter(m.pigment, rng, 0.02), 0.36 * m.alpha);
   }
   for (const r of reserves) L.lift(disc(r, 1.05), r.amount * 0.9);
   L.dry({ opacity: 0.7, edge: 0.12, edgeWidth: 1.6, sharpness: 0.3, centreLift: 0.1, granulation: 0.45, flow: 0.5, flowScale: 9, dry: 0.2, darken: 0.05 });
