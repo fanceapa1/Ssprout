@@ -228,4 +228,4 @@ describe('the coast daylight (G5)', () => {
   });
 });
 
-const PINS: Record<DayPhase, string> = { sunrise: 'ec5cb0e5', midday: 'edf97b47', sunset: '5a8598ee', night: '9fc0c314' };
+const PINS: Record<DayPhase, string> = { sunrise: '234ae0da', midday: 'ee5e5f5d', sunset: '4f7b6499', night: 'b757832b' };
