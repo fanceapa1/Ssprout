@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test';
-import { expect, openAt, openDev, test, waitFrames } from './fixtures';
+import { expect, openAt, openDev, test } from './fixtures';
 import { storedOf } from './paint-store';
 
 /**
@@ -93,14 +93,20 @@ test.describe('light plates wait for the lazy painters (devlog 155)', () => {
       expect(await page.evaluate(() => window.sprout!.scenery().viewed)).toBe(scenery);
       const fresh = await lightFrame(page);
 
-      // first visit: the landscape and every phase's plates painted and stored
+      // first visit: the landscape and every phase's plates painted (a frame drawn in each phase)
+      // and stored; the cache stores in idle time, so the garden is held still while it settles
       await openDev(page, at);
-      for (const time of PHASES) {
-        await page.evaluate((t) => window.sprout!.setTime(t), time);
-        await waitFrames(page, 2);
-      }
-      await expect.poll(async () => (await storedOf(page, 'sky-plate', 'light-plate')).length, { timeout: 40_000 }).toBe(8);
-      await page.evaluate(() => window.sprout!.paintCache.settle());
+      await page.evaluate(async (phases) => {
+        const s = window.sprout!;
+        for (const t of phases) {
+          s.setTime(t);
+          await s.freeze();
+          s.unfreeze();
+        }
+        await s.freeze();
+        await s.paintCache.settle();
+      }, PHASES);
+      expect(await storedOf(page, 'sky-plate', 'light-plate')).toHaveLength(8);
       await openDev(page, `${at}&nopaintcache`);
       expect(await dropMiddayLight(page)).toBe(1);
 

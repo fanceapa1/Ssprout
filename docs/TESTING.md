@@ -132,8 +132,9 @@ tests (`test-results/`).
   moving. The garden is not put into reduced motion.
 - **CPU budget.** Local e2e runs 2 workers by default (`E2E_WORKERS`); iterate on single specs and
   run the full suite once per task, niced, because two agents share the owner's laptop.
-- **Heavy pages are scoped.** The studio is checked one section at a time in 4 parallel shards
-  (`#<section>`), never all at once. Tests that paint 30+ sprites call `test.slow()`.
+- **Heavy pages are scoped.** The studio is checked one section at a time (`#<section>`), never
+  all at once, in 30 small parts (section *i* in part *i* % 30) that the runner spreads over its
+  workers; each part took 3–21 s locally on 2026-11-22 (devlog 221). Tests that paint 30+ sprites call `test.slow()`.
 - Budgets (`plants.perf().avgMs < 2`, `ambience().ms < 1.5`, `fauna.bench().total < 8`) are
   generous ceilings for CI. The real numbers live in the system docs. A budget times steady
   frames: warm up anything painted on first use (the fauna bench runs once untimed) before timing.
@@ -189,6 +190,13 @@ The `E2E_CLOCK` runs, a loaded run and runs that began after 23:00 found four mo
 |---|---|---|
 | E2E, CI from about 23:05 UTC (both tries): `calendar › at the scheduled time a card waits with one-tap Start…` found no block for the occurrence after the bloom | Test, hour-dependent. The schedule is due a minute after the real time, the test waits 5 minutes, and the 50 min session then blooms just after midnight; the day view no longer has the occurrence's block. Fails with `E2E_CLOCK=23:05`, passes at 23:30 (not traced further) | The test pins the hour first (`advanceTo('10:00')`) |
 | E2E, the author's machine only: three `plant-card-phone` checks and the desktop `rename › Cancel and Escape…` timed out | Not reproduced. On CI they take 8–22 s; locally at a load average of 28–38, 4–14 s with one worker. A trace of the desktop check shows no wait longer than the starts, card and camera settle (6 s) | None needed; the spec's doubled timeout was dropped |
+
+### GC3: red CI after phase 15 (2026-11-22, devlog 221)
+
+| Symptom | Root cause | Fix |
+|---|---|---|
+| E2E, CI, every red run that day (both tries): `studio › every entry renders… (shard 4/6)` and `(shard 5/6)` timed out at 60 s in `settle()`; the passing shards took 43–56 s (24–35 s on 2026-11-10) | Test layout, not a hang. Each of six tests painted about 30 sections, and every entry that paints a crop of a garden pays for the whole garden's painting (0.5–3 s; 171 such paints, three quarters of the 233 s the sections took locally). Phase 15's coast sections and creature stages pushed the heaviest shards over the limit; reproduced locally (shard 4/6 timed out once in two runs) | 30 parts instead of 6 shards (3–21 s each locally); rules for heavy entries in `docs/systems/studio.md` |
+| E2E, CI, once (both tries): `light-plates-wait › … (oasis)` "Timeout 40000ms exceeded" polling for 8 stored plates; the same test took 38 s to 72 s on green runs that day | Test, a timing flake (not a regression: 10 of 10 passed locally on `main`). The paint cache stores one entry at a time in idle time (`requestIdleCallback`, 1 s timeout), and a garden drawing every frame leaves no idle time, so storing the first visit took 21 s in every local run, longer on a loaded runner; a plate prepared rather than drawn is painted in idle time too (20 s timeout) | The spec draws one frame in each phase (`freeze()`), then holds the garden still and awaits `paintCache.settle()`, and checks the 8 plates once |
 
 ## CI
 
@@ -269,7 +277,7 @@ in Q8a and Q8b).
 | # | Owner request | Implemented in | Test(s) | Status |
 |---|---|---|---|---|
 | L1 | Replace the round red dot (ADR 0194) | `ui/icons.ts` (sprout mark, brush mark), `ui/calendar-art.ts` | marks › the sprout marks what begins a planting and what grows now; no round red dot anywhere; calendar · week layout (ADR 0183) › concurrent blocks share the column, the seal never covers words, a narrow block reads whole on hover | ✔ |
-| L2 | The studio paints lazily (ADR 0006) | `src/studio/` | studio · lazy painting (ADR 0006) › the whole studio paints only what is near the screen, and the rest on scroll; studio › every entry renders without errors and paints something (shards 1–4) | ✔ |
+| L2 | The studio paints lazily (ADR 0006) | `src/studio/` | studio · lazy painting (ADR 0006) › the whole studio paints only what is near the screen, and the rest on scroll; studio › every entry renders without errors and paints something (parts 1–30) | ✔ |
 | L3 | Dock wayfinding: a guiding path (ADR 0202) | `ui/wayfinding.ts`, `ui/wayfinding-path.ts` | ui/wayfinding-path (all); wayfinding · desktop › the path leaves the stepping stones and passes every heading in order, beside it; › never crosses text, with three sessions growing and a planned session waiting; › lays itself out again…; › the stop of the section being read is a little stronger as the page scrolls; wayfinding · phone › a straight line down the left gutter, a stop beside each stacked heading, never over text; wayfinding · motion › a gentle draw-in on first view; none with reduced motion | ✔ |
 | L4 | Dock wayfinding: helper lines under one reading spine (ADRs 0200, 0201) | `ui/dock.ts`, `ui/dock-guide.ts` | ui/dock › gives every section a helper line under its heading…; ui/dock-guide (all); wayfinding · desktop › one reading spine: every section on one left edge, in order, with a heading and a helper line; › the helper lines follow the state | ✔ |
 | L5 | Dock wayfinding: hover effects, one hover language, the same on keyboard focus (ADR 0204) | `ui/hover.css` | wayfinding · desktop › controls answer the pointer and the keyboard in one calm way; wayfinding · motion › with reduced motion the path is simply there, and nothing moves on hover; v2-acceptance › seals, sprout marks, tools, corner and zoom chips, calendar words, the pill and sheet cards each answer the pointer; › keyboard focus shows the hover state: a seal, a calendar word, a corner chip, a quick pick; › keyboard focus lifts the dock tools and the sheet’s plan and plant cards too | ✔ |
@@ -458,7 +466,7 @@ Legend: unit tests as `folder/file › test`, under `src/` (`.test.ts` omitted).
 
 | # | Rule | Unit | E2E | Status |
 |---|---|---|---|---|
-| 11.1 | Studio shows every sprite, creature, effect and paint primitive | studio/registry › discovers the real *.studio.ts files; › flattens…; › rejects duplicate…; › finds entries… | studio › lists every section in the nav…; › every entry renders without errors and paints something (6 shards) | ◐ "every sprite has an entry" is a convention (AGENTS.md), not machine-checked |
+| 11.1 | Studio shows every sprite, creature, effect and paint primitive | studio/registry › discovers the real *.studio.ts files; › flattens…; › rejects duplicate…; › finds entries… | studio › lists every section in the nav…; › every entry renders without errors and paints something (30 parts) | ◐ "every sprite has an entry" is a convention (AGENTS.md), not machine-checked |
 | 11.2 | Seed/reseed, play/pause, speed, background, scale; URL `#section`, `?entry`, `?seed`, `?t` | — | studio › reseed re-renders with a new seed; › #section shows only that section; › ?entry shows a single entry large; › ?seed and ?t start paused…; › speed, background and scale controls | ✔ |
 | 11.3 | The dev clock pins a time of day (`sprout.advanceTo`, forward only, daylight saving included); `schedule.demo()` opens at the same hour whenever it runs, with a session due; e2e never depends on the hour it runs at | dev/local-time (all) | marks › the sprout marks what begins a planting…; calendar · a planned slip on a phone’s garden…; calendar · the day follows now (all); calendar › schedule a session…; › edit only this one…: all pass with `E2E_CLOCK` = 00:30, 09:00, 17:00, 23:50 (devlog 31) | ✔ (hour-proofing is a run, not a CI job) |
 
@@ -784,7 +792,7 @@ Legend: unit tests as `folder/file › test`, under `src/` (`.test.ts` omitted).
 |---|---|---|---|---|
 | F2.1 | Adding a species only adds files: the registry and the notes glob them, no list or count is pinned | plants/registry (all); plants/notes › every registered species has a note…; › no note is left for a species that does not exist | — | ✔ |
 | F2.2 | Every species runs its family suite from `species/<id>.test.ts` (tiers 1–2: definition, determinism, seed variety, paints at every growth, continuous growth; tier 3: habitats and size, builder determinism, growth-independent rng; tier 4: sane box, plan determinism, seed variety, rng independence, inside the box) | plants/species/<id> (all, via lib/suites) | — | ✔ |
-| F2.3 | The family boards and the flora line-ups come from the registry; every entry paints | — | studio › every entry renders without errors and paints something (shards) | ✔ |
+| F2.3 | The family boards and the flora line-ups come from the registry; every entry paints | — | studio › every entry renders without errors and paints something (parts) | ✔ |
 | F2.4 | Merging a species, a creature, a note or a helper only they import keeps the paint version; what a cached painter imports stays hashed | paint/paint-version › species, creatures and notes (ADR 0251) (all); › covers this project's painters… | — | ✔ |
 
 ### Waterfall species and creatures (phase 12, one row per species or creature; devlogs 73–92)
