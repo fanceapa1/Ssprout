@@ -449,6 +449,31 @@ export const GOAT_TRACKS: readonly GoatTrack[] = [
 /** Where a goat's feet go on a track at x: just inside the cliff top's edge, or on the bed's lip. */
 export const goatTrackY = (t: GoatTrack, x: number): number => (t.bed === null ? topAt(x) + 1.5 : bedAt(PROMONTORY_FORM.beds[t.bed]!, x) - 0.2);
 
+/**
+ * Pockets of scrub caught on the cliff's hard ledges (GB1): where a deep fissure crosses one (soil
+ * gathers there) and here and there along it; off the goats' ways, the maquis on the cliff top and
+ * the cliff-top tree slot. Centre (on the ledge) and size.
+ */
+export const LEDGE_SCRUB: readonly { x: number; y: number; r: number }[] = (() => {
+  const rng = createRng('coast-ledge-scrub');
+  const out: { x: number; y: number; r: number }[] = [];
+  const goat = (x: number, y: number) =>
+    GOAT_TRACKS.some((t) => x > t.x0 - 14 && x < t.x1 + 14 && Math.abs((t.bed === null ? topAt(x) : bedAt(PROMONTORY_FORM.beds[t.bed]!, x)) - y) < 10);
+  const beds = PROMONTORY_FORM.beds.filter((b) => b.hard);
+  const tries: { x: number; bed: PromontoryBed }[] = [];
+  for (const f of PROMONTORY_FORM.fissures) for (const bed of beds) if (f.depth > 0.75 && rng.chance(0.45)) tries.push({ x: f.x + rng.range(-3, 5), bed });
+  for (let i = 0; i < 44; i++) tries.push({ x: i % 2 ? rng.range(660, 1100) : rng.range(1100, 1570), bed: rng.pick(beds) });
+  for (const { x, bed } of tries) {
+    const y = bedAt(bed, x) - 0.6;
+    const r = rng.range(3, 5.6);
+    if (x > 1580 || y < topAt(x) + (x > 880 ? 44 : 10) || y > footAt(x) - 18 || goat(x, y)) continue;
+    if (COAST_SLOTS.some((s) => Math.hypot(x - s.x, y - s.y) < 50)) continue;
+    if (out.some((o) => Math.hypot(o.x - x, o.y - y) < 26)) continue;
+    out.push({ x, y, r });
+  }
+  return out;
+})();
+
 /** A far pine: its crown's centre and half extents, its trunk (foot to top), limbs and needle clouds. */
 export interface FarPine {
   x: number;
