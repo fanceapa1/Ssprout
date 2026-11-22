@@ -35,12 +35,12 @@ async function sectionIds(page: Page): Promise<string[]> {
 }
 
 /**
- * Rendering every entry of every section at once is the heaviest page in the app (tens of
- * seconds under load: all species growth stages, the full scene, fauna sheets). The check is
- * split into shards that run in parallel, and each shard shows one section at a time
- * (`#<section>`, the studio's own section view), so no single step renders the whole studio.
+ * Rendering every entry of every section at once is the heaviest page in the app: an entry that
+ * paints a crop of a garden pays for that garden's whole painting (0.5–3 s each). The check is
+ * split into many small parts (section i goes to part i % PARTS), each showing one `#<section>` at
+ * a time, so no test comes near its timeout and the runner spreads the parts over its workers.
  */
-const SHARDS = 6;
+const PARTS = 30;
 
 test.describe('studio', () => {
   test('lists every section in the nav, including the scene and the species', async ({ page }) => {
@@ -52,9 +52,9 @@ test.describe('studio', () => {
     expect(ids.some((id) => id.startsWith('ambience'))).toBe(true);
   });
 
-  for (let shard = 0; shard < SHARDS; shard++) {
-    test(`every entry renders without errors and paints something (shard ${shard + 1}/${SHARDS})`, async ({ page }) => {
-      const ids = (await sectionIds(page)).filter((_, i) => i % SHARDS === shard);
+  for (let part = 0; part < PARTS; part++) {
+    test(`every entry renders without errors and paints something (part ${part + 1}/${PARTS})`, async ({ page }) => {
+      const ids = (await sectionIds(page)).filter((_, i) => i % PARTS === part);
       expect(ids.length).toBeGreaterThan(0);
       for (const id of ids) {
         // a hash change re-mounts the grid with only that section, synchronously
@@ -73,7 +73,7 @@ test.describe('studio', () => {
   }
 
   test('reseed re-renders with a new seed', async ({ page }) => {
-    // one section keeps this fast; every section's entries are covered by the shard tests
+    // one section keeps this fast; every section's entries are covered by the part tests
     await openStudio(page, '#scene');
     const seed = page.locator('#seed');
     await settle(page);

@@ -87,6 +87,19 @@ first); cards about three screens away release their pixels and repaint on retur
 entries animate only while on screen. Entry `render` functions are unchanged — but anything that
 reads studio pixels (tests, scripts) must `await window.studio.settle()` first.
 
+## What an entry costs (devlog 221)
+An entry that paints a crop of a garden (`paintSceneSync` with a `rect`, a fauna `Stage` on the
+oasis or the coast) pays for that garden's **whole** painting: the paint job runs every mark of
+every step and only the canvas is cropped. The cost is the marks, not the pixels: measured on
+2026-11-22, a 280 × 100 crop of the oasis at 4 px a unit took 2.4 s and the whole oasis at 0.5 px
+a unit 2.7 s; the coast takes 0.5–1.8 s a paint. Such paints were three quarters of the studio
+smoke test's time (171 paints, about 174 s of 233 s). Rules for authors:
+- Paint a garden once per entry at most, cached by seed, rect and scale (as `Stage` and
+  `coast/motion.studio.ts` do), so later frames and a `frame === 0` reset never repaint it.
+- Painting at a smaller scale saves almost nothing; show fewer crops instead of smaller ones.
+- Keep a section under about 10 s in the smoke test (about six oasis crops or a dozen coast
+  crops); split a bigger one into two sections. The heaviest section sets the slowest part.
+
 ## Page controls
 Seed + **Reseed**, **Play/Pause**, speed 0.25×–4×, background paper/white/dark, scale 1×/2×.
 Errors thrown by an entry are shown on its card and logged to the console.
@@ -107,8 +120,8 @@ npm run shots -- --entry scene/full --seed 7 --t 2.5
 
 ## Tests
 `tests/e2e/studio.spec.ts`: the nav lists every section (scene and species included); every
-entry renders without errors and paints something, split into 4 parallel shards that show one
-`#section` at a time; reseed re-renders; `#section` and `?entry` views work; the whole studio paints only cards near the screen and the rest on scroll (lazy painting); `?seed`/`?t` start
+entry renders without errors and paints something, split into 30 parts (section *i* in part
+*i* % 30) that show one `#section` at a time; reseed re-renders; `#section` and `?entry` views work; the whole studio paints only cards near the screen and the rest on scroll (lazy painting); `?seed`/`?t` start
 paused, Play animates, Pause holds the frame; speed, background and scale controls; the plant
 view's round window (`ui-shell/plant-view-window`) is round with a pooled rim and lost at the
 bottom (ADR 0184).
