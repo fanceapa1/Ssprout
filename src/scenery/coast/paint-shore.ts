@@ -92,34 +92,63 @@ function* dry(L: WetLayer, opts: DryOptions): Strokes {
 }
 
 export function* paintShore(p: Painter, rng: Rng): Strokes {
-  if (inView(p, BEACH_BOX)) {
-    yield* paintWetSand(p, rng.fork('wet'));
-    yield* paintSorting(p, rng.fork('sorting'));
-    yield* paintWrack(p, rng.fork('wrack'));
-    yield* paintCobbles(p, rng.fork('cobbles'));
-    yield* paintBuried(p, rng.fork('buried'));
-    yield* paintBalls(p, rng.fork('balls'));
-    yield* paintTufts(p, rng.fork('tufts'));
-  }
+  if (inView(p, BEACH_BOX)) yield* paintBeach(p, rng);
   yield* paintPoolStone(p, rng.fork('stone'));
   for (const [i, q] of POOL_SHAPES.entries()) yield* paintPool(p, q, rng.fork(`pool-${i}`));
 }
 
 // ── the beach ─────────────────────────────────────────────────────────────────────────────
 
-/** The sand the swash keeps wet under the waterline: darker and cooler, lost up the beach, with the sky's sheen in it. */
+/** The beach's marks wet into a few shared layers, each dried once: shades, bodies, lifts, strands. */
+interface BeachLayers {
+  shade: WetLayer;
+  body: WetLayer;
+  lit: WetLayer;
+  strands: WetLayer;
+}
+
+/**
+ * The beach over the water painter's: the wet band and the sea's sorting as washes, then the
+ * wrack, the berm's cobbles, the buried stones, the sea balls and the tufts laid into shared
+ * layers (multiply layers commute, so one drying pass serves every kind of mark).
+ */
+function* paintBeach(p: Painter, rng: Rng): Strokes {
+  yield* paintWetSand(p, rng.fork('wet'));
+  yield* paintSorting(p, rng.fork('sorting'));
+  const L: BeachLayers = { shade: p.layer(BEACH_BOX), body: p.layer(BEACH_BOX), lit: p.layer(BEACH_BOX), strands: p.layer(BEACH_BOX) };
+  const flush = () => Object.values(L).forEach((l: WetLayer) => l.flush());
+  sheenInto(L, rng.fork('sheen'));
+  wrackInto(L, rng.fork('wrack'));
+  flush();
+  yield;
+  cobblesInto(L, rng.fork('cobbles'));
+  flush();
+  yield;
+  buriedInto(L, rng.fork('buried'));
+  ballsInto(L, rng.fork('balls'));
+  tuftsInto(L, rng.fork('tufts'));
+  yield* dry(L.shade, { opacity: 0.45, edge: 0.12, edgeWidth: 0.8, sharpness: 0.4, centreLift: 0, granulation: 0.4, granules: 0.05, flow: 0.4, flowScale: 10 });
+  yield* dry(L.body, { opacity: 0.7, edge: 0.45, edgeWidth: 0.7, sharpness: 0.72, centreLift: 0.2, granulation: 0.65, granules: 0.18, flow: 0.4, flowScale: 8 });
+  yield* dry(L.lit, { ...LIFT, opacity: 0.6, sharpness: 0.55, flow: 0.4, flowScale: 20 });
+  yield* dry(L.strands, { opacity: 0.75, edge: 0.3, edgeWidth: 0.45, sharpness: 0.72, centreLift: 0.08, granulation: 0.2, flow: 0.3 });
+}
+
+/** The sand the swash keeps wet under the waterline: darker and cooler, lost up the beach. */
 function* paintWetSand(p: Painter, rng: Rng): Strokes {
   const [x0, x1] = BEACH_X;
   const wet = band(x0, x1 + 12, (x) => foamAt(x) - 0.5, (x) => foamAt(x) + wetWidth(x), 6);
   yield* p.parts.glaze(wet, SHORE.wet, { rng, opacity: 0.32, layers: 6, deform: 0.06, spread: 0.18, edge: 0.04, granulation: 0.4, fade: { angle: Math.PI / 2, start: 0.3, amount: 1, ragged: 0.7 } });
   yield;
-  const sheen = p.layer(BEACH_BOX);
+}
+
+/** Slivers of the sky's sheen lifted out of the wet band. */
+function sheenInto(L: BeachLayers, rng: Rng): void {
+  const [x0, x1] = BEACH_X;
   for (let x = x0 + rng.range(0, 30); x < x1 - 10; x += rng.range(20, 70)) {
     const len = rng.range(10, 34);
     const y = foamAt(x) + rng.range(2, 6);
-    sheen.fill(sliver({ x, y }, { x: x + len, y: foamAt(x + len) + (y - foamAt(x)) + rng.range(-0.5, 0.5) }, rng.range(0.6, 1.3)), PAPER_WHITE, 0.6);
+    L.lit.fill(sliver({ x, y }, { x: x + len, y: foamAt(x + len) + (y - foamAt(x)) + rng.range(-0.5, 0.5) }, rng.range(0.6, 1.3)), PAPER_WHITE, 0.4);
   }
-  yield* dry(sheen, { ...LIFT, opacity: 0.4, flow: 0.4, flowScale: 20 });
 }
 
 /** The sea's sorting: fine pale grains low on the beach, a coarser grey cast up the berm. */
@@ -135,12 +164,8 @@ function* paintSorting(p: Painter, rng: Rng): Strokes {
   yield;
 }
 
-/** The wrack line's drifts of dead Posidonia: a soft brown mat, then the leaves, dark to bleached. */
-function* paintWrack(p: Painter, rng: Rng): Strokes {
-  const box = bounds(WRACK_LINE);
-  const area = { x: box.x - 10, y: box.y - 10, w: box.w + 20, h: box.h + 20 };
-  const mat = p.layer(area);
-  const leaves = p.layer(area);
+/** The wrack line's drifts of dead Posidonia: a soft brown mat, the leaves lying along it, dark to bleached. */
+function wrackInto(L: BeachLayers, rng: Rng): void {
   const n = WRACK_LINE.length - 1;
   for (const d of WRACK_DRIFTS) {
     const run = WRACK_LINE.slice(Math.round(d.t0 * n), Math.round(d.t1 * n) + 1);
@@ -149,7 +174,7 @@ function* paintWrack(p: Painter, rng: Rng): Strokes {
       const x1 = run[run.length - 1]!.x;
       // thick in the middle of the drift, thin at its ends
       const thick = (x: number) => Math.sin(Math.PI * Math.max(0, Math.min(1, (x - x0) / (x1 - x0 || 1)))) ** 0.6;
-      for (let k = 0; k < 3; k++) mat.fill(band(x0, x1, (x) => lineOn(run, x) - (1 + 1.4 * k) * thick(x) * 0.6, (x) => lineOn(run, x) + (1.5 + 1.6 * k) * thick(x) * 0.6, 3), SHORE.leaf, 0.22);
+      for (let k = 0; k < 3; k++) L.shade.fill(band(x0, x1, (x) => lineOn(run, x) - (1 + 1.4 * k) * thick(x) * 0.6, (x) => lineOn(run, x) + (1.5 + 1.6 * k) * thick(x) * 0.6, 3), SHORE.leaf, 0.29);
     }
     const count = Math.round((d.t1 - d.t0) * 640);
     for (let k = 0; k < count; k++) {
@@ -161,7 +186,7 @@ function* paintWrack(p: Painter, rng: Rng): Strokes {
       const c = { x: q.x + rng.range(-1, 1), y: q.y + rng.gaussian(0.3, 1.1) };
       const half = { x: (Math.cos(ang) * len) / 2, y: (Math.sin(ang) * len) / 2 };
       const pig = rng.pick([SHORE.leaf, SHORE.leaf, SHORE.leafOlive, SHORE.leafGrey, SHORE.leafPale]);
-      leaves.fill(sliver({ x: c.x - half.x, y: c.y - half.y }, { x: c.x + half.x, y: c.y + half.y }, rng.range(0.45, 0.9), rng.range(-0.4, 0.4)), pig, rng.range(0.45, 0.75));
+      L.strands.fill(sliver({ x: c.x - half.x, y: c.y - half.y }, { x: c.x + half.x, y: c.y + half.y }, rng.range(0.45, 0.9), rng.range(-0.4, 0.4)), pig, rng.range(0.45, 0.75));
     }
   }
   // a few stray leaves blown up the beach
@@ -170,10 +195,8 @@ function* paintWrack(p: Painter, rng: Rng): Strokes {
     const y = foamAt(x) + (backAt(x) - foamAt(x)) * rng.range(0.45, 0.9);
     const ang = rng.range(-0.6, 0.6);
     const len = rng.range(3, 6);
-    leaves.fill(sliver({ x, y }, { x: x + Math.cos(ang) * len, y: y + Math.sin(ang) * len }, rng.range(0.5, 0.9), rng.range(-0.5, 0.5)), rng.pick([SHORE.leafPale, SHORE.leafGrey]), 0.6);
+    L.strands.fill(sliver({ x, y }, { x: x + Math.cos(ang) * len, y: y + Math.sin(ang) * len }, rng.range(0.5, 0.9), rng.range(-0.5, 0.5)), rng.pick([SHORE.leafPale, SHORE.leafGrey]), 0.6);
   }
-  yield* dry(mat, { opacity: 0.6, edge: 0.05, sharpness: 0.2, centreLift: 0, granulation: 0.5, granules: 0.2, flow: 0.6, flowScale: 10 });
-  yield* dry(leaves, { opacity: 0.75, edge: 0.3, edgeWidth: 0.5, sharpness: 0.7, centreLift: 0.1, granulation: 0.2, flow: 0.3 });
 }
 
 /** y on a polyline sorted by x, linear between its points. */
@@ -183,62 +206,42 @@ function lineOn(run: readonly Pt[], x: number): number {
 }
 
 /** The berm's cobbles, each its own colour, sat in the sand: a cast shade, the body, its shaded underside, a lit top. */
-function* paintCobbles(p: Painter, rng: Rng): Strokes {
-  const cast = p.layer(BEACH_BOX);
-  const body = p.layer(BEACH_BOX);
-  const shade = p.layer(BEACH_BOX);
-  const lit = p.layer(BEACH_BOX);
+function cobblesInto(L: BeachLayers, rng: Rng): void {
   for (const c of COBBLES) {
     const ry = c.r * c.squash;
-    cast.fill(blob(c.x + c.r * 0.4, c.y + ry * 0.75, c.r * 1.05, ry * 0.5, rng, { points: 9, irregularity: 0.15, rotation: c.tilt * 0.5 }), SHORE.cast, 0.5);
-    body.fill(blob(c.x, c.y, c.r, ry, rng, { points: 11, irregularity: 0.12, rotation: c.tilt }), TONES[c.tone]!, rng.range(0.5, 0.72));
-    shade.fill(blob(c.x + c.r * 0.22, c.y + ry * 0.38, c.r * 0.82, ry * 0.55, rng, { points: 9, irregularity: 0.15, rotation: c.tilt }), SHORE.shade, 0.5);
-    if (c.r > 1.6) lit.fill(blob(c.x - c.r * 0.28, c.y - ry * 0.38, c.r * 0.48, ry * 0.3, rng, { points: 8, irregularity: 0.2, rotation: c.tilt }), PAPER_WHITE, 0.85);
+    L.shade.fill(blob(c.x + c.r * 0.4, c.y + ry * 0.75, c.r * 1.05, ry * 0.5, rng, { points: 9, irregularity: 0.15, rotation: c.tilt * 0.5 }), SHORE.cast, 0.36);
+    L.body.fill(blob(c.x, c.y, c.r, ry, rng, { points: 11, irregularity: 0.12, rotation: c.tilt }), TONES[c.tone]!, rng.range(0.5, 0.72));
+    L.shade.fill(blob(c.x + c.r * 0.22, c.y + ry * 0.38, c.r * 0.82, ry * 0.55, rng, { points: 9, irregularity: 0.15, rotation: c.tilt }), SHORE.shade, 0.47);
+    if (c.r > 1.6) L.lit.fill(blob(c.x - c.r * 0.28, c.y - ry * 0.38, c.r * 0.48, ry * 0.3, rng, { points: 8, irregularity: 0.2, rotation: c.tilt }), PAPER_WHITE, 0.85);
   }
-  yield* dry(cast, { opacity: 0.32, edge: 0.1, edgeWidth: 1, sharpness: 0.3, centreLift: 0, granulation: 0.3, flow: 0.3 });
-  yield* dry(body, { opacity: 0.7, edge: 0.45, edgeWidth: 0.7, sharpness: 0.75, centreLift: 0.2, granulation: 0.6, granules: 0.15, flow: 0.4, flowScale: 8 });
-  yield* dry(shade, { opacity: 0.42, edge: 0.2, edgeWidth: 0.6, sharpness: 0.6, centreLift: 0, granulation: 0.3, flow: 0.3 });
-  yield* dry(lit, { ...LIFT, opacity: 0.6, sharpness: 0.6 });
 }
 
 /** Larger stones half buried in the berm: the dome above the sand, flat at its foot, a line of shade where the sand meets it. */
-function* paintBuried(p: Painter, rng: Rng): Strokes {
-  const body = p.layer(BEACH_BOX);
-  const shade = p.layer(BEACH_BOX);
-  const lit = p.layer(BEACH_BOX);
+function buriedInto(L: BeachLayers, rng: Rng): void {
   for (const s of BURIED) {
     const rx = s.w / 2;
     const ry = s.w * 0.3;
     const cy = s.y - ry * 0.45;
-    body.fill(blob(s.x, cy, rx, ry, rng, { points: 16, irregularity: 0.1, flatBottom: 1 }), mix(LIME.body, LIME.grey, rng.range(0.2, 0.6)), 0.75);
-    shade.fill(blob(s.x + rx * 0.2, cy + ry * 0.3, rx * 0.85, ry * 0.6, rng, { points: 12, irregularity: 0.12, flatBottom: 1 }), SHORE.shade, 0.55);
-    shade.fill(band(s.x - rx * 0.6, s.x + rx * 1.25, (x) => s.y - 0.4 + (x - s.x) * 0.02, (x) => s.y + 1 + 0.8 * Math.max(0, (x - s.x) / rx), 2), SHORE.cast, 0.55);
-    lit.fill(blob(s.x - rx * 0.3, cy - ry * 0.45, rx * 0.5, ry * 0.28, rng, { points: 10, irregularity: 0.2 }), PAPER_WHITE, 0.85);
+    L.body.fill(blob(s.x, cy, rx, ry, rng, { points: 16, irregularity: 0.1, flatBottom: 1 }), mix(LIME.body, LIME.grey, rng.range(0.2, 0.6)), 0.75);
+    L.shade.fill(blob(s.x + rx * 0.2, cy + ry * 0.3, rx * 0.85, ry * 0.6, rng, { points: 12, irregularity: 0.12, flatBottom: 1 }), SHORE.shade, 0.55);
+    L.shade.fill(band(s.x - rx * 0.6, s.x + rx * 1.25, (x) => s.y - 0.4 + (x - s.x) * 0.02, (x) => s.y + 1 + 0.8 * Math.max(0, (x - s.x) / rx), 2), SHORE.cast, 0.55);
+    L.lit.fill(blob(s.x - rx * 0.3, cy - ry * 0.45, rx * 0.5, ry * 0.28, rng, { points: 10, irregularity: 0.2 }), PAPER_WHITE, 0.85);
   }
-  yield* dry(body, { opacity: 0.7, edge: 0.4, edgeWidth: 0.9, sharpness: 0.7, centreLift: 0.2, granulation: 0.8, granules: 0.25, flow: 0.5, flowScale: 10 });
-  yield* dry(shade, { opacity: 0.45, edge: 0.15, edgeWidth: 0.8, sharpness: 0.5, centreLift: 0, granulation: 0.4, flow: 0.3 });
-  yield* dry(lit, { ...LIFT, opacity: 0.6, sharpness: 0.6 });
 }
 
-/** The felted Posidonia balls: brown, fibrous, each with its shade. */
-function* paintBalls(p: Painter, rng: Rng): Strokes {
-  const body = p.layer(BEACH_BOX);
-  const shade = p.layer(BEACH_BOX);
+/** The felted Posidonia balls: brown, each with its shade. */
+function ballsInto(L: BeachLayers, rng: Rng): void {
   for (const b of SEA_BALLS) {
-    shade.fill(blob(b.x + b.r * 0.5, b.y + b.r * 0.6, b.r * 1.2, b.r * 0.45, rng, { points: 9 }), SHORE.cast, 0.45);
-    body.fill(blob(b.x, b.y, b.r * 1.25, b.r * 0.85, rng, { points: 12, irregularity: 0.18, rotation: rng.range(-0.4, 0.4) }), SHORE.ball, 0.75);
-    shade.fill(blob(b.x + b.r * 0.25, b.y + b.r * 0.3, b.r * 0.95, b.r * 0.5, rng, { points: 9 }), SHORE.leaf, 0.4);
+    L.shade.fill(blob(b.x + b.r * 0.5, b.y + b.r * 0.6, b.r * 1.2, b.r * 0.45, rng, { points: 9 }), SHORE.cast, 0.5);
+    L.body.fill(blob(b.x, b.y, b.r * 1.25, b.r * 0.85, rng, { points: 12, irregularity: 0.18, rotation: rng.range(-0.4, 0.4) }), SHORE.ball, 0.8);
+    L.shade.fill(blob(b.x + b.r * 0.25, b.y + b.r * 0.3, b.r * 0.95, b.r * 0.5, rng, { points: 9 }), SHORE.leaf, 0.45);
   }
-  yield* dry(body, { opacity: 0.75, edge: 0.35, edgeWidth: 0.5, sharpness: 0.55, centreLift: 0.25, granulation: 1, granules: 0.5, flow: 0.6, flowScale: 3 });
-  yield* dry(shade, { opacity: 0.5, edge: 0.15, sharpness: 0.5, centreLift: 0, granulation: 0.4 });
 }
 
 /** Dry grass in the sand against the shelf: a few bleached blades fanned from each foot, a little shade under it. */
-function* paintTufts(p: Painter, rng: Rng): Strokes {
-  const L = p.layer(BEACH_BOX);
-  const shade = p.layer(BEACH_BOX);
+function tuftsInto(L: BeachLayers, rng: Rng): void {
   for (const t of BACK_TUFTS) {
-    shade.fill(blob(t.x + 2, t.y + 0.6, t.h * 0.5, 1.4, rng, { points: 10 }), SHORE.cast, 0.4);
+    L.shade.fill(blob(t.x + 2, t.y + 0.6, t.h * 0.5, 1.4, rng, { points: 10 }), SHORE.cast, 0.31);
     const n = 7 + Math.round(t.h / 2);
     const lean = rng.range(-0.25, 0.35);
     for (let k = 0; k < n; k++) {
@@ -246,18 +249,16 @@ function* paintTufts(p: Painter, rng: Rng): Strokes {
       const h = t.h * rng.range(0.45, 1);
       const foot = { x: t.x + rng.range(-2.4, 2.4), y: t.y + rng.range(-0.5, 0.5) };
       const tip = { x: foot.x + Math.cos(a) * h, y: foot.y + Math.sin(a) * h };
-      L.fill(streak(foot, tip, rng.range(0.7, 1.2), rng), rng.pick([SHORE.straw, SHORE.straw, SHORE.strawDark, SHORE.grassGrey]), rng.range(0.6, 0.85));
+      L.strands.fill(streak(foot, tip, rng.range(0.7, 1.2), rng), rng.pick([SHORE.straw, SHORE.straw, SHORE.strawDark, SHORE.grassGrey]), rng.range(0.65, 0.9));
     }
   }
-  yield* dry(shade, { opacity: 0.35, edge: 0.05, sharpness: 0.2, centreLift: 0, granulation: 0.3 });
-  yield* dry(L, { opacity: 0.8, edge: 0.3, edgeWidth: 0.4, sharpness: 0.75, centreLift: 0.05, granulation: 0.2, dry: 0.25, flow: 0.3 });
 }
 
 // ── the rock pools ────────────────────────────────────────────────────────────────────────
 
 /**
- * Paper over the old pools' smooth edges, then the shelf's own first wash again (its pigments over
- * its box, clipped to the covers), so the cover reads as the shelf and the hand-cut water edge shows.
+ * Paper over the old pools' smooth edges, then the shelf's own first wash again (its colour at the
+ * pools' height, clipped to the covers), so the cover reads as the shelf and the hand-cut edge shows.
  */
 function* paintPoolStone(p: Painter, rng: Rng): Strokes {
   const covers = POOL_SHAPES.map((q) => ring(q.rim, q.water));
@@ -269,8 +270,9 @@ function* paintPoolStone(p: Painter, rng: Rng): Strokes {
   for (const c of covers) c.forEach((v, i) => (i ? p.ctx.lineTo(v.x, v.y) : p.ctx.moveTo(v.x, v.y)));
   p.ctx.clip();
   yield;
-  yield* p.parts.wetInWet(box(-40, 820, 730, 1040), mix(LIME.cream, LIME.body, 0.5), LIME.grey, {
-    rng, angle: Math.PI / 2 - 0.3, split: 0.45, softness: 0.7, opacity: 0.5, deform: 0.03, spread: 0.03, edge: 0, granulation: 0.7, granules: 0.25, flow: 0.5, flowScale: 60,
+  // the shelf's wet-in-wet at the pools' height is mostly its first pigment
+  yield* p.parts.wash(box(b.x - 4, b.y - 4, b.x + b.w + 4, b.y + b.h + 4), mix(mix(LIME.cream, LIME.body, 0.5), LIME.grey, 0.15), {
+    rng, opacity: 0.5, layers: 4, deform: 0.02, spread: 0.02, edge: 0, centreLift: 0, granulation: 0.7, granules: 0.25, flow: 0.5, flowScale: 60,
   });
   p.ctx.restore();
   yield;
