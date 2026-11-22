@@ -84,6 +84,12 @@ cliff-top pocket clear of the goats in the background repaint, or giving up a be
   `sceneries.spec.ts` (placement options, the real placement markers for the sea lavender, the
   maidenhair's habitat line, `addPlants` keeping to the sites).
 
+## Test results (after rebasing on main with the background repaint)
+- `npm run typecheck` clean; `npm test`: 283 files, 3021 tests passed.
+- E2E, one spec at a time on the production build: sceneries 9, planting-previews 2, plants 8,
+  plant-card-phone 5, lazy-species-painters 1, ui-start-flow 4, gardens 7, lotus 2,
+  parallel-sessions 7, fauna 6, all passed. The full e2e suite was not run.
+
 ## Left open
 - One large wild place on the coast (above).
 - `src/main.ts` untouched.
