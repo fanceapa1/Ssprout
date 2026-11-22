@@ -5,12 +5,13 @@
  * units, in parts (ADR 0226, 0238). docs/systems/scenery.md › Coast › Vegetation.
  */
 import { createRng, type Rng } from '../../core/rng';
-import { blob, bounds, lighten, mix, padRect, ribbon, type DryOptions, type Painter, type Pigment } from '../../paint';
+import { blob, bounds, darken, jitter, layerAlpha, lighten, mix, padRect, ribbon, shade, type DryOptions, type Painter, type Pigment } from '../../paint';
 import { pathNormals } from '../../paint/geometry';
+import { dryBrush, stroke } from '../../paint/primitives';
 import { paintOliveLeaves, paintOliveTrunk, scaffoldLimbs, trunkOutline } from '../../plants/lib/olive-paint';
 import { paintPineBark, paintPineCones, paintPineNeedles, paintPineWash, toneOf } from '../../plants/lib/aleppo-pine-paint';
-import { paintSkeleton, softRes, stableLayer, visibleBranches } from '../../plants/lib/tree-paint';
-import { branchProgress, treeView, viewPt, type Branch } from '../../plants/lib/tree-structure';
+import { paintSkeleton, softRes, stableLayer, stableTarget, visibleBranches, type BarkStyle } from '../../plants/lib/tree-paint';
+import { branchProgress, treeView, viewPt, type Branch, type Tree, type TreeView } from '../../plants/lib/tree-structure';
 import { ALEPPO_COLOURS, ALEPPO_TIMING, aleppoArrivals, planAleppoPine, type AleppoPinePlan } from '../../plants/species/aleppo-pine';
 import { oliveArrivals, planOlive, type OlivePlan } from '../../plants/species/olive';
 import type { Pt, Rect } from '../../render/viewport';
@@ -352,6 +353,19 @@ function inPine(p: Painter, plan: AleppoPinePlan, fn: () => void): void {
   }
 }
 
+/** `inPine` for a part generator: the tree's transform holds across its pauses (nothing else paints, ADR 0330). */
+function* inPineParts(p: Painter, plan: AleppoPinePlan, parts: Strokes): Strokes {
+  const k = PINE_TREE.scale;
+  const b = plan.tree.base;
+  p.ctx.save();
+  p.ctx.transform(k, 0, 0, k, PINE_TREE.base.x - b.x * k, PINE_TREE.base.y - b.y * k);
+  try {
+    yield* parts;
+  } finally {
+    p.ctx.restore();
+  }
+}
+
 /**
  * The pine's crown clouds the eager code reads (`PINE_PADS` in `shapes.ts`), from the plan:
  * `veg.test.ts` checks the literals against this (its wood: `treeWood`).
@@ -447,6 +461,57 @@ export function treeWood(): { olive: WoodPt[][]; pineTrunk: WoodPt[]; pine: Wood
 /** Everything the pine paints, crown, trunk, rock and shadow, with room to spare. */
 const PINE_BOX = { x: -240, y: 0, w: 620, h: 840 };
 
+/** Every 6th point of a path, keeping the last (the tree painter's own thinning). */
+function thin(path: readonly Pt[]): Pt[] {
+  const out: Pt[] = [];
+  for (let i = 0; i < path.length; i += 6) out.push(path[i]!);
+  if (out[out.length - 1] !== path[path.length - 1]) out.push(path[path.length - 1]!);
+  return out.length >= 2 ? out : path.slice();
+}
+
+/** `paintSkeleton` (plants/lib/tree-paint.ts) with a pause after the fills, inside its drying and after each limb's bark. */
+function* skeletonParts(p: Painter, tree: Tree, view: TreeView, rng: Rng, style: BarkStyle): Strokes {
+  const vis = visibleBranches(tree, view, style);
+  if (!vis.length) return;
+  const dark = style.dark ?? shade(style.pigment, 0.3);
+  const maxW = vis.reduce((m, v) => Math.max(m, v.hw(0)), 1);
+  const L = stableLayer(p, padRect(bounds(vis.flatMap((v) => v.path)), maxW * 2 + 4), rng.fork('skeleton-dry'));
+  const a = layerAlpha(2, 0.92);
+  for (const v of vis) {
+    const r = rng.fork(`br-${v.b.id}`);
+    for (let k = 0; k < 2; k++) {
+      const wk = 1 + r.gaussian(0, 0.06);
+      L.fill(ribbon(v.path, (t) => v.hw(t) * wk, v.off), jitter(style.pigment, r, 0.025), a);
+    }
+  }
+  yield;
+  yield* L.dryParts({ opacity: style.opacity ?? 0.92, edge: 0.45, edgeWidth: 1.1, sharpness: 0.82, centreLift: 0.2, granulation: 0.25, flow: 0.4, flowScale: 26, darken: 0.25 });
+  const texMin = style.textureMin ?? 3;
+  const tex = style.texture ?? 0.6;
+  const mod = style.modelling ?? 0.5;
+  for (const v of vis) {
+    const w0 = v.hw(0.15) * 2;
+    if (w0 < texMin) continue;
+    const r = rng.fork(`bark-${v.b.id}`);
+    const t = stableTarget(p, r);
+    const n = v.path.length;
+    if (mod > 0) {
+      const side = v.path.map((q, i) => ({ x: q.x + v.hw(i / (n - 1)) * 0.45, y: q.y }));
+      stroke(t, thin(side), { rng: r, pigment: dark, width: w0 * 0.5, pressure: (tt) => v.hw(tt) / Math.max(0.01, v.hw(0.15)), taper: [0.02, 0.25], wobble: 0.15, wetness: 0.55, opacity: 0.45 * mod, edge: 0.3 });
+    }
+    if (tex > 0) {
+      const strokes = w0 > 7 ? 2 : 1;
+      for (let s = 0; s < strokes; s++) {
+        const shift = (s === 0 ? 0.15 : -0.35) * w0;
+        const seg = v.path.map((q, i) => ({ x: q.x + shift * (v.hw(i / (n - 1)) / Math.max(0.01, v.hw(0.15))), y: q.y }));
+        const cut = Math.max(2, Math.round(n * r.range(0.65, 0.95)));
+        dryBrush(t, thin(seg.slice(0, cut)), { rng: r, pigment: s === 0 ? dark : darken(style.pigment, 0.15), width: w0 * (s === 0 ? 0.7 : 0.45), pressure: (tt) => Math.max(0.2, v.hw(tt * (cut / n)) / Math.max(0.01, v.hw(0.15))), dryness: 0.75, opacity: 0.55 * tex });
+      }
+    }
+    yield;
+  }
+}
+
 /**
  * The Aleppo pine on its rock at the beach's west end (ADR 0380): the species' own tree, bare
  * below its fork, leaning out over the left edge. Its shadow and rock, then the species' layers
@@ -471,8 +536,7 @@ export function* paintPine(p: Painter, rng: Rng): Strokes {
     p.ctx.fillStyle = '#fffdf8';
     p.ctx.fill();
   });
-  inPine(p, plan, () => paintSkeleton(p, plan.tree, view, pr.fork('limbs'), style));
-  yield;
+  yield* inPineParts(p, plan, skeletonParts(p, plan.tree, view, pr.fork('limbs'), style));
   inPine(p, plan, () => paintPineBark(p, trunk.path, trunk.hw, arrive.age, ALEPPO_COLOURS, pr.fork('bark'), 0.62));
   yield;
   // the scenery's accent through the margin's lift: the lower trunk warmer, its right flank shaded
