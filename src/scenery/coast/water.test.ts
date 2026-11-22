@@ -66,13 +66,13 @@ describe('coast water painting (G3)', () => {
     runs.detail = record(DETAIL);
   }, 120_000);
 
-  it('paints the sea and the caique before the rock, the beach and the pools after the shore', () => {
+  it('paints the sea and the caique before the rock, the beach and the pools under the shore', () => {
     expect(COAST_ELEMENTS.sea).toEqual(['sea', 'caique']);
     expect(COAST_ELEMENTS.beach).toEqual(['beach', 'pools']);
     expect(coastSteps(COAST_ART, ['sea', 'beach']).map((s) => s.name)).toEqual(['sea', 'caique', 'beach', 'pools']);
     const names = Object.keys(COAST_ELEMENTS);
     expect(names.indexOf('sea')).toBeLessThan(names.indexOf('rock'));
-    expect(names.indexOf('beach')).toBe(names.indexOf('shore') + 1);
+    expect(names.indexOf('shore')).toBeGreaterThan(names.indexOf('beach'));
   });
 
   // quantised (paint-record's default rounding), so the pins hold on every platform (docs/TESTING.md)

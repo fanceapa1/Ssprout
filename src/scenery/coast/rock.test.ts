@@ -88,7 +88,7 @@ describe('coast rock painting (G2)', () => {
     expect(names.indexOf('cliff-foot')).toBeGreaterThan(names.indexOf('beds'));
     expect(names.indexOf('cliff-foot')).toBeLessThan(names.indexOf('olive'));
     expect(names.indexOf('shore-rocks')).toBeGreaterThan(names.indexOf('land'));
-    expect(names.indexOf('shore-rocks')).toBeGreaterThan(names.indexOf('shore'));
+    expect(names.indexOf('shore-rocks')).toBeLessThan(names.indexOf('shore'));
     expect(names.indexOf('shore-rocks')).toBeLessThan(names.indexOf('pine'));
   });
 

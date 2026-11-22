@@ -67,12 +67,13 @@ The Japanese garden's painters stay in `src/scene/` (docs/systems/scene.md): its
 | `oasis/sky.ts`, `oasis/light.ts` | placeholders until O5: one golden wash per phase cut to the skyline, a plain basin sky; a shade at the bluff's foot and warm light on the ksar |
 | `oasis/map.studio.ts` | studio `oasis-map` (141): the composition map over the painting, and the painting under the midday plate |
 | `oasis/oasis.test.ts` | see Tests |
-| `coast/index.ts` | `COAST` ("Greek coast", behind `?dev&scenery=coast`, `order` 3), `COAST_ELEMENTS` (the placeholder steps by element: the seams the painter tasks swap), `COAST_ART` (seed 15), `COAST_SKY`, `COAST_LIGHT_ART`, `COAST_VIEW`, `COAST_PAINTERS` |
+| `coast/index.ts` | `COAST` ("Greek coast", behind `?dev&scenery=coast`, `order` 3), `COAST_ELEMENTS` (the paint steps by element, back to front), `COAST_ART` (seed 15), `COAST_SKY`, `COAST_LIGHT_ART`, `COAST_VIEW`, `COAST_PAINTERS` |
 | `coast/layout.ts` | the composition (ADR 0360): `FAR_HILL`, `VILLAGE`, `CHAPEL`, `PROMONTORY`, `STYLOBATE`, `COLUMNS`, `ARCHITRAVE`, `DRUM`, `PROMONTORY_PINES`, `CAIQUE`, `SHORE_EDGE`, `WATERLINE_EDGE`, `BEACH`, `SHELF`, `POOLS`, `SPLASH_ROCKS`, `SHORE_BOULDERS`, `SHORE_SCRUB`, `WALLS`, `LAND`, `OLIVE`, `PINE`, `PATH`, `STEPS`; `TEMPLE_SHAPES`, `silhouetteAt`, `SKYLINE`/`skylineAt`/`openSky`, `COAST_SKY_RECT`, `LIFT`, `WALL_TERRACE`, `terraceScale`, `copingAt`, `COAST_SKY_LAYOUT` (both low suns on the left), `FOCUS`, `COAST_AMBIENCE`, `COAST_HABITAT_WORDS` |
 | `coast/geometry.ts` | `SEA_WATER` (the pond), `POOL_WATER`, `coastScene` |
 | `coast/slots.ts` | `COAST_SLOTS`: 48 slots, terrace lift in scale; `SLOT_TERRACE` |
 | `coast/flora.ts`, `coast/fauna.ts` | `COAST_FLORA` (ADR 0361; offers the five shared species and the ice plant so far); `COAST_FAUNA` (empty) and `COAST_WILDLIFE` |
-| `coast/painters.ts`, `coast/paint-placeholder.ts` | the lazy chunk: `coastSteps` runs draft B's steps moved onto the final layout; `COAST_PAINTERS_LOADED` |
+| `coast/painters.ts` | the lazy chunk: `coastSteps` runs each element's paint steps; `COAST_PAINTERS_LOADED` |
+| `coast/paint-shore.ts`, `coast/shore-shapes.ts` | the shore (GB2): the beach and the rock pools painted over the water's and the rock's steps; their placement, data with fixed seeds |
 | `coast/sky.ts`, `coast/light.ts` | placeholders: one wash per phase cut to the skyline with a low glow over the sea, a mirrored sea sky; a shade under the promontory and the walls, warm light on the temple at low suns |
 | `coast/swell.ts`, `coast/motion.ts`, `coast/pose.ts`, `coast/motion.studio.ts` | the sea in motion (G6, GS1; ADRs 0282, 0374, 0362): the swell's crest schedule (eager data: `SWELL`, `arrival`, `crestDepth`, `swellAt`, `swashLimit`), the motion (`createCoastMotion`), the caique's pose, studio `coast-motion` (159) |
 | `coast/sea.ts`, `coast/paint-water.ts`, `coast/boat.ts`, `coast/water.studio.ts` | the water (G3, ADR 0366): its shapes (eager data: depth lines, seabed, reflections, the caique, foam and wrack lines), its painters (`paintSea`, `paintBeach`, `paintPools`, `paintCaique`), studio `coast-water` (153) |
@@ -784,7 +785,7 @@ waterfall's pace. Each element is clipped to its own water.
 A tended clifftop garden stepping down to an Ionian cove, from draft B ("Stepped terraces down to
 the shore", the owner's choice; docs/research/coast-biome.md §1). G1 (devlog 170) made it a scenery
 behind `?dev&scenery=coast`. Its painting, sky and light were placeholders: draft B's steps moved
-onto the final layout (`paint-placeholder.ts`; `drafts/b` is a record). The rock, water, land and
+onto the final layout (`paint-placeholder.ts`, deleted in GB2; `drafts/b` is a record). The rock, water, land and
 vegetation, daylight and motion tasks replace them; G2 (devlog 175) painted the rock and G2b (devlog 180) gave it a second pass at its seams with the water and the land (Rock below);
 G5 (devlog 182) painted the skies and the light (Daylight below).
 Composition map: studio `coast-map/map`; the rock: studio `coast-rock`.
@@ -910,7 +911,7 @@ crown above them, on a pocket of soil with no maquis on it (`CLIFF_TOP_SLOT`). `
 
 ### Water (G3, `paint-water.ts`, `boat.ts`, shapes in `sea.ts`, ADR 0366)
 Steps `sea` and `caique` (element `sea`, before the rock) and `beach` and `pools` (element
-`beach`, right after `shore`), in parts. Palettes `SEA`, `SAND` and `BOAT`; lit from the left.
+`beach`, under the `shore` step), in parts. Palettes `SEA`, `SAND` and `BOAT`; lit from the left.
 - **Depth** (ADR 0366): `shoreDistance` measures from the near shore (`SHORE_PATH`: the shoreline,
   then the beach's waterline), the vertical stretched 2.4× and the rock's foot made steep.
   `shoreContour(r)` finds, per 6-unit column, the first point down from the horizon nearer than
@@ -961,8 +962,7 @@ layer and dry it once). Steps:
   same way. Over 20 ms in that run: `promontory` (backlog), `land` 37, `maquis` 33, `pine` 24, `shore`
   108 (one part).
 - **Paint time, after GR2** (devlog 222; same setup, longest part in ms / parts): `shore` 5.5–13.5 / 245
-  (was one part of 108+; `paintShore` in `paint-placeholder.ts` is still the draft's shore, the
-  last placeholder step), `pine` 15–16 / 154 (the limbs by `skeletonParts`, the species'
+  (was one part of 108+; then still the draft's shore, replaced in GB2: Shore below), `pine` 15–16 / 154 (the limbs by `skeletonParts`, the species'
   `paintSkeleton` in parts), `land` 35–46 and `maquis` 33–46: backlog, their own longest parts are
   16.6 and 17.8 (a flush after every part, throwaway build). Marks unchanged (recorded hashes);
   guard: `parts.test.ts`.
@@ -1044,7 +1044,7 @@ layer and dry it once). Steps:
   debris under the fissures (and five more places), shaded on the right, with stones on them and
   spilling beyond; `CLIFF_STONES` (seven fallen stones, `shapes.ts`) as boulders on the ground.
   It skips itself when the view does not reach the foot.
-- **`shore-rocks`** (a `stones` element after the land and the shore, before the trees):
+- **`shore-rocks`** (a `stones` element after the land, under the shore, before the trees):
   - The rock shelf in front of the beach, with the pools cut out (`POOLS`, the water painter's).
     Its top edge (`shelfTopAt`) is not a line: `SHELF_LOBES` run rock tongues up to 11 into the
     sand and hollows down to 5 where the sand drifts in. Its right end meets the lower wall's
@@ -1085,6 +1085,44 @@ layer and dry it once). Steps:
   against `main` on the same machine): cliff-foot 21 / 19 ms (new), shore-rocks 127 / 117 ms
   (main 160 / 151), promontory 102 / 95 ms (main 98 / 92). The whole coast is 1.40 s cold and
   1.26 s warm, against 1.40 s and 1.28 s on `main`. The longest part of the rock's steps is 6.6 ms.
+
+### Shore (GB2, `paint-shore.ts`, shapes in `shore-shapes.ts`)
+Step `shore` (element `shore`, after `stones`, before the trees; devlog 224). It paints over what
+the `beach`, `pools` and `shore-rocks` steps leave, so the beach and the pools read as a place and
+not as a wash with dots. Until GB2 the step was G1's draft (`paint-placeholder.ts`, now gone) and
+ran before the beach, which painted over all of it. Palette `SHORE` beside `SAND` and `LIME`; lit
+from the upper left (shades and cast shadows fall lower right). Placement is data with fixed seeds
+(`shore-shapes.ts`), so only the brushwork follows the art seed.
+- **Wet band**: a cool glaze from the waterline (`FOAM_LINE`) 9–13 units up the shingle
+  (`wetWidth`, under half the swash's `SWASH_MAX` 26), lost toward the beach's back, with a few
+  lifted slivers of sky sheen in it. The motion's sheet runs past it and leaves its own drying band
+  (`motion.ts`), so the static band is only where the sand is always wet.
+- **Sorting**: a speckle of fine grains low on the beach, a faint grey cast over the upper half.
+- **The berm** (`COBBLES`, about 280): none in the swash, a few small ones up the fine sand,
+  packed and coarser toward the back (half-width 0.9–5). Mostly cream, white and pale grey, a few
+  ochre, blue-grey, rust and dark. Each is a cast shade on the sand, a body, a shaded underside and
+  a lifted lit top. They thin round the six shore slots' feet (none within 16) and stay off the
+  beach flight. `BURIED`: five larger stones half sunk in the berm, flat at the sand line.
+- **Wrack** (`WRACK_DRIFTS` along `WRACK_LINE`): drifts of dead Posidonia (a soft brown mat thick
+  in its middle, short leaves lying along it, dark to bleached), a few stray leaves up the beach,
+  and its felted sea balls (`SEA_BALLS`, egagropili), none on a plant's foot. No driftwood (the
+  research doc does not name it).
+- **Back** (`BACK_TUFTS`): five tufts of bleached grass in the sand against the shelf, none where
+  the vegetation step paints its own.
+- **Pools** (`POOL_SHAPES`; the places stay `POOLS`): the shelf's smooth ring over each pool's
+  edge is covered with paper and the shelf's own first wash again (its pigments over its box,
+  clipped to the covers), out past the shelf's wet rings, so the cover reads as the shelf. On it:
+  a low pitted platform, damp patches toward the water, the far inner wall in shade with a wet dark
+  foot, a wet line and a lifted lip along the near edge, pink-white coralline crusts at the
+  waterline. In the water (clipped to its hand-cut edge, always inside the old ring): the turquoise
+  deepening under the far wall into a dark hollow (where the octopus hides), floor stones, weed at
+  the waterline and a soft sheen of sky. The hand-cut water keeps each pool slot in it; it is 0.56
+  (the small `pool-3`) to 0.67 of the old ellipse.
+- **Paint time** (devlog 224; production, cold, DPR 2, total / longest part / parts): 97–100 /
+  5.3–5.5 / 594 at 1470 × 750 and 98–100 / 5.4 / 594 at 1440 × 900 (the draft: 93–102 / 5.4–8.2 /
+  245). `shore-rocks`' longest part is 17–26 ms now, raster backlog (devlog 218).
+- **Studio**: `coast-shore` (155): the beach and a pool close up, each painting only the steps
+  round the shore, once per seed.
 
 ### Land (G4, `paint-land.ts`)
 Steps `land`, `walls` and `beds` (element `land`), in parts. Palette `EARTH`, lit from the left
@@ -1396,7 +1434,7 @@ should read as alive at the overview and stay calm: slow, soft, nothing flashing
   break peeling left to right; the water's height bounded, continuous, highest under a crest; no
   wave run up to a beach slot.
 - `src/scenery/coast/coast.test.ts` (G1): offered only with `?dev&scenery=coast`; self-consistency
-  with no building, lantern, eave, falls or streams, and its motion; its placeholder steps by element;
+  with no building, lantern, eave, falls or streams, and its motion; its paint steps by element;
   habitat words; `pathOut` from the bottom edge up the terraces; the framing (the temple, open sea,
   the sea edge's slots and beds on all three terraces in the portrait crop; sky above the temple at
   16:9; both suns in the crop); the broken shoreline; land, beach and shelf against the sea; 45–56
@@ -1410,6 +1448,10 @@ should read as alive at the overview and stay calm: slow, soft, nothing flashing
 - `src/scenery/coast/fauna.test.ts` and `wildlife.test.ts` (GK0): the table (thresholds, one
   arrival per count, shared rows, skipped rows) and every place against its shape, the regions,
   the carrier and `coastPerspective` (docs/systems/fauna.md › The coast).
+- `src/scenery/coast/shore.test.ts` (GB2): the shore after the beach, the pools and the shore's rock;
+  cobbles up the beach, more and coarser toward its back, off the beach slots' feet; buried stones,
+  sea balls and tufts on the beach; each pool's hand-cut water inside the shelf's old ring, its cover
+  over the ring, its slot in the water. The shore's marks are pinned in `parts.test.ts`.
 - `src/scenery/coast/rock.test.ts` (G2): the rock's steps and where the shore's rock falls in the
   order; pinned recording hashes (overview and a close view of the temple); no part over 60 000
   calls or 400 000 pixels, every step in many parts, few pixel reads per step; the hand-cut outlines

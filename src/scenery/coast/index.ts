@@ -29,18 +29,18 @@ export const COAST_SKY: ScenerySky = { layout: COAST_SKY_LAYOUT, rect: COAST_SKY
 export const COAST_LIGHT_ART: LightArt = { trees: [], shrubs: [], sky: COAST_SKY_LAYOUT, grades: COAST_GRADES, painters: COAST_PAINTERS };
 
 /**
- * The painting's elements and the placeholder steps each one runs, back to front: the seams the
- * painter tasks swap (rock, water, land and vegetation). The sky is the plates'.
+ * The painting's elements and the steps each one runs, back to front. The sky is the plates'.
  */
 export const COAST_ELEMENTS = {
   far: ['far-hill'],
   sea: ['sea', 'caique'],
   rock: ['village', 'promontory', 'temple'],
-  shore: ['shore'],
   beach: ['beach', 'pools'],
   land: ['land', 'walls', 'beds'],
   // the shore's rock over the land's edge and the water: shelf, pool rims, boulders, splash rocks
   stones: ['cliff-foot', 'shore-rocks'],
+  // the shore painted over the beach, the pools and the shelf: sorted shingle, wrack, the pools' rims
+  shore: ['shore'],
   trees: ['maquis', 'olive', 'pine'],
   near: ['margins'],
 } as const;

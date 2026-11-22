@@ -1,6 +1,6 @@
 /**
- * The Greek coast's painters, its own lazy chunk (ADR 0341): the placeholder landscape steps (draft
- * B's on the final layout), its placeholder sky plates and light marks.
+ * The Greek coast's painters, its own lazy chunk (ADR 0341): the landscape steps, its sky plates
+ * and light marks.
  */
 import { createRng } from '../../core/rng';
 import type { PaintStep, SceneArt } from '../../scene/background';
@@ -8,10 +8,10 @@ import { paintMargins } from '../../scene/paint-land';
 import type { GardenPainters } from '../types';
 import { COAST_ELEMENTS } from './index';
 import { COAST_LIGHT } from './light';
-import { paintShore } from './paint-placeholder';
 import { paintCaique } from './boat';
 import { paintBeach, paintPools, paintSea } from './paint-water';
 import { paintCliffFoot, paintPromontory, paintShoreRocks } from './paint-rocks';
+import { paintShore } from './paint-shore';
 import { paintBeds, paintGround, paintWalls } from './paint-land';
 import { paintMaquis, paintOlive, paintPine } from './paint-veg';
 import { COAST_SKY_PAINTERS } from './sky';
