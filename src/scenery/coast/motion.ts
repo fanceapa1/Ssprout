@@ -26,7 +26,7 @@ import { caiquePose, CAIQUE_DEPTH, posePoint, type CaiquePose } from './pose';
 import { streak } from './rock-kit';
 import { CAIQUE_BOX, CAIQUE_SCALE, CAIQUE_SHAPES, CLIFF_FOOT, DEPTH, FOAM_LINE, SEA_RECT, SEA_STRETCH, shallowsEdge, shoreContour, shoreDistance, shoreward } from './sea';
 import { PINE_TRUNK, SHORE_BOULDER_SHAPES, SPLASH_ROCK_SHAPES, type RockShape } from './shapes';
-import { arrival, CREST_LIFE, crestDepth, delayAt, depthOf, gridDepths, latest, strength as crestStrength, SWASH_MAX, swashLimit, SWELL, swellAt, type SwellGrid, type SwellPhase } from './swell';
+import { arrival, CREST_LIFE, crestDepth, crestSpeed, delayAt, depthOf, gridDepths, latest, strength as crestStrength, SWASH_MAX, swashLimit, SWELL, SWELL_LINE, swellAt, type SwellGrid, type SwellPhase } from './swell';
 import { COAST_CARRIERS } from './wildlife';
 
 /** Random draws per mark, three per pass, so passes differ. */
@@ -36,6 +36,15 @@ const PLACES = 29;
 /** Swell band pieces painted, and the ways a crest is broken into pieces (a crest takes one by its number). */
 const BANDS = 6;
 const LAYOUTS = 11;
+/** A swell band sprite (world units at full size): its crest line `crest` down from its top. */
+export const BAND = { w: 200, h: 40, crest: 24 } as const;
+/** The crest's thin highlight sprites. */
+const GLEAMS = 4;
+const GLEAM = { w: 160, h: 5 } as const;
+/** How much of the gap to the next crest a band covers (its back and trough together). */
+const BAND_SPAN = 0.5;
+/** Columns a crest piece is cut into where it bends round a rock or the hull. */
+const SUB = 7;
 /** Glints twinkling at once at most, and the glint sprites. */
 const GLINTS = 128;
 const SPARKS = 4;
@@ -147,6 +156,10 @@ export interface CoastMotion extends SceneryMotion {
   marksAt(t: number, light?: DaylightState | null): Mark[];
   /** how many marks each element draws at `t` (for tests) */
   visibleAt(t: number, light?: DaylightState | null): Counts;
+  /** where crest `n`'s line lies at x at time `t`, parted round what stands in the water unless `parted` is false (for tests) */
+  crestAt(n: number, t: number, x: number, parted?: boolean): number;
+  /** the depth each wet rock's foam and ring keep time with, then the hull's (for tests) */
+  obstacleDepths(): number[];
   /** the painted sprites by kind (for the studio) */
   sprites(): { kind: string; image: CanvasImageSource; w: number; h: number }[];
 }
@@ -164,7 +177,12 @@ function tableOf(rng: Rng): Float32Array {
 }
 const pick = (table: Float32Array, n: number, j = 0) => table[(((n * 3 + j) % TABLE) + TABLE) % TABLE]!;
 
-const inRock = (q: Pt, pad: number) => ALL_ROCKS.some((r) => Math.abs(q.x - r.x) < r.w / 2 + pad && q.y > r.y - r.w * 0.6 - pad && q.y < r.y + 5 + pad && pointInPolygon(q, r.outline));
+const ROCK_BOXES = ALL_ROCKS.map((r) => bounds(r.outline));
+const inRock = (q: Pt, pad: number) =>
+  ALL_ROCKS.some((r, i) => {
+    const b = ROCK_BOXES[i]!;
+    return q.x > b.x - pad && q.x < b.x + b.w + pad && q.y > b.y - pad && q.y < b.y + b.h + pad && pointInPolygon(q, r.outline);
+  });
 const nearBoat = (q: Pt) => Math.abs(q.x - (CAIQUE.x - 2)) < 46 && q.y > CAIQUE.y - 24 && q.y < CAIQUE.y + 4;
 
 /** A point on a path at fraction `t` of its points. */
@@ -218,7 +236,7 @@ export function createCoastMotion(opts: CoastMotionOptions = {}): CoastMotion {
     const cycle = l + rng.range(gap[0], gap[1]);
     drifters.push({ kind, cycle, phase: rng.range(0, cycle), life: l, alpha: rng.range(alpha[0], alpha[1]), table: tableOf(rng), places: new Float32Array(PLACES * 2) });
   };
-  for (let i = 0; i < 34; i++) addDrifter('light', [7, 12], [1, 5], [0.5, 0.8]);
+  for (let i = 0; i < 16; i++) addDrifter('light', [7, 12], [1, 5], [0.5, 0.8]);
   for (let i = 0; i < 8; i++) addDrifter('trough', [8, 13], [2, 6], [0.3, 0.5]);
   const breath = (lo: number, hi: number): Breath => {
     const cycle = rng.range(lo, hi);
@@ -273,12 +291,17 @@ export function createCoastMotion(opts: CoastMotionOptions = {}): CoastMotion {
   const lights: Sprite[] = [];
   const troughSprites: Sprite[] = [];
   const bands: Sprite[] = [];
+  const gleams: Sprite[] = [];
   const sparks: Sprite[] = [];
   const breakers: Sprite[] = [];
   let net: Sprite | null = null;
   const grid: SwellGrid = { xs: new Float32Array(0), depths: new Float32Array(0), ys: new Float32Array(0), open: new Uint8Array(0) };
   /** each crest layout's pieces: first and last column, band sprite, alpha, a small rise (units) */
   const layouts: Float32Array[] = [];
+  /** what crests part round (the wet rocks, then the hull), and which of them touch each column */
+  const obstacles: { x: number; half: number; d: number; lag: number; heal: number }[] = [];
+  const colObstacles: number[][] = [];
+  let boatDepth = CAIQUE_DEPTH;
   const rings: Sprite[] = [];
   const poolRing: Sprite[] = [];
   const foam: { lace: Sprite; wet: Sprite; film: Sprite }[] = [];
@@ -377,26 +400,49 @@ export function createCoastMotion(opts: CoastMotionOptions = {}): CoastMotion {
       sparks.push(seal(s));
       yield;
     }
-    // a piece of swell crest: a long soft lit back over the darker face below it, broken at its edges
+    // a piece of swell (GS2): a broad soft lighter back behind the crest line, a darker trough
+    // ahead of it, both granulated and uneven along the length
     for (let i = 0; i < BANDS; i++) {
       const r = rng.fork(`band-${i}`);
-      const { s, p } = sprite(160, 24, `band-${i}`, 2.5);
-      const D = p.layer({ x: 0, y: 0, w: 160, h: 24 });
-      const L = p.layer({ x: 0, y: 0, w: 160, h: 24 });
-      const bow = r.range(-1.6, 0.6);
-      // the face: a wide soft shade under the crest, deepest just below it, two runs overlapping
-      D.fill(dash(80 + r.range(-6, 6), 13.5, r.range(130, 152), r.range(8, 10), bow), mix(SEA.deepTeal, SEA.turquoise, 0.3), 0.4);
-      D.fill(dash(80 + r.range(-20, 20), 11.2 + r.range(-0.4, 0.4), r.range(90, 140), r.range(3.6, 4.8), bow), mix(SEA.deepTeal, SEA.deep, 0.4), 0.55);
-      // the lit back: long pale pieces, overlapping or a little apart
-      for (let x = r.range(4, 14); x < 146; ) {
-        const len = Math.min(156 - x, r.range(36, 78));
-        L.fill(dash(x + len / 2, 7.4 + r.range(-0.6, 0.6), len, r.range(3.6, 5), bow + r.range(-0.3, 0.3)), PAPER_WHITE, 0.95);
-        x += len + r.range(-10, 8);
+      const { s, p } = sprite(BAND.w, BAND.h, `band-${i}`, 2);
+      const box = { x: 0, y: 0, w: BAND.w, h: BAND.h };
+      const D = p.layer(box);
+      const L = p.layer(box);
+      const bow = r.range(-1.4, 0.8);
+      const c = BAND.crest;
+      for (let x = r.range(6, 20); x < BAND.w - 30; ) {
+        const len = Math.min(BAND.w - 4 - x, r.range(70, 130));
+        const mx = x + len / 2;
+        L.fill(dash(mx, c - 9.5 + r.range(-1.5, 1.5), len, r.range(14, 19), bow), mix(SEA.aqua, SEA.aquaPale, 0.45), r.range(0.5, 0.8));
+        L.fill(dash(mx + r.range(-10, 10), c - 4 + r.range(-0.6, 0.6), len * r.range(0.6, 0.9), r.range(5, 7.5), bow), mix(SEA.aquaPale, PAPER_WHITE, 0.3), r.range(0.45, 0.75));
+        x += len * r.range(0.55, 0.85);
       }
-      yield* D.dryParts({ opacity: 0.6, edge: 0.04, edgeWidth: 2.6, sharpness: 0.02, granulation: 0.3, flow: 0.7, flowScale: 9 });
-      yield* L.dryParts({ ...LIFT, opacity: 0.8, sharpness: 0.05, edgeWidth: 1.8, flow: 0.55, flowScale: 10 });
-      featherX(s, 0, 160, 26, 2.5);
+      for (let x = r.range(4, 24); x < BAND.w - 30; ) {
+        const len = Math.min(BAND.w - 4 - x, r.range(60, 140));
+        const mx = x + len / 2;
+        D.fill(dash(mx, c + 5.5 + r.range(-1, 1), len, r.range(8, 11), bow), mix(SEA.deepTeal, SEA.deep, 0.35), r.range(0.4, 0.7));
+        D.fill(dash(mx + r.range(-8, 8), c + 3, len * r.range(0.5, 0.85), r.range(4, 5.5), bow), mix(SEA.deep, SEA.ultra, 0.3), r.range(0.22, 0.38));
+        x += len * r.range(0.55, 0.9);
+      }
+      yield* D.dryParts({ opacity: 0.6, edge: 0.08, edgeWidth: 3, sharpness: 0.02, centreLift: 0.05, granulation: 0.55, flow: 0.7, flowScale: 12 });
+      yield* L.dryParts({ ...LIFT, opacity: 0.66, sharpness: 0.02, edgeWidth: 3, granulation: 0.45, flow: 0.7, flowScale: 14 });
+      featherX(s, 0, BAND.w, 46, 2);
       bands.push(seal(s));
+      yield;
+    }
+    // the crest's thin broken highlight, laid on some crests where they catch the light
+    for (let i = 0; i < GLEAMS; i++) {
+      const r = rng.fork(`gleam-${i}`);
+      const { s, p } = sprite(GLEAM.w, GLEAM.h, `gleam-${i}`, 4);
+      const L = p.layer({ x: 0, y: 0, w: GLEAM.w, h: GLEAM.h });
+      for (let x = r.range(4, 16); x < GLEAM.w - 8; ) {
+        const len = Math.min(GLEAM.w - 6 - x, r.range(4, 22));
+        if (r.chance(0.8)) L.fill(dash(x + len / 2, GLEAM.h / 2 + r.range(-0.6, 0.6), len, r.range(0.9, 1.8), r.range(-0.3, 0.3)), PAPER_WHITE, 1);
+        x += len + r.range(2, 14);
+      }
+      yield* L.dryParts({ ...LIFT, opacity: 0.95, sharpness: 0.5, edgeWidth: 0.5, flow: 0.3 });
+      featherX(s, 0, GLEAM.w, 30, 4);
+      gleams.push(seal(s));
       yield;
     }
     paintNet();
@@ -452,14 +498,14 @@ export function createCoastMotion(opts: CoastMotionOptions = {}): CoastMotion {
   /** the lines of equal depth a crest follows, one per part, and the ways a crest is broken */
   function* buildGrid(): Strokes {
     const depths = gridDepths();
-    const first = shoreContour(depths[0]! * SEA_STRETCH, 0.06, 'swell');
+    const first = shoreContour(depths[0]! * SEA_STRETCH, ...SWELL_LINE);
     const cols = first.length;
     grid.xs = Float32Array.from(first, (q) => q.x);
     grid.depths = Float32Array.from(depths);
     grid.ys = new Float32Array(depths.length * cols);
     grid.open = new Uint8Array(depths.length * cols);
     for (const [k, d] of depths.entries()) {
-      const line = shoreContour(d * SEA_STRETCH, 0.06, 'swell');
+      const line = shoreContour(d * SEA_STRETCH, ...SWELL_LINE);
       for (let j = 0; j < cols; j++) {
         const q = line[j]!;
         grid.ys[k * cols + j] = q.y;
@@ -468,15 +514,45 @@ export function createCoastMotion(opts: CoastMotionOptions = {}): CoastMotion {
       yield;
     }
     const r = rng.fork('crest-layouts');
+    // long pieces just overlapping, a few gaps; some carry a highlight on their crest
     for (let n = 0; n < LAYOUTS; n++) {
       const pieces: number[] = [];
-      for (let j = r.int(0, 8); j < cols - 4; ) {
-        const len = r.int(12, 26);
-        if (r.chance(0.86)) pieces.push(j, Math.min(cols - 1, j + len), r.int(0, BANDS - 1), r.range(0.55, 1), r.range(-1.8, 1.8));
-        j += len + r.int(0, 5);
+      for (let j = r.int(-6, 4); j < cols - 4; ) {
+        const len = r.int(18, 34);
+        if (r.chance(0.9)) pieces.push(Math.max(0, j), Math.min(cols - 1, j + len), r.int(0, BANDS - 1), r.range(0.5, 1), r.range(-1.2, 1.2), r.chance(0.32) ? r.int(0, GLEAMS - 1) : -1);
+        j += Math.round(len * r.range(0.8, 1));
       }
       layouts.push(Float32Array.from(pieces));
     }
+    // each wet rock and the hull, at the depth of the line through its foot; the crests part round
+    // the splash rocks and the hull (the boulders along the bastion meet them where they fade)
+    const shapes = [...WET_ROCKS.map((rk, i) => ({ x: rk.x, y: rockFoot[i]!, half: rk.w / 2, parts: SPLASH_ROCK_SHAPES.includes(rk) })), { x: CAIQUE.x - 2, y: CAIQUE.y, half: 36, parts: true }];
+    for (const [k, o] of shapes.entries()) {
+      const d = gridDepth(o.x, o.y);
+      obstacles.push({ x: o.x, half: o.half, d, lag: Math.max(0.6, Math.min(2.6, 0.35 + o.half / 14)), heal: Math.min(30, 8 + 1.2 * o.half) });
+      const reach = o.half * 1.3 * 2.2;
+      if (o.parts) for (let j = 0; j < cols; j++) if (Math.abs(grid.xs[j]! - o.x) < reach) (colObstacles[j] ??= []).push(k);
+    }
+    // the rocks' foam and rings and the hull's ring keep the time of the band that reaches them
+    for (let i = 0; i < WET_ROCKS.length; i++) rockDepth[i] = obstacles[i]!.d;
+    boatDepth = obstacles[obstacles.length - 1]!.d;
+  }
+
+  /** the depth of the grid's line through (x, y), at the nearest column */
+  function gridDepth(x: number, y: number): number {
+    const xs = grid.xs;
+    let j = 0;
+    for (let q = 1; q < xs.length; q++) if (Math.abs(xs[q]! - x) < Math.abs(xs[j]! - x)) j = q;
+    const D = grid.depths;
+    let lo = D[0]!;
+    let hi = D[D.length - 1]!;
+    if (lineAt(lo, j) <= y) return lo;
+    for (let i = 0; i < 40; i++) {
+      const mid = (lo + hi) / 2;
+      if (lineAt(mid, j) > y) lo = mid;
+      else hi = mid;
+    }
+    return Math.max(SWELL.breaks, (lo + hi) / 2);
   }
 
   /** each reach of the beach's waterline: its lace, the wet band it leaves and the sheet of water */
@@ -739,23 +815,13 @@ export function createCoastMotion(opts: CoastMotionOptions = {}): CoastMotion {
   };
   /** the frame's world transform: a turned blit sets its own from it and puts it back */
   const base = { a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 };
-  const turned = (ctx: CanvasRenderingContext2D, sp: Sprite, cx: number, cy: number, w: number, h: number, angle: number, alpha: number) => {
-    if (Math.abs(angle) < 0.004) return blit(ctx, sp, cx, cy, w, h, alpha);
-    ctx.globalAlpha = alpha;
-    const cs = Math.cos(angle);
-    const sn = Math.sin(angle);
-    const m = base;
-    ctx.setTransform(m.a * cs + m.c * sn, m.b * cs + m.d * sn, m.c * cs - m.a * sn, m.d * cs - m.b * sn, m.a * cx + m.c * cy + m.e, m.b * cx + m.d * cy + m.f);
-    ctx.drawImage(sp.image, -w / 2, -h / 2, w, h);
-    ctx.setTransform(m.a, m.b, m.c, m.d, m.e, m.f);
-  };
 
   /** the troughs first, multiplied in one composite, then the crests and the lights over them */
-  const drawSea = (ctx: CanvasRenderingContext2D | null, t: number, outer: number, marks: Mark[] | null) => {
+  const drawSea = (ctx: CanvasRenderingContext2D | null, t: number, outer: number, marks: Mark[] | null, light: DaylightState | null) => {
     if (ctx) ctx.globalCompositeOperation = 'multiply';
     drawDrifters(ctx, t, outer, marks, true);
     if (ctx) ctx.globalCompositeOperation = 'source-over';
-    drawCrests(ctx, t, outer, marks);
+    drawCrests(ctx, t, outer, marks, light);
     drawDrifters(ctx, t, outer, marks, false);
   };
   const drawDrifters = (ctx: CanvasRenderingContext2D | null, t: number, outer: number, marks: Mark[] | null, troughs: boolean) => {
@@ -806,19 +872,106 @@ export function createCoastMotion(opts: CoastMotionOptions = {}): CoastMotion {
     lineK = lo;
     return grid.ys[lo * cols + j]! + (grid.ys[hi * cols + j]! - grid.ys[lo * cols + j]!) * f;
   };
-  /** where crest `n` (breaking at `T`) lies at column `j` at time `t`, held at the break past it */
-  const crestY = (T: number, t: number, j: number) => lineAt(crestDepth(Math.min(0, t - T - delayAt(grid.xs[j]!))), j);
+  /** how far behind the rest of its line a crest at depth `d` lags at column `j` (s), and how much it thins there */
+  let shade = 0;
+  const lagAt = (j: number, d: number): number => {
+    let lag = 0;
+    shade = 0;
+    const list = colObstacles[j];
+    if (!list) return 0;
+    for (const k of list) {
+      const o = obstacles[k]!;
+      const u = o.d - d;
+      if (u <= 0 || u > o.heal * 1.4) continue;
+      const dx = (grid.xs[j]! - o.x) / (o.half * 1.3);
+      const g = Math.exp(-dx * dx) * smooth(u / 3);
+      lag += o.lag * g * Math.exp(-u / o.heal);
+      shade = Math.max(shade, g * Math.exp(-u / (o.heal * 0.6)));
+    }
+    return lag;
+  };
+  /** where crest `n` (breaking at `T`) lies at column `j` at time `t`, held at the break past it, parted round rocks and the hull */
+  let parted = true;
+  const crestY = (T: number, t: number, j: number): number => {
+    const tau = Math.min(0, t - T - delayAt(grid.xs[j]!));
+    const lag = parted ? lagAt(j, crestDepth(tau)) : 0;
+    return lineAt(crestDepth(Math.min(0, tau - lag)), j);
+  };
+  /** the same at a fractional column */
+  const crestYf = (T: number, t: number, jf: number): number => {
+    const cols = grid.xs.length;
+    const j = Math.max(0, Math.min(cols - 2, Math.floor(jf)));
+    const u = jf - j;
+    return crestY(T, t, j) * (1 - u) + crestY(T, t, j + 1) * u;
+  };
+  const colX = (jf: number): number => {
+    const xs = grid.xs;
+    const j = Math.max(0, Math.min(xs.length - 2, Math.floor(jf)));
+    return xs[j]! + (xs[j + 1]! - xs[j]!) * (jf - j);
+  };
+  /** the columns of j0..j1 where a rock's or the hull's wake bends a crest at depth `d`, or null */
+  const wake = { a: 0, b: 0 };
+  const wakeOn = (j0: number, j1: number, d: number): typeof wake | null => {
+    const xs = grid.xs;
+    const step = xs[1]! - xs[0]!;
+    let a = Infinity;
+    let b = -Infinity;
+    for (let j = Math.max(0, Math.floor(j0)); j <= Math.min(xs.length - 1, Math.ceil(j1)); j++) {
+      const list = colObstacles[j];
+      if (!list) continue;
+      for (const k of list) {
+        const o = obstacles[k]!;
+        const u = o.d - d;
+        if (u <= 0 || u > o.heal * 1.4) continue;
+        const r = o.half * 1.3 * 1.7;
+        a = Math.min(a, (o.x - r - xs[0]!) / step);
+        b = Math.max(b, (o.x + r - xs[0]!) / step);
+      }
+    }
+    if (a === Infinity) return null;
+    wake.a = Math.max(j0, a);
+    wake.b = Math.min(j1, b);
+    return wake.b > wake.a ? wake : null;
+  };
 
-  /** the swell's crests: broken soft bands along lines of equal depth, closer and fainter far out */
-  const drawCrests = (ctx: CanvasRenderingContext2D | null, t: number, outer: number, marks: Mark[] | null) => {
+  /** a part of a sprite (source x from `k0` to `k1` of its width) laid from (x0, y0) to (x1, y1), `h` thick, its middle `off` below the line */
+  const span = (ctx: CanvasRenderingContext2D, sp: Sprite, k0: number, k1: number, x0: number, y0: number, x1: number, y1: number, h: number, off: number, alpha: number) => {
+    const len = Math.hypot(x1 - x0, y1 - y0);
+    if (len < 0.01) return;
+    const angle = Math.atan2(y1 - y0, x1 - x0);
+    const cs = Math.cos(angle);
+    const sn = Math.sin(angle);
+    const cx = (x0 + x1) / 2 - sn * off;
+    const cy = (y0 + y1) / 2 + cs * off;
+    const img = sp.image as CanvasImageSource & { width: number; height: number };
+    const sx = k0 * img.width;
+    const sw = Math.max(1, (k1 - k0) * img.width);
+    const m = base;
+    ctx.globalAlpha = alpha;
+    ctx.setTransform(m.a * cs + m.c * sn, m.b * cs + m.d * sn, m.c * cs - m.a * sn, m.d * cs - m.b * sn, m.a * cx + m.c * cy + m.e, m.b * cx + m.d * cy + m.f);
+    ctx.drawImage(img, sx, 0, sw, img.height, -len / 2 - 0.3, -h / 2, len + 0.6, h);
+    ctx.setTransform(m.a, m.b, m.c, m.d, m.e, m.f);
+  };
+
+  /**
+   * The swell's crests (GS2): broad soft bands along lines of equal depth, a lighter back behind the
+   * crest and a darker trough ahead, about as wide as the gap to the next crest; a thin broken
+   * highlight on some, where the light is; parted round the rocks and the hull and closing behind.
+   */
+  const drawCrests = (ctx: CanvasRenderingContext2D | null, t: number, outer: number, marks: Mark[] | null, light: DaylightState | null) => {
     const cols = grid.xs.length;
     if (!cols) return;
+    const w = light?.weights;
+    // the highlight: bright by day, warm at the low suns, faint under the moon
+    const gleamA = w ? w.midday * 0.8 + (w.sunrise + w.sunset) * 0.95 + w.night * 0.3 : 0.8;
+    // under the night the pale backs would read as stripes: the bands go quieter
+    const bodyA = w ? 1 - 0.45 * w.night : 1;
     const last = latest(t + CREST_LIFE);
     for (let n = latest(t - SWELL.peel) + 1; n <= last; n++) {
       const T = arrival(n);
       const st = crestStrength(n);
       const pieces = layouts[((n % LAYOUTS) + LAYOUTS) % LAYOUTS]!;
-      for (let i = 0; i < pieces.length; i += 5) {
+      for (let i = 0; i < pieces.length; i += 6) {
         const j0 = pieces[i]!;
         const j1 = pieces[i + 1]!;
         const jm = (j0 + j1) >> 1;
@@ -829,24 +982,59 @@ export function createCoastMotion(opts: CoastMotionOptions = {}): CoastMotion {
         if (!grid.open[lineK * cols + jm] || !grid.open[(lineK + 1) * cols + jm]) continue;
         const s = seaScale(ym);
         const xm = grid.xs[jm]!;
-        scratch.x = xm;
-        scratch.y = ym;
-        const alpha = CREST_ALPHA * st * pieces[i + 3]! * (0.4 + 0.6 * s) * smooth((SWELL.born - d) / 60) * smooth((d - SWELL.breaks) / 12) * (nearBoat(scratch) ? 0.45 : 1);
+        // each band swells and fades along its length, slowly, as it comes in
+        const along = 0.6 + 0.4 * Math.sin(xm / 150 + n * 2.1 + t * 0.045);
+        const alpha = CREST_ALPHA * (0.45 + 0.55 * st) * pieces[i + 3]! * along * (0.5 + 0.5 * s) * smooth((SWELL.born - d) / 70) * smooth((d - SWELL.breaks) / 14);
         if (alpha < 0.015) continue;
         counts.crest++;
         marks?.push({ element: 'crest', index: n, x: xm, y: ym });
         if (!ctx) continue;
-        const x0 = grid.xs[j0]!;
-        const x1 = grid.xs[j1]!;
         const y0 = crestY(T, t, j0);
         const y1 = crestY(T, t, j1);
+        // round the headland the lines climb: a band follows them a little way, then thins out
+        const angle = Math.atan2(y1 - y0, grid.xs[j1]! - grid.xs[j0]!);
+        const a = alpha * bodyA * smooth((0.62 - Math.abs(angle)) / 0.3) * outer;
+        if (a < 0.03) continue;
         const sp = bands[pieces[i + 2]!]!;
-        const len = Math.hypot(x1 - x0, y1 - y0) * 1.25;
-        const h = sp.h * (0.2 + 0.8 * s) * (0.75 + 0.25 * st);
-        // where the lines of depth climb steeply round the headland a band would read as a streak: it thins out
-        const angle = Math.atan2(y1 - y0, x1 - x0);
-        const a = alpha * smooth((0.34 - Math.abs(angle)) / 0.2);
-        if (a > 0.015) turned(ctx, sp, xm, ym + pieces[i + 4]! * s, len, h, angle, a * outer);
+        // the band spans most of the gap to the next crest: wide by the beach, narrow far out
+        const h = BAND_SPAN * crestSpeed(d) * SWELL.period * (BAND.h / (BAND.h - 6)) * (0.8 + 0.2 * st);
+        const off = h * (0.5 - BAND.crest / BAND.h) + pieces[i + 4]! * s;
+        const g = pieces[i + 5]!;
+        const gleam = g >= 0 && st > 0.5 && gleamA > 0.05 ? gleams[g]! : null;
+        const gh = GLEAM.h * (0.3 + 0.7 * s);
+        const ga = a * gleamA * (0.4 + 0.6 * st) * (0.35 + 0.65 * s);
+        const ext = (j1 - j0) * 0.125;
+        const n0 = j0 - ext;
+        const n1 = j1 + ext;
+        const wk = wakeOn(n0, n1, d);
+        if (!wk) {
+          span(ctx, sp, 0, 1, colX(n0), y0 - (y1 - y0) * 0.125, colX(n1), y1 + (y1 - y0) * 0.125, h, off, a);
+          if (gleam) span(ctx, gleam, 0, 1, grid.xs[j0]!, y0, grid.xs[j1]!, y1, gh, -0.6 * s, ga);
+          continue;
+        }
+        // in a rock's or the hull's wake: that stretch in short spans that follow the lag, thinner in its lee
+        const cuts = [n0];
+        if (wk.a > n0 + 0.5) cuts.push(wk.a);
+        const parts = Math.max(2, Math.ceil((wk.b - wk.a) / SUB));
+        for (let q = 1; q <= parts; q++) cuts.push(wk.a + ((wk.b - wk.a) * q) / parts);
+        if (wk.b < n1 - 0.5) cuts.push(n1);
+        const kOf = (jf: number) => (jf - n0) / (n1 - n0);
+        let px = colX(n0);
+        let py = crestYf(T, t, n0);
+        for (let q = 1; q < cuts.length; q++) {
+          const ja = cuts[q - 1]!;
+          const jf = cuts[q]!;
+          const x = colX(jf);
+          const y = crestYf(T, t, jf);
+          lagAt(Math.max(0, Math.min(cols - 1, Math.round((ja + jf) / 2))), d);
+          const lee = 1 - 0.6 * shade;
+          span(ctx, sp, kOf(ja), kOf(jf), px, py, x, y, h, off, a * lee);
+          const g0 = Math.max(ja, j0);
+          const g1 = Math.min(jf, j1);
+          if (gleam && g1 > g0 && shade < 0.15) span(ctx, gleam, (g0 - j0) / (j1 - j0), (g1 - j0) / (j1 - j0), colX(g0), crestYf(T, t, g0), colX(g1), crestYf(T, t, g1), gh, -0.6 * s, ga * lee * lee);
+          px = x;
+          py = y;
+        }
       }
     }
   };
@@ -945,7 +1133,7 @@ export function createCoastMotion(opts: CoastMotionOptions = {}): CoastMotion {
       marks?.push({ element: 'foam', index: i, x: rock.x, y: rock.y });
       // the crest leaves a ring spreading round the rock's foot
       const v = sw.since / RING_LIFE;
-      const ringA = v < 1 ? 0.55 * crestStrength(sw.n) * smooth(v / 0.12) * (1 - v) ** 1.6 : 0;
+      const ringA = v < 1 ? 0.7 * crestStrength(sw.n) * smooth(v / 0.12) * (1 - v) ** 1.6 : 0;
       if (ringA > 0.01) {
         counts.swirl++;
         marks?.push({ element: 'swirl', index: i, x: rock.x, y: rockFoot[i]! + 1 });
@@ -976,7 +1164,7 @@ export function createCoastMotion(opts: CoastMotionOptions = {}): CoastMotion {
 
   /** a ring spreading from the hull as a good crest lifts it */
   const drawRings = (ctx: CanvasRenderingContext2D | null, t: number, outer: number, marks: Mark[] | null) => {
-    const sw = swellAt(CAIQUE_DEPTH, CAIQUE.x, t, phase);
+    const sw = swellAt(boatDepth, CAIQUE.x, t, phase);
     if (crestStrength(sw.n) < 0.55) return;
     const v = sw.since / 7;
     if (v > 1) return;
@@ -1109,7 +1297,7 @@ export function createCoastMotion(opts: CoastMotionOptions = {}): CoastMotion {
         clip(ctx, 'dry');
       }
       if (meets(view, SHALLOWS_BOX)) drawCaustics(ctx, t, outer, marks, light);
-      drawSea(ctx, t, outer, marks);
+      drawSea(ctx, t, outer, marks, light);
       drawRocks(ctx, t, outer, marks);
       drawGlints(ctx, t, outer, marks, light);
       if (meets(view, MOTION_BOXES.boat)) drawRings(ctx, t, outer, marks);
@@ -1179,13 +1367,23 @@ export function createCoastMotion(opts: CoastMotionOptions = {}): CoastMotion {
       frame(null, t, null, marks, light ?? null);
       return marks;
     },
+    crestAt(n, t, x, part = true) {
+      const xs = grid.xs;
+      parted = part;
+      const y = crestYf(arrival(n), t, Math.max(0, Math.min(xs.length - 1, (x - xs[0]!) / (xs[1]! - xs[0]!))));
+      parted = true;
+      return y;
+    },
+    obstacleDepths() {
+      return obstacles.map((o) => o.d);
+    },
     visibleAt(t, light) {
       return { ...frame(null, t, null, null, light ?? null) };
     },
     sprites() {
       const all: Record<string, Sprite[]> = {
         light: lights, trough: troughSprites, band: bands, spark: sparks, net: net ? [net] : [], ring: rings, 'pool-ring': poolRing,
-        breaker: breakers, lace: foam.map((f) => f.lace), wet: foam.map((f) => f.wet), film: foam.map((f) => f.film),
+        gleam: gleams, breaker: breakers, lace: foam.map((f) => f.lace), wet: foam.map((f) => f.wet), film: foam.map((f) => f.film),
         'rock-foam': rockFoam, lap: laps,
         boat: [boat.plate, boat.light, boat.dark, boat.hull, boat.buoy].filter((s): s is Sprite => !!s),
       };
