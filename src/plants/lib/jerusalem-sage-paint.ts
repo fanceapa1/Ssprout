@@ -55,23 +55,48 @@ function disc(r: Reserve, k = 1, n = 12): Pt[] {
   return Array.from({ length: n }, (_, i) => ({ x: r.at.x + Math.cos((i / n) * TAU) * r.rx * k, y: r.at.y + Math.sin((i / n) * TAU) * r.ry * k }));
 }
 
-/** Felted leaves: a grey-green wash, a cooler shaded half, midrib and wrinkle veins lifted. */
+const LEAF_LIT = '#c3c6a8';
+
+/**
+ * Felted leaves, one wash per shoot's leaves so the shoots glaze over each other: a grey-green
+ * wash, a pale lit half, a cooler shaded half and a dark pool at the base, then the midrib and
+ * the wrinkles lifted.
+ */
 export function paintLeaves(p: Painter, marks: readonly LeafMark[], reserves: readonly Reserve[]): void {
   const live = marks.filter((m) => m.alpha > 0.02);
   if (!live.length) return;
-  const L = p.layer(padRect(bounds(live.flatMap((m) => m.geom.outline)), 3));
-  for (const m of live) {
-    const rng = createRng(m.seed);
-    L.fill(deformPolygon(m.geom.outline, rng, { depth: 1, variance: 0.05 }), jitter(m.pigment, rng, 0.025), 0.46 * m.alpha);
-    L.fill(deformPolygon(m.geom.shade, rng, { depth: 1, variance: 0.05 }), m.deep, 0.22 * m.shade * m.alpha);
+  const GROUP = 6;
+  for (let i = 0; i < live.length; i += GROUP) {
+    const part = live.slice(i, i + GROUP);
+    const L = p.layer(padRect(bounds(part.flatMap((m) => m.geom.outline)), 3));
+    for (const m of part) {
+      const rng = createRng(m.seed);
+      const o = m.geom.outline;
+      const base = o[0]!;
+      L.fill(deformPolygon(o, rng, { depth: 1, variance: 0.05 }), jitter(m.pigment, rng, 0.025), 0.4 * m.alpha);
+      L.fill(deformPolygon(o, rng, { depth: 1, variance: 0.07 }), jitter(m.pigment, rng, 0.03), 0.18 * m.alpha);
+      L.fill(deformPolygon(m.geom.shade, rng, { depth: 1, variance: 0.05 }), m.deep, 0.17 * m.shade * m.alpha);
+      for (const k of [0.55, 0.32]) L.fill(deformPolygon(o.map((q) => ({ x: base.x + (q.x - base.x) * k, y: base.y + (q.y - base.y) * k })), rng, { depth: 1, variance: 0.08 }), m.deep, 0.06 * m.alpha);
+      if (m.alpha > 0.5) L.fill(deformPolygon(litHalf(m.geom), rng, { depth: 1, variance: 0.07 }), LEAF_LIT, 0.2 * m.alpha);
+    }
+    for (const m of part) {
+      if (m.alpha < 0.8) continue;
+      L.lift(ribbon(smoothPath(m.geom.mid, 1.2), (t) => 0.34 * (1 - 0.6 * t)), 0.26);
+      for (const v of m.geom.veins) L.lift(ribbon(v, () => 0.22), 0.2);
+    }
+    for (const r of reserves) L.lift(disc(r, 1), r.amount);
+    L.dry({ opacity: 0.9, edge: 0.26, edgeWidth: 0.8, sharpness: 0.4, centreLift: 0.1, granulation: 0.38, flow: 0.55, flowScale: 4, dry: 0.04, darken: 0.1 });
   }
-  for (const m of live) {
-    if (m.alpha < 0.8) continue;
-    L.lift(ribbon(smoothPath(m.geom.mid, 1.2), (t) => 0.32 * (1 - 0.6 * t)), 0.2);
-    for (const v of m.geom.veins) L.lift(ribbon(v, () => 0.2), 0.12);
-  }
-  for (const r of reserves) L.lift(disc(r, 1), r.amount);
-  L.dry({ opacity: 0.9, edge: 0.3, edgeWidth: 0.9, sharpness: 0.45, centreLift: 0.1, granulation: 0.6, flow: 0.35, flowScale: 7, dry: 0.1, darken: 0.08 });
+}
+
+/** The half of a blade on the lit side, with the midline back to the base. */
+function litHalf(g: LeafGeom): Pt[] {
+  const o = g.outline;
+  const half = (o.length - 2) / 2;
+  const first = o.slice(1, 1 + half);
+  const second = o.slice(1 + half + 1);
+  const shadeIsFirst = g.shade.length > 0 && first.some((q) => g.shade.includes(q));
+  return [...(shadeIsFirst ? second : first), g.mid[3]!, g.mid[2]!, g.mid[1]!, g.mid[0]!];
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -127,10 +152,13 @@ export function paintStems(p: Painter, stems: readonly StemMark[]): void {
   const L = p.layer(padRect(bounds(live.flatMap((s) => s.pts)), 3));
   for (const s of live) {
     const rng = createRng(s.seed);
-    ribbonInto(L, s.pts, s.width, s.pigment, rng, { taper: [0.15, 0.12], endWidth: 0.6, fills: 2, coverage: 0.55 });
-    ribbonInto(L, s.pts, s.width * 0.45, s.deep, rng, { taper: [0.2, 0.2], endWidth: 0.5, fills: 1, coverage: 0.2, offset: s.width * 0.25 });
+    const ph = rng.range(0, TAU);
+    const weight = (t: number) => 0.8 + 0.28 * Math.sin(t * 8 + ph) + 0.12 * Math.sin(t * 19 + ph * 2);
+    ribbonInto(L, s.pts, s.width, s.pigment, rng, { taper: [0.15, 0.12], endWidth: 0.6, fills: 2, coverage: 0.62, pressure: weight });
+    ribbonInto(L, s.pts, s.width * 0.45, s.deep, rng, { taper: [0.2, 0.2], endWidth: 0.5, fills: 1, coverage: 0.3, offset: s.width * 0.25, pressure: weight });
+    ribbonInto(L, s.pts, s.width * 0.25, '#e4e4cc', rng, { taper: [0.3, 0.3], endWidth: 0.3, fills: 1, coverage: 0.3, offset: -s.width * 0.25 });
   }
-  L.dry({ opacity: 0.9, edge: 0.35, edgeWidth: 0.7, sharpness: 0.55, centreLift: 0.05, granulation: 0.35, flow: 0.25, flowScale: 8, dry: 0.08 });
+  L.dry({ opacity: 0.9, edge: 0.28, edgeWidth: 0.6, sharpness: 0.4, centreLift: 0.05, granulation: 0.35, flow: 0.45, flowScale: 4, dry: 0.14 });
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -175,6 +203,7 @@ interface Hood {
   shade: Pt[];
   lip: Pt[];
   crest: Pt[];
+  baseHalf: Pt[];
   mouth: Pt;
   len: number;
 }
@@ -220,6 +249,7 @@ function hoodGeometry(m: WhorlMark, f: WhorlFlower): Hood {
     shade: [...down, tip, ...us.map(axis).reverse()],
     lip,
     crest: up.slice(2).concat(tip),
+    baseHalf: [...up.slice(0, 4), ...down.slice(0, 4).reverse()],
     mouth: { x: mouth.x - nx * hw(0.86) * 0.4, y: mouth.y - ny * hw(0.86) * 0.4 },
     len: L,
   };
@@ -252,8 +282,8 @@ export function paintWhorls(p: Painter, whorls: readonly WhorlMark[]): void {
   const dry = { opacity: 0.92, edge: 0.5, edgeWidth: 0.7, sharpness: 0.55, centreLift: 0.05, granulation: 0.25, flow: 0.35, flowScale: 6, dry: 0.04, darken: 0.1 };
 
   const flowers = (front: boolean) => {
-    const L = p.layer(area);
     for (const w of live) {
+      const L = p.layer(padRect(bounds(ellipse(w.at, w.R * 1.5, w.R * 1.5, 0, 8)), 3));
       for (const f of w.flowers) {
         if (Math.sin(f.phi) > 0 !== front) continue;
         const fo = flowerOpen(w, f);
@@ -261,14 +291,15 @@ export function paintWhorls(p: Painter, whorls: readonly WhorlMark[]): void {
         const rng = createRng(f.seed);
         const h = hoodGeometry(w, f);
         const back = front ? 0 : 0.35 + 0.3 * -Math.sin(f.phi);
-        const body = jitter(mix(mix(BUD, mix(YELLOW, YELLOW_LIGHT, f.tone * 0.6), Math.min(1, fo * 1.4)), OCHRE, back), rng, 0.02);
-        L.fill(deformPolygon(h.hood, rng, { depth: 1, variance: 0.06 }), body, 0.6 * a);
-        L.fill(deformPolygon(h.shade, rng, { depth: 1, variance: 0.06 }), mix(OCHRE, BUD, 1 - fo), 0.28 * a);
+        const body = jitter(mix(mix(BUD, mix(YELLOW, YELLOW_LIGHT, f.tone), Math.min(1, fo * 1.4)), OCHRE, back), rng, 0.035);
+        L.fill(deformPolygon(h.hood, rng, { depth: 1, variance: 0.06 }), body, 0.5 * a);
+        L.fill(deformPolygon(h.baseHalf, rng, { depth: 1, variance: 0.08 }), mix(OCHRE, BUD, 1 - fo), 0.22 * a);
+        L.fill(deformPolygon(h.shade, rng, { depth: 1, variance: 0.06 }), mix(OCHRE, BUD, 1 - fo), 0.26 * a);
         if (fo > 0.25) L.fill(deformPolygon(h.lip, rng, { depth: 1, variance: 0.08 }), mix(YELLOW_LIGHT, OCHRE, back * 0.6), 0.5 * a * Math.min(1, (fo - 0.25) * 3));
         if (front && fo > 0.4) L.lift(ribbon(smoothPath(h.crest, 0.6), () => Math.max(0.3, h.len * 0.06)), 0.4 * a);
       }
+      L.dry({ ...dry, opacity: 0.88, edge: 0.4, flow: 0.5, flowScale: 4 });
     }
-    L.dry(dry);
   };
 
   flowers(false);
@@ -293,7 +324,7 @@ export function paintWhorls(p: Painter, whorls: readonly WhorlMark[]): void {
       const fo = flowerOpen(w, f);
       if (fo < 0.3) continue;
       const h = hoodGeometry(w, f);
-      M.fill(ellipse(h.mouth, h.len * 0.12, h.len * 0.07, 0, 6), MOUTH, 0.45 * w.alpha * Math.min(1, (fo - 0.3) * 3));
+      M.fill(ellipse(h.mouth, h.len * 0.12, h.len * 0.07, 0, 6), MOUTH, 0.28 * w.alpha * Math.min(1, (fo - 0.3) * 3));
     }
   }
   M.dry({ opacity: 0.9, edge: 0.3, edgeWidth: 0.5, sharpness: 0.5, centreLift: 0.02, granulation: 0.1, flow: 0.1, flowScale: 6 });
