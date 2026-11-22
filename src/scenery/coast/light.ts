@@ -8,6 +8,7 @@ import { reserveStar, type CastShadow } from '../../ambience/sky-layout';
 import type { Rng } from '../../core/rng';
 import type { Painter, Pt } from '../../paint';
 import type { SceneGeometry } from '../../scene/geometry';
+import { HARBOUR } from './distance';
 import { SEA_WATER } from './geometry';
 import { COAST_GRADES } from './daylight';
 import { CHAPEL, COLUMNS, COLUMN_W, OLIVE, PINE, PROMONTORY, STYLOBATE, VILLAGE, WALLS } from './layout';
@@ -141,6 +142,9 @@ export const LIT_WINDOWS: readonly Pt[] = VILLAGE_CUBES.flat()
 /** The lamp by the chapel's door. */
 export const CHAPEL_LAMP: Pt = { x: CHAPEL.x - 7, y: CHAPEL.y + 9 };
 
+/** The light on the harbour's mole, at the top of its post. */
+export const HARBOUR_LIGHT: Pt = { x: HARBOUR.light.x, y: HARBOUR.light.y - 5.6 };
+
 /** Warm light on what faces the low sun; moonlight, lit windows and the chapel's lamp at night. */
 function coastLights(p: Painter, _rng: Rng, _scene: SceneGeometry, phase: DayPhase): void {
   if (phase === 'sunrise' || phase === 'sunset') {
@@ -184,6 +188,10 @@ function coastLights(p: Painter, _rng: Rng, _scene: SceneGeometry, phase: DayPha
   }
   dab(p, CHAPEL_LAMP.x, CHAPEL_LAMP.y, 12, 10, 0.55, lamp);
   dab(p, CHAPEL_LAMP.x, CHAPEL_LAMP.y, 3, 3, 1, [255, 232, 180]);
+  // the harbour light on the mole's head, and its broken path on the still water below
+  dab(p, HARBOUR_LIGHT.x, HARBOUR_LIGHT.y, 9, 8, 0.5, lamp);
+  dab(p, HARBOUR_LIGHT.x, HARBOUR_LIGHT.y, 2.4, 2.4, 1, [255, 232, 180]);
+  for (const [dy, rx, a] of [[10, 2.6, 0.5], [16, 3.2, 0.42], [23, 2.2, 0.36], [31, 3.4, 0.28], [41, 2.4, 0.2]] as const) dab(p, HARBOUR_LIGHT.x + (dy % 3) - 1, HARBOUR_LIGHT.y + dy, rx, 0.9, a, lamp);
   for (const s of COAST_NIGHT_STARS) if (s.y > 14) reserveStar(p.ctx, s, 0.9);
 }
 
