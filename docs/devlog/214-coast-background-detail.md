@@ -75,5 +75,10 @@ and `daylight.test.ts` (all four sky plates: the clouds, the hang, the far islan
   corner controls.
 
 ## Tests
-`npm run typecheck`; the coast's unit files (152); the full unit suite after the rebase; e2e one
-file at a time (`E2E_WORKERS=1`): see the report of this task for the files and counts.
+- `npm run typecheck` clean; the full unit suite after the last rebase (onto the perch fix):
+  282 files, 3013 tests pass (the coast's 10 files, 161 tests).
+- E2E against the production build, one file at a time (`E2E_WORKERS=1`, `--trace off`), after the
+  rebase onto the living sea: `fauna` 6, `scene` 5, `sceneries` 8, `studio` 14 pass; `daylight` 10
+  passed on the build before that rebase. The first `studio` run, at a load average of 14, timed
+  out in 5 of its 6 render shards (60 s, no studio error); alone at a load of 2–6 it passed. Not
+  rerun after the last rebase (the perch fix touches the trees' perches, not these files).
