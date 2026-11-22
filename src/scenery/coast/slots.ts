@@ -41,12 +41,12 @@ const SPECS: Record<Habitat, SlotSpec[]> = {
     ['mid-1', 860, 684, 'large', 'middle'],
     ['mid-2', 1120, 676, 'small', 'middle'],
     ['mid-3', 1300, 680, 'small', 'middle'],
-    ['mid-4', 1412, 676, 'small', 'middle'],
-    ['mid-5', 1452, 676, 'small', 'middle'],
+    ['mid-4', 1420, 676, 'small', 'middle'],
+    ['mid-5', 1460, 676, 'small', 'middle'],
     ['low-1', 812, 822, 'small', 'lower'],
     ['low-2', 990, 822, 'small', 'lower'],
     ['low-3', 1200, 812, 'medium', 'lower'],
-    ['low-4', 1534, 812, 'medium', 'lower'],
+    ['low-4', 1542, 812, 'medium', 'lower'],
   ],
   // beside the gravel path on the terraces; the foreground under the lowest wall is the painting's
   // foot, faded into the margin, so nothing grows there (ADR 0384)
@@ -61,7 +61,7 @@ const SPECS: Record<Habitat, SlotSpec[]> = {
   back: [
     ['scrub-1', 1468, 306, 'tree'],
     ['scrub-3', 1508, 510, 'medium', 'top'],
-    ['scrub-4', 1480, 812, 'small', 'lower'],
+    ['scrub-4', 1486, 812, 'small', 'lower'],
     ['scrub-5', 1360, 834, 'small', 'lower'],
     ['scrub-6', 1300, 834, 'small', 'lower'],
   ],

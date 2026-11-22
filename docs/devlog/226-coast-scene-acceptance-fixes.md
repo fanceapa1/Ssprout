@@ -59,12 +59,13 @@ scratchpad (`ga1-<n>-before.png`, `ga1-<n>-after.png`, `ga1-overview-1470-*.png`
    limestone platform. The pools did not rise: their tops are 3–10 units under the beach's back,
    and the crab's rims, the octopus's pools and the shore break's 20-unit clearance read them. They
    stay at the top of the bottom dissolve at 1470 × 750; the paper margin still lifts the foot.
-6. **`low-4`** (item 9): partly fixed. It moves 26 left (1560 → 1534), with `scrub-4` (1498, 826)
-   → (1480, 812), `mid-4` (1420, 676) → (1412, 676) and `mid-5` (1474, 680) → (1452, 676), so no
-   plant stands over another's base and every spacing rule holds. A full medium box now ends at x
-   1612 (was 1638): a little of a wide lavender still dissolves at the right edge. Further left
-   every place fails `coast.test.ts`; making the slot small changes which species fit it
-   (`sites.test.ts` and the Jerusalem sage's own test, a species file).
+6. **`low-4`** (item 9): partly fixed. It moves 18 left (1560 → 1542), with `scrub-4` (1498, 826)
+   → (1486, 812) and `mid-5` (1474, 680) → (1460, 676), so no plant stands over another's base and
+   every spacing rule holds. A full medium box now ends at x 1620 (was 1638): a wide lavender still
+   dissolves a little at the right edge. With `mid-4` moved too it could reach 1534, but that
+   changes the cat's walk on the middle terrace and the cat's tortoise test (`cat.test.ts`, a
+   creature file) sees no detour; further left every place fails `coast.test.ts`; making the slot
+   small changes which species fit it (`sites.test.ts` and the Jerusalem sage's own test).
 7. **Sunset** (item 10): fixed. On the light plate the low sun rakes the point and the faces east
    of the headland's deep fissures and its rim, and the columns' left flanks, with cool right
    sides. On the sea plate a dark band lies under the far shore and the point, a bright warm core
@@ -82,7 +83,7 @@ scratchpad (`ga1-<n>-before.png`, `ga1-<n>-after.png`, `ga1-overview-1470-*.png`
   `LIP_BOULDER_SHAPES` (three at the lip, five at the cliff's foot), `FOOT_STONES` (`lip-shapes.ts`);
   `HEADLANDS[0]`; five `GRASS` tufts; `SHORE_RUNS`, `LEDGE_EDGE` and `shoreRuns` moved from
   `paint-rocks.ts` into `lip-shapes.ts` (re-exported).
-- Slots: `low-4`, `scrub-4`, `mid-4`, `mid-5` (above). Ids, habitats, sizes and sites unchanged.
+- Slots: `low-4`, `scrub-4`, `mid-5` (above). Ids, habitats, sizes and sites unchanged.
 - Perches: the pine's (its literals follow the plan at 1.8×); `COAST_SEEN` unchanged. The view
   (ADR 0384) unchanged.
 - The motion: laps along the lip's and the shelf's fronts; the new boulders in its dry clip; the
@@ -118,7 +119,20 @@ against devlog 225's quiet numbers. Total ms / longest part / parts:
 - The sky and sea plates each pay one pixel pass over their two side bands (not measured apart).
 
 ## Tests
-TESTS
+- New: `rock.test.ts` › the worn lip and the cliff's wave-cut shelf (three tests); `coast.test.ts`
+  › the coast's paper margins and far headland (two tests); studio `coast-rock/lip`. Rows GA1.1–3
+  in TESTING.md.
+- `npm run typecheck`: clean.
+- Full unit suite after the last rebase (`VITEST_WORKERS=1`, 855 s): 286 files, 3055 tests, one
+  failure: `cat.test.ts` › a tortoise put down on its way (no detour in any seed), caused by moving
+  `mid-4`; with `mid-4` back in place `cat.test.ts` passes (26), and `coast`, `wildlife`, `sites`,
+  `motion`, `shore`, `parts`, `rock`, `veg`, `daylight` and the coast creatures' tests (tortoise,
+  green lizard, goat, cicada, gull, scops owl, rock thrush) pass one file at a time.
+- E2E, production build on 4369, one worker, one file at a time (before the last rebase, which
+  brought only GA2's card texts, and before the last slot nudge): `sceneries` 11 of 12 (the
+  Japanese garden ↔ waterfall cross-fade check failed once, then passed twice alone), `scene` 5,
+  `camera` 16, `lazy-painters` 1, `daylight` 10, `ambience` 6, `fauna` 6, `lazy-creatures` 2,
+  `planting-previews` 2, `plants` 8, `plant-card-phone` 5, `lazy-species-painters` 1, `studio` 38.
 
 ## Left open
 - The phone's first view (contract change above); `scrub-1`'s crown in a wide window.

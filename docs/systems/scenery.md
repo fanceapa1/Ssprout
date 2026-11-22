@@ -902,13 +902,13 @@ perches kept. The phrygana cushion at the promontory's foot moved past `scrub-3`
 (1570, 514)) and one more grows at (1330, 513), so the tortoise still grazes there; the grass tuft
 (1478, 508) → (1408, 506). The terraces are full: only two places are 50–120 from the path and
 clear of every rule, so the path slots stand close on the lower terrace's front.
-**The east end** (GA1, devlog 226): `low-4` (1560, 812) → (1534, 812), `scrub-4` (1498, 826) → (1480,
-812, beside it), `mid-4` (1420, 676) → (1412, 676) and `mid-5` (1474, 680) → (1452, 676), so `low-4`
-clears `mid-5` behind it and `crack-1`'s and `crack-2`'s plants clear the slots above them. A full
-1.25× medium box on `low-4` now reaches x 1612 (was 1638): still a little into the stage's right
-edge in a window that shows the whole width. Further left every place fails a spacing rule
-(`coast.test.ts`); making the slot small would change the species that fit (`sites.test.ts`, the
-Jerusalem sage's own test).
+**The east end** (GA1, devlog 226): `low-4` (1560, 812) → (1542, 812), `scrub-4` (1498, 826) → (1486,
+812, beside it) and `mid-5` (1474, 680) → (1460, 676), so `low-4` clears `mid-5` behind it. A full
+1.25× medium box on `low-4` now reaches x 1620 (was 1638): still a little into the stage's right
+edge in a window that shows the whole width. Further left `low-4` stands over `mid-5` or `mid-4`;
+moving `mid-4` too lets it reach 1534 but changes the cat's walk on the middle terrace, so the
+cat's tortoise test (`cat.test.ts`) sees no detour. Making the slot small would change the species
+that fit (`sites.test.ts`, the Jerusalem sage's own test).
 
 Raised slots (on a terrace, a coping or a face) take their terrace's lift; the rest take
 `perspectiveScale(y)`. Each terrace's slots stand in the gaps between those of the terraces
