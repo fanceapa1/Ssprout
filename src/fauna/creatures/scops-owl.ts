@@ -375,22 +375,12 @@ export function paintOwl(res: number, seed: number): OwlParts {
 const group = (p: Perch): 'olive' | 'pine' | 'wall' | null => (p.kind === 'branch' && p.id.startsWith('olive') ? 'olive' : p.kind === 'branch' && p.id.startsWith('pine-branch') ? 'pine' : p.kind === 'wall' ? 'wall' : null);
 const WEIGHT = { olive: 3, pine: 1.5, wall: 1 };
 
-/** Beyond these x the painting fades to paper: the pine's far boughs and the walls' ends are barely painted there. */
-export const OWL_FRAME = { x0: 60, x1: 1530 };
+/** Where its feet go from a perch's line: on the line itself (the scenery's tree perches are the wood's upper side), 1 up onto a coping's cap stones. */
+export const seatOf = (p: Perch): Pt => ({ x: 0, y: p.kind === 'wall' ? -1 : 0 });
 
-/** Where its feet go from a perch's line (units), checked in the painting at night: up in the olive's
- * crotch, on a limb's upper side, onto the pine's painted twig, onto a coping's cap stones. */
-const SEATS: Record<string, Pt> = {
-  'olive-fork': { x: 6, y: -13 },
-  'olive-limb-3-1': { x: 0, y: -5 },
-  'olive-limb-3-2': { x: 0, y: -2 },
-  'pine-branch-9-1': { x: -12, y: -3 },
-};
-export const seatOf = (p: Perch): Pt => SEATS[p.id] ?? { x: 0, y: p.kind === 'wall' ? -1 : 0 };
-
-/** The olive's boughs and fork, the leaning pine's branches and the wall copings, inside the painted frame. */
+/** The olive's boughs and fork, the leaning pine's branches and the wall copings (the scenery keeps them in view, ADR 0382). */
 export function owlPerches(w: Pick<FaunaWorld, 'perches'>): Perch[] {
-  return w.perches.filter((p) => group(p) !== null && p.x >= OWL_FRAME.x0 && p.x <= OWL_FRAME.x1);
+  return w.perches.filter((p) => group(p) !== null);
 }
 
 /** The next perch, free of other creatures' spots and never `not`: the olive most, then the pine, then a wall top. */

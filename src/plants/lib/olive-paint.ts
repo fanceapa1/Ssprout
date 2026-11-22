@@ -77,6 +77,25 @@ export function trunkOutline(trunk: Branch, t: OliveTrunk, view: TreeView, f: nu
   return { c, left, right };
 }
 
+/** The scaffold limbs' painted ribbons (centreline, half width): each swells into the crotch, so the trunk parts instead of ending. */
+export function scaffoldLimbs(o: ReturnType<typeof trunkOutline>, limbs: readonly Branch[], view: TreeView, age: number): { b: Branch; path: Pt[]; hw: (u: number) => number }[] {
+  const n = o.c.length;
+  const top = o.c[n - 1]!;
+  const topHw = (o.left[n - 1]! + o.right[n - 1]!) / 2;
+  return limbs.flatMap((l) => {
+    const lf = branchProgress(l, view.tau);
+    if (lf <= 0.01) return [];
+    const from = { x: top.x + (viewPt(view, l.pts[0]!).x - top.x) * 0.5, y: top.y + topHw * 1.1 };
+    const path = smoothPath([from, ...partialPath(l, lf).map((q) => viewPt(view, q))], 3);
+    const hw = (u: number) => {
+      const w = widthAt(l, u * lf) * view.scale * view.thick * (0.45 + 0.55 * age) * 0.5 * (lf < 1 ? 1 - 0.55 * ramp(u, 0.6, 1) : 1);
+      const root = (1 - ramp(u, 0, 0.22)) ** 1.5;
+      return Math.max(0.3, topHw * 0.8 * root + w * (1 - root));
+    };
+    return [{ b: l, path, hw }];
+  });
+}
+
 /** A point on the trunk's surface at height fraction `i` of the outline and angle `theta` round it. */
 function onTrunk(o: ReturnType<typeof trunkOutline>, i: number, theta: number): Pt {
   const c = o.c[i]!;
@@ -112,21 +131,7 @@ export function paintOliveTrunk(p: Painter, trunk: Branch, t: OliveTrunk, view: 
     pts.push({ x: x0, y: foot.y + 2 });
     return pts;
   });
-  // the limbs' roots: each limb swells into the crotch, so the trunk parts instead of ending
-  const top = o.c[n - 1]!;
-  const topHw = (o.left[n - 1]! + o.right[n - 1]!) / 2;
-  const scaffold = limbs.flatMap((l) => {
-    const lf = branchProgress(l, view.tau);
-    if (lf <= 0.01) return [];
-    const from = { x: top.x + (viewPt(view, l.pts[0]!).x - top.x) * 0.5, y: top.y + topHw * 1.1 };
-    const path = smoothPath([from, ...partialPath(l, lf).map((q) => viewPt(view, q))], 3);
-    const hw = (u: number) => {
-      const w = widthAt(l, u * lf) * view.scale * view.thick * (0.45 + 0.55 * age) * 0.5 * (lf < 1 ? 1 - 0.55 * ramp(u, 0.6, 1) : 1);
-      const root = (1 - ramp(u, 0, 0.22)) ** 1.5;
-      return Math.max(0.3, topHw * 0.8 * root + w * (1 - root));
-    };
-    return [{ path, hw }];
-  });
+  const scaffold = scaffoldLimbs(o, limbs, view, age);
   const crotch = scaffold.map((sc) => ribbon(sc.path, sc.hw));
   const area = padRect(bounds([...body, ...roots.flat(), ...crotch.flat()]), 6);
   const barkTone = mix(col.young, col.bark, age);

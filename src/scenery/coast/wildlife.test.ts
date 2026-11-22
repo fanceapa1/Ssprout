@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { FaunaSim } from '../../fauna/sim';
 import { distanceToPolygon, pointInPolygon, polygonBounds, polygonCentroid } from '../../fauna/math';
 import { carried, inRegion, perchY, regionScale, wallTopAt, type Perch } from '../../fauna/targets';
-import type { Pt } from '../../render/viewport';
+import { createViewport, type Pt } from '../../render/viewport';
 import { perspectiveScale, PLANT_SIZES, plantScale } from '../../scene/slots';
 import { COAST } from '.';
 import { POOL_WATER, SEA_WATER } from './geometry';
@@ -13,7 +13,7 @@ import {
 } from './shapes';
 import { COAST_SLOTS } from './slots';
 import {
-  CAIQUE_MEASURE, COAST_CARRIERS, COAST_GROUND, COAST_PERCHES, COAST_REGIONS, COAST_STANDS, COAST_WALLS, COAST_WILDLIFE, coastPerspective, intoSea, seaScale, TEMPLE_SCALE,
+  CAIQUE_MEASURE, COAST_CARRIERS, COAST_GROUND, COAST_PERCHES, COAST_SEEN, COAST_REGIONS, COAST_STANDS, COAST_WALLS, COAST_WILDLIFE, coastPerspective, intoSea, seaScale, TEMPLE_SCALE,
 } from './wildlife';
 
 const of = (kind: Perch['kind']) => COAST_PERCHES.filter((p) => p.kind === kind);
@@ -78,18 +78,51 @@ describe('perches', () => {
     for (const w of COAST_WALLS.filter((f) => f.id.startsWith('wall-'))) expect(of('wall').some((p) => p.id.startsWith(`${w.id}-`)), w.id).toBe(true);
   });
 
-  it('branch perches lie on the olive’s limbs or the pine’s branches, at their tree’s scale', () => {
+  it('branch perches sit on the upper side of their painted limb, on a thick bare stretch, at their tree’s scale (ADR 0382)', () => {
     const olive = of('branch').filter((p) => p.id.startsWith('olive'));
     const pine = of('branch').filter((p) => p.id.startsWith('pine'));
-    expect(olive.length).toBeGreaterThanOrEqual(2);
-    expect(pine.length).toBeGreaterThanOrEqual(2);
+    expect(olive.length).toBeGreaterThanOrEqual(3);
+    expect(pine.length).toBeGreaterThanOrEqual(1);
     for (const [list, limbs, base] of [[olive, OLIVE_LIMBS, OLIVE.base], [pine, PINE_BRANCHES, PINE.base]] as const) {
       for (const p of list) {
-        expect(Math.min(...limbs.map((l) => lineDist(p, l))), p.id).toBeLessThan(0.5);
-        for (const q of along(p)) expect(Math.min(...limbs.map((l) => lineDist(q, l))), p.id).toBeLessThan(p.id === 'olive-fork' ? 4 : 2);
+        // the limb it names (the fork: its crotch on a scaffold limb)
+        const k = p.id === 'olive-fork' ? null : Number(/-(\d+)-\d+$/.exec(p.id)![1]);
+        const own = k === null ? limbs.slice(1, 4) : [limbs[k === null ? 0 : limbs === OLIVE_LIMBS ? k : k - 1]!];
+        const limb = own.reduce((a, l) => (lineDist(p, l) < lineDist(p, a) ? l : a));
+        const near = limb.reduce((a, w) => (Math.hypot(w.x - p.x, w.y - p.y) < Math.hypot(a.x - p.x, a.y - p.y) ? w : a));
+        // on its upper edge: a half width off the centreline, and above it
+        expect(Math.abs(lineDist(p, limb) - near.hw), p.id).toBeLessThan(1.5);
+        const foot = limb.slice(1).map((b, i) => ({ a: limb[i]!, b })).reduce((m, s) => (segDist(p, s.a, s.b) < segDist(p, m.a, m.b) ? s : m));
+        const t = ((p.x - foot.a.x) * (foot.b.x - foot.a.x) + (p.y - foot.a.y) * (foot.b.y - foot.a.y)) / ((foot.b.x - foot.a.x) ** 2 + (foot.b.y - foot.a.y) ** 2);
+        expect(p.y, p.id).toBeLessThan(foot.a.y + t * (foot.b.y - foot.a.y));
+        // thick enough to carry a bird, no leaves crowding its body
+        expect(near.hw, p.id).toBeGreaterThanOrEqual(1.8);
+        expect(near.leaves, p.id).toBeLessThanOrEqual(8);
+        for (const q of along(p)) expect(lineDist(q, limb), p.id).toBeLessThan(near.hw + 2);
         expect(p.scale, p.id).toBe(coastPerspective(base.x, base.y));
         expect(p.depth, p.id).toBe(base.y + 1);
       }
+    }
+    // the fork is the crotch over the trunk's top, between two scaffold limbs
+    const fork = olive.find((p) => p.id === 'olive-fork')!;
+    const top = OLIVE_LIMBS[0]!.at(-1)!;
+    expect(Math.abs(fork.x - top.x)).toBeLessThan(top.hw * 1.2);
+    expect(Math.abs(fork.y - top.y)).toBeLessThan(8);
+  });
+
+  it('every perch lies where every supported window shows it, out of the margins’ fade (ADR 0382)', () => {
+    // the overview's crop at each landscape window (CSS px): the stage is 94 % of its height, 14 px margins aside (style.css)
+    for (const [w, h] of [[1470, 750], [1440, 900], [1920, 1080], [1280, 720], [1366, 768]] as const) {
+      const vis = createViewport(w - 28, h * 0.94, 1, COAST.view.focus).visible;
+      expect(vis.y, `${w}×${h}`).toBeLessThanOrEqual(COAST_SEEN.y - 30);
+      expect(vis.y + vis.h, `${w}×${h}`).toBeGreaterThanOrEqual(COAST_SEEN.y + COAST_SEEN.h);
+    }
+    for (const p of COAST_PERCHES) {
+      expect(p.y, p.id).toBeGreaterThanOrEqual(COAST_SEEN.y);
+      expect(p.y, p.id).toBeLessThanOrEqual(COAST_SEEN.y + COAST_SEEN.h);
+      if (p.kind === 'ledge') continue;
+      expect(p.x, p.id).toBeGreaterThanOrEqual(COAST_SEEN.x);
+      expect(p.x, p.id).toBeLessThanOrEqual(COAST_SEEN.x + COAST_SEEN.w);
     }
   });
 
@@ -286,7 +319,12 @@ describe('regions and stands', () => {
 
   it('the bark bands follow the olive’s trunk and the pine’s, at each tree’s scale', () => {
     const olive = region('bark-olive');
-    for (const q of OLIVE_LIMBS[0]!.slice(1, -1)) expect(inRegion(olive, q)).toBe(true);
+    for (const q of OLIVE_LIMBS[0]!.slice(2, -1)) {
+      expect(inRegion(olive, q)).toBe(true);
+      // across the painted trunk's face, off its flanks
+      for (const s of [-1, 1]) expect(inRegion(olive, { x: q.x + s * q.hw * 0.5, y: q.y }), `${q.y}`).toBe(true);
+      for (const s of [-1, 1]) expect(inRegion(olive, { x: q.x + s * q.hw, y: q.y }), `${q.y}`).toBe(false);
+    }
     expect(regionScale(olive, 500)).toBe(coastPerspective(OLIVE.base.x, OLIVE.base.y));
     const pine = region('bark-pine');
     expect(inRegion(pine, PINE_TRUNK[2]!)).toBe(true);

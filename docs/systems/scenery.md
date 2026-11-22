@@ -1053,12 +1053,15 @@ Steps `maquis`, `olive` and `pine` (element `trees`), in parts. Palette `VEG`, l
   reads through the paper margin's lift), then the crown in thirds: cloud washes, cones, needles,
   painted in world units at `marks` 1.3 × the species' mark size (finer than 1.9×, sky between
   the tufts). `PINE_TRUNK`, `PINE_BRANCHES` and `PINE_PADS` are literals; `veg.test.ts` checks
-  them against `pineShapes()`.
+  them against `treeWood()` and `pineShapes()`.
 - Crowns above the skyline (olive, pine, promontory pines) take the sky's wash, as devlog 170
   says. They reserve no paper there, so no white gaps show.
 - **Perches for the wildlife** (all in `shapes.ts`): `WALL_TOPS` (the copings), `OLIVE_LIMBS` (the
-  olive's trunk and scaffold limbs, checked against the plan), `PINE_BRANCHES` and `PINE_TRUNK`,
-  `JARS` (rim at `y - h`), and `PROMONTORY_PINE_SHAPES`.
+  olive's trunk, scaffold limbs and boughs at least 2.5 thick), `PINE_BRANCHES` and `PINE_TRUNK`
+  as painted (`WoodPt`: nine samples a limb of the painted ribbon, wobble included, each with its
+  half width `hw` and the `leaves` round a bird's body above it; `treeWood()` in `paint-veg.ts`
+  derives them from the plans, `veg.test.ts` checks them; ADR 0382), `JARS` (rim at `y - h`), and
+  `PROMONTORY_PINE_SHAPES`.
 - **Cost** (headless Chromium, DPR 1, overview at 0.9, warm, load ≈ 5): land 155 ms, walls 235,
   beds 62, maquis 96, olive 37, pine 48: about 640 ms (900 ms cold). The longest part is 9.6 ms
   (a wall's batched layer). G4b (devlog 190) added nothing measurable; its pine's
@@ -1074,8 +1077,10 @@ skipped; the shared bees, butterflies, swallows and heron come now (docs/systems
 coast). `wildlife.ts` reads every place by name from `layout.ts`, `shapes.ts`, `sea.ts`, `slots.ts`
 and `geometry.ts`:
 - Still water is `SEA_WATER`; the rock pools (`POOL_WATER`) join the water layers' clip as `moving`.
-- Perches (140, none within 20 of a slot): the copings (`WALL_TOPS`), the olive's fork and limbs
-  (`OLIVE_LIMBS`), the pine's branches (`PINE_BRANCHES`), the jars' rims, the splash rocks' tops,
+- Perches (133, none within 20 of a slot, all inside `COAST_SEEN`, x 60–1530 and y 240–985:
+  what every landscape window's overview shows, out of the margins' deep fade, ADR 0382): the
+  copings (`WALL_TOPS`), the olive's fork and limbs and the pine's lower limb on the upper side of
+  their painted, bare, thick enough wood (`OLIVE_LIMBS`, `PINE_BRANCHES`, `limbTop`), the jars' rims, the splash rocks' tops,
   the architrave, the broken columns and the drum, the caique's mast top and rail (they ride its
   carrier), the far pines' highest needle clouds (off the slots) and 92 ledge stretches on the
   goats' six ways (`GOAT_TRACKS`, GK6, devlog 195): the cliff top west of the olive and three hard
