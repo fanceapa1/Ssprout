@@ -14,7 +14,7 @@ pool's perfect ellipse. A real shore painted in that slot would have been invisi
   and paints over the beach, the pools' water and the shelf. Three order tests said the opposite
   (written so the real painters would cover the draft); they now say the shore goes on top.
 - **`paint-shore.ts`** (new), placement in **`shore-shapes.ts`** (data, fixed seeds):
-  - a cool wet band 9–13 units under the waterline (about half the swash's 20), lost up the
+  - a cool wet band 9–13 units under the waterline (under half the swash's reach, `SWASH_MAX` 26 since GS2), lost up the
     beach. The motion's sheet runs past it and leaves its own drying band, so the two agree: the
     painted band is the sand that never dries, the moving one the last wave's;
   - the sea's sorting: a speckle of fine grains low on the beach, a faint grey cast up its back;

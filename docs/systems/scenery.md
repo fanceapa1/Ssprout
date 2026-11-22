@@ -1094,7 +1094,7 @@ ran before the beach, which painted over all of it. Palette `SHORE` beside `SAND
 from the upper left (shades and cast shadows fall lower right). Placement is data with fixed seeds
 (`shore-shapes.ts`), so only the brushwork follows the art seed.
 - **Wet band**: a cool glaze from the waterline (`FOAM_LINE`) 9–13 units up the shingle
-  (`wetWidth`, about half the swash's `SWASH_MAX` 20), lost toward the beach's back, with a few
+  (`wetWidth`, under half the swash's `SWASH_MAX` 26), lost toward the beach's back, with a few
   lifted slivers of sky sheen in it. The motion's sheet runs past it and leaves its own drying band
   (`motion.ts`), so the static band is only where the sand is always wet.
 - **Sorting**: a speckle of fine grains low on the beach, a faint grey cast over the upper half.

@@ -23,7 +23,7 @@ export const BEACH_X: readonly [number, number] = [-24, 672];
 /** How far up the beach a point lies: 0 at the waterline, 1 at the back. */
 export const beachDepth = (x: number, y: number): number => (y - foamAt(x)) / Math.max(1, backAt(x) - foamAt(x));
 
-/** The static wet band's width under the waterline at x: about half the swash's reach, so the moving sheet runs past it. */
+/** The static wet band's width under the waterline at x: under half the swash's reach (`SWASH_MAX`), so the moving sheet runs past it. */
 export const wetWidth = (() => {
   const noise = createSimplex2D(createRng('coast-shore-wet'));
   return (x: number): number => 9 + 3 * noise(x / 70, 0.5) + 1.5 * noise(x / 19, 3);
