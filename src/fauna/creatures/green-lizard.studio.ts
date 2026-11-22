@@ -33,13 +33,13 @@ function close(id: string, label: string, spec: StageSpec, w: number): StudioEnt
 }
 
 /** Draw poses in a row on white, `k` px per unit, each at its vent. */
-function sheet(canvas: HTMLCanvasElement, pixelRatio: number, seed: number, k: number, y: number, items: { x: number; q: GreenLizardPose }[]): void {
+function sheet(canvas: HTMLCanvasElement, pixelRatio: number, seed: number, k: number, y: number, items: { x: number; y?: number; q: GreenLizardPose }[]): void {
   const ctx = canvas.getContext('2d')!;
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   const parts = paintGreenLizard(k * pixelRatio, 7310 + (seed % 7));
   for (const it of items) {
-    ctx.setTransform(pixelRatio * k, 0, 0, pixelRatio * k, pixelRatio * it.x, pixelRatio * y);
+    ctx.setTransform(pixelRatio * k, 0, 0, pixelRatio * k, pixelRatio * it.x, pixelRatio * (it.y ?? y));
     drawGreenLizard(ctx, parts, it.q);
   }
   ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -72,11 +72,24 @@ const run: StudioEntry = {
   },
 };
 
+const portrait: StudioEntry = {
+  id: 'portrait',
+  label: 'close portrait (16 px a unit): basking, and looking round with the yellow throat',
+  w: 1000,
+  h: 420,
+  render(canvas, { seed, pixelRatio }) {
+    sheet(canvas, pixelRatio, seed, 16, 110, [
+      { x: 520, q: LIZARD_REST },
+      { x: 520, y: 310, q: lookPose(0.7) },
+    ]);
+  },
+};
+
 const section: StudioSection = {
   id: 'fauna-green-lizard-close',
   title: 'Fauna · Balkan green lizard, close',
   order: 347,
-  entries: [poses, run, close('wall', 'a terrace wall: peering out, basking, looking round, dashes with stops', { x: 1090, y: 545, w: 110, h: 70 }, 520)],
+  entries: [portrait, poses, run, close('wall', 'a terrace wall: peering out, basking, looking round, dashes with stops', { x: 1090, y: 545, w: 110, h: 70 }, 520)],
 };
 
 export default section;

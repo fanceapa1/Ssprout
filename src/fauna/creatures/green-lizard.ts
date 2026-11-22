@@ -5,7 +5,7 @@
  * first into a gap between the stones from the cat or a big bird. docs/devlog/207-green-lizard.md
  */
 import type { Rng } from '../../core/rng';
-import { blob, mix, PIGMENTS, smoothPolygon, type Painter } from '../../paint';
+import { mix, PIGMENTS, smoothPolygon, type Painter } from '../../paint';
 import type { LayerId } from '../../render/types';
 import type { Pt, Rect } from '../../render/viewport';
 import { wallTopAt, type WallFace } from '../targets';
@@ -47,16 +47,19 @@ const k = GREEN_LIZARD_SIZE / 30;
 const P = (x: number, y: number): Pt => ({ x: x * k, y: y * k });
 
 const COL = {
-  green: mix('#5fae3a', '#9a9060', 0.15),
-  bright: mix('#7cc832', '#9a9060', 0.18),
-  deep: '#2a6a1c',
-  speck: mix(PIGMENTS.sumi, '#1f3a1c', 0.5),
-  throat: '#e3cf52',
-  belly: '#c9cf63',
-  tail: '#6d9a44',
-  tailTip: '#8a8a5a',
-  claw: mix(PIGMENTS.sumi, '#3a3a2a', 0.4),
-  eye: mix(PIGMENTS.sumi, '#20180c', 0.6),
+  /** the flanks and belly edge, the grass-green back, its shaded side, the head's darker green */
+  flank: mix('#b9c26a', '#c8c08a', 0.3),
+  green: mix('#6f9f3c', '#8b9c5a', 0.3),
+  deep: '#3f6a2a',
+  head: mix('#5c8a36', '#5e6a34', 0.3),
+  /** the whip tail goes olive-brown toward its tip */
+  tail: '#8a7d4c',
+  speck: mix(PIGMENTS.sumi, '#24321c', 0.4),
+  fleck: '#e6d77a',
+  throat: '#e6cf5a',
+  toe: mix('#6f7a3e', '#7a6a44', 0.4),
+  eye: mix(PIGMENTS.sumi, '#3a2414', 0.5),
+  shade: mix(PIGMENTS.shadow, PIGMENTS.sumi, 0.25),
 };
 
 /** Shoulder and hip along the spine (x), the neck where the head sprite joins. */
@@ -72,106 +75,157 @@ function swing(x: number, b: number): number {
 
 /** Half width of the body at x along the spine. */
 function halfWidth(x: number): number {
-  if (x > SHOULDER) return lerpW(x, SHOULDER, NECK, 1.55, 1.15);
-  if (x > HIP) return 1.55 + Math.sin(((x - HIP) / (SHOULDER - HIP)) * Math.PI) * 0.35;
-  if (x > -2.5) return lerpW(x, -2.5, HIP, 1.15, 1.45);
-  return lerpW(x, TAIL_TIP, -2.5, 0.08, 1.15) ** 1.15;
+  if (x > SHOULDER) return lerpW(x, SHOULDER, NECK, 1.55, 1.2);
+  if (x > HIP) return 1.55 + Math.sin(((x - HIP) / (SHOULDER - HIP)) * Math.PI) * 0.3;
+  if (x > -3) return lerpW(x, -3, HIP, 1.25, 1.45);
+  // the tail: thick at the root, then an even taper to a fine point
+  return 0.05 + 1.2 * ((x - TAIL_TIP) / (-3 - TAIL_TIP)) ** 1.5;
 }
 const lerpW = (x: number, x0: number, x1: number, w0: number, w1: number) => w0 + ((w1 - w0) * (x - x0)) / (x1 - x0);
 
-function bodyOutline(b: number): Pt[] {
+/** The body's outline between `x1` and `x0` (snout side first), `share` of its half width, offset by (dx, dy). */
+function bodyOutline(b: number, share = 1, x1 = NECK, x0 = TAIL_TIP, dx = 0, dy = 0): Pt[] {
   const left: Pt[] = [];
   const right: Pt[] = [];
-  for (let x = NECK; x >= TAIL_TIP - 1e-6; x -= 0.7) {
+  for (let x = x1; x >= x0 - 1e-6; x -= 0.6) {
     const y = swing(x, b);
-    const dy = (swing(x + 0.1, b) - y) / 0.1;
-    const n = 1 / Math.hypot(1, dy);
-    const w = halfWidth(x);
-    left.push(P(x + dy * n * w, y - w * n));
-    right.push(P(x - dy * n * w, y + w * n));
+    const d = (swing(x + 0.1, b) - y) / 0.1;
+    const n = 1 / Math.hypot(1, d);
+    const w = halfWidth(x) * share;
+    left.push(P(x + d * n * w + dx, y - w * n + dy));
+    right.push(P(x - d * n * w + dx, y + w * n + dy));
   }
   return smoothPolygon([...left, ...right.reverse()], 1);
 }
 
-/** One leg: from the joint on the spine, out sideways, the foot turned forward or back, toes spread. */
-function paintLeg(p: Painter, rng: Rng, at: Pt, side: number, fore: boolean, reach: number): void {
-  const out = fore ? 1 : 1.15;
-  const knee = { x: at.x + (fore ? 0.6 : -0.4) * k + reach * 0.9 * k, y: at.y + side * 2.6 * out * k };
-  const foot = { x: knee.x + (fore ? 1.6 : -1.2) * k + reach * 1.4 * k, y: knee.y + side * 0.9 * k };
-  const leg = (a: Pt, c: Pt, w: number, pig: string) =>
-    p.dab(a, pig, { rng, variant: 'leaf', angle: Math.atan2(c.y - a.y, c.x - a.x), length: Math.hypot(c.x - a.x, c.y - a.y) * 1.1, width: w, opacity: 0.95, pool: 0.4, basePool: 0.2 });
-  leg({ x: at.x, y: at.y }, knee, 1.25 * k, COL.green);
-  leg(knee, foot, 0.6 * k, mix(COL.green, COL.deep, 0.3));
-  // the toes: four or five fine splayed strokes
-  const dir = Math.atan2(foot.y - knee.y, foot.x - knee.x);
+/** A leg's joints: hip or shoulder, knee or elbow, the foot, and the direction the toes point. */
+function legJoints(at: Pt, side: number, fore: boolean, reach: number): { knee: Pt; foot: Pt; dir: number } {
+  // fore: the upper arm out and a little back, the forearm and hand forward; hind: the thigh out and forward, the shank and foot back
+  const knee = { x: at.x + ((fore ? -0.35 : 0.55) + reach * 0.6) * k, y: at.y + side * (fore ? 1.9 : 2.3) * k };
+  const foot = { x: knee.x + ((fore ? 1.15 : -1.35) + reach * 1.1) * k, y: knee.y + side * (fore ? 0.95 : 0.7) * k };
+  return { knee, foot, dir: Math.atan2(foot.y - knee.y, foot.x - knee.x) };
+}
+
+/** One leg from its joint on the spine: splayed out, the foot turned forward (fore) or back (hind),
+ * five long thin toes, the hind fourth the longest; `shadow` paints its soft cast shadow instead. */
+function paintLeg(p: Painter, rng: Rng, at: Pt, side: number, fore: boolean, reach: number, shadow = false): void {
+  const { knee, foot, dir } = legJoints(at, side, fore, reach);
+  const off = shadow ? { x: 0.25 * k, y: 0.75 * k } : { x: 0, y: 0 };
+  const o = (q: Pt): Pt => ({ x: q.x + off.x, y: q.y + off.y });
+  // the limb in one stroke, thick at the joint, through the knee to the foot
+  const path: Pt[] = [];
+  for (let i = 0; i <= 8; i++) {
+    const [a, b, t] = i <= 4 ? [at, knee, i / 4] : [knee, foot, (i - 4) / 4];
+    path.push(o({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t }));
+  }
+  p.stroke(path, { rng, width: (fore ? 1.05 : 1.25) * k, opacity: shadow ? 0.2 : 0.97, wobble: 0.03, wetness: 0.2, taper: [0, 0.15], pressure: [1, 0.8, 0.62, 0.55, 0.55], edge: 0.25, edgeWidth: 0.2 * k, centreLift: 0, pigment: shadow ? COL.shade : mix(COL.green, COL.deep, 0.25) });
+  if (shadow) return;
+  // a fleck or two on the limb, the small palm the toes spread from
+  for (let i = 0; i < 3; i++) {
+    const t = rng.range(0.15, 0.7);
+    const [a, b, f] = t < 0.5 ? [at, knee, t * 2] : [knee, foot, (t - 0.5) * 2];
+    p.dab({ x: a.x + (b.x - a.x) * f, y: a.y + (b.y - a.y) * f }, COL.speck, { rng, variant: 'round', angle: 0, length: 0.14 * k, width: 0.12 * k, opacity: 0.5, layers: 1 });
+  }
+  p.dab(foot, mix(COL.green, COL.flank, 0.3), { rng, variant: 'round', angle: dir, length: 0.5 * k, width: 0.4 * k, opacity: 0.85, layers: 2, edge: 0.1 });
+  const lens = fore ? [0.8, 1.2, 1.45, 1.4, 0.95] : [0.8, 1.2, 1.55, 2.05, 1.05];
   for (let i = 0; i < 5; i++) {
-    const a = dir + (i - 2) * 0.42 * (fore ? 1 : 1.1);
-    const l = (i === 3 ? 1.6 : 1.15) * k;
-    p.inkLine([foot, { x: foot.x + Math.cos(a) * l, y: foot.y + Math.sin(a) * l }], { rng, width: 0.22 * k, opacity: 0.85, breaks: 0, wobble: 0.05, taper: [0, 0.6], pigment: COL.claw });
+    const a = dir + (i - 2) * 0.27 * side * (fore ? 1 : -1) + rng.range(-0.06, 0.06);
+    const l = lens[i]! * k;
+    const tip = { x: foot.x + Math.cos(a) * l, y: foot.y + Math.sin(a) * l };
+    const mid = { x: (foot.x + tip.x) / 2, y: (foot.y + tip.y) / 2 + rng.range(-0.05, 0.05) * k };
+    p.inkLine([foot, mid, tip], { rng, width: 0.22 * k, opacity: 0.75, breaks: 0, wobble: 0.05, taper: [0.05, 0.45], pigment: mix(COL.toe, COL.green, 0.3) });
   }
 }
 
-function paintBody(p: Painter, bend: number, gait: number): void {
+/** Where the legs reach: in the S the trunk's outer (convex) side reaches, fore leg forward and hind leg back; the inner side gathers. */
+export function legReach(bend: number, side: number, fore: boolean): number {
+  // the trunk curves toward +y for a bend of +1 (`swing`), so its convex side is −y
+  const r = -side * bend;
+  return fore ? r : -r;
+}
+
+function paintBody(p: Painter, bend: number): void {
   const rng = p.rng;
   const y = (x: number) => swing(x, bend) * k;
-  // legs first, under the body: in the S the legs on the bend's outside reach, the inside trail
-  for (const side of [-1, 1]) {
-    const r = gait === 0 ? 0 : side * gait;
-    paintLeg(p, rng, { x: SHOULDER * k, y: y(SHOULDER) }, side, true, r);
-    paintLeg(p, rng, { x: HIP * k, y: y(HIP) }, side, false, -r);
-  }
+  const legs = (shadow: boolean) => {
+    for (const side of [-1, 1]) {
+      paintLeg(p, rng, { x: SHOULDER * k, y: y(SHOULDER) }, side, true, bend === 0 ? 0 : legReach(bend, side, true), shadow);
+      paintLeg(p, rng, { x: HIP * k, y: y(HIP) }, side, false, bend === 0 ? 0 : legReach(bend, side, false), shadow);
+    }
+  };
+  // the cast shadow on the stone: the body's own shape and legs, a little down and soft
+  p.glaze(bodyOutline(bend, 1.05, NECK, TAIL_TIP + 2, 0.25, 0.85), COL.shade, { rng, opacity: 0.34, edge: 0.05, sharpness: 0.15, deform: 0.06, spread: 0.1, centreLift: 0, granulation: 0.1 });
+  legs(true);
+  // the legs under the body (it covers their joints)
+  legs(false);
   const body = bodyOutline(bend);
-  p.wetInWet(body, COL.bright, COL.deep, { rng, angle: Math.PI / 2, split: 0.55, softness: 0.55, fingers: 0.35, opacity: 0.97, edge: 0.55, edgeWidth: 0.35 * k, deform: 0.03, granulation: 0.3, blend: 'source-over' });
-  // the tail's back half dulls toward the tip
-  const tail: Pt[] = [];
-  for (let x = -9; x >= TAIL_TIP; x -= 1) tail.push({ x: x * k, y: y(x) });
-  p.inkLine(tail, { rng, width: 1.3 * k, opacity: 0.35, breaks: 0, wobble: 0.05, taper: [0.2, 1], pigment: COL.tailTip });
-  // the spine's darker line and the fine dark speckling over the back
-  const spine: Pt[] = [];
-  for (let x = NECK - 0.5; x >= -6; x -= 1) spine.push({ x: x * k, y: y(x) });
-  p.inkLine(spine, { rng, width: 0.5 * k, opacity: 0.3, breaks: 0.3, wobble: 0.1, pigment: COL.deep });
-  for (let i = 0; i < 150; i++) {
-    const x = rng.range(-6, NECK - 0.3);
-    const w = halfWidth(x) * 0.85;
-    p.dab({ x: x * k, y: y(x) + rng.range(-w, w) * k }, COL.speck, { rng, variant: 'round', angle: 0, length: rng.range(0.1, 0.22) * k, width: rng.range(0.08, 0.18) * k, opacity: rng.range(0.35, 0.8) });
+  // a pale yellow-green ground for the flanks, then the green back laid into it wet, the tail going olive-brown
+  p.wash(body, COL.flank, { rng, opacity: 0.96, edge: 0.12, edgeWidth: 0.5 * k, sharpness: 0.12, deform: 0.04, spread: 0.05, centreLift: 0.1, granulation: 0.15, blend: 'source-over' });
+  p.glaze(bodyOutline(bend, 0.88, NECK, TAIL_TIP + 1), COL.green, { rng, opacity: 0.9, edge: 0, sharpness: 0.05, deform: 0.02, spread: 0.035, granulation: 0.35, flowScale: 4 * k, fade: { angle: Math.PI, start: 0.5, amount: 0.6, ragged: 0.4 } });
+  p.glaze(bodyOutline(bend, 1, -6, TAIL_TIP), COL.tail, { rng, opacity: 0.75, edge: 0.1, sharpness: 0.3, deform: 0.015, spread: 0.02, fade: { angle: 0, start: 0.1, amount: 1, ragged: 0.5 } });
+  // the shaded lower side, so it has a round back in the light from above
+  p.glaze(bodyOutline(bend, 1, NECK, -9, 0, 0.7), COL.deep, { rng, opacity: 0.28, edge: 0, sharpness: 0.2, deform: 0.05, fade: { angle: -Math.PI / 2, start: 0.55, amount: 1, ragged: 0.4 } });
+  // fine black stipple and yellow flecks over the back, the flecks thicker on the flanks
+  for (let i = 0; i < 260; i++) {
+    const x = rng.range(-10, NECK - 0.3);
+    const w = halfWidth(x) * 0.82;
+    const r = rng.range(0.06, 0.13) * k * (x < -3 ? 0.8 : 1);
+    p.dab({ x: x * k, y: y(x) + rng.range(-w, w) * k }, COL.speck, { rng, variant: 'round', angle: rng.range(0, TAU), length: r * rng.range(1, 1.6), width: r, opacity: rng.range(0.35, 0.75), layers: 1 });
   }
-  // a sunlit gloss along the back
-  p.dab(P(2.5, swing(2.5, bend) - 0.5), PIGMENTS.petalWhite, { rng, variant: 'leaf', angle: 0, length: 5 * k, width: 0.6 * k, opacity: 0.28, blend: 'source-over' });
+  for (let i = 0; i < 130; i++) {
+    const x = rng.range(-7, NECK - 0.6);
+    const w = halfWidth(x);
+    const s = rng.chance(0.5) ? 1 : -1;
+    const r = rng.range(0.09, 0.17) * k;
+    p.dab({ x: x * k, y: y(x) + s * rng.range(0.1, 0.92) ** 0.6 * w * k }, COL.fleck, { rng, variant: 'round', angle: 0, length: r * 1.2, width: r, opacity: rng.range(0.5, 0.85), layers: 1, blend: 'source-over' });
+  }
+  // the light caught along the spine
+  const spine: Pt[] = [];
+  for (let x = NECK - 1; x >= -5; x -= 1) spine.push({ x: x * k, y: y(x) - 0.35 * k });
+  p.inkLine(spine, { rng, width: 0.5 * k, opacity: 0.2, breaks: 0.45, wobble: 0.1, taper: [0.5, 0.6], pigment: PIGMENTS.petalWhite });
 }
 
 /** The head, the neck at the origin, snout at +x; `up` shows the yellow throat of a lifted head. */
 function paintHead(p: Painter, up: boolean): void {
   const rng = p.rng;
-  if (up) p.wash(smoothPolygon([P(-0.4, -1.3), P(1.6, -1.6), P(3.4, -0.9), P(3.6, 0.9), P(1.6, 1.6), P(-0.4, 1.3)], 2), COL.throat, { rng, opacity: 0.9, edge: 0.3, edgeWidth: 0.3 * k, deform: 0.05, blend: 'source-over' });
-  const head = smoothPolygon([P(-0.6, -1.15), P(1.4, -1.25), P(2.9, -0.8), P(3.9, -0.3), P(4.1, 0), P(3.9, 0.3), P(2.9, 0.8), P(1.4, 1.25), P(-0.6, 1.15)], 2);
-  p.wetInWet(head, COL.bright, COL.deep, { rng, angle: Math.PI / 2, split: 0.55, softness: 0.5, fingers: 0.3, opacity: 0.98, edge: 0.6, edgeWidth: 0.3 * k, deform: 0.03, blend: 'source-over' });
-  // the large head scales, a hint of jaw, the eyes
-  p.inkLine([P(0.6, 0), P(2.8, 0)], { rng, width: 0.2 * k, opacity: 0.3, breaks: 0.4, wobble: 0.05, pigment: COL.deep });
+  const outline = smoothPolygon([P(-0.6, -1.2), P(1.4, -1.3), P(2.9, -0.85), P(3.9, -0.35), P(4.15, 0), P(3.9, 0.35), P(2.9, 0.85), P(1.4, 1.3), P(-0.6, 1.2)], 2);
+  // its shadow, further off when the head is lifted
+  const off = up ? 1.4 : 0.75;
+  p.glaze(outline.map((q) => ({ x: q.x + 0.2 * k, y: q.y + off * k })), COL.shade, { rng, opacity: up ? 0.24 : 0.3, edge: 0, sharpness: 0.15, deform: 0.08 });
+  if (up) p.wash(smoothPolygon([P(-0.3, -1.4), P(1.6, -1.55), P(3.2, -0.95), P(3.5, 0.95), P(1.6, 1.55), P(-0.3, 1.4)], 2), COL.throat, { rng, opacity: 0.9, edge: 0.12, edgeWidth: 0.3 * k, sharpness: 0.25, deform: 0.06, blend: 'source-over' });
+  // a darker green than the back, paler toward the lips
+  p.wash(outline, COL.head, { rng, opacity: 0.97, edge: 0.15, edgeWidth: 0.35 * k, sharpness: 0.3, deform: 0.03, centreLift: 0.05, granulation: 0.3, blend: 'source-over' });
+  for (const s of [-1, 1]) p.glaze(smoothPolygon([P(0, s * 1.15), P(1.6, s * 1.2), P(3.2, s * 0.6), P(1.6, s * 0.8)], 1), COL.flank, { rng, opacity: 0.45, edge: 0, sharpness: 0.15, deform: 0.1, blend: 'source-over' });
+  // the big head shields: the frontal between the eyes, the parietals behind
+  const plate = (pts: [number, number][]) => p.inkLine(pts.map(([x, yy]) => P(x, yy)), { rng, width: 0.1 * k, opacity: 0.32, breaks: 0.25, wobble: 0.04, pigment: COL.deep });
+  plate([[0.3, -0.6], [1.4, -0.4], [2.5, -0.28], [3.1, 0], [2.5, 0.28], [1.4, 0.4], [0.3, 0.6]]);
+  plate([[1.4, -0.4], [1.4, 0.4]]);
+  plate([[0.3, 0], [1.4, 0]]);
+  for (let i = 0; i < 6; i++) p.dab(P(rng.range(-0.3, 3), rng.range(-0.8, 0.8)), COL.speck, { rng, variant: 'round', angle: 0, length: 0.13 * k, width: 0.11 * k, opacity: 0.45, layers: 1 });
+  // the eyes on the head's edges: a dark eye in a pale lid, a glint; the nostrils
   for (const s of [-1, 1]) {
-    p.dab(P(2.1, s * 0.9), COL.eye, { rng, variant: 'round', angle: 0, length: 0.62 * k, width: 0.5 * k, opacity: 0.95, layers: 2 });
-    p.dab(P(2.2, s * 0.82), PIGMENTS.petalWhite, { rng, variant: 'round', angle: 0, length: 0.18 * k, width: 0.15 * k, opacity: 0.7, blend: 'source-over' });
+    p.dab(P(2.15, s * 0.95), mix(COL.flank, '#d8cf96', 0.5), { rng, variant: 'round', angle: 0, length: 0.7 * k, width: 0.5 * k, opacity: 0.85, layers: 2, blend: 'source-over' });
+    p.dab(P(2.15, s * 0.95), COL.eye, { rng, variant: 'round', angle: 0, length: 0.46 * k, width: 0.4 * k, opacity: 0.95, layers: 2 });
+    p.dab(P(2.25, s * 0.88), PIGMENTS.petalWhite, { rng, variant: 'round', angle: 0, length: 0.13 * k, width: 0.11 * k, opacity: 0.75, blend: 'source-over' });
+    p.dab(P(3.75, s * 0.22), COL.eye, { rng, variant: 'round', angle: 0, length: 0.11 * k, width: 0.09 * k, opacity: 0.55, layers: 1 });
   }
 }
 
 export interface GreenLizardParts {
-  shadow: Sprite;
-  /** flat and straight, S one way, S the other way: the body, legs and tail, anchored at the vent */
+  /** flat and straight, S one way, S the other way: the body, legs, tail and their cast shadow, anchored at the vent */
   body: [Sprite, Sprite, Sprite];
-  /** the head flat, and lifted with the throat showing, anchored at the neck */
+  /** the head flat, and lifted with the throat showing, with its shadow, anchored at the neck */
   head: [Sprite, Sprite];
 }
 
 export function paintGreenLizard(res: number, seed: number): GreenLizardParts {
-  const box = { w: 39 * k, h: 12 * k, ox: 27 * k, oy: 6 * k };
-  const headBox = { w: 6 * k, h: 4.4 * k, ox: 1.2 * k, oy: 2.2 * k };
+  const box = { w: 40 * k, h: 14 * k, ox: 27 * k, oy: 6.5 * k };
+  const headBox = { w: 6.4 * k, h: 5.6 * k, ox: 1.4 * k, oy: 2.3 * k };
   return {
-    shadow: paintSprite(res, { w: 38 * k, h: 8 * k, ox: 26 * k, oy: 4 * k }, seed + 8, (p, rng) => {
-      p.glaze(blob(-2 * k, 0, 13 * k, 2.4 * k, rng, { irregularity: 0.1 }), mix(PIGMENTS.shadow, PIGMENTS.sumi, 0.3), { rng, opacity: 0.3, edge: 0, sharpness: 0.1, deform: 0.1 });
-    }),
     body: [
-      paintSprite(res, box, seed, (p) => paintBody(p, 0, 0)),
-      paintSprite(res, box, seed + 1, (p) => paintBody(p, 1, 1)),
-      paintSprite(res, box, seed + 2, (p) => paintBody(p, -1, -1)),
+      paintSprite(res, box, seed, (p) => paintBody(p, 0)),
+      paintSprite(res, box, seed + 1, (p) => paintBody(p, 1)),
+      paintSprite(res, box, seed + 2, (p) => paintBody(p, -1)),
     ],
     head: [paintSprite(res, headBox, seed + 4, (p) => paintHead(p, false)), paintSprite(res, headBox, seed + 5, (p) => paintHead(p, true))],
   };
@@ -198,7 +252,7 @@ export function lookPose(t: number): GreenLizardPose {
   return { ...LIZARD_REST, lift: 1, turn: 0.5 * Math.sin(t * 2.1) + 0.15 * Math.sin(t * 5.3) };
 }
 
-/** The lizard at the origin (the vent on the stone), head toward +x: three `drawImage`s. */
+/** The lizard at the origin (the vent on the stone), head toward +x: two `drawImage`s. */
 export function drawGreenLizard(ctx: Ctx, parts: GreenLizardParts, q: GreenLizardPose): void {
   const clip = q.gap;
   if (clip) {
@@ -208,8 +262,6 @@ export function drawGreenLizard(ctx: Ctx, parts: GreenLizardParts, q: GreenLizar
     else ctx.rect(clip.at, -10 * k, 40 * k - clip.at, 20 * k);
     ctx.clip();
   }
-  const sh = parts.shadow;
-  ctx.drawImage(sh.img as CanvasImageSource, -sh.ox, -sh.oy + 0.8 * k * (1 + q.lift * 0.4), sh.w, sh.h);
   const b = parts.body[q.frame];
   ctx.drawImage(b.img as CanvasImageSource, -b.ox, -b.oy, b.w, b.h);
   const h = parts.head[q.lift > 0.5 ? 1 : 0];
@@ -528,7 +580,8 @@ const greenLizard: CreatureDef = {
   needs: (w) => lizardHomes(w).length > 0,
   spawn(w, s) {
     const homes = lizardHomes(w);
-    if (homes.length === 0) return [];
+    // one lizard on the walls: a hand spawn beside the resident is refused, as the owl's is
+    if (homes.length === 0 || w.creatures.some((c) => c instanceof GreenLizard && !c.done)) return [];
     const rng = w.rng.fork(`green-lizard:${s.seed}:${w.t.toFixed(3)}:${s.index}:${w.creatures.length}`);
     const home = chooseHome(homes, w.view, rng);
     return home ? [new GreenLizard(w, home, rng)] : [];
