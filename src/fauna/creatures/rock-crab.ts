@@ -8,13 +8,13 @@ import type { Rng } from '../../core/rng';
 import { blob, mix, PIGMENTS, smoothPolygon, type Painter } from '../../paint';
 import type { LayerId } from '../../render/types';
 import type { Pt, Rect } from '../../render/viewport';
-import { approach, clamp, dist, lerp, polygonCentroid, rangeOf, TAU } from '../math';
+import { approach, clamp, dist, lerp, polygonCentroid, rangeOf, smoothstep, TAU } from '../math';
 import { paintSprite, type Sprite } from '../sprite';
 import { BaseCreature, type Ctx, type FaunaWorld } from '../types';
 import type { CreatureDef } from './lib/def';
 
-/** Carapace width at perspective 1 (world units): about 2.5 × life, so it reads in the close view. */
-export const ROCK_CRAB_SIZE = 8;
+/** Carapace width at perspective 1 (world units): about 3 × life, so the eyes and marbling read in the close view. */
+export const ROCK_CRAB_SIZE = 11;
 
 export const ROCK_CRAB_TUNING = {
   /** a quick sideways run: how far (world units) and how fast (units/s at perspective 1) */
@@ -28,6 +28,10 @@ export const ROCK_CRAB_TUNING = {
   feedChance: 0.45,
   /** claw picks a second while feeding (each claw in turn) */
   pickHz: 2.2,
+  /** how often a stop is a claw wave instead, how long it lasts (s), and waves a second */
+  waveChance: 0.22,
+  wave: [1.3, 2.4] as const,
+  waveHz: 1.7,
   /** chance a run climbs between the dry crown edge and the waterline */
   climb: 0.3,
   /** frozen before the dart (s), then hidden in its crack (s) */
@@ -52,13 +56,13 @@ const k = ROCK_CRAB_SIZE / 10;
 const P = (x: number, y: number): Pt => ({ x: x * k, y: y * k });
 
 const COL = {
-  shell: '#3e3040',
-  green: '#2e382c',
-  deep: mix(PIGMENTS.sumi, '#2a2230', 0.5),
-  marble: '#d8c88c',
+  shell: '#4a4236',
+  green: '#343a2a',
+  deep: mix(PIGMENTS.sumi, '#2a2420', 0.5),
+  marble: '#d6c584',
   legs: '#6a4646',
   legDark: mix('#6a4646', PIGMENTS.sumi, 0.45),
-  claw: '#5e4248',
+  claw: '#4a3036',
   tip: '#d8c9a0',
   eye: mix(PIGMENTS.sumi, '#1e1a20', 0.5),
   foam: '#e8f2ef',
@@ -94,15 +98,16 @@ function paintBody(p: Painter): void {
   const rng = p.rng;
   const shell = carapace();
   p.wetInWet(shell, COL.shell, COL.green, { rng, angle: Math.PI / 2 + 0.4, split: 0.45, softness: 0.5, fingers: 0.5, opacity: 0.97, edge: 0.6, edgeWidth: 0.4 * k, deform: 0.05, granulation: 0.4, blend: 'source-over' });
-  // the fine pale marbling: short broken wavy lines across the shell, more toward the back
-  for (let i = 0; i < 24; i++) {
+  // the pale marbling: broken wavy lines across the shell, more toward the back, a few pale blotches
+  for (let i = 0; i < 30; i++) {
     const y = rng.range(-3.3, 2.6);
     const x = rng.range(-3.6, 3.6) * (1 - Math.max(0, -y - 2) * 0.3);
     const a = rng.range(-0.5, 0.5);
-    const l = rng.range(0.9, 2.0);
+    const l = rng.range(0.8, 1.9);
     const q = (s: number) => P(x + Math.cos(a) * l * s, y + Math.sin(a) * l * s + Math.sin(s * 3) * 0.25);
-    p.inkLine([q(-1), q(-0.3), q(0.4), q(1)], { rng, width: rng.range(0.26, 0.42) * k, opacity: rng.range(0.6, 0.9), breaks: 0.3, wobble: 0.25, taper: [0.3, 0.3], pigment: COL.marble });
+    p.inkLine([q(-1), q(-0.3), q(0.4), q(1)], { rng, width: rng.range(0.22, 0.38) * k, opacity: rng.range(0.65, 0.95), breaks: 0.3, wobble: 0.25, taper: [0.3, 0.3], pigment: COL.marble });
   }
+  for (let i = 0; i < 6; i++) p.dab(P(rng.range(-3, 3), rng.range(-2.8, 2)), COL.marble, { rng, variant: 'round', angle: rng.range(0, TAU), length: rng.range(0.6, 1.1) * k, width: rng.range(0.4, 0.7) * k, opacity: 0.25, layers: 2, blend: 'source-over' });
   // the transverse ridges on the flanks and the gastric groove
   for (const s of [-1, 1]) {
     for (const y of [0.6, -0.6, -1.8]) p.inkLine([P(s * 4.6, y), P(s * 3.4, y - 0.3)], { rng, width: 0.25 * k, opacity: 0.5, breaks: 0.2, wobble: 0.1, pigment: COL.deep });
@@ -110,11 +115,12 @@ function paintBody(p: Painter): void {
   p.inkLine([P(-1.6, -0.4), P(0, 0.3), P(1.6, -0.4)], { rng, width: 0.3 * k, opacity: 0.45, breaks: 0.2, wobble: 0.1, pigment: COL.deep });
   // a wet gloss on the lit back
   p.dab(P(-1.8, -2.6), PIGMENTS.petalWhite, { rng, variant: 'leaf', angle: 0.2, length: 1.8 * k, width: 0.45 * k, opacity: 0.3, blend: 'source-over' });
-  // the front edge darker, the eyes on short stalks in its corners
+  // the front edge darker; the eyes on short pale stalks in its corners, standing up out of their sockets
   p.inkLine([P(-3.7, 3.4), P(0, 3.7), P(3.7, 3.4)], { rng, width: 0.45 * k, opacity: 0.7, breaks: 0.1, wobble: 0.05, pigment: COL.deep });
   for (const s of [-1, 1]) {
-    p.dab(P(s * 3.75 - 0.5, 3.75), COL.eye, { rng, variant: 'round', angle: 0, length: 1.0 * k, width: 0.95 * k, opacity: 0.95, layers: 3 });
-    p.dab(P(s * 3.75 - 0.25, 3.55), PIGMENTS.petalWhite, { rng, variant: 'round', angle: 0, length: 0.35 * k, width: 0.3 * k, opacity: 0.7, blend: 'source-over' });
+    p.inkLine([P(s * 3.0, 3.2), P(s * 3.3, 3.45), P(s * 3.55, 3.6)], { rng, width: 0.45 * k, opacity: 0.9, breaks: 0, wobble: 0.05, taper: [0.1, 0.2], pigment: mix(COL.legs, COL.marble, 0.35) });
+    p.dab(P(s * 3.65, 3.6), COL.eye, { rng, variant: 'round', angle: 0, length: 0.95 * k, width: 0.85 * k, opacity: 0.95, layers: 3 });
+    p.dab(P(s * 3.65 - 0.18, 3.42), PIGMENTS.petalWhite, { rng, variant: 'round', angle: 0, length: 0.3 * k, width: 0.26 * k, opacity: 0.75, blend: 'source-over' });
   }
 }
 
@@ -146,7 +152,7 @@ function paintClaw(p: Painter): void {
   const rng = p.rng;
   legDab(p, rng, P(0, 0), P(0.8, 1.5), COL.claw, 1.15 * k, 0.95);
   const hand = smoothPolygon([P(1.5, 1.1), P(1.9, 2.2), P(1.2, 3.0), P(-0.4, 3.3), P(-1.9, 2.9), P(-0.7, 2.4), P(-0.2, 1.6), P(0.6, 1.0)], 1);
-  p.wetInWet(hand, COL.claw, mix(COL.claw, PIGMENTS.sumi, 0.3), { rng, angle: Math.PI / 2, split: 0.5, softness: 0.5, fingers: 0.3, opacity: 1, edge: 0.45, edgeWidth: 0.25 * k, deform: 0.05, blend: 'source-over' });
+  p.wetInWet(hand, COL.claw, mix(COL.claw, PIGMENTS.sumi, 0.3), { rng, angle: Math.PI / 2, split: 0.5, softness: 0.5, fingers: 0.3, opacity: 1, edge: 0.45, edgeWidth: 0.25 * k, deform: 0.05, centreLift: 0.05, granulation: 0.3, blend: 'source-over' });
   // the pale finger tips
   p.dab(P(-0.7, 2.9), COL.tip, { rng, variant: 'leaf', angle: Math.PI + 0.2, length: 1.0 * k, width: 0.35 * k, opacity: 0.85, blend: 'source-over' });
   p.dab(P(-0.5, 2.3), COL.tip, { rng, variant: 'leaf', angle: Math.PI - 0.3, length: 0.8 * k, width: 0.3 * k, opacity: 0.7, blend: 'source-over' });
@@ -158,7 +164,7 @@ export function paintRockCrab(res: number, seed: number): RockCrabParts {
     shadow: paintSprite(res, { w: 22 * k, h: 6 * k, ox: 11 * k, oy: 3 * k }, seed + 8, (p, rng) => {
       p.glaze(blob(0, 0, 8.5 * k, 2 * k, rng, { irregularity: 0.1 }), mix(PIGMENTS.shadow, PIGMENTS.sumi, 0.3), { rng, opacity: 0.32, edge: 0, sharpness: 0.1, deform: 0.15 });
     }),
-    body: paintSprite(res, { w: 11 * k, h: 9.5 * k, ox: 5.5 * k, oy: 4.5 * k }, seed, paintBody),
+    body: paintSprite(res, { w: 11.5 * k, h: 10 * k, ox: 5.75 * k, oy: 4.6 * k }, seed, paintBody),
     legs: ([0, 1, 2] as const).map((g) => paintSprite(res, legBox, seed + 2 + g, (p) => paintLegs(p, g))) as RockCrabParts['legs'],
     claw: paintSprite(res, { w: 5.5 * k, h: 4.6 * k, ox: 2.6 * k, oy: 0.8 * k }, seed + 6, paintClaw),
     foam: paintSprite(res, { w: 26 * k, h: 9 * k, ox: 13 * k, oy: 2 * k }, seed + 9, (p, rng) => {
@@ -178,9 +184,13 @@ export interface RockCrabPose {
   flat: number;
   /** the swell's foam over its legs (0..1) */
   wash: number;
+  /** a claw raised to wave (0..1 each), and the wave's swing (radians) */
+  waveL: number;
+  waveR: number;
+  swing: number;
 }
 
-export const CRAB_REST: RockCrabPose = { gait: 0, pickL: 0, pickR: 0, flat: 0, wash: 0 };
+export const CRAB_REST: RockCrabPose = { gait: 0, pickL: 0, pickR: 0, flat: 0, wash: 0, waveL: 0, waveR: 0, swing: 0 };
 
 /** A feeding pose at time t: the claws pick at the rock in turn. */
 export function feedPose(t: number): RockCrabPose {
@@ -188,11 +198,20 @@ export function feedPose(t: number): RockCrabPose {
   return { ...CRAB_REST, pickL: Math.max(0, Math.sin(a)), pickR: Math.max(0, -Math.sin(a)) };
 }
 
-function drawClaw(ctx: Ctx, s: Sprite, side: 1 | -1, pick: number): void {
+/** Waving one claw, `u` (0..1) through a wave `dur` seconds long: raised up and out, swung a few times, lowered. */
+export function wavePose(u: number, dur: number, side: 1 | -1): RockCrabPose {
+  const t = u * dur;
+  const raise = smoothstep(t / 0.3) * (1 - smoothstep((t - dur + 0.35) / 0.35));
+  const swing = Math.sin(t * TAU * ROCK_CRAB_TUNING.waveHz) * 0.4 * raise;
+  return { ...CRAB_REST, waveL: side < 0 ? raise : 0, waveR: side > 0 ? raise : 0, swing };
+}
+
+function drawClaw(ctx: Ctx, s: Sprite, side: 1 | -1, pick: number, raise = 0, swing = 0): void {
   ctx.save();
-  ctx.translate(side * SHOULDER.x * k, (SHOULDER.y + pick * 0.9) * k);
-  ctx.scale(side, 1);
-  ctx.rotate(-pick * 0.35);
+  ctx.translate(side * (SHOULDER.x + raise * 1.4) * k, (SHOULDER.y + pick * 0.9 - raise * 0.6) * k);
+  ctx.scale(side * (1 + 0.3 * raise), 1 + 0.3 * raise);
+  // raised, the claw turns up and out past the shell's front corner, held nearer the eye
+  ctx.rotate(-pick * 0.35 - raise * 2.0 + swing);
   ctx.drawImage(s.img as CanvasImageSource, -s.ox, -s.oy, s.w, s.h);
   ctx.restore();
 }
@@ -205,10 +224,15 @@ export function drawRockCrab(ctx: Ctx, parts: RockCrabParts, q: RockCrabPose): v
   ctx.scale(1 + 0.06 * q.flat, 1 - 0.12 * q.flat);
   const legs = parts.legs[q.gait];
   ctx.drawImage(legs.img as CanvasImageSource, -legs.ox, -legs.oy, legs.w, legs.h);
-  drawClaw(ctx, parts.claw, -1, q.pickL);
-  drawClaw(ctx, parts.claw, 1, q.pickR);
+  const wl = q.waveL > 0.02;
+  const wr = q.waveR > 0.02;
+  if (!wl) drawClaw(ctx, parts.claw, -1, q.pickL);
+  if (!wr) drawClaw(ctx, parts.claw, 1, q.pickR);
   const b = parts.body;
   ctx.drawImage(b.img as CanvasImageSource, -b.ox, -b.oy, b.w, b.h);
+  // a waving claw is held up in front of the shell
+  if (wl) drawClaw(ctx, parts.claw, -1, 0, q.waveL, q.swing);
+  if (wr) drawClaw(ctx, parts.claw, 1, 0, q.waveR, q.swing);
   ctx.restore();
   if (q.wash > 0.02) {
     const f = parts.foam;
@@ -259,7 +283,8 @@ export function crabRocks(w: Pick<FaunaWorld, 'walls' | 'regions' | 'perches'>):
   for (const f of w.walls) {
     if (!f.id.startsWith('splash-') || f.top.length < 4) continue;
     const dry = f.top.map((q) => ({ x: q.x, y: q.y - 1.5 }));
-    const wet = f.top.map((q) => ({ x: q.x, y: q.y + f.h - 2 }));
+    // the waterline row high enough that its legs stay on the stone
+    const wet = f.top.map((q) => ({ x: q.x, y: q.y + f.h - 3.5 }));
     // the crown's front lip only near the rock's perch: the perch is placed clear of the slot
     const perch = w.perches.find((p) => p.kind === 'rock' && p.id === `rock-${f.id.slice(7)}`);
     const x0 = dry[0]!.x;
@@ -277,7 +302,7 @@ export function crabRocks(w: Pick<FaunaWorld, 'walls' | 'regions' | 'perches'>):
         const l = Math.hypot(q.x - c.x, q.y - c.y) || 1;
         return { x: q.x + ((q.x - c.x) / l) * d, y: q.y + ((q.y - c.y) / l) * d };
       };
-      out.push({ id: r.id, dry: back.map((q) => out1(q, 6)), wet: back.map((q) => out1(q, 1.5)), dryU: [0.15, 0.85], depth: c.y });
+      out.push({ id: r.id, dry: back.map((q) => out1(q, 7.5)), wet: back.map((q) => out1(q, 3)), dryU: [0.15, 0.85], depth: c.y });
     }
   }
   rockCache.set(w.walls, out);
@@ -307,7 +332,7 @@ export function bigNear(at: Pt, creatures: readonly { kind: string; x: number; y
 
 // ---------------------------------------------------------------------------------------------
 
-export type RockCrabMode = 'hidden' | 'run' | 'stop' | 'feed' | 'freeze' | 'dart';
+export type RockCrabMode = 'hidden' | 'run' | 'stop' | 'feed' | 'wave' | 'freeze' | 'dart';
 
 export class RockCrab extends BaseCreature {
   readonly kind = 'rock-crab' as const;
@@ -316,9 +341,12 @@ export class RockCrab extends BaseCreature {
   rock: CrabRock;
   u = 0;
   v = 1;
-  /** for tests: runs, feeds, frights, swells sat through */
+  /** for tests: runs, feeds, claw waves, frights, swells sat through */
   runs = 0;
   feeds = 0;
+  waves = 0;
+  /** the claw it waves (+1 right, −1 left) */
+  waveSide: 1 | -1 = 1;
   frights = 0;
   swells = 0;
   private toU = 0;
@@ -413,6 +441,7 @@ export class RockCrab extends BaseCreature {
         break;
       case 'stop':
       case 'feed':
+      case 'wave':
         if (this.timer >= this.waitFor) {
           if (this.leaving || this.onRock > this.stayPut / sf) {
             this.toU = this.u < 0.5 ? 0 : 1;
@@ -430,7 +459,12 @@ export class RockCrab extends BaseCreature {
 
   private pause(w: FaunaWorld): void {
     const T = ROCK_CRAB_TUNING;
-    if (this.rng.chance(T.feedChance)) {
+    if (this.rng.chance(T.waveChance)) {
+      this.waves++;
+      this.waveSide = this.rng.chance(0.5) ? 1 : -1;
+      this.waitFor = rangeOf(this.rng, [...T.wave]) / w.speed;
+      this.go('wave');
+    } else if (this.rng.chance(T.feedChance)) {
       this.feeds++;
       this.waitFor = rangeOf(this.rng, [...T.feed]) / w.speed;
       this.go('feed');
@@ -445,13 +479,17 @@ export class RockCrab extends BaseCreature {
     const T = ROCK_CRAB_TUNING;
     const len = Math.max(1, dist(this.rock.wet[0]!, this.rock.wet[this.rock.wet.length - 1]!));
     const d = rangeOf(this.rng, [...T.run]) / len;
-    const dir = emerging ? (this.u < 0.5 ? 1 : -1) : this.u < 0.12 ? 1 : this.u > 0.88 ? -1 : this.rng.chance(0.5) ? 1 : -1;
-    this.toU = clamp(this.u + dir * d * (emerging ? 1.5 : 1), 0.04, 0.96);
+    // its shell stays on the rock; only hiding takes it round the ends
+    const m = clamp((0.55 * ROCK_CRAB_SIZE * this.scale) / len, 0.04, 0.3);
+    const dir = emerging ? (this.u < 0.5 ? 1 : -1) : this.u < m + 0.08 ? 1 : this.u > 1 - m - 0.08 ? -1 : this.rng.chance(0.5) ? 1 : -1;
+    this.toU = clamp(this.u + dir * d * (emerging ? 1.5 : 1), m, 1 - m);
     const dry = this.rock.dryU;
     let toV = this.v < 0.5 ? 0 : 1;
     if (dry && this.rng.chance(T.climb)) toV = 1 - toV;
     if (toV === 0) {
-      if (dry) this.toU = clamp(this.toU, dry[0], dry[1]);
+      const lo = dry ? Math.max(dry[0], m) : 1;
+      const hi = dry ? Math.min(dry[1], 1 - m) : 0;
+      if (lo <= hi) this.toU = clamp(this.toU, lo, hi);
       else toV = 1;
     }
     this.toV = toV;
@@ -508,7 +546,7 @@ export class RockCrab extends BaseCreature {
     const wash = this.wash(t);
     const moving = this.state === 'run' || this.state === 'dart';
     const gait = moving ? ((1 + (Math.floor(this.stride / ROCK_CRAB_TUNING.stride) % 2)) as 1 | 2) : 0;
-    const base = this.state === 'feed' ? feedPose(this.timer) : CRAB_REST;
+    const base = this.state === 'feed' ? feedPose(this.timer) : this.state === 'wave' ? wavePose(clamp(this.timer / this.waitFor, 0, 1), this.waitFor, this.waveSide) : CRAB_REST;
     return { ...base, gait, flat: this.flat, wash };
   }
 

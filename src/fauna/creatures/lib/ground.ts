@@ -7,7 +7,7 @@ import { clamp } from '../../math';
 import type { FaunaWorld } from '../../types';
 
 /** The ground creatures and the room each keeps round it (world units at perspective 1). */
-export const GROUND_ROOM: Readonly<Record<string, number>> = { cat: 14, tortoise: 13, goat: 16, 'green-lizard': 8, 'rock-crab': 6 };
+export const GROUND_ROOM: Readonly<Record<string, number>> = { cat: 14, tortoise: 13, goat: 16, 'green-lizard': 8, 'rock-crab': 8 };
 
 export interface GroundBody {
   kind: string;

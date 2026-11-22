@@ -4,7 +4,7 @@
  */
 import type { StudioEntry, StudioSection } from '../../studio/types';
 import { multiplyPaper, Stage, type StageSpec } from '../stage';
-import { CRAB_REST, drawRockCrab, feedPose, paintRockCrab, type RockCrabPose } from './rock-crab';
+import { CRAB_REST, drawRockCrab, feedPose, paintRockCrab, ROCK_CRAB_SIZE, wavePose, type RockCrabPose } from './rock-crab';
 
 const stages = new Map<string, Stage>();
 
@@ -46,19 +46,46 @@ function sheet(canvas: HTMLCanvasElement, pixelRatio: number, seed: number, k: n
   multiplyPaper(canvas);
 }
 
+/** px a unit that draws the crab as large as a carapace of `px` pixels */
+const at = (px: number) => px / ROCK_CRAB_SIZE;
+
+const portrait: StudioEntry = {
+  id: 'portrait',
+  label: 'close portrait: standing (the marbling, the eyes on their stalks) · waving its right claw',
+  w: 1000,
+  h: 300,
+  render(canvas, { seed, pixelRatio }) {
+    sheet(canvas, pixelRatio, seed, at(150), 130, [
+      { x: 260, q: CRAB_REST },
+      { x: 740, q: wavePose(0.45, 1.8, 1) },
+    ]);
+  },
+};
+
 const poses: StudioEntry = {
   id: 'poses',
-  label: 'standing · picking (left claw) · picking (right claw) · frozen flat · half under a swell',
+  label: 'standing · picking (left claw) · picking (right claw) · waving a claw · frozen flat · half under a swell',
   w: 1000,
   h: 240,
   render(canvas, { seed, pixelRatio }) {
-    sheet(canvas, pixelRatio, seed, 9, 100, [
-      { x: 110, q: CRAB_REST },
-      { x: 300, q: feedPose(0.11) },
-      { x: 490, q: feedPose(0.34) },
-      { x: 690, q: { ...CRAB_REST, flat: 1 } },
-      { x: 890, q: { ...CRAB_REST, wash: 1 } },
+    sheet(canvas, pixelRatio, seed, at(64), 110, [
+      { x: 90, q: CRAB_REST },
+      { x: 250, q: feedPose(0.11) },
+      { x: 410, q: feedPose(0.34) },
+      { x: 570, q: wavePose(0.3, 1.8, -1) },
+      { x: 740, q: { ...CRAB_REST, flat: 1 } },
+      { x: 910, q: { ...CRAB_REST, wash: 1 } },
     ]);
+  },
+};
+
+const wave: StudioEntry = {
+  id: 'wave',
+  label: 'a claw wave, frame by frame: raised up and out, swung, lowered',
+  w: 1000,
+  h: 200,
+  render(canvas, { seed, pixelRatio }) {
+    sheet(canvas, pixelRatio, seed, at(52), 110, Array.from({ length: 7 }, (_, i) => ({ x: 80 + i * 140, q: wavePose((i + 0.5) / 7, 1.8, 1) })));
   },
 };
 
@@ -69,7 +96,7 @@ const gait: StudioEntry = {
   h: 200,
   render(canvas, { seed, pixelRatio }) {
     const frames: (0 | 1 | 2)[] = [0, 1, 2, 1, 2];
-    sheet(canvas, pixelRatio, seed, 8, 80, frames.map((g, i) => ({ x: 110 + i * 195, q: { ...CRAB_REST, gait: g } })));
+    sheet(canvas, pixelRatio, seed, at(58), 90, frames.map((g, i) => ({ x: 110 + i * 195, q: { ...CRAB_REST, gait: g } })));
   },
 };
 
@@ -78,7 +105,9 @@ const section: StudioSection = {
   title: 'Fauna · marbled rock crab, close',
   order: 346,
   entries: [
+    portrait,
     poses,
+    wave,
     gait,
     close('splash-2', 'a splash rock: out of its crack, sideways runs, stops, picking at the rock', { x: 345, y: 690, w: 80, h: 50 }, 520),
     close('splash-3', 'the tall splash rock by the shore', { x: 550, y: 630, w: 90, h: 60 }, 520),
