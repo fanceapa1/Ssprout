@@ -285,17 +285,19 @@ function blob(cx: number, cy: number, rx: number, ry: number, seed: number, wob 
 }
 
 /** The stone sunk in the water, and the cluster's soft shadow on it and on the bottom. */
-function drawStone(p: Painter, pose: PeacocksTailPose, area: Area) {
+function drawStone(p: Painter, pose: PeacocksTailPose, area: Area, near: number) {
   const s = pose.stone;
   if (!s) return;
   const L = p.layer(area);
+  // from afar the stone is only a darker patch of the bottom
+  const st = lerp(0.45, 1, near);
   const sr = s.seed % 100;
   const cool = mix(PIGMENTS.shadow, SEA, 0.6);
   // the hollow the stone sits in, a shade deeper than the water round it
   L.fill(blob(s.x + 1, s.y - s.ry * 0.2, s.rx * 1.3 * s.k, s.ry * 2.2 * s.k, sr + 4, 0.18), mix(SEA, PIGMENTS.shadow, 0.25), 0.16 * s.k);
   L.fill(blob(s.x + 4, s.y + s.ry * 0.7, s.rx * 1.3 * s.k, s.ry * 0.85 * s.k, sr), cool, 0.16 * s.k);
-  L.fill(blob(s.x, s.y, s.rx * s.k, s.ry * 1.1 * s.k, sr + 1), underWater(mix(PIGMENTS.stone, '#8f7a5e', 0.4), 0, 0.42), 0.42 * s.k);
-  L.fill(blob(s.x - s.rx * 0.2, s.y - s.ry * 0.3, s.rx * 0.6 * s.k, s.ry * 0.55 * s.k, sr + 2), underWater(mix(PIGMENTS.stone, '#c4b494', 0.5), 0, 0.4), 0.3 * s.k);
+  L.fill(blob(s.x, s.y, s.rx * s.k, s.ry * 1.1 * s.k, sr + 1), underWater(mix(PIGMENTS.stone, '#8f7a5e', 0.4), 0, 0.42), 0.42 * s.k * st);
+  L.fill(blob(s.x - s.rx * 0.2, s.y - s.ry * 0.3, s.rx * 0.6 * s.k, s.ry * 0.55 * s.k, sr + 2), underWater(mix(PIGMENTS.stone, '#c4b494', 0.5), 0, 0.4), 0.3 * s.k * st);
   for (const f of pose.fans) {
     const w = (f.bounds.x1 - f.bounds.x0) * 0.42;
     L.fill(blob(f.apex.x + w * 0.35 + 2, f.apex.y + 2.2, w, 2.6 * f.k, f.seed % 50, 0.2), cool, 0.2 * f.k);
@@ -314,14 +316,16 @@ function drawFan(p: Painter, f: FanPose, near: number) {
   const area = pad(f.bounds, 4);
   const A = p.layer(area);
   const tone = mix(mix(BUFF, OLIVE, 0.08), CHALK, 0.15 + 0.35 * f.chalk);
-  A.fill(f.body, underWater(tone, f.lift, 0.22), 0.28);
+  // from afar the bands and hairlines melt into one pale frond (they read as crinkled discs)
+  const band = lerp(0.3, 1, near);
+  A.fill(f.body, underWater(tone, f.lift, 0.22), lerp(0.36, 0.28, near));
   for (const b of f.rings) {
     if (!b.chalk) continue;
     const poly = ribbon(b.pts, (t) => b.w * Math.sin(Math.PI * Math.min(1, 0.15 + t * 0.85)) ** 0.4);
-    if (poly) A.fill(poly, underWater(CHALK, f.lift, 0.12), 0.56 * b.k);
+    if (poly) A.fill(poly, underWater(CHALK, f.lift, 0.12), 0.56 * b.k * lerp(0.55, 1, near));
   }
   const roll = ribbon(f.rim, (t) => 0.8 * smooth(f.k * 2) * (0.35 + 0.65 * Math.abs(Math.sin(t * 9 + f.seed))));
-  if (roll) A.fill(roll, underWater(CHALK, f.lift, 0.1), 0.32);
+  if (roll) A.fill(roll, underWater(CHALK, f.lift, 0.1), 0.32 * band);
   // the water over the frond: its foot fades into the water's own colour, the rolled rim stays clear
   const { y0, y1 } = f.bounds;
   const n = 6;
@@ -330,11 +334,13 @@ function drawFan(p: Painter, f: FanPose, near: number) {
     const yb = lerp(y1 + 1, y0, i / n);
     A.lift([{ x: f.bounds.x0 - 2, y: ya }, { x: f.bounds.x1 + 2, y: ya }, { x: f.bounds.x1 + 2, y: yb }, { x: f.bounds.x0 - 2, y: yb }], 0.42 * (1 - i / n) ** 1.3);
   }
+  // from afar the water's own colour over the whole frond, inside it, so it sits under the surface
+  if (near < 0.95) A.fill(f.body, mix(SEA, PIGMENTS.stone, 0.2), 0.3 * (1 - near));
   A.dry({ opacity: 0.9, edge: 0.1, edgeWidth: 0.5, sharpness: 0.1, centreLift: 0.05, granulation: 0.3, flow: 0.45, flowScale: 6, darken: 0.06, blend: 'source-over' });
 
   const B = p.layer(area);
-  B.fill(f.throat, underWater(mix(BROWN, DEEP, 0.3), f.lift, 0.2), 0.26);
-  B.fill(f.shade, underWater(mix(OLIVE, PIGMENTS.shadow, 0.3), f.lift, 0.2), 0.14);
+  B.fill(f.throat, underWater(mix(BROWN, DEEP, 0.3), f.lift, 0.2), 0.26 * band);
+  B.fill(f.shade, underWater(mix(OLIVE, PIGMENTS.shadow, 0.3), f.lift, 0.2), 0.14 * band);
   let any = false;
   for (const b of f.rings) {
     if (b.chalk) continue;
@@ -342,7 +348,7 @@ function drawFan(p: Painter, f: FanPose, near: number) {
     const zone = b.w > 1;
     const poly = ribbon(b.pts, (t) => b.w * (zone ? 0.55 : 0.4) * Math.sin(Math.PI * t) ** 0.5);
     if (poly) {
-      B.fill(poly, underWater(zone ? mix(BROWN, BUFF, 0.25) : mix(BROWN, DEEP, 0.2), f.lift, 0.12), (zone ? 0.32 : 0.55) * b.k);
+      B.fill(poly, underWater(zone ? mix(BROWN, BUFF, 0.25) : mix(BROWN, DEEP, 0.2), f.lift, 0.12), (zone ? 0.32 : 0.55) * b.k * band);
       any = true;
     }
   }
@@ -351,7 +357,7 @@ function drawFan(p: Painter, f: FanPose, near: number) {
     if (poly) B.fill(poly, underWater(OLIVE, f.lift, 0.2), 0.1);
   }
   const inside = ribbon(f.rimIn, (t) => 0.4 * smooth(f.k * 2) * (0.6 + 0.4 * Math.sin(t * 23 + f.seed)));
-  if (inside) B.fill(inside, underWater(BROWN, f.lift), 0.22);
+  if (inside) B.fill(inside, underWater(BROWN, f.lift), 0.22 * band);
   if (!any && !inside) {
     B.discard();
     return;
@@ -439,7 +445,7 @@ const peacocksTail: SpeciesDef = {
     const end = plantFrame(p, this, opts);
     try {
       const area = { x: -BOX.w * BOX.ax, y: -BOX.h * BOX.ay, w: BOX.w, h: BOX.h };
-      drawStone(p, pose, area);
+      drawStone(p, pose, area, near);
       drawBase(p, plan, pose, area, near);
       for (const f of pose.fans) drawFan(p, f, near);
       drawSurface(p, plan, pose, area);
