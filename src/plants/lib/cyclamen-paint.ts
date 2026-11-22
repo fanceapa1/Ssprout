@@ -139,13 +139,13 @@ export function paintLeaves(p: Painter, marks: readonly LeafMark[], opacity = 0.
     L.fill(deformPolygon(g.outline, rng, { depth: 1, variance: 0.03 }), jitter(m.pigment, rng, 0.02), 0.78 * a);
     L.fill(deformPolygon(g.outline, rng, { depth: 1, variance: 0.04 }), jitter(m.pigment, rng, 0.02), 0.4 * a);
     const half = g.outline.filter((_, i) => i > g.outline.length * 0.5);
-    L.fill(deformPolygon([...half, g.midrib[0]!, g.midrib[2]!], rng, { depth: 1, variance: 0.04 }), m.deep, 0.3 * a);
-    rim(L.ctx, g.outline, m.deep, 0.24 * a);
+    L.fill(deformPolygon([...half, g.midrib[0]!, g.midrib[2]!], rng, { depth: 1, variance: 0.04 }), m.deep, 0.13 * a);
+    rim(L.ctx, g.outline, m.deep, 0.1 * a);
     if (a > 0.3) {
       L.lift(deformPolygon(g.zone, rng, { depth: 1, variance: 0.05 }), 0.85 * a);
       L.fill(deformPolygon(g.zone, rng, { depth: 1, variance: 0.05 }), m.silver, 0.5 * a);
       const core = shrink(g.zone, g.midrib[1]!, 0.5);
-      L.fill(deformPolygon(core, rng, { depth: 1, variance: 0.08 }), m.deep, 0.32 * a);
+      L.fill(deformPolygon(core, rng, { depth: 1, variance: 0.08 }), m.deep, 0.2 * a);
       for (const f of g.flecks) {
         L.lift(deformPolygon(f, rng, { depth: 1, variance: 0.1 }), 0.7 * a);
         L.fill(f, m.silver, 0.34 * a);
@@ -157,7 +157,7 @@ export function paintLeaves(p: Painter, marks: readonly LeafMark[], opacity = 0.
       L.fill(deformPolygon(g.under, rng, { depth: 1, variance: 0.04 }), m.underside, 0.6 * a);
     }
   }
-  L.dry({ opacity, edge: 0.55, edgeWidth: 0.8, sharpness: 0.68, centreLift: 0.06, granulation: 0.26, flow: 0.3, flowScale: 8, dry: 0.02, darken: 0.2 });
+  L.dry({ opacity, edge: 0.38, edgeWidth: 0.7, sharpness: 0.62, centreLift: 0.06, granulation: 0.26, flow: 0.3, flowScale: 8, dry: 0.02, darken: 0.14 });
 }
 
 function shrink(poly: readonly Pt[], c: Pt, k: number): Pt[] {

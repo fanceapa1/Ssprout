@@ -36,6 +36,7 @@ const PETAL_BASE = '#cf6a96';
 const THROAT = '#8e3a64';
 const STALK = '#cf7d89';
 const STALK_DEEP = '#a8606f';
+const PETIOLE = '#9a8f6c';
 const CAPSULE = '#b8ab7a';
 const CAPSULE_DEEP = '#8a7a56';
 const TUBER = '#8d7658';
@@ -97,8 +98,9 @@ export function buildCyclamen(rng: Rng): Cyclamen {
   const foot = rng.range(-2, 2);
   const tuber = { rx: rng.range(5, 6.4), seed: seedOf(rng) };
 
-  const nOut = rng.int(8, 9);
-  const n = nOut + rng.int(3, 4);
+  // no leaves in the middle: the stalks show coming out of the tuber
+  const nOut = rng.int(9, 10);
+  const n = nOut;
   const order = Array.from({ length: n }, (_, i) => i);
   for (let i = n - 1; i > 0; i--) {
     const j = rng.int(0, i);
@@ -110,7 +112,7 @@ export function buildCyclamen(rng: Rng): Cyclamen {
     const phi = inner ? rng.range(0, Math.PI * 2) : ((i + rng.range(-0.25, 0.25)) / nOut) * Math.PI * 2 + 0.3;
     const side = Math.abs(Math.cos(phi));
     const front = Math.max(0, Math.sin(phi));
-    const len = inner ? rng.range(13, 16) : rng.range(18, 22) * (1 - 0.2 * front) * (1 + 0.12 * side);
+    const len = inner ? rng.range(11, 13) : rng.range(16.5, 20) * (1 - 0.2 * front) * (1 + 0.12 * side);
     const nf = rng.int(3, 5);
     const flecks: [number, number, number][] = [];
     for (let k = 0; k < nf; k++) flecks.push([(k % 2 ? -1 : 1) * rng.range(30, 130), rng.range(0.7, 0.86), rng.range(0.06, 0.12)]);
@@ -118,18 +120,22 @@ export function buildCyclamen(rng: Rng): Cyclamen {
     leaves.push({
       id: `l${i}`,
       phi,
-      dist: inner ? rng.range(0.5, 2.5) : rng.range(3, 6),
-      h: inner ? rng.range(5.5, 7) : 3.4,
+      dist: inner ? rng.range(2.5, 4) : rng.range(6.5, 9),
+      h: inner ? rng.range(4.5, 5.5) : 2.6,
       yaw: phi + rng.gaussian(0, inner ? 0.5 : 0.28),
       len,
       tilt: inner ? rng.range(0.15, 0.4) : rng.range(0.08, 0.3) + 0.1 * Math.max(0, -Math.sin(phi)),
-      roll: !inner && rng.chance(0.4) ? (rng.chance(0.5) ? 1 : -1) * rng.range(0.35, 0.8) : rng.gaussian(0, 0.08),
+      // the far margin lifts a little, which opens the blade to the eye (the near one would turn it edge-on)
+      roll: -rng.range(0.1, 0.24),
       zone: rng.range(0.66, 0.76),
       flecks,
       tone: rng.next(),
       window: [w0, w0 + 0.26],
       seed: seedOf(rng),
     });
+    // a leaf pointing toward the eye arches down to the ground, so it opens instead of turning edge-on
+    const l = leaves[leaves.length - 1]!;
+    l.tilt -= (inner ? 0.5 : 0.36) * Math.max(0, Math.sin(l.yaw));
   }
   const depth = (l: LeafPlan) => l.dist * Math.sin(l.phi) + 0.5 * l.len * Math.sin(l.yaw) + l.h * 0.8;
   leaves.sort((a, b) => depth(a) - depth(b));
@@ -143,13 +149,13 @@ export function buildCyclamen(rng: Rng): Cyclamen {
   const flowers: FlowerPlan[] = [];
   for (let i = 0; i < m; i++) {
     const u = (rank[i]! + rng.range(0.1, 0.9)) / m;
-    const x = lerp(-13, 13, (i + rng.range(0.15, 0.85)) / m);
-    const lean = (x / 14) * 0.2 + rng.gaussian(0, 0.12);
+    const x = lerp(-6, 6, (i + rng.range(0.15, 0.85)) / m);
+    const lean = (x / 6) * 0.26 + rng.gaussian(0, 0.1);
     const length = lerp(10, 35, u);
     const hook = (lean === 0 ? 1 : Math.sign(lean)) * rng.range(2.1, 2.7) * (rng.chance(0.2) ? -1 : 1);
     const gentle = (lean === 0 ? 1 : Math.sign(lean)) * rng.range(0.05, 0.3);
     const bends = Array.from({ length: 12 }, (_, k) => (k < 9 ? gentle / 9 : [0.25, 0.4, 0.35][k - 9]! * hook) + rng.gaussian(0, 0.02));
-    const stalk: StemPlan = { base: { x, y: -8 }, length, angle: UP + lean, bends };
+    const stalk: StemPlan = { base: { x: x + foot, y: -4 }, length: length + 3, angle: UP + lean, bends };
     const petals = Array.from({ length: 5 }, (_, k) => ({ twist: rng.range(-0.8, 0.8), len: (k === 2 ? 0.74 : [1, 0.94, 0, 0.94, 1][k]!) * rng.range(0.9, 1.08) }));
     flowers.push({
       stalk,
@@ -180,6 +186,8 @@ export function buildCyclamen(rng: Rng): Cyclamen {
 
 export interface CyclamenPose {
   leaves: (LeafMark & { id: string })[];
+  /** each leaf's own stalk from the tuber, in the leaves' order */
+  petioles: (StalkMark & { id: string })[];
   stalks: (StalkMark & { id: string })[];
   flowers: (FlowerMark & { id: string })[];
   coils: (StalkMark & { id: string })[];
@@ -188,13 +196,22 @@ export interface CyclamenPose {
 }
 
 export function poseCyclamen(plant: Cyclamen, g: number): CyclamenPose {
-  const pose: CyclamenPose = { leaves: [], stalks: [], flowers: [], coils: [], capsules: [], tuber: { k: 0.55 + 0.45 * ramp(g, 0, 0.2), rx: plant.tuber.rx } };
+  const pose: CyclamenPose = { leaves: [], petioles: [], stalks: [], flowers: [], coils: [], capsules: [], tuber: { k: 0.55 + 0.45 * ramp(g, 0, 0.2), rx: plant.tuber.rx } };
   for (const l of plant.leaves) {
     const k = ramp(g, l.window[0], l.window[1]);
     if (k < 0.012) continue;
     const s = smooth(k);
+    const base = { x: plant.foot + Math.cos(l.phi) * l.dist * lerp(0.4, 1, s), z: Math.sin(l.phi) * l.dist * lerp(0.4, 1, s), h: l.h };
+    const from = { x: plant.foot + Math.cos(l.phi) * 1.2, z: Math.sin(l.phi) * 1.2, h: 1.2 };
+    const at = (u: number): Pt => {
+      const x = lerp(from.x, base.x, u);
+      const z = lerp(from.z, base.z, u);
+      const h = lerp(from.h, base.h, u) + Math.sin(Math.PI * u) * 1.6;
+      return { x, y: z * 0.6 - h * 0.84 };
+    };
+    pose.petioles.push({ id: `petiole-${l.id}`, pts: [0, 0.25, 0.5, 0.75, 1].map(at), width: 0.42 * lerp(0.4, 1, s), pigment: PETIOLE, deep: STALK_DEEP, seed: l.seed + 7 });
     const geom = leafGeometry({
-      base: { x: plant.foot + Math.cos(l.phi) * l.dist * lerp(0.4, 1, s), z: Math.sin(l.phi) * l.dist * lerp(0.4, 1, s), h: l.h },
+      base,
       yaw: l.yaw,
       len: l.len * lerp(0.14, 1, s),
       tilt: lerp(0.85, l.tilt, s),
@@ -220,7 +237,7 @@ export function poseCyclamen(plant: Cyclamen, g: number): CyclamenPose {
     const pts = stemPoints(f.stalk, lerp(0.05, 1, smooth(k)), lerp(0.45, 1, smooth(k)));
     const a = pts[pts.length - 2]!;
     const b = pts[pts.length - 1]!;
-    pose.stalks.push({ id: `stalk-${i}`, pts, width: 0.6 * (0.5 + 0.5 * smooth(k * 1.5)), pigment: STALK, deep: STALK_DEEP, seed: f.seed + 1 });
+    pose.stalks.push({ id: `stalk-${i}`, pts, width: 0.48 * (0.5 + 0.5 * smooth(k * 1.5)), pigment: STALK, deep: STALK_DEEP, seed: f.seed + 1 });
     const size = smooth(ramp(g, f.window + 0.06, f.window + 0.2));
     if (size < 0.02) continue;
     const open = ramp(g, f.window + 0.16, f.window + 0.34);
@@ -291,8 +308,9 @@ const cyclamen: SpeciesDef = {
       ground(p, r, g, plant);
       const pose = poseCyclamen(plant, g);
       const cut = Math.floor(pose.leaves.length * 0.6);
+      paintStalks(p, pose.petioles.slice(0, cut), 0.55);
       paintLeaves(p, pose.leaves.slice(0, cut));
-      paintStalks(p, [...pose.stalks, ...pose.coils]);
+      paintStalks(p, [...pose.stalks, ...pose.coils, ...pose.petioles.slice(cut)], 0.68);
       paintLeaves(p, pose.leaves.slice(cut));
       paintCapsules(p, pose.capsules);
       paintFlowers(p, pose.flowers);
