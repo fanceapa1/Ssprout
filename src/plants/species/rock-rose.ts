@@ -97,7 +97,7 @@ export function buildRockRose(rng: Rng): RockRose {
   const foot = rng.range(-2, 2);
   const twigs: TwigPlan[] = [];
   const add = (id: string, parent: string | null, attach: number, base: Pt, angle: number, length: number, bend: number, window: [number, number], width: number, pairs: number, size: number) =>
-    twigs.push({ id, parent, attach, stem: makeStem(rng, { base, length, angle, bend, segments: 4, tipBias: 0.3, wobble: 0.09 }), window, width, seed: seedOf(rng), pairs, size });
+    twigs.push({ id, parent, attach, stem: makeStem(rng, { base, length, angle, bend, segments: 5, tipBias: 0.3, wobble: 0.17 }), window, width, seed: seedOf(rng), pairs, size });
 
   const nMain = 7;
   for (let i = 0; i < nMain; i++) {
@@ -105,12 +105,12 @@ export function buildRockRose(rng: Rng): RockRose {
     const phi = u * 1.45;
     const rho = rng.range(0.78, 0.9);
     const tip = { x: DOME.cx + Math.sin(phi) * DOME.rx * rho, y: DOME.cy - Math.cos(phi) * DOME.ry * rho };
-    const base = { x: foot + rng.range(-2.5, 2.5), y: 0 };
+    const base = { x: foot + rng.range(-4.5, 4.5), y: 0 };
     const dx = tip.x - base.x;
     const dy = tip.y - base.y;
     const central = 1 - Math.abs(u);
     const w0 = 0.07 + 0.06 * (1 - central) + rng.range(0, 0.03);
-    add(`m${i}`, null, 0, base, Math.atan2(dy, dx), Math.hypot(dx, dy), -u * 0.35, [w0, w0 + 0.27], 0.85, 10, 1);
+    add(`m${i}`, null, 0, base, Math.atan2(dy, dx), Math.hypot(dx, dy), -u * 0.5, [w0, w0 + 0.27], 0.7, 10, 1);
   }
   const forks: { parent: number; side: 1 | -1 }[] = [];
   for (let i = 0; i < nMain; i++) {
@@ -147,9 +147,10 @@ export function buildRockRose(rng: Rng): RockRose {
     const d = i === 0 ? 0 : rng.range(0.15, 0.35);
     mass.push({
       cx: DOME.cx + Math.cos(a) * DOME.rx * d,
-      cy: DOME.cy + Math.sin(a) * DOME.ry * d * 0.8,
-      rx: DOME.rx * rng.range(0.45, 0.7),
-      ry: DOME.ry * rng.range(0.45, 0.7),
+      // kept inside the leaf cloud: a lump past the leaves reads as a pale bowl round the bush
+      cy: DOME.cy - DOME.ry * 0.12 + Math.sin(a) * DOME.ry * d * 0.6,
+      rx: DOME.rx * rng.range(0.32, 0.5),
+      ry: DOME.ry * rng.range(0.32, 0.5),
       seed: seedOf(rng),
       tone: rng.next(),
     });
@@ -248,7 +249,7 @@ export function poseRockRose(plant: RockRose, g: number): RockRosePose {
       pts,
       width: tw.width * (0.5 + 0.5 * smooth(k * 1.4)),
       pigment: mix(TWIG, LEAF_DEEP, 0.12),
-      deep: TWIG_DEEP,
+      deep: mix(TWIG_DEEP, TWIG, 0.35),
       seed: tw.seed,
     });
   }
@@ -265,10 +266,12 @@ export function poseRockRose(plant: RockRose, g: number): RockRosePose {
     for (const s of [-1, 1] as const) {
       const angle = at.angle + s * pr.spread;
       const geom = leafGeometry(at, angle, pr.len * size, pr.wid * lerp(0.3, 1, smooth(k)), pr.wave, pr.phase + s, shadowSide(angle));
+      // the mound's underside and flanks lie in its own shade
+      const low = clamp01((at.y - DOME.cy) / DOME.ry + 0.2 * Math.abs(at.x - DOME.cx) / DOME.rx);
       pose.leaves.push({
         id: `leaf-${idx}${s > 0 ? 'r' : 'l'}`,
         geom,
-        pigment: mix(LEAF, LEAF_WARM, pr.tone * 0.6),
+        pigment: mix(mix(LEAF, LEAF_WARM, pr.tone * 0.6), LEAF_DEEP, 0.32 * low),
         deep: LEAF_DEEP,
         seed: pr.seed + s,
         alpha: smooth(k * 3),
@@ -310,6 +313,28 @@ export function poseRockRose(plant: RockRose, g: number): RockRosePose {
   return pose;
 }
 
+/** The first share `f` of a path, by length. */
+function trimPath(pts: readonly Pt[], f: number): Pt[] {
+  if (f >= 0.999) return pts.slice();
+  if (f <= 0.01) return [];
+  const lens = pts.slice(1).map((q, i) => Math.hypot(q.x - pts[i]!.x, q.y - pts[i]!.y));
+  let left = lens.reduce((a, b) => a + b, 0) * f;
+  const out: Pt[] = [pts[0]!];
+  for (let i = 0; i < lens.length; i++) {
+    const a = pts[i]!;
+    const b = pts[i + 1]!;
+    if (left >= lens[i]!) {
+      out.push(b);
+      left -= lens[i]!;
+      continue;
+    }
+    const u = left / Math.max(1e-6, lens[i]!);
+    out.push({ x: a.x + (b.x - a.x) * u, y: a.y + (b.y - a.y) * u });
+    break;
+  }
+  return out;
+}
+
 /** Every point a full-grown plant paints (for the box test). */
 export function rockRoseReach(plant: RockRose): Pt[] {
   const pose = poseRockRose(plant, 1);
@@ -346,8 +371,11 @@ const rockRose: SpeciesDef = {
       seedMound(p, r, g, { rx: 9, x: plant.foot });
       const pose = poseRockRose(plant, g);
       paintLitter(p, pose.litter);
+      // the leaves close over the twigs as the mound fills: only the crooked feet of the main stems show
+      const hide = smooth(ramp(g, 0.2, 0.6));
+      const twigs = pose.twigs.map((t) => ({ ...t, pts: trimPath(t.pts, lerp(1, t.id.startsWith('m') ? 0.36 : 0, hide)) })).filter((t) => t.pts.length >= 2);
+      paintTwigs(p, twigs, pose.reserves);
       paintMass(p, pose.mass, pose.reserves);
-      paintTwigs(p, pose.twigs, pose.reserves);
       paintLeaves(p, pose.leaves, pose.reserves);
       paintFlowers(p, pose.flowers);
     });
