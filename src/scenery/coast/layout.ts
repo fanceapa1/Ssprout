@@ -265,9 +265,10 @@ export const COAST_SKY_LAYOUT: SkyLayout = {
 /**
  * Where the eye rests: the sea edge under the temple. The portrait crop (600 wide) round it holds
  * the temple, the open sea, the shallows, splash rocks, beach and a pool, and the terraces' left
- * ends; on a 16:9 screen (y 100–1000) it keeps 190 units of sky over the temple.
+ * ends. A wide window gives up the empty foreground, not the sky: at 1470 × 750 (y 179–961) the
+ * chapel, the cloud bank and the temple stand clear of the corner buttons (ADR 0384).
  */
-export const FOCUS: Pt = { x: 760, y: 600 };
+export const FOCUS: Pt = { x: 760, y: 570 };
 
 export const COAST_AMBIENCE: SceneryAmbience = {
   // the beach and the foreground either side of the path

@@ -70,11 +70,11 @@ const offSlots = (q: Pt, gap = 20): boolean => COAST_SLOTS.every((s) => Math.hyp
 const inFrame = (q: Pt): boolean => q.x >= 10 && q.x <= 1590 && q.y >= 20 && q.y <= 990;
 
 /**
- * What every supported window's overview shows of the coast (ADR 0382): a wide laptop (1470 × 750)
- * crops the world to y 209–991; a perch keeps a bird's height (30) below the top, and stays out of
- * the side margins' deep fade (x 60–1530). Phones crop the sides instead (ADR 0123).
+ * What every supported window's overview shows of the coast (ADRs 0382, 0384): a wide laptop
+ * (1470 × 750) crops the world to y 179–961; a perch keeps a bird's height (30) below the top, and
+ * stays out of the side margins' deep fade (x 60–1530). Phones crop the sides instead (ADR 0123).
  */
-export const COAST_SEEN = { x: 60, y: 240, w: 1470, h: 745 } as const;
+export const COAST_SEEN = { x: 60, y: 210, w: 1470, h: 750 } as const;
 const seen = (q: Pt): boolean => q.x >= COAST_SEEN.x && q.x <= COAST_SEEN.x + COAST_SEEN.w && q.y >= COAST_SEEN.y && q.y <= COAST_SEEN.y + COAST_SEEN.h;
 
 /** The olive's crown as the layout gives it, a little larger: what stands behind it is hidden. */
