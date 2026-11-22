@@ -4,7 +4,7 @@ import { COAST_FLORA } from '../../scenery/coast/flora';
 import { growsIn } from '../flora';
 import { smallSuite } from '../lib/suites';
 import { getSpecies } from '../registry';
-import cyclamen, { buildCyclamen, cyclamenReach, poseCyclamen, type CyclamenPose } from './cyclamen';
+import cyclamen, { CYCLAMEN_DESIGN, CYCLAMEN_LOW, buildCyclamen, cyclamenReach, poseCyclamen, type CyclamenPose } from './cyclamen';
 
 smallSuite('cyclamen');
 
@@ -60,15 +60,27 @@ describe('cyclamen', () => {
     }
   }, 60_000);
 
-  it('stays inside its design box at full growth, clear of the sides and the top', () => {
-    const left = -size * 0.5;
-    const top = -size * 0.8;
+  it('stays inside its box at full growth, clear of the sides and the top', () => {
+    const { w, h } = CYCLAMEN_DESIGN;
+    const left = -w * cyclamen.anchor.x;
+    const top = -h * cyclamen.anchor.y;
     for (let seed = 1; seed <= 24; seed++) {
       const pts = cyclamenReach(build(seed));
       expect(Math.min(...pts.map((q) => q.x)), `seed ${seed}`).toBeGreaterThan(left + 2);
-      expect(Math.max(...pts.map((q) => q.x)), `seed ${seed}`).toBeLessThan(left + size - 2);
+      expect(Math.max(...pts.map((q) => q.x)), `seed ${seed}`).toBeLessThan(left + w - 2);
       expect(Math.min(...pts.map((q) => q.y)), `seed ${seed}`).toBeGreaterThan(top + 2);
-      expect(Math.max(...pts.map((q) => q.y)), `seed ${seed}`).toBeLessThan(top + size);
+      expect(Math.max(...pts.map((q) => q.y)), `seed ${seed}`).toBeLessThan(top + h);
+    }
+  });
+
+  it('stands low in its small box: a 10–15 cm rosette, not as tall as the rock rose beside it', () => {
+    for (let seed = 1; seed <= 24; seed++) {
+      const pts = cyclamenReach(build(seed));
+      const tall = -Math.min(...pts.map((q) => q.y)) * CYCLAMEN_LOW;
+      const wide = (Math.max(...pts.map((q) => q.x)) - Math.min(...pts.map((q) => q.x))) * CYCLAMEN_LOW;
+      expect(tall / size, `seed ${seed}: height against the box`).toBeLessThan(0.32);
+      expect(tall / size, `seed ${seed}: still reads`).toBeGreaterThan(0.18);
+      expect(wide, `seed ${seed}: about as wide as tall`).toBeGreaterThan(tall * 0.8);
     }
   });
 
@@ -108,7 +120,8 @@ describe('cyclamen', () => {
     const def = getSpecies('cyclamen')!;
     expect(def.tier).toBe(1);
     expect(def.sizeClass).toBe('small');
-    expect(def.size).toEqual({ w: 86, h: 86 });
+    // a small plant in a box cut down to it (its flower target sits on its flowers)
+    expect(def.size).toEqual({ w: 48, h: 44 });
     expect(def.habitats).toEqual(['rock', 'meadow', 'back']);
     expect(def.pollinators).toBe(true);
     expect(def.bloomColor).toBe('#d98aa6');

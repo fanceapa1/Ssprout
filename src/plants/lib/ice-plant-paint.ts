@@ -186,7 +186,7 @@ export function lobeBody(p: Painter, rng: Rng, l: Lobe, k: number, fingers: read
   const area = boundsOf(outline, 7);
   const L = p.layer(area);
   const mid = centroid(outline);
-  L.fill(scaleAbout(outline, mid, 0.97), mix(c.leaf, c.pale, 0.2), 0.9 * smooth((k - 0.2) / 0.4));
+  L.fill(scaleAbout(outline, mid, 0.9), mix(c.leaf, c.pale, 0.2), 0.5 * smooth((k - 0.2) / 0.4));
   const drawn = fingers
     .map((f) => ({ f, s: surface(l, k, f.a, f.b), fk: smooth((k - f.start) / 0.22) }))
     .filter((q) => visible(q.fk) && q.s.face > 0.04)
@@ -199,7 +199,7 @@ export function lobeBody(p: Painter, rng: Rng, l: Lobe, k: number, fingers: read
       rng: rng.fork(f.key),
       variant: 'petal',
       angle,
-      length: f.len * lerp(0.2, 1, fk) * lerp(0.6, 1, s.rim ** 2) * (1 - o.cover * 0.55 * (1 - s.rim ** 2)),
+      length: f.len * lerp(0.2, 1, fk) * lerp(0.6, 1, s.rim ** 2) * (1 - o.cover * 0.25 * (1 - s.rim ** 2)),
       width: f.wid * lerp(0.5, 1, fk),
       asym: 0,
       pool: 0.4,
@@ -265,7 +265,8 @@ export function lobeFlowers(p: Painter, rng: Rng, l: Lobe, k: number, outline: r
   const mid = centroid(outline);
   if (visible(o.wash)) {
     const inner = scaleAbout(outline, mid, 0.93);
-    L.fill(inner, mix(c.shade, c.mid, 0.6), 0.9 * o.wash);
+    // a thin flush of the flowers' colour over the leaves, not a solid heap of it
+    L.fill(inner, mix(c.shade, c.mid, 0.5), 0.2 * o.wash);
     const wr = rng.fork('wash');
     L.ctx.save();
     L.clip(inner);
@@ -275,14 +276,14 @@ export function lobeFlowers(p: Painter, rng: Rng, l: Lobe, k: number, outline: r
       const r = m.r * l.rx * k * 0.8;
       for (let j = 0; j < 2; j++) {
         const at = { x: s.x + wr.gaussian(0, r * 0.15), y: s.y + wr.gaussian(0, r * 0.1) };
-        L.fill(ellipse(at, r * (1 - j * 0.35), r * 0.6 * (1 - j * 0.35)), m.shift > 0 ? mix(c.mid, c.pale, 0.35) : c.shade, (m.shift > 0 ? 0.35 : 0.4) * o.wash);
+        L.fill(ellipse(at, r * (1 - j * 0.35), r * 0.6 * (1 - j * 0.35)), m.shift > 0 ? mix(c.mid, c.pale, 0.5) : c.shade, (m.shift > 0 ? 0.12 : 0.16) * o.wash);
       }
     }
     L.ctx.restore();
   }
   const sorted = live.map((f) => ({ f, s: surface(l, k, f.a, f.b), open: openness(g, f.open) })).filter((q) => q.s.face > 0.05).sort((x, y) => x.s.y - y.s.y);
   for (const { f, s, open } of sorted) {
-    const v = clamp01(0.2 + 0.58 * s.lit - 0.22 * s.rim ** 3 + 0.3 * bloomShift(l, f.a, f.b) + f.jit);
+    const v = clamp01(0.12 + 0.75 * s.lit - 0.3 * s.rim ** 3 + 0.3 * bloomShift(l, f.a, f.b) + f.jit);
     const size = f.r * lerp(0.4, 1, open);
     const squash = 0.38 + 0.62 * s.face;
     const px = s.ny * SIN_E - s.nz * COS_E;

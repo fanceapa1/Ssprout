@@ -4,7 +4,7 @@
  * stalks. Used by that species only.
  */
 import { createRng } from '../../core/rng';
-import { bounds, deformPolygon, jitter, mix, padRect, ribbon, smoothPath, type Ctx2D, type Painter, type Pigment, type Pt } from '../../paint';
+import { bounds, deformPolygon, jitter, mix, padRect, ribbon, smoothPath, type Painter, type Pigment, type Pt } from '../../paint';
 import { ribbonInto } from './shrub-paint';
 
 const RAD = Math.PI / 180;
@@ -136,42 +136,41 @@ export function paintLeaves(p: Painter, marks: readonly LeafMark[], opacity = 0.
     const a = m.alpha;
     const g = m.geom;
     L.lift(g.outline, 0.95 * a);
-    L.fill(deformPolygon(g.outline, rng, { depth: 1, variance: 0.03 }), jitter(m.pigment, rng, 0.02), 0.78 * a);
-    L.fill(deformPolygon(g.outline, rng, { depth: 1, variance: 0.04 }), jitter(m.pigment, rng, 0.02), 0.4 * a);
-    const half = g.outline.filter((_, i) => i > g.outline.length * 0.5);
-    L.fill(deformPolygon([...half, g.midrib[0]!, g.midrib[2]!], rng, { depth: 1, variance: 0.04 }), m.deep, 0.13 * a);
-    rim(L.ctx, g.outline, m.deep, 0.1 * a);
+    L.fill(deformPolygon(g.outline, rng, { depth: 1, variance: 0.03 }), jitter(m.pigment, rng, 0.02), 0.62 * a);
+    L.fill(deformPolygon(g.outline, rng, { depth: 1, variance: 0.05 }), jitter(m.pigment, rng, 0.02), 0.26 * a);
+    // the half away from the light (upper left) takes a second, deeper wash
+    L.fill(deformPolygon(shadowHalf(g.outline), rng, { depth: 1, variance: 0.05 }), m.deep, 0.18 * a);
     if (a > 0.3) {
-      L.lift(deformPolygon(g.zone, rng, { depth: 1, variance: 0.05 }), 0.85 * a);
-      L.fill(deformPolygon(g.zone, rng, { depth: 1, variance: 0.05 }), m.silver, 0.5 * a);
-      const core = shrink(g.zone, g.midrib[1]!, 0.5);
-      L.fill(deformPolygon(core, rng, { depth: 1, variance: 0.08 }), m.deep, 0.2 * a);
-      for (const f of g.flecks) {
-        L.lift(deformPolygon(f, rng, { depth: 1, variance: 0.1 }), 0.7 * a);
-        L.fill(f, m.silver, 0.34 * a);
-      }
-      L.fill(ribbon(smoothPath(g.midrib, 1.2), (t) => 0.42 * (1 - 0.7 * t)), m.deep, 0.62 * a);
+      // the marbling is lifted out of the green, then barely tinted: a pale band, not a pasted shape
+      L.lift(deformPolygon(g.zone, rng, { depth: 1, variance: 0.06 }), 0.5 * a);
+      L.fill(deformPolygon(g.zone, rng, { depth: 1, variance: 0.06 }), m.silver, 0.3 * a);
+      const core = shrink(g.zone, g.midrib[1]!, 0.45);
+      L.fill(deformPolygon(core, rng, { depth: 1, variance: 0.08 }), mix(m.pigment, m.deep, 0.3), 0.5 * a);
+      for (const f of g.flecks) L.lift(deformPolygon(f, rng, { depth: 1, variance: 0.1 }), 0.4 * a);
+      L.fill(ribbon(smoothPath(g.midrib, 1.2), (t) => 0.36 * (1 - 0.7 * t)), m.deep, 0.3 * a);
     }
     if (g.under.length) {
-      L.lift(g.under, 0.7 * a);
-      L.fill(deformPolygon(g.under, rng, { depth: 1, variance: 0.04 }), m.underside, 0.6 * a);
+      L.lift(g.under, 0.6 * a);
+      L.fill(deformPolygon(g.under, rng, { depth: 1, variance: 0.04 }), m.underside, 0.45 * a);
     }
   }
-  L.dry({ opacity, edge: 0.38, edgeWidth: 0.7, sharpness: 0.62, centreLift: 0.06, granulation: 0.26, flow: 0.3, flowScale: 8, dry: 0.02, darken: 0.14 });
+  L.dry({ opacity, edge: 0.14, edgeWidth: 0.5, sharpness: 0.3, centreLift: 0.08, granulation: 0.26, flow: 0.35, flowScale: 8, dry: 0.02, darken: 0.05 });
 }
 
 function shrink(poly: readonly Pt[], c: Pt, k: number): Pt[] {
   return poly.map((q) => ({ x: c.x + (q.x - c.x) * k, y: c.y + (q.y - c.y) * k }));
 }
 
-function rim(ctx: Ctx2D, poly: readonly Pt[], pigment: Pigment, alpha: number): void {
-  ctx.beginPath();
-  poly.forEach((q, i) => (i ? ctx.lineTo(q.x, q.y) : ctx.moveTo(q.x, q.y)));
-  ctx.closePath();
-  ctx.lineWidth = 0.55;
-  ctx.lineJoin = 'round';
-  ctx.strokeStyle = `${pigment}${Math.round(alpha * 255).toString(16).padStart(2, '0')}`;
-  ctx.stroke();
+/** The part of a blade on the far side of its centre from the light (upper left). */
+function shadowHalf(poly: readonly Pt[]): Pt[] {
+  let cx = 0;
+  let cy = 0;
+  for (const q of poly) {
+    cx += q.x / poly.length;
+    cy += q.y / poly.length;
+  }
+  const out = poly.filter((q) => (q.x - cx) * 0.6 + (q.y - cy) * 0.8 > -0.15);
+  return out.length >= 3 ? out : [...poly];
 }
 
 // ---------------------------------------------------------------------------------------------

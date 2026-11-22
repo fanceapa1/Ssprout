@@ -44,7 +44,17 @@ const TUBER_DEEP = '#5c4a38';
 const EARTH = '#a39078';
 const SHADOW = '#6f8a78';
 
-const ANCHOR = { x: 0.5, y: 0.8 };
+/**
+ * Drawn at this share of the small class's scale: a 10–15 cm rosette beside the rock rose and the
+ * lavender (devlog 228). The plan stays in the 70-unit design box; the sprite box is cut down to
+ * the plant, so its flower target (bees, butterflies) and its card sit on it.
+ */
+export const CYCLAMEN_LOW = 0.42;
+export const CYCLAMEN_BOX = { w: 48, h: 44 } as const;
+const ANCHOR = { x: 0.5, y: 0.76 };
+/** box units per design unit: the small class's 86/70, times `CYCLAMEN_LOW` */
+const UNIT = (SMALL_SIZE / SMALL_DESIGN.w) * CYCLAMEN_LOW;
+export const CYCLAMEN_DESIGN = { w: CYCLAMEN_BOX.w / UNIT, h: CYCLAMEN_BOX.h / UNIT };
 
 interface LeafPlan {
   id: string;
@@ -294,7 +304,7 @@ const cyclamen: SpeciesDef = {
   tier: 1,
   habitats: ['rock', 'meadow', 'back'], sites: ['wall'],
   sizeClass: 'small',
-  size: { w: SMALL_SIZE, h: SMALL_SIZE },
+  size: { w: CYCLAMEN_BOX.w, h: CYCLAMEN_BOX.h },
   anchor: { x: ANCHOR.x, y: ANCHOR.y },
   description: 'Ivy-leaved cyclamen — silver-marbled leaves under swept-back pink flames.',
   bloomColor: '#d98aa6',
@@ -302,14 +312,14 @@ const cyclamen: SpeciesDef = {
   draw(p: Painter, rng: Rng, opts) {
     const plant = buildCyclamen(rng);
     const g = clamp01(opts.growth);
-    const end = plantFrame(p, this, opts, SMALL_DESIGN);
+    const end = plantFrame(p, this, opts, CYCLAMEN_DESIGN);
     try {
       const r = createRng(plant.seeds.ground);
       ground(p, r, g, plant);
       const pose = poseCyclamen(plant, g);
       const cut = Math.floor(pose.leaves.length * 0.6);
       paintStalks(p, pose.petioles.slice(0, cut), 0.55);
-      paintLeaves(p, pose.leaves.slice(0, cut));
+      paintLeaves(p, pose.leaves.slice(0, cut), 0.7);
       paintStalks(p, [...pose.stalks, ...pose.coils, ...pose.petioles.slice(cut)], 0.68);
       paintLeaves(p, pose.leaves.slice(cut));
       paintCapsules(p, pose.capsules);

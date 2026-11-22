@@ -29,9 +29,10 @@ const BUD = '#a9a888';
 export type ColourwayName = 'magenta' | 'hot-pink' | 'crimson';
 
 const COLOURWAYS: Record<ColourwayName, Colourway> = {
-  magenta: { shade: '#58124e', mid: '#c42b93', pale: '#ef7fc2', eye: EYE, bud: BUD },
-  'hot-pink': { shade: '#68124f', mid: '#dc3199', pale: '#fb8dce', eye: EYE, bud: BUD },
-  crimson: { shade: '#4f0b24', mid: '#c71f40', pale: '#ef6a72', eye: EYE, bud: BUD },
+  // vivid, but inside the painting's range: the shade side greys toward the leaves' violet-green
+  magenta: { shade: '#6c4664', mid: '#bf5a9c', pale: '#eeaed3', eye: EYE, bud: BUD },
+  'hot-pink': { shade: '#74505f', mid: '#cf6aa6', pale: '#f5bbd8', eye: EYE, bud: BUD },
+  crimson: { shade: '#6a3f43', mid: '#c0545f', pale: '#efa7a3', eye: EYE, bud: BUD },
 };
 
 export interface IcePlantPlan {
@@ -57,10 +58,13 @@ function makeLobe(rng: Rng, cx: number, cy: number, rx: number, rd: number, h: n
 }
 
 const FLOWER_R = [1.25, 2.05] as const;
+/** A low mat: the small class's scale in a box cut down to it, so its flower target sits on the flowers. */
+export const ICE_PLANT_BOX = { w: SMALL_SIZE, h: 48 } as const;
+const DESIGN = { w: SMALL_DESIGN.w, h: (SMALL_DESIGN.w * ICE_PLANT_BOX.h) / SMALL_SIZE };
 
 function makeFlowers(rng: Rng, l: Lobe, window: readonly [number, number], cap: number): Bloomlet[] {
   const out: Bloomlet[] = [];
-  const spacing = 2.2;
+  const spacing = 3.6;
   for (let tries = 0; tries < 1800 && out.length < cap; tries++) {
     const t = rng.range(0, Math.PI * 2);
     const d = Math.sqrt(rng.next()) * 0.97;
@@ -88,26 +92,26 @@ export function planIcePlant(rng: Rng): IcePlantPlan {
   const colourway = pickColourway(rng.fork('colour'));
   const mainRx = rng.range(17, 19.5);
   const specs: { cx: number; cy: number; rx: number; rd: number; h: number; window: [number, number] }[] = [
-    { cx: rng.gaussian(0, 1.5), cy: rng.range(-2.5, -0.5), rx: mainRx, rd: mainRx * rng.range(0.8, 0.9), h: rng.range(11, 13.5), window: [0, 0.5] },
+    { cx: rng.gaussian(0, 1.5), cy: rng.range(-2.5, -0.5), rx: mainRx, rd: mainRx * rng.range(0.8, 0.9), h: rng.range(6, 7.5), window: [0, 0.5] },
   ];
   const side = rng.chance(0.5) ? 1 : -1;
   const sat = (cx: number, cy: number, rx: number, h: number, w: [number, number]) => specs.push({ cx, cy, rx, rd: rx * rng.range(0.7, 0.85), h, window: w });
-  sat(side * rng.range(14, 16), rng.range(0, 3), rng.range(11, 13), rng.range(5, 6.5), [0.12, 0.56]);
-  sat(-side * rng.range(14, 16), rng.range(-1, 3), rng.range(10, 12.5), rng.range(4.5, 6), [0.16, 0.6]);
-  sat(rng.gaussian(0, 4), rng.range(8, 10), rng.range(11, 13), rng.range(4, 5.5), [0.2, 0.64]);
-  if (rng.chance(0.6)) sat(rng.range(-11, 11), rng.range(-9, -7), rng.range(8, 10), rng.range(6, 8), [0.1, 0.5]);
+  sat(side * rng.range(14, 16), rng.range(0, 3), rng.range(11, 13), rng.range(3.5, 4.5), [0.12, 0.56]);
+  sat(-side * rng.range(14, 16), rng.range(-1, 3), rng.range(10, 12.5), rng.range(3, 4), [0.16, 0.6]);
+  sat(rng.gaussian(0, 4), rng.range(8, 10), rng.range(11, 13), rng.range(2.5, 3.5), [0.2, 0.64]);
+  if (rng.chance(0.6)) sat(rng.range(-11, 11), rng.range(-9, -7), rng.range(8, 10), rng.range(4, 5), [0.1, 0.5]);
 
   const lobes = specs.map((s, i) => {
     const r = rng.fork(`lobe-${i}`);
     const lobe = makeLobe(r.fork('shape'), s.cx, s.cy, s.rx, s.rd, s.h);
     const fingers: Finger[] = [];
-    const nf = Math.round(s.rx * 1.7);
+    const nf = Math.round(s.rx * 3);
     for (let j = 0; j < nf; j++) {
       const t = r.range(0, Math.PI * 2);
       const d = Math.sqrt(r.next()) * 0.95;
       fingers.push({ a: Math.cos(t) * d, b: Math.sin(t) * d, turn: r.gaussian(0, 0.5), len: r.range(3, 4.4), wid: r.range(0.9, 1.2), tone: r.next(), start: clamp01(d * 0.15 + r.next() * 0.25), key: `fg-${j}` });
     }
-    const flowers = makeFlowers(r.fork('flowers'), lobe, s.window, Math.round(s.rx * 14));
+    const flowers = makeFlowers(r.fork('flowers'), lobe, s.window, Math.round(s.rx * 7));
     return { lobe, window: s.window, fingers, flowers };
   });
   const order = lobes.map((l, i) => i).sort((x, y) => lobes[x]!.lobe.cy - lobes[y]!.lobe.cy);
@@ -119,7 +123,7 @@ export function planIcePlant(rng: Rng): IcePlantPlan {
     const n = Math.round(l.lobe.rx * 0.45);
     for (let j = 0; j < n; j++) {
       const t = lerp(0.02, 0.98, (j + r.range(0.1, 0.9)) / n) * Math.PI;
-      rim.push({ lobe: li, a: Math.cos(t) * 0.97, b: Math.sin(t) * 0.97, turn: r.gaussian(0, 0.3), len: r.range(2, 2.9), wid: r.range(0.75, 1), tone: r.next(), start: r.range(0.3, 0.62), key: `rim-${li}-${j}` });
+      rim.push({ lobe: li, a: Math.cos(t) * 0.97, b: Math.sin(t) * 0.97, turn: r.gaussian(0, 0.3), len: r.range(2.4, 4), wid: r.range(0.75, 1), tone: r.next(), start: r.range(0.3, 0.62), key: `rim-${li}-${j}` });
     }
   });
   return { colourway, lobes: sorted, rim };
@@ -135,15 +139,15 @@ const icePlant: SpeciesDef = {
   tier: 1,
   habitats: ['meadow', 'rock', 'path'], sites: ['wall'],
   sizeClass: 'small',
-  size: { w: SMALL_SIZE, h: SMALL_SIZE },
-  anchor: { x: 0.5, y: 0.7 },
+  size: { w: ICE_PLANT_BOX.w, h: ICE_PLANT_BOX.h },
+  anchor: { x: 0.5, y: 0.55 },
   description: 'Ice plant — a wall spilling over with satin daisies that close at dusk.',
   bloomColor: '#c42b93',
   pollinators: true,
   draw(p: Painter, rng: Rng, opts) {
     const plan = planIcePlant(rng.fork('plan'));
     const g = clamp01(opts.growth);
-    const end = plantFrame(p, this, opts, SMALL_DESIGN);
+    const end = plantFrame(p, this, opts, DESIGN);
     try {
       const r = rng.fork('paint');
       const colour = COLOURWAYS[plan.colourway];
