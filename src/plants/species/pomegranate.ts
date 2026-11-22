@@ -320,6 +320,7 @@ const pomegranate: SpeciesDef = {
   size: SIZE,
   anchor: { x: 0.5, y: 0.94 },
   description: 'Pomegranate — little crowns ripening in the palms’ shade.',
+  in: { coast: { nativeName: 'Rodia', nativeLang: 'el-Latn', description: 'Pomegranate — little crowns ripening red by the terrace wall.' } },
   bloomColor: '#d0503a',
   pollinators: true,
   draw(p, rng, opts) {

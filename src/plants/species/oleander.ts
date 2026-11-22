@@ -334,6 +334,7 @@ const oleander: SpeciesDef = {
   size: { w: BOX.w, h: BOX.h },
   anchor: { x: BOX.ax, y: BOX.ay },
   description: 'Oleander — pink pinwheels in the dry bed of the oued.',
+  in: { coast: { nativeName: 'Pikrodafni', nativeLang: 'el-Latn', description: 'Oleander — pink pinwheels at the back of the beach.' } },
   bloomColor: PINK,
   pollinators: false,
   draw(p, rng, opts) {

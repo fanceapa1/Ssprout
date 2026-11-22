@@ -250,6 +250,7 @@ const southernMaidenhair: SpeciesDef = {
   size: { w: SMALL_SIZE, h: SMALL_SIZE },
   anchor: { x: 0.5, y: 0.6 },
   description: 'Southern maidenhair — green hair spilling where the wall weeps.',
+  in: { coast: { nativeName: 'Polytrichi', nativeLang: 'el-Latn' } },
   bloomColor: '#a2c46e',
   pollinators: false,
   draw(p, rng, opts) {

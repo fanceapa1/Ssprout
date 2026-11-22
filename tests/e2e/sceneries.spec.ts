@@ -1,7 +1,7 @@
 import type { Page } from '@playwright/test';
 import { expect, openDev, test } from './fixtures';
 import { storedOf } from './paint-store';
-import { calmUiMotion, plantSession } from './ui-helpers';
+import { calmUiMotion, plantSession, setMinutes } from './ui-helpers';
 
 /**
  * Switching the garden on view at runtime (ADR 0243). Both gardens are offered to everyone since
@@ -291,5 +291,73 @@ test.describe('sceneries · the coast’s slot sites (ADR 0383)', () => {
         .map((p) => `${p.speciesId}@${p.slotId}`);
     });
     expect(misplaced).toEqual([]);
+  });
+});
+
+test.describe('sceneries · a shared species in each garden’s words (ADR 0385)', () => {
+  test('a shared species’ card speaks the coast’s words at the coast and the oasis’s in the oasis: sheet, card, Your plant and herbarium', async ({ page }) => {
+    await calmUiMotion(page);
+    await openDev(page, 'scenery=coast&uitime=0.02');
+    await page.evaluate(async () => {
+      window.sprout!.reset();
+      window.sprout!.seed(7);
+      await window.sprout!.showScenery('coast');
+      window.sprout!.ui.refresh();
+    });
+    const card = page.locator('[data-ui="plant-card"]');
+    /** a finished grapevine in the garden on view, its card opened through the camera */
+    const openVine = (sceneryId: 'coast' | 'oasis') =>
+      page.evaluate(async (sceneryId) => {
+        const s = window.sprout!;
+        s.camera.autoFocus(false);
+        const slotId = s.placementOptions('grapevine', sceneryId)[0]!.id;
+        const now = s.now();
+        const id = `vine-${sceneryId}`;
+        s.setState({ plants: [{ id, speciesId: 'grapevine', sceneryId, slotId, seed: 5, plantedAt: now - 3_600_000, sessionMinutes: 90, taskName: 'Essay', completedAt: now - 600_000 }] });
+        await s.plants.settle();
+        return s.camera.openCard(id);
+      }, sceneryId);
+
+    // the planting sheet at the coast
+    await page.locator('.panel').getByRole('button', { name: 'Start studying' }).click();
+    const sheet = page.locator('dialog[data-dialog="planting"]');
+    await expect(sheet).toBeVisible();
+    await setMinutes(page, 120);
+    const vineCard = sheet.locator('.plant-card[data-species-id="grapevine"]');
+    await expect(vineCard.locator('.plant-native')).toHaveText('Ampeli');
+    await expect(vineCard.locator('.plant-native')).toHaveAttribute('lang', 'el-Latn');
+    await expect(vineCard.locator('.plant-desc')).toHaveText('Grapevine — a leafy roof over the terrace, sweet bunches in its shade.');
+    await expect(sheet.locator('.plant-card[data-species-id="oleander"] .plant-native')).toHaveText('Pikrodafni');
+    await page.keyboard.press('Escape');
+    await expect(sheet).toBeHidden();
+
+    // the plant card and Your plant at the coast
+    expect(await openVine('coast')).toBe(true);
+    await expect(card.locator('.plant-story-native')).toHaveText('Ampeli');
+    await expect(card.locator('.plant-story-line')).toHaveText('Grapevine — a leafy roof over the terrace, sweet bunches in its shade.');
+    await expect(card.locator('.plant-story-note')).toContainText('κληματαριά (klimataria)');
+    await expect(card).not.toContainText(/seguia|palm|Dalia/);
+    await expect(page.locator('.plant-view-native')).toHaveText('Ampeli');
+    await page.keyboard.press('Escape');
+
+    // the oasis keeps its own words
+    await page.evaluate(() => window.sprout!.showScenery('oasis'));
+    expect(await openVine('oasis')).toBe(true);
+    await expect(card.locator('.plant-story-native')).toHaveText('Dalia');
+    await expect(card.locator('.plant-story-native')).toHaveAttribute('lang', 'ary-Latn');
+    await expect(card.locator('.plant-story-line')).toHaveText('Grapevine — a green roof on palm posts, sweet bunches in its shade.');
+    await expect(card.locator('.plant-story-note')).toContainText('seguia');
+    await page.keyboard.press('Escape');
+
+    // the herbarium names each specimen in its own garden's words
+    await page.evaluate(() => {
+      const now = window.sprout!.now();
+      const pressed = (['coast', 'oasis'] as const).map((sceneryId) => ({ speciesId: 'pomegranate', sceneryId, seed: 1, plantedAt: now - 86_400_000, removedAt: now, taskName: '' }));
+      window.sprout!.setState({ pressed });
+    });
+    await page.locator('.menu').getByRole('button', { name: 'Pressed flowers' }).click();
+    const book = page.locator('dialog[data-dialog="herbarium"]');
+    await expect(book.locator('.specimen[data-scenery-id="coast"] .specimen-native')).toHaveText('Rodia');
+    await expect(book.locator('.specimen[data-scenery-id="oasis"] .specimen-native')).toHaveText('Rremman');
   });
 });

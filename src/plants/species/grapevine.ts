@@ -371,6 +371,7 @@ const grapevine: SpeciesDef = {
   size: SIZE,
   anchor: { x: 0.5, y: 0.94 },
   description: 'Grapevine — a green roof on palm posts, sweet bunches in its shade.',
+  in: { coast: { nativeName: 'Ampeli', nativeLang: 'el-Latn', description: 'Grapevine — a leafy roof over the terrace, sweet bunches in its shade.' } },
   bloomColor: '#6a4f78',
   pollinators: true,
   draw(p, rng, opts) {
