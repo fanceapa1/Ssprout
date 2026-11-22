@@ -4,7 +4,6 @@
  */
 import { createRng } from '../../core/rng';
 import type { PaintStep, SceneArt } from '../../scene/background';
-import { paintMargins } from '../../scene/paint-land';
 import type { GardenPainters } from '../types';
 import { COAST_ELEMENTS } from './index';
 import { COAST_LIGHT } from './light';
@@ -15,6 +14,7 @@ import { paintShore } from './paint-shore';
 import { paintBeds, paintGround, paintWalls } from './paint-land';
 import { paintMaquis, paintOlive, paintPine } from './paint-veg';
 import { COAST_SKY_PAINTERS } from './sky';
+import { paintCoastMargins } from './margins';
 import { paintTemple } from './temple';
 import { paintFarHill, paintVillage } from './village';
 
@@ -42,7 +42,7 @@ export function coastSteps(art: SceneArt, only?: readonly string[]): PaintStep[]
     maquis: (p) => paintMaquis(p, r('maquis')),
     olive: (p) => paintOlive(p, r('olive')),
     pine: (p) => paintPine(p, r('pine')),
-    margins: (p) => paintMargins(p, r('margins')),
+    margins: (p) => paintCoastMargins(p, r('margins')),
   };
   const steps: PaintStep[] = [];
   for (const el of Object.keys(COAST_ELEMENTS) as Element[]) {

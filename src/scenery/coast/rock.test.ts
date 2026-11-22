@@ -5,8 +5,8 @@
  */
 import { beforeAll, describe, expect, it } from 'vitest';
 import { createRng } from '../../core/rng';
-import { createPainter, makeCanvas } from '../../paint';
-import { pointInPolygon } from '../../paint/geometry';
+import { bounds, createPainter, makeCanvas } from '../../paint';
+import { pointInPolygon, resample } from '../../paint/geometry';
 import { applyView, type PaintView } from '../../scene/background';
 import { PaintRecorder, type RecordedCost } from '../../scene/paint-record';
 import { COAST_ART, COAST_ELEMENTS } from '.';
@@ -18,6 +18,9 @@ import { SUN_R, UNITS_PER_DEGREE } from '../../ambience/sky-layout';
 import { CHAPEL_ROAD, FAR_CYPRESSES, FAR_OLIVES, FIELD_TERRACES, GAP_ISLANDS, HARBOUR, HILL_SHORE, PASTEL_WALLS, TILED_ROOFS } from './distance';
 import { CLIFF_STONES, LEDGE_SCRUB, SHORE_BOULDER_SHAPES, SPLASH_ROCK_SHAPES } from './shapes';
 import { COAST_WILDLIFE } from './wildlife';
+import { FOOT_SHELF, LEDGE_SAMPLES, LIP, LIP_BOULDER_SHAPES, LIP_EDGES } from './lip-shapes';
+import { CLIFF_FOOT } from './sea';
+import { SEA_WATER } from './geometry';
 import { COAST_SLOTS } from './slots';
 import { columnShapes } from './temple';
 import { VILLAGE_CUBES } from './shapes';
@@ -94,7 +97,7 @@ describe('coast rock painting (G2)', () => {
 
   it('is deterministic: the same marks every time', () => {
     // quantised hashes from a fresh process, pinned as the oasis's (paint caches warm up across runs)
-    expect({ overview: runs.overview!.hash, detail: runs.detail!.hash }).toEqual({ overview: '1868e5c9', detail: '18c71d99' });
+    expect({ overview: runs.overview!.hash, detail: runs.detail!.hash }).toEqual({ overview: 'c6b18793', detail: 'eecad23b' });
     expect(runs.again!.chunks.map((c) => c.name)).toEqual(runs.overview!.chunks.map((c) => c.name));
   });
 
@@ -256,5 +259,40 @@ describe('coast far shore and cliff detail (GB1)', () => {
       expect(s.y).toBeGreaterThan(topAt(s.x));
       expect(s.y).toBeLessThan(footAt(s.x));
     }
+  });
+});
+
+describe('the worn lip and the cliff’s wave-cut shelf (GA1)', () => {
+  const dist = (q: { x: number; y: number }, line: readonly { x: number; y: number }[]) =>
+    Math.min(...line.map((r) => Math.hypot(r.x - q.x, r.y - q.y)));
+
+  it('breaks the runs that face away: the edge wanders out and back, never far from the line', () => {
+    for (const [a, b] of LIP.ranges) {
+      const outs = LIP.out.slice(a, b + 1);
+      if (b - a > 20) expect(Math.max(...outs) - Math.min(...outs)).toBeGreaterThan(4);
+      for (const o of outs) expect(Math.abs(o)).toBeLessThanOrEqual(12);
+    }
+    // low by the bastion's foot, where `shallows-3` lies in the water
+    LIP.edge.forEach((q, i) => {
+      if (LEDGE_SAMPLES[i]!.y > 712) expect(LIP.out[i]!).toBeLessThanOrEqual(2.5);
+    });
+    expect(LIP_EDGES.length).toBe(LIP.ranges.length);
+  });
+
+  it('keeps its boulders off the other rocks and the water slots, and in the water', () => {
+    const others = [...SHORE_BOULDER_SHAPES, ...SPLASH_ROCK_SHAPES].map((r) => bounds(r.outline));
+    for (const r of LIP_BOULDER_SHAPES) {
+      const b = bounds(r.outline);
+      for (const o of others) expect(o.x < b.x + b.w && b.x < o.x + o.w && o.y < b.y + b.h && b.y < o.y + o.h, `${r.x},${r.y}`).toBe(false);
+      for (const s of COAST_SLOTS.filter((q) => q.habitat === 'water')) expect(Math.hypot(s.x - r.x, s.y - r.y), s.id).toBeGreaterThan(40);
+      expect(pointInPolygon({ x: r.x, y: r.y - 1 }, SEA_WATER), `${r.x},${r.y}`).toBe(true);
+    }
+  });
+
+  it('gives the cliff’s foot a broken shelf, with gaps where the face drops straight in', () => {
+    const { depth, front } = FOOT_SHELF;
+    expect(depth.filter((d) => d === 0).length).toBeGreaterThan(8);
+    expect(depth.filter((d) => d > 4).length).toBeGreaterThan(8);
+    for (const q of front) expect(dist(q, resample(CLIFF_FOOT, 3))).toBeLessThanOrEqual(10);
   });
 });

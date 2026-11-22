@@ -819,13 +819,16 @@ y    0 ┌───────────────────────�
 - **The shoreline** (`SHORE_EDGE`) is broken, not one diagonal: the top terrace ends in a rock shelf
   (tip x 792), the sea cuts in under it, the middle terrace ends in a rock bastion (tip x 690) with
   a second cove below, the lower terrace ends in scrub, and stone steps come down to the beach at
-  (684, 812). Boulders and scrub are painted over the edge.
+  (684, 812). Boulders and scrub are painted over the edge. GA1 (devlog 226): where the line runs
+  down to the left (the runs that face away) its rock is a worn lip wandering out into the water and
+  back (`LIP`, `lip-shapes.ts`); the line itself, which the motion, the slots and the wildlife read,
+  did not move.
 - **Terraces**: three dry-stone walls, each holding the terrace above it (`WALLS`, `WALL_TERRACE`).
   Lifts as the oasis (ADR 0300): lower 48, middle 92, top 132. The big olive stands on the top
   terrace at (1290, 540), right of the path; the gravel `PATH` climbs from the bottom edge (900,
   1000) up the three walls by stone flights (`STEPS`) to the olive.
-- **The sea edge** sits above the paper margin (`paintMargins` lifts the bottom 166 units, and up
-  to 320 at the sides near the bottom): the beach's waterline runs y 742–812 and its back y
+- **The sea edge** sits above the paper margin (the margins lift the bottom 166 units, and up
+  to 320 at the right side and 224 at the left near the bottom, ADR 0387): the beach's waterline runs y 742–812 and its back y
   822–852, and three pools lie in the rock shelf at y 866–874 (GL1b, ADR 0384: 20–28 higher, so
   they stay above the stage's bottom dissolve). Splash rocks stand in the shallows.
 - **The foreground** below the lowest wall (y 882–1000) is the painting's foot: ground, the path's
@@ -899,8 +902,13 @@ perches kept. The phrygana cushion at the promontory's foot moved past `scrub-3`
 (1570, 514)) and one more grows at (1330, 513), so the tortoise still grazes there; the grass tuft
 (1478, 508) → (1408, 506). The terraces are full: only two places are 50–120 from the path and
 clear of every rule, so the path slots stand close on the lower terrace's front.
-`low-4` (1560, 812, medium) keeps its place: a full 1.25× medium box there reaches x 1638, but no
-place further left clears the middle terrace's beds behind it.
+**The east end** (GA1, devlog 226): `low-4` (1560, 812) → (1542, 812), `scrub-4` (1498, 826) → (1486,
+812, beside it) and `mid-5` (1474, 680) → (1460, 676), so `low-4` clears `mid-5` behind it. A full
+1.25× medium box on `low-4` now reaches x 1620 (was 1638): still a little into the stage's right
+edge in a window that shows the whole width. Further left `low-4` stands over `mid-5` or `mid-4`;
+moving `mid-4` too lets it reach 1534 but changes the cat's walk on the middle terrace, so the
+cat's tortoise test (`cat.test.ts`) sees no detour. Making the slot small would change the species
+that fit (`sites.test.ts`, the Jerusalem sage's own test).
 
 Raised slots (on a terrace, a coping or a face) take their terrace's lift; the rest take
 `perspectiveScale(y)`. Each terrace's slots stand in the gaps between those of the terraces
@@ -952,6 +960,10 @@ Steps `sea` and `caique` (element `sea`, before the rock) and `beach` and `pools
   parts (longest 12 ms), caique 11 ms (190 parts), beach 61 ms (171 parts, longest 6 ms), pools
   19 ms (289 parts): about 265 ms in all.
 - Studio `coast-water` (153): `sea`, `cove`, `shoreline`, `beach`, `pool`, `caique`, `scene`.
+- GA1 (devlog 226): `COAST_WATER_ALPHA.sunset` 0.78 → 0.7 and `WATER_NEAR` at the low suns (sunset
+  0.34 → 0.2, sunrise 0.42 → 0.34), so the turquoise shelf reads under the warm light; at the low
+  suns the sea plate has a dark band under the far shore and the point and a bright warm core to
+  the light's road under the sun (`lowSunWater`, `sky.ts`). The `sea` step itself is unchanged.
 
 ### Rock (G2 and G2b, `paint-rocks.ts`, `temple.ts`, `village.ts`)
 Ionian limestone, white-grey to warm cream, lit from the left over the sea; shade planes cool
@@ -1062,6 +1074,25 @@ layer and dry it once). Steps:
     shade toward each block's right end, pits, a dark wet foot with weed; along the runs that face
     away, a wet lip under a lit arris. At the water: a contact shade and a broken reflection under
     the faces, a contact shade along the lips, and broken foam along both.
+  - **The worn lip** (GA1, devlog 226; data `LIP` in `lip-shapes.ts`, fixed seed): along the runs
+    that face away the ledge's edge is no longer the ruled line. Its outer edge wanders out into the
+    water (a slow swing plus blocks of 2–9 samples stepping up or down, up to 11 units) and back in
+    notches (3–5.5 units, water in the rock's shade), never more than 2.5 out below y 712, where
+    `shallows-3` lies. The ledge's top runs to that edge (6 wider along the lip), weathered with
+    greyer patches; each block that stands out has a lit outer half; joints run in from the edge
+    between blocks, and where the next block stands lower its end faces us in shade; the wet edge,
+    weed and lit arris are broken pieces, not one band. Three more boulders sit at its foot
+    (`LIP_BOULDER_SHAPES`). The laps of the motion follow the lip's edge (`LIP_EDGES`).
+  - **The cliff's foot on the sea** (GA1, `FOOT_SHELF`): a broken wave-cut shelf in front of the
+    face, long low slabs (2.5–5 out), short tall blocks (5.5–9) and gaps where the face drops
+    straight in; each a lit top over a wet front with weed, a joint at its end, a broken reflection
+    and foam. Five fallen blocks lie in the water in front of it. The face's own wet band wanders
+    in height (it was a ruled band). The motion's cliff laps follow the shelf's front (`FOOT_FRONT`).
+  - **The shelf and the painting's foot** (GA1): joints across the shelf's beds so it breaks into
+    slabs, each with its own grey; eight stones on the shelf round the pools and seven on the
+    foreground (`FOOT_STONES`, on the ground, clear of the pools' rims, the slots, the path and the
+    jar); low limestone ledges breaking through the foreground's soil and sand drifted against the
+    lowest wall's foot (`paintFootGround`); five more grass tufts at the foot (`GRASS`).
   - The beach flight (`FLIGHTS[BEACH_FLIGHT]`, the land's `paintFlight`): narrow slabs running down
     to the left along the shoreline from the lower terrace onto the beach's tip (ADR 0370).
   - Stones at both beach ends (the `stone` recipe), none on the flight.
@@ -1158,6 +1189,11 @@ over the sea. Shapes live in `coast/shapes.ts` (data only, devlog 149).
 ### Vegetation (G4, `paint-veg.ts`)
 Steps `maquis`, `olive` and `pine` (element `trees`), in parts. Palette `VEG`, lit from the left.
 - **Maquis** (`maquis`): `MAQUIS` along the promontory's back (paler toward the temple),
+  GA1 (devlog 226): every clump (maquis, phrygana, shore clumps) is a soft cushion: its body lifted
+  where the sun catches the dome's upper left, its shade gathered in its foot and the lowest lobes
+  (a crescent on every lobe read as cut paper), softer edges. The ledges' scrub on the cliff face
+  (`LEDGE_SCRUB`, the promontory step) is the same: five to eight small soft lobes in a dome, a lit
+  top, a shaded foot, its shadow on the rock to the lower right, twig flecks.
   `PROMONTORY_PINE_SHAPES` (G4b: seven small far Aleppo pines of varied height and lean, a few
   strokes each: a slender stem forking into two to four limbs, a pale flat needle cloud at each
   tip with sky between, a lit fringe of needle flicks on top, hazier toward the temple), `PHRYGANA` cushions
@@ -1170,7 +1206,7 @@ Steps `maquis`, `olive` and `pine` (element `trees`), in parts. Palette `VEG`, l
   per part. The scenery adds paper under the trunk, its shadow on the gravel and a clip at its sole.
 - **Pine** (`pine`, ADR 0380): the `aleppo-pine` species' tree, `planAleppoPine(PINE_TREE.seed,
   { lean: -1 })` at growth 1, its side branches below the fork pruned with their needles and cones
-  (a cliff pine's bare stem), at 1.9× its box with its foot on `PINE.base` (166, 762) on a low rock
+  (a cliff pine's bare stem), at 1.8× its box (GA1: 1.9 put its crown above the owner's window) with its foot on `PINE.base` (166, 762) on a low rock
   on the beach. It leans out over the left edge: the trunk passes left of the village, the crown
   stays under the shared stars' band and off the chapel. Parts: its shadow cast right on the
   shingle, the rock, paper under the trunk, the species' skeleton (silver), its red bark, a scenery
@@ -1280,6 +1316,12 @@ The painting is on white with no sky step; the sky is the daylight's plates (doc
   and steady, the harbour light on the mole's post (`HARBOUR_LIGHT`, GB1) with five warm dabs below
   it on the water as its broken reflection, and the extra stars. All through the existing
   `LightArt.lights` hook, which gets the phase: no contract change.
+- **GA1** (devlog 226): at the low suns the light plate rakes the point, the headland's rim and
+  the faces east of its deep fissures, and the columns' left flanks (warm), with their right sides
+  cool. **Margins** (ADR 0387, `margins.ts`): the coast paints its own margins step (the shared
+  field, the left side narrowed to 140 units) and lays the same lift on its sky plates (below
+  y 140) and sea plates, so the sides dissolve alike in every light; the far headland's wash is
+  only what shows over the far hill.
 - **Grades** (`COAST_GRADES`): the low glows over the sea at each sun's x (glowY 0.4), no lantern,
   sunset apricot 0.34, night a blue 0.5.
 - **The temple's shade** starts under the slanted break on the broken shafts, and the architrave's
@@ -1399,15 +1441,16 @@ should read as alive at the overview and stay calm: slow, soft, nothing flashing
 The acceptance pass (G8, devlog 225) holds the full list of open items, ordered by how much they
 hurt a first look. The lasting ones:
 - Water (devlog 176): the far hill's reflection is faint; the shingle's spatter reads a little even.
-- Land (devlog 177): the walls' seaward ends are a step down, not rubble; the terraces' seaward
-  edge is a straight ruled line at the overview (devlog 225).
+- Land (devlog 177): the walls' seaward ends are a step down, not rubble.
+- View (devlog 226): the phone's first view is 40 % sky (one focus for every window shape; a
+  per-scenery portrait framing is a contract change); `scrub-1`'s tree cannot show its crown in a
+  wide window at its scale; `low-4`'s medium plant still touches the right edge's dissolve.
 - Daylight (devlogs 182, 225): the architrave, the capitals and the crowns sit under the sky's
   wash, and the skyline's 2-unit reach either side of each column leaves a pale sky-tinted band
-  down the columns' sides; the promontory's face reads cool grey rather than rose at sunset;
-  Posidonia stays teal at sunset; the left side's paper lift over the far hill and the leaning
-  pine shows as a pale veil with an edge, pink at sunset.
+  down the columns' sides; Posidonia stays teal at sunset. (GA1 fixed the left side's veil, ADR
+  0387, and gave the sunset its raking light.)
 - Motion (devlogs 184, 213, 223): the bastion's ledge faces have no moving foam of their own;
-  `sprout.advance` does not move the water; the far glint road is pale at sunset; no overcast
+  `sprout.advance` does not move the water; no overcast
   light, so glints ignore the weather.
 - Wildlife (devlog 183): no perch on the chapel or the village (too far for a bird to read); the
   first splash rock's top is all slot.

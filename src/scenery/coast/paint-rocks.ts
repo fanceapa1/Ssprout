@@ -5,15 +5,15 @@
  */
 import type { Rng } from '../../core/rng';
 import { blob, bounds, createSimplex2D, mix, type Painter, type Pigment } from '../../paint';
-import { resample } from '../../paint/geometry';
 import type { Pt } from '../../render/viewport';
 import type { Strokes } from '../../scene/paint-land';
-import { POOLS, SHELF, SHORE_EDGE } from './layout';
+import { POOLS, SHELF, SHORE_EDGE, WALLS } from './layout';
 import { inView, paintFlight } from './paint-land';
 import { SAND, SEA } from './paint-water';
+import { FOOT_SHELF, FOOT_STONES, LEDGE_RUNS, LEDGE_SAMPLES, LIP, LIP_BOULDER_SHAPES, LIP_EDGES, SHORE_RUNS } from './lip-shapes';
 import { LIME, band, box, clipBatch, clipTo, ellipse, fillUnder, lineAt, liftBatch, rough, streak, wetBatch, type Mark } from './rock-kit';
 import {
-  BEACH_FLIGHT, BEACH_FLIGHT_BOX, bedAt, CLIFF_STONES, type Fissure, GOAT_TRACKS, LEDGE_SCRUB, fissureAt, fissureFoot, footAt, FORM_NOISE, PROMONTORY_FOOT_LINE, PROMONTORY_FORM, PROMONTORY_TOP_LINE, SHORE_BOULDER_SHAPES,
+  BEACH_FLIGHT, bedAt, CLIFF_STONES, type Fissure, GOAT_TRACKS, LEDGE_SCRUB, fissureAt, fissureFoot, footAt, FORM_NOISE, PROMONTORY_FOOT_LINE, PROMONTORY_FORM, PROMONTORY_TOP_LINE, SHORE_BOULDER_SHAPES,
   SPLASH_ROCK_SHAPES, topAt, type RockColumn, type RockShape,
 } from './shapes';
 
@@ -91,23 +91,41 @@ function* paintTint(p: Painter, rng: Rng): Strokes {
   yield* wetBatch(p, cool, mix(LIME.grey, LIME.shade, 0.4), { edge: 0.02, sharpness: 0.2, granulation: 0.6 });
 }
 
-/** Scrub caught on the ledges (`LEDGE_SCRUB`): a few rounded tufts sitting on the lip, each lobe shaded on its lower right, a sprig hanging over. */
+/**
+ * Scrub caught on the ledges (`LEDGE_SCRUB`, GA1): small tufted cushions on the lip, many small
+ * soft lobes in a dome, a lit top toward the sun, a shaded foot, its shadow on the rock to the
+ * lower right, a few twig flecks, now and then a sprig hanging over.
+ */
 function* paintLedgeScrub(p: Painter, rng: Rng): Strokes {
   const body: Mark[] = [];
-  const dark: Mark[] = [];
+  const lit: Mark[] = [];
+  const foot: Mark[] = [];
+  const cast: Mark[] = [];
+  const twigs: Mark[] = [];
   for (const s of LEDGE_SCRUB) {
-    for (let k = rng.int(2, 4); k > 0; k--) {
-      const x = s.x + rng.range(-1, 1) * s.r;
-      const r = s.r * rng.range(0.45, 0.75);
-      const y = s.y - r * 0.6 + rng.range(-0.5, 0.5);
-      body.push({ poly: blob(x, y, r, r * 0.75, rng, { irregularity: 0.4, points: 12 }), alpha: rng.range(0.5, 0.7) });
-      dark.push({ poly: blob(x + r * 0.35, y + r * 0.3, r * 0.6, r * 0.4, rng, { irregularity: 0.35, points: 10 }), alpha: 0.4 });
+    const r = s.r;
+    for (let k = rng.int(5, 8); k > 0; k--) {
+      const u = rng.range(-1, 1);
+      const dome = Math.sqrt(Math.max(0, 1 - u * u));
+      const lr = r * rng.range(0.28, 0.42);
+      const x = s.x + u * (r - lr * 0.6);
+      const y = s.y - lr * 0.55 - rng.next() * dome * r * 0.55;
+      body.push({ poly: blob(x, y, lr, lr * 0.85, rng, { irregularity: 0.45, points: 10 }), alpha: rng.range(0.4, 0.6) });
+      if (u < 0.3 && y < s.y - r * 0.35 && rng.chance(0.7)) lit.push({ poly: blob(x - lr * 0.25, y - lr * 0.3, lr * 0.55, lr * 0.4, rng, { irregularity: 0.4, points: 8 }), alpha: rng.range(0.35, 0.55) });
     }
-    if (rng.chance(0.5)) dark.push({ poly: streak({ x: s.x + rng.range(-2, 2), y: s.y - 0.5 }, { x: s.x + rng.range(-3, 3), y: s.y + rng.range(4, 9) }, 1.6, rng), alpha: 0.4 });
-    dark.push({ poly: blob(s.x + s.r * 0.4, s.y + 1.2, s.r * 0.9, 0.9, rng, { irregularity: 0.3, points: 10 }), alpha: 0.25 });
+    foot.push({ poly: blob(s.x + r * 0.15, s.y - r * 0.16, r * 0.95, r * 0.24, rng, { irregularity: 0.35, points: 12 }), alpha: 0.5 });
+    cast.push({ poly: blob(s.x + r * 0.95, s.y + 1.1, r * 0.85, Math.max(0.9, r * 0.16), rng, { irregularity: 0.3, points: 10 }), alpha: 0.32 });
+    for (let k = rng.int(3, 6); k > 0; k--) {
+      const x = s.x + rng.range(-0.7, 0.7) * r;
+      twigs.push({ poly: streak({ x, y: s.y - rng.range(0.1, 0.35) * r }, { x: x + rng.range(-1.2, 1.2), y: s.y - rng.range(0.4, 0.7) * r }, 0.6, rng), alpha: 0.45 });
+    }
+    if (rng.chance(0.5)) twigs.push({ poly: streak({ x: s.x + rng.range(-2, 2), y: s.y - 0.5 }, { x: s.x + rng.range(-3, 3), y: s.y + rng.range(4, 9) }, 1.4, rng), alpha: 0.4 });
   }
-  yield* wetBatch(p, body, mix(VEG_SCRUB, LIME.grey, 0.3), { edge: 0.2, sharpness: 0.6, granulation: 0.4 });
-  yield* wetBatch(p, dark, mix(VEG_SCRUB, LIME.recess, 0.6), { edge: 0.15, sharpness: 0.6, granulation: 0.3 });
+  yield* wetBatch(p, cast, mix(LIME.shade, LIME.recess, 0.4), { edge: 0.05, sharpness: 0.25, granulation: 0.4 });
+  yield* wetBatch(p, body, mix(VEG_SCRUB, LIME.grey, 0.25), { edge: 0.08, sharpness: 0.3, granulation: 0.7, granules: 0.3 });
+  yield* wetBatch(p, foot, mix(VEG_SCRUB, LIME.recess, 0.6), { edge: 0.04, sharpness: 0.25, granulation: 0.5 });
+  yield* liftBatch(p, lit, mix(VEG_SCRUB, '#e4e2b0', 0.55), { edge: 0.04, sharpness: 0.3 });
+  yield* wetBatch(p, twigs, mix(VEG_SCRUB, LIME.deep, 0.6), { edge: 0.2, sharpness: 0.7 });
 }
 
 /**
@@ -349,7 +367,7 @@ function* paintFoot(p: Painter, rng: Rng): Strokes {
     if (rng.chance(0.3)) lip.push({ poly: band(x, b, (q) => top(q) - 1, (q) => top(q) - 0.1, 3), alpha: 0.35 });
     x = b + rng.range(6, 30);
   }
-  const wetTop = (x: number) => footAt(x) - 3.2 - 2.5 * (0.5 + 0.5 * FORM_NOISE(x / 18, 5)) - depth(x) * 0.25;
+  const wetTop = (x: number) => footAt(x) - 3.2 - 4.5 * Math.max(0, FORM_NOISE(x / 18, 5) + 0.35 * FORM_NOISE(x / 6, 9)) - depth(x) * 0.25;
   wet.push({ poly: band(630, x1, wetTop, (x) => footAt(x) + 3, 3), alpha: 0.5 });
   algae.push({ poly: band(630, x1, (x) => wetTop(x) + 1.6, (x) => footAt(x) + 3, 3), alpha: 0.34 });
   yield* wetBatch(p, notch, LIME.recess, { edge: 0.08, sharpness: 0.35, granulation: 0.4 });
@@ -430,30 +448,7 @@ export function* paintCliffFoot(p: Painter, rng: Rng): Strokes {
 /** The pools' holes in the shelf (their water is the water painter's). */
 const POOL_HOLES: readonly Pt[][] = POOLS.map((q) => ellipse(q.cx, q.cy, q.rx - 1, q.ry - 0.8, 36));
 
-/** A shoreline's runs that face the viewer (a rock face shows under the edge) and those that face away (a lip shows). */
-function shoreRuns(edge: readonly Pt[]): { face: Pt[][]; lip: Pt[][] } {
-  const face: Pt[][] = [];
-  const lip: Pt[][] = [];
-  let run: Pt[] = [edge[0]!];
-  let facing = edge[1]!.x > edge[0]!.x;
-  for (let i = 1; i < edge.length; i++) {
-    const q = edge[i]!;
-    const f = q.x > edge[i - 1]!.x;
-    if (f !== facing) {
-      (facing ? face : lip).push(run);
-      run = [edge[i - 1]!];
-      facing = f;
-    }
-    run.push(q);
-  }
-  (facing ? face : lip).push(run);
-  return { face, lip };
-}
-
-export const SHORE_RUNS = shoreRuns(SHORE_EDGE);
-/** The ledge runs down the shoreline to the head of the beach flight, where the rock yields to the steps. */
-export const LEDGE_EDGE: readonly Pt[] = SHORE_EDGE.slice(0, SHORE_EDGE.findIndex((q) => q.y >= BEACH_FLIGHT_BOX.y) + 1);
-const LEDGE_RUNS = shoreRuns(LEDGE_EDGE);
+export { SHORE_RUNS };
 
 /** The colours where rock meets the sea: its broken reflection, the wet foot, weed, foam. */
 const SEAM = {
@@ -469,13 +464,15 @@ const SEAM = {
 export function* paintShoreRocks(p: Painter, rng: Rng): Strokes {
   yield* paintShelf(p, rng.fork('shelf'));
   yield* paintShoreline(p, rng.fork('shoreline'));
+  yield* paintFootShelf(p, rng.fork('foot-shelf'));
   yield* paintFlight(p, BEACH_FLIGHT, rng.fork('flight'));
   const stones = rng.fork('stones');
   for (const s of BEACH_STONES) {
     p.stone({ x: s.x, y: s.y, w: s.w, h: s.w * 0.5 }, { rng: stones, pigment: mix(LIME.body, LIME.grey, 0.3), warm: 0.35, light: -2.7, moss: 0, ink: 0.18, granulation: 0.5, patches: 1 });
     yield;
   }
-  yield* paintBoulders(p, [...SHORE_BOULDER_SHAPES, ...SPLASH_ROCK_SHAPES], rng.fork('boulders'));
+  yield* paintFootGround(p, rng.fork('foot-ground'));
+  yield* paintBoulders(p, [...SHORE_BOULDER_SHAPES, ...SPLASH_ROCK_SHAPES, ...LIP_BOULDER_SHAPES, ...FOOT_STONES], rng.fork('boulders'));
 }
 
 /** Stones at the beach's two ends: under the pine's rock on the left, by the flight's foot on the right. */
@@ -507,6 +504,10 @@ function* paintShelf(p: Painter, rng: Rng): Strokes {
   const cracks: Mark[] = [];
   const fronts: Mark[] = [];
   const lips: Mark[] = [];
+  // GA1: joints across the beds, so the shelf breaks into slabs, and each slab its own grey
+  const joints: Mark[] = [];
+  const slabTone: Mark[] = [];
+  const inPool = (x: number, y: number, pad: number) => POOLS.some((q) => ((x - q.cx) / (q.rx + pad)) ** 2 + ((y - q.cy) / (q.ry + pad * 0.6)) ** 2 < 1);
   const noise = createSimplex2D(rng.fork('slabs'));
   for (let y = 858; y < 1010; y += rng.range(12, 26)) {
     const tilt = rng.range(-0.04, 0.04);
@@ -519,6 +520,11 @@ function* paintShelf(p: Painter, rng: Rng): Strokes {
         const h = rng.range(3, 7);
         fronts.push({ poly: rough(band(x + 2, x1 - 2, (q) => at(q) + 1, (q) => at(q) + h, 8), rng, 0.8, 4), alpha: rng.range(0.18, 0.3) });
         lips.push({ poly: band(x + 3, x1 - 3, (q) => at(q) - 2, (q) => at(q) - 0.5, 8), alpha: 0.55 });
+        for (let jx = x + rng.range(12, 40); jx < x1 - 8; jx += rng.range(22, 60)) {
+          if (inPool(jx, at(jx) + 6, 6)) continue;
+          joints.push({ poly: streak({ x: jx, y: at(jx) + 1 }, { x: jx + rng.range(-4, 4), y: at(jx) + rng.range(8, 17) }, rng.range(0.8, 1.3), rng), alpha: rng.range(0.35, 0.55) });
+        }
+        if (rng.chance(0.7)) slabTone.push({ poly: rough(band(x + 2, x1 - 2, (q) => at(q) + 1.5, (q) => at(q) + rng.range(7, 16), 8), rng, 1, 4), alpha: rng.range(0.3, 0.5) });
       }
       x = x1 + rng.range(10, 60);
     }
@@ -558,7 +564,9 @@ function* paintShelf(p: Painter, rng: Rng): Strokes {
     if (rng.chance(0.6)) arris.push({ poly: band(x, Math.min(676, x + len), (q) => shelfTopAt(q) + 0.6, (q) => shelfTopAt(q) + 2.4, 6), alpha: 0.6 });
     x += len + rng.range(6, 30);
   }
+  yield* wetBatch(p, slabTone, mix(LIME.grey, LIME.shade, 0.4), { edge: 0.08, sharpness: 0.4, granulation: 0.8, granules: 0.3 });
   yield* wetBatch(p, fronts, LIME.shade, { edge: 0.15, sharpness: 0.6, granulation: 0.6 });
+  yield* wetBatch(p, joints, LIME.deep, { edge: 0.25, sharpness: 0.8, granulation: 0.3 });
   yield* wetBatch(p, cracks, LIME.deep, { edge: 0.25, sharpness: 0.8, granulation: 0.3 });
   yield* liftBatch(p, lips, LIME.lit, { edge: 0.05 });
   yield* wetBatch(p, pits, LIME.recess, { edge: 0.4, sharpness: 0.8 });
@@ -601,17 +609,21 @@ interface FaceBlock {
 /**
  * The shoreline as one broken limestone ledge: a pale top on the land behind the edge; under the
  * runs that face the viewer, a face in blocks of uneven height stepping into the water; along the
- * runs that face away, a wet lip; foam, a contact shade and a broken reflection at the water.
+ * runs that face away, a worn lip (GA1: slabs standing out into the water and notches cut back,
+ * `LIP`, with joints, end faces and broken wet edges); foam, a contact shade and a broken
+ * reflection at the water.
  */
 function* paintShoreline(p: Painter, rng: Rng): Strokes {
   const noise = createSimplex2D(rng.fork('ledge'));
-  const edge = resample(LEDGE_EDGE, 3);
+  const edge = LEDGE_SAMPLES;
+  const outer = LIP.edge;
   const n = edge.length;
   const inner = edge.map((q, i) => {
     const taper = Math.min(1, i / 6, (n - 1 - i) / 5);
-    return { x: q.x + (7 + 15 * (0.5 + 0.5 * noise(i / 7, 1))) * taper + 1, y: q.y + noise(i / 4, 2) * 2 * taper };
+    const wide = LIP.ranges.some(([a, b]) => i > a + 2 && i < b - 2) ? 6 : 0;
+    return { x: q.x + (7 + wide + 15 * (0.5 + 0.5 * noise(i / 7, 1))) * taper + 1, y: q.y + noise(i / 4, 2) * 2 * taper };
   });
-  const top: Pt[] = rough([...edge, ...inner.slice().reverse()], rng, 1.4, 3);
+  const top: Pt[] = rough([...outer, ...inner.slice().reverse()], rng, 1.4, 3);
   // the faces in blocks: each its own height and a small step at its top
   const blocks: FaceBlock[] = [];
   for (const run of LEDGE_RUNS.face) {
@@ -644,8 +656,7 @@ function* paintShoreline(p: Painter, rng: Rng): Strokes {
     }
   }
   const contact: Mark[] = [];
-  for (const run of LEDGE_RUNS.lip) {
-    const pts = resample(run, 3);
+  for (const pts of LIP_EDGES) {
     contact.push({ poly: [...pts.map((q) => ({ x: q.x - 0.5, y: q.y })), ...pts.slice().reverse().map((q) => ({ x: q.x - 7, y: q.y - 2.2 }))], alpha: 0.3 });
   }
   yield* wetBatch(p, [...refl, ...contact], SEAM.reflection, { edge: 0.08, sharpness: 0.4, granulation: 0.3 });
@@ -688,17 +699,68 @@ function* paintShoreline(p: Painter, rng: Rng): Strokes {
       weed[i]!.marks.push({ poly: streak({ x, y: k.bot(x) + 0.5 }, { x: x + rng.range(-1, 1), y: k.bot(x) - rng.range(3, 6.5) }, rng.range(1.6, 3), rng), alpha: 0.45 });
     }
   });
-  // the lips: a wet band at the water under the top's lit arris, weed at the waterline
+  // the lip: a broken wet edge at the water under a lit arris, weed in places; the notches in shade
   const lips: Mark[] = [];
   const lipWeed: Mark[] = [];
   const lipLit: Mark[] = [];
   const crack: Mark[] = [];
-  for (const run of LEDGE_RUNS.lip) {
-    const pts = resample(run, 3);
-    const off = (dx: number, dy: number) => pts.map((q, i) => ({ x: q.x + dx * (1 + 0.3 * noise(i / 3, 5)), y: q.y + dy }));
-    lips.push({ poly: [...off(-0.5, 0), ...off(2.6, 3.4).reverse()], alpha: 0.55 });
-    lipWeed.push({ poly: [...off(-0.5, 0), ...off(1, 1.4).reverse()], alpha: 0.45 });
-    lipLit.push({ poly: [...off(3, 3.8), ...off(4.6, 5.4).reverse()], alpha: 0.55 });
+  const notches: Mark[] = [];
+  const faces: Mark[] = [];
+  const slabLit: Mark[] = [];
+  const nrm = LIP.normal;
+  const off = (i: number, d: number, dy = 0): Pt => ({ x: outer[i]!.x - nrm[i]!.x * d, y: outer[i]!.y - nrm[i]!.y * d + dy });
+  const strip = (i0: number, i1: number, d0: number, d1: number): Pt[] => {
+    const a: Pt[] = [];
+    const b: Pt[] = [];
+    for (let i = i0; i <= i1; i++) {
+      a.push(off(i, d0));
+      b.push(off(i, d1));
+    }
+    return [...a, ...b.reverse()];
+  };
+  for (const [a, b] of LIP.ranges) {
+    for (let i = a; i < b; ) {
+      const j = Math.min(b, i + rng.int(2, 6));
+      if (rng.chance(0.7)) lips.push({ poly: strip(i, j, -0.4, rng.range(1.4, 2.6)), alpha: rng.range(0.3, 0.55) });
+      if (rng.chance(0.4)) lipWeed.push({ poly: strip(i, j, -0.4, 0.9), alpha: 0.4 });
+      if (rng.chance(0.65)) lipLit.push({ poly: strip(i, j, rng.range(2.2, 3), rng.range(3.6, 4.6)), alpha: 0.55 });
+      i = j;
+    }
+  }
+  // the lip's top weathered: greyer patches and pits over the pale stone
+  const mottle: Mark[] = [];
+  for (const [a, b] of LIP.ranges) {
+    for (let i = a + 2; i < b - 1; i += rng.int(2, 4)) {
+      const d = rng.range(2, 10);
+      const q = off(i, d);
+      mottle.push({ poly: blob(q.x, q.y, rng.range(2, 5.5), rng.range(1.2, 2.6), rng, { irregularity: 0.5 }), alpha: rng.range(0.2, 0.4) });
+    }
+  }
+  for (const [k, blk] of LIP.blocks.entries()) {
+    const o = LIP.out[Math.round((blk.i0 + blk.i1) / 2)]!;
+    if (o < -1.5) {
+      // a notch the sea has cut back into the lip: water in the rock's shade
+      const line: Pt[] = [];
+      for (let i = blk.i0 - 1; i <= blk.i1 + 1; i++) line.push(edge[i]!);
+      const cut: Pt[] = [];
+      for (let i = blk.i0 - 1; i <= blk.i1 + 1; i++) cut.push(outer[i]!);
+      notches.push({ poly: rough([...line, ...cut.reverse()], rng, 0.4, 2), alpha: 0.7 });
+    } else if (o > 4) {
+      slabLit.push({ poly: strip(blk.i0, blk.i1, 0.5, Math.min(o * 0.6, 5)), alpha: rng.range(0.25, 0.45) });
+    }
+    const next = LIP.blocks[k + 1];
+    if (!next || next.i0 !== blk.i1 + 1) continue;
+    const j = blk.i1;
+    const drop = LIP.out[j]! - LIP.out[j + 1]!;
+    // a joint where one slab meets the next, and the end that faces us where the next stands lower
+    const len = Math.max(4, Math.min(12, LIP.out[j]! + rng.range(3, 7)));
+    crack.push({ poly: streak(off(j, 0.3), off(j, len, rng.range(-1.5, 1.5)), rng.range(0.9, 1.4), rng), alpha: rng.range(0.35, 0.55) });
+    if (drop > 1.5) {
+      const h = Math.min(4.5, 1.5 + drop * 0.5);
+      const p0 = outer[j]!;
+      const p1 = outer[j + 1]!;
+      faces.push({ poly: [p0, p1, { x: p1.x + 0.5, y: p1.y + h * 0.6 }, { x: p0.x + 0.5, y: p0.y + h }], alpha: 0.5 });
+    }
   }
   // cracks across the top, from the edge inland
   for (let i = 4; i < n - 3; i += 2 + Math.floor(rng.range(0, 5))) {
@@ -710,6 +772,10 @@ function* paintShoreline(p: Painter, rng: Rng): Strokes {
   yield* clipBatch(p, body, mix(LIME.cream, LIME.body, 0.4), { edge: 0.12, sharpness: 0.5, granulation: 0.7, granules: 0.2 });
   yield* clipBatch(p, shade, LIME.shade, { edge: 0.15, sharpness: 0.5, granulation: 0.6 });
   yield* clipBatch(p, lit, LIME.lit, { edge: 0.05, sharpness: 0.6 }, true);
+  yield* wetBatch(p, mottle, mix(LIME.grey, LIME.shade, 0.3), { edge: 0.1, sharpness: 0.4, granulation: 0.8, granules: 0.3 });
+  yield* liftBatch(p, slabLit, LIME.lit, { edge: 0.05 });
+  yield* wetBatch(p, notches, mix(SEAM.reflection, SEA.deepTeal, 0.4), { edge: 0.15, sharpness: 0.5, granulation: 0.4 });
+  yield* wetBatch(p, faces, LIME.shade, { edge: 0.12, sharpness: 0.6, granulation: 0.5 });
   yield* wetBatch(p, lips, SEAM.wet, { edge: 0.2, sharpness: 0.6, granulation: 0.5 });
   yield* clipBatch(p, wet, SEAM.wet, { edge: 0.2, sharpness: 0.6, granulation: 0.5 });
   yield* clipBatch(p, weed, SEAM.weed, { edge: 0.15, sharpness: 0.5, granulation: 0.5 });
@@ -720,8 +786,7 @@ function* paintShoreline(p: Painter, rng: Rng): Strokes {
   // foam at the foot of the faces and along the lips
   const foam: Mark[] = [];
   for (const k of blocks) foam.push(...foamLine(k.x0 - 1, k.x1 + 1, (q) => k.bot(q), rng));
-  for (const run of LEDGE_RUNS.lip) {
-    const pts = resample(run, 3);
+  for (const pts of LIP_EDGES) {
     for (let i = 1; i < pts.length; ) {
       const j = Math.min(pts.length - 1, i + rng.int(2, 5));
       if (rng.chance(0.75)) {
@@ -733,6 +798,96 @@ function* paintShoreline(p: Painter, rng: Rng): Strokes {
     }
   }
   yield* liftBatch(p, foam, SEAM.foam, { edge: 0.05, sharpness: 0.6 });
+}
+
+/** Limestone ledges breaking through the foreground's soil below the lowest wall, and sand drifted against the wall's foot (GA1). */
+const FOOT_LEDGES: readonly [number, number, number, number][] = [
+  [700, 790, 948, 5], [1120, 1230, 962, 6], [1300, 1420, 950, 5], [1480, 1590, 968, 6], [800, 868, 986, 4], [960, 1030, 930, 4],
+];
+function* paintFootGround(p: Painter, rng: Rng): Strokes {
+  if (!inView(p, { x: 640, y: 860, w: 980, h: 150 })) return;
+  const tops: Mark[] = [];
+  const fronts: Mark[] = [];
+  const lips: Mark[] = [];
+  const drift: Mark[] = [];
+  for (const [x0, x1, y, h] of FOOT_LEDGES) {
+    const wob = rng.range(0, 6);
+    const top = (x: number) => y - 3 + Math.sin(x / 13 + wob) * 1.2;
+    const lip = (x: number) => y + Math.sin(x / 9 + wob) * 0.8;
+    tops.push({ poly: rough(band(x0, x1, top, lip, 6), rng, 1.2, 4), alpha: 0.55 });
+    fronts.push({ poly: rough(band(x0 + 3, x1 - 2, lip, (x) => lip(x) + h, 6), rng, 1, 4), alpha: 0.4 });
+    lips.push({ poly: band(x0 + 4, x1 - 5, (x) => lip(x) - 1.4, (x) => lip(x) - 0.2, 6), alpha: 0.6 });
+  }
+  for (let i = 0; i < 9; i++) {
+    const x = rng.range(700, 1590);
+    if (Math.abs(x - 915) < 40 || Math.abs(x - 1074) < 40) continue;
+    const y = lineAt(WALLS[2]!.edge, x) + WALLS[2]!.h + rng.range(4, 12);
+    drift.push({ poly: rough(ellipse(x, y, rng.range(18, 46), rng.range(3, 6), 16), rng, 1.2, 4), alpha: rng.range(0.3, 0.5) });
+  }
+  for (const s of tops) fillUnder(p, s.poly, LIME.under);
+  yield;
+  yield* wetBatch(p, drift, mix(SAND.dry, SAND.warm, 0.4), { edge: 0.08, sharpness: 0.4, granulation: 0.7, granules: 0.3 });
+  yield* wetBatch(p, tops, mix(LIME.body, LIME.grey, 0.35), { edge: 0.12, sharpness: 0.5, granulation: 0.8, granules: 0.25 });
+  yield* wetBatch(p, fronts, LIME.shade, { edge: 0.15, sharpness: 0.6, granulation: 0.6 });
+  yield* liftBatch(p, lips, LIME.lit, { edge: 0.05 });
+}
+
+/**
+ * The wave-cut shelf along the cliff's foot (GA1, `FOOT_SHELF`): low slabs awash in front of the
+ * face, each a lit top over a wet front with weed, joints between them, a broken reflection and
+ * foam at the water; where the shelf is missing the face drops straight into the sea.
+ */
+function* paintFootShelf(p: Painter, rng: Rng): Strokes {
+  const { foot, depth, rise, blocks } = FOOT_SHELF;
+  const front = (i: number) => foot[i]!.y + depth[i]!;
+  const slabs: { clip: Pt[]; marks: Mark[] }[] = [];
+  const lit: Mark[] = [];
+  const wet: Mark[] = [];
+  const weed: Mark[] = [];
+  const joints: Mark[] = [];
+  const refl: Mark[] = [];
+  const foam: Mark[] = [];
+  const span = (i0: number, i1: number, a: (i: number) => number, b: (i: number) => number): Pt[] => {
+    const up: Pt[] = [];
+    const dn: Pt[] = [];
+    for (let i = i0; i <= i1; i++) {
+      up.push({ x: foot[i]!.x, y: a(i) });
+      dn.push({ x: foot[i]!.x, y: b(i) });
+    }
+    return [...up, ...dn.reverse()];
+  };
+  for (const k of blocks) {
+    if (k.out <= 0) continue;
+    const i0 = Math.max(0, k.i0 - 1);
+    const i1 = Math.min(foot.length - 1, k.i1 + 1);
+    const top = (i: number) => foot[i]!.y - 1 - rise[i]!;
+    const poly = rough(span(i0, i1, top, (i) => front(i) + 0.4), rng, 0.6, 3);
+    slabs.push({ clip: poly, marks: [{ poly, alpha: 0.6 }, { poly: span(i0, i1, (i) => top(i) + (front(i) - top(i)) * 0.4, (i) => front(i) + 1), alpha: 0.25 }] });
+    lit.push({ poly: rough(span(i0, i1, (i) => top(i) - 0.2, (i) => top(i) + (front(i) - top(i)) * rng.range(0.25, 0.4)), rng, 0.4, 3), alpha: rng.range(0.3, 0.45) });
+    wet.push({ poly: span(i0, i1, (i) => top(i) + (front(i) - top(i)) * rng.range(0.5, 0.65), (i) => front(i) + 0.6), alpha: 0.55 });
+    weed.push({ poly: span(i0, i1, (i) => front(i) - 1.1 + Math.sin(i * 1.7) * 0.4, (i) => front(i) + 0.6), alpha: 0.5 });
+    joints.push({ poly: streak({ x: foot[i0]!.x + 0.5, y: foot[i0]!.y - 1 }, { x: foot[i0]!.x + rng.range(-1, 1), y: front(i0) + 0.3 }, rng.range(0.8, 1.3), rng), alpha: 0.5 });
+    for (let j = 0; j < 2; j++) {
+      const o = 0.8 + j * 1.8;
+      refl.push({ poly: span(i0 + j, i1 - j, (i) => front(i) + o, (i) => front(i) + o + 1.1), alpha: j ? 0.18 : 0.32 });
+    }
+    const x0 = foot[i0]!.x;
+    const x1 = foot[i1]!.x;
+    foam.push(...foamLine(x0 - 1, x1 + 1, (x) => lineAt(FOOT_SHELF.front, x), rng));
+  }
+  fillUnderAll(p, slabs.map((g) => g.clip));
+  yield;
+  yield* wetBatch(p, refl, SEAM.reflection, { edge: 0.08, sharpness: 0.4, granulation: 0.3 });
+  yield* clipBatch(p, slabs, mix(LIME.body, LIME.grey, 0.45), { edge: 0.12, sharpness: 0.5, granulation: 0.8, granules: 0.25 });
+  yield* liftBatch(p, lit, LIME.lit, { edge: 0.05, sharpness: 0.6 });
+  yield* wetBatch(p, wet, SEAM.wet, { edge: 0.2, sharpness: 0.6, granulation: 0.5 });
+  yield* wetBatch(p, weed, SEAM.weed, { edge: 0.15, sharpness: 0.5, granulation: 0.5 });
+  yield* wetBatch(p, joints, LIME.deep, { edge: 0.25, sharpness: 0.8 });
+  yield* liftBatch(p, foam, SEAM.foam, { edge: 0.05, sharpness: 0.6 });
+}
+
+function fillUnderAll(p: Painter, shapes: readonly Pt[][]): void {
+  for (const s of shapes) fillUnder(p, s, LIME.under);
 }
 
 /** Broken foam hugging a foot line over x0..x1, and a fainter lap mark just in front of it. */

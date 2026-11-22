@@ -115,7 +115,7 @@ export const LAND: readonly Pt[] = [
 /** The big gnarled olive on the top terrace, right of the path. */
 export const OLIVE = { base: { x: 1290, y: 540 }, crown: { x: 1290, y: 330 }, rx: 210, ry: 120 } as const;
 /** The leaning Aleppo pine framing the left edge, on its rock at the beach's west end: its foot and its trunk's top. */
-export const PINE = { base: { x: 166, y: 762 }, top: { x: 51, y: 218 } } as const;
+export const PINE = { base: { x: 166, y: 762 }, top: { x: 57, y: 247 } } as const;
 
 /** The gravel path from the viewer's feet up the terraces to the olive, nearest first, and where it climbs a wall. */
 export const PATH: readonly Pt[] = [

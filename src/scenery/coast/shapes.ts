@@ -310,28 +310,26 @@ export const OLIVE_SHADOW = { cx: OLIVE.base.x + 70, cy: OLIVE.base.y + 8, rx: 1
  * leaning `lean`, bare below its fork, drawn `scale` × its box units with its foot on `PINE.base`
  * (ADR 0380). The literals below come from that plan; `veg.test.ts` checks them.
  */
-export const PINE_TREE = { seed: 101, scale: 1.9, marks: 1.3, lean: -1, base: PINE.base } as const;
+export const PINE_TREE = { seed: 101, scale: 1.8, marks: 1.3, lean: -1, base: PINE.base } as const;
 /** Its trunk as painted, foot to top (the cicada's bark). */
-export const PINE_TRUNK: readonly WoodPt[] = [{ x: 166, y: 762, hw: 19.4, leaves: 0 }, { x: 154, y: 695, hw: 12.6, leaves: 0 }, { x: 138, y: 623, hw: 10.7, leaves: 0 }, { x: 123, y: 557, hw: 9.2, leaves: 0 }, { x: 108, y: 490, hw: 7.7, leaves: 0 }, { x: 94, y: 423, hw: 6.3, leaves: 0 }, { x: 84, y: 350, hw: 4.9, leaves: 0 }, { x: 72, y: 283, hw: 3.6, leaves: 6 }, { x: 51, y: 218, hw: 2.4, leaves: 13 }];
+export const PINE_TRUNK: readonly WoodPt[] = [{ x: 166, y: 762, hw: 18.4, leaves: 0 }, { x: 155, y: 698, hw: 11.9, leaves: 0 }, { x: 140, y: 630, hw: 10.2, leaves: 0 }, { x: 125, y: 567, hw: 8.7, leaves: 0 }, { x: 111, y: 504, hw: 7.3, leaves: 0 }, { x: 98, y: 441, hw: 6, leaves: 0 }, { x: 88, y: 372, hw: 4.6, leaves: 0 }, { x: 77, y: 308, hw: 3.4, leaves: 8 }, { x: 57, y: 247, hw: 2.3, leaves: 13 }];
 /** Its limbs and big branches as painted, nine samples each (the perches). */
 export const PINE_BRANCHES: readonly (readonly WoodPt[])[] = [
-  [{ x: 90, y: 392, hw: 3.4, leaves: 0 }, { x: 82, y: 373, hw: 3, leaves: 0 }, { x: 65, y: 358, hw: 2.6, leaves: 0 }, { x: 47, y: 348, hw: 2.3, leaves: 0 }, { x: 28, y: 333, hw: 2, leaves: 1 }, { x: 15, y: 317, hw: 1.8, leaves: 5 }, { x: 1, y: 303, hw: 1.5, leaves: 9 }, { x: -16, y: 285, hw: 1.3, leaves: 4 }, { x: -28, y: 268, hw: 1, leaves: 4 }],
-  [{ x: 86, y: 374, hw: 3, leaves: 0 }, { x: 85, y: 356, hw: 2.6, leaves: 0 }, { x: 82, y: 338, hw: 2.3, leaves: 0 }, { x: 80, y: 320, hw: 2.1, leaves: 1 }, { x: 78, y: 302, hw: 1.8, leaves: 5 }, { x: 75, y: 284, hw: 1.6, leaves: 6 }, { x: 73, y: 266, hw: 1.3, leaves: 10 }, { x: 71, y: 248, hw: 1.1, leaves: 9 }, { x: 70, y: 230, hw: 0.9, leaves: 12 }],
-  [{ x: 82, y: 345, hw: 2.9, leaves: 0 }, { x: 87, y: 331, hw: 2.5, leaves: 0 }, { x: 94, y: 315, hw: 2.2, leaves: 0 }, { x: 100, y: 302, hw: 2, leaves: 0 }, { x: 104, y: 288, hw: 1.7, leaves: 1 }, { x: 107, y: 274, hw: 1.5, leaves: 2 }, { x: 110, y: 257, hw: 1.3, leaves: 6 }, { x: 112, y: 243, hw: 1.1, leaves: 9 }, { x: 115, y: 229, hw: 0.9, leaves: 10 }],
-  [{ x: 42, y: 344, hw: 1.4, leaves: 0 }, { x: 37, y: 336, hw: 1.2, leaves: 0 }, { x: 33, y: 329, hw: 1.1, leaves: 1 }, { x: 26, y: 323, hw: 1, leaves: 2 }, { x: 19, y: 317, hw: 0.9, leaves: 5 }, { x: 12, y: 313, hw: 0.8, leaves: 6 }, { x: 3, y: 309, hw: 0.7, leaves: 8 }, { x: -4, y: 305, hw: 0.6, leaves: 9 }, { x: -12, y: 300, hw: 0.5, leaves: 7 }],
-  [{ x: 25, y: 331, hw: 1.2, leaves: 1 }, { x: 18, y: 335, hw: 1, leaves: 1 }, { x: 10, y: 336, hw: 0.9, leaves: 3 }, { x: 2, y: 335, hw: 0.9, leaves: 7 }, { x: -7, y: 335, hw: 0.8, leaves: 9 }, { x: -15, y: 337, hw: 0.7, leaves: 12 }, { x: -23, y: 338, hw: 0.6, leaves: 11 }, { x: -31, y: 338, hw: 0.5, leaves: 10 }, { x: -40, y: 339, hw: 0.5, leaves: 10 }],
-  [{ x: -4, y: 298, hw: 0.9, leaves: 11 }, { x: -9, y: 290, hw: 0.8, leaves: 6 }, { x: -15, y: 283, hw: 0.7, leaves: 4 }, { x: -20, y: 277, hw: 0.7, leaves: 2 }, { x: -26, y: 270, hw: 0.6, leaves: 3 }, { x: -31, y: 263, hw: 0.6, leaves: 3 }, { x: -36, y: 255, hw: 0.5, leaves: 3 }, { x: -40, y: 248, hw: 0.5, leaves: 5 }, { x: -45, y: 241, hw: 0.4, leaves: 7 }],
-  [{ x: 62, y: 258, hw: 1.9, leaves: 11 }, { x: 81, y: 243, hw: 1.7, leaves: 8 }, { x: 95, y: 225, hw: 1.5, leaves: 11 }, { x: 102, y: 201, hw: 1.4, leaves: 5 }, { x: 110, y: 178, hw: 1.2, leaves: 0 }, { x: 120, y: 158, hw: 1.1, leaves: 0 }, { x: 133, y: 136, hw: 1, leaves: 1 }, { x: 144, y: 116, hw: 0.9, leaves: 2 }, { x: 156, y: 95, hw: 0.8, leaves: 4 }],
-  [{ x: 57, y: 240, hw: 1.7, leaves: 10 }, { x: 39, y: 231, hw: 1.5, leaves: 16 }, { x: 23, y: 220, hw: 1.3, leaves: 15 }, { x: 8, y: 206, hw: 1.2, leaves: 8 }, { x: -7, y: 190, hw: 1.1, leaves: 9 }, { x: -17, y: 173, hw: 1, leaves: 3 }, { x: -29, y: 156, hw: 0.9, leaves: 5 }, { x: -43, y: 142, hw: 0.8, leaves: 5 }, { x: -58, y: 128, hw: 0.7, leaves: 7 }],
-  [{ x: 125, y: 150, hw: 0.7, leaves: 0 }, { x: 133, y: 151, hw: 0.6, leaves: 2 }, { x: 140, y: 151, hw: 0.6, leaves: 4 }, { x: 147, y: 152, hw: 0.6, leaves: 5 }, { x: 155, y: 152, hw: 0.5, leaves: 8 }, { x: 163, y: 153, hw: 0.5, leaves: 10 }, { x: 171, y: 154, hw: 0.5, leaves: 10 }, { x: 178, y: 155, hw: 0.5, leaves: 12 }, { x: 185, y: 156, hw: 0.4, leaves: 10 }],
-  [{ x: 138, y: 126, hw: 0.6, leaves: 2 }, { x: 140, y: 118, hw: 0.6, leaves: 2 }, { x: 142, y: 111, hw: 0.5, leaves: 0 }, { x: 145, y: 104, hw: 0.5, leaves: 2 }, { x: 148, y: 96, hw: 0.5, leaves: 3 }, { x: 151, y: 90, hw: 0.5, leaves: 4 }, { x: 155, y: 84, hw: 0.5, leaves: 6 }, { x: 159, y: 77, hw: 0.4, leaves: 5 }, { x: 162, y: 70, hw: 0.4, leaves: 7 }],
+  [{ x: 94, y: 412, hw: 3.3, leaves: 0 }, { x: 86, y: 394, hw: 2.8, leaves: 0 }, { x: 70, y: 379, hw: 2.5, leaves: 0 }, { x: 53, y: 370, hw: 2.2, leaves: 0 }, { x: 35, y: 356, hw: 1.9, leaves: 1 }, { x: 23, y: 341, hw: 1.7, leaves: 5 }, { x: 9, y: 327, hw: 1.5, leaves: 10 }, { x: -6, y: 310, hw: 1.2, leaves: 4 }, { x: -18, y: 294, hw: 1, leaves: 4 }],
+  [{ x: 91, y: 395, hw: 2.9, leaves: 0 }, { x: 89, y: 377, hw: 2.5, leaves: 0 }, { x: 86, y: 361, hw: 2.2, leaves: 0 }, { x: 84, y: 343, hw: 1.9, leaves: 2 }, { x: 83, y: 326, hw: 1.7, leaves: 5 }, { x: 80, y: 310, hw: 1.5, leaves: 6 }, { x: 78, y: 293, hw: 1.3, leaves: 10 }, { x: 76, y: 275, hw: 1.1, leaves: 10 }, { x: 75, y: 258, hw: 0.9, leaves: 14 }],
+  [{ x: 87, y: 367, hw: 2.8, leaves: 0 }, { x: 91, y: 354, hw: 2.4, leaves: 0 }, { x: 98, y: 339, hw: 2.1, leaves: 0 }, { x: 103, y: 326, hw: 1.9, leaves: 0 }, { x: 107, y: 313, hw: 1.6, leaves: 1 }, { x: 110, y: 300, hw: 1.4, leaves: 4 }, { x: 113, y: 283, hw: 1.2, leaves: 7 }, { x: 115, y: 270, hw: 1, leaves: 9 }, { x: 118, y: 257, hw: 0.8, leaves: 10 }],
+  [{ x: 48, y: 366, hw: 1.3, leaves: 0 }, { x: 44, y: 359, hw: 1.1, leaves: 1 }, { x: 40, y: 352, hw: 1, leaves: 1 }, { x: 34, y: 346, hw: 0.9, leaves: 2 }, { x: 27, y: 341, hw: 0.8, leaves: 5 }, { x: 20, y: 337, hw: 0.8, leaves: 7 }, { x: 12, y: 333, hw: 0.7, leaves: 8 }, { x: 5, y: 329, hw: 0.6, leaves: 10 }, { x: -3, y: 325, hw: 0.5, leaves: 8 }],
+  [{ x: 33, y: 354, hw: 1.1, leaves: 1 }, { x: 26, y: 357, hw: 1, leaves: 1 }, { x: 18, y: 359, hw: 0.9, leaves: 3 }, { x: 10, y: 358, hw: 0.8, leaves: 7 }, { x: 2, y: 358, hw: 0.7, leaves: 9 }, { x: -5, y: 359, hw: 0.7, leaves: 12 }, { x: -13, y: 360, hw: 0.6, leaves: 11 }, { x: -21, y: 361, hw: 0.5, leaves: 11 }, { x: -29, y: 361, hw: 0.4, leaves: 10 }],
+  [{ x: 5, y: 322, hw: 0.8, leaves: 11 }, { x: 0, y: 315, hw: 0.7, leaves: 6 }, { x: -5, y: 308, hw: 0.7, leaves: 4 }, { x: -11, y: 303, hw: 0.6, leaves: 2 }, { x: -16, y: 296, hw: 0.6, leaves: 4 }, { x: -20, y: 289, hw: 0.5, leaves: 3 }, { x: -25, y: 282, hw: 0.5, leaves: 4 }, { x: -29, y: 275, hw: 0.4, leaves: 5 }, { x: -34, y: 268, hw: 0.4, leaves: 8 }],
+  [{ x: 68, y: 285, hw: 1.8, leaves: 11 }, { x: 86, y: 270, hw: 1.6, leaves: 10 }, { x: 99, y: 253, hw: 1.4, leaves: 12 }, { x: 106, y: 231, hw: 1.3, leaves: 5 }, { x: 113, y: 208, hw: 1.2, leaves: 0 }, { x: 123, y: 190, hw: 1.1, leaves: 0 }, { x: 135, y: 169, hw: 0.9, leaves: 1 }, { x: 145, y: 150, hw: 0.8, leaves: 2 }, { x: 156, y: 130, hw: 0.7, leaves: 4 }],
+  [{ x: 63, y: 268, hw: 1.6, leaves: 11 }, { x: 46, y: 259, hw: 1.4, leaves: 16 }, { x: 30, y: 248, hw: 1.3, leaves: 18 }, { x: 16, y: 235, hw: 1.2, leaves: 8 }, { x: 2, y: 220, hw: 1, leaves: 10 }, { x: -8, y: 204, hw: 0.9, leaves: 3 }, { x: -19, y: 188, hw: 0.8, leaves: 6 }, { x: -32, y: 175, hw: 0.7, leaves: 5 }, { x: -46, y: 162, hw: 0.6, leaves: 7 }],
 ];
 /** Its crown's needle clouds that reach into the frame. */
 export const PINE_PADS: readonly { x: number; y: number; rx: number; ry: number }[] = [
-  { x: -55, y: 222, rx: 67, ry: 40 }, { x: 167, y: 244, rx: 56, ry: 38 }, { x: 83, y: 221, rx: 66, ry: 50 },
-  { x: 3, y: 202, rx: 61, ry: 41 }, { x: 46, y: 165, rx: 36, ry: 21 }, { x: -34, y: 331, rx: 61, ry: 37 },
-  { x: 155, y: 49, rx: 67, ry: 47 }, { x: 139, y: 69, rx: 47, ry: 23 }, { x: 22, y: 278, rx: 63, ry: 39 },
-  { x: 68, y: 281, rx: 35, ry: 41 }, { x: 177, y: 139, rx: 60, ry: 43 },
+  { x: -66, y: 316, rx: 67, ry: 44 }, { x: -41, y: 250, rx: 65, ry: 39 }, { x: 163, y: 270, rx: 69, ry: 39 },
+  { x: 82, y: 250, rx: 73, ry: 49 }, { x: 12, y: 229, rx: 59, ry: 39 }, { x: 53, y: 193, rx: 34, ry: 13 },
+  { x: -22, y: 352, rx: 60, ry: 47 }, { x: 157, y: 87, rx: 62, ry: 45 }, { x: 134, y: 100, rx: 52, ry: 27 },
+  { x: 36, y: 304, rx: 65, ry: 37 }, { x: 76, y: 317, rx: 30, ry: 31 }, { x: 176, y: 172, rx: 57, ry: 40 },
 ];
 /** The low rock its foot grips (centre x, foot y, width, height). */
 export const PINE_ROCK = { x: 160, y: 778, w: 84, h: 26 } as const;
@@ -549,6 +547,8 @@ export const GRASS: readonly (readonly [number, number, number])[] = [
   [790, 742, 20], [1200, 752, 18], [1610, 746, 22],
   [748, 866, 22], [1450, 880, 24], [1590, 884, 22],
   [720, 940, 30], [1100, 1006, 40], [1390, 1010, 44], [1530, 1004, 40], [1604, 994, 46], [970, 1010, 34],
+  // GA1: tufts at the painting's foot, so it ends in something
+  [1012, 902, 22], [1252, 896, 20], [800, 962, 26], [1462, 952, 28], [1180, 980, 24],
 ];
 
 /** Dry grass on the walls' faces, away from the wall-top and crack slots: wall index, x, depth below the coping. */

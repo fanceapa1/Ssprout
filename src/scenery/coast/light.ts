@@ -12,7 +12,7 @@ import { HARBOUR } from './distance';
 import { SEA_WATER } from './geometry';
 import { COAST_GRADES } from './daylight';
 import { CHAPEL, COLUMNS, COLUMN_W, OLIVE, PINE, PROMONTORY, STYLOBATE, VILLAGE, WALLS } from './layout';
-import { PINE_PADS, VILLAGE_CUBES, WALL_FACES } from './shapes';
+import { footAt, PINE_PADS, PROMONTORY_FORM, topAt, VILLAGE_CUBES, WALL_FACES } from './shapes';
 import { COAST_NIGHT_STARS } from './sky';
 
 export { COAST_GRADES };
@@ -152,13 +152,30 @@ function coastLights(p: Painter, _rng: Rng, _scene: SceneGeometry, phase: DayPha
     const k = sunset ? 0.62 : 0.45;
     const warm: Rgb = sunset ? [255, 224, 176] : [255, 234, 216];
     const rose: Rgb = sunset ? [252, 214, 204] : [250, 226, 226];
-    // the temple catches it: the shafts' left flanks, the capitals and the architrave
+    // GA1: the low sun's raking light, warmer than the grade, and the cool sides turned from it
+    const rake: Rgb = sunset ? [255, 178, 104] : [255, 204, 158];
+    const cool: Rgb = sunset ? [182, 178, 222] : [196, 194, 230];
+    // the temple catches it: the shafts' left flanks, the capitals and the architrave; their right sides cool
     dab(p, 756, 340, 110, 70, k * 0.6, warm);
-    for (const c of COLUMNS) for (let y = STYLOBATE.y - c.h + 6; y < STYLOBATE.y; y += 14) dab(p, c.x - 3, y, 7, 10, k * 0.8, warm);
-    // the limestone goes rose: the whole promontory, most at the point and along its top
+    for (const c of COLUMNS) {
+      for (let y = STYLOBATE.y - c.h + 6; y < STYLOBATE.y; y += 12) {
+        dab(p, c.x - 3.5, y, 6, 9, Math.min(1, k * 1.5), rake);
+        dab(p, c.x + 4.5, y, 4.5, 9, k * 0.75, cool);
+      }
+    }
+    // the limestone goes rose, and the light rakes its west faces: the point, and each block's
+    // face just east of a deep fissure (the face turned toward the sea and the sun)
     within(p, PROMONTORY, () => {
-      dab(p, 980, 400, 560, 120, k * 0.45, rose);
+      dab(p, 980, 400, 560, 120, k * 0.35, rose);
       for (let x = 640; x <= 1000; x += 36) dab(p, x, 420 - (x - 640) * 0.18, 60, 26, k * 0.6 * (1 - (x - 640) / 600), rose);
+      dab(p, 676, 410, 64, 32, Math.min(1, k * 1.4), rake);
+      for (let x = 640; x <= 1400; x += 30) dab(p, x, topAt(x) + 5, 40, 9, k * 0.9 * (1 - (x - 640) / 1100), rake);
+      for (const f of PROMONTORY_FORM.fissures) {
+        if (f.depth < 0.75 || f.x > 1400) continue;
+        const top = topAt(f.x);
+        const foot = footAt(f.x);
+        dab(p, f.x + 12, (top + foot) / 2, 12, (foot - top) * 0.5, k * 1.1 * (1 - (f.x - 640) / 1100), rake);
+      }
     });
     // the white village on the far slope: a broad warmth, then each house
     dab(p, 230, 350, 160, 50, k * 0.55, warm);
@@ -167,7 +184,7 @@ function coastLights(p: Painter, _rng: Rng, _scene: SceneGeometry, phase: DayPha
     dab(p, OLIVE.crown.x - OLIVE.rx * 0.5, OLIVE.crown.y + 10, 90, 60, k * 0.4, warm);
     for (let i = 1; i < 6; i++) dab(p, PINE.base.x + (PINE.top.x - PINE.base.x) * (i / 6) - 4, PINE.base.y + (PINE.top.y - PINE.base.y) * (i / 6), 8, 40, k * 0.35, warm);
     for (const w of WALLS) dab(p, w.edge[0]!.x + 50, w.edge[0]!.y + 2, 70, 6, k * 0.4, warm);
-    keepCove(p, sunset ? 0.42 : 0.3);
+    keepCove(p, sunset ? 0.52 : 0.36);
     return;
   }
   if (phase === 'midday') {
