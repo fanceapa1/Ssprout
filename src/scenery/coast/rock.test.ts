@@ -10,11 +10,14 @@ import { pointInPolygon } from '../../paint/geometry';
 import { applyView, type PaintView } from '../../scene/background';
 import { PaintRecorder, type RecordedCost } from '../../scene/paint-record';
 import { COAST_ART, COAST_ELEMENTS } from '.';
-import { FAR_HILL, PROMONTORY, SPLASH_ROCKS, TEMPLE_SHAPES } from './layout';
+import { FAR_HILL, HORIZON, PROMONTORY, SPLASH_ROCKS, TEMPLE_SHAPES } from './layout';
 import { PROMONTORY_FORM, SHORE_RUNS, footAt, topAt } from './paint-rocks';
 import { coastSteps } from './painters';
 import { rough } from './rock-kit';
-import { CLIFF_STONES, SHORE_BOULDER_SHAPES, SPLASH_ROCK_SHAPES } from './shapes';
+import { SUN_R, UNITS_PER_DEGREE } from '../../ambience/sky-layout';
+import { CHAPEL_ROAD, FAR_CYPRESSES, FAR_OLIVES, FIELD_TERRACES, GAP_ISLANDS, HARBOUR, HILL_SHORE, PASTEL_WALLS, TILED_ROOFS } from './distance';
+import { CLIFF_STONES, LEDGE_SCRUB, SHORE_BOULDER_SHAPES, SPLASH_ROCK_SHAPES } from './shapes';
+import { COAST_WILDLIFE } from './wildlife';
 import { COAST_SLOTS } from './slots';
 import { columnShapes } from './temple';
 import { VILLAGE_CUBES } from './shapes';
@@ -91,7 +94,7 @@ describe('coast rock painting (G2)', () => {
 
   it('is deterministic: the same marks every time', () => {
     // quantised hashes from a fresh process, pinned as the oasis's (paint caches warm up across runs)
-    expect({ overview: runs.overview!.hash, detail: runs.detail!.hash }).toEqual({ overview: 'f2efa363', detail: '21f35751' });
+    expect({ overview: runs.overview!.hash, detail: runs.detail!.hash }).toEqual({ overview: '74c6ac91', detail: '117c8a3a' });
     expect(runs.again!.chunks.map((c) => c.name)).toEqual(runs.overview!.chunks.map((c) => c.name));
   });
 
@@ -192,5 +195,58 @@ describe('the splash rocks and the shoreline’s blocks', () => {
     for (const c of cubes) expect(pointInPolygon({ x: c.x + c.w / 2, y: c.y + c.h - 1 }, FAR_HILL), `${c.x},${c.y}`).toBe(true);
     const rowY = VILLAGE_CUBES.map((row) => Math.min(...row.map((c) => c.y)));
     for (let i = 1; i < rowY.length; i++) expect(rowY[i]!).toBeGreaterThanOrEqual(rowY[i - 1]! - 8);
+  });
+});
+
+describe('coast far shore and cliff detail (GB1)', () => {
+  const houses = VILLAGE_CUBES.flat();
+  const inHouse = (x: number, y: number) => houses.some((c) => x > c.x && x < c.x + c.w && y > c.y && y < c.y + c.h);
+
+  it('keeps the far islands low in the gap: a sun from 2° up stands over them, lower it sets behind them', () => {
+    for (const q of GAP_ISLANDS.flat()) {
+      expect(q.y).toBeGreaterThanOrEqual(HORIZON - 14);
+      expect(q.y).toBeLessThanOrEqual(HORIZON);
+    }
+    // the sun's centre at 2°; the disc's lower part is the painting's (paper reserved over the island)
+    expect(HORIZON - 2 * UNITS_PER_DEGREE).toBeLessThan(Math.min(...GAP_ISLANDS.flat().map((q) => q.y)));
+    expect(SUN_R).toBeGreaterThan(HORIZON - Math.min(...GAP_ISLANDS.flat().map((q) => q.y)));
+  });
+
+  it('puts the harbour on the hill’s waterline, above the bay where the far creatures go', () => {
+    for (const q of [...HARBOUR.quay, ...HARBOUR.mole, ...HARBOUR.shingle, HARBOUR.light]) {
+      expect(q.y).toBeGreaterThan(HORIZON - 3);
+      expect(q.y).toBeLessThan(HORIZON + 8);
+      expect(q.x).toBeGreaterThan(200);
+      expect(q.x).toBeLessThan(470);
+    }
+    for (const b of HARBOUR.boats) expect(b.y).toBeLessThan(HORIZON + 8);
+    for (const s of HILL_SHORE) expect(s.x1).toBeLessThanOrEqual(516);
+  });
+
+  it('plants the far groves and cypresses on the hill, never inside a house', () => {
+    expect(FAR_OLIVES.length).toBeGreaterThan(40);
+    for (const o of FAR_OLIVES) {
+      expect(pointInPolygon(o, FAR_HILL), `${o.x},${o.y}`).toBe(true);
+      expect(inHouse(o.x, o.y), `${o.x},${o.y}`).toBe(false);
+    }
+    for (const c of FAR_CYPRESSES) {
+      expect(pointInPolygon({ x: c.x, y: c.y - 1 }, FAR_HILL)).toBe(true);
+      expect(inHouse(c.x, c.y - 1), `${c.x},${c.y}`).toBe(false);
+    }
+    for (const q of CHAPEL_ROAD) expect(inHouse(q.x, q.y), `${q.x},${q.y}`).toBe(false);
+    expect(FIELD_TERRACES.length).toBeGreaterThan(20);
+    for (const i of [...TILED_ROOFS, ...PASTEL_WALLS.map((w) => w.cube)]) expect(houses[i]).toBeDefined();
+  });
+
+  it('keeps the ledges’ scrub off the goats’ ways and the slots', () => {
+    expect(LEDGE_SCRUB.length).toBeGreaterThan(8);
+    const ledges = (COAST_WILDLIFE.perches ?? []).filter((p) => p.kind === 'ledge');
+    expect(ledges.length).toBeGreaterThan(50);
+    for (const s of LEDGE_SCRUB) {
+      for (const l of ledges) expect(Math.hypot(s.x - l.x, s.y - l.y), `${s.x},${s.y} by ${l.id}`).toBeGreaterThan(l.spread + 4);
+      for (const slot of COAST_SLOTS) expect(Math.hypot(s.x - slot.x, s.y - slot.y)).toBeGreaterThan(30);
+      expect(s.y).toBeGreaterThan(topAt(s.x));
+      expect(s.y).toBeLessThan(footAt(s.x));
+    }
   });
 });

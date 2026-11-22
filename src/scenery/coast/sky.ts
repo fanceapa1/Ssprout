@@ -12,7 +12,8 @@ import type { SkyPainters } from '../types';
 import { ARCHITRAVE, COLUMNS, COAST_SKY_LAYOUT, COAST_SKY_RECT, FAR_HILL, HORIZON, PROMONTORY, SKY_TOP, STYLOBATE, skylineAt } from './layout';
 import { PINE_PADS } from './shapes';
 import { columnShapes } from './temple';
-import { HEADLANDS } from './village';
+import { CLOUD_BANKS, CLOUD_STREAKS, GAP_ISLANDS, HEADLANDS } from './distance';
+import { createRng } from '../../core/rng';
 
 export { COAST_SKY_RECT };
 
@@ -56,9 +57,11 @@ export function groundAt(x: number): number {
   return y;
 }
 
-/** How far the sky hangs under the ground line: 4 (no paper at the edge), none on the krepis. */
+/** How far the sky hangs under the ground line: 4 (no paper at the edge), 1.5 over the far hill, none on the krepis. */
 function hangAt(x: number): number {
-  return x > STYLOBATE.x0 && x < STYLOBATE.x1 ? 0.5 : 4;
+  if (x > STYLOBATE.x0 && x < STYLOBATE.x1) return 0.5;
+  // over the far hill's soft edge a thin hang is enough; a deep one reads as a dark rim at dusk
+  return x < FAR_HILL[FAR_HILL.length - 2]!.x - 4 ? 1.5 : 4;
 }
 
 /** The sky's outline: the ground line without the temple and its hang, closed over the plate's top. */
@@ -173,6 +176,86 @@ function cumulus(p: Painter, rng: Rng, x: number, y: number, w: number): void {
   p.glaze(blob(x + w * 0.04, y + w * 0.03, w * 0.42, w * 0.05, rng, { irregularity: 0.3 }), mix(PIGMENTS.shadow, AEGEAN.lilac, 0.4), { rng, opacity: 0.12, deform: 0.5, spread: 0.7 });
 }
 
+/** A cloud's lobes, the same in every light: a flat base, rounded tops built higher toward its middle-left. */
+function bankLobes(bank: (typeof CLOUD_BANKS)[number], i: number): { x: number; y: number; rx: number; ry: number; seed: Rng }[] {
+  const rng = createRng(`coast-cloud-${i}`);
+  const out: { x: number; y: number; rx: number; ry: number; seed: Rng }[] = [];
+  const n = Math.round(bank.w / 34) + 3;
+  for (let k = 0; k < n; k++) {
+    const u = (k + rng.range(0.2, 0.8)) / n - 0.5;
+    const tall = Math.max(0, 1 - Math.abs(u + 0.12) * 2.2) ** 0.8;
+    const r = bank.h * (0.32 + tall * 0.5) * rng.range(0.8, 1.15);
+    out.push({ x: bank.x + u * bank.w, y: bank.y - r * 0.55 - tall * bank.h * 0.35, rx: r * 1.25, ry: r * 0.8, seed: rng.fork(`lobe-${k}`) });
+  }
+  // a second tier on the shoulders of the tallest lobes
+  for (let k = 0; k < Math.max(1, Math.round(n / 3)); k++) {
+    const u = rng.range(-0.3, 0.12);
+    const r = bank.h * rng.range(0.26, 0.38);
+    out.push({ x: bank.x + u * bank.w, y: bank.y - bank.h * 0.78 - r * 0.3, rx: r * 1.2, ry: r * 0.82, seed: rng.fork(`top-${k}`) });
+  }
+  return out;
+}
+
+/** The bank's flat base: a long, thin lens along its foot. */
+const bankBase = (bank: (typeof CLOUD_BANKS)[number], i: number): Pt[] => blob(bank.x - bank.w * 0.04, bank.y - 2, bank.w * 0.52, bank.h * 0.13, createRng(`coast-cloud-base-${i}`), { irregularity: 0.35 });
+
+/**
+ * Midday's clouds lifted out of the wet blue: lost edges, a soft grey belly under each bank, and
+ * a few high streaks drawn out on a slant. Never a cut-out shape.
+ */
+function paintNoonClouds(p: Painter, rng: Rng): void {
+  for (const [i, s] of CLOUD_STREAKS.entries()) streak(p, rng, s, i, null);
+  for (const [i, bank] of CLOUD_BANKS.entries()) {
+    for (const l of bankLobes(bank, i)) {
+      p.lift(blob(l.x, l.y, l.rx, l.ry, l.seed, { irregularity: 0.42 }), { rng, amount: rng.range(0.42, 0.6), deform: 0.55, spread: 0.75, layers: 6, sharpness: 0.08 });
+    }
+    p.lift(bankBase(bank, i), { rng, amount: 0.5, deform: 0.4, spread: 0.6, layers: 5, sharpness: 0.1 });
+    p.glaze(blob(bank.x + bank.w * 0.05, bank.y + 1, bank.w * 0.42, bank.h * 0.16, createRng(`coast-cloud-belly-${i}`), { irregularity: 0.35 }), mix(PIGMENTS.shadow, AEGEAN.lilac, 0.4), {
+      rng,
+      opacity: 0.14,
+      deform: 0.5,
+      spread: 0.7,
+      fade: { angle: -Math.PI / 2, start: 0.4, amount: 0.9, ragged: 0.6 },
+    });
+  }
+}
+
+/**
+ * A low sun's or the night's clouds over the far hill: the bank as a soft wash of the shade's
+ * colour, its lost lower edge, the side toward the light lifted and touched with its colour.
+ */
+function paintLowClouds(p: Painter, rng: Rng, body: Pigment, opacity: number, lit: Pigment | null, streaks: Pigment | null): void {
+  if (streaks) for (const [i, s] of CLOUD_STREAKS.entries()) streak(p, rng, s, i, streaks);
+  const bank = CLOUD_BANKS[0]!;
+  for (const l of bankLobes(bank, 0)) {
+    p.wash(blob(l.x, l.y, l.rx, l.ry, l.seed, { irregularity: 0.42 }), body, {
+      rng,
+      opacity: opacity * rng.range(0.7, 1),
+      deform: 0.3,
+      spread: 0.5,
+      edge: 0.15,
+      sharpness: 0.2,
+      centreLift: 0.2,
+      granulation: 0.1,
+      fade: { angle: Math.PI / 2, start: 0.6, amount: 0.5, ragged: 0.6 },
+      ...(lit ? { drops: [{ pigment: lit, at: { x: l.x + l.rx * 0.5, y: l.y + l.ry * 0.3 }, size: 0.45, alpha: 0.55 }] } : {}),
+    });
+  }
+}
+
+/** A high thin streak, broken in two or three pieces along a slant: lifted at noon, a thin tinted wash in other lights. */
+function streak(p: Painter, rng: Rng, s: (typeof CLOUD_STREAKS)[number], i: number, tint: Pigment | null): void {
+  const shape = createRng(`coast-streak-${i}`);
+  const pieces = shape.int(2, 3);
+  for (let k = 0; k < pieces; k++) {
+    const len = (s.len / pieces) * shape.range(0.7, 1.2);
+    const dx = (k - (pieces - 1) / 2) * (s.len / pieces);
+    const poly = blob(s.x + dx, s.y + dx * s.tilt + shape.range(-2, 2), len / 2, shape.range(1.4, 2.6), shape, { irregularity: 0.5, rotation: s.tilt });
+    if (tint) p.glaze(poly, tint, { rng, opacity: 0.16, deform: 0.5, spread: 0.6 });
+    else p.lift(poly, { rng, amount: shape.range(0.25, 0.38), deform: 0.5, spread: 0.7, layers: 5, sharpness: 0.05 });
+  }
+}
+
 /** Where the night's extra stars may not go: the leaning pine's pads, the olive and the promontory's pines, the temple. */
 const STARLESS: readonly Rect[] = [
   { x: -80, y: 140, w: 400, h: 400 },
@@ -223,7 +306,7 @@ function paintPhaseSky(p: Painter, rng: Rng, phase: DayPhase): void {
       p.glaze(band(SKY_TOP - 40, 170), mix(AEGEAN.zenith, PIGMENTS.ultramarine, 0.12), { rng, opacity: 0.3, fade: { angle: Math.PI / 2, start: 0.5, amount: 1, ragged: 0.5 } });
       // the haze along the horizon, warm and pale, a little thicker over the open sea
       p.glaze(band(270, 420), mix(AEGEAN.haze, PIGMENTS.ochre, 0.1), { rng, opacity: 0.2, deform: 0.05, fade: { angle: -Math.PI / 2, start: 0.3, amount: 1, ragged: 0.5 } });
-      cumulus(p, rng, 330, 176, 96);
+      paintNoonClouds(p, rng);
       cumulus(p, rng, 940, 118, 62);
       break;
     }
@@ -247,6 +330,7 @@ function paintPhaseSky(p: Painter, rng: Rng, phase: DayPhase): void {
       p.glaze(band(320, 420), mix(AEGEAN.pearl, AEGEAN.peach, 0.3), { rng, opacity: 0.3, deform: 0.06, fade: { angle: -Math.PI / 2, start: 0.3, amount: 1, ragged: 0.6 } });
       bar(p, rng, 900, 250, 420, 5, mix(AEGEAN.lilac, PIGMENTS.rose, 0.3), 0.2, lighten(PIGMENTS.gold, 0.2));
       bar(p, rng, 330, 150, 380, 5, mix(AEGEAN.lilac, PIGMENTS.rose, 0.25), 0.12, AEGEAN.peach);
+      paintLowClouds(p, rng, mix(AEGEAN.lilac, AEGEAN.pearl, 0.3), 0.26, lighten(PIGMENTS.gold, 0.35), mix(AEGEAN.lilac, PIGMENTS.rose, 0.3));
       break;
     }
     case 'sunset': {
@@ -279,6 +363,7 @@ function paintPhaseSky(p: Painter, rng: Rng, phase: DayPhase): void {
       bar(p, rng, 1000, 236, 560, 7, mix(PIGMENTS.violet, PIGMENTS.crimson, 0.35), 0.34, mix(AEGEAN.apricot, AEGEAN.ember, 0.5));
       bar(p, rng, 260, 196, 420, 6, mix(PIGMENTS.violet, PIGMENTS.crimson, 0.3), 0.28, AEGEAN.apricot);
       bar(p, rng, 760, 70, 520, 7, mix(PIGMENTS.violet, PIGMENTS.rose, 0.3), 0.22, AEGEAN.rose);
+      paintLowClouds(p, rng, mix(AEGEAN.rose, PIGMENTS.violet, 0.45), 0.3, mix(AEGEAN.apricot, AEGEAN.ember, 0.4), mix(AEGEAN.rose, AEGEAN.apricot, 0.4));
       break;
     }
     case 'night': {
@@ -297,6 +382,7 @@ function paintPhaseSky(p: Painter, rng: Rng, phase: DayPhase): void {
         flowScale: 300,
       });
       p.glaze(band(SKY_TOP - 40, 120), mix(AEGEAN.night, AEGEAN.ink, 0.3), { rng, opacity: 0.24, fade: { angle: Math.PI / 2, start: 0.4, amount: 1, ragged: 0.4 } });
+      paintLowClouds(p, rng, mix(AEGEAN.night, AEGEAN.ink, 0.3), 0.16, null, null);
       for (const s of stars(30, 'stars', COAST_SKY_LAYOUT)) reserveStar(p.ctx, s);
       for (const s of COAST_NIGHT_STARS) reserveStar(p.ctx, s);
       break;
@@ -315,7 +401,7 @@ const DISTANCE: Record<DayPhase, { pigment: Pigment; opacity: number }> = {
 /** The far hill and the headlands take the sky's colour; the village under it keeps most of its white. */
 function paintDistance(p: Painter, rng: Rng, phase: DayPhase): void {
   const d = DISTANCE[phase];
-  for (const shape of [FAR_HILL, ...HEADLANDS]) {
+  for (const shape of [FAR_HILL, ...HEADLANDS, ...GAP_ISLANDS]) {
     p.glaze(shape.map((q) => ({ x: q.x, y: q.y - 1 })), d.pigment, { rng, opacity: d.opacity, deform: 0.04, spread: 0.3, edge: 0, fade: { angle: Math.PI / 2, start: 0.5, amount: 0.5, ragged: 0.4 } });
   }
 }

@@ -4,7 +4,7 @@
  * the stones at the beach's ends). Lit from the left, over the sea. docs/systems/scenery.md › Coast › Rock.
  */
 import type { Rng } from '../../core/rng';
-import { bounds, createSimplex2D, mix, type Painter, type Pigment } from '../../paint';
+import { blob, bounds, createSimplex2D, mix, type Painter, type Pigment } from '../../paint';
 import { resample } from '../../paint/geometry';
 import type { Pt } from '../../render/viewport';
 import type { Strokes } from '../../scene/paint-land';
@@ -13,7 +13,7 @@ import { inView, paintFlight } from './paint-land';
 import { SAND, SEA } from './paint-water';
 import { LIME, band, box, clipBatch, clipTo, ellipse, fillUnder, lineAt, liftBatch, rough, streak, wetBatch, type Mark } from './rock-kit';
 import {
-  BEACH_FLIGHT, BEACH_FLIGHT_BOX, bedAt, CLIFF_STONES, type Fissure, GOAT_TRACKS, fissureAt, fissureFoot, footAt, FORM_NOISE, PROMONTORY_FOOT_LINE, PROMONTORY_FORM, PROMONTORY_TOP_LINE, SHORE_BOULDER_SHAPES,
+  BEACH_FLIGHT, BEACH_FLIGHT_BOX, bedAt, CLIFF_STONES, type Fissure, GOAT_TRACKS, LEDGE_SCRUB, fissureAt, fissureFoot, footAt, FORM_NOISE, PROMONTORY_FOOT_LINE, PROMONTORY_FORM, PROMONTORY_TOP_LINE, SHORE_BOULDER_SHAPES,
   SPLASH_ROCK_SHAPES, topAt, type RockColumn, type RockShape,
 } from './shapes';
 
@@ -66,13 +66,87 @@ export function* paintPromontory(p: Painter, rng: Rng): Strokes {
     drops: [{ pigment: LIME.ochre, at: { x: 760, y: 430 }, size: 0.12, alpha: 0.22 }, { pigment: LIME.grey, at: { x: 1150, y: 420 }, size: 0.2, alpha: 0.3 }],
   });
   yield;
+  yield* paintTint(p, rng.fork('tint'));
   yield* paintPlanes(p, rng.fork('planes'));
   yield* paintBeds(p, rng.fork('beds'));
   yield* paintFissures(p, rng.fork('fissures'));
   yield* paintStains(p, rng.fork('stains'));
+  yield* paintLedgeScrub(p, rng.fork('scrub'));
   yield* paintFoot(p, rng.fork('foot'));
+  yield* paintTide(p, rng.fork('tide'));
   p.ctx.restore();
 }
+
+/** The limestone's own variety: broad soft patches of warmer cream and of cooler grey across the face. */
+function* paintTint(p: Painter, rng: Rng): Strokes {
+  const warm: Mark[] = [];
+  const cool: Mark[] = [];
+  for (let i = 0; i < 16; i++) {
+    const x = rng.range(640, 1640);
+    const y = rng.range(topAt(x) + 8, footAt(x) - 10);
+    const poly = blob(x, y, rng.range(30, 90), rng.range(12, 34), rng, { irregularity: 0.5, rotation: rng.range(-0.3, 0.3) });
+    (rng.chance(0.5) ? warm : cool).push({ poly, alpha: rng.range(0.1, 0.18) });
+  }
+  yield* wetBatch(p, warm, mix(LIME.cream, LIME.ochre, 0.35), { edge: 0.02, sharpness: 0.2, granulation: 0.5 });
+  yield* wetBatch(p, cool, mix(LIME.grey, LIME.shade, 0.4), { edge: 0.02, sharpness: 0.2, granulation: 0.6 });
+}
+
+/** Scrub caught on the ledges (`LEDGE_SCRUB`): a few rounded tufts sitting on the lip, each lobe shaded on its lower right, a sprig hanging over. */
+function* paintLedgeScrub(p: Painter, rng: Rng): Strokes {
+  const body: Mark[] = [];
+  const dark: Mark[] = [];
+  for (const s of LEDGE_SCRUB) {
+    for (let k = rng.int(2, 4); k > 0; k--) {
+      const x = s.x + rng.range(-1, 1) * s.r;
+      const r = s.r * rng.range(0.45, 0.75);
+      const y = s.y - r * 0.6 + rng.range(-0.5, 0.5);
+      body.push({ poly: blob(x, y, r, r * 0.75, rng, { irregularity: 0.4, points: 12 }), alpha: rng.range(0.5, 0.7) });
+      dark.push({ poly: blob(x + r * 0.35, y + r * 0.3, r * 0.6, r * 0.4, rng, { irregularity: 0.35, points: 10 }), alpha: 0.4 });
+    }
+    if (rng.chance(0.5)) dark.push({ poly: streak({ x: s.x + rng.range(-2, 2), y: s.y - 0.5 }, { x: s.x + rng.range(-3, 3), y: s.y + rng.range(4, 9) }, 1.6, rng), alpha: 0.4 });
+    dark.push({ poly: blob(s.x + s.r * 0.4, s.y + 1.2, s.r * 0.9, 0.9, rng, { irregularity: 0.3, points: 10 }), alpha: 0.25 });
+  }
+  yield* wetBatch(p, body, mix(VEG_SCRUB, LIME.grey, 0.3), { edge: 0.2, sharpness: 0.6, granulation: 0.4 });
+  yield* wetBatch(p, dark, mix(VEG_SCRUB, LIME.recess, 0.6), { edge: 0.15, sharpness: 0.6, granulation: 0.3 });
+}
+
+/**
+ * The tide's marks along the seaward foot: a broken band of black lichen above the wet rock, and
+ * above that, where the spray reaches, specks and small crusts of orange lichen.
+ */
+function* paintTide(p: Painter, rng: Rng): Strokes {
+  const x1 = LAND_FOOT + 4;
+  const black: Mark[] = [];
+  const orange: Mark[] = [];
+  const top = (x: number) => footAt(x) - 6 - notchAt(x) * 0.3 - 2.5 * (0.5 + 0.5 * FORM_NOISE(x / 26, 12));
+  for (let x = 634; x < x1; ) {
+    const e = Math.min(x1, x + rng.range(10, 46));
+    if (rng.chance(0.75)) black.push({ poly: rough(band(x, e, (q) => top(q) - rng.range(1.5, 3.5), (q) => top(q) + 2.4, 3), rng, 0.5, 2), alpha: rng.range(0.2, 0.32) });
+    x = e + rng.range(2, 14);
+  }
+  // in loose clusters a little above the black band, never a scatter over the face
+  for (let c = 0; c < 9; c++) {
+    const cx = rng.range(650, x1 - 10);
+    for (let i = rng.int(3, 6); i > 0; i--) {
+      const x = cx + rng.range(-6, 6);
+      const y = top(x) - rng.range(1.5, 6);
+      if (y < topAt(x) + 4) continue;
+      orange.push({ poly: blob(x, y, rng.range(0.5, 1.3), rng.range(0.35, 0.8), rng, { irregularity: 0.4, points: 8 }), alpha: rng.range(0.2, 0.34) });
+    }
+  }
+  // a few crusts on the point's upper face, where the gulls rest
+  for (let i = 0; i < 8; i++) {
+    const x = rng.range(644, 740);
+    const y = rng.range(topAt(x) + 3, topAt(x) + 14);
+    orange.push({ poly: blob(x, y, rng.range(0.8, 2), rng.range(0.5, 1.2), rng, { irregularity: 0.5, points: 9 }), alpha: rng.range(0.18, 0.3) });
+  }
+  yield* wetBatch(p, black, mix(LIME.deep, LIME.wet, 0.4), { edge: 0.15, sharpness: 0.5, granulation: 0.7, granules: 0.25 });
+  yield* wetBatch(p, orange, LICHEN, { edge: 0.2, sharpness: 0.6, granulation: 0.4 });
+}
+
+/** The ledges' scrub and the spray zone's orange lichen. */
+const VEG_SCRUB: Pigment = '#7b8758';
+const LICHEN: Pigment = '#c98a4c';
 
 /** Each block between deep fissures in planes: a narrow shade plane on its right, a half-tone facet on some, the lit face left pale. */
 function* paintPlanes(p: Painter, rng: Rng): Strokes {
