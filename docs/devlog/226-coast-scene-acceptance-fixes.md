@@ -123,11 +123,9 @@ against devlog 225's quiet numbers. Total ms / longest part / parts:
   › the coast's paper margins and far headland (two tests); studio `coast-rock/lip`. Rows GA1.1–3
   in TESTING.md.
 - `npm run typecheck`: clean.
-- Full unit suite after the last rebase (`VITEST_WORKERS=1`, 855 s): 286 files, 3055 tests, one
-  failure: `cat.test.ts` › a tortoise put down on its way (no detour in any seed), caused by moving
-  `mid-4`; with `mid-4` back in place `cat.test.ts` passes (26), and `coast`, `wildlife`, `sites`,
-  `motion`, `shore`, `parts`, `rock`, `veg`, `daylight` and the coast creatures' tests (tortoise,
-  green lizard, goat, cicada, gull, scops owl, rock thrush) pass one file at a time.
+- Full unit suite after the last rebase (`VITEST_WORKERS=1`, 720 s): 286 files, 3060 tests, all
+  passed. (A run one rebase earlier caught `cat.test.ts` › a tortoise put down on its way, no detour
+  in any seed: moving `mid-4` had changed the cat's walk; `mid-4` stays in place now.)
 - E2E, production build on 4369, one worker, one file at a time (before the last rebase, which
   brought only GA2's card texts, and before the last slot nudge): `sceneries` 11 of 12 (the
   Japanese garden ↔ waterfall cross-fade check failed once, then passed twice alone), `scene` 5,
