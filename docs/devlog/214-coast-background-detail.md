@@ -34,7 +34,7 @@ change, so no ADR.
 - **Night**: the harbour light on the mole's post and five warm dabs below it on the water, through
   `LightArt.lights`, which already gets the phase. The village's lit windows were already there
   (ADR 0372). No contract question.
-- **Studio**: `coast-rock/harbour`, `horizon`, `ledges`; `coast-daylight/coast-far-<phase>` and
+- **Studio**: `coast-rock/harbour` (the harbour and the horizon's gap), `ledges`; `coast-daylight/coast-far-<phase>` and
   `coast-harbour-night`.
 
 ## Left out, on purpose
