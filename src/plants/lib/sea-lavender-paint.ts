@@ -4,7 +4,7 @@
  * Used by that species only.
  */
 import { createRng } from '../../core/rng';
-import { bounds, deformPolygon, jitter, padRect, ribbon, smoothPath, type Painter, type Pigment, type Pt } from '../../paint';
+import { bounds, deformPolygon, jitter, mix, padRect, ribbon, smoothPath, type Painter, type Pigment, type Pt } from '../../paint';
 import { ribbonInto } from './shrub-paint';
 
 const TAU = Math.PI * 2;
@@ -117,10 +117,10 @@ export function paintHaze(p: Painter, hazes: readonly HazeMark[]): void {
   const L = p.layer(padRect(bounds(live.flatMap((h) => ellipse(h, 1.1, 8))), 4));
   for (const h of live) {
     const rng = createRng(h.seed);
-    L.fill(deformPolygon(ellipse(h), rng, { depth: 3, variance: 0.22 }), jitter(h.pigment, rng, 0.02), 0.2 * h.alpha);
-    L.fill(deformPolygon(ellipse(h, 0.62), rng, { depth: 3, variance: 0.25 }), jitter(h.pigment, rng, 0.02), 0.14 * h.alpha);
+    L.fill(deformPolygon(ellipse(h), rng, { depth: 3, variance: 0.26 }), jitter(h.pigment, rng, 0.02), 0.09 * h.alpha);
+    L.fill(deformPolygon(ellipse(h, 0.62), rng, { depth: 3, variance: 0.25 }), jitter(h.pigment, rng, 0.02), 0.09 * h.alpha);
   }
-  L.dry({ opacity: 0.8, edge: 0.1, edgeWidth: 1.4, sharpness: 0.3, centreLift: 0.1, granulation: 0.4, flow: 0.5, flowScale: 8, dry: 0.15, darken: 0.05 });
+  L.dry({ opacity: 0.8, edge: 0.04, edgeWidth: 1.4, sharpness: 0.12, centreLift: 0.1, granulation: 0.4, flow: 0.5, flowScale: 8, dry: 0.15, darken: 0.05 });
 }
 
 export interface DotMark {
@@ -134,17 +134,35 @@ export interface DotMark {
   /** a papery highlight lifted to paper */
   glint: boolean;
   seed: number;
+  /** the way the floret faces: a pale funnel with its lilac mouth outward (round when left out) */
+  rot?: number;
 }
 
 const blob = (c: Pt, r: number, n = 7): Pt[] => Array.from({ length: n }, (_, i) => ({ x: c.x + Math.cos((i / n) * TAU) * r, y: c.y + Math.sin((i / n) * TAU) * r * 0.85 }));
 
-/** The flowers: a soft blob each, a deeper wash in some, a lifted papery glint. */
+const oval = (c: Pt, rx: number, ry: number, rot: number, n = 7): Pt[] =>
+  Array.from({ length: n }, (_, i) => {
+    const a = (i / n) * TAU;
+    const x = Math.cos(a) * ry;
+    const y = Math.sin(a) * rx;
+    return { x: c.x + x * Math.cos(rot) - y * Math.sin(rot), y: c.y + x * Math.sin(rot) + y * Math.cos(rot) };
+  });
+
+/** The flowers: a pale papery funnel with a lilac mouth each (or a soft blob), a deeper wash in some, a lifted glint. */
 export function paintDots(p: Painter, dots: readonly DotMark[]): void {
   const live = dots.filter((d) => d.alpha > 0.02 && d.r > 0.15);
   if (!live.length) return;
   const L = p.layer(padRect(bounds(live.flatMap((d) => blob(d.at, d.r * 1.3, 4))), 3));
   for (const d of live) {
     const rng = createRng(d.seed);
+    if (d.rot !== undefined) {
+      const c = Math.cos(d.rot);
+      const s = Math.sin(d.rot);
+      L.fill(deformPolygon(oval({ x: d.at.x - c * d.r * 0.2, y: d.at.y - s * d.r * 0.2 }, d.r * 0.5, d.r * 1.05, d.rot), rng, { depth: 1, variance: 0.1 }), jitter(mix(d.pigment, '#f2ecf2', 0.55), rng, 0.02), 0.75 * d.alpha);
+      L.fill(deformPolygon(blob({ x: d.at.x + c * d.r * 0.55, y: d.at.y + s * d.r * 0.55 }, d.r * 0.62), rng, { depth: 1, variance: 0.12 }), jitter(d.pigment, rng, 0.025), 0.85 * d.alpha);
+      if (d.depth > 0.05) L.fill(blob({ x: d.at.x + c * d.r * 0.7, y: d.at.y + s * d.r * 0.7 }, d.r * 0.32, 5), d.deep, 0.45 * d.depth * d.alpha);
+      continue;
+    }
     L.fill(deformPolygon(blob(d.at, d.r * 1.15), rng, { depth: 1, variance: 0.1 }), jitter(d.pigment, rng, 0.025), 0.85 * d.alpha);
     L.fill(deformPolygon(blob(d.at, d.r * 1.05), rng, { depth: 1, variance: 0.1 }), jitter(d.pigment, rng, 0.02), 0.5 * d.alpha);
     if (d.depth > 0.05) L.fill(deformPolygon(blob({ x: d.at.x + d.r * 0.2, y: d.at.y + d.r * 0.3 }, d.r * 0.7), rng, { depth: 1, variance: 0.1 }), d.deep, 0.4 * d.depth * d.alpha);
