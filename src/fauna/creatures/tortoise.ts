@@ -9,6 +9,7 @@ import { paintSprite, type Sprite } from '../sprite';
 import type { GroundSpot } from '../targets';
 import { BaseCreature, type Ctx, type FaunaWorld } from '../types';
 import { heldSpots } from './bird';
+import { blockerOn, GROUND_ROOM, groundBodies } from './lib/ground';
 import type { CreatureDef } from './lib/def';
 
 /** Drawn a little larger than life (a 16 cm shell would be about 14 units) so the dome reads at the overview. */
@@ -953,9 +954,11 @@ export class Tortoise extends BaseCreature {
   }
 
   private nextPlod(w: FaunaWorld, map: TortoiseMap): void {
-    const held = heldSpots(w).filter((h) => dist(h, this) > 1);
+    const bodies = groundBodies(w, this);
+    const held = [...heldSpots(w).filter((h) => dist(h, this) > 1), ...bodies.map((g) => g.at)];
     const to = choosePlod(map, this.rng, w.view, this.node, this.facing, w.flowers, held, this.scale);
-    if (to === null) {
+    // a cat or another creature on the way: it stays put for now (lib/ground)
+    if (to === null || blockerOn(this, map.nodes[to]!, GROUND_ROOM.tortoise! * 0.5 * this.scale, bodies)) {
       this.setMode('pause', rangeOf(this.rng, TORTOISE_TUNING.pause) / w.speed);
       return;
     }
