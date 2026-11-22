@@ -5,6 +5,7 @@
  */
 import type { Pt } from '../../render/viewport';
 import { CAIQUE } from './layout';
+import { depthOf, swellAt, type SwellPhase } from './swell';
 
 /** An offset (world units) and a clockwise tilt (radians) about the hull's waterline centre `CAIQUE`. */
 export interface CaiquePose {
@@ -17,15 +18,23 @@ const TAU = Math.PI * 2;
 const DEG = Math.PI / 180;
 
 /** The largest offsets and tilt `caiquePose` reaches (each the sum of its terms' amplitudes). */
-export const CAIQUE_SWING = { dx: 0.9, dy: 1.15, angle: 1.9 * DEG } as const;
+export const CAIQUE_SWING = { dx: 0.9, dy: 1.25, angle: 1.9 * DEG } as const;
+
+/** How far out the caique lies (world units of depth): where it meets each swell crest. */
+export const CAIQUE_DEPTH = depthOf(CAIQUE);
+const swell: SwellPhase = { n: 0, since: 0, gap: 1, lift: 0, strength: 0 };
 
 /**
- * Where the boat sits at time `t` (seconds): two bobs and two rolls with long, unrelated periods,
- * and a slow surge on the mooring. Continuous and bounded by `CAIQUE_SWING`; writes into `out`.
+ * Where the boat sits at time `t` (seconds): the swell's crests lifting it (GS1), a chop and two
+ * rolls with long, unrelated periods, and a slow surge on the mooring. Continuous and bounded by
+ * `CAIQUE_SWING`; writes into `out`.
  */
 export function caiquePose(t: number, out: CaiquePose = { dx: 0, dy: 0, angle: 0 }): CaiquePose {
-  out.dy = 0.8 * Math.sin((TAU * t) / 6.7 + 0.6) + 0.35 * Math.sin((TAU * t) / 3.9 + 2.1);
-  out.angle = (1.3 * Math.sin((TAU * t) / 8.3 + 1.4) + 0.6 * Math.sin((TAU * t) / 4.7 + 0.3)) * DEG;
+  // the crest reaches the bow (left) a moment before the stern: a little pitch with the heave
+  const lift = swellAt(CAIQUE_DEPTH, CAIQUE.x, t, swell).lift;
+  const ahead = swellAt(CAIQUE_DEPTH, CAIQUE.x, t + 0.9, swell).lift;
+  out.dy = -0.65 * lift + 0.4 * Math.sin((TAU * t) / 6.7 + 0.6) + 0.2 * Math.sin((TAU * t) / 3.9 + 2.1);
+  out.angle = (0.35 * (lift - ahead) + 1.0 * Math.sin((TAU * t) / 8.3 + 1.4) + 0.5 * Math.sin((TAU * t) / 4.7 + 0.3)) * DEG;
   out.dx = 0.9 * Math.sin((TAU * t) / 23.3 + 1.1);
   return out;
 }
