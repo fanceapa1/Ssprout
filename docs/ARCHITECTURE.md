@@ -29,7 +29,7 @@ src/
     schedule-controller.ts the scheduler: the API for schedules, the due tick, `schedule:due`
     rewards.ts            tier from minutes, selectable species per total
     plans.ts              study plans: recommendPlans(total), plan validation
-    placement.ts          slot compatibility (habitat + size class), swap candidates
+    placement.ts          slot compatibility (habitat + size class + site, ADR 0383), swap candidates
     fauna-unlocks.ts      which rows of a scenery's unlock table a garden has unlocked (generic, ADR 0248)
     tips.ts               tooltip registry + seen/retired logic
     controller.ts         session controller: the single API the UI/widget call (no DOM)
@@ -214,6 +214,7 @@ compares `ctx.scenery.id` with the one it was built for and rebuilds what belong
 export type Tier = 1 | 2 | 3 | 4;
 export type Habitat = 'water' | 'shore' | 'meadow' | 'path' | 'back' | 'rock';
 export type SizeClass = 'small' | 'medium' | 'large' | 'tree';
+export type Site = 'wall' | 'ledge' | 'sea-rock' | 'beach'; // a kind of place inside a habitat (ADR 0383)
 export interface SpeciesDef {
   id: string;                 // kebab-case, equals file name
   name: string;               // "Japanese Iris"
@@ -222,6 +223,7 @@ export interface SpeciesDef {
   range: Range;               // where it grows wild and is planted: the sceneries that offer it (ADR 0250)
   tier: Tier;
   habitats: Habitat[];
+  sites?: Site[];             // the sites it grows on; a slot with a site takes only species listing it (ADR 0383)
   sizeClass: SizeClass;
   /** sprite box in world units at slot scale 1; anchor = base point as fraction of box */
   size: { w: number; h: number };
@@ -295,7 +297,7 @@ uses only these two (through `src/ui/previews.ts`, ADR 0222).
 
 ### Scene geometry & slots (`src/scene/geometry.ts`, `src/scene/slots.ts`)
 ```ts
-export interface Slot { id: string; x: number; y: number; habitat: Habitat; maxSize: SizeClass; scale: number; /* perspective, ~0.55 far … 1.15 near */ }
+export interface Slot { id: string; x: number; y: number; habitat: Habitat; maxSize: SizeClass; scale: number; /* perspective, ~0.55 far … 1.15 near */ site?: Site; }
 export interface SceneGeometry {           // one per scenery (ADR 0241)
   pond: Pt[];                 // still water (pond, plunge pool): closed polygon, world units
   waterline: number;          // y used for reflection mirroring (per point: reflect about local shore y)
@@ -311,6 +313,11 @@ export interface SceneGeometry {           // one per scenery (ADR 0241)
 }
 pavilionOf(scene): Pavilion | null           // structure + the 'lantern' light: what the engawa's painters take
 ```
+
+A slot fits a species when its habitat is one of the species', the species is no larger than its
+`maxSize`, and, if the slot has a `site`, the species lists that site in `sites` (`isCompatible`,
+`fitsSite`; ADR 0383). Only the coast sets sites (its walls, the bastion's ledge, the splash rocks,
+the beach); a slot without one takes any species of its habitat, as before.
 
 The Japanese garden's instance is `gardenScene` (`geometry.ts`; its scenery's `geometry`): 52 slots,
 11 rocks, 6 stepping stones, the engawa (`structure`), one lantern, the eave (`EAVE`), no streams
@@ -479,7 +486,7 @@ from inside a listener are queued and applied after the current delivery (ADR 00
 Reducers are pure and live in `core/`.
 
 The app reducer is `createReducer(world)` with
-`ReducerWorld = { getSpecies(id): { habitats, sizeClass, tier } | undefined; getSlot(sceneryId, slotId): { id, habitat, maxSize } | undefined; grows?(speciesId, sceneryId): boolean }`
+`ReducerWorld = { getSpecies(id): { habitats, sites?, sizeClass, tier } | undefined; getSlot(sceneryId, slotId): { id, habitat, maxSize, site? } | undefined; grows?(speciesId, sceneryId): boolean }`
 so `session/start` can enforce the earned tier, slot compatibility and the garden's flora (core never imports
 `src/scenery`: `main.ts` injects `slotLookup(id => registered ? getScenery(id).geometry.slots : [])` and
 `floraLookup(species, id => getScenery(id).flora).grows`). `grows` is checked only at `session/start`:

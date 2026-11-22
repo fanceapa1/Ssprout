@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { Habitat, SizeClass, Tier } from '../plants/types';
+import type { Habitat, Site, SizeClass, Tier } from '../plants/types';
 import { findPlan, type StudyPlan } from './plans';
 import {
   createDefaultState,
@@ -12,17 +12,19 @@ import {
 } from './state';
 import { makePlant, MIN, plan, T0 } from './testing';
 
-const SPECIES: Record<string, { habitats: Habitat[]; sizeClass: SizeClass; tier: Tier }> = {
+const SPECIES: Record<string, { habitats: Habitat[]; sizeClass: SizeClass; tier: Tier; sites?: Site[] }> = {
   violet: { habitats: ['meadow', 'rock'], sizeClass: 'small', tier: 1 },
+  samphire: { habitats: ['rock'], sizeClass: 'small', tier: 1, sites: ['sea-rock'] },
   iris: { habitats: ['shore'], sizeClass: 'medium', tier: 2 },
   peony: { habitats: ['meadow'], sizeClass: 'medium', tier: 3 },
   cherry: { habitats: ['back', 'meadow'], sizeClass: 'tree', tier: 4 },
 };
-const SLOTS: Record<string, { id: string; habitat: Habitat; maxSize: SizeClass }> = {
+const SLOTS: Record<string, { id: string; habitat: Habitat; maxSize: SizeClass; site?: Site }> = {
   'meadow-1': { id: 'meadow-1', habitat: 'meadow', maxSize: 'large' },
   'shore-1': { id: 'shore-1', habitat: 'shore', maxSize: 'medium' },
   'back-1': { id: 'back-1', habitat: 'back', maxSize: 'tree' },
   'rock-1': { id: 'rock-1', habitat: 'rock', maxSize: 'small' },
+  'splash-1': { id: 'splash-1', habitat: 'rock', maxSize: 'small', site: 'sea-rock' },
 };
 const world: ReducerWorld = { getSpecies: (id) => SPECIES[id], getSlot: (sc, id) => (sc === 'japanese-garden' ? SLOTS[id] : undefined) };
 const reducer = createReducer(world);
@@ -125,6 +127,12 @@ describe('session/start', () => {
     expectNoop(fresh(), start({ speciesId: 'cherry', slotId: 'meadow-1', goalMinutes: 90 })); // too big
     expectNoop(fresh(), start({ slotId: 'nowhere' }));
     expectNoop(fresh(), start({ speciesId: 'ghost' }));
+  });
+
+  it('requires a species to list the slot’s site, if it has one (ADR 0383)', () => {
+    expectNoop(fresh(), start({ speciesId: 'violet', slotId: 'splash-1' }));
+    expect(running({ speciesId: 'samphire', slotId: 'splash-1' }).session!.slotId).toBe('splash-1');
+    expect(running({ speciesId: 'samphire', slotId: 'rock-1' }).session!.slotId).toBe('rock-1');
   });
 
   it('rejects malformed payloads', () => {

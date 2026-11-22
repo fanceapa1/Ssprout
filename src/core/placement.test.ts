@@ -41,6 +41,15 @@ describe('isCompatible', () => {
     expect(at('tree', 'tree')).toBe(true);
     expect(at('small', 'tree')).toBe(true);
   });
+
+  it('a slot with a site takes only species that list it; one without takes any (ADR 0383)', () => {
+    const seaRock = { ...slot('x', 'rock', 'small'), site: 'sea-rock' as const };
+    expect(isCompatible({ habitats: ['rock'], sizeClass: 'small' }, seaRock)).toBe(false);
+    expect(isCompatible({ habitats: ['rock'], sizeClass: 'small', sites: ['wall'] }, seaRock)).toBe(false);
+    expect(isCompatible({ habitats: ['rock'], sizeClass: 'small', sites: ['wall', 'sea-rock'] }, seaRock)).toBe(true);
+    expect(isCompatible({ habitats: ['meadow'], sizeClass: 'small', sites: ['sea-rock'] }, seaRock)).toBe(false);
+    expect(isCompatible({ habitats: ['rock'], sizeClass: 'small', sites: ['sea-rock'] }, slot('x', 'rock', 'small'))).toBe(true);
+  });
 });
 
 describe('compatibleSlots', () => {

@@ -40,6 +40,11 @@ orchestrator.
   - there are only **2 tree slots** (`cliff-1`, `bank-16`): a tree competes for them;
   - the large water slots are **`pool-1` and `pool-2`**; `pool-3`/`pool-4` are medium;
   - the crown of the cliff (`cliff-3..5`) is at scale 0.6.
+- **`sites`** (ADR 0383): a slot with a `site` takes only species that list it. Only the Greek coast
+  sets sites: its terrace walls and cracks (`wall`), the bastion's headland ledge (`ledge`), the
+  splash rocks in the sea (`sea-rock`) and the beach (`beach`). A coast species lists the ones where
+  it really grows (docs/research/coast-biome.md): a woodland or garden plant never takes `sea-rock`
+  or `beach`. Add its coast slots to the table in `src/scenery/coast/sites.test.ts`.
 - **`pollinators`** (bees and butterflies visit), **`reflect`** (defaults to true on water/shore),
   **`bloomColor`** (hex; UI swatch and bee targeting).
 - **`draw(p, rng, { w, h, growth })`**: deterministic for (seed, growth, w, h), inside its box, no

@@ -1,18 +1,18 @@
-import { fitsSize, type SpeciesDef } from '../plants/types';
+import { fitsSite, fitsSize, type SpeciesDef } from '../plants/types';
 import type { Slot } from '../scene/geometry';
 import type { PlantInstance } from './state';
 
 /**
  * Placement compatibility (SPEC §3 › Placement). A species fits a slot when the slot's habitat
- * is one the species likes and the species' size class is at most the slot's `maxSize`
- * (small < medium < large < tree).
+ * is one the species likes, the species' size class is at most the slot's `maxSize`
+ * (small < medium < large < tree), and the species lists the slot's `site` if it has one (ADR 0383).
  */
 
-export type PlacementSpecies = Pick<SpeciesDef, 'habitats' | 'sizeClass'>;
-export type PlacementSlot = Pick<Slot, 'id' | 'habitat' | 'maxSize'>;
+export type PlacementSpecies = Pick<SpeciesDef, 'habitats' | 'sizeClass' | 'sites'>;
+export type PlacementSlot = Pick<Slot, 'id' | 'habitat' | 'maxSize' | 'site'>;
 
 export function isCompatible(species: PlacementSpecies, slot: Omit<PlacementSlot, 'id'>): boolean {
-  return species.habitats.includes(slot.habitat) && fitsSize(species.sizeClass, slot.maxSize);
+  return species.habitats.includes(slot.habitat) && fitsSize(species.sizeClass, slot.maxSize) && fitsSite(species, slot);
 }
 
 export interface CompatibleSlot<S extends PlacementSlot = Slot> {
