@@ -7,7 +7,8 @@ import { OASIS } from '../../scenery/oasis';
 import { FaunaSim } from '../sim';
 import { wallTopAt } from '../targets';
 import type { Creature } from '../types';
-import greenLizard, { GreenLizard, lizardHomes, lookPose, threatNear, wallPoint } from './green-lizard';
+import type { Sprite } from '../sprite';
+import greenLizard, { drawGreenLizard, GreenLizard, legReach, lizardHomes, LIZARD_REST, lookPose, threatNear, wallPoint, type GreenLizardParts } from './green-lizard';
 
 const plants: PlantInstance[] = [];
 const ONLY = COAST_FAUNA.filter((r) => r.kind === 'green-lizard');
@@ -62,6 +63,21 @@ describe('where the green lizard lives', () => {
   });
 });
 
+describe('one lizard', () => {
+  it('a hand spawn beside the resident is refused; another comes once it is gone', () => {
+    const sim = coastSim(2, { auto: true });
+    run(sim, 30);
+    expect(lizards(sim)).toHaveLength(1);
+    expect(sim.spawn('green-lizard')).toHaveLength(0);
+    run(sim, 5);
+    expect(lizards(sim)).toHaveLength(1);
+    sim.hourOverride = 1;
+    run(sim, 30);
+    expect(lizards(sim)).toHaveLength(0);
+    expect(sim.spawn('green-lizard')).toHaveLength(1);
+  });
+});
+
 describe('a lizard on the wall', () => {
   it('peers out, then basks, looks round, and dashes in legs with stops, staying on its stretch', () => {
     const sim = coastSim(3);
@@ -97,6 +113,29 @@ describe('a lizard on the wall', () => {
       if (was.m === 'dash' && z!.doing() === 'dash' && Math.hypot(z!.x - was.x, z!.y - was.y) > 1.5) fast++;
     }
     expect(fast).toBeGreaterThan(10);
+  });
+
+  it('runs with the trunk’s outer side reaching: fore leg forward, hind leg back, the inner side gathered', () => {
+    for (const bend of [1, -1]) {
+      // the trunk curves toward +y for a bend of +1, so −y is its outer side
+      const outer = -bend;
+      expect(legReach(bend, outer, true)).toBeGreaterThan(0);
+      expect(legReach(bend, outer, false)).toBeLessThan(0);
+      expect(legReach(bend, -outer, true)).toBeLessThan(0);
+      expect(legReach(bend, -outer, false)).toBeGreaterThan(0);
+    }
+    // a diagonal pair moves together: one side's fore leg with the other side's hind leg
+    expect(legReach(1, 1, true)).toBe(legReach(1, -1, false));
+  });
+
+  it('draws with two drawImages: the body with its cast shadow, and the head', () => {
+    const sprite = (): Sprite => ({ img: {} as never, w: 1, h: 1, ox: 0, oy: 0 });
+    const parts: GreenLizardParts = { body: [sprite(), sprite(), sprite()], head: [sprite(), sprite()] };
+    let n = 0;
+    const ctx = new Proxy({} as Record<string, unknown>, { get: (_, key) => (key === 'drawImage' ? () => n++ : () => {}), set: () => true });
+    drawGreenLizard(ctx as never, parts, LIZARD_REST);
+    drawGreenLizard(ctx as never, parts, { ...lookPose(1), frame: 1 });
+    expect(n).toBe(4);
   });
 
   it('looks round with its head lifted, the throat showing', () => {

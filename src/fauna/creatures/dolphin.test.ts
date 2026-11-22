@@ -14,7 +14,7 @@ import { FaunaSim } from '../sim';
 import type { Sprite } from '../sprite';
 import { Stage } from '../stage';
 import { sightedFauna } from '../system';
-import dolphin, { bayOf, dolphinLength, drawRoll, noseAt, OUTLINE, planPass, Pod, rollAt, spanAt, type DolphinParts, type RollKind } from './dolphin';
+import dolphin, { bayOf, dolphinLength, drawRoll, noseAt, OUTLINE, planPass, Pod, rollAt, spanAt, waterlineSpan, type DolphinParts, type RollKind } from './dolphin';
 
 const plants: PlantInstance[] = [];
 const ONLY = COAST_FAUNA.filter((r) => r.kind === 'dolphin');
@@ -75,6 +75,17 @@ describe('the roll', () => {
     expect(Math.min(...Array.from({ length: 41 }, (_, i) => rollAt('low', i / 40).y))).toBeGreaterThanOrEqual(0);
   });
 
+  it('the water parts round the back only while it is out, never wider than the body', () => {
+    for (const kind of ['low', 'high', 'dive', 'leap'] as RollKind[]) {
+      expect(waterlineSpan(kind, 0), kind).toBeNull();
+      expect(waterlineSpan(kind, 1), kind).toBeNull();
+      const mid = waterlineSpan(kind, kind === 'leap' ? 0.1 : 0.5);
+      expect(mid, kind).not.toBeNull();
+      expect(mid![1] - mid![0], kind).toBeLessThanOrEqual(1.2);
+      expect(mid![1] - mid![0], kind).toBeGreaterThan(0.1);
+    }
+  });
+
   it('a dive lifts the tail stock and flukes clear at its end; a leap clears the water, modestly', () => {
     const tail = (u: number) => {
       const q = rollAt('dive', u);
@@ -93,9 +104,10 @@ describe('where the pod swims', () => {
   it('the bay is the coast’s far stage: far out, small, clear of every planting slot', () => {
     expect(bay).not.toBeNull();
     for (const s of COAST_SLOTS) expect(pointInPolygon(s, bay.outline), s.id).toBe(false);
-    // the size: a fleck far out, at most a fifth of the caique (about 76 units)
+    // the size: drawn 3 × life to read at the overview, yet never more than about two fifths of the
+    // caique (about 76 units) at the bay's foot, twice its distance, so the pod stays far out
     const b = bay.outline.map((p) => p.y);
-    expect(dolphinLength(bay, Math.max(...b))).toBeLessThan(76 / 3.5);
+    expect(dolphinLength(bay, Math.max(...b))).toBeLessThan(76 * 0.42);
     expect(dolphinLength(bay, Math.min(...b))).toBeGreaterThan(2);
   });
 
@@ -277,7 +289,7 @@ describe('a pass', () => {
 
 describe('cost', () => {
   const sprite = (): Sprite => ({ img: {} as never, w: 1, h: 1, ox: 0, oy: 0 });
-  const parts: DolphinParts = { body: sprite(), splash: sprite(), bigSplash: sprite(), ring: sprite() };
+  const parts: DolphinParts = { body: sprite(), splash: sprite(), bigSplash: sprite(), ring: sprite(), lip: sprite() };
   const counting = () => {
     const n = { drawImage: 0, clip: 0 };
     const ctx = new Proxy({} as Record<string, unknown>, {
@@ -302,7 +314,8 @@ describe('cost', () => {
       pod.draw('air', none.ctx, sim.world);
       expect(none.n.drawImage).toBe(0);
     });
-    expect(most).toBeLessThanOrEqual(18);
+    // bodies, the water parting at each back, splashes and rings
+    expect(most).toBeLessThanOrEqual(23);
   });
 
   it('updates cheaply', () => {

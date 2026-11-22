@@ -12,10 +12,10 @@ import type { CreatureDef } from './lib/def';
 
 /** Beak tip to fluke notch at perspective 1 (world units): about 2.1 m. */
 export const DOLPHIN_LIFE = 253;
-/** Drawn at this many times life, so an arc still reads at the overview while it stays a fleck far out. */
-export const DOLPHIN_K = 1.8;
+/** Drawn at this many times life, so a rolling back and fin read as a dolphin at the overview while it stays far out. */
+export const DOLPHIN_K = 3;
 /** The painted body's length (world units): its largest size in the bay. */
-const DL = 18;
+const DL = 31;
 const U = DL / 40;
 
 export const DOLPHIN_TUNING = {
@@ -100,8 +100,9 @@ export const OUTLINE: readonly Pt[] = [...BODY, ...FIN, ...FLUKES].map((q) => ({
 
 const COLOURS = {
   belly: '#ece8dc',
-  cape: '#323c48',
-  capeSoft: '#4a5a6a',
+  // a breath of the far bay's haze in the darks, so the pod sits out there and not in front
+  cape: mix('#323c48', '#6a8796', 0.15),
+  capeSoft: mix('#4a5a6a', '#6a8796', 0.15),
   ochre: '#ecc683',
   grey: '#8a96a0',
   shade: mix(PIGMENTS.shadow, '#8a96a0', 0.5),
@@ -151,9 +152,51 @@ export interface DolphinParts {
   splash: Sprite; // base at the origin
   bigSplash: Sprite;
   ring: Sprite; // a ring on the far water, `RING_W` wide
+  lip: Sprite; // the water parting round the back where it breaks the surface, `LIP_W` wide, centred
 }
 
 const RING_W = 16;
+const LIP_W = 20;
+
+/** The water parting at a back: a broken pale lip over a thin dark line, feathered at both ends. */
+function paintLip(p: Painter): void {
+  const rng = p.rng;
+  const h = LIP_W / 2;
+  // a faint darker line where the back cuts the water, and pale water heaped at either end where it parts
+  p.inkLine([{ x: -h * 0.9, y: 0.35 }, { x: 0, y: 0.45 }, { x: h * 0.9, y: 0.35 }], { rng, width: 0.6, opacity: 0.3, breaks: 0.3, wobble: 0.15, pigment: COLOURS.cape, taper: [0.35, 0.35] });
+  for (const s of [-1, 1]) {
+    p.dab({ x: s * h * 0.82, y: 0.15 }, COLOURS.white, { rng, variant: 'leaf', angle: s > 0 ? Math.PI : 0, length: h * 0.45, width: 0.9, opacity: 0.85, layers: 2, edge: 0.05, blend: 'source-over' });
+  }
+  p.inkLine([{ x: -h * 0.5, y: 0.1 }, { x: h * 0.5, y: 0.1 }], { rng, width: 0.5, opacity: 0.35, breaks: 0.5, wobble: 0.2, pigment: COLOURS.white, taper: [0.3, 0.3], blend: 'source-over' });
+}
+
+/** Where a roll's body breaks the water at `u` (body lengths about the surfacing point, facing right): null when it is all under. */
+export function waterlineSpan(kind: RollKind, u: number): [number, number] | null {
+  const q = rollAt(kind, u);
+  const c = Math.cos(q.angle);
+  const sn = Math.sin(q.angle);
+  let lo = Infinity;
+  let hi = -Infinity;
+  const n = OUTLINE.length;
+  for (let i = 0; i < n; i++) {
+    const a = OUTLINE[i]!;
+    const b = OUTLINE[(i + 1) % n]!;
+    const ax = q.x + a.x * c - a.y * sn;
+    const ay = q.y + a.x * sn + a.y * c;
+    const bx = q.x + b.x * c - b.y * sn;
+    const by = q.y + b.x * sn + b.y * c;
+    if (ay < 0) {
+      lo = Math.min(lo, ax);
+      hi = Math.max(hi, ax);
+    }
+    if (ay < 0 !== by < 0) {
+      const x = ax + ((bx - ax) * ay) / (ay - by);
+      lo = Math.min(lo, x);
+      hi = Math.max(hi, x);
+    }
+  }
+  return lo < hi ? [lo, hi] : null;
+}
 
 export function paintDolphin(res: number, seed: number): DolphinParts {
   return {
@@ -163,6 +206,7 @@ export function paintDolphin(res: number, seed: number): DolphinParts {
     ring: paintSprite(res, { w: RING_W + 2, h: 4, ox: RING_W / 2 + 1, oy: 2 }, seed + 3, (p, rng) =>
       p.ripple({ x: 0, y: 0 }, { rng, width: RING_W, count: 1, squash: 0.13, pigment: COLOURS.ring, opacity: 0.4, light: 0.8, lineWidth: 0.45 }),
     ),
+    lip: paintSprite(res, { w: LIP_W + 2, h: 2.6, ox: LIP_W / 2 + 1, oy: 0.9 }, seed + 4, paintLip),
   };
 }
 
@@ -547,6 +591,15 @@ export class Pod extends BaseCreature {
     for (const a of up) {
       const r = a.roll!;
       drawRoll(ctx, parts, r.kind, r.u, r.x, r.y, r.L, r.dir);
+      // the water parting round the back, on the surfacing line
+      const span = waterlineSpan(r.kind, r.u);
+      if (span) {
+        const lip = parts.lip;
+        const wid = (span[1] - span[0]) * r.L * 1.2;
+        ctx.globalAlpha = smoothstep(wid / (0.12 * r.L)) * 0.8;
+        ctx.drawImage(lip.img as CanvasImageSource, r.x + r.dir * ((span[0] + span[1]) / 2) * r.L - (wid / LIP_W) * lip.ox, r.y - lip.oy * (r.L / DL), lip.w * (wid / LIP_W), lip.h * (r.L / DL));
+        ctx.globalAlpha = 1;
+      }
     }
     for (const m of this.splashes) {
       const k = m.age / m.life;

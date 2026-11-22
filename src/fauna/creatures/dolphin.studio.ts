@@ -50,6 +50,32 @@ const rolls: StudioEntry = {
   },
 };
 
+const portrait: StudioEntry = {
+  id: 'portrait',
+  label: 'close portrait (7 px a unit, 24 units long): a low roll at its top (back and falcate fin) · a high roll (the beak) · the leap at its height (the hourglass)',
+  w: 1200,
+  h: 260,
+  render(canvas, { seed, pixelRatio }) {
+    const ctx = canvas.getContext('2d')!;
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    const W = canvas.width / pixelRatio;
+    const p = createPainter(canvas, { seed });
+    p.ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+    p.wash([{ x: 10, y: 170 }, { x: W - 10, y: 170 }, { x: W - 10, y: 250 }, { x: 10, y: 250 }], SEA, { rng: createRng(seed), opacity: 0.55, edge: 0.1, deform: 0.02 });
+    const parts = paintDolphin(7 * pixelRatio, 6100 + (seed % 7));
+    const at = (x: number, kind: RollKind, u: number) => {
+      ctx.setTransform(pixelRatio * 7, 0, 0, pixelRatio * 7, pixelRatio * x, pixelRatio * 170);
+      drawRoll(ctx, parts, kind, u, 0, 0, 24, 1);
+    };
+    at(200, 'low', 0.5);
+    at(580, 'high', 0.5);
+    at(960, 'leap', 0.5);
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    multiplyPaper(canvas);
+  },
+};
+
 const rollsFar: StudioEntry = {
   id: 'roll-overview',
   label: 'the same at the overview’s scale (0.85 px a unit, 11 units long: the bay’s middle)',
@@ -116,6 +142,7 @@ const section: StudioSection = {
   title: 'Fauna · common dolphins, close',
   order: 345,
   entries: [
+    portrait,
     rolls,
     rollsFar,
     bay('pass', 'a pass across the bay at the overview’s scale (0.9 px a unit)', BAY, 360),

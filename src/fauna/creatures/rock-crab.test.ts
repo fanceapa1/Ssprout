@@ -9,7 +9,7 @@ import { FaunaSim } from '../sim';
 import type { Sprite } from '../sprite';
 import { Stage } from '../stage';
 import type { Creature } from '../types';
-import rockCrab, { crabRocks, drawRockCrab, feedPose, RockCrab, rockPoint, ROCK_CRAB_TUNING, type RockCrabParts } from './rock-crab';
+import rockCrab, { crabRocks, drawRockCrab, feedPose, RockCrab, rockPoint, ROCK_CRAB_SIZE, ROCK_CRAB_TUNING, wavePose, type RockCrabParts } from './rock-crab';
 
 const plants: PlantInstance[] = [];
 const ONLY = COAST_FAUNA.filter((r) => r.kind === 'rock-crab');
@@ -84,7 +84,8 @@ describe('a crab on the splash rock', () => {
       if (was && c!.doing() === 'run' && c!.v === was.v) {
         sideways += Math.abs(c!.x - was.x);
         upDown += Math.abs(c!.y - was.y);
-        expect(Math.hypot(c!.x - was.x, c!.y - was.y)).toBeLessThan(ROCK_CRAB_TUNING.speed * 0.05 * 1.1);
+        // at its scale there, with some slack for a rim's unevenly spaced points
+        expect(Math.hypot(c!.x - was.x, c!.y - was.y)).toBeLessThan(ROCK_CRAB_TUNING.speed * 0.05 * sim.world.perspective(c!.y, c!.x) * 1.2);
       }
     }
     expect(sideways).toBeGreaterThan(upDown * 2);
@@ -95,6 +96,61 @@ describe('a crab on the splash rock', () => {
     expect(Math.max(...qs.map((q) => q.pickL))).toBeGreaterThan(0.8);
     expect(Math.max(...qs.map((q) => q.pickR))).toBeGreaterThan(0.8);
     for (const q of qs) expect(Math.min(q.pickL, q.pickR)).toBe(0);
+  });
+
+  it('now and then stops to wave a claw: raised up and out, swung, lowered again', () => {
+    const sim = coastSim(3);
+    const [c] = sim.spawn('rock-crab') as RockCrab[];
+    let raised = 0;
+    let movingRaised = 0;
+    for (let s = 0; s < 400; s += 0.05) {
+      sim.update(0.05, 0);
+      const q = c!.pose(sim.world.t);
+      if (q.waveL > 0.5 || q.waveR > 0.5) {
+        raised++;
+        if (c!.doing() !== 'wave') movingRaised++;
+      }
+    }
+    expect(c!.waves).toBeGreaterThan(2);
+    expect(raised).toBeGreaterThan(20);
+    expect(movingRaised).toBe(0);
+    // one claw at a time, down at both ends, swinging while up
+    for (const side of [1, -1] as const) {
+      const qs = Array.from({ length: 41 }, (_, i) => wavePose(i / 40, 1.8, side));
+      for (const q of qs) expect(Math.min(q.waveL, q.waveR)).toBe(0);
+      expect(Math.max(...qs.map((q) => (side > 0 ? q.waveR : q.waveL)))).toBeGreaterThan(0.95);
+      expect(qs[0]!.waveL + qs[0]!.waveR).toBeLessThan(0.02);
+      expect(qs[40]!.waveL + qs[40]!.waveR).toBeLessThan(0.02);
+      expect(Math.max(...qs.map((q) => q.swing)) - Math.min(...qs.map((q) => q.swing))).toBeGreaterThan(0.5);
+    }
+  });
+
+  it('fits every rock and rim it uses: on the stone at both rows, with room to sidle', () => {
+    const w = coastSim().world;
+    for (const r of crabRocks(w)) {
+      const mid = rockPoint(r, 0.5, 1);
+      const s = w.perspective(mid.y, mid.x);
+      // its legs' whole span at the rock's middle, and three body widths of room along the waterline
+      const span = 2.12 * ROCK_CRAB_SIZE * s;
+      const len = Math.hypot(rockPoint(r, 1, 1).x - rockPoint(r, 0, 1).x, rockPoint(r, 1, 1).y - rockPoint(r, 0, 1).y);
+      expect(len, r.id).toBeGreaterThan(span);
+      expect(len, r.id).toBeGreaterThan(3 * ROCK_CRAB_SIZE * s);
+    }
+    // stopped anywhere, its shell is on the rock, not past an end
+    const sim = coastSim(9);
+    const [c] = sim.spawn('rock-crab') as RockCrab[];
+    let stops = 0;
+    for (let t = 0; t < 400; t += 0.1) {
+      sim.update(0.1, 0);
+      if (!['stop', 'feed', 'wave'].includes(c!.doing())) continue;
+      const r = c!.rock;
+      const len = Math.hypot(rockPoint(r, 1, 1).x - rockPoint(r, 0, 1).x, rockPoint(r, 1, 1).y - rockPoint(r, 0, 1).y);
+      const half = (0.5 * ROCK_CRAB_SIZE * sim.world.perspective(c!.y, c!.x)) / len;
+      expect(c!.u, r.id).toBeGreaterThanOrEqual(half);
+      expect(c!.u, r.id).toBeLessThanOrEqual(1 - half);
+      stops++;
+    }
+    expect(stops).toBeGreaterThan(100);
   });
 
   it('freezes when something large comes near, darts off the end of its rock, and comes back after', () => {
@@ -186,7 +242,7 @@ describe('a crab on the splash rock', () => {
 });
 
 describe('the cost', () => {
-  it('draws a frame with five drawImages (six under the swell) and updates cheaply', () => {
+  it('draws a frame with five drawImages (six under the swell, five waving) and updates cheaply', () => {
     const sprite = (): Sprite => ({ img: {} as never, w: 1, h: 1, ox: 0, oy: 0 });
     const parts: RockCrabParts = { shadow: sprite(), body: sprite(), legs: [sprite(), sprite(), sprite()], claw: sprite(), foam: sprite() };
     let n = 0;
@@ -198,6 +254,8 @@ describe('the cost', () => {
     expect(n).toBe(5);
     drawRockCrab(ctx as never, parts, { ...feedPose(0), wash: 1 });
     expect(n).toBe(11);
+    drawRockCrab(ctx as never, parts, wavePose(0.5, 1.8, 1));
+    expect(n).toBe(16);
     const sim = coastSim(2, { hour: 23 });
     sim.spawn('rock-crab', { count: 2 });
     const t0 = performance.now();
