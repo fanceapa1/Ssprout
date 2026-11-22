@@ -227,7 +227,7 @@ export function poseSeaHolly(plant: SeaHolly, g: number): SeaHollyPose {
       const t = ((j + 0.5) / h.bracts) * 2 - 1;
       const angle = th + t * fan;
       const L = h.len * size * lerp(0.8, 1, smooth(open)) * (1 - 0.22 * Math.abs(t));
-      const base = { x: at.x - ax[0] * h.ry * 0.5 * R, y: at.y - ax[1] * h.ry * 0.5 * R };
+      const base = { x: at.x - ax[0] * h.ry * 0.82 * R, y: at.y - ax[1] * h.ry * 0.82 * R };
       const spec: BladeSpec = { base, angle, len: L, wid: h.wid * size * lerp(0.7, 1, open), bend: t * 0.12, teeth: 2, jit: h.jit, wave: 0.03, phase: j };
       bracts.push({
         geom: bladeGeometry(spec, shadowSide(angle)),
