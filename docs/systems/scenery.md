@@ -1118,6 +1118,9 @@ from the upper left (shades and cast shadows fall lower right). Placement is dat
   deepening under the far wall into a dark hollow (where the octopus hides), floor stones, weed at
   the waterline and a soft sheen of sky. The hand-cut water keeps each pool slot in it; it is 0.56
   (the small `pool-3`) to 0.67 of the old ellipse.
+- **Paint time** (devlog 224; production, cold, DPR 2, total / longest part / parts): 97–100 /
+  5.3–5.5 / 594 at 1470 × 750 and 98–100 / 5.4 / 594 at 1440 × 900 (the draft: 93–102 / 5.4–8.2 /
+  245). `shore-rocks`' longest part is 17–26 ms now, raster backlog (devlog 218).
 - **Studio**: `coast-shore` (155): the beach and a pool close up, each painting only the steps
   round the shore, once per seed.
 

@@ -55,7 +55,15 @@ under plants at the overview, but more cobbles would tip it.
 Production build, cold coast, `sceneStats().timings`, DPR 2 (total ms / longest part / parts),
 three runs each, the 1-minute load beside each.
 
-TIMES
+| window | before (draft shore) | after |
+|---|---|---|
+| 1470 × 750 | 93–101 / 5.5 / 245 (load 3.4–3.6) | 97–100 / 5.3–5.5 / 594 (load 3.0–3.2) |
+| 1440 × 900 | 94–102 / 5.4–8.2 / 245 (load 2.8–3.7) | 98–100 / 5.4 / 594 (load 3.1–3.5) |
+
+`shore-rocks`, unchanged code, now runs with the shore after it: its longest part rose from
+7.6–10.5 to 17–26 ms and its total by about 15 ms. That is raster backlog of the earlier steps
+landing on its first composite (devlog 218), not its own work; the total of the two steps is
+about 15 ms over before.
 
 A throwaway probe in the dev server, flushing after every part so each pays only for its own
 work: the shore is 617 parts, 120–129 ms in all, its longest own part 5.7 ms. A first version (one
@@ -79,5 +87,6 @@ the old ring with its cover over it and its slot in it.
 ## Left open
 - The pools' far wall is one even shaded band; a lit facet or two would break it.
 - The crusts and weed in the pools hardly read below a close view.
-- `shore-rocks`' longest part rose from about 8 to 17 ms in the production build: no change to
-  its code; the raster backlog lands elsewhere now that the step order changed (devlog 218).
+- `shore-rocks`' longest part rose from about 8 to 17–26 ms in the production build: no change to
+  its code; the raster backlog lands on it now that the step order changed (devlog 218). A flush
+  between steps in the paint job would spread it.
