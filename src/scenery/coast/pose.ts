@@ -5,7 +5,7 @@
  */
 import type { Pt } from '../../render/viewport';
 import { CAIQUE } from './layout';
-import { depthOf, swellAt, type SwellPhase } from './swell';
+import { bandDepth, swellAt, type SwellPhase } from './swell';
 
 /** An offset (world units) and a clockwise tilt (radians) about the hull's waterline centre `CAIQUE`. */
 export interface CaiquePose {
@@ -20,8 +20,8 @@ const DEG = Math.PI / 180;
 /** The largest offsets and tilt `caiquePose` reaches (each the sum of its terms' amplitudes). */
 export const CAIQUE_SWING = { dx: 0.9, dy: 1.25, angle: 1.9 * DEG } as const;
 
-/** How far out the caique lies (world units of depth): where it meets each swell crest. */
-export const CAIQUE_DEPTH = depthOf(CAIQUE);
+/** How far out the caique lies (world units of depth): the crest line through it, so it lifts as a band passes. */
+export const CAIQUE_DEPTH = bandDepth(CAIQUE);
 const swell: SwellPhase = { n: 0, since: 0, gap: 1, lift: 0, strength: 0 };
 
 /**

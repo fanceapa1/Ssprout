@@ -63,6 +63,13 @@ export function shoreDistance(q: Pt): number {
 
 const contours = new Map<string, Pt[]>();
 
+/** How far a `shoreContour(r, wobble, label)` line wanders at x: it runs where the shore distance is `r` times this. */
+export function contourWander(wobble: number, label: string): (x: number) => number {
+  const rng = createRng(`coast-sea:${label}`);
+  const [f1, f2, p1, p2] = [rng.range(70, 120), rng.range(30, 50), rng.range(0, 7), rng.range(0, 7)];
+  return (x) => 1 + wobble * (0.75 * Math.sin(x / f1 + p1) + 0.25 * Math.sin(x / f2 + p2));
+}
+
 /**
  * The line `r` out from the near shore (stretched units), left to right: in each column, the first
  * point down from the horizon nearer the shore than `r` (wandering by `wobble`), so the line runs
@@ -72,13 +79,12 @@ export function shoreContour(r: number, wobble = 0.3, label = 'contour'): Pt[] {
   const key = `${r}:${wobble}:${label}`;
   const hit = contours.get(key);
   if (hit) return hit;
-  const rng = createRng(`coast-sea:${label}`);
-  const [f1, f2, p1, p2] = [rng.range(70, 120), rng.range(30, 50), rng.range(0, 7), rng.range(0, 7)];
+  const wander = contourWander(wobble, label);
   const top = SEA_RECT.y;
   const bottom = SEA_RECT.y + SEA_RECT.h;
   const line: Pt[] = [];
   for (let x = SEA_RECT.x; x <= SEA_RECT.x + SEA_RECT.w; x += 6) {
-    const rr = r * (1 + wobble * (0.75 * Math.sin(x / f1 + p1) + 0.25 * Math.sin(x / f2 + p2)));
+    const rr = r * wander(x);
     let y = top;
     let prev = top;
     // distance grows at least 2.4 per unit up, so a step can skip ahead by the margin left
