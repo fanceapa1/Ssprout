@@ -75,6 +75,9 @@ describe('ui format helpers', () => {
     // each garden its own line for a shared creature
     expect(faunaArrivalLine('waterfall', 'dragonfly')).toBe('A red dragonfly hovers over the pool.');
     expect(faunaArrivalLine('waterfall', 'koi-1')).toBeNull();
+    // a creature that perches in several places is not tied to one of them (devlog 227)
+    expect(faunaArrivalLine('coast', 'cicada')).toBe('A cicada sings on the trunk of a tree.');
+    expect(faunaArrivalLine('coast', 'scops-owl')).toBe('A scops owl calls after dark.');
   });
 
   it('writes species names in a sentence with proper adjectives kept', () => {
