@@ -112,6 +112,8 @@ const section: StudioSection = {
     scene('coast-dusk', 'blend sunset → night (halfway): dusk', () => pinnedState(blendWeights('sunset', 'night', 0.5), { from: 'sunset', to: 'night', t: 0.5 })),
     scene('coast-temple', 'the temple against the noon sky, close', () => pinnedState(only('midday')), { x: 610, y: 250, w: 300, h: 180 }),
     scene('coast-village-night', 'the village at night, close: lit windows and the chapel lamp', () => pinnedState(only('night')), { x: 80, y: 270, w: 320, h: 140 }),
+    ...PHASES.map((p) => scene(`coast-far-${p}`, `${p}: the far shore close: the clouds over the hill, the village and its harbour, the islands in the gap`, () => pinnedState(only(p)), { x: 0, y: 190, w: 720, h: 230 })),
+    scene('coast-harbour-night', 'the harbour at night, close: the light on the mole and its broken reflection', () => pinnedState(only('night')), { x: 200, y: 340, w: 280, h: 90 }),
     ...PHASES.flatMap((p) => [plate('sky', p), plate('water', p), plate('cast', p)]),
   ],
 };
