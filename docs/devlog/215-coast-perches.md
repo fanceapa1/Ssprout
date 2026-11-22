@@ -81,7 +81,12 @@ sizes.
 `92bd176e` → `6644a587`. Perch counts in the tests held (`branch` ≥ 4: exactly 4 now).
 
 ## Tests
-See the report below.
+New or changed: `wildlife.test.ts` (branch perches on their limb's upper side, thick and bare;
+every perch inside `COAST_SEEN` and the band shown at five landscape windows; the olive's bark
+band across the painted trunk), `veg.test.ts` (the limb literals against `treeWood()`, the hash
+pins), `scops-owl.test.ts` (no seat off a tree perch). Typecheck clean. Full unit suite after the
+rebase on `main`: 281 files, 3000 tests, all pass. E2E, one file at a time, one worker:
+`lazy-creatures` 2, `fauna` 6, `sceneries` 8, `studio` 14, all pass. No full e2e run (as asked).
 
 ## Left open
 - Portrait phones: creatures other than the cicada do not prefer perches in `w.view`.
