@@ -12,6 +12,7 @@ import { approach, clamp, dist, lerp, polygonCentroid, rangeOf, smoothstep, TAU 
 import { paintSprite, type Sprite } from '../sprite';
 import { BaseCreature, type Ctx, type FaunaWorld } from '../types';
 import type { CreatureDef } from './lib/def';
+import { plantCovers, type PlantCover } from './lib/ground';
 
 /** Carapace width at perspective 1 (world units): about 3 × life, so the eyes and marbling read in the close view. */
 export const ROCK_CRAB_SIZE = 11;
@@ -274,6 +275,7 @@ export function rockPoint(r: CrabRock, u: number, v: number): Pt {
 }
 
 const rockCache = new WeakMap<object, CrabRock[]>();
+const blocks = new WeakMap<readonly PlantCover[], Map<CrabRock, RockPlant | null>>();
 
 /** The coast's splash rocks (their `splash-*` faces) and the rock pools' back rims. */
 export function crabRocks(w: Pick<FaunaWorld, 'walls' | 'regions' | 'perches'>): CrabRock[] {
@@ -311,8 +313,52 @@ export function crabRocks(w: Pick<FaunaWorld, 'walls' | 'regions' | 'perches'>):
 
 const inView = (q: Pt, v: Rect, m: number) => q.x > v.x + m && q.x < v.x + v.w - m && q.y > v.y + m && q.y < v.y + v.h - m;
 
-/** A rock for it (in view when it can), not `not`, not one another crab holds. */
-export function chooseRock(rocks: readonly CrabRock[], view: Rect, rng: Rng, taken: readonly CrabRock[], not: CrabRock | null = null): CrabRock | null {
+/** A planted plant on a rock: it `stands` on the crown (the lip is its), and the stretch of the waterline (`u`) it hangs over, if any. */
+export interface RockPlant {
+  stands: boolean;
+  wet: [number, number] | null;
+}
+
+/**
+ * What a planted plant takes of a rock: the crown and its lip when the plant's foot is on it, and
+ * the waterline only where the plant hangs down over it (a tenth of its height below its foot,
+ * `pad` either side). Null when no plant is on the rock.
+ */
+export function plantOnRock(r: CrabRock, covers: readonly PlantCover[], pad: number): RockPlant | null {
+  const xs = r.dry.map((q) => q.x);
+  const [x0, x1] = [Math.min(...xs), Math.max(...xs)];
+  const top = Math.min(...r.dry.map((q) => q.y));
+  const foot = Math.max(...r.wet.map((q) => q.y));
+  const on = covers.filter((c) => c.x1 > x0 && c.x0 < x1 && c.base >= top - 25 && c.base <= foot);
+  if (on.length === 0) return null;
+  let lo = Infinity;
+  let hi = -Infinity;
+  for (let i = 0; i <= 40; i++) {
+    const q = rockPoint(r, i / 40, 1);
+    if (on.some((c) => q.x > c.x0 - pad && q.x < c.x1 + pad && q.y > c.top && q.y < c.base + (c.base - c.top) * 0.1)) {
+      lo = Math.min(lo, i / 40);
+      hi = Math.max(hi, i / 40);
+    }
+  }
+  return { stands: true, wet: lo <= hi ? [lo, hi] : null };
+}
+
+/** Where on the rock it may run (in `u`): the side of the plant it is on, or, from its middle, the wider side; null when there is no room. */
+export function crabRoom(block: [number, number] | null, u: number, m: number): [number, number] | null {
+  if (!block) return [m, 1 - m];
+  const left: [number, number] = [m, block[0] - 0.02];
+  const right: [number, number] = [block[1] + 0.02, 1 - m];
+  const ok = (s: [number, number]) => s[1] - s[0] >= 0.08;
+  if (u <= block[0] && ok(left)) return left;
+  if (u >= block[1] && ok(right)) return right;
+  const sides = [left, right].filter(ok).sort((a, b) => b[1] - b[0] - (a[1] - a[0]));
+  return sides[0] ?? null;
+}
+
+/** A rock for it (in view when it can), not `not`, not one another crab holds, with room beside any plant on it (`room`). */
+export function chooseRock(rocks: readonly CrabRock[], view: Rect, rng: Rng, taken: readonly CrabRock[], not: CrabRock | null = null, room?: (r: CrabRock) => boolean): CrabRock | null {
+  const roomy = room ? rocks.filter(room) : rocks;
+  if (roomy.length > 0 && roomy.length < rocks.length) rocks = roomy;
   const free = rocks.filter((r) => r !== not && !taken.includes(r));
   const pool = free.length > 0 ? free : rocks.filter((r) => r !== not);
   if (pool.length === 0) return rocks[0] ?? null;
@@ -371,6 +417,11 @@ export class RockCrab extends BaseCreature {
     this.stayPut = rangeOf(rng, [...ROCK_CRAB_TUNING.stayPut]);
     this.hideAt(rng.chance(0.5) ? 0 : 1, rangeOf(rng, [...ROCK_CRAB_TUNING.first]));
     this.sync(w);
+    const b = this.block(w)?.wet;
+    if (b && this.u >= b[0] - 0.02 && this.u <= b[1] + 0.02) {
+      this.u = this.toU = b[0] <= 0.02 ? 1 : 0;
+      this.sync(w);
+    }
   }
 
   /** What it is doing (tests). */
@@ -423,12 +474,12 @@ export class RockCrab extends BaseCreature {
         if (this.timer < this.waitFor || big) break;
         if (this.onRock > this.stayPut / sf) this.moveRock(w);
         this.alpha = 0.01;
-        this.startRun(true);
+        this.startRun(true, w);
         break;
       case 'freeze':
         if (this.timer >= this.waitFor) {
-          // round the back of the rock: off its nearer end
-          this.toU = this.u < 0.5 ? 0 : 1;
+          // round the back of the rock: off its nearer end, not past a plant
+          this.toU = this.endFor(w);
           this.toV = this.v;
           this.go('dart');
         }
@@ -444,9 +495,9 @@ export class RockCrab extends BaseCreature {
       case 'wave':
         if (this.timer >= this.waitFor) {
           if (this.leaving || this.onRock > this.stayPut / sf) {
-            this.toU = this.u < 0.5 ? 0 : 1;
+            this.toU = this.endFor(w);
             this.go('dart');
-          } else this.startRun(false);
+          } else this.startRun(false, w);
         }
         break;
     }
@@ -474,8 +525,25 @@ export class RockCrab extends BaseCreature {
     }
   }
 
+  /** What a planted plant takes of its rock (cached per planting), or null. */
+  private block(w: FaunaWorld): RockPlant | null {
+    const cs = plantCovers(w);
+    let byRock = blocks.get(cs);
+    if (!byRock) blocks.set(cs, (byRock = new Map()));
+    if (!byRock.has(this.rock)) byRock.set(this.rock, plantOnRock(this.rock, cs, 0.5 * ROCK_CRAB_SIZE * this.scale));
+    return byRock.get(this.rock)!;
+  }
+
+  /** The end of the rock it hides round: the nearer one on its side of a plant. */
+  private endFor(w: FaunaWorld): number {
+    const b = this.block(w)?.wet;
+    if (b && this.u >= b[1]) return 1;
+    if (b && this.u <= b[0]) return 0;
+    return this.u < 0.5 ? 0 : 1;
+  }
+
   /** A quick sideways run along the rock, sometimes climbing between the lip and the waterline. */
-  private startRun(emerging: boolean): void {
+  private startRun(emerging: boolean, w: FaunaWorld): void {
     const T = ROCK_CRAB_TUNING;
     const len = Math.max(1, dist(this.rock.wet[0]!, this.rock.wet[this.rock.wet.length - 1]!));
     const d = rangeOf(this.rng, [...T.run]) / len;
@@ -483,12 +551,17 @@ export class RockCrab extends BaseCreature {
     const m = clamp((0.55 * ROCK_CRAB_SIZE * this.scale) / len, 0.04, 0.3);
     const dir = emerging ? (this.u < 0.5 ? 1 : -1) : this.u < m + 0.08 ? 1 : this.u > 1 - m - 0.08 ? -1 : this.rng.chance(0.5) ? 1 : -1;
     this.toU = clamp(this.u + dir * d * (emerging ? 1.5 : 1), m, 1 - m);
-    const dry = this.rock.dryU;
-    let toV = this.v < 0.5 ? 0 : 1;
+    // keeps to its side of a plant standing on the rock
+    const plant = this.block(w);
+    const room = crabRoom(plant?.wet ?? null, this.u, m);
+    if (room) this.toU = clamp(this.toU, room[0], room[1]);
+    // a plant on the crown has the lip: it keeps to the waterline
+    const dry = plant ? null : this.rock.dryU;
+    let toV = this.v < 0.5 && dry ? 0 : 1;
     if (dry && this.rng.chance(T.climb)) toV = 1 - toV;
     if (toV === 0) {
-      const lo = dry ? Math.max(dry[0], m) : 1;
-      const hi = dry ? Math.min(dry[1], 1 - m) : 0;
+      const lo = dry ? Math.max(dry[0], m, room?.[0] ?? 0) : 1;
+      const hi = dry ? Math.min(dry[1], 1 - m, room?.[1] ?? 1) : 0;
       if (lo <= hi) this.toU = clamp(this.toU, lo, hi);
       else toV = 1;
     }
@@ -517,12 +590,18 @@ export class RockCrab extends BaseCreature {
 
   private moveRock(w: FaunaWorld): void {
     const taken = w.creatures.filter((c): c is RockCrab => c instanceof RockCrab && c !== this && !c.done).map((c) => c.rock);
-    const next = chooseRock(crabRocks(w), w.view, this.rng, taken, this.rock);
+    const cs = plantCovers(w);
+    const pad = 0.5 * ROCK_CRAB_SIZE * this.scale;
+    const roomy = (r: CrabRock) => crabRoom(plantOnRock(r, cs, pad)?.wet ?? null, 0.5, 0.1) !== null;
+    const next = chooseRock(crabRocks(w), w.view, this.rng, taken, this.rock, roomy);
     if (next) this.rock = next;
     this.onRock = 0;
     this.stayPut = rangeOf(this.rng, [...ROCK_CRAB_TUNING.stayPut]);
-    this.u = this.u < 0.5 ? 0 : 1;
-    this.v = this.rock.dryU && this.rng.chance(0.3) ? 0 : 1;
+    // it comes round the end of the rock that a plant does not stand over
+    const plant = this.block(w);
+    const b = plant?.wet;
+    this.u = b && b[0] <= 0.02 ? 1 : b && b[1] >= 0.98 ? 0 : this.u < 0.5 ? 0 : 1;
+    this.v = this.rock.dryU && !plant && this.rng.chance(0.3) ? 0 : 1;
     if (this.v === 0 && this.rock.dryU) this.u = this.u === 0 ? this.rock.dryU[0] : this.rock.dryU[1];
   }
 
@@ -579,7 +658,9 @@ const rockCrab: CreatureDef = {
     const out: RockCrab[] = [];
     for (let i = 0; i < Math.max(1, s.count); i++) {
       const rng = w.rng.fork(`rock-crab:${s.seed}:${w.t.toFixed(3)}:${s.index + i}:${w.creatures.length}`);
-      const rock = chooseRock(rocks, w.view, rng, taken);
+      const cs = plantCovers(w);
+      const roomy = (r: CrabRock) => crabRoom(plantOnRock(r, cs, 0.5 * ROCK_CRAB_SIZE * w.perspective(r.depth))?.wet ?? null, 0.5, 0.1) !== null;
+      const rock = chooseRock(rocks, w.view, rng, taken, null, roomy);
       if (!rock) break;
       out.push(new RockCrab(w, rock, rng));
       taken.push(rock);
