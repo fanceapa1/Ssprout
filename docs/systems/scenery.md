@@ -872,7 +872,9 @@ y    0 ┌───────────────────────�
 woodland or garden plant never stands on a rock in the sea or on the beach. Only the caper, the rock
 samphire and the sea lavender take the splash rocks; only the rock samphire, the sea holly, the sea
 daffodil and the oleander the beach; the caper, the rock samphire, the rock rose and the Jerusalem sage
-the bastion. `src/scenery/coast/sites.test.ts` pins each species' coast slots. `scrub-2` lies on the
+the bastion. `src/scenery/coast/sites.test.ts` pins each species' coast slots. The sheet and the
+placement name a site where a species takes only some of its habitat's: "on the walls", "on the rock
+ledge", "on the splash rocks" (ADR 0386). `scrub-2` lies on the
 beach's sand (the review saw a cyclamen there), so it is a beach slot under its old id.
 
 **Room for large plants.** `scrub-1` is still the one slot a large wild plant (the Aleppo pine, the

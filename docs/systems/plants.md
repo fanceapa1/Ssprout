@@ -301,7 +301,9 @@ the bastion's ledge and splash rocks in the sea, and its `shore` is beach sand w
 spring's margin. A slot may carry a `site` (`wall`, `ledge`, `sea-rock`, `beach`) and a species
 `sites`; a slot with a site takes only species that list it (`fitsSite`, read by `isCompatible`, so
 placement, `session/start` and `addPlants` all follow it). The planting sheet's habitat line names a
-habitat only where some slot of it allows the species' sites. Only the coast sets sites; on the other
+habitat only where some slot of it allows the species' sites, and when the species takes only some
+of that habitat's sites it names those instead (`placesPhrase`, `SITE_WORDS`: "on the splash rocks",
+ADR 0386); the placement markers and prompt name a slot by its site (`slotPlace`). Only the coast sets sites; on the other
 gardens' slots `sites` is never read. The coast's species and their sites:
 
 | Species | wall | ledge | sea-rock | beach |

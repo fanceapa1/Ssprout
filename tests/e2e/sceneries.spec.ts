@@ -278,9 +278,12 @@ test.describe('sceneries · the coast’s slot sites (ADR 0383)', () => {
     await plantSession(page, { species: 'sea-lavender', minutes: 30, begin: false });
     const markers = await page.locator('button.marker[data-slot-id]').evaluateAll((els) => els.map((e) => e.getAttribute('data-slot-id')).sort());
     expect(markers).toEqual(['splash-1', 'splash-2', 'splash-3']);
+    // a slot is named by its site (ADR 0386)
+    await expect(page.locator('button.marker[data-slot-id="splash-1"]')).toHaveAttribute('aria-label', 'Plant here, on the splash rocks');
     await page.locator('.placement-bar').getByRole('button', { name: 'Back to planting' }).click();
     const sheet = page.locator('dialog[data-dialog="planting"]');
-    await expect(sheet.locator('.plant-card[data-species-id="southern-maidenhair"] .plant-habitat')).toHaveText('on the walls and rocks');
+    await expect(sheet.locator('.plant-card[data-species-id="southern-maidenhair"] .plant-habitat')).toHaveText('on the walls');
+    await expect(sheet.locator('.plant-card[data-species-id="sea-lavender"] .plant-habitat')).toHaveText('on the splash rocks');
 
     const misplaced = await page.evaluate(() => {
       const s = window.sprout!;

@@ -2,7 +2,7 @@ import { faunaRow } from '../core/fauna-unlocks';
 import type { SceneryId } from '../core/sceneries';
 import { faunaTable } from '../scenery/fauna';
 import { formatClock, MINUTE_MS } from '../core/session';
-import type { Habitat, Tier } from '../plants/types';
+import { fitsSite, SITES, type Habitat, type Site, type SpeciesDef, type Tier } from '../plants/types';
 import { GARDEN_HABITAT_WORDS } from '../scenery/japanese-garden/flora';
 
 /**
@@ -22,18 +22,55 @@ export function habitatPhrase(habitats: readonly Habitat[], words: Readonly<Reco
   return habitats.map((h) => words[h]).join(' · ');
 }
 
+/** How a site is named where a habitat's word is too broad for it (ADR 0386). */
+export const SITE_WORDS: Readonly<Record<Site, string>> = {
+  wall: 'on the walls',
+  ledge: 'on the rock ledge',
+  'sea-rock': 'on the splash rocks',
+  beach: 'on the beach',
+};
+
+/** Where a slot is, in the garden's words: its site's when it has one, else its habitat's. */
+export function slotPlace(slot: { habitat: Habitat; site?: Site }, words: Readonly<Record<Habitat, string>> = GARDEN_HABITAT_WORDS): string {
+  return slot.site ? SITE_WORDS[slot.site] : words[slot.habitat];
+}
+
+/**
+ * The planting sheet's habitat line: each habitat with a slot the species fits, in the garden's
+ * words; a habitat whose sites it takes only some of is named by those sites (ADR 0386).
+ */
+export function placesPhrase(
+  def: Pick<SpeciesDef, 'habitats' | 'sites'>,
+  slots: readonly { habitat: Habitat; site?: Site }[],
+  words: Readonly<Record<Habitat, string>> = GARDEN_HABITAT_WORDS,
+): string {
+  const parts: string[] = [];
+  for (const habitat of def.habitats) {
+    const all = slots.filter((s) => s.habitat === habitat);
+    const fit = all.filter((s) => fitsSite(def, s));
+    if (fit.length === 0) continue;
+    const sites = new Set(fit.map((s) => s.site));
+    const some = !sites.has(undefined) && [...new Set(all.map((s) => s.site))].some((s) => !sites.has(s));
+    if (some) parts.push(...SITES.filter((s) => sites.has(s)).map((s) => SITE_WORDS[s]));
+    else parts.push(words[habitat]);
+  }
+  return [...new Set(parts)].join(' · ');
+}
+
 /** Timer face: `24:13`, `1:05:09`. */
 export const formatTimer = formatClock;
 
-/** "25 minutes", "1 hour", "1 hour 30 minutes" — for screen readers. */
+/** Proper words a name keeps capitalised inside a sentence. */
+const PROPER = new Set(['Japanese', 'Greek', 'Mediterranean', 'Aleppo', 'Jerusalem']);
+
 /**
- * A species name inside a sentence: "your japanese iris" reads wrong, "your Japanese iris" right.
- * Lower-cases the common words, keeps proper adjectives (Japanese).
+ * A species or garden name inside a sentence: "your japanese iris" reads wrong, "your Japanese
+ * iris" right. Lower-cases the common words, keeps proper adjectives and names (`PROPER`).
  */
 export function inSentence(name: string): string {
   return name
     .split(' ')
-    .map((w) => (w === 'Japanese' ? w : w.toLowerCase()))
+    .map((w) => (PROPER.has(w) ? w : w.toLowerCase()))
     .join(' ');
 }
 
