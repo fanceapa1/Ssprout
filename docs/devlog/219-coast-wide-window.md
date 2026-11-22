@@ -25,28 +25,41 @@ band is about 595 units. The other gardens show the same: the Japanese garden an
   other gardens are unchanged.
 - **The slots**: the foreground under the lowest wall is now the painting's foot, with no slot. Ids,
   habitats, sizes and sites are kept; the moved slots take their terrace's lift.
-  `path-1` (790, 975) → (1040, 822) lower · `path-2` (990, 950) → (940, 684) middle · `path-3`
+  `path-1` (790, 975) → (1024, 822) lower · `path-2` (990, 950) → (938, 696) middle · `path-3`
   (846, 946) → (846, 822) lower · `scrub-3` (1300, 965) → (1508, 510) top · `scrub-4` (1580, 960)
-  → (1480, 822) lower · `scrub-5` (700, 985) → (752, 838) lower · `scrub-6` (1180, 960) →
+  → (1498, 826) lower · `scrub-5` (700, 985) → (1360, 834) lower · `scrub-6` (1180, 960) →
   (1300, 834) lower. To make room: `path-4` (870, 792) → (882, 822), `low-1` (812, 826) →
   (812, 822), `mid-1` (880, 684) → (860, 684). Neighbours closer than half a box share a y.
-  The terraces are full near the path: only two places on them are 50–120 from it and clear of
-  every rule, so the path slots stand in a tight row on the lower terrace's front.
+  The places came from a search over every slot rule in `coast.test.ts` plus the wildlife's: the
+  first try put `scrub-5` in front of the shore scrub the tortoise rests in, took two tortoise
+  resting places and two coping perches, and the tortoise lost its grazing and its pairs. The
+  terraces are full near the path: only two places on them are 50–120 from it and clear of every
+  rule, so the path slots stand close on the lower terrace's front.
 - **The painting**: the pools rise to y 866/874/874 (from 892/902/886) and the beach's back to
   y 822–852 (from 840–852); their slots follow (`pool-1…3` at 868/876/876), `beach-2` (300, 822) →
-  (300, 814). The phrygana cushion and the grass tuft at the promontory's foot moved left for
-  `scrub-3`. The shelf, pool rims, shingle, pool water, wildlife regions (`pool-1…3`), the crab's
+  (300, 814). The phrygana cushion at the promontory's foot moved past `scrub-3` to (1570, 514), one
+  more grows at (1330, 513) (the tortoise grazes at both), the grass tuft moved to (1408, 506). The shelf, pool rims, shingle, pool water, wildlife regions (`pool-1…3`), the crab's
   rims and the octopus's pools follow `POOLS`, `BEACH` and `SHELF`; `paint-rocks.ts` is not edited.
-- **Wildlife**: `COAST_SEEN` (ADR 0382) is x 60–1530, y 210–960; the coping perches skip the moved
-  slots by themselves (130 perches).
+- **Wildlife**: `COAST_SEEN` (ADR 0382) is x 60–1530, y 210–960. The coping perches are the same
+  as before (the moved slots keep 26 from them); the tortoise keeps its home scrubs on every
+  terrace, four grazing places and its pairs; the cat's detour test gained seed 51 (in its first
+  ten seeds the cat now never walks a stretch with room to step round: over seeds 1–90 the detour
+  still happens on the middle and lower terraces' east walks).
 
 ## Pins updated
 `rock.test.ts` (the shelf and the pool rims), `water.test.ts` (the beach's back and the pools),
-`veg.test.ts` (the cushion and the tuft). `land.test.ts`, `daylight.test.ts` and `motion.test.ts`
-did not move.
+`veg.test.ts` (the cushions and the tuft). `land.test.ts`, `daylight.test.ts` and `motion.test.ts`
+did not move. `cat.test.ts`: one seed more in the detour test.
 
 ## Looked at
-STATUS_LOOKED
+Overviews (garden planted with 48, noon, DPR 2) before and after at 1470 × 750, 1440 × 900 and
+390 × 844; the Japanese garden, the waterfall and the oasis at 1470 × 750; sunrise, sunset and night
+at 1470 × 750; a close view of the lower terrace's west end; the planting sheet's markers with a low
+slot hovered. At 1470 × 750 the dome now stands about 30 CSS px under "Start studying", the whole
+temple and the clouds over the hill show, the lowest plants stand on painted terrace, and the
+window's foot is the lowest wall fading into the paper as in the other gardens. At 1440 × 900 the
+frame is the same as before; the strip under the lowest wall is now empty paper fade instead of
+ghosts of plants. The phone's frame did not change (only a pool slot there moved up).
 
 ## Tests
 STATUS_TESTS

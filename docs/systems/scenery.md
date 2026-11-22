@@ -883,14 +883,19 @@ large bed on the packed terraces would hide a bed behind it or the olive's trunk
 
 **Moved for the wide window** (GL1b, ADR 0384; ids kept, saved gardens hold them): the seven
 foreground slots went up onto the terraces, where they take the terrace's lift (smaller than before):
-`path-1` (790, 975) → (1040, 822) lower, `path-2` (990, 950) → (940, 684) middle, `path-3` (846, 946)
-→ (846, 822) lower, `scrub-3` (1300, 965) → (1508, 510) top, `scrub-4` (1580, 960) → (1480, 822)
-lower, `scrub-5` (700, 985) → (752, 838) lower, `scrub-6` (1180, 960) → (1300, 834) lower. To make
-room: `path-4` (870, 792) → (882, 822), `low-1` (812, 826) → (812, 822), `mid-1` (880, 684) →
-(860, 684); the pools' slots rose with the pools (868, 876, 876), `beach-2` (300, 822) → (300, 814)
-with the beach's back. Neighbours on one terrace share a y where they are closer than half a box,
-so neither stands over the other's base. The phrygana cushion and the grass tuft at the promontory's
-foot moved left for `scrub-3` ((1500, 512) → (1440, 512), (1478, 508) → (1408, 506)).
+`path-1` (790, 975) → (1024, 822) lower, `path-2` (990, 950) → (938, 696) middle, `path-3` (846, 946)
+→ (846, 822) lower, `scrub-3` (1300, 965) → (1508, 510) top (the promontory's foot right of the
+olive), `scrub-4` (1580, 960) → (1498, 826) lower, `scrub-5` (700, 985) → (1360, 834) lower (by the
+jar), `scrub-6` (1180, 960) → (1300, 834) lower. To make room: `path-4` (870, 792) → (882, 822),
+`low-1` (812, 826) → (812, 822), `mid-1` (880, 684) → (860, 684); the pools' slots rose with the
+pools (868, 876, 876), `beach-2` (300, 822) → (300, 814) with the beach's back. Neighbours on one
+terrace share a y where they are closer than half a box, so neither stands over the other's base.
+The places were searched against every slot rule and the wildlife's: no slot in front of a scrub
+the tortoise rests in, the tortoise's resting places on the walks and the lower wall's coping
+perches kept. The phrygana cushion at the promontory's foot moved past `scrub-3` ((1500, 512) →
+(1570, 514)) and one more grows at (1330, 513), so the tortoise still grazes there; the grass tuft
+(1478, 508) → (1408, 506). The terraces are full: only two places are 50–120 from the path and
+clear of every rule, so the path slots stand close on the lower terrace's front.
 `low-4` (1560, 812, medium) keeps its place: a full 1.25× medium box there reaches x 1638, but no
 place further left clears the middle terrace's beds behind it.
 

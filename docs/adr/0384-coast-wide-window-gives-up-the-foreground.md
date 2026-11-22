@@ -45,8 +45,13 @@ moving only the slots (the sky stays cut).
 ## Consequences
 - Fewer large near plants: the foreground slots took `perspectiveScale(946–985)`, on the terraces
   they take their terrace's (about 0.85 of before).
-- The lower terrace's front is a row of small plants (`scrub-5`, `low-1`, `path-3`, `path-4` at
-  x 752–882); the strip below it holds the path's start, the near jar and phrygana only.
+- The lower terrace's front is a row of small plants (`low-1`, `path-3`, `path-4` at x 812–882,
+  `path-1`, the scrubs by the jar and at the east end); the strip below the lowest wall holds the
+  path's start, the near jar and phrygana only.
+- The terraces are also the wildlife's: the new places keep the tortoise's resting places, its
+  grazing at the scrub and the lower wall's coping perches; one phrygana cushion moves and one is
+  added. The cat test's seeds gain seed 51 (none of the first ten now gives the cat a walk with
+  room to step round).
 - `low-4` (1560, medium) keeps its place: a full medium box there reaches past x 1600; the middle
   terrace's beds behind leave it no room further left. Real medium sprites are narrower than the box.
 - `COAST_SEEN` (ADR 0382) becomes x 60–1530, y 210–960.
