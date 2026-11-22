@@ -72,7 +72,9 @@ Copies: `gs2-*` in the session scratchpad.
   the hull and each splash rock and heals; each wet rock rings as the band reaches its foot; the
   shore break comes in by sections, never past its line, 20 units short of every pool and short of
   every beach slot (new); the area measure reads a sliced blit's destination.
-- Results: see the report of this task (unit suite, typecheck, the six e2e specs).
+- `npm run typecheck` clean; unit suite (2 workers) 284 files, 3036 tests passed.
+- e2e on the production build, one file at a time, one worker: sceneries 9, ambience 6, scene 5,
+  lazy-painters 1, fauna 6, studio 38: all passed. No full e2e run.
 
 ## Left open
 - At the overview the bands are calm and soft; a crest's highlight is faint at 0.9 px a unit.
