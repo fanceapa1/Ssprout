@@ -59,6 +59,9 @@ const RUN = 2.2;
 const HOLD = 0.7;
 const BACK = 3.8;
 const DRY = 6.5;
+/** how long the lace left at the turn takes to break up (s), and how far a crest's arrival strays per reach (s) */
+const LEFT = 3.2;
+const STAGGER = 0.9;
 const NET_SCALE = [
   { x: 0.25, y: 0.095, vx: 0.55, vy: 0.16, a: 0.34 },
   { x: 0.31, y: 0.12, vx: -0.4, vy: 0.22, a: 0.26 },
@@ -260,6 +263,7 @@ export function createCoastMotion(opts: CoastMotionOptions = {}): CoastMotion {
     return lim;
   });
   const phase: SwellPhase = { n: 0, since: 0, gap: 1, lift: 0, strength: 0 };
+  const staggers = tableOf(rng.fork('stagger'));
 
   /** each drifter's start places, more toward the horizon, few over the shallows, none on rock or the boat */
   function placeDrifters(): void {
@@ -294,6 +298,8 @@ export function createCoastMotion(opts: CoastMotionOptions = {}): CoastMotion {
   const gleams: Sprite[] = [];
   const sparks: Sprite[] = [];
   const breakers: Sprite[] = [];
+  const bores: Sprite[] = [];
+  const lefts: Sprite[] = [];
   let net: Sprite | null = null;
   const grid: SwellGrid = { xs: new Float32Array(0), depths: new Float32Array(0), ys: new Float32Array(0), open: new Uint8Array(0) };
   /** each crest layout's pieces: first and last column, band sprite, alpha, a small rise (units) */
@@ -304,7 +310,7 @@ export function createCoastMotion(opts: CoastMotionOptions = {}): CoastMotion {
   let boatDepth = CAIQUE_DEPTH;
   const rings: Sprite[] = [];
   const poolRing: Sprite[] = [];
-  const foam: { lace: Sprite; wet: Sprite; film: Sprite }[] = [];
+  const foam: { lace: Sprite; wet: Sprite; film: Sprite; left: Sprite }[] = [];
   const rockFoam: Sprite[] = [];
   const laps: Sprite[] = [];
   const boat: { plate?: Sprite; light?: Sprite; dark?: Sprite; hull?: Sprite; buoy?: Sprite } = {};
@@ -588,6 +594,42 @@ export function createCoastMotion(opts: CoastMotionOptions = {}): CoastMotion {
       yield* L.dryParts({ ...LIFT, opacity: 0.9, sharpness: 0.7, edgeWidth: 0.6, flow: 0.4, flowScale: 12 });
       featherX(lace.s, box.x, box.x + box.w, 16, 4);
       yield;
+      // the lace left at the turn as the sheet slides away: the same scallops, broken into holes
+      const lr = rng.fork(`left-${i}`);
+      const left = sprite(box.w, box.h, `left-${i}`, 4, box);
+      const LL = left.p.layer(box);
+      for (let u = lr.range(0, 0.02); u < 1; ) {
+        const len = lr.range(0.006, 0.03);
+        if (lr.chance(0.5)) LL.fill(streak(scallop(u), scallop(Math.min(1, u + len)), lr.range(0.6, 1.4), lr), PAPER_WHITE, 0.9);
+        u += len + lr.range(0.01, 0.04);
+      }
+      for (let j = 0; j < 46; j++) {
+        const q = scallop(lr.next());
+        const rr = lr.range(0.3, 0.8);
+        LL.fill(blob(q.x + lr.range(-2, 2), q.y + lr.range(-1.5, 3.5), rr * 1.4, rr, lr, { points: 6 }), PAPER_WHITE, 0.85);
+      }
+      yield* LL.dryParts({ ...LIFT, opacity: 0.85, sharpness: 0.7, edgeWidth: 0.5, flow: 0.4, flowScale: 12 });
+      featherX(left.s, box.x, box.x + box.w, 16, 4);
+      yield;
+      // the bore: the broken white water the lip throws, a soft band behind its front
+      const bore = sprite(box.w, box.h, `bore-${i}`, 3, box);
+      const BG = bore.p.layer(box);
+      const BW = bore.p.layer(box);
+      BG.fill(ribbon(line, () => 3.4, () => -3.4), PAPER_WHITE, 0.7);
+      for (let u = r.range(0, 0.02); u < 1; ) {
+        const len = r.range(0.02, 0.08);
+        const a = along(line, u);
+        const c = along(line, Math.min(1, u + len));
+        const dy = -r.range(0.5, 5.5);
+        if (r.chance(0.85)) BW.fill(streak({ x: a.x, y: a.y + dy }, { x: c.x, y: c.y + dy + r.range(-0.6, 0.6) }, r.range(1.6, 3.2), r), PAPER_WHITE, 0.95);
+        u += len * r.range(0.4, 0.9);
+      }
+      yield* BG.dryParts({ ...LIFT, opacity: 0.65, sharpness: 0.1, edgeWidth: 1.2, flow: 0.6, flowScale: 10 });
+      yield* BW.dryParts({ ...LIFT, opacity: 0.9, sharpness: 0.5, edgeWidth: 0.6, flow: 0.4, flowScale: 12 });
+      featherX(bore.s, box.x, box.x + box.w, 16, 3);
+      bores.push(seal(bore.s));
+      lefts.push(seal(left.s));
+      yield;
       // the breaker: a broken white lip over the darker water of its face, out where it forms
       const brk = sprite(box.w, box.h, `breaker-${i}`, 3, box);
       const B = brk.p.layer(box);
@@ -596,11 +638,11 @@ export function createCoastMotion(opts: CoastMotionOptions = {}): CoastMotion {
         const len = r.range(0.04, 0.13);
         const a = along(line, u);
         const c = along(line, Math.min(1, u + len));
-        F.fill(streak({ x: a.x, y: a.y + 2.2 }, { x: c.x, y: c.y + 2.2 }, r.range(1.6, 2.6), r), mix(SEA.deepTeal, SEA.turquoise, 0.6), 0.3);
-        if (r.chance(0.9)) B.fill(streak({ x: a.x, y: a.y + r.range(-0.5, 0.5) }, { x: c.x, y: c.y + r.range(-0.5, 0.5) }, r.range(1.1, 2.1), r), PAPER_WHITE, 0.95);
+        F.fill(streak({ x: a.x, y: a.y + 2.6 }, { x: c.x, y: c.y + 2.6 }, r.range(2.4, 3.6), r), mix(SEA.deepTeal, SEA.turquoise, 0.4), 0.4);
+        if (r.chance(0.9)) B.fill(streak({ x: a.x, y: a.y + r.range(-0.5, 0.5) }, { x: c.x, y: c.y + r.range(-0.5, 0.5) }, r.range(1.8, 3), r), PAPER_WHITE, 0.95);
         u += len + r.range(0.005, 0.04);
       }
-      yield* F.dryParts({ opacity: 0.45, edge: 0.1, sharpness: 0.15, granulation: 0.2, flow: 0.4 });
+      yield* F.dryParts({ opacity: 0.55, edge: 0.1, sharpness: 0.15, granulation: 0.3, flow: 0.4 });
       yield* B.dryParts({ ...LIFT, opacity: 0.95, sharpness: 0.6, edgeWidth: 0.6, flow: 0.4, flowScale: 12 });
       featherX(brk.s, box.x, box.x + box.w, 16, 3);
       breakers.push(seal(brk.s));
@@ -622,9 +664,9 @@ export function createCoastMotion(opts: CoastMotionOptions = {}): CoastMotion {
       // drawn a run's length down the shingle it covers the sand from the waterline to its edge
       const sheetBox: Rect = { x: box.x, y: b.y - SWASH_MAX - 8, w: box.w, h: b.h + SWASH_MAX + 12 };
       const film = sprite(sheetBox.w, sheetBox.h, `film-${i}`, 2.5, sheetBox);
-      yield* film.p.parts.glaze(ribbon(line, () => 1.6, () => -(SWASH_MAX + 5)), mix(SEA.aqua, SEA.turquoise, 0.3), { rng: r, opacity: 0.55, layers: 5, deform: 0.08, spread: 0.15, edge: 0.25, sharpness: 0.5, fade: { angle: -Math.PI / 2, start: 0.45, amount: 1, ragged: 0.5 } });
+      yield* film.p.parts.glaze(ribbon(line, () => (SWASH_MAX + 5) / 2, () => -(SWASH_MAX + 5) / 2), mix(SEA.aquaPale, PAPER_WHITE, 0.25), { rng: r, opacity: 0.42, layers: 5, deform: 0.06, spread: 0.12, edge: 0.35, sharpness: 0.55, fade: { angle: -Math.PI / 2, start: 0.25, amount: 1, ragged: 0.5 } });
       featherX(film.s, sheetBox.x, sheetBox.x + sheetBox.w, 18, 2.5);
-      foam.push({ lace: seal(lace.s), wet: seal(wet.s), film: seal(film.s) });
+      foam.push({ lace: seal(lace.s), wet: seal(wet.s), film: seal(film.s), left: lefts[i]! });
       yield;
     }
   }
@@ -1183,15 +1225,18 @@ export function createCoastMotion(opts: CoastMotionOptions = {}): CoastMotion {
   };
 
   /** the shore break: a crest forms a white lip out on the water, runs up the shingle, pauses, slides back; the wet sand it leaves dries */
+  /** when crest `n` reaches reach `i`: its place along the beach, and a small stagger of its own, so the line arrives in sections */
+  const reachTime = (n: number, i: number) => arrival(n) + reachDelay[i]! + STAGGER * (staggers[(((n * REACHES + i) % staggers.length) + staggers.length) % staggers.length]! - 0.5);
   const drawFoam = (ctx: CanvasRenderingContext2D | null, t: number, outer: number, marks: Mark[] | null) => {
     for (let i = 0; i < REACHES; i++) {
-      const m = t - reachDelay[i]!;
-      const n = latest(m);
-      const tau = m - arrival(n);
+      let n = latest(t - reachDelay[i]!);
+      if (reachTime(n + 1, i) <= t) n++;
+      else if (reachTime(n, i) > t) n--;
+      const tau = t - reachTime(n, i);
       const st = crestStrength(n);
-      const reach = Math.min(reachLimit[i]!, 7 + 13 * st);
+      const reach = Math.min(reachLimit[i]!, 9 + 15 * st);
       const k = tau < RUN ? 1 - (1 - tau / RUN) ** 2 : tau < RUN + HOLD ? 1 : 1 - smooth((tau - RUN - HOLD) / BACK);
-      const next = m - arrival(n + 1);
+      const next = t - reachTime(n + 1, i);
       const mid = reachMid[i]!;
       counts.wavelet++;
       marks?.push({ element: 'wavelet', index: i, x: mid.x, y: mid.y + reach * k });
@@ -1204,14 +1249,21 @@ export function createCoastMotion(opts: CoastMotionOptions = {}): CoastMotion {
       }
       const f = foam[i];
       if (!ctx || !f) continue;
-      if (forming) place(ctx, breakers[i]!, 0, -out, Math.min(1, 0.35 + crestStrength(n + 1)) * smooth(u / 0.35) * (0.55 + 0.45 * u) * outer);
-      const wet = (0.3 + 0.5 * st) * smooth((tau - RUN * 0.5) / (RUN * 0.6)) * (1 - smooth((tau - RUN - HOLD) / DRY));
+      // the lip rises out on the water, whitening as it comes
+      if (forming) place(ctx, breakers[i]!, 0, -out, Math.min(1, 0.45 + crestStrength(n + 1)) * smooth(u / 0.3) * (0.6 + 0.4 * u) * outer);
+      const wet = (0.4 + 0.5 * st) * smooth((tau - RUN * 0.5) / (RUN * 0.6)) * (1 - smooth((tau - RUN - HOLD) / DRY));
       if (wet > 0.01) place(ctx, f.wet, 0, reach - 1, wet * outer);
-      if (k > 0.02) place(ctx, f.film, 0, reach * k, 0.9 * smooth(k / 0.3) * outer);
+      if (k > 0.02) place(ctx, f.film, 0, reach * k, 0.95 * smooth(k / 0.3) * outer);
+      // it pitches into broken white water that rides the sheet's front and thins as it climbs
+      const boreA = smooth((tau + 0.3) / 0.4) * (1 - smooth((tau - 0.3) / (RUN * 0.9)));
+      if (boreA > 0.01) place(ctx, bores[i]!, 0, reach * k, Math.min(1, 0.55 + st) * boreA * outer);
       // the lip runs on as the sheet's leading edge and thins as it stops
-      if (tau < RUN + HOLD) place(ctx, breakers[i]!, 0, reach * k, Math.min(1, 0.35 + st) * (1 - 0.6 * smooth(tau / (RUN + HOLD))) * outer);
-      const lace = tau < RUN + HOLD ? 0.55 + 0.45 * Math.min(1, tau / 0.4) : 0.22 + 0.78 * k ** 0.7;
+      if (tau < RUN + HOLD) place(ctx, breakers[i]!, 0, reach * k, Math.min(1, 0.5 + st) * (1 - 0.4 * smooth(tau / (RUN + HOLD))) * outer);
+      // the lace rides up, is left at the turn and breaks up there as the sheet slides away from it
+      const lace = tau < RUN + HOLD ? 0.6 + 0.4 * Math.min(1, tau / 0.4) : 0.15 + 0.6 * k ** 1.2;
       place(ctx, f.lace, 0, reach * k, st * lace * outer);
+      const leftA = tau < RUN + HOLD ? 0 : smooth((tau - RUN - HOLD) / 0.5) * (1 - smooth((tau - RUN - HOLD - 0.4) / LEFT));
+      if (leftA > 0.01) place(ctx, f.left, 0, reach, (0.35 + 0.65 * st) * leftA * outer);
     }
   };
 
@@ -1383,7 +1435,7 @@ export function createCoastMotion(opts: CoastMotionOptions = {}): CoastMotion {
     sprites() {
       const all: Record<string, Sprite[]> = {
         light: lights, trough: troughSprites, band: bands, spark: sparks, net: net ? [net] : [], ring: rings, 'pool-ring': poolRing,
-        gleam: gleams, breaker: breakers, lace: foam.map((f) => f.lace), wet: foam.map((f) => f.wet), film: foam.map((f) => f.film),
+        gleam: gleams, breaker: breakers, bore: bores, lace: foam.map((f) => f.lace), left: lefts, wet: foam.map((f) => f.wet), film: foam.map((f) => f.film),
         'rock-foam': rockFoam, lap: laps,
         boat: [boat.plate, boat.light, boat.dark, boat.hull, boat.buoy].filter((s): s is Sprite => !!s),
       };

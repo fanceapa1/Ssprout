@@ -16,8 +16,9 @@ import { CAIQUE, COAST_SKY_LAYOUT, HORIZON } from './layout';
 import { createCoastMotion, MOTION_BOUNDS, PLATE_RECT, WET_ROCKS, type CoastMotion } from './motion';
 import { CAIQUE_DEPTH, CAIQUE_SWING, caiquePose, posePoint } from './pose';
 import { CAIQUE_BOX, CAIQUE_SHAPES, shallowsEdge, shoreward } from './sea';
-import { arrival, CREST_LIFE, crestDepth, delayAt, foamY, swashLimit, swellAt } from './swell';
+import { arrival, CREST_LIFE, crestDepth, delayAt, foamY, SWASH_MAX, swashLimit, swellAt } from './swell';
 import { SPLASH_ROCK_SHAPES } from './shapes';
+import { COAST_SLOTS } from './slots';
 import { COAST_CARRIERS, COAST_WILDLIFE } from './wildlife';
 
 /** A context that logs each blit with its alpha, composite, transform and world area, and each clip. */
@@ -314,7 +315,7 @@ describe('the coast’s water in motion (G6)', () => {
 
   it('keeps every crest band inside its bounds and the sea, and paints its new sprites (GS2)', () => {
     const kinds = new Set(a.m.sprites().map((s) => s.kind));
-    for (const k of ['band', 'gleam']) expect(kinds.has(k), k).toBe(true);
+    for (const k of ['band', 'gleam', 'bore', 'left']) expect(kinds.has(k), k).toBe(true);
     for (let t = 0; t < 120; t += 0.7) {
       for (const k of a.m.marksAt(t).filter((q) => q.element === 'crest')) {
         const B = MOTION_BOUNDS;
@@ -365,6 +366,37 @@ describe('the coast’s water in motion (G6)', () => {
       const sw = swellAt(d, rock.x, start!);
       expect(sw.since, `rock ${i}`).toBeLessThan(0.3);
     }
+  });
+
+  it('runs the shore break in a staggered line, never past its line, into a pool or up to a beach plant (GS2)', () => {
+    // the furthest any run reaches stays off the beach's back, the pools and every beach slot
+    for (let x = -40; x <= 680; x += 8) {
+      const top = foamY(x) + swashLimit(x);
+      expect(top).toBeLessThanOrEqual(foamY(x) + SWASH_MAX);
+      for (const pool of POOL_WATER) {
+        const b = bounds(pool);
+        if (x > b.x - 10 && x < b.x + b.w + 10) expect(top, `x ${x}`).toBeLessThan(b.y - 20);
+      }
+    }
+    for (const s of COAST_SLOTS.filter((q) => q.id.startsWith('beach-'))) {
+      for (let x = s.x - 40; x <= s.x + 40; x += 4) expect(foamY(x) + swashLimit(x), s.id).toBeLessThanOrEqual(s.y - 8);
+    }
+    // the reaches do not take each crest in one fixed order: the line comes in by sections
+    const rises = Array.from({ length: 9 }, () => [] as number[]);
+    const up = Array.from({ length: 9 }, () => false);
+    for (let t = 1; t < 200; t += 0.05) {
+      for (const k of a.m.marksAt(t)) {
+        if (k.element !== 'wavelet') continue;
+        const on = k.y - foamY(k.x) > 3;
+        if (on && !up[k.index]) rises[k.index]!.push(t);
+        up[k.index] = on;
+      }
+    }
+    const crests = Math.min(...rises.map((r) => r.length));
+    expect(crests).toBeGreaterThan(12);
+    const orders = new Set<string>();
+    for (let c = 1; c < crests - 1; c++) orders.add(rises.map((r, i) => [r[c]!, i] as const).sort((p, q) => p[0] - q[0]).map((p) => p[1]).join(''));
+    expect(orders.size).toBeGreaterThan(3);
   });
 
   it('heaves the caique with the swell that passes it', () => {
