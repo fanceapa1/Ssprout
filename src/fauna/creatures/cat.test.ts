@@ -571,7 +571,8 @@ describe('ground creatures keep off each other', () => {
     let detours = 0;
     let met = 0;
     const problems: string[] = [];
-    for (const seed of [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]) {
+    // seed 51 meets it on the middle terrace's east walk with room to step round (devlog 219)
+    for (const seed of [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 51]) {
       const sim = coastSim(seed);
       let k: Cat | undefined;
       type LegT = { from: { x: number; y: number }; to: { x: number; y: number }; kind: string; node: number };

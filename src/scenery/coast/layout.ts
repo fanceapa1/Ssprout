@@ -73,14 +73,14 @@ export const WATERLINE_EDGE: readonly Pt[] = [
 ];
 /** The pebble beach: the waterline, then its back where the rock shelf begins. */
 export const BEACH: readonly Pt[] = [
-  ...WATERLINE_EDGE, { x: 676, y: 846 }, { x: 600, y: 852 }, { x: 420, y: 846 }, { x: 200, y: 840 }, { x: -20, y: 848 },
+  ...WATERLINE_EDGE, { x: 676, y: 846 }, { x: 600, y: 852 }, { x: 420, y: 830 }, { x: 200, y: 822 }, { x: -20, y: 830 },
 ];
 /** The rock shelf below the beach with its pools, out to the bottom-left corner (the paper's margin fades its lower part). */
 export const SHELF: readonly Pt[] = [
-  { x: -20, y: 848 }, { x: 200, y: 840 }, { x: 420, y: 846 }, { x: 600, y: 852 }, { x: 676, y: 846 }, { x: 650, y: 1020 }, { x: -20, y: 1020 },
+  { x: -20, y: 830 }, { x: 200, y: 822 }, { x: 420, y: 830 }, { x: 600, y: 852 }, { x: 676, y: 846 }, { x: 650, y: 1020 }, { x: -20, y: 1020 },
 ];
 export const POOLS: readonly { cx: number; cy: number; rx: number; ry: number }[] = [
-  { cx: 230, cy: 892, rx: 58, ry: 17 }, { cx: 400, cy: 902, rx: 62, ry: 18 }, { cx: 566, cy: 886, rx: 38, ry: 12 },
+  { cx: 230, cy: 866, rx: 58, ry: 17 }, { cx: 400, cy: 874, rx: 62, ry: 18 }, { cx: 566, cy: 874, rx: 38, ry: 12 },
 ];
 /** Rocks in the shallows the spray reaches: base centre x, y and width. */
 export const SPLASH_ROCKS: readonly { x: number; y: number; w: number }[] = [
@@ -265,9 +265,10 @@ export const COAST_SKY_LAYOUT: SkyLayout = {
 /**
  * Where the eye rests: the sea edge under the temple. The portrait crop (600 wide) round it holds
  * the temple, the open sea, the shallows, splash rocks, beach and a pool, and the terraces' left
- * ends; on a 16:9 screen (y 100–1000) it keeps 190 units of sky over the temple.
+ * ends. A wide window gives up the empty foreground, not the sky: at 1470 × 750 (y 179–961) the
+ * chapel, the cloud bank and the temple stand clear of the corner buttons (ADR 0384).
  */
-export const FOCUS: Pt = { x: 760, y: 600 };
+export const FOCUS: Pt = { x: 760, y: 570 };
 
 export const COAST_AMBIENCE: SceneryAmbience = {
   // the beach and the foreground either side of the path

@@ -43,3 +43,6 @@ pine's upper branch at y 150 for its whole stay. The side margins also lift the 
 - Trees are painted into the background, so a perched bird draws over the leaves round it.
   Choosing bare stretches keeps that from reading wrong; foliage in front of a bird would need a
   foreground leaf layer for the scenery trees (a painting and layer change, not made).
+
+## Amendment (2026-11-22, ADR 0384)
+The coast's focus moved to (760, 570): 1470 × 750 now shows y 179–961, so `COAST_SEEN` is x 60–1530, y 210–960 (the perches lie in y 285–860). The moved slots take a few coping perches on the lower wall: 130 perches.

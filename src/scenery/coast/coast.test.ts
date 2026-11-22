@@ -8,7 +8,8 @@ import { bounds, pointInPolygon } from '../../paint/geometry';
 import { floraOf } from '../../plants/flora';
 import { allSpecies } from '../../plants/registry';
 import { HABITATS, SIZE_CLASSES } from '../../plants/types';
-import { MIN_VISIBLE_W, WORLD_H, WORLD_W, type Pt } from '../../render/viewport';
+import { createViewport, MIN_VISIBLE_W, WORLD_H, WORLD_W, type Pt } from '../../render/viewport';
+import { fadeHeight, featherWidth } from '../../ui/stage-edge';
 import type { Slot } from '../../scene/geometry';
 import { FAR_SCALE, NEAR_SCALE, PLANT_SIZES, perspectiveScale, plantScale } from '../../scene/slots';
 import { faunaTable } from '../fauna';
@@ -16,7 +17,7 @@ import { getScenery } from '../registry';
 import { COAST, COAST_ELEMENTS } from '.';
 import { coastScene, POOL_WATER, SEA_WATER } from './geometry';
 import {
-  BEACH, CAIQUE, COAST_HABITAT_WORDS, COAST_SKY_LAYOUT, COLUMNS, copingAt, LAND, LIFT, OLIVE, openSky, PATH, PROMONTORY, SHELF, SHORE_EDGE,
+  BEACH, CAIQUE, CHAPEL, COAST_HABITAT_WORDS, COAST_SKY_LAYOUT, COLUMNS, copingAt, FAR_HILL, LAND, LIFT, OLIVE, openSky, PATH, PROMONTORY, SHELF, SHORE_EDGE,
   silhouetteAt, skylineAt, SPLASH_ROCKS, STYLOBATE, TEMPLE_SHAPES, terraceScale, WALL_TERRACE, WALLS, WATERLINE_EDGE,
 } from './layout';
 import { coastSteps } from './painters';
@@ -130,6 +131,22 @@ describe('coast framing (ADR 0360)', () => {
     const top = Math.max(0, Math.min(100, COAST.view.focus.y - 450));
     expect(temple.y - top).toBeGreaterThanOrEqual(150);
     for (const x of [COAST_SKY_LAYOUT.sunsetX, COAST_SKY_LAYOUT.sunriseX]) expect(inCrop(x, 30), `${x}`).toBe(true);
+  });
+
+  it('shows the chapel, the temple and sky over the hill in every landscape window, and every slot above the bottom fade (ADR 0384)', () => {
+    const domeTop = CHAPEL.y - 12;
+    for (const [w, h] of [[1470, 750], [1440, 900], [1920, 1080], [1280, 720], [1366, 768]] as const) {
+      const v = createViewport(w - 28, h * 0.94, 1, COAST.view.focus);
+      const { y: top, h: vh } = v.visible;
+      // the corner buttons reach 60 CSS px into the stage; 16 px of air under them
+      const clear = top + 76 / v.scale;
+      expect(domeTop, `${w}×${h} dome`).toBeGreaterThanOrEqual(clear);
+      expect(temple.y, `${w}×${h} temple`).toBeGreaterThanOrEqual(clear);
+      expect(Math.min(...FAR_HILL.map((q) => q.y)) - (top + featherWidth(w - 28, h * 0.94) / v.scale), `${w}×${h} sky`).toBeGreaterThanOrEqual(60);
+      // every slot's foot in the first 30 % of the stage's bottom dissolve at most
+      const fade = fadeHeight(h * 0.94) / v.scale;
+      for (const s of slots) expect(s.y, `${w}×${h} ${s.id}`).toBeLessThanOrEqual(top + vh - fade * 0.7);
+    }
   });
 
   it('breaks the shoreline: it juts out and cuts back in, and is no straight line', () => {

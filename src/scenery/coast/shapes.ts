@@ -535,7 +535,7 @@ export const MAQUIS: readonly { x: number; y: number; r: number }[] = (() => {
 
 /** Phrygana cushions (thorny burnet, thyme, spurge): low grey-green domes; centre x, foot y, radius. */
 export const PHRYGANA: readonly { x: number; y: number; r: number; rust: boolean }[] = [
-  { x: 902, y: 520, r: 18, rust: false }, { x: 1500, y: 512, r: 15, rust: true },
+  { x: 902, y: 520, r: 18, rust: false }, { x: 1570, y: 514, r: 15, rust: true }, { x: 1330, y: 513, r: 14, rust: false },
   { x: 822, y: 604, r: 14, rust: true }, { x: 1590, y: 650, r: 16, rust: false },
   { x: 1060, y: 760, r: 12, rust: true },
   { x: 726, y: 800, r: 13, rust: false },
@@ -544,7 +544,7 @@ export const PHRYGANA: readonly { x: number; y: number; r: number; rust: boolean
 
 /** Dry golden grass: base x, y and height. */
 export const GRASS: readonly (readonly [number, number, number])[] = [
-  [930, 512, 22], [1478, 508, 20],
+  [930, 512, 22], [1408, 506, 20],
   [842, 616, 18], [1560, 612, 18], [1240, 610, 16],
   [790, 742, 20], [1200, 752, 18], [1610, 746, 22],
   [748, 866, 22], [1450, 880, 24], [1590, 884, 22],
